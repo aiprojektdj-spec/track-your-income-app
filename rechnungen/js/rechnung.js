@@ -1,0 +1,1118 @@
+var Rechnung = (function() {
+
+    var currentTyp = 'rechnung';
+    var editingInvoice = null;
+    var positionCount = 0;
+
+    // Mergt Unternehmensdaten (Rechnungen-Tab) mit allgemeinen Settings.
+    // Unternehmensdaten haben Vorrang, leere Werte fallen auf Settings zurück.
+    function mergeRechSettings() {
+        var base = Store.getSettings();
+        var ud   = Store.getRechUnternehmen();
+        var merged = Object.assign({}, base);
+        Object.keys(ud).forEach(function(k) {
+            if (ud[k] !== '' && ud[k] !== null && ud[k] !== undefined) {
+                merged[k] = ud[k];
+            }
+        });
+        // inhaber → name Mapping
+        if (ud.inhaber) merged.name = ud.inhaber;
+        // ustMode immer aus getSettings() (Kleinunternehmer-Einstellung)
+        merged.ustMode = base.ustMode;
+        return merged;
+    }
+
+    function getDefaultFaelligkeit() {
+        var d = new Date();
+        d.setDate(d.getDate() + 14);
+        return d.toISOString().split('T')[0];
+    }
+
+    function calcBrutto(invoice) {
+        var settings = Store.getSettings();
+        var isKlein = settings.ustMode === 'klein';
+        var sum = 0;
+        (invoice.positionen || []).forEach(function(pos) {
+            var netto = pos.menge * pos.einzelpreis;
+            var mwst = isKlein ? 0 : (netto * pos.mwstSatz / 100);
+            sum += netto + mwst;
+        });
+        return sum;
+    }
+
+    function render(params) {
+        params = params || {};
+        var settings = mergeRechSettings();
+        var customers = Store.getRechCustomers().filter(function(c) { return !c.archiviert && !c.storniert; });
+        var products = Store.getRechProducts();
+
+        if (params.invoiceId) {
+            var invoices = Store.getRechInvoices();
+            editingInvoice = invoices.find(function(i) { return i.id === params.invoiceId; }) || null;
+            if (editingInvoice) currentTyp = editingInvoice.typ || 'rechnung';
+        } else {
+            editingInvoice = null;
+            if (params.typ) currentTyp = params.typ;
+        }
+
+        var typLabel = currentTyp === 'rechnung' ? 'Rechnung' : currentTyp === 'angebot' ? 'Angebot' : 'Gutschrift';
+        var title = editingInvoice ? (typLabel + ' bearbeiten') : ('Neue ' + (currentTyp === 'gutschrift' ? 'Gutschrift' : (currentTyp === 'angebot' ? 'Neues Angebot' : 'Neue Rechnung')));
+        if (editingInvoice) title = typLabel + ' bearbeiten: ' + Utils.escapeHtml(editingInvoice.nummer || '');
+        else title = currentTyp === 'angebot' ? 'Neues Angebot' : currentTyp === 'gutschrift' ? 'Neue Gutschrift' : 'Neue Rechnung';
+
+        var nummer = editingInvoice ? editingInvoice.nummer : '';
+        var datum = editingInvoice ? editingInvoice.datum : Utils.todayISO();
+        var faelligkeit = editingInvoice ? editingInvoice.faelligkeit : getDefaultFaelligkeit();
+        var kundeId = editingInvoice ? editingInvoice.kundeId : '';
+        var zahlungsbedingungen = editingInvoice ? editingInvoice.zahlungsbedingungen : 'Zahlbar innerhalb von 14 Tagen nach Rechnungserhalt.';
+        var notizen = editingInvoice ? editingInvoice.notizen : '';
+        var status = editingInvoice ? editingInvoice.status : 'offen';
+        var positionen = editingInvoice ? editingInvoice.positionen : [];
+        var datumsOption = editingInvoice ? (editingInvoice.datumsOption || 'faelligkeit') : 'faelligkeit';
+        var lieferdatum = editingInvoice ? (editingInvoice.lieferdatum || '') : '';
+        var lieferVon = editingInvoice ? (editingInvoice.lieferVon || '') : '';
+        var lieferBis = editingInvoice ? (editingInvoice.lieferBis || '') : '';
+
+        var html = '<div class="page-header"><h2>' + title + '</h2></div>';
+
+        html += '<div class="card"><div class="card-header"><div class="card-title">Dokumentdetails</div></div>';
+        html += '<div style="padding: 1rem;">';
+
+        html += '<div class="form-row">';
+        html += '<div class="form-group"><label class="form-label">Dokumenttyp</label>';
+        html += '<select class="form-select" id="invTyp">';
+        html += '<option value="rechnung"' + (currentTyp === 'rechnung' ? ' selected' : '') + '>Rechnung</option>';
+        html += '<option value="angebot"' + (currentTyp === 'angebot' ? ' selected' : '') + '>Angebot</option>';
+        html += '<option value="gutschrift"' + (currentTyp === 'gutschrift' ? ' selected' : '') + '>Gutschrift</option>';
+        html += '</select></div>';
+
+        html += '<div class="form-group"><label class="form-label">Nummer</label>';
+        html += '<input class="form-input" id="invNummer" value="' + Utils.escapeHtml(nummer) + '" placeholder="Wird automatisch generiert"></div>';
+
+        html += '<div class="form-group"><label class="form-label">Datum</label>';
+        html += '<input class="form-input" type="date" id="invDatum" value="' + datum + '"></div>';
+
+        html += '<div class="form-group" id="invFaelligkeitGroup"' + (datumsOption !== 'faelligkeit' ? ' style="display:none;"' : '') + '><label class="form-label">F\u00E4lligkeitsdatum</label>';
+        html += '<input class="form-input" type="date" id="invFaelligkeit" value="' + faelligkeit + '"></div>';
+        html += '<div class="form-group" id="invLieferdatumGroup"' + (datumsOption !== 'lieferdatum' ? ' style="display:none;"' : '') + '><label class="form-label">Lieferdatum</label>';
+        html += '<input class="form-input" type="date" id="invLieferdatum" value="' + lieferdatum + '"></div>';
+        html += '<div class="form-group" id="invLieferzeitraumGroup"' + (datumsOption !== 'lieferzeitraum' ? ' style="display:none;"' : '') + '><label class="form-label">Lieferzeitraum Von</label>';
+        html += '<input class="form-input" type="date" id="invLieferVon" value="' + lieferVon + '" style="margin-bottom:4px;">';
+        html += '<label class="form-label">bis</label>';
+        html += '<input class="form-input" type="date" id="invLieferBis" value="' + lieferBis + '"></div>';
+        html += '<div class="form-group"><label class="form-label">Datumsoptionen</label>';
+        html += '<select class="form-select" id="invDatumsOption">';
+        html += '<option value="nur_datum"' + (datumsOption === 'nur_datum' ? ' selected' : '') + '>Nur Rechnungsdatum</option>';
+        html += '<option value="faelligkeit"' + (datumsOption === 'faelligkeit' ? ' selected' : '') + '>Rechnungsdatum + F\u00E4lligkeitsdatum</option>';
+        html += '<option value="lieferdatum"' + (datumsOption === 'lieferdatum' ? ' selected' : '') + '>Rechnungsdatum + Lieferdatum</option>';
+        html += '<option value="lieferzeitraum"' + (datumsOption === 'lieferzeitraum' ? ' selected' : '') + '>Rechnungsdatum + Lieferzeitraum</option>';
+        html += '</select></div>';
+        html += '<div class="form-group"><label class="form-label">Verkaufsplattform</label>';
+        html += '<select class="form-select" id="invPlattform">';
+        var plattformen = Store.getPlatforms();
+        plattformen.forEach(function(pl) {
+            var sel = (editingInvoice && editingInvoice.verkaufsplattform === pl) ? ' selected' : '';
+            html += '<option value="' + Utils.escapeHtml(pl) + '"' + sel + '>' + Utils.escapeHtml(pl) + '</option>';
+        });
+        html += '</select></div>';
+        html += '</div>';
+
+        html += '<div class="form-row">';
+        html += '<div class="form-group" style="flex:2"><label class="form-label">Kunde</label>';
+        html += '<select class="form-select" id="invKunde">';
+        html += '<option value="">-- Kunde w\u00E4hlen --</option>';
+        customers.forEach(function(c) {
+            var sel = kundeId === c.id ? ' selected' : '';
+            html += '<option value="' + c.id + '"' + sel + '>' + Utils.escapeHtml(c.firma || c.ansprechpartner) + ' (' + Utils.escapeHtml(c.kundennummer || '') + ')</option>';
+        });
+        html += '<option value="__new__">+ Neuen Kunden anlegen</option>';
+        html += '</select></div>';
+        html += '</div>';
+
+        // Inline new customer fields (hidden by default)
+        html += '<div id="newCustomerFields" style="display:none; border: 1px solid var(--border-color, #444); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">';
+        html += '<div class="section-title">Neuer Kunde</div>';
+        html += '<div class="form-row">';
+        html += '<div class="form-group"><label class="form-label">Firma</label><input class="form-input" id="ncFirma"></div>';
+        html += '<div class="form-group"><label class="form-label">Ansprechpartner</label><input class="form-input" id="ncAnsprech"></div>';
+        html += '</div>';
+        html += '<div class="form-row">';
+        html += '<div class="form-group"><label class="form-label">Stra\u00DFe</label><input class="form-input" id="ncStrasse"></div>';
+        html += '<div class="form-group"><label class="form-label">PLZ</label><input class="form-input" id="ncPlz"></div>';
+        html += '<div class="form-group"><label class="form-label">Ort</label><input class="form-input" id="ncOrt"></div>';
+        html += '</div>';
+        html += '<div class="form-row">';
+        html += '<div class="form-group"><label class="form-label">E-Mail</label><input class="form-input" id="ncEmail" type="email"></div>';
+        html += '<div class="form-group"><label class="form-label">Telefon</label><input class="form-input" id="ncTelefon"></div>';
+        html += '</div>';
+        html += '</div>';
+
+        // Absender Info
+        if (settings.firmenname) {
+            html += '<div style="padding: 0.5rem; margin-bottom: 1rem; opacity: 0.7; font-size: 0.85rem;">';
+            html += '<strong>Absender:</strong> ' + Utils.escapeHtml(settings.firmenname || '') + ', ' + Utils.escapeHtml(settings.adresse || '') + ', ' + Utils.escapeHtml(settings.plz || '') + ' ' + Utils.escapeHtml(settings.ort || '');
+            html += '</div>';
+        }
+
+        html += '</div></div>';
+
+        // Positionen
+        html += '<div class="card"><div class="card-header"><div class="card-title">Positionen</div></div>';
+        html += '<div style="padding: 1rem;">';
+        html += '<div id="positionenContainer">';
+
+        if (positionen.length === 0) {
+            positionCount = 1;
+            html += renderPositionRow(0, {});
+        } else {
+            positionCount = positionen.length;
+            positionen.forEach(function(pos, idx) {
+                html += renderPositionRow(idx, pos);
+            });
+        }
+
+        html += '</div>';
+        html += '<button class="btn btn-primary" id="addPosition" style="margin-top: 0.5rem;">+ Position hinzuf\u00FCgen</button>';
+
+        // Summenblock
+        html += '<div id="summenBlock" style="margin-top: 1.5rem; text-align: right;"></div>';
+        html += '</div></div>';
+
+        // Footer fields
+        html += '<div class="card"><div class="card-header"><div class="card-title">Zus\u00E4tzliche Angaben</div></div>';
+        html += '<div style="padding: 1rem;">';
+        html += '<div class="form-group"><label class="form-label">Zahlungsbedingungen</label>';
+        html += '<textarea class="form-textarea" id="invZahlung" rows="2">' + Utils.escapeHtml(zahlungsbedingungen) + '</textarea></div>';
+        html += '<div class="form-group"><label class="form-label">Notizen</label>';
+        html += '<textarea class="form-textarea" id="invNotizen" rows="2">' + Utils.escapeHtml(notizen) + '</textarea></div>';
+        html += '</div></div>';
+
+        // Eigenbelege-Verknüpfung
+        var verknuepfteEB = editingInvoice ? (editingInvoice.verknuepfteEigenbelege || []) : [];
+        html += '<div class="card"><div class="card-header"><div class="card-title">🧾 Verknüpfte Eigenbelege <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(optional)</span></div></div>';
+        html += '<div style="padding: 1rem;">';
+        html += '<p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Eigenbelege verknüpfen die Einkaufskosten direkt mit dieser Rechnung – ideal für vollständige Gewinnübersicht.</p>';
+        html += renderEigenbelegAuswahl(verknuepfteEB);
+        html += '</div></div>';
+
+        // Actions
+        html += '<div class="form-actions" style="margin-top: 1rem;">';
+        html += '<button class="btn btn-primary" id="invSave">Speichern</button> ';
+        html += '<button class="btn btn-success" id="invPreview">Vorschau & PDF</button> ';
+        html += '<button class="btn" id="invCancel">Abbrechen</button>';
+        html += '</div>';
+
+        return html;
+    }
+
+    function renderPositionRow(idx, pos) {
+        var products = Store.getRechProducts();
+        // Lager-Artikel Info für bestehende Verknüpfungen
+        var lagerArtikelId = pos.lagerArtikelId || '';
+        var lagerBtnLabel = '🔗';
+        var lagerBtnTitle = 'Lagerartikel verknüpfen';
+        if (lagerArtikelId) {
+            var allArts = Store.getPurchases(true);
+            var linkedArt = allArts.find(function(a) { return a.id === lagerArtikelId; });
+            if (linkedArt) {
+                lagerBtnLabel = '🔗 ' + Utils.escapeHtml(linkedArt.artikelNr || (linkedArt.marke + ' ' + linkedArt.artikeltyp).trim().slice(0, 12));
+                lagerBtnTitle = 'Verknüpft: ' + Utils.escapeHtml((linkedArt.marke || '') + ' ' + (linkedArt.artikeltyp || '') + ' ' + (linkedArt.beschreibung || ''));
+            }
+        }
+
+        var html = '<div class="form-row position-row" data-idx="' + idx + '" style="align-items: flex-end; border-bottom: 1px solid var(--border-color, #333); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">';
+
+        html += '<div class="form-group" style="flex: 1.5;">';
+        if (idx === 0) html += '<label class="form-label">Produkt</label>';
+        html += '<div style="display:flex;align-items:center;">';
+        html += '<select class="form-select pos-product" data-idx="' + idx + '" style="flex:1;">';
+        html += '<option value="">Manuell</option>';
+        products.forEach(function(p) {
+            html += '<option value="' + p.id + '">' + Utils.escapeHtml(p.name) + '</option>';
+        });
+        html += '</select>';
+        html += '<button class="btn btn-small btn-primary pos-new-prod" data-idx="' + idx + '" title="Neues Produkt anlegen" style="margin-left:4px;">\u2795</button>';
+        html += '</div></div>';
+
+        html += '<div class="form-group" style="flex: 2;">';
+        if (idx === 0) html += '<label class="form-label">Beschreibung</label>';
+        html += '<input class="form-input pos-beschreibung" data-idx="' + idx + '" value="' + Utils.escapeHtml(pos.beschreibung || '') + '"></div>';
+
+        html += '<div class="form-group" style="flex: 0.7;">';
+        if (idx === 0) html += '<label class="form-label">Menge</label>';
+        html += '<input class="form-input pos-menge" type="number" step="0.01" min="0" data-idx="' + idx + '" value="' + (pos.menge || 1) + '"></div>';
+
+        html += '<div class="form-group" style="flex: 0.8;">';
+        if (idx === 0) html += '<label class="form-label">Einheit</label>';
+        html += '<select class="form-select pos-einheit" data-idx="' + idx + '">';
+        html += '<option value="St\u00FCck"' + ((pos.einheit || 'St\u00FCck') === 'St\u00FCck' ? ' selected' : '') + '>St\u00FCck</option>';
+        html += '<option value="Std."' + (pos.einheit === 'Std.' ? ' selected' : '') + '>Std.</option>';
+        html += '<option value="pauschal"' + (pos.einheit === 'pauschal' ? ' selected' : '') + '>pauschal</option>';
+        html += '</select></div>';
+
+        html += '<div class="form-group" style="flex: 1;">';
+        if (idx === 0) html += '<label class="form-label">Einzelpreis</label>';
+        html += '<input class="form-input pos-einzelpreis" type="number" step="0.01" min="0" data-idx="' + idx + '" value="' + (pos.einzelpreis || 0) + '"></div>';
+
+        html += '<div class="form-group" style="flex: 0.7;">';
+        if (idx === 0) html += '<label class="form-label">MwSt</label>';
+        html += '<select class="form-select pos-mwst" data-idx="' + idx + '">';
+        html += '<option value="19"' + ((pos.mwstSatz === undefined || pos.mwstSatz === 19) ? ' selected' : '') + '>19%</option>';
+        html += '<option value="7"' + (pos.mwstSatz === 7 ? ' selected' : '') + '>7%</option>';
+        html += '<option value="0"' + (pos.mwstSatz === 0 ? ' selected' : '') + '>0%</option>';
+        html += '</select></div>';
+
+        html += '<div class="form-group" style="flex: 1;">';
+        if (idx === 0) html += '<label class="form-label">Gesamt</label>';
+        var gesamt = (pos.menge || 1) * (pos.einzelpreis || 0);
+        html += '<input class="form-input pos-gesamt" data-idx="' + idx + '" value="' + gesamt.toFixed(2) + '" readonly style="opacity: 0.7;"></div>';
+
+        // Lager-Verknüpfungs-Spalte
+        html += '<div class="form-group" style="flex: 0.5;">';
+        if (idx === 0) html += '<label class="form-label">Lager</label>';
+        html += '<input type="hidden" class="pos-lager-id" data-idx="' + idx + '" value="' + Utils.escapeHtml(lagerArtikelId) + '">';
+        html += '<button class="btn btn-small pos-lager-btn" data-idx="' + idx + '" title="' + lagerBtnTitle + '" style="font-size:11px;white-space:nowrap;overflow:hidden;max-width:90px;' + (lagerArtikelId ? 'background:rgba(16,185,129,0.15);border-color:var(--success,#10b981);color:var(--success,#10b981);' : '') + '">' + lagerBtnLabel + '</button>';
+        html += '</div>';
+
+        html += '<div class="form-group" style="flex: 0.3;">';
+        if (idx === 0) html += '<label class="form-label">&nbsp;</label>';
+        html += '<button class="btn btn-danger btn-small pos-remove" data-idx="' + idx + '" title="Entfernen">\u2715</button></div>';
+
+        html += '</div>';
+        return html;
+    }
+
+    // ---- Lager-Artikel-Picker ----
+    function showLagerPicker(row) {
+        var allArts = Store.getPurchases(true);
+        var available = allArts.filter(function(a) { return !a.storniert && a.status === 'verfuegbar'; });
+        var currentId = row.querySelector('.pos-lager-id').value;
+
+        var rows = '';
+        if (available.length === 0) {
+            rows = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">Keine verfügbaren Lagerartikel</td></tr>';
+        } else {
+            rows = available.map(function(a) {
+                var isSelected = a.id === currentId;
+                return '<tr style="cursor:pointer;' + (isSelected ? 'background:rgba(124,58,237,0.1);' : '') + '" data-art-id="' + a.id + '" class="lager-picker-row">' +
+                    '<td><span style="font-family:monospace;font-size:11px;color:var(--accent);">' + Utils.escapeHtml(a.artikelNr || '—') + '</span></td>' +
+                    '<td>' + Utils.escapeHtml((a.marke || '') + ' ' + (a.artikeltyp || '')) + '</td>' +
+                    '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;">' + Utils.escapeHtml(a.beschreibung || '') + '</td>' +
+                    '<td>' + Utils.escapeHtml(a.groesse || '') + '</td>' +
+                    '<td style="text-align:right;">' + Utils.formatCurrency(a.einkaufspreis) + '</td>' +
+                    '<td>' + (isSelected ? '<span style="color:var(--success);">✓ Aktiv</span>' : '<button class="btn btn-small btn-primary lp-select" data-id="' + a.id + '">Auswählen</button>') + '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        // Aktuelle Verknüpfung aufheben Button
+        var clearBtn = currentId ? '<button class="btn btn-small btn-danger" id="lpClearBtn" style="margin-left:8px;">🗑 Verknüpfung entfernen</button>' : '';
+
+        var body = '<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary);">Wähle einen verfügbaren Lagerartikel für diese Position aus. Beim Bezahlen der Rechnung wird der Artikel automatisch als <em>Verkauft</em> markiert.</div>';
+        body += '<div style="overflow-x:auto;"><table style="width:100%;font-size:12px;"><thead><tr><th>Art.-Nr.</th><th>Artikel</th><th>Beschreibung</th><th>Größe</th><th>EK-Preis</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+
+        var footer = clearBtn + ' <button class="btn" onclick="RechApp.closeModal()">Schließen</button>';
+        RechApp.showModal('Lagerartikel verknüpfen', body, footer);
+
+        // Events binden
+        document.querySelectorAll('.lp-select').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var artId = this.getAttribute('data-id');
+                var art = allArts.find(function(a) { return a.id === artId; });
+                if (!art) return;
+                // Verknüpfung speichern
+                row.querySelector('.pos-lager-id').value = artId;
+                // Button-Label aktualisieren
+                var lagerBtn = row.querySelector('.pos-lager-btn');
+                if (lagerBtn) {
+                    lagerBtn.textContent = '🔗 ' + (art.artikelNr || (art.marke + ' ' + art.artikeltyp).trim().slice(0, 12));
+                    lagerBtn.title = 'Verknüpft: ' + Utils.escapeHtml((art.marke || '') + ' ' + (art.artikeltyp || '') + ' ' + (art.beschreibung || ''));
+                    lagerBtn.style.background = 'rgba(16,185,129,0.15)';
+                    lagerBtn.style.borderColor = 'var(--success,#10b981)';
+                    lagerBtn.style.color = 'var(--success,#10b981)';
+                }
+                // Beschreibung auto-fill wenn leer
+                var beschEl = row.querySelector('.pos-beschreibung');
+                if (beschEl && !beschEl.value.trim()) {
+                    beschEl.value = ((art.marke || '') + ' ' + (art.artikeltyp || '') + (art.beschreibung ? ' – ' + art.beschreibung : '') + (art.groesse ? ' (Gr. ' + art.groesse + ')' : '')).trim();
+                }
+                Utils.showToast('Lagerartikel verknüpft: ' + (art.artikelNr || art.marke), 'success');
+                RechApp.closeModal();
+            });
+        });
+
+        var clearBtnEl = document.getElementById('lpClearBtn');
+        if (clearBtnEl) {
+            clearBtnEl.addEventListener('click', function() {
+                row.querySelector('.pos-lager-id').value = '';
+                var lagerBtn = row.querySelector('.pos-lager-btn');
+                if (lagerBtn) {
+                    lagerBtn.textContent = '🔗';
+                    lagerBtn.title = 'Lagerartikel verknüpfen';
+                    lagerBtn.style.background = '';
+                    lagerBtn.style.borderColor = '';
+                    lagerBtn.style.color = '';
+                }
+                Utils.showToast('Verknüpfung entfernt', 'info');
+                RechApp.closeModal();
+            });
+        }
+    }
+
+    function collectPositionen() {
+        var rows = document.querySelectorAll('.position-row');
+        var positionen = [];
+        rows.forEach(function(row) {
+            var idx = row.getAttribute('data-idx');
+            var beschreibung = row.querySelector('.pos-beschreibung').value.trim();
+            var menge = parseFloat(row.querySelector('.pos-menge').value) || 0;
+            var einheit = row.querySelector('.pos-einheit').value;
+            var einzelpreis = parseFloat(row.querySelector('.pos-einzelpreis').value) || 0;
+            var mwstSatz = parseInt(row.querySelector('.pos-mwst').value) || 0;
+            var lagerIdEl = row.querySelector('.pos-lager-id');
+            var lagerArtikelId = lagerIdEl ? (lagerIdEl.value || null) : null;
+            if (beschreibung || einzelpreis > 0) {
+                positionen.push({
+                    beschreibung: beschreibung,
+                    menge: menge,
+                    einheit: einheit,
+                    einzelpreis: einzelpreis,
+                    mwstSatz: mwstSatz,
+                    lagerArtikelId: lagerArtikelId
+                });
+            }
+        });
+        return positionen;
+    }
+
+    function updateSummen() {
+        var positionen = collectPositionen();
+        var settings = Store.getSettings();
+        var isKlein = settings.ustMode === 'klein';
+
+        var netto = 0;
+        var mwstMap = {};
+        positionen.forEach(function(pos) {
+            var lineNetto = pos.menge * pos.einzelpreis;
+            netto += lineNetto;
+            if (!isKlein && pos.mwstSatz > 0) {
+                if (!mwstMap[pos.mwstSatz]) mwstMap[pos.mwstSatz] = 0;
+                mwstMap[pos.mwstSatz] += lineNetto * pos.mwstSatz / 100;
+            }
+        });
+
+        var totalMwst = 0;
+        var mwstHtml = '';
+        Object.keys(mwstMap).sort().forEach(function(satz) {
+            totalMwst += mwstMap[satz];
+            mwstHtml += '<div>' + satz + '% MwSt: ' + Utils.formatCurrency(mwstMap[satz]) + '</div>';
+        });
+
+        var brutto = netto + totalMwst;
+
+        var html = '<div style="font-size: 0.95rem;">';
+        html += '<div>Zwischensumme (netto): <strong>' + Utils.formatCurrency(netto) + '</strong></div>';
+        if (isKlein) {
+            html += '<div style="font-style: italic; opacity: 0.7;">Gem. \u00A719 UStG wird keine Umsatzsteuer berechnet.</div>';
+            html += '<div style="font-size: 1.2rem; margin-top: 0.5rem;"><strong>Gesamtbetrag: ' + Utils.formatCurrency(netto) + '</strong></div>';
+        } else {
+            html += mwstHtml;
+            html += '<div style="font-size: 1.2rem; margin-top: 0.5rem;"><strong>Gesamtbetrag: ' + Utils.formatCurrency(brutto) + '</strong></div>';
+        }
+        html += '</div>';
+
+        var block = document.getElementById('summenBlock');
+        if (block) block.innerHTML = html;
+    }
+
+    function updateRowGesamt(row) {
+        var menge = parseFloat(row.querySelector('.pos-menge').value) || 0;
+        var preis = parseFloat(row.querySelector('.pos-einzelpreis').value) || 0;
+        var gesamt = menge * preis;
+        row.querySelector('.pos-gesamt').value = gesamt.toFixed(2);
+    }
+
+    function autoGenerateNumber() {
+        var typ = document.getElementById('invTyp').value;
+        if (!editingInvoice) {
+            var numField = document.getElementById('invNummer');
+            if (numField && !numField.dataset.userEdited) {
+                numField.value = Store.nextRechInvoiceNumber(typ);
+            }
+        }
+    }
+
+    function init(params) {
+        autoGenerateNumber();
+        updateSummen();
+
+        document.getElementById('invTyp').addEventListener('change', function() {
+            currentTyp = this.value;
+            autoGenerateNumber();
+        });
+
+        document.getElementById('invNummer').addEventListener('input', function() {
+            this.dataset.userEdited = 'true';
+        });
+
+        document.getElementById('invKunde').addEventListener('change', function() {
+            var ncf = document.getElementById('newCustomerFields');
+            if (this.value === '__new__') {
+                ncf.style.display = 'block';
+            } else {
+                ncf.style.display = 'none';
+            }
+        });
+
+        function applyDatumsOption(val) {
+            var faelligkeitGroup = document.getElementById('invFaelligkeitGroup');
+            var lieferdatumGroup = document.getElementById('invLieferdatumGroup');
+            var lieferzeitraumGroup = document.getElementById('invLieferzeitraumGroup');
+            if (faelligkeitGroup) faelligkeitGroup.style.display = (val === 'faelligkeit') ? '' : 'none';
+            if (lieferdatumGroup) lieferdatumGroup.style.display = (val === 'lieferdatum') ? '' : 'none';
+            if (lieferzeitraumGroup) lieferzeitraumGroup.style.display = (val === 'lieferzeitraum') ? '' : 'none';
+        }
+
+        var datumsOptionEl = document.getElementById('invDatumsOption');
+        if (datumsOptionEl) {
+            datumsOptionEl.addEventListener('change', function() {
+                applyDatumsOption(this.value);
+            });
+            applyDatumsOption(datumsOptionEl.value);
+        }
+
+        document.getElementById('addPosition').addEventListener('click', function() {
+            var container = document.getElementById('positionenContainer');
+            var div = document.createElement('div');
+            div.innerHTML = renderPositionRow(positionCount, {});
+            var newRow = div.firstChild;
+            container.appendChild(newRow);
+            positionCount++;
+            bindPositionEvents(newRow);
+        });
+
+        document.querySelectorAll('.position-row').forEach(function(row) {
+            bindPositionEvents(row);
+        });
+
+        document.getElementById('invSave').addEventListener('click', saveInvoice);
+        document.getElementById('invPreview').addEventListener('click', function() {
+            var inv = buildInvoiceObject();
+            if (!inv) return;
+            showInvoicePreview(inv);
+        });
+        document.getElementById('invCancel').addEventListener('click', function() {
+            RechApp.navigate('dokumente');
+        });
+    }
+
+    function bindPositionEvents(row) {
+        var productSelect = row.querySelector('.pos-product');
+        if (productSelect) {
+            productSelect.addEventListener('change', function() {
+                var pid = this.value;
+                if (!pid) return;
+                var products = Store.getRechProducts();
+                var prod = products.find(function(p) { return p.id === pid; });
+                if (prod) {
+                    row.querySelector('.pos-beschreibung').value = prod.name + (prod.beschreibung ? ' - ' + prod.beschreibung : '');
+                    row.querySelector('.pos-einzelpreis').value = prod.preis;
+                    row.querySelector('.pos-einheit').value = prod.einheit || 'St\u00FCck';
+                    row.querySelector('.pos-mwst').value = prod.mwstSatz !== undefined ? prod.mwstSatz : 19;
+                    updateRowGesamt(row);
+                    updateSummen();
+                }
+            });
+        }
+
+        row.querySelectorAll('.pos-menge, .pos-einzelpreis').forEach(function(input) {
+            input.addEventListener('input', function() {
+                updateRowGesamt(row);
+                updateSummen();
+            });
+        });
+
+        row.querySelector('.pos-mwst').addEventListener('change', function() {
+            updateSummen();
+        });
+
+        var removeBtn = row.querySelector('.pos-remove');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function() {
+                var rows = document.querySelectorAll('.position-row');
+                if (rows.length <= 1) {
+                    Utils.showToast('Mindestens eine Position erforderlich', 'warning');
+                    return;
+                }
+                row.remove();
+                updateSummen();
+            });
+        }
+
+        var lagerBtn = row.querySelector('.pos-lager-btn');
+        if (lagerBtn) {
+            lagerBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                showLagerPicker(row);
+            });
+        }
+
+        var newProdBtn = row.querySelector('.pos-new-prod');
+        if (newProdBtn) {
+            newProdBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                var modalBody = '<div class="form-group"><label class="form-label">Name <span style="color:red;">*</span></label><input class="form-input" id="npName"></div>';
+                modalBody += '<div class="form-group"><label class="form-label">Beschreibung</label><textarea class="form-textarea" id="npBeschreibung" rows="2"></textarea></div>';
+                modalBody += '<div class="form-row">';
+                modalBody += '<div class="form-group"><label class="form-label">Preis</label><input class="form-input" id="npPreis" type="number" step="0.01" min="0" value="0"></div>';
+                modalBody += '<div class="form-group"><label class="form-label">Einheit</label><select class="form-select" id="npEinheit"><option value="St\u00FCck">St\u00FCck</option><option value="Std.">Std.</option><option value="pauschal">pauschal</option></select></div>';
+                modalBody += '<div class="form-group"><label class="form-label">MwSt-Satz</label><select class="form-select" id="npMwst"><option value="19">19%</option><option value="7">7%</option><option value="0">0%</option></select></div>';
+                modalBody += '</div>';
+
+                var modalFooter = '<button class="btn btn-primary" id="npSave">Speichern</button> <button class="btn" onclick="RechApp.closeModal()">Abbrechen</button>';
+                RechApp.showModal('Neues Produkt anlegen', modalBody, modalFooter);
+
+                document.getElementById('npSave').addEventListener('click', function() {
+                    var name = document.getElementById('npName').value.trim();
+                    if (!name) {
+                        Utils.showToast('Name ist erforderlich', 'warning');
+                        return;
+                    }
+                    var newProd = {
+                        id: Store.generateId(),
+                        name: name,
+                        beschreibung: document.getElementById('npBeschreibung').value.trim(),
+                        preis: parseFloat(document.getElementById('npPreis').value) || 0,
+                        einheit: document.getElementById('npEinheit').value,
+                        mwstSatz: parseInt(document.getElementById('npMwst').value)
+                    };
+                    Store.saveRechProduct(newProd);
+                    RechApp.closeModal();
+
+                    // Rebuild the product dropdown in this row and select the new product
+                    var allProducts = Store.getRechProducts();
+                    var productSelect = row.querySelector('.pos-product');
+                    if (productSelect) {
+                        var optHtml = '<option value="">Manuell</option>';
+                        allProducts.forEach(function(p) {
+                            var sel = p.id === newProd.id ? ' selected' : '';
+                            optHtml += '<option value="' + p.id + '"' + sel + '>' + Utils.escapeHtml(p.name) + '</option>';
+                        });
+                        productSelect.innerHTML = optHtml;
+                    }
+
+                    // Fill in position fields from the new product
+                    row.querySelector('.pos-beschreibung').value = newProd.name + (newProd.beschreibung ? ' - ' + newProd.beschreibung : '');
+                    row.querySelector('.pos-einzelpreis').value = newProd.preis;
+                    row.querySelector('.pos-einheit').value = newProd.einheit || 'St\u00FCck';
+                    row.querySelector('.pos-mwst').value = newProd.mwstSatz !== undefined ? newProd.mwstSatz : 19;
+                    updateRowGesamt(row);
+                    updateSummen();
+                    Utils.showToast('Produkt angelegt und ausgewählt', 'success');
+                });
+            });
+        }
+    }
+
+    function buildInvoiceObject() {
+        var typ = document.getElementById('invTyp').value;
+        var nummer = document.getElementById('invNummer').value.trim();
+        var datum = document.getElementById('invDatum').value;
+        var faelligkeit = document.getElementById('invFaelligkeit').value;
+        var datumsOption = document.getElementById('invDatumsOption') ? document.getElementById('invDatumsOption').value : 'faelligkeit';
+        var lieferdatum = document.getElementById('invLieferdatum') ? document.getElementById('invLieferdatum').value : '';
+        var lieferVon = document.getElementById('invLieferVon') ? document.getElementById('invLieferVon').value : '';
+        var lieferBis = document.getElementById('invLieferBis') ? document.getElementById('invLieferBis').value : '';
+        var kundeId = document.getElementById('invKunde').value;
+        var zahlungsbedingungen = document.getElementById('invZahlung').value.trim();
+        var notizen = document.getElementById('invNotizen').value.trim();
+        var verkaufsplattform = document.getElementById('invPlattform') ? document.getElementById('invPlattform').value : '';
+
+        // Handle new customer creation
+        if (kundeId === '__new__') {
+            var firma = document.getElementById('ncFirma').value.trim();
+            var ansprech = document.getElementById('ncAnsprech').value.trim();
+            if (!firma && !ansprech) {
+                Utils.showToast('Bitte Kundendaten angeben', 'warning');
+                return null;
+            }
+            var existingCustomers = Store.getRechCustomers(true);
+            var maxKNum = 0;
+            existingCustomers.forEach(function(ec) {
+                var m = (ec.kundennummer || '').match(/K-(\d+)/);
+                if (m) { var n = parseInt(m[1]); if (n > maxKNum) maxKNum = n; }
+            });
+            var kundennummer = 'K-' + String(maxKNum + 1).padStart(3, '0');
+            var newCustomer = {
+                id: Store.generateId(),
+                firma: firma,
+                ansprechpartner: ansprech,
+                strasse: document.getElementById('ncStrasse').value.trim(),
+                plz: document.getElementById('ncPlz').value.trim(),
+                ort: document.getElementById('ncOrt').value.trim(),
+                email: document.getElementById('ncEmail').value.trim(),
+                telefon: document.getElementById('ncTelefon').value.trim(),
+                kundennummer: kundennummer,
+                createdAt: new Date().toISOString()
+            };
+            Store.saveRechCustomer(newCustomer);
+            kundeId = newCustomer.id;
+        }
+
+        if (!kundeId) {
+            Utils.showToast('Bitte Kunden ausw\u00E4hlen', 'warning');
+            return null;
+        }
+
+        if (!nummer) {
+            nummer = Store.nextRechInvoiceNumber(typ);
+        }
+
+        var positionen = collectPositionen();
+        if (positionen.length === 0) {
+            Utils.showToast('Mindestens eine Position erforderlich', 'warning');
+            return null;
+        }
+
+        var invoice = {
+            id: editingInvoice ? editingInvoice.id : Store.generateId(),
+            typ: typ,
+            nummer: nummer,
+            datum: datum,
+            faelligkeit: faelligkeit,
+            datumsOption: datumsOption,
+            lieferdatum: lieferdatum,
+            lieferVon: lieferVon,
+            lieferBis: lieferBis,
+            kundeId: kundeId,
+            positionen: positionen,
+            zahlungsbedingungen: zahlungsbedingungen,
+            notizen: notizen,
+            verkaufsplattform: verkaufsplattform,
+            status: editingInvoice ? editingInvoice.status : 'offen',
+            mahnungen: editingInvoice ? (editingInvoice.mahnungen || []) : [],
+            verknuepfteEigenbelege: collectLinkedEigenbelege(),
+            createdAt: editingInvoice ? editingInvoice.createdAt : new Date().toISOString()
+        };
+
+        return invoice;
+    }
+
+    // ---- Eigenbelege-Auswahl ----
+    function renderEigenbelegAuswahl(selectedIds) {
+        var belege = [];
+        try {
+            belege = JSON.parse(localStorage.getItem('eigenbelege_belege') || '[]');
+        } catch(e) {}
+
+        if (belege.length === 0) {
+            return '<div style="font-size:13px;color:var(--text-muted);padding:8px 0;">Keine Eigenbelege vorhanden. <a href="../eigenbelege/" target="_blank" style="color:var(--accent);">Eigenbeleg erstellen →</a></div>';
+        }
+
+        // Neueste 20 Eigenbelege anzeigen
+        var sorted = belege.slice().sort(function(a, b) { return (b.belegDatum || '').localeCompare(a.belegDatum || ''); }).slice(0, 20);
+
+        var html = '<div id="eb-auswahl-chips" style="display:flex;flex-wrap:wrap;gap:8px;">';
+        sorted.forEach(function(b) {
+            var checked = selectedIds.indexOf(b.id) >= 0;
+            var label = Utils.escapeHtml((b.belegDatum ? b.belegDatum + ' – ' : '') + (b.zweck || b.id.slice(0, 8)));
+            var betrag = b.betragBrutto ? ' (' + Utils.formatCurrency(b.betragBrutto) + ')' : '';
+            html += '<label style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--border);border-radius:100px;cursor:pointer;font-size:12px;' + (checked ? 'background:rgba(124,58,237,0.12);border-color:var(--accent);color:var(--accent-light);' : 'background:var(--bg-card);') + '">';
+            html += '<input type="checkbox" class="eb-link-check" value="' + Utils.escapeHtml(b.id) + '"' + (checked ? ' checked' : '') + ' style="margin:0;">';
+            html += label + betrag;
+            html += '</label>';
+        });
+        html += '</div>';
+        if (belege.length > 20) {
+            html += '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Zeigt die 20 neuesten Eigenbelege. Ältere sind nicht aufgelistet.</div>';
+        }
+        return html;
+    }
+
+    function collectLinkedEigenbelege() {
+        var checked = document.querySelectorAll('.eb-link-check:checked');
+        var ids = [];
+        checked.forEach(function(cb) { if (cb.value) ids.push(cb.value); });
+        return ids;
+    }
+
+    function saveInvoice() {
+        var invoice = buildInvoiceObject();
+        if (!invoice) return;
+        Store.saveRechInvoice(invoice);
+        Utils.showToast('Dokument gespeichert!', 'success');
+        RechApp.navigate('dokumente');
+    }
+
+    function generatePreviewHtml(inv, watermarkText) {
+        var settings = mergeRechSettings();
+        var logoBase64 = settings.logoBase64 || '';
+        var headerColor = settings.invoiceHeaderColor || '#7c3aed';
+        var primaryColor = settings.invoicePrimaryColor || '#7c3aed';
+        var customers = Store.getRechCustomers();
+        var kunde = customers.find(function(c) { return c.id === inv.kundeId; });
+        var isKlein = settings.ustMode === 'klein';
+
+        var isStorno = inv.typ === 'stornorechnung';
+        if (isStorno) {
+            headerColor = '#dc2626';
+            primaryColor = '#dc2626';
+        }
+
+        var typLabel = isStorno ? 'STORNORECHNUNG' : (inv.typ === 'rechnung' ? 'RECHNUNG' : inv.typ === 'angebot' ? 'ANGEBOT' : 'GUTSCHRIFT');
+        var typLabelNormal = isStorno ? 'Stornorechnung' : (inv.typ === 'rechnung' ? 'Rechnung' : inv.typ === 'angebot' ? 'Angebot' : 'Gutschrift');
+
+        var wm = watermarkText || (inv.status === 'storniert' ? 'STORNIERT' : '');
+        var wmStyle = wm ? 'position:relative;overflow:hidden;' : '';
+        var html = '<div class="invoice-preview-new" style="' + wmStyle + '">';
+        if (wm) {
+            html += '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:80px;font-weight:900;color:rgba(220,38,38,0.12);pointer-events:none;white-space:nowrap;z-index:0;letter-spacing:4px;">' + wm + '</div>';
+        }
+
+        // Header bar
+        html += '<div class="invoice-header-bar" style="background:' + headerColor + '">';
+        html += '<div style="display:flex;align-items:center;gap:16px;">';
+        if (logoBase64) {
+            html += '<img src="' + logoBase64 + '" alt="Logo" style="max-height:60px;max-width:150px;object-fit:contain;">';
+        }
+        html += '<div>';
+        html += '<div class="company-name">' + Utils.escapeHtml(settings.firmenname || '') + '</div>';
+        html += '<div class="company-address">';
+        if (settings.name) html += Utils.escapeHtml(settings.name) + '<br>';
+        html += Utils.escapeHtml(settings.adresse || '') + '<br>';
+        html += Utils.escapeHtml(settings.plz || '') + ' ' + Utils.escapeHtml(settings.ort || '');
+        html += '</div>';
+        html += '</div>';
+        html += '</div>'; // closes the flex container
+        html += '<div class="doc-info">';
+        html += '<div class="doc-type">' + typLabel + '</div>';
+        html += '<div class="doc-meta">';
+        html += 'Nr.: ' + Utils.escapeHtml(inv.nummer || '') + '<br>';
+        html += 'Datum: ' + Utils.formatDate(inv.datum) + '<br>';
+        if (inv.typ !== 'angebot') {
+            var dOpt = inv.datumsOption || 'faelligkeit';
+            if (dOpt === 'faelligkeit') {
+                html += 'F\u00E4llig: ' + Utils.formatDate(inv.faelligkeit);
+            } else if (dOpt === 'lieferdatum' && inv.lieferdatum) {
+                html += 'Lieferdatum: ' + Utils.formatDate(inv.lieferdatum);
+            } else if (dOpt === 'lieferzeitraum' && (inv.lieferVon || inv.lieferBis)) {
+                html += 'Lieferzeitraum: ' + Utils.formatDate(inv.lieferVon) + ' \u2013 ' + Utils.formatDate(inv.lieferBis);
+            }
+        }
+        html += '</div>';
+        html += '</div>';
+        html += '</div>';
+
+        // Body content
+        html += '<div class="invoice-body-content">';
+
+        // Sender line
+        html += '<div class="invoice-sender-line">' + Utils.escapeHtml(settings.firmenname || '') + ' \u00B7 ' + Utils.escapeHtml(settings.adresse || '') + ' \u00B7 ' + Utils.escapeHtml(settings.plz || '') + ' ' + Utils.escapeHtml(settings.ort || '') + '</div>';
+
+        // Recipient
+        html += '<div class="invoice-recipient">';
+        if (kunde) {
+            html += '<strong>' + Utils.escapeHtml(kunde.firma || '') + '</strong><br>';
+            if (kunde.ansprechpartner) html += Utils.escapeHtml(kunde.ansprechpartner) + '<br>';
+            html += Utils.escapeHtml(kunde.strasse || '') + '<br>';
+            html += Utils.escapeHtml(kunde.plz || '') + ' ' + Utils.escapeHtml(kunde.ort || '');
+        }
+        html += '</div>';
+
+        // Title line
+        html += '<div class="invoice-title-line" style="color:' + primaryColor + '">' + typLabel + ' ' + Utils.escapeHtml(inv.nummer || '') + '</div>';
+
+        // Storno reference
+        if (isStorno && inv.originalRechnungNummer) {
+            html += '<div style="margin-bottom:16px;padding:10px 14px;background:rgba(220,38,38,0.07);border-left:3px solid #dc2626;border-radius:0 4px 4px 0;font-size:13px;color:#b91c1c;">';
+            html += '<strong>Stornorechnung zu:</strong> ' + Utils.escapeHtml(inv.originalRechnungNummer);
+            if (inv.originalDatum) html += ' vom ' + Utils.formatDate(inv.originalDatum);
+            if (inv.stornierungsGrund) {
+                var grundLabels = { fehler: 'Falsche Angaben / Tippfehler', doppelt: 'Doppelt ausgestellt', auftrag: 'Auftrag storniert', ware_zurueck: 'Ware zur\u00FCckgegeben', einigung: 'Einigung mit Kunde', sonstiges: 'Sonstiges' };
+                html += '<br><strong>Grund:</strong> ' + (grundLabels[inv.stornierungsGrund] || inv.stornierungsGrund);
+                if (inv.stornierungsGrundText) html += ': ' + Utils.escapeHtml(inv.stornierungsGrundText);
+            }
+            html += '</div>';
+        }
+
+        // Tax info
+        if (settings.steuernummer || settings.ustId) {
+            html += '<div style="margin-bottom: 1rem; font-size: 0.85rem; color: #666;">';
+            if (settings.steuernummer) html += 'Steuernr.: ' + Utils.escapeHtml(settings.steuernummer) + ' ';
+            if (settings.ustId) html += 'USt-IdNr.: ' + Utils.escapeHtml(settings.ustId);
+            html += '</div>';
+        }
+
+        // Positions table
+        html += '<table class="invoice-table-new">';
+        html += '<thead><tr>';
+        html += '<th>Pos.</th>';
+        html += '<th>Beschreibung</th>';
+        html += '<th class="text-right">Menge</th>';
+        html += '<th>Einheit</th>';
+        html += '<th class="text-right">Einzelpreis</th>';
+        if (!isKlein) html += '<th class="text-right">MwSt</th>';
+        html += '<th class="text-right">Gesamt</th>';
+        html += '</tr></thead><tbody>';
+
+        var netto = 0;
+        var mwstMap = {};
+        (inv.positionen || []).forEach(function(pos, idx) {
+            var lineNetto = pos.menge * pos.einzelpreis;
+            netto += lineNetto;
+            if (!isKlein && pos.mwstSatz > 0) {
+                if (!mwstMap[pos.mwstSatz]) mwstMap[pos.mwstSatz] = 0;
+                mwstMap[pos.mwstSatz] += lineNetto * pos.mwstSatz / 100;
+            }
+            html += '<tr>';
+            html += '<td>' + (idx + 1) + '</td>';
+            html += '<td>' + Utils.escapeHtml(pos.beschreibung || '') + '</td>';
+            html += '<td class="text-right">' + Utils.formatNumber(pos.menge) + '</td>';
+            html += '<td>' + Utils.escapeHtml(pos.einheit || '') + '</td>';
+            html += '<td class="text-right">' + Utils.formatCurrency(pos.einzelpreis) + '</td>';
+            if (!isKlein) html += '<td class="text-right">' + pos.mwstSatz + '%</td>';
+            html += '<td class="text-right">' + Utils.formatCurrency(lineNetto) + '</td>';
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+
+        // Totals
+        var totalMwst = 0;
+        html += '<div class="invoice-totals-new">';
+        html += '<div class="total-row"><span>Zwischensumme:</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
+        if (isKlein) {
+            html += '<div class="total-row grand-total"><span>GESAMTBETRAG:</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
+        } else {
+            Object.keys(mwstMap).sort().forEach(function(satz) {
+                totalMwst += mwstMap[satz];
+                html += '<div class="total-row"><span>MwSt. ' + satz + '%:</span><span>' + Utils.formatCurrency(mwstMap[satz]) + '</span></div>';
+            });
+            html += '<div class="total-row grand-total"><span>GESAMTBETRAG:</span><span>' + Utils.formatCurrency(netto + totalMwst) + '</span></div>';
+        }
+        html += '</div>';
+
+        // Kleinunternehmer notice
+        if (isKlein) {
+            html += '<div class="kleinunternehmer-hinweis">Gem\u00E4\u00DF \u00A719 UStG wird keine Umsatzsteuer berechnet.</div>';
+        }
+
+        // Payment terms
+        if (inv.zahlungsbedingungen) {
+            html += '<p><strong>Zahlungsbedingungen:</strong><br>' + Utils.escapeHtml(inv.zahlungsbedingungen) + '</p>';
+        }
+
+        // Notes
+        if (inv.notizen) {
+            html += '<p><strong>Hinweise:</strong><br>' + Utils.escapeHtml(inv.notizen) + '</p>';
+        }
+
+        // Bank info
+        if (settings.bankname || settings.iban) {
+            html += '<div class="invoice-bank-info">';
+            html += '<strong>Bankverbindung</strong><br>';
+            var bankParts = [];
+            if (settings.bankname) bankParts.push('Bank: ' + Utils.escapeHtml(settings.bankname));
+            if (settings.iban) bankParts.push('IBAN: ' + Utils.escapeHtml(settings.iban));
+            if (settings.bic) bankParts.push('BIC: ' + Utils.escapeHtml(settings.bic));
+            html += bankParts.join(' | ') + '<br>';
+            html += 'Verwendungszweck: ' + Utils.escapeHtml(inv.nummer || '');
+            html += '</div>';
+        }
+
+        // Footer bar
+        html += '<div class="invoice-footer-bar" style="background:' + headerColor + '">';
+        var footerParts = [];
+        footerParts.push(Utils.escapeHtml(settings.firmenname || ''));
+        footerParts.push(Utils.escapeHtml(settings.adresse || '') + ', ' + Utils.escapeHtml(settings.plz || '') + ' ' + Utils.escapeHtml(settings.ort || ''));
+        if (settings.telefon) footerParts.push('Tel: ' + Utils.escapeHtml(settings.telefon));
+        if (settings.email) footerParts.push(Utils.escapeHtml(settings.email));
+        html += footerParts.join(' | ');
+        html += '</div>';
+
+        html += '</div>'; // invoice-body-content
+        html += '</div>'; // invoice-preview-new
+        return html;
+    }
+
+    function printInvoiceWindow(invoiceHtml, asPdf, watermarkText) {
+        // watermarkText is embedded in invoiceHtml already via generatePreviewHtml
+        var invoiceCss = `
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { background: white; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+            .invoice-preview-new { background: white; color: #333; max-width: 800px; margin: 0 auto; font-size: 13px; line-height: 1.6; }
+            .invoice-header-bar { color: white; padding: 24px 32px; display: flex; justify-content: space-between; align-items: flex-start; }
+            .invoice-header-bar .company-name { font-size: 22px; font-weight: 700; }
+            .invoice-header-bar .company-address { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+            .invoice-header-bar .doc-info { text-align: right; }
+            .invoice-header-bar .doc-type { font-size: 20px; font-weight: 700; text-transform: uppercase; }
+            .invoice-header-bar .doc-meta { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+            .invoice-body-content { padding: 24px 32px; }
+            .invoice-sender-line { font-size: 10px; color: #999; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-bottom: 12px; }
+            .invoice-recipient { margin-bottom: 24px; line-height: 1.5; }
+            .invoice-recipient strong { font-size: 14px; }
+            .invoice-title-line { font-size: 16px; font-weight: 700; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 2px solid currentColor; color: #1e293b; }
+            .invoice-table-new { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            .invoice-table-new thead th { background: #f8f8fc; color: #555; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 12px; border-bottom: 2px solid #e2e8f0; text-align: left; }
+            .invoice-table-new thead th:last-child, .invoice-table-new thead th.text-right { text-align: right; }
+            .invoice-table-new tbody td { padding: 10px 12px; border-bottom: 1px solid #f0f0f5; color: #333; }
+            .invoice-table-new tbody tr:nth-child(even) { background: #fafafa; }
+            .invoice-table-new tbody td:last-child, .invoice-table-new tbody td.text-right { text-align: right; }
+            .invoice-totals-new { margin-left: auto; width: 280px; margin-bottom: 24px; }
+            .invoice-totals-new .total-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+            .invoice-totals-new .total-row.grand-total { border-top: 2px solid #333; margin-top: 8px; padding-top: 10px; font-size: 16px; font-weight: 700; }
+            .invoice-bank-info { margin-top: 24px; padding: 12px 16px; background: #f8f8fc; border-radius: 6px; font-size: 12px; color: #555; }
+            .invoice-bank-info strong { color: #333; }
+            .invoice-footer-bar { margin-top: 32px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 10px; color: #999; text-align: center; }
+            .kleinunternehmer-hinweis { margin-top: 16px; padding: 12px; background: #f9f9f9; border-left: 3px solid #7c3aed; font-size: 12px; color: #555; }
+            @page { size: A4; margin: 10mm; }
+            @media print { body { margin: 0; } }
+        `;
+        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rechnung</title><style>' + invoiceCss + '</style></head><body>' + invoiceHtml + '</body></html>';
+
+        var iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:210mm;height:297mm;border:0;';
+        document.body.appendChild(iframe);
+        var idoc = iframe.contentDocument || iframe.contentWindow.document;
+        idoc.write(fullHtml);
+        idoc.close();
+        setTimeout(function() {
+            try {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+            } catch(e) { console.error(e); }
+            var cleanup = function() {
+                if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+            };
+            iframe.contentWindow.addEventListener('afterprint', cleanup);
+            setTimeout(cleanup, 30000);
+        }, 500);
+    }
+
+    function showInvoicePreview(inv) {
+        var body = generatePreviewHtml(inv);
+        var footer = '<button class="btn btn-primary" id="previewPdf">&#x1F4BE; Als PDF speichern</button> <button class="btn" id="previewPrint">&#x1F5A8; Drucken</button> <button class="btn" onclick="RechApp.closeModal()">Schlie\u00DFen</button>';
+        RechApp.showModal('Vorschau', body, footer);
+        document.getElementById('previewPdf').addEventListener('click', function() {
+            printInvoiceWindow(generatePreviewHtml(inv), true);
+        });
+        document.getElementById('previewPrint').addEventListener('click', function() {
+            printInvoiceWindow(generatePreviewHtml(inv), false);
+        });
+    }
+
+    return {
+        render: render,
+        init: init,
+        currentTyp: currentTyp,
+        generatePreviewHtml: generatePreviewHtml,
+        printInvoiceWindow: printInvoiceWindow,
+        showInvoicePreview: showInvoicePreview
+    };
+})();
+
+// ─── Testrechnung / Musterrechnung ───────────────────────────────────────────
+var TestRechnung = (function() {
+
+    function buildMockInvoice() {
+        var settings = Store.getSettings();
+        var customers = Store.getRechCustomers().filter(function(c) { return !c.archiviert; });
+        var products = Store.getRechProducts();
+        var year = new Date().getFullYear();
+
+        // Use first real customer if available, otherwise a dummy
+        var kundeId = customers.length ? customers[0].id : null;
+        if (!kundeId) {
+            // inject temp dummy customer just for preview
+            kundeId = '__TEST__';
+        }
+
+        var positionen = [];
+        if (products.length) {
+            positionen.push({ beschreibung: products[0].bezeichnung || products[0].beschreibung, menge: 1, einheit: products[0].einheit || 'Stk', einzelpreis: products[0].preis || 99.00, mwstSatz: products[0].mwstSatz || 19 });
+            if (products.length > 1) {
+                positionen.push({ beschreibung: products[1].bezeichnung || products[1].beschreibung, menge: 2, einheit: products[1].einheit || 'Stk', einzelpreis: products[1].preis || 49.50, mwstSatz: products[1].mwstSatz || 19 });
+            }
+        } else {
+            positionen = [
+                { beschreibung: 'Beispielleistung / Produkt A', menge: 1, einheit: 'Stk', einzelpreis: 120.00, mwstSatz: 19 },
+                { beschreibung: 'Beratungsleistung (2 Std.)', menge: 2, einheit: 'Std', einzelpreis: 85.00, mwstSatz: 19 }
+            ];
+        }
+
+        var today = new Date();
+        var faellig = new Date(today); faellig.setDate(faellig.getDate() + 14);
+
+        return {
+            id: '__TEST__',
+            typ: 'rechnung',
+            nummer: 'TEST-' + year + '-0001',
+            datum: today.toISOString().split('T')[0],
+            faelligkeit: faellig.toISOString().split('T')[0],
+            datumsOption: 'faelligkeit',
+            kundeId: kundeId,
+            positionen: positionen,
+            status: 'offen',
+            zahlungsbedingungen: 'Zahlbar innerhalb von 14 Tagen nach Rechnungserhalt.',
+            notizen: 'Dies ist eine Muster-/Testrechnung ohne rechtliche G\u00FCltigkeit.',
+            versendet: false,
+            versandDatum: null,
+            _isTest: true
+        };
+    }
+
+    var DUMMY_KUNDE = { id: '__TEST__', firma: 'Musterfirma GmbH', ansprechpartner: 'Max Mustermann', strasse: 'Musterstra\u00DFe 1', plz: '12345', ort: 'Musterstadt', email: 'max@musterfirma.de' };
+
+    function render() {
+        var mockInv = buildMockInvoice();
+        var customers = Store.getRechCustomers();
+        var hasKunde = customers.find(function(c) { return c.id === mockInv.kundeId; });
+        var _origGet;
+        if (!hasKunde) {
+            _origGet = Store.getRechCustomers.bind(Store);
+            Store.getRechCustomers = function() {
+                return _origGet().concat([DUMMY_KUNDE]);
+            };
+        }
+
+        var previewHtml = Rechnung.generatePreviewHtml(mockInv, 'MUSTER');
+
+        if (!hasKunde && _origGet) {
+            Store.getRechCustomers = _origGet;
+        }
+
+        var html = '<div class="page-header"><h2>\uD83E\uDDEA Testrechnung / Musterrechnung</h2>';
+        html += '<div style="font-size:13px;color:var(--text-muted);margin-top:4px;">Vorschau deiner Rechnungsvorlage \u2013 wird <strong>nicht gespeichert</strong>.</div></div>';
+
+        html += '<div style="display:flex;gap:12px;margin-bottom:16px;">';
+        html += '<button class="btn btn-primary" id="testPrint">\uD83D\uDDA8 Drucken / PDF</button>';
+        html += '<span style="font-size:12px;color:var(--text-muted);align-self:center;">';
+        html += '\u2139\uFE0F Diese Rechnung tr\u00E4gt den Vermerk MUSTER und hat keine rechtliche G\u00FCltigkeit.';
+        html += '</span></div>';
+
+        html += '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:16px;">';
+        html += previewHtml;
+        html += '</div>';
+
+        return html;
+    }
+
+    function init() {
+        var btn = document.getElementById('testPrint');
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+            var mockInv = buildMockInvoice();
+            var customers = Store.getRechCustomers();
+            var hasKunde = customers.find(function(c) { return c.id === mockInv.kundeId; });
+            var _origGet;
+            if (!hasKunde) {
+                _origGet = Store.getRechCustomers.bind(Store);
+                Store.getRechCustomers = function() { return _origGet().concat([DUMMY_KUNDE]); };
+            }
+            var html = Rechnung.generatePreviewHtml(mockInv, 'MUSTER');
+            if (!hasKunde && _origGet) Store.getRechCustomers = _origGet;
+            Rechnung.printInvoiceWindow(html, false);
+        });
+    }
+
+    return { render: render, init: init };
+})();

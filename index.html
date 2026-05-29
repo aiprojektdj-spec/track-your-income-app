@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co;">
+    <title>Overview Your Income</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/vendor/chart.min.js"></script>
+</head>
+<body>
+
+    <!-- ══════════════════════════════════════════════
+         TOPNAV — persistent top bar
+         ══════════════════════════════════════════════ -->
+    <div class="topnav">
+        <!-- Brand -->
+        <div class="topnav-brand">
+            <span style="font-size:20px;color:var(--accent);line-height:1;">◆</span>
+            <div>
+                <div style="font-size:13px;font-weight:700;color:var(--text-primary);line-height:1.15;">Overview</div>
+                <div style="font-size:9px;color:var(--text-muted);letter-spacing:.5px;">YOUR INCOME</div>
+            </div>
+        </div>
+
+        <!-- Cross-app navigation -->
+        <div class="topnav-apps">
+            <a href="index.html" class="tool-tab active" title="Overview Dashboard">
+                <span class="tab-icon">📊</span> Dashboard
+            </a>
+            <a href="rechnungen/index.html" class="tool-tab" title="Rechnungsbuch">
+                <span class="tab-icon">🧾</span> Rechnungen
+            </a>
+            <a href="eigenbelege/index.html" class="tool-tab" title="Eigenbelege">
+                <span class="tab-icon">📋</span> Eigenbelege
+            </a>
+            <a href="lager/index.html" class="tool-tab" id="toolTabLager" title="Lager">
+                <span class="tab-icon">📦</span> Lager
+            </a>
+            <a href="index.html?page=euer" class="tool-tab" id="toolTabEuer" title="EÜR">
+                <span class="tab-icon">📋</span> EÜR
+            </a>
+            <a href="index.html?page=akademie" class="tool-tab" id="toolTabAkademie" title="Akademie">
+                <span class="tab-icon">🎓</span> Akademie
+            </a>
+            <a href="index.html?page=gbr" class="tool-tab" id="toolTabGbr" title="GbR-Verwaltung" style="display:none;">
+                <span class="tab-icon">🤝</span> GbR
+            </a>
+        </div>
+
+        <!-- Right controls -->
+        <div class="topnav-controls">
+            <div id="companySwitcher"></div>
+            <button class="theme-toggle" id="themeToggle" title="Theme wechseln">🌙 Dark Mode</button>
+            <a href="#" id="settingsLink" title="Einstellungen">⚙️</a>
+            <a href="#" id="backupLink" title="Backup & Daten">💾</a>
+            <div id="fsBackupStatus" style="display:none;"></div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         SIDEBAR — fixed, hidden by default
+         Opens via toggle button
+         ══════════════════════════════════════════════ -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>📊 Overview Your Income</h1>
+            <div class="subtitle">Your Financial Overview</div>
+        </div>
+        <nav class="sidebar-nav">
+
+            <!-- ── GbR-Sektion (nur sichtbar wenn GbR aktiv) ── -->
+            <div class="sidebar-section" id="gbrSidebarSection" style="display:none;">GbR-Verwaltung</div>
+            <div class="sidebar-section-items" id="gbrSidebarItems" style="display:none;">
+                <div class="sidebar-link" data-page="gbr" data-gbr-tab="uebersicht">
+                    <span class="icon">📊</span><span class="sidebar-link-label"> Übersicht</span>
+                </div>
+                <div class="sidebar-link" data-page="gbr" data-gbr-tab="verrechnung">
+                    <span class="icon">💳</span><span class="sidebar-link-label"> Verrechnungskonten</span>
+                </div>
+                <div class="sidebar-link" data-page="gbr" data-gbr-tab="gewerbesteuer">
+                    <span class="icon">🏛️</span><span class="sidebar-link-label"> Gewerbesteuer</span>
+                </div>
+                <div class="sidebar-link" data-page="gbr" data-gbr-tab="feststellung">
+                    <span class="icon">📄</span><span class="sidebar-link-label"> Feststellung</span>
+                </div>
+                <div class="sidebar-link" data-page="gbr" data-gbr-tab="stammdaten">
+                    <span class="icon">⚙️</span><span class="sidebar-link-label"> Stammdaten</span>
+                </div>
+            </div>
+
+            <!-- ── EÜR-Sektion (nur sichtbar wenn EÜR aktiv) ── -->
+            <div class="sidebar-section" id="euerSidebarSection" style="display:none;">EÜR – Auswertung</div>
+            <div class="sidebar-section-items" id="euerSidebarItems" style="display:none;">
+                <div class="sidebar-link" id="euerNav_jahr" data-euer-period="jahr">
+                    <span class="icon">📋</span><span class="sidebar-link-label"> Jahres-EÜR</span>
+                </div>
+                <div class="sidebar-link" id="euerNav_monat" data-euer-period="monat">
+                    <span class="icon">📅</span><span class="sidebar-link-label"> Monatliche EÜR</span>
+                </div>
+                <div class="sidebar-link" id="euerNav_quartal" data-euer-period="quartal">
+                    <span class="icon">📊</span><span class="sidebar-link-label"> Quartals-EÜR</span>
+                </div>
+                <div class="sidebar-link" data-page="steuertermine" id="euerNav_steuer">
+                    <span class="icon">📆</span><span class="sidebar-link-label"> Steuertermine</span>
+                </div>
+                <div style="border-top:1px solid var(--border);margin:6px 12px;"></div>
+                <div class="sidebar-link" data-page="statistiken" id="euerNav_statistiken">
+                    <span class="icon">📈</span><span class="sidebar-link-label"> Statistiken</span>
+                </div>
+                <div class="sidebar-link" data-page="ausgaben" id="euerNav_ausgaben">
+                    <span class="icon">💰</span><span class="sidebar-link-label"> Ausgaben (Betrieb)</span>
+                </div>
+            </div>
+
+            <!-- ── Steuer & Soziales ── -->
+            <div class="sidebar-section" id="steuerSidebarSection" style="display:none;">Steuer &amp; Soziales</div>
+            <div class="sidebar-section-items" id="steuerSidebarItems" style="display:none;">
+                <div class="sidebar-link" data-page="afa">
+                    <span class="icon">📉</span><span class="sidebar-link-label"> AfA / Abschreibungen</span>
+                </div>
+                <div class="sidebar-link" data-page="privatbuchungen">
+                    <span class="icon">💼</span><span class="sidebar-link-label"> Privatentnahmen/-einlagen</span>
+                </div>
+                <div class="sidebar-link" data-page="ustvoranmeldung">
+                    <span class="icon">🧾</span><span class="sidebar-link-label"> USt-Voranmeldung</span>
+                </div>
+                <div class="sidebar-link" data-page="ksk">
+                    <span class="icon">🎨</span><span class="sidebar-link-label"> KSK (Künstlersozialks.)</span>
+                </div>
+            </div>
+
+            <!-- ── GoBD Protokoll — immer sichtbar ── -->
+            <div class="sidebar-link" id="protokollFixedLink" data-page="protokoll" style="margin:4px 8px;border-radius:6px;border:1px solid rgba(99,102,241,0.25);background:rgba(99,102,241,0.06);">
+                <span class="icon">🗒️</span><span class="sidebar-link-label"> GoBD Protokoll</span>
+            </div>
+
+            <!-- ── Hauptmenü ── -->
+            <div class="sidebar-section" data-section="hauptmenu" id="mainSidebarSection">Hauptmenü<i class="section-toggle-icon">▾</i></div>
+            <div class="sidebar-section-items" id="section-hauptmenu">
+                <div class="sidebar-link active" data-page="dashboard">
+                    <span class="icon">📊</span><span class="sidebar-link-label"> Dashboard</span>
+                </div>
+                <div class="sidebar-link" data-page="buchungen">
+                    <span class="icon">📝</span><span class="sidebar-link-label"> Buchungen</span>
+                </div>
+                <div class="sidebar-link" data-page="ausgaben">
+                    <span class="icon">💰</span><span class="sidebar-link-label"> Ausgaben (Betrieb)</span>
+                </div>
+                <div class="sidebar-link" data-page="statistiken">
+                    <span class="icon">📈</span><span class="sidebar-link-label"> Statistiken</span>
+                </div>
+                <div class="sidebar-link" data-page="fahrtenbuch">
+                    <span class="icon">🚗</span><span class="sidebar-link-label"> Fahrtenbuch</span>
+                </div>
+                <div style="border-top:1px solid var(--border);margin:6px 12px;"></div>
+                <div class="sidebar-link" data-page="afa">
+                    <span class="icon">📉</span><span class="sidebar-link-label"> Steuer &amp; Soziales</span>
+                </div>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <span class="version-badge">Overview Your Income v1.5</span>
+        </div>
+        <!-- Kept for JS compatibility (app.js may reference this ID) -->
+        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" style="display:none;">‹</button>
+    </aside>
+
+    <!-- ══════════════════════════════════════════════
+         FLOATING SIDEBAR TOGGLE BUTTON
+         ══════════════════════════════════════════════ -->
+    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Navigation öffnen">›</button>
+
+    <!-- ══════════════════════════════════════════════
+         MAIN APP CONTAINER
+         ══════════════════════════════════════════════ -->
+    <div class="app-container">
+        <div class="mobile-overlay" id="mobileOverlay"></div>
+        <main class="main-content">
+            <button class="btn btn-icon mobile-menu-btn" id="mobileMenuBtn" style="display:none;">☰</button>
+            <div id="content"></div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modal"></div>
+    </div>
+    <div id="onboarding"></div>
+
+    <!-- Scripts -->
+    <script src="js/cookie-banner.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/vendor/xlsx.full.min.js"></script>
+    <script src="js/license.js"></script>
+    <script src="js/companies.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/cloud-sync.js"></script>
+    <script src="js/user-plan.js"></script>
+    <script src="js/auth-ui.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/buchungen.js"></script>
+    <script src="js/lager.js"></script>
+    <script src="js/euer.js"></script>
+    <script src="js/ausgaben.js"></script>
+    <script src="js/statistiken.js"></script>
+    <script src="js/protokoll.js"></script>
+    <script src="js/retouren.js"></script>
+    <script src="js/fahrtenbuch.js"></script>
+    <script src="js/kassenbuch.js"></script>
+    <script src="js/steuertermine.js"></script>
+    <script src="js/afa.js"></script>
+    <script src="js/privatbuchungen.js"></script>
+    <script src="js/ustvoranmeldung.js"></script>
+    <script src="js/ksk.js"></script>
+    <script src="js/gbr.js"></script>
+    <script src="js/gbr-modul.js"></script>
+    <script src="js/svs.js"></script>
+    <script src="js/materiallager.js"></script>
+    <script src="js/akademie.js"></script>
+    <script src="js/app.js"></script>
+
+    <script>
+        // ── Mark active tool tab based on ?page= param ──
+        (function() {
+            const page = new URLSearchParams(location.search).get('page');
+            const tabIds = { euer: 'toolTabEuer', akademie: 'toolTabAkademie', gbr: 'toolTabGbr' };
+            const tabId = tabIds[page];
+            if (tabId) {
+                document.querySelector('.topnav-apps .tool-tab.active')?.classList.remove('active');
+                document.getElementById(tabId)?.classList.add('active');
+            }
+        })();
+
+        // ── Sidebar toggle button ──
+        (function() {
+            const btn     = document.getElementById('sidebarToggleBtn');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+
+            function openSidebar() {
+                sidebar.classList.add('sidebar-open');
+                btn.classList.add('sidebar-open');
+                btn.textContent = '‹';
+                btn.title = 'Navigation schließen';
+                overlay.classList.add('active');
+            }
+
+            function closeSidebar() {
+                sidebar.classList.remove('sidebar-open');
+                btn.classList.remove('sidebar-open');
+                btn.textContent = '›';
+                btn.title = 'Navigation öffnen';
+                overlay.classList.remove('active');
+            }
+
+            btn.addEventListener('click', function() {
+                if (sidebar.classList.contains('sidebar-open')) {
+                    closeSidebar();
+                } else {
+                    openSidebar();
+                }
+            });
+
+            // Click overlay → close sidebar
+            overlay.addEventListener('click', closeSidebar);
+
+            // Click a sidebar link → close sidebar (optional, nice UX)
+            sidebar.querySelectorAll('.sidebar-link').forEach(function(link) {
+                link.addEventListener('click', function() {
+                    // Small delay so the page transition feels smoother
+                    setTimeout(closeSidebar, 150);
+                });
+            });
+        })();
+    </script>
+</body>
+</html>

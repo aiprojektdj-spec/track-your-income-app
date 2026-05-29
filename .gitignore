@@ -1,0 +1,19 @@
+# Betriebssystem
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.user
+
+# Backup-Dateien (werden vom Tool selbst erzeugt, nicht ins Repo)
+backup_*.zip
+backup_*.json
+*_backup_*.zip
+*_backup_*.json
+
+# Logs
+*.log

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rechnungsbuch</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+    <!-- TOPNAV -->
+    <div class="topnav">
+        <div class="topnav-brand">
+            <span style="font-size:20px;color:var(--accent);line-height:1;">◆</span>
+            <div>
+                <div style="font-size:13px;font-weight:700;color:var(--text-primary);line-height:1.15;">Overview</div>
+                <div style="font-size:9px;color:var(--text-muted);letter-spacing:.5px;">YOUR INCOME</div>
+            </div>
+        </div>
+        <div class="topnav-apps">
+            <a href="../index.html" class="tool-tab" title="Overview Dashboard"><span class="tab-icon">📊</span> Dashboard</a>
+            <a href="../rechnungen/index.html" class="tool-tab active" title="Rechnungsbuch"><span class="tab-icon">🧾</span> Rechnungen</a>
+            <a href="../eigenbelege/index.html" class="tool-tab" title="Eigenbelege"><span class="tab-icon">📋</span> Eigenbelege</a>
+            <a href="../lager/index.html" class="tool-tab" title="Lager"><span class="tab-icon">📦</span> Lager</a>
+            <a href="../index.html?page=euer" class="tool-tab" title="EÜR"><span class="tab-icon">📋</span> EÜR</a>
+            <a href="../index.html?page=akademie" class="tool-tab" title="Akademie"><span class="tab-icon">🎓</span> Akademie</a>
+        </div>
+        <div class="topnav-controls">
+            <button class="theme-toggle" id="themeToggle" title="Theme wechseln">🌙 Dark Mode</button>
+        </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>📄 Rechnungsbuch</h1>
+            <div class="subtitle">Rechnungen & Angebote</div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="sidebar-section">Verwaltung</div>
+            <div class="sidebar-section-items" id="section-hauptmenu">
+                <div class="sidebar-link active" data-page="rech-dashboard"><span class="icon">📊</span><span class="sidebar-link-label"> Dashboard</span></div>
+                <div class="sidebar-link" data-page="rechnung-neu"><span class="icon">➕</span><span class="sidebar-link-label"> Neue Rechnung</span></div>
+                <div class="sidebar-link" data-page="angebot-neu"><span class="icon">📝</span><span class="sidebar-link-label"> Neues Angebot</span></div>
+                <div class="sidebar-link" data-page="dokumente"><span class="icon">📁</span><span class="sidebar-link-label"> Dokumente</span></div>
+                <div class="sidebar-link" data-page="kunden"><span class="icon">👥</span><span class="sidebar-link-label"> Kunden</span></div>
+                <div class="sidebar-link" data-page="produkte"><span class="icon">📦</span><span class="sidebar-link-label"> Produkte</span></div>
+                <div class="sidebar-link" data-page="mahnungen"><span class="icon">⚠️</span><span class="sidebar-link-label"> Mahnungen</span></div>
+                <div class="sidebar-link" data-page="protokoll"><span class="icon">📋</span><span class="sidebar-link-label"> Protokoll</span></div>
+                <div class="sidebar-link" data-page="testrechnung"><span class="icon">🧪</span><span class="sidebar-link-label"> Testrechnung</span></div>
+            </div>
+            <div class="sidebar-section" style="margin-top:8px;">Einstellungen</div>
+            <div class="sidebar-section-items">
+                <div class="sidebar-link" data-page="unternehmensdaten"><span class="icon">🏢</span><span class="sidebar-link-label"> Unternehmensdaten</span></div>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <span class="version-badge">Rechnungsbuch</span>
+        </div>
+        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" style="display:none;">‹</button>
+    </aside>
+
+    <!-- FLOATING TOGGLE BUTTON -->
+    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Navigation öffnen">›</button>
+
+    <!-- MAIN CONTAINER -->
+    <div class="app-container">
+        <div class="mobile-overlay" id="mobileOverlay"></div>
+        <main class="main-content">
+            <button class="btn btn-icon mobile-menu-btn" id="mobileMenuBtn" style="display:none;">☰</button>
+            <div id="content"></div>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modal"></div>
+    </div>
+
+    <script src="../js/cookie-banner.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/store.js"></script>
+    <script src="../js/supabase-client.js"></script>
+    <script src="../js/cloud-sync.js"></script>
+    <script src="../js/user-plan.js"></script>
+    <script src="../js/auth-ui.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="js/rech-dashboard.js"></script>
+    <script src="js/rechnung.js"></script>
+    <script src="js/dokumente.js"></script>
+    <script src="js/kunden.js"></script>
+    <script src="js/produkte.js"></script>
+    <script src="js/mahnungen.js"></script>
+    <script src="js/protokoll.js"></script>
+    <script src="js/unternehmensdaten.js"></script>
+    <script src="js/app.js"></script>
+
+    <script>
+        (function() {
+            const btn = document.getElementById('sidebarToggleBtn');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            function close() {
+                sidebar.classList.remove('sidebar-open');
+                btn.classList.remove('sidebar-open');
+                btn.textContent = '›'; overlay.classList.remove('active');
+            }
+            btn.addEventListener('click', function() {
+                const open = sidebar.classList.toggle('sidebar-open');
+                btn.classList.toggle('sidebar-open', open);
+                btn.textContent = open ? '‹' : '›';
+                overlay.classList.toggle('active', open);
+            });
+            overlay.addEventListener('click', close);
+            sidebar.querySelectorAll('.sidebar-link').forEach(function(l) {
+                l.addEventListener('click', function() { setTimeout(close, 150); });
+            });
+        })();
+    </script>
+</body>
+</html>

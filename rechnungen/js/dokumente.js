@@ -25,33 +25,51 @@ var Dokumente = (function() {
 
         // Filter bar
         html += '<div class="filter-bar">';
+
+        // Search
+        html += '<div class="filter-group filter-search">';
+        html += '<label class="form-label"><i class="ti ti-search"></i> Suche</label>';
+        html += '<div class="filter-search-wrap"><i class="ti ti-search"></i>';
+        html += '<input class="form-input" type="text" id="filterSearch" placeholder="Nr., Kunde, Betrag\u2026" autocomplete="off">';
+        html += '</div></div>';
+
+        // Typ
         html += '<div class="filter-group"><label class="form-label">Typ</label>';
-        html += '<select class="form-select" id="filterTyp"><option value="">Alle</option>';
+        html += '<select class="form-select" id="filterTyp"><option value="">Alle Typen</option>';
         html += '<option value="rechnung">Rechnung</option><option value="angebot">Angebot</option>';
         html += '<option value="gutschrift">Gutschrift</option><option value="stornorechnung">Stornorechnung</option>';
         html += '</select></div>';
 
+        // Status
         html += '<div class="filter-group"><label class="form-label">Status</label>';
-        html += '<select class="form-select" id="filterStatus"><option value="">Alle</option>';
-        html += '<option value="offen">Offen</option>';
-        html += '<option value="versendet">Versendet</option>';
-        html += '<option value="bezahlt">Bezahlt</option>';
-        html += '<option value="ueberfaellig">\u00DCberf\u00E4llig</option>';
+        html += '<select class="form-select" id="filterStatus"><option value="">Alle Status</option>';
+        html += '<option value="offen">Offen</option><option value="versendet">Versendet</option>';
+        html += '<option value="bezahlt">Bezahlt</option><option value="ueberfaellig">\u00DCberf\u00E4llig</option>';
         html += '<option value="storniert">Storniert</option>';
         html += '</select></div>';
 
+        // Von
         html += '<div class="filter-group"><label class="form-label">Von</label>';
-        html += '<input class="form-input" type="date" id="filterVon"></div>';
+        html += '<input class="form-input" type="date" id="filterVon" style="min-width:130px;"></div>';
 
+        // Bis
         html += '<div class="filter-group"><label class="form-label">Bis</label>';
-        html += '<input class="form-input" type="date" id="filterBis"></div>';
+        html += '<input class="form-input" type="date" id="filterBis" style="min-width:130px;"></div>';
 
+        // Kunde
         html += '<div class="filter-group"><label class="form-label">Kunde</label>';
-        html += '<select class="form-select" id="filterKunde"><option value="">Alle</option>';
+        html += '<select class="form-select" id="filterKunde"><option value="">Alle Kunden</option>';
         customers.forEach(function(c) {
             html += '<option value="' + c.id + '">' + Utils.escapeHtml(c.firma || c.ansprechpartner) + '</option>';
         });
         html += '</select></div>';
+
+        // Reset button
+        html += '<div class="filter-group" style="justify-content:flex-end;">';
+        html += '<label class="form-label">&nbsp;</label>';
+        html += '<button class="btn btn-small btn-outline" id="filterReset" title="Filter zur\u00FCcksetzen" style="height:34px;padding:0 12px;"><i class="ti ti-filter-off"></i></button>';
+        html += '</div>';
+
         html += '</div>';
 
         // Table
@@ -99,7 +117,8 @@ var Dokumente = (function() {
         if (inv.status === 'storniert') rowClass = 'row-storniert';
         else if (inv.typ === 'stornorechnung') rowClass = 'row-storno';
 
-        var html = '<tr data-id="' + inv.id + '" class="' + rowClass + '" data-typ="' + inv.typ + '" data-status="' + inv.status + '" data-kunde="' + (inv.kundeId || '') + '" data-datum="' + (inv.datum || '') + '">';
+        var searchText = [(inv.nummer||''), kundeName, Utils.formatCurrency(calcBrutto(inv)), Utils.formatDate(inv.datum)].join(' ').toLowerCase();
+        var html = '<tr data-id="' + inv.id + '" class="' + rowClass + '" data-typ="' + inv.typ + '" data-status="' + inv.status + '" data-kunde="' + (inv.kundeId || '') + '" data-datum="' + (inv.datum || '') + '" data-search="' + Utils.escapeHtml(searchText) + '">';
         html += '<td>' + Utils.escapeHtml(inv.nummer || '') + '</td>';
         html += '<td>' + typLabel + '</td>';
         html += '<td>' + kundeName + '</td>';
@@ -108,35 +127,35 @@ var Dokumente = (function() {
         html += '<td>' + Utils.formatCurrency(calcBrutto(inv)) + '</td>';
         html += '<td><span class="badge ' + statusClass + '">' + statusLabel + '</span>';
         if (inv.versendet && inv.versandDatum) {
-            html += ' <span style="font-size:11px;color:var(--text-muted);">📤 ' + Utils.formatDate(inv.versandDatum) + '</span>';
+            html += ' <span style="font-size:11px;color:var(--text-muted);"><i class="ti ti-send"></i> ' + Utils.formatDate(inv.versandDatum) + '</span>';
         }
         // Lager-Verknüpfungs-Badges
         var lagerIds = (inv.positionen || []).map(function(p) { return p.lagerArtikelId; }).filter(Boolean);
         var ebIds = (inv.verknuepfteEigenbelege || []).length;
         if (lagerIds.length > 0) {
-            html += ' <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(16,185,129,0.15);color:var(--success,#10b981);" title="' + lagerIds.length + ' Lagerartikel verknüpft">📦 ' + lagerIds.length + '</span>';
+            html += ' <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(16,185,129,0.15);color:var(--success,#10b981);" title="' + lagerIds.length + ' Lagerartikel verknüpft"><i class="ti ti-package"></i> ' + lagerIds.length + '</span>';
         }
         if (ebIds > 0) {
-            html += ' <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(124,58,237,0.12);color:var(--accent);" title="' + ebIds + ' Eigenbelege verknüpft">🧾 ' + ebIds + '</span>';
+            html += ' <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(124,58,237,0.12);color:var(--accent);" title="' + ebIds + ' Eigenbelege verknüpft"><i class="ti ti-receipt"></i> ' + ebIds + '</span>';
         }
         html += '</td>';
-        html += '<td class="table-actions">';
-        html += '<button class="btn btn-small doc-view" data-id="' + inv.id + '">Anzeigen</button> ';
+        html += '<td class="table-actions" style="white-space:nowrap;">';
+        html += '<button class="action-btn doc-view" data-id="' + inv.id + '" title="Vorschau"><i class="ti ti-eye"></i></button> ';
 
         if (inv.typ !== 'stornorechnung') {
-            html += '<button class="btn btn-small btn-primary doc-edit" data-id="' + inv.id + '">Bearbeiten</button> ';
+            html += '<button class="action-btn action-btn-accent doc-edit" data-id="' + inv.id + '" title="Bearbeiten"><i class="ti ti-pencil"></i></button> ';
         }
         if (inv.status === 'offen' || inv.status === 'ueberfaellig' || inv.status === 'versendet') {
-            html += '<button class="btn btn-small btn-success doc-paid" data-id="' + inv.id + '">Bezahlt</button> ';
+            html += '<button class="action-btn action-btn-success doc-paid" data-id="' + inv.id + '" title="Als bezahlt markieren"><i class="ti ti-check"></i></button> ';
         }
         if (inv.typ === 'rechnung' && (inv.status === 'offen' || inv.status === 'ueberfaellig' || inv.status === 'versendet')) {
-            html += '<button class="btn btn-small btn-warning doc-mahnung" data-id="' + inv.id + '">Mahnung</button> ';
-            html += '<button class="btn btn-small doc-send" data-id="' + inv.id + '" title="Rechnung versenden">\uD83D\uDCE4 Senden</button> ';
+            html += '<button class="action-btn action-btn-warning doc-mahnung" data-id="' + inv.id + '" title="Mahnung erstellen"><i class="ti ti-bell-ringing"></i></button> ';
+            html += '<button class="action-btn doc-send" data-id="' + inv.id + '" title="Versenden"><i class="ti ti-send"></i></button> ';
         }
+        html += '<button class="action-btn doc-pdf" data-id="' + inv.id + '" title="PDF / Drucken"><i class="ti ti-file-download"></i></button> ';
         if (inv.typ !== 'stornorechnung' && inv.status !== 'storniert') {
-            html += '<button class="btn btn-small doc-cancel" data-id="' + inv.id + '" style="background:var(--danger,#dc2626);color:#fff;border-color:transparent;">Stornieren</button> ';
+            html += '<button class="action-btn action-btn-danger doc-cancel" data-id="' + inv.id + '" title="Stornieren"><i class="ti ti-ban"></i></button> ';
         }
-        html += '<button class="btn btn-small doc-pdf" data-id="' + inv.id + '">PDF</button> ';
         html += '</td></tr>';
         return html;
     }
@@ -147,6 +166,8 @@ var Dokumente = (function() {
         var von = document.getElementById('filterVon').value;
         var bis = document.getElementById('filterBis').value;
         var kunde = document.getElementById('filterKunde').value;
+        var searchEl = document.getElementById('filterSearch');
+        var search = searchEl ? searchEl.value.trim().toLowerCase() : '';
 
         var rows = document.querySelectorAll('#docTableBody tr');
         rows.forEach(function(row) {
@@ -158,6 +179,10 @@ var Dokumente = (function() {
             var rowDate = row.getAttribute('data-datum') || '';
             if (von && rowDate < von) show = false;
             if (bis && rowDate > bis) show = false;
+            if (search) {
+                var rowSearch = (row.getAttribute('data-search') || '').toLowerCase();
+                if (rowSearch.indexOf(search) === -1) show = false;
+            }
             row.style.display = show ? '' : 'none';
         });
     }
@@ -466,6 +491,17 @@ var Dokumente = (function() {
         ['filterTyp', 'filterStatus', 'filterVon', 'filterBis', 'filterKunde'].forEach(function(fid) {
             var el = document.getElementById(fid);
             if (el) el.addEventListener('change', applyFilters);
+        });
+        var searchEl = document.getElementById('filterSearch');
+        if (searchEl) searchEl.addEventListener('input', applyFilters);
+
+        var resetBtn = document.getElementById('filterReset');
+        if (resetBtn) resetBtn.addEventListener('click', function() {
+            ['filterTyp','filterStatus','filterVon','filterBis','filterKunde'].forEach(function(fid) {
+                var el = document.getElementById(fid); if (el) el.value = '';
+            });
+            if (searchEl) searchEl.value = '';
+            applyFilters();
         });
 
         document.querySelectorAll('.doc-view').forEach(function(btn) {

@@ -236,6 +236,13 @@ var RechApp = (function() {
     // sonst sind _cache leer und alle Daten gehen nach Reload verloren.
     // initWithRecovery() erkennt Datenverlust und stellt automatisch wieder her.
     function boot() {
+        // Aktive Firma setzen — MUSS vor initWithRecovery() passieren,
+        // damit der richtige namespace-Prefix für alle Datenzugriffe gilt.
+        if (typeof CompanyManager !== 'undefined') {
+            var activeId = CompanyManager.getActiveId();
+            if (activeId) Store.setCompany(activeId);
+        }
+
         Store.initWithRecovery().then(({ lossDetected, recovered }) => {
             initApp();
             if (lossDetected && recovered) {

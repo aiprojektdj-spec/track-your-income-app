@@ -558,8 +558,8 @@ const Lager = {
                     <div class="filter-group">
                         <label>&nbsp;</label>
                         <div style="display:flex;gap:6px;">
-                            <button class="btn btn-small ${this._viewMode === 'table' ? 'btn-primary' : ''}" id="lagerViewTable" title="Tabellenansicht">☰ Tabelle</button>
-                            <button class="btn btn-small ${this._viewMode === 'grid' ? 'btn-primary' : ''}" id="lagerViewGrid" title="Kartenansicht">⊞ Karten</button>
+                            <button class="btn btn-small ${this._viewMode === 'table' ? 'btn-primary' : ''}" id="lagerViewTable" title="Tabellenansicht"><i class="ti ti-table"></i> Tabelle</button>
+                            <button class="btn btn-small ${this._viewMode === 'grid' ? 'btn-primary' : ''}" id="lagerViewGrid" title="Kartenansicht"><i class="ti ti-layout-grid"></i> Karten</button>
                         </div>
                     </div>
                 </div>
@@ -568,9 +568,9 @@ const Lager = {
             const bulkBar = selectedCount > 0 ? `
                 <div id="lagerBulkBar" style="position:sticky;top:0;z-index:100;background:var(--accent);color:#fff;padding:10px 16px;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;box-shadow:0 4px 16px rgba(0,0,0,0.25);">
                     <span style="font-weight:600;">${selectedCount} Artikel ausgewählt</span>
-                    <button class="btn btn-small" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);" id="lagerBulkStatus">⚡ Status ändern</button>
-                    <button class="btn btn-small" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);" id="lagerBulkVerkauf">🛒 Paketverkauf</button>
-                    <button class="btn btn-small" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);" id="lagerBulkDeselect">✕ Abbrechen</button>
+                    <button class="btn btn-small" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);" id="lagerBulkStatus"><i class="ti ti-bolt"></i> Status ändern</button>
+                    <button class="btn btn-small" style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);" id="lagerBulkVerkauf"><i class="ti ti-shopping-cart"></i> Paketverkauf</button>
+                    <button class="btn btn-small" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);" id="lagerBulkDeselect"><i class="ti ti-x"></i> Abbrechen</button>
                 </div>
             ` : '';
 
@@ -633,9 +633,9 @@ const Lager = {
 
                 <!-- Tab Switcher -->
                 <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border);">
-                    <button id="tabReal" class="btn" style="border-radius:8px 8px 0 0;border-bottom:2px solid var(--accent);margin-bottom:-2px;background:var(--bg-card);font-weight:700;color:var(--accent);padding:8px 20px;font-size:13px;">📦 Lager</button>
+                    <button id="tabReal" class="btn" style="border-radius:8px 8px 0 0;border-bottom:2px solid var(--accent);margin-bottom:-2px;background:var(--bg-card);font-weight:700;color:var(--accent);padding:8px 20px;font-size:13px;"><i class="ti ti-box"></i> Lager</button>
                     <button id="tabVirtual" class="btn" style="border-radius:8px 8px 0 0;border-bottom:2px solid transparent;margin-bottom:-2px;background:transparent;color:var(--text-secondary);padding:8px 20px;font-size:13px;">
-                        🗺️ Lager-Layout
+                        <i class="ti ti-map-2"></i> Lager-Layout
                     </button>
                 </div>
 
@@ -758,9 +758,9 @@ const Lager = {
                     <td class="table-actions" style="padding:3px;white-space:nowrap;">
                         ${p.storniert ? '' : `
                         ${p.status === 'verfuegbar' ? `<button class="btn btn-small btn-success" data-sell="${p.id}" style="padding:3px 8px;font-size:11px;">Verkaufen</button>` : ''}
-                        <button class="btn btn-small" data-status-modal="${p.id}" title="Status" style="padding:3px 6px;font-size:12px;">⚡</button>
-                        <button class="btn btn-small" data-edit-lager="${p.id}" title="Bearbeiten" style="padding:3px 6px;font-size:12px;">✏️</button>
-                        <button class="btn btn-small btn-danger" data-storno-lager="${p.id}" title="Stornieren" style="padding:3px 6px;font-size:12px;">×</button>
+                        <button class="action-btn" data-status-modal="${p.id}" title="Status ändern"><i class="ti ti-bolt"></i></button>
+                        <button class="action-btn action-btn-accent" data-edit-lager="${p.id}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
+                        <button class="action-btn action-btn-danger" data-storno-lager="${p.id}" title="Stornieren"><i class="ti ti-ban"></i></button>
                         `}
                     </td>
                 </tr>`;
@@ -826,15 +826,15 @@ const Lager = {
                         <span style="font-size:10px;color:var(--text-muted);">${Utils.formatDate(p.datum)}</span>
                     </div>
                     ${p.storniert ? '' : `
-                    <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;">
+                    <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;align-items:center;">
                         ${p.status === 'verfuegbar' ? `<button class="btn btn-small btn-success" data-sell="${p.id}" style="flex:1;">Verkaufen</button>` : ''}
-                        <button class="btn btn-small" data-status-modal="${p.id}" title="Status">⚡</button>
-                        <button class="btn btn-small" data-edit-lager="${p.id}" title="Bearbeiten">✏️</button>
+                        <button class="action-btn" data-status-modal="${p.id}" title="Status ändern"><i class="ti ti-bolt"></i></button>
+                        <button class="action-btn action-btn-accent" data-edit-lager="${p.id}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
                         ${p.foto
-                            ? `<button class="btn btn-small" data-photo-preview="${p.id}" title="Foto">📷</button>`
-                            : `<button class="btn btn-small" data-upload-photo="${p.id}" title="Foto hinzufügen">📷</button>`
+                            ? `<button class="action-btn" data-photo-preview="${p.id}" title="Foto ansehen"><i class="ti ti-photo"></i></button>`
+                            : `<button class="action-btn" data-upload-photo="${p.id}" title="Foto hinzufügen"><i class="ti ti-camera"></i></button>`
                         }
-                        <button class="btn btn-small btn-danger" data-storno-lager="${p.id}" title="Stornieren">×</button>
+                        <button class="action-btn action-btn-danger" data-storno-lager="${p.id}" title="Stornieren"><i class="ti ti-ban"></i></button>
                     </div>
                     `}
                 </div>
@@ -1581,10 +1581,33 @@ const Lager = {
         });
     },
 
+    _animateKPIs() {
+        if (typeof gsap === 'undefined') return;
+        const cards = document.querySelectorAll('#content .stat-card');
+        if (!cards.length) return;
+        gsap.from(cards, { y: 16, opacity: 0, stagger: 0.06, duration: 0.4, ease: 'power2.out', clearProps: 'all' });
+        cards.forEach(card => {
+            const valEl = card.querySelector('.card-value');
+            if (!valEl) return;
+            const raw = valEl.textContent.trim();
+            const num = parseFloat(raw.replace(/\./g,'').replace(',','.').replace(/[^\d.-]/g,''));
+            if (isNaN(num) || num === 0) return;
+            const hasCurrency = raw.includes('€');
+            const obj = { val: 0 };
+            gsap.to(obj, { val: num, duration: 0.9, ease: 'power2.out',
+                onUpdate() { valEl.textContent = hasCurrency ? obj.val.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €' : Math.round(obj.val).toLocaleString('de-DE'); },
+                onComplete() { valEl.textContent = raw; }
+            });
+        });
+    },
+
     init() {
         try {
             // Artikelnummern für alte Einträge nachrüsten (einmalig)
             this._migrateArtikelNummern();
+
+            // GSAP KPI animation
+            this._animateKPIs();
 
             // Helper: re-render
             const rerender = () => {

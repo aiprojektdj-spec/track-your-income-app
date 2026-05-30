@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'none';">
     <title>Stackr — Lager</title>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
@@ -148,10 +148,10 @@
                         + Neuer Artikel
                     </button>
                     <button class="btn" id="bulkEinkaufBtn" style="font-size:14px;padding:9px 20px;">
-                        📦 Bulk-Einkauf
+                        <i class="ti ti-packages"></i> Bulk-Einkauf
                     </button>
                     <button class="btn btn-outline" id="lagerExportBtn" style="font-size:14px;padding:9px 20px;">
-                        📥 Export
+                        <i class="ti ti-table-export"></i> Export
                     </button>
                 </div>
             </div>

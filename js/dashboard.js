@@ -122,11 +122,12 @@ const Dashboard = {
             `).join('');
         }
 
-        // Year switcher buttons
-        const years = Array.from({length: 16}, (_, i) => 2020 + i);
-        const yearBtns = years.map(y => `
-            <button class="year-btn ${y === year ? 'active' : ''}" data-year="${y}">${y}</button>
-        `).join('');
+        // Year switcher dropdown
+        const minYear = 2020;
+        const maxYear = new Date().getFullYear() + 2;
+        const yearOptions = Array.from({length: maxYear - minYear + 1}, (_, i) => minYear + i)
+            .map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('');
+        const yearBtns = `<select class="year-select" id="yearSelect">${yearOptions}</select>`;
 
         // Backup-Reminder: prüfen wie alt das letzte Datei-Backup ist
         let backupReminder = '';
@@ -293,11 +294,10 @@ const Dashboard = {
             Utils.showToast('Erinnerung pausiert für 7 Tage', 'info');
         });
 
-        document.querySelectorAll('.year-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this._selectedYear = parseInt(btn.dataset.year);
-                this._refresh();
-            });
+        const yearSelect = document.getElementById('yearSelect');
+        if (yearSelect) yearSelect.addEventListener('change', () => {
+            this._selectedYear = parseInt(yearSelect.value);
+            this._refresh();
         });
 
         this._renderChart();

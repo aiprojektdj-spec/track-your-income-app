@@ -3,10 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co;">
     <title>Stackr</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
     <script src="js/vendor/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/de.js"></script>
 </head>
 <body>
 
@@ -70,19 +78,19 @@
             <div class="sidebar-section" id="gbrSidebarSection" style="display:none;">GbR-Verwaltung</div>
             <div class="sidebar-section-items" id="gbrSidebarItems" style="display:none;">
                 <div class="sidebar-link" data-page="gbr" data-gbr-tab="uebersicht">
-                    <span class="icon">📊</span><span class="sidebar-link-label"> Übersicht</span>
+                    <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> Übersicht</span>
                 </div>
                 <div class="sidebar-link" data-page="gbr" data-gbr-tab="verrechnung">
-                    <span class="icon">💳</span><span class="sidebar-link-label"> Verrechnungskonten</span>
+                    <span class="icon"><i class="ti ti-credit-card"></i></span><span class="sidebar-link-label"> Verrechnungskonten</span>
                 </div>
                 <div class="sidebar-link" data-page="gbr" data-gbr-tab="gewerbesteuer">
-                    <span class="icon">🏛️</span><span class="sidebar-link-label"> Gewerbesteuer</span>
+                    <span class="icon"><i class="ti ti-building-bank"></i></span><span class="sidebar-link-label"> Gewerbesteuer</span>
                 </div>
                 <div class="sidebar-link" data-page="gbr" data-gbr-tab="feststellung">
-                    <span class="icon">📄</span><span class="sidebar-link-label"> Feststellung</span>
+                    <span class="icon"><i class="ti ti-file"></i></span><span class="sidebar-link-label"> Feststellung</span>
                 </div>
                 <div class="sidebar-link" data-page="gbr" data-gbr-tab="stammdaten">
-                    <span class="icon">⚙️</span><span class="sidebar-link-label"> Stammdaten</span>
+                    <span class="icon"><i class="ti ti-settings"></i></span><span class="sidebar-link-label"> Stammdaten</span>
                 </div>
             </div>
 
@@ -90,23 +98,23 @@
             <div class="sidebar-section" id="euerSidebarSection" style="display:none;">EÜR – Auswertung</div>
             <div class="sidebar-section-items" id="euerSidebarItems" style="display:none;">
                 <div class="sidebar-link" id="euerNav_jahr" data-euer-period="jahr">
-                    <span class="icon">📋</span><span class="sidebar-link-label"> Jahres-EÜR</span>
+                    <span class="icon"><i class="ti ti-clipboard-list"></i></span><span class="sidebar-link-label"> Jahres-EÜR</span>
                 </div>
                 <div class="sidebar-link" id="euerNav_monat" data-euer-period="monat">
-                    <span class="icon">📅</span><span class="sidebar-link-label"> Monatliche EÜR</span>
+                    <span class="icon"><i class="ti ti-calendar"></i></span><span class="sidebar-link-label"> Monatliche EÜR</span>
                 </div>
                 <div class="sidebar-link" id="euerNav_quartal" data-euer-period="quartal">
-                    <span class="icon">📊</span><span class="sidebar-link-label"> Quartals-EÜR</span>
+                    <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> Quartals-EÜR</span>
                 </div>
                 <div class="sidebar-link" data-page="steuertermine" id="euerNav_steuer">
-                    <span class="icon">📆</span><span class="sidebar-link-label"> Steuertermine</span>
+                    <span class="icon"><i class="ti ti-calendar-event"></i></span><span class="sidebar-link-label"> Steuertermine</span>
                 </div>
                 <div style="border-top:1px solid var(--border);margin:6px 12px;"></div>
                 <div class="sidebar-link" data-page="statistiken" id="euerNav_statistiken">
-                    <span class="icon">📈</span><span class="sidebar-link-label"> Statistiken</span>
+                    <span class="icon"><i class="ti ti-trending-up"></i></span><span class="sidebar-link-label"> Statistiken</span>
                 </div>
                 <div class="sidebar-link" data-page="ausgaben" id="euerNav_ausgaben">
-                    <span class="icon">💰</span><span class="sidebar-link-label"> Ausgaben (Betrieb)</span>
+                    <span class="icon"><i class="ti ti-cash"></i></span><span class="sidebar-link-label"> Ausgaben (Betrieb)</span>
                 </div>
             </div>
 
@@ -114,45 +122,45 @@
             <div class="sidebar-section" id="steuerSidebarSection" style="display:none;">Steuer &amp; Soziales</div>
             <div class="sidebar-section-items" id="steuerSidebarItems" style="display:none;">
                 <div class="sidebar-link" data-page="afa">
-                    <span class="icon">📉</span><span class="sidebar-link-label"> AfA / Abschreibungen</span>
+                    <span class="icon"><i class="ti ti-trending-down"></i></span><span class="sidebar-link-label"> AfA / Abschreibungen</span>
                 </div>
                 <div class="sidebar-link" data-page="privatbuchungen">
-                    <span class="icon">💼</span><span class="sidebar-link-label"> Privatentnahmen/-einlagen</span>
+                    <span class="icon"><i class="ti ti-briefcase"></i></span><span class="sidebar-link-label"> Privatentnahmen/-einlagen</span>
                 </div>
                 <div class="sidebar-link" data-page="ustvoranmeldung">
-                    <span class="icon">🧾</span><span class="sidebar-link-label"> USt-Voranmeldung</span>
+                    <span class="icon"><i class="ti ti-receipt"></i></span><span class="sidebar-link-label"> USt-Voranmeldung</span>
                 </div>
                 <div class="sidebar-link" data-page="ksk">
-                    <span class="icon">🎨</span><span class="sidebar-link-label"> KSK (Künstlersozialks.)</span>
+                    <span class="icon"><i class="ti ti-palette"></i></span><span class="sidebar-link-label"> KSK (Künstlersozialks.)</span>
                 </div>
             </div>
 
             <!-- ── GoBD Protokoll — immer sichtbar ── -->
             <div class="sidebar-link" id="protokollFixedLink" data-page="protokoll" style="margin:4px 8px;border-radius:6px;border:1px solid rgba(99,102,241,0.25);background:rgba(99,102,241,0.06);">
-                <span class="icon">🗒️</span><span class="sidebar-link-label"> GoBD Protokoll</span>
+                <span class="icon"><i class="ti ti-notebook"></i></span><span class="sidebar-link-label"> GoBD Protokoll</span>
             </div>
 
             <!-- ── Hauptmenü ── -->
             <div class="sidebar-section" data-section="hauptmenu" id="mainSidebarSection">Hauptmenü<i class="section-toggle-icon">▾</i></div>
             <div class="sidebar-section-items" id="section-hauptmenu">
                 <div class="sidebar-link active" data-page="dashboard">
-                    <span class="icon">📊</span><span class="sidebar-link-label"> Dashboard</span>
+                    <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> Dashboard</span>
                 </div>
                 <div class="sidebar-link" data-page="buchungen">
-                    <span class="icon">📝</span><span class="sidebar-link-label"> Buchungen</span>
+                    <span class="icon"><i class="ti ti-pencil"></i></span><span class="sidebar-link-label"> Buchungen</span>
                 </div>
                 <div class="sidebar-link" data-page="ausgaben">
-                    <span class="icon">💰</span><span class="sidebar-link-label"> Ausgaben (Betrieb)</span>
+                    <span class="icon"><i class="ti ti-cash"></i></span><span class="sidebar-link-label"> Ausgaben (Betrieb)</span>
                 </div>
                 <div class="sidebar-link" data-page="statistiken">
-                    <span class="icon">📈</span><span class="sidebar-link-label"> Statistiken</span>
+                    <span class="icon"><i class="ti ti-trending-up"></i></span><span class="sidebar-link-label"> Statistiken</span>
                 </div>
                 <div class="sidebar-link" data-page="fahrtenbuch">
-                    <span class="icon">🚗</span><span class="sidebar-link-label"> Fahrtenbuch</span>
+                    <span class="icon"><i class="ti ti-car"></i></span><span class="sidebar-link-label"> Fahrtenbuch</span>
                 </div>
                 <div style="border-top:1px solid var(--border);margin:6px 12px;"></div>
                 <div class="sidebar-link" data-page="afa">
-                    <span class="icon">📉</span><span class="sidebar-link-label"> Steuer &amp; Soziales</span>
+                    <span class="icon"><i class="ti ti-trending-down"></i></span><span class="sidebar-link-label"> Steuer &amp; Soziales</span>
                 </div>
             </div>
         </nav>

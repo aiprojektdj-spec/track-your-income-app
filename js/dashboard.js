@@ -247,7 +247,7 @@ const Dashboard = {
                         <div class="card-title">Einnahmen vs. Ausgaben ${year}</div>
                     </div>
                     <div class="chart-container">
-                        <canvas id="dashChart"></canvas>
+                        <div id="dashChart"></div>
                     </div>
                 </div>
             </div>
@@ -260,7 +260,7 @@ const Dashboard = {
                         <div class="card-title">Monatsverlauf Gewinn (letzte 12 Monate)</div>
                     </div>
                     <div class="chart-container">
-                        <canvas id="dashChartGewinn"></canvas>
+                        <div id="dashChartGewinn"></div>
                     </div>
                 </div>
             </div>
@@ -302,6 +302,7 @@ const Dashboard = {
 
         this._renderChart();
         this._renderGewinnChart();
+        this._animateIn();
     },
 
     _refresh() {
@@ -374,97 +375,79 @@ const Dashboard = {
             </div>
             <div class="card">
                 <div class="card-header"><div class="card-title">Jahresvergleich Chart</div></div>
-                <div class="chart-container"><canvas id="dashChartJahres"></canvas></div>
+                <div class="chart-container"><div id="dashChartJahres"></div></div>
             </div>
         </div>`;
     },
 
     _renderGewinnChart() {
-        if (typeof Chart === 'undefined') return;
-        const canvas = document.getElementById('dashChartGewinn');
-        if (!canvas) return;
+        const el = document.getElementById('dashChartGewinn');
+        if (!el) return;
         if (this._chartGewinn) { this._chartGewinn.destroy(); this._chartGewinn = null; }
+        if (typeof ApexCharts === 'undefined') return;
 
-        const textColor = document.documentElement.getAttribute('data-theme') === 'light' ? '#64748b' : '#94a3b8';
-        const gridColor = document.documentElement.getAttribute('data-theme') === 'light' ? 'rgba(0,0,0,0.08)' : 'rgba(45,45,68,0.5)';
-        const allSales = Store.getSales(true);
-        const allPurchases = Store.getPurchases(true);
-        const allExpenses = Store.getExpenses(true);
+        const isDark    = document.documentElement.getAttribute('data-theme') !== 'light';
+        const textColor = isDark ? '#94a3b8' : '#64748b';
+        const allSales = Store.getSales(true), allPurchases = Store.getPurchases(true), allExpenses = Store.getExpenses(true);
 
-        const labels = [];
-        const gewinne = [];
+        const labels = [], gewinne = [];
         const now = new Date();
         for (let i = 11; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const d      = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const mStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-            const mEnd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+            const mEnd   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
             labels.push(Utils.getMonthShort(d.getMonth()) + ' ' + d.getFullYear().toString().substr(2));
             const mSales = allSales.filter(s => Utils.isInPeriod(s.datum, mStart, mEnd));
             const mPurch = allPurchases.filter(p => Utils.isInPeriod(p.datum, mStart, mEnd));
-            const mExp = allExpenses.filter(e => Utils.isInPeriod(e.datum, mStart, mEnd));
+            const mExp   = allExpenses.filter(e => Utils.isInPeriod(e.datum, mStart, mEnd));
             const ein = mSales.reduce((s, x) => s + (parseFloat(x.verkaufspreis) || 0), 0);
             const aus = mPurch.reduce((s, x) => s + (parseFloat(x.einkaufspreis) || 0) * (parseInt(x.anzahl) || 1), 0)
                       + mExp.reduce((s, x) => s + (parseFloat(x.betrag) || 0), 0)
                       + mSales.reduce((s, x) => s + (parseFloat(x.versandkostenVerkaufer) || 0), 0)
-                      + mSales.reduce((s, x) => {
-                          const vk = parseFloat(x.verkaufspreis) || 0;
-                          const vkK = parseFloat(x.versandkostenKaeufer) || 0;
-                          const pct = parseFloat(x.plattformgebuehrProzent) || 0;
-                          return s + (vk + vkK) * pct / 100;
-                        }, 0);
-            gewinne.push(ein - aus);
+                      + mSales.reduce((s, x) => { const vk = parseFloat(x.verkaufspreis)||0, vkK = parseFloat(x.versandkostenKaeufer)||0, pct = parseFloat(x.plattformgebuehrProzent)||0; return s + (vk+vkK)*pct/100; }, 0);
+            gewinne.push(parseFloat((ein - aus).toFixed(2)));
         }
 
-        this._chartGewinn = new Chart(canvas, {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    label: 'Gewinn',
-                    data: gewinne,
-                    borderColor: '#7c3aed',
-                    backgroundColor: 'rgba(124,58,237,0.1)',
-                    tension: 0.3,
-                    fill: true,
-                    pointBackgroundColor: gewinne.map(v => v >= 0 ? '#10b981' : '#ef4444'),
-                    pointRadius: 4
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { ticks: { color: textColor }, grid: { color: gridColor } },
-                    y: { ticks: { color: textColor, callback: v => Utils.formatCurrency(v) }, grid: { color: gridColor } }
-                }
-            }
+        this._chartGewinn = new ApexCharts(el, {
+            chart: { type: 'area', height: 220, background: 'transparent', toolbar: { show: false }, fontFamily: 'inherit', animations: { enabled: true, speed: 800 } },
+            theme: { mode: isDark ? 'dark' : 'light' },
+            series: [{ name: 'Gewinn', data: gewinne }],
+            colors: ['#7c3aed'],
+            fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.02, stops: [0, 100] } },
+            stroke: { curve: 'smooth', width: 2 },
+            markers: { size: 4, colors: gewinne.map(v => v >= 0 ? '#10b981' : '#ef4444'), strokeColors: gewinne.map(v => v >= 0 ? '#10b981' : '#ef4444'), strokeWidth: 0 },
+            xaxis: { categories: labels, labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+            yaxis: { labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Utils.formatCurrency(v) } },
+            grid: { borderColor: isDark ? '#334155' : '#e2e8f0', strokeDashArray: 4 },
+            tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => Utils.formatCurrency(v) } },
+            dataLabels: { enabled: false }, legend: { show: false }
         });
+        this._chartGewinn.render();
 
         // Jahresvergleich chart
-        const canvasJ = document.getElementById('dashChartJahres');
-        if (canvasJ && !this._chartJahres) {
-            const cy = this._selectedYear;
+        const elJ = document.getElementById('dashChartJahres');
+        if (elJ && !this._chartJahres) {
+            const cy    = this._selectedYear;
             const years = [cy - 2, cy - 1, cy].filter(y => y >= 2020);
             const stats = years.map(y => this._getYearStats(y));
-            this._chartJahres = new Chart(canvasJ, {
-                type: 'bar',
-                data: {
-                    labels: years.map(String),
-                    datasets: [
-                        { label: 'Einnahmen', data: stats.map(s => s.einnahmen), backgroundColor: 'rgba(16,185,129,0.7)', borderWidth: 1 },
-                        { label: 'Ausgaben',  data: stats.map(s => s.ausgaben),  backgroundColor: 'rgba(239,68,68,0.7)',  borderWidth: 1 },
-                        { label: 'Gewinn',    data: stats.map(s => s.gewinn),    backgroundColor: 'rgba(124,58,237,0.7)', borderWidth: 1 }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: textColor } } },
-                    scales: {
-                        x: { ticks: { color: textColor }, grid: { color: gridColor } },
-                        y: { ticks: { color: textColor, callback: v => Utils.formatCurrency(v) }, grid: { color: gridColor } }
-                    }
-                }
+            this._chartJahres = new ApexCharts(elJ, {
+                chart: { type: 'bar', height: 220, background: 'transparent', toolbar: { show: false }, fontFamily: 'inherit', animations: { enabled: true, speed: 600 } },
+                theme: { mode: isDark ? 'dark' : 'light' },
+                series: [
+                    { name: 'Einnahmen', data: stats.map(s => parseFloat(s.einnahmen.toFixed(2))) },
+                    { name: 'Ausgaben',  data: stats.map(s => parseFloat(s.ausgaben.toFixed(2)))  },
+                    { name: 'Gewinn',    data: stats.map(s => parseFloat(s.gewinn.toFixed(2)))    }
+                ],
+                colors: ['#10b981', '#ef4444', '#7c3aed'],
+                plotOptions: { bar: { columnWidth: '70%', borderRadius: 3 } },
+                xaxis: { categories: years.map(String), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                yaxis: { labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Utils.formatCurrency(v) } },
+                grid: { borderColor: isDark ? '#334155' : '#e2e8f0', strokeDashArray: 4 },
+                legend: { labels: { colors: textColor }, fontSize: '12px' },
+                tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => Utils.formatCurrency(v) } },
+                dataLabels: { enabled: false }
             });
+            this._chartJahres.render();
         }
     },
 
@@ -534,63 +517,75 @@ const Dashboard = {
     },
 
     _renderChart() {
-        const canvas = document.getElementById('dashChart');
-        if (!canvas) return;
+        const el = document.getElementById('dashChart');
+        if (!el) return;
         if (this._chart) { this._chart.destroy(); this._chart = null; }
+        if (typeof ApexCharts === 'undefined') return;
 
-        const year = this._selectedYear;
+        const year      = this._selectedYear;
         const sales     = Store.getSales(true);
         const purchases = Store.getPurchases(true);
         const expenses  = Store.getExpenses(true);
+        const isDark    = document.documentElement.getAttribute('data-theme') !== 'light';
+        const textColor = isDark ? '#94a3b8' : '#64748b';
 
-        const textColor = document.documentElement.getAttribute('data-theme') === 'light' ? '#64748b' : '#94a3b8';
-        const gridColor = document.documentElement.getAttribute('data-theme') === 'light' ? 'rgba(0,0,0,0.08)' : 'rgba(45,45,68,0.5)';
-
-        const labels    = [];
-        const einnahmen = [];
-        const ausgaben  = [];
-
+        const labels = [], einnahmen = [], ausgaben = [];
         for (let m = 0; m < 12; m++) {
             labels.push(Utils.getMonthShort(m));
             const monthStart = `${year}-${String(m + 1).padStart(2, '0')}-01`;
-            const nextM = new Date(year, m + 1, 1);
-            const monthEnd = `${nextM.getFullYear()}-${String(nextM.getMonth() + 1).padStart(2, '0')}-01`;
-            const inPeriod = d => d >= monthStart && d < monthEnd;
-
+            const nextM      = new Date(year, m + 1, 1);
+            const monthEnd   = `${nextM.getFullYear()}-${String(nextM.getMonth() + 1).padStart(2, '0')}-01`;
+            const inPeriod   = d => d >= monthStart && d < monthEnd;
             const rev = sales.filter(s => inPeriod(s.datum)).reduce((sum, s) => sum + (parseFloat(s.verkaufspreis) || 0), 0);
-            einnahmen.push(rev);
-
+            einnahmen.push(parseFloat(rev.toFixed(2)));
             const pc = purchases.filter(p => inPeriod(p.datum)).reduce((sum, p) => sum + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1), 0);
             const ec = expenses.filter(e => inPeriod(e.datum)).reduce((sum, e) => sum + (parseFloat(e.betrag) || 0), 0);
             const sc = sales.filter(s => inPeriod(s.datum)).reduce((sum, s) => sum + (parseFloat(s.versandkostenVerkaufer) || 0), 0);
             const fc = sales.filter(s => inPeriod(s.datum)).reduce((sum, s) => {
-                const vk = parseFloat(s.verkaufspreis) || 0;
-                const vkK = parseFloat(s.versandkostenKaeufer) || 0;
-                const pct = parseFloat(s.plattformgebuehrProzent) || 0;
+                const vk = parseFloat(s.verkaufspreis) || 0, vkK = parseFloat(s.versandkostenKaeufer) || 0, pct = parseFloat(s.plattformgebuehrProzent) || 0;
                 return sum + (vk + vkK) * pct / 100;
             }, 0);
-            ausgaben.push(pc + ec + sc + fc);
+            ausgaben.push(parseFloat((pc + ec + sc + fc).toFixed(2)));
         }
 
-        if (typeof Chart === 'undefined') return;
-        this._chart = new Chart(canvas, {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'Einnahmen', data: einnahmen, backgroundColor: 'rgba(16,185,129,0.7)', borderColor: '#10b981', borderWidth: 1 },
-                    { label: 'Ausgaben',  data: ausgaben,  backgroundColor: 'rgba(239,68,68,0.7)',  borderColor: '#ef4444', borderWidth: 1 }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: textColor } } },
-                scales: {
-                    x: { ticks: { color: textColor }, grid: { color: gridColor } },
-                    y: { ticks: { color: textColor, callback: v => Utils.formatCurrency(v) }, grid: { color: gridColor } }
-                }
-            }
+        this._chart = new ApexCharts(el, {
+            chart: { type: 'bar', height: 220, background: 'transparent', toolbar: { show: false }, fontFamily: 'inherit', animations: { enabled: true, speed: 600 } },
+            theme: { mode: isDark ? 'dark' : 'light' },
+            series: [{ name: 'Einnahmen', data: einnahmen }, { name: 'Ausgaben', data: ausgaben }],
+            colors: ['#10b981', '#ef4444'],
+            plotOptions: { bar: { columnWidth: '60%', borderRadius: 3 } },
+            xaxis: { categories: labels, labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
+            yaxis: { labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Utils.formatCurrency(v) } },
+            grid: { borderColor: isDark ? '#334155' : '#e2e8f0', strokeDashArray: 4 },
+            legend: { labels: { colors: textColor }, fontSize: '12px' },
+            tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => Utils.formatCurrency(v) } },
+            dataLabels: { enabled: false }
+        });
+        this._chart.render();
+    },
+
+    _animateIn() {
+        if (typeof gsap === 'undefined') return;
+        const cards = document.querySelectorAll('.stat-card');
+        if (!cards.length) return;
+        gsap.from(cards, { y: 20, opacity: 0, stagger: 0.07, duration: 0.5, ease: 'power2.out', clearProps: 'all' });
+        cards.forEach(card => {
+            const valEl = card.querySelector('.card-value');
+            if (!valEl) return;
+            const raw = valEl.textContent;
+            const num = parseFloat(raw.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, ''));
+            if (isNaN(num) || num === 0) return;
+            const isNeg = num < 0, hasCurrency = raw.includes('€');
+            const obj = { val: 0 };
+            gsap.to(obj, {
+                val: Math.abs(num), duration: 1.2, ease: 'power2.out',
+                onUpdate() {
+                    valEl.textContent = hasCurrency
+                        ? (isNeg ? '-' : '') + obj.val.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+                        : Math.round(obj.val).toLocaleString('de-DE');
+                },
+                onComplete() { valEl.textContent = raw; }
+            });
         });
     }
 };

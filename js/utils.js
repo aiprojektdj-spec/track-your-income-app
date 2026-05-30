@@ -206,6 +206,25 @@ const Utils = {
     },
 
     showToast(message, type = 'success') {
+        if (typeof Notyf !== 'undefined') {
+            if (!this._notyf) {
+                this._notyf = new Notyf({
+                    duration: 3000,
+                    position: { x: 'right', y: 'top' },
+                    types: [
+                        { type: 'success', background: '#10b981', dismissible: false },
+                        { type: 'error',   background: '#ef4444', dismissible: true  },
+                        { type: 'warning', background: '#f59e0b', dismissible: false },
+                        { type: 'info',    background: '#3b82f6', dismissible: false }
+                    ]
+                });
+            }
+            if      (type === 'success') this._notyf.success(message);
+            else if (type === 'error')   this._notyf.error(message);
+            else                         this._notyf.open({ type: type, message });
+            return;
+        }
+        // Fallback wenn Notyf nicht geladen
         let stack = document.getElementById('toast-stack');
         if (!stack) {
             stack = document.createElement('div');
@@ -232,6 +251,20 @@ const Utils = {
 
         const origId    = input.id;
         const origValue = input.value; // ISO: YYYY-MM-DD
+
+        // Flatpickr-Integration: Calendar-Popup mit deutscher Lokalisierung
+        if (typeof flatpickr !== 'undefined') {
+            flatpickr(input, {
+                locale: (flatpickr.l10ns && flatpickr.l10ns.de) ? 'de' : 'default',
+                dateFormat: 'Y-m-d',   // interner Wert bleibt ISO
+                altInput: true,         // sichtbares Feld zeigt TT.MM.JJJJ
+                altFormat: 'd.m.Y',
+                defaultDate: origValue || null,
+                allowInput: true,
+                disableMobile: false
+            });
+            return;
+        }
         const origStyle = input.getAttribute('style') || '';
         const origClass = input.className;
         const origRequired = input.required;

@@ -271,10 +271,20 @@ var Mahnungen = (function() {
         modal.style.overflow = 'auto';
         modal.style.maxHeight = '90vh';
 
+        var toolbar = document.createElement('div');
+        toolbar.style.cssText = 'position:fixed;top:14px;right:14px;z-index:10001;display:flex;gap:8px;align-items:center;';
+
+        var printBtn = document.createElement('button');
+        printBtn.innerHTML = '&#x1F4BE; PDF / Drucken';
+        printBtn.style.cssText = 'background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+
         var closeBtn = document.createElement('button');
         closeBtn.innerHTML = '&times;';
-        closeBtn.style.cssText = 'position:fixed;top:16px;right:16px;z-index:10001;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:22px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;';
-        document.body.appendChild(closeBtn);
+        closeBtn.style.cssText = 'background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+
+        toolbar.appendChild(printBtn);
+        toolbar.appendChild(closeBtn);
+        document.body.appendChild(toolbar);
 
         overlay.classList.add('active');
 
@@ -284,10 +294,11 @@ var Mahnungen = (function() {
             modal.style.padding = '';
             modal.style.overflow = '';
             modal.style.maxHeight = '';
-            if (closeBtn.parentNode) closeBtn.parentNode.removeChild(closeBtn);
+            if (toolbar.parentNode) toolbar.parentNode.removeChild(toolbar);
             overlay.removeEventListener('click', overlayHandler);
         }
         function overlayHandler(e) { if (e.target === overlay) closePreview(); }
+        printBtn.addEventListener('click', function() { window.print(); });
         closeBtn.addEventListener('click', closePreview);
         overlay.addEventListener('click', overlayHandler);
     }

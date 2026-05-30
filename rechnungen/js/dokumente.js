@@ -166,15 +166,34 @@ var Dokumente = (function() {
         var invoices = Store.getRechInvoices();
         var inv = invoices.find(function(i) { return i.id === id; });
         if (!inv) return;
-        var body = Rechnung.generatePreviewHtml(inv);
-        var footer = '<button class="btn btn-primary" id="prevPdf">Als PDF speichern</button> <button class="btn" id="prevPrint">Drucken</button> <button class="btn" onclick="RechApp.closeModal()">Schlie\u00DFen</button>';
-        RechApp.showModal('Vorschau', body, footer);
-        document.getElementById('prevPdf').addEventListener('click', function() {
-            window.print();
-        });
-        document.getElementById('prevPrint').addEventListener('click', function() {
-            window.print();
-        });
+
+        var overlay = document.getElementById('modalOverlay');
+        var modal = document.getElementById('modal');
+
+        modal.innerHTML = Rechnung.generatePreviewHtml(inv);
+        modal.style.padding = '0';
+        modal.style.overflow = 'auto';
+        modal.style.maxHeight = '90vh';
+
+        var closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '&times;';
+        closeBtn.style.cssText = 'position:fixed;top:16px;right:16px;z-index:10001;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:22px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;';
+        document.body.appendChild(closeBtn);
+
+        overlay.classList.add('active');
+
+        function closePreview() {
+            overlay.classList.remove('active');
+            modal.innerHTML = '';
+            modal.style.padding = '';
+            modal.style.overflow = '';
+            modal.style.maxHeight = '';
+            if (closeBtn.parentNode) closeBtn.parentNode.removeChild(closeBtn);
+            overlay.removeEventListener('click', overlayHandler);
+        }
+        function overlayHandler(e) { if (e.target === overlay) closePreview(); }
+        closeBtn.addEventListener('click', closePreview);
+        overlay.addEventListener('click', overlayHandler);
     }
 
     function showStornoModal(id) {

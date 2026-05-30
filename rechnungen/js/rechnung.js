@@ -747,70 +747,106 @@ var Rechnung = (function() {
     function generatePreviewHtml(inv, watermarkText) {
         var settings = mergeRechSettings();
         var logoBase64 = settings.logoBase64 || '';
-        var headerColor = settings.invoiceHeaderColor || '#7c3aed';
-        var primaryColor = settings.invoicePrimaryColor || '#7c3aed';
+        var accentColor = settings.invoicePrimaryColor || '#4f46e5';
         var customers = Store.getRechCustomers();
         var kunde = customers.find(function(c) { return c.id === inv.kundeId; });
         var isKlein = settings.ustMode === 'klein';
-
         var isStorno = inv.typ === 'stornorechnung';
-        if (isStorno) {
-            headerColor = '#dc2626';
-            primaryColor = '#dc2626';
-        }
+        if (isStorno) accentColor = '#dc2626';
 
-        var typLabel = isStorno ? 'STORNORECHNUNG' : (inv.typ === 'rechnung' ? 'RECHNUNG' : inv.typ === 'angebot' ? 'ANGEBOT' : 'GUTSCHRIFT');
-        var typLabelNormal = isStorno ? 'Stornorechnung' : (inv.typ === 'rechnung' ? 'Rechnung' : inv.typ === 'angebot' ? 'Angebot' : 'Gutschrift');
+        var typLabel = isStorno ? 'STORNORECHNUNG' :
+                       inv.typ === 'rechnung' ? 'RECHNUNG' :
+                       inv.typ === 'angebot' ? 'ANGEBOT' : 'GUTSCHRIFT';
 
         var wm = watermarkText || (inv.status === 'storniert' ? 'STORNIERT' : '');
-        var wmStyle = wm ? 'position:relative;overflow:hidden;' : '';
-        var html = '<div class="invoice-preview-new" style="' + wmStyle + '">';
-        if (wm) {
-            html += '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:80px;font-weight:900;color:rgba(220,38,38,0.12);pointer-events:none;white-space:nowrap;z-index:0;letter-spacing:4px;">' + wm + '</div>';
-        }
 
-        // Header bar
-        html += '<div class="invoice-header-bar" style="background:' + headerColor + '">';
-        html += '<div style="display:flex;align-items:center;gap:16px;">';
-        if (logoBase64) {
-            html += '<img src="' + logoBase64 + '" alt="Logo" style="max-height:60px;max-width:150px;object-fit:contain;">';
+        // Embedded styles \u2014 self-contained for both in-app preview and print
+        var css = '<style>'
+            + '.inv-wrap{background:#fff;color:#1e293b;max-width:794px;margin:0 auto;font-size:13px;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Arial,sans-serif;position:relative;}'
+            + '.inv-accent{height:5px;width:100%;display:block;}'
+            + '.inv-header{display:flex;justify-content:space-between;align-items:flex-start;padding:28px 36px 22px;gap:20px;}'
+            + '.inv-logo{max-height:55px;max-width:140px;object-fit:contain;display:block;margin-bottom:10px;}'
+            + '.inv-co-name{font-size:18px;font-weight:700;color:#0f172a;letter-spacing:-.3px;margin-bottom:3px;}'
+            + '.inv-co-addr{font-size:11.5px;color:#64748b;line-height:1.65;}'
+            + '.inv-doc{text-align:right;flex-shrink:0;}'
+            + '.inv-doc-type{font-size:21px;font-weight:800;letter-spacing:1.5px;margin-bottom:12px;}'
+            + '.inv-meta{font-size:12px;}'
+            + '.inv-meta-row{display:flex;justify-content:flex-end;gap:14px;padding:2.5px 0;}'
+            + '.inv-meta-lbl{color:#94a3b8;}'
+            + '.inv-meta-val{color:#1e293b;font-weight:500;min-width:80px;text-align:right;}'
+            + 'hr.inv-sep{border:none;border-top:2px solid #e2e8f0;margin:0 36px;}'
+            + '.inv-body{padding:26px 36px 36px;}'
+            + '.inv-sender{font-size:9px;color:#94a3b8;border-bottom:1px solid #f1f5f9;padding-bottom:5px;margin-bottom:10px;letter-spacing:.3px;}'
+            + '.inv-rcpt{font-size:13px;line-height:1.65;color:#1e293b;margin-bottom:28px;}'
+            + '.inv-rcpt strong{font-size:14px;font-weight:700;}'
+            + '.inv-storno-box{margin-bottom:16px;padding:10px 14px;background:rgba(220,38,38,.06);border-left:3px solid #dc2626;border-radius:0 4px 4px 0;font-size:12px;color:#b91c1c;}'
+            + '.inv-tax{font-size:11.5px;color:#64748b;margin-bottom:20px;}'
+            + '.inv-tax strong{color:#334155;}'
+            + '.inv-tbl{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:12.5px;}'
+            + '.inv-tbl thead tr{border-bottom:2px solid #e2e8f0;}'
+            + '.inv-tbl th{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:#64748b;padding:8px 10px;text-align:left;background:#f8fafc;}'
+            + '.inv-tbl th.r,.inv-tbl td.r{text-align:right;}'
+            + '.inv-tbl td{padding:9px 10px;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:top;}'
+            + '.inv-tbl tbody tr:last-child td{border-bottom:2px solid #e2e8f0;}'
+            + '.inv-tbl .pos{width:34px;color:#94a3b8;font-size:11.5px;}'
+            + '.inv-totals{margin-left:auto;width:255px;padding-top:6px;margin-bottom:24px;}'
+            + '.inv-tr{display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px;color:#334155;}'
+            + '.inv-tr.grand{border-top:2px solid #1e293b;margin-top:8px;padding-top:10px;font-size:15px;font-weight:700;color:#0f172a;}'
+            + '.inv-klein{font-size:11.5px;color:#64748b;padding:9px 13px;background:#f8fafc;border-radius:4px;margin-bottom:18px;}'
+            + '.inv-note{margin-bottom:14px;font-size:12.5px;color:#334155;}'
+            + '.inv-bank{margin-top:22px;padding:14px 18px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0;}'
+            + '.inv-bank-hd{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#64748b;margin-bottom:8px;}'
+            + '.inv-bank-row{display:flex;flex-wrap:wrap;gap:20px;font-size:12.5px;color:#334155;margin-bottom:4px;}'
+            + '.inv-bank-row em{font-style:normal;color:#94a3b8;font-size:10.5px;margin-right:3px;}'
+            + '.inv-bank-ref{font-size:11px;color:#64748b;margin-top:5px;}'
+            + '.inv-footer{margin-top:30px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;line-height:1.9;}'
+            + '</style>';
+
+        var html = css;
+        html += '<div class="inv-wrap">';
+        if (wm) {
+            html += '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:72px;font-weight:900;color:rgba(220,38,38,.10);pointer-events:none;white-space:nowrap;z-index:0;letter-spacing:4px;">' + wm + '</div>';
         }
+        html += '<div class="inv-accent" style="background:' + accentColor + '"></div>';
+
+        // Header: company left, doc info right
+        html += '<div class="inv-header">';
         html += '<div>';
-        html += '<div class="company-name">' + Utils.escapeHtml(settings.firmenname || '') + '</div>';
-        html += '<div class="company-address">';
+        if (logoBase64) html += '<img src="' + logoBase64 + '" alt="Logo" class="inv-logo">';
+        html += '<div class="inv-co-name">' + Utils.escapeHtml(settings.firmenname || '') + '</div>';
+        html += '<div class="inv-co-addr">';
         if (settings.name) html += Utils.escapeHtml(settings.name) + '<br>';
         html += Utils.escapeHtml(settings.adresse || '') + '<br>';
         html += Utils.escapeHtml(settings.plz || '') + ' ' + Utils.escapeHtml(settings.ort || '');
         html += '</div>';
         html += '</div>';
-        html += '</div>'; // closes the flex container
-        html += '<div class="doc-info">';
-        html += '<div class="doc-type">' + typLabel + '</div>';
-        html += '<div class="doc-meta">';
-        html += 'Nr.: ' + Utils.escapeHtml(inv.nummer || '') + '<br>';
-        html += 'Datum: ' + Utils.formatDate(inv.datum) + '<br>';
+        html += '<div class="inv-doc">';
+        html += '<div class="inv-doc-type" style="color:' + accentColor + '">' + typLabel + '</div>';
+        html += '<div class="inv-meta">';
+        html += '<div class="inv-meta-row"><span class="inv-meta-lbl">Nummer</span><span class="inv-meta-val">' + Utils.escapeHtml(inv.nummer || '') + '</span></div>';
+        html += '<div class="inv-meta-row"><span class="inv-meta-lbl">Datum</span><span class="inv-meta-val">' + Utils.formatDate(inv.datum) + '</span></div>';
         if (inv.typ !== 'angebot') {
             var dOpt = inv.datumsOption || 'faelligkeit';
             if (dOpt === 'faelligkeit') {
-                html += 'F\u00E4llig: ' + Utils.formatDate(inv.faelligkeit);
+                html += '<div class="inv-meta-row"><span class="inv-meta-lbl">F\u00E4llig am</span><span class="inv-meta-val">' + Utils.formatDate(inv.faelligkeit) + '</span></div>';
             } else if (dOpt === 'lieferdatum' && inv.lieferdatum) {
-                html += 'Lieferdatum: ' + Utils.formatDate(inv.lieferdatum);
+                html += '<div class="inv-meta-row"><span class="inv-meta-lbl">Lieferdatum</span><span class="inv-meta-val">' + Utils.formatDate(inv.lieferdatum) + '</span></div>';
             } else if (dOpt === 'lieferzeitraum' && (inv.lieferVon || inv.lieferBis)) {
-                html += 'Lieferzeitraum: ' + Utils.formatDate(inv.lieferVon) + ' \u2013 ' + Utils.formatDate(inv.lieferBis);
+                html += '<div class="inv-meta-row"><span class="inv-meta-lbl">Lieferzeitraum</span><span class="inv-meta-val">' + Utils.formatDate(inv.lieferVon) + ' \u2013 ' + Utils.formatDate(inv.lieferBis) + '</span></div>';
             }
         }
         html += '</div>';
         html += '</div>';
-        html += '</div>';
+        html += '</div>'; // inv-header
 
-        // Body content
-        html += '<div class="invoice-body-content">';
+        html += '<hr class="inv-sep">';
 
-        // Sender line
-        html += '<div class="invoice-sender-line">' + Utils.escapeHtml(settings.firmenname || '') + ' \u00B7 ' + Utils.escapeHtml(settings.adresse || '') + ' \u00B7 ' + Utils.escapeHtml(settings.plz || '') + ' ' + Utils.escapeHtml(settings.ort || '') + '</div>';
+        // Body
+        html += '<div class="inv-body">';
 
-        // Recipient
-        html += '<div class="invoice-recipient">';
+        // Sender line above recipient address
+        html += '<div class="inv-sender">' + Utils.escapeHtml(settings.firmenname || '') + ' \u00B7 ' + Utils.escapeHtml(settings.adresse || '') + ' \u00B7 ' + Utils.escapeHtml(settings.plz || '') + ' ' + Utils.escapeHtml(settings.ort || '') + '</div>';
+        html += '<div class="inv-rcpt">';
         if (kunde) {
             html += '<strong>' + Utils.escapeHtml(kunde.firma || '') + '</strong><br>';
             if (kunde.ansprechpartner) html += Utils.escapeHtml(kunde.ansprechpartner) + '<br>';
@@ -819,12 +855,9 @@ var Rechnung = (function() {
         }
         html += '</div>';
 
-        // Title line
-        html += '<div class="invoice-title-line" style="color:' + primaryColor + '">' + typLabel + ' ' + Utils.escapeHtml(inv.nummer || '') + '</div>';
-
         // Storno reference
         if (isStorno && inv.originalRechnungNummer) {
-            html += '<div style="margin-bottom:16px;padding:10px 14px;background:rgba(220,38,38,0.07);border-left:3px solid #dc2626;border-radius:0 4px 4px 0;font-size:13px;color:#b91c1c;">';
+            html += '<div class="inv-storno-box">';
             html += '<strong>Stornorechnung zu:</strong> ' + Utils.escapeHtml(inv.originalRechnungNummer);
             if (inv.originalDatum) html += ' vom ' + Utils.formatDate(inv.originalDatum);
             if (inv.stornierungsGrund) {
@@ -835,24 +868,24 @@ var Rechnung = (function() {
             html += '</div>';
         }
 
-        // Tax info
+        // Tax line
         if (settings.steuernummer || settings.ustId) {
-            html += '<div style="margin-bottom: 1rem; font-size: 0.85rem; color: #666;">';
-            if (settings.steuernummer) html += 'Steuernr.: ' + Utils.escapeHtml(settings.steuernummer) + ' ';
-            if (settings.ustId) html += 'USt-IdNr.: ' + Utils.escapeHtml(settings.ustId);
+            html += '<div class="inv-tax">';
+            if (settings.steuernummer) html += 'Steuernr.: <strong>' + Utils.escapeHtml(settings.steuernummer) + '</strong>';
+            if (settings.steuernummer && settings.ustId) html += '&nbsp;&nbsp;';
+            if (settings.ustId) html += 'USt-IdNr.: <strong>' + Utils.escapeHtml(settings.ustId) + '</strong>';
             html += '</div>';
         }
 
         // Positions table
-        html += '<table class="invoice-table-new">';
-        html += '<thead><tr>';
-        html += '<th>Pos.</th>';
+        html += '<table class="inv-tbl"><thead><tr>';
+        html += '<th class="pos r">Pos.</th>';
         html += '<th>Beschreibung</th>';
-        html += '<th class="text-right">Menge</th>';
+        html += '<th class="r">Menge</th>';
         html += '<th>Einheit</th>';
-        html += '<th class="text-right">Einzelpreis</th>';
-        if (!isKlein) html += '<th class="text-right">MwSt</th>';
-        html += '<th class="text-right">Gesamt</th>';
+        html += '<th class="r">Einzelpreis</th>';
+        if (!isKlein) html += '<th class="r">MwSt</th>';
+        html += '<th class="r">Gesamt</th>';
         html += '</tr></thead><tbody>';
 
         var netto = 0;
@@ -865,107 +898,84 @@ var Rechnung = (function() {
                 mwstMap[pos.mwstSatz] += lineNetto * pos.mwstSatz / 100;
             }
             html += '<tr>';
-            html += '<td>' + (idx + 1) + '</td>';
+            html += '<td class="pos r">' + (idx + 1) + '</td>';
             html += '<td>' + Utils.escapeHtml(pos.beschreibung || '') + '</td>';
-            html += '<td class="text-right">' + Utils.formatNumber(pos.menge) + '</td>';
+            html += '<td class="r">' + Utils.formatNumber(pos.menge) + '</td>';
             html += '<td>' + Utils.escapeHtml(pos.einheit || '') + '</td>';
-            html += '<td class="text-right">' + Utils.formatCurrency(pos.einzelpreis) + '</td>';
-            if (!isKlein) html += '<td class="text-right">' + pos.mwstSatz + '%</td>';
-            html += '<td class="text-right">' + Utils.formatCurrency(lineNetto) + '</td>';
+            html += '<td class="r">' + Utils.formatCurrency(pos.einzelpreis) + '</td>';
+            if (!isKlein) html += '<td class="r">' + pos.mwstSatz + '%</td>';
+            html += '<td class="r">' + Utils.formatCurrency(lineNetto) + '</td>';
             html += '</tr>';
         });
         html += '</tbody></table>';
 
-        // Totals
+        // Totals block
         var totalMwst = 0;
-        html += '<div class="invoice-totals-new">';
-        html += '<div class="total-row"><span>Zwischensumme:</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
+        html += '<div class="inv-totals">';
+        html += '<div class="inv-tr"><span>Nettobetrag</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
         if (isKlein) {
-            html += '<div class="total-row grand-total"><span>GESAMTBETRAG:</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
+            html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
         } else {
             Object.keys(mwstMap).sort().forEach(function(satz) {
                 totalMwst += mwstMap[satz];
-                html += '<div class="total-row"><span>MwSt. ' + satz + '%:</span><span>' + Utils.formatCurrency(mwstMap[satz]) + '</span></div>';
+                html += '<div class="inv-tr"><span>MwSt. ' + satz + '%</span><span>' + Utils.formatCurrency(mwstMap[satz]) + '</span></div>';
             });
-            html += '<div class="total-row grand-total"><span>GESAMTBETRAG:</span><span>' + Utils.formatCurrency(netto + totalMwst) + '</span></div>';
+            html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(netto + totalMwst) + '</span></div>';
         }
         html += '</div>';
 
         // Kleinunternehmer notice
         if (isKlein) {
-            html += '<div class="kleinunternehmer-hinweis">Gem\u00E4\u00DF \u00A719 UStG wird keine Umsatzsteuer berechnet.</div>';
+            html += '<div class="inv-klein">Gem\u00E4\u00DF \u00A719 UStG wird keine Umsatzsteuer berechnet.</div>';
         }
 
-        // Payment terms
+        // Payment terms & notes
         if (inv.zahlungsbedingungen) {
-            html += '<p><strong>Zahlungsbedingungen:</strong><br>' + Utils.escapeHtml(inv.zahlungsbedingungen) + '</p>';
+            html += '<div class="inv-note"><strong>Zahlungsbedingungen:</strong><br>' + Utils.escapeHtml(inv.zahlungsbedingungen) + '</div>';
         }
-
-        // Notes
         if (inv.notizen) {
-            html += '<p><strong>Hinweise:</strong><br>' + Utils.escapeHtml(inv.notizen) + '</p>';
+            html += '<div class="inv-note"><strong>Hinweise:</strong><br>' + Utils.escapeHtml(inv.notizen) + '</div>';
         }
 
         // Bank info
         if (settings.bankname || settings.iban) {
-            html += '<div class="invoice-bank-info">';
-            html += '<strong>Bankverbindung</strong><br>';
-            var bankParts = [];
-            if (settings.bankname) bankParts.push('Bank: ' + Utils.escapeHtml(settings.bankname));
-            if (settings.iban) bankParts.push('IBAN: ' + Utils.escapeHtml(settings.iban));
-            if (settings.bic) bankParts.push('BIC: ' + Utils.escapeHtml(settings.bic));
-            html += bankParts.join(' | ') + '<br>';
-            html += 'Verwendungszweck: ' + Utils.escapeHtml(inv.nummer || '');
+            html += '<div class="inv-bank">';
+            html += '<div class="inv-bank-hd">Bankverbindung</div>';
+            html += '<div class="inv-bank-row">';
+            if (settings.bankname) html += '<span><em>Bank</em> ' + Utils.escapeHtml(settings.bankname) + '</span>';
+            if (settings.iban) html += '<span><em>IBAN</em> ' + Utils.escapeHtml(settings.iban) + '</span>';
+            if (settings.bic) html += '<span><em>BIC</em> ' + Utils.escapeHtml(settings.bic) + '</span>';
+            html += '</div>';
+            html += '<div class="inv-bank-ref">Verwendungszweck: ' + Utils.escapeHtml(inv.nummer || '') + '</div>';
             html += '</div>';
         }
 
-        // Footer bar
-        html += '<div class="invoice-footer-bar" style="background:' + headerColor + '">';
+        // Footer
+        html += '<div class="inv-footer">';
         var footerParts = [];
-        footerParts.push(Utils.escapeHtml(settings.firmenname || ''));
-        footerParts.push(Utils.escapeHtml(settings.adresse || '') + ', ' + Utils.escapeHtml(settings.plz || '') + ' ' + Utils.escapeHtml(settings.ort || ''));
-        if (settings.telefon) footerParts.push('Tel: ' + Utils.escapeHtml(settings.telefon));
+        if (settings.firmenname) footerParts.push(Utils.escapeHtml(settings.firmenname));
+        if (settings.adresse) footerParts.push(Utils.escapeHtml(settings.adresse) + ', ' + Utils.escapeHtml(settings.plz || '') + ' ' + Utils.escapeHtml(settings.ort || ''));
+        if (settings.telefon) {
+            var tel = settings.telefon;
+            if (tel && tel.charAt(0) !== '+') tel = '+' + tel;
+            footerParts.push('Tel: ' + Utils.escapeHtml(tel));
+        }
         if (settings.email) footerParts.push(Utils.escapeHtml(settings.email));
-        html += footerParts.join(' | ');
+        html += footerParts.join(' \u00B7 ');
         html += '</div>';
 
-        html += '</div>'; // invoice-body-content
-        html += '</div>'; // invoice-preview-new
+        html += '</div>'; // inv-body
+        html += '</div>'; // inv-wrap
         return html;
     }
 
     function printInvoiceWindow(invoiceHtml, asPdf, watermarkText) {
         // watermarkText is embedded in invoiceHtml already via generatePreviewHtml
         var invoiceCss = `
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { background: white; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
-            .invoice-preview-new { background: white; color: #333; max-width: 800px; margin: 0 auto; font-size: 13px; line-height: 1.6; }
-            .invoice-header-bar { color: white; padding: 24px 32px; display: flex; justify-content: space-between; align-items: flex-start; }
-            .invoice-header-bar .company-name { font-size: 22px; font-weight: 700; }
-            .invoice-header-bar .company-address { font-size: 12px; opacity: 0.85; margin-top: 4px; }
-            .invoice-header-bar .doc-info { text-align: right; }
-            .invoice-header-bar .doc-type { font-size: 20px; font-weight: 700; text-transform: uppercase; }
-            .invoice-header-bar .doc-meta { font-size: 12px; opacity: 0.85; margin-top: 4px; }
-            .invoice-body-content { padding: 24px 32px; }
-            .invoice-sender-line { font-size: 10px; color: #999; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-bottom: 12px; }
-            .invoice-recipient { margin-bottom: 24px; line-height: 1.5; }
-            .invoice-recipient strong { font-size: 14px; }
-            .invoice-title-line { font-size: 16px; font-weight: 700; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 2px solid currentColor; color: #1e293b; }
-            .invoice-table-new { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            .invoice-table-new thead th { background: #f8f8fc; color: #555; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 12px; border-bottom: 2px solid #e2e8f0; text-align: left; }
-            .invoice-table-new thead th:last-child, .invoice-table-new thead th.text-right { text-align: right; }
-            .invoice-table-new tbody td { padding: 10px 12px; border-bottom: 1px solid #f0f0f5; color: #333; }
-            .invoice-table-new tbody tr:nth-child(even) { background: #fafafa; }
-            .invoice-table-new tbody td:last-child, .invoice-table-new tbody td.text-right { text-align: right; }
-            .invoice-totals-new { margin-left: auto; width: 280px; margin-bottom: 24px; }
-            .invoice-totals-new .total-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
-            .invoice-totals-new .total-row.grand-total { border-top: 2px solid #333; margin-top: 8px; padding-top: 10px; font-size: 16px; font-weight: 700; }
-            .invoice-bank-info { margin-top: 24px; padding: 12px 16px; background: #f8f8fc; border-radius: 6px; font-size: 12px; color: #555; }
-            .invoice-bank-info strong { color: #333; }
-            .invoice-footer-bar { margin-top: 32px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 10px; color: #999; text-align: center; }
-            .kleinunternehmer-hinweis { margin-top: 16px; padding: 12px; background: #f9f9f9; border-left: 3px solid #7c3aed; font-size: 12px; color: #555; }
-            @page { size: A4; margin: 10mm; }
-            @media print { body { margin: 0; } }
+            * { box-sizing: border-box; }
+            body { background: white; margin: 0; padding: 0; }
+            @page { size: A4; margin: 8mm; }
+            @media print { .inv-wrap { max-width: 100% !important; } }
         `;
         var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rechnung</title><style>' + invoiceCss + '</style></head><body>' + invoiceHtml + '</body></html>';
 

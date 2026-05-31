@@ -91,8 +91,12 @@ var UserPlan = (function () {
         });
     }
 
-    // ── Checkout-Link (LemonSqueezy) ──────────
-    // TODO: Ersetze mit deinem echten LemonSqueezy Checkout-Link
+    // ── Checkout-Link (LemonSqueezy) ──────────────────────────────
+    // So erhältst du die URL:
+    //   1. LemonSqueezy → Dein Store → Products → Produkt wählen
+    //   2. Reiter "Sharing" → "Checkout URL" kopieren
+    //   Beispiel: https://trackyourincome.lemonsqueezy.com/checkout/buy/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    //
     var CHECKOUT_URL = 'https://trackyourincome.lemonsqueezy.com/checkout/buy/DEIN-PRODUKT-ID';
 
     function openCheckout() {

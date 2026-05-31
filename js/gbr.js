@@ -129,17 +129,17 @@ const GbR = {
         return `
         <div class="card" style="margin-top:20px;border:1px solid rgba(99,102,241,.3);">
             <div class="card-header" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                <div class="card-title">🤝 Gewinnverteilung GbR</div>
+                <div class="card-title"><i class="ti ti-users"></i> Gewinnverteilung GbR</div>
                 <span style="font-size:12px;color:var(--text-muted);">${einst.firmenform}</span>
                 <div style="display:flex;gap:6px;margin-left:auto;">
-                    <button class="btn btn-small no-print" onclick="GbR.openAuszahlungenModal(${new Date().getFullYear()})" style="font-size:11px;">📅 Monatliche Auszahlungen</button>
-                    <button class="btn btn-small btn-outline no-print" onclick="GbR.openSettingsModal()" style="font-size:11px;">⚙ Gesellschafter</button>
+                    <button class="btn btn-small no-print" onclick="GbR.openAuszahlungenModal(${new Date().getFullYear()})" style="font-size:11px;"><i class="ti ti-calendar-dollar"></i> Auszahlungen</button>
+                    <button class="btn btn-small btn-outline no-print" onclick="GbR.openSettingsModal()" style="font-size:11px;"><i class="ti ti-settings"></i> Gesellschafter</button>
                 </div>
             </div>
 
             ${pctWarning ? `
             <div style="margin-bottom:12px;padding:8px 12px;background:rgba(239,68,68,.1);border:1px solid var(--danger);border-radius:6px;font-size:12px;color:var(--danger);">
-                ⚠️ Anteile summieren sich auf ${sumPct.toFixed(1)} % statt 100 % — bitte korrigieren.
+                <i class="ti ti-alert-triangle"></i> Anteile summieren sich auf ${sumPct.toFixed(1)} % statt 100 % — bitte korrigieren.
                 <button class="btn btn-small" onclick="GbR.openSettingsModal()" style="margin-left:8px;font-size:11px;">Jetzt korrigieren</button>
             </div>` : ''}
 
@@ -173,10 +173,10 @@ const GbR = {
             </div>
 
             <div style="padding:12px;background:var(--bg-secondary);border-top:1px solid var(--border);font-size:12px;color:var(--text-muted);display:flex;gap:20px;flex-wrap:wrap;">
-                <span>📊 Hebesatz: <strong style="color:var(--text-primary);">${hebesatz} %</strong></span>
-                <span>📉 GewSt-Freibetrag: <strong style="color:var(--text-primary);">${fmt(this.FREIBETRAG_GBR)}</strong></span>
-                <span>💰 Gewerbeertrag: <strong style="color:var(--text-primary);">${fmt(gewerbeertrag)}</strong></span>
-                <span>🏛 GewSt gesamt: <strong style="color:var(--danger);">${fmt(gewSt)}</strong></span>
+                <span><i class="ti ti-chart-bar"></i> Hebesatz: <strong style="color:var(--text-primary);">${hebesatz} %</strong></span>
+                <span><i class="ti ti-trending-down"></i> GewSt-Freibetrag: <strong style="color:var(--text-primary);">${fmt(this.FREIBETRAG_GBR)}</strong></span>
+                <span><i class="ti ti-coin"></i> Gewerbeertrag: <strong style="color:var(--text-primary);">${fmt(gewerbeertrag)}</strong></span>
+                <span><i class="ti ti-building-bank"></i> GewSt gesamt: <strong style="color:var(--danger);">${fmt(gewSt)}</strong></span>
             </div>`}
         </div>`;
     },
@@ -214,7 +214,7 @@ const GbR = {
                 </td>
                 <td style="padding:6px 8px;width:40px;text-align:center;">
                     <button onclick="GbR._removeGsRow('${g.id}')" title="Entfernen"
-                            style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;">🗑</button>
+                            class="action-btn action-btn-danger" style="width:26px;height:26px;font-size:13px;"><i class="ti ti-trash"></i></button>
                 </td>
             </tr>`).join('');
 
@@ -283,7 +283,7 @@ const GbR = {
                               color:${Math.abs(sumPct-100)<0.01?'var(--success)':'var(--danger)'};">
                             Σ ${sumPct.toFixed(1)} %
                         </span>
-                        <button class="btn btn-small btn-outline" onclick="GbR._addGsRow()">＋ Hinzufügen</button>
+                        <button class="btn btn-small btn-outline" onclick="GbR._addGsRow()"><i class="ti ti-plus"></i> Hinzufügen</button>
                     </div>
                 </div>
 
@@ -310,7 +310,7 @@ const GbR = {
 
         const footer = `
             <button class="btn" onclick="App.closeModal()">Abbrechen</button>
-            <button class="btn btn-primary" onclick="GbR._saveSettingsModal()">💾 Speichern</button>
+            <button class="btn btn-primary" onclick="GbR._saveSettingsModal()"><i class="ti ti-device-floppy"></i> Speichern</button>
         `;
         App.showModal('⚙ GbR / Unternehmensform', body, footer);
     },
@@ -656,7 +656,7 @@ const GbR = {
 
     // ── Tabbed Auszahlungen-Modal ─────────────────────────────────────────
     _TABS: [
-        { key: 'verteilung',   label: '📊 Gewinnverteilung' },
+        { key: 'verteilung',   label: '<i class="ti ti-chart-pie-2"></i> Gewinnverteilung' },
         { key: 'auszahlungen', label: '💸 Auszahlungen'     },
         { key: 'auswertung',   label: '📈 Auswertung'       },
     ],
@@ -891,7 +891,7 @@ const GbR = {
 
         const footer = `
             <button class="btn" onclick="App.closeModal();setTimeout(()=>GbR.openAuszahlungenModal(${year},'auszahlungen'),100);">Abbrechen</button>
-            <button class="btn btn-primary" onclick="GbR._saveNewAuszahlung(${year},${month},'${gsId}');">💾 Buchen</button>`;
+            <button class="btn btn-primary" onclick="GbR._saveNewAuszahlung(${year},${month},'${gsId}');"><i class="ti ti-device-floppy"></i> Buchen</button>`;
         App.showModal(`💸 Auszahlung buchen – ${Utils.escapeHtml(g.name)}`, body, footer);
     },
 
@@ -950,7 +950,7 @@ const GbR = {
                         <td style="padding:5px 8px;font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(e.notiz || '')}</td>
                         <td style="padding:5px 8px;text-align:center;">
                             <button onclick="GbR._deleteAusz('${monthKey}','${g.id}','${e.id}',${year})"
-                                    style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:14px;" title="Löschen">🗑</button>
+                                    class="action-btn action-btn-danger" style="width:24px;height:24px;font-size:12px;" title="Löschen"><i class="ti ti-trash"></i></button>
                         </td>
                     </tr>`);
                 });

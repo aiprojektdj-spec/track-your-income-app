@@ -1329,7 +1329,7 @@ const Akademie = {
                         <div style="font-weight:700;font-size:15px;">${Utils.escapeHtml(m.title)}</div>
                         <div style="font-size:11px;color:var(--text-muted);">${m.level} · ${m.lessons.length} Lektionen</div>
                     </div>
-                    ${isComplete ? '<span style="font-size:22px;">✅</span>' : ''}
+                    ${isComplete ? '<span style="color:var(--success);font-size:20px;"><i class="ti ti-circle-check-filled"></i></span>' : ''}
                 </div>
                 <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.4;">${Utils.escapeHtml(m.description)}</div>
                 <div style="background:var(--bg-secondary);border-radius:6px;height:8px;overflow:hidden;margin-bottom:6px;">
@@ -1350,14 +1350,14 @@ const Akademie = {
                     <div style="font-weight:700;font-size:13px;color:${isUnlocked ? colors.color : 'var(--text-secondary)'};">${Utils.escapeHtml(a.title)}</div>
                     <div style="font-size:11px;color:var(--text-muted);line-height:1.3;">${Utils.escapeHtml(a.desc)}</div>
                 </div>
-                ${isUnlocked ? '<span style="font-size:18px;">✓</span>' : '<span style="font-size:14px;opacity:.4;">🔒</span>'}
+                ${isUnlocked ? '<span style="font-size:18px;color:var(--success);"><i class="ti ti-check"></i></span>' : '<span style="font-size:14px;opacity:.4;"><i class="ti ti-lock"></i></span>'}
             </div>
             `;
         }).join('');
 
         return `
             <div class="page-header">
-                <h2>🎓 Akademie</h2>
+                <h2><i class="ti ti-school"></i> Akademie</h2>
             </div>
 
             <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px;">
@@ -1383,12 +1383,12 @@ const Akademie = {
                 </div>
             </div>
 
-            <h3 style="margin:0 0 12px;font-size:18px;">📚 Lernpfad</h3>
+            <h3 style="margin:0 0 12px;font-size:18px;"><i class="ti ti-books"></i> Lernpfad</h3>
             <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:24px;">
                 ${moduleCards}
             </div>
 
-            <h3 style="margin:0 0 12px;font-size:18px;">🏆 Achievements</h3>
+            <h3 style="margin:0 0 12px;font-size:18px;"><i class="ti ti-trophy"></i> Achievements</h3>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;">
                 ${achBadges}
             </div>
@@ -1425,8 +1425,8 @@ const Akademie = {
                 ${prev ? `<button class="btn" id="lessonPrevBtn" style="opacity:.8;">← ${Utils.escapeHtml(prev.title)}</button>` : '<span></span>'}
                 <div style="flex:1;"></div>
                 ${isComplete
-                    ? `<span style="color:var(--success);font-weight:600;font-size:14px;">✓ Abgeschlossen</span>`
-                    : `<button class="btn btn-primary" id="lessonCompleteBtn">✓ Als gelesen markieren</button>`
+                    ? `<span style="color:var(--success);font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px;"><i class="ti ti-circle-check-filled"></i> Abgeschlossen</span>`
+                    : `<button class="btn btn-primary" id="lessonCompleteBtn"><i class="ti ti-check"></i> Als gelesen markieren</button>`
                 }
                 ${next ? `<button class="btn btn-primary" id="lessonNextBtn">${Utils.escapeHtml(next.title)} →</button>` : ''}
             </div>
@@ -1442,7 +1442,7 @@ const Akademie = {
             const done = progress.completedLessons.includes(l.id);
             return `
             <div class="card akademie-lesson-row" data-lesson-id="${l.id}" data-mod-id="${mod.id}" style="cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:14px;${done ? 'opacity:.85;' : ''}">
-                <span style="font-size:24px;width:32px;text-align:center;">${done ? '✅' : (i === 0 || progress.completedLessons.includes(mod.lessons[i-1]?.id)) ? '📖' : '🔒'}</span>
+                <span style="font-size:20px;width:32px;text-align:center;color:${done ? 'var(--success)' : 'var(--text-muted)'};">${done ? '<i class="ti ti-circle-check-filled"></i>' : (i === 0 || progress.completedLessons.includes(mod.lessons[i-1]?.id)) ? '<i class="ti ti-book-open"></i>' : '<i class="ti ti-lock" style="opacity:.4;"></i>'}</span>
                 <div style="flex:1;">
                     <div style="font-weight:600;font-size:14px;">${Utils.escapeHtml(l.title)}</div>
                     <div style="font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(l.duration)}</div>
@@ -1468,6 +1468,34 @@ const Akademie = {
     },
 
     init() {
+        // GSAP KPI animation
+        if (typeof gsap !== 'undefined') {
+            const cards = document.querySelectorAll('.stats-grid .stat-card');
+            if (cards.length) {
+                gsap.from(cards, { y: 16, opacity: 0, stagger: 0.07, duration: 0.4, ease: 'power2.out', clearProps: 'all' });
+                cards.forEach(card => {
+                    const valEl = card.querySelector('.card-value');
+                    if (!valEl) return;
+                    const raw = valEl.textContent.trim();
+                    const num = parseFloat(raw.replace(/\./g,'').replace(',','.').replace(/[^\d.%€]/g,''));
+                    if (isNaN(num) || num === 0) return;
+                    const hasCurrency = raw.includes('€'), hasPct = raw.includes('%');
+                    const obj = { val: 0 };
+                    gsap.to(obj, { val: num, duration: 0.9, ease: 'power2.out',
+                        onUpdate() {
+                            if (hasCurrency) valEl.textContent = obj.val.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+                            else if (hasPct) valEl.textContent = Math.round(obj.val) + '%';
+                            else valEl.textContent = Math.round(obj.val).toLocaleString('de-DE');
+                        },
+                        onComplete() { valEl.textContent = raw; }
+                    });
+                });
+                // Module cards stagger
+                const modCards = document.querySelectorAll('.akademie-mod-card');
+                if (modCards.length) gsap.from(modCards, { y: 20, opacity: 0, stagger: 0.06, duration: 0.45, ease: 'power2.out', delay: 0.25, clearProps: 'all' });
+            }
+        }
+
         // Lektion offen
         if (this._activeLesson) {
             const back = document.getElementById('lessonBackBtn');

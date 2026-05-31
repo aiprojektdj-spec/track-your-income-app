@@ -30,6 +30,7 @@
         <a href="index.html" class="tool-tab active" title="Lager"><span class="tab-icon">📦</span> Lager</a>
         <a href="../index.html?page=euer" class="tool-tab" title="EÜR"><span class="tab-icon">📋</span> EÜR</a>
         <a href="../index.html?page=akademie" class="tool-tab" title="Akademie"><span class="tab-icon">🎓</span> Akademie</a>
+        <a href="../index.html?page=gbr" class="tool-tab" id="toolTabGbr" style="display:none;" title="GbR-Verwaltung"><span class="tab-icon">🤝</span> GbR</a>
     </div>
     <div class="topnav-controls">
         <div id="companySwitcher"></div>
@@ -2356,6 +2357,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 </style>
 
 <script>
+// ── GbR-Tab: show when GbR/eGbR is active ──
+(function() {
+    try {
+        var coId = localStorage.getItem('oyi_active_company') || '';
+        var key  = (coId ? coId + '__' : '') + 'reselling_gbr_einstellungen';
+        var gbr  = JSON.parse(localStorage.getItem(key) || '{}');
+        if (gbr.firmenform === 'GbR' || gbr.firmenform === 'eGbR') {
+            var tab = document.getElementById('toolTabGbr');
+            if (tab) tab.style.display = '';
+        }
+    } catch(e) {}
+})();
+
 (function() {
     var btn     = document.getElementById('sidebarToggleBtn');
     var sidebar = document.getElementById('sidebar');

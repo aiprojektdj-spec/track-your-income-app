@@ -177,10 +177,10 @@ const Euer = {
             <div class="page-header">
                 <h2>Einnahmen-Überschuss-Rechnung</h2>
                 <div class="page-header-actions no-print">
-                    ${unsyncedInvoices.length > 0 ? `<button class="btn btn-warning" id="euerSync" title="${unsyncedInvoices.length} bezahlte Rechnung(en) noch nicht synchronisiert">⚡ ${unsyncedInvoices.length} Rechnung(en) synchronisieren</button> ` : ''}
-                    <button class="btn" id="euerSteuertermine">📅 Steuertermine</button>
-                    <button class="btn" id="euerElsterExport">ELSTER CSV</button>
-                    <button class="btn" id="euerPrint">PDF / Drucken</button>
+                    ${unsyncedInvoices.length > 0 ? `<button class="btn btn-warning" id="euerSync" title="${unsyncedInvoices.length} bezahlte Rechnung(en) noch nicht synchronisiert"><i class="ti ti-refresh"></i> ${unsyncedInvoices.length} synchronisieren</button> ` : ''}
+                    <button class="btn" id="euerSteuertermine"><i class="ti ti-calendar-event"></i> Steuertermine</button>
+                    <button class="btn" id="euerElsterExport"><i class="ti ti-file-spreadsheet"></i> ELSTER CSV</button>
+                    <button class="btn" id="euerPrint"><i class="ti ti-printer"></i> PDF / Drucken</button>
                 </div>
             </div>
 
@@ -236,6 +236,24 @@ const Euer = {
                     </div>
                 </div>
                 ${ustMode === 'klein' ? '<div class="form-hint">Kleinunternehmerregelung nach &sect;19 UStG - keine Umsatzsteuer wird ausgewiesen.</div>' : ''}
+            </div>
+
+            <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;" id="euerKpiGrid">
+                <div class="card stat-card success" style="padding:14px;">
+                    <div class="card-label" style="font-size:11px;"><i class="ti ti-trending-up"></i> Einnahmen</div>
+                    <div class="card-value" style="font-size:22px;" id="euerKpiEin">${Utils.formatCurrency(summeEinnahmen)}</div>
+                    <div class="card-subtitle" style="font-size:11px;">${periodLabel}</div>
+                </div>
+                <div class="card stat-card danger" style="padding:14px;">
+                    <div class="card-label" style="font-size:11px;"><i class="ti ti-trending-down"></i> Ausgaben</div>
+                    <div class="card-value" style="font-size:22px;" id="euerKpiAus">${Utils.formatCurrency(summeAusgaben)}</div>
+                    <div class="card-subtitle" style="font-size:11px;">${periodPurchases.length} Einkäufe · ${expenses.length} BA</div>
+                </div>
+                <div class="card stat-card ${gewinn >= 0 ? 'success' : 'danger'}" style="padding:14px;">
+                    <div class="card-label" style="font-size:11px;"><i class="ti ti-scale"></i> ${gewinn >= 0 ? 'Gewinn' : 'Verlust'}</div>
+                    <div class="card-value" style="font-size:22px;color:${gewinn >= 0 ? 'var(--success)' : 'var(--danger)'};" id="euerKpiGewinn">${Utils.formatCurrency(gewinn)}</div>
+                    <div class="card-subtitle" style="font-size:11px;">${sales.length} Verkäufe</div>
+                </div>
             </div>
 
             <div class="card">
@@ -339,19 +357,19 @@ const Euer = {
                             </tr>
 
                             <tr class="euer-result">
-                                <td><strong>${gewinn >= 0 ? '🟢 Gewinn (Überschuss)' : '🔴 Verlust (Fehlbetrag)'}</strong></td>
+                                <td><strong><i class="ti ${gewinn >= 0 ? 'ti-trending-up' : 'ti-trending-down'}" style="color:${gewinn >= 0 ? 'var(--success)' : 'var(--danger)'}"></i> ${gewinn >= 0 ? 'Gewinn (Überschuss)' : 'Verlust (Fehlbetrag)'}</strong></td>
                                 <td style="text-align:right;font-size:1.15rem;color:${gewinn >= 0 ? 'var(--success)' : 'var(--danger)'}"><strong>${Utils.formatCurrency(gewinn)}</strong></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
                 <div style="padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);display:flex;gap:16px;flex-wrap:wrap;">
-                    <span>📋 Grundlage: §4 Abs. 3 EStG (Ist-Besteuerung / Zufluss-Abfluss)</span>
-                    <span>📦 ${periodPurchases.length} Einkäufe · ${sales.length} Verkäufe · ${expenses.length} Ausgaben</span>
+                    <span><i class="ti ti-clipboard-list"></i> Grundlage: §4 Abs. 3 EStG (Ist-Besteuerung / Zufluss-Abfluss)</span>
+                    <span><i class="ti ti-box"></i> ${periodPurchases.length} Einkäufe · ${sales.length} Verkäufe · ${expenses.length} Ausgaben</span>
                     ${eigenbelegeRaw.filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, startDate, endDate)).length > 0
-                        ? `<span>🧾 ${eigenbelegeRaw.filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, startDate, endDate)).length} Eigenbelege</span>`
+                        ? `<span><i class="ti ti-receipt"></i> ${eigenbelegeRaw.filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, startDate, endDate)).length} Eigenbelege</span>`
                         : ''}
-                    <span style="color:var(--warning);">⚠️ Unverbindlich – Prüfung durch Steuerberater empfohlen</span>
+                    <span style="color:var(--warning);"><i class="ti ti-alert-triangle"></i> Unverbindlich – Prüfung durch Steuerberater empfohlen</span>
                 </div>
             </div>
 
@@ -376,7 +394,7 @@ const Euer = {
         return `
         <div class="card" style="margin-top:20px;" id="euerGewStCard">
             <div class="card-header">
-                <div class="card-title">🏛️ Gewerbesteuer-Rechner</div>
+                <div class="card-title"><i class="ti ti-building-bank"></i> Gewerbesteuer-Rechner</div>
                 <div style="font-size:12px;color:var(--text-muted);">§11 GewStG · Einzelunternehmen</div>
             </div>
             <div class="table-container" style="border:none;">
@@ -399,7 +417,7 @@ const Euer = {
                             <td style="text-align:right">× ${hebesatz}%</td>
                         </tr>
                         <tr class="euer-result">
-                            <td><strong>${istGewPflichtig ? '🔴 Gewerbesteuer (geschätzt)' : '🟢 Keine Gewerbesteuer'}</strong>
+                            <td><strong><i class="ti ${istGewPflichtig ? 'ti-alert-circle' : 'ti-circle-check'}" style="color:${istGewPflichtig ? 'var(--danger)' : 'var(--success)'}"></i> ${istGewPflichtig ? 'Gewerbesteuer (geschätzt)' : 'Keine Gewerbesteuer'}</strong>
                                 ${!istGewPflichtig ? `<span style="font-size:11px;font-weight:400;color:var(--success);">(Gewinn unter Freibetrag ${Utils.formatCurrency(freibetrag)})</span>` : ''}
                             </td>
                             <td style="text-align:right;font-size:1.15rem;color:${istGewPflichtig ? 'var(--danger)' : 'var(--success)'}">
@@ -433,6 +451,28 @@ const Euer = {
     },
 
     init() {
+        // GSAP KPI card animation
+        if (typeof gsap !== 'undefined') {
+            const cards = document.querySelectorAll('#euerKpiGrid .stat-card');
+            if (cards.length) {
+                gsap.from(cards, { y: 16, opacity: 0, stagger: 0.08, duration: 0.45, ease: 'power2.out', clearProps: 'all' });
+                cards.forEach(card => {
+                    const valEl = card.querySelector('.card-value');
+                    if (!valEl) return;
+                    const raw = valEl.textContent.trim();
+                    const num = parseFloat(raw.replace(/\./g,'').replace(',','.').replace(/[^\d.-]/g,''));
+                    if (isNaN(num) || num === 0) return;
+                    const isNeg = num < 0, hasCurrency = raw.includes('€');
+                    const origColor = valEl.style.color;
+                    const obj = { val: 0 };
+                    gsap.to(obj, { val: Math.abs(num), duration: 1.0, ease: 'power2.out',
+                        onUpdate() { valEl.textContent = (hasCurrency ? (isNeg?'−':'')+obj.val.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €' : Math.round(obj.val).toLocaleString('de-DE')); },
+                        onComplete() { valEl.textContent = raw; if(origColor) valEl.style.color = origColor; }
+                    });
+                });
+            }
+        }
+
         // Sicherstellen dass alle bezahlten Rechnungen in Sales gesynct sind
         Store.autoSyncInvoices();
 

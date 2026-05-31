@@ -3,7 +3,7 @@
 // ============================================
 const App = {
     currentPage: 'dashboard',
-    APP_VERSION: '1.5',  // ← bei jedem Update hier UND in index.html anpassen
+    APP_VERSION: '1.7',  // ← bei jedem Update hier UND in index.html anpassen
 
     pages: {
         dashboard: Dashboard,
@@ -330,13 +330,18 @@ const App = {
         if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', () => {
             const sb = document.getElementById('sidebar');
             const ov = document.getElementById('mobileOverlay');
-            if (sb) sb.classList.toggle('open');
-            if (ov) ov.classList.toggle('active');
+            const btn = document.getElementById('sidebarToggleBtn');
+            const opening = !sb?.classList.contains('sidebar-open');
+            if (sb)  sb.classList.toggle('sidebar-open', opening);
+            if (btn) { btn.classList.toggle('sidebar-open', opening); btn.textContent = opening ? '‹' : '›'; }
+            if (ov)  ov.classList.toggle('active', opening);
         });
 
         if (mobileOverlay) mobileOverlay.addEventListener('click', () => {
-            const sb = document.getElementById('sidebar');
-            if (sb) sb.classList.remove('open');
+            const sb  = document.getElementById('sidebar');
+            const btn = document.getElementById('sidebarToggleBtn');
+            if (sb)  sb.classList.remove('sidebar-open');
+            if (btn) { btn.classList.remove('sidebar-open'); btn.textContent = '›'; }
             mobileOverlay.classList.remove('active');
         });
 

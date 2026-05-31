@@ -572,7 +572,9 @@ const Dashboard = {
         cards.forEach(card => {
             const valEl = card.querySelector('.card-value');
             if (!valEl) return;
-            const raw = valEl.textContent;
+            const raw = valEl.textContent.trim();
+            // Skip ratio/mixed values like "10 / 27" or values without a single number
+            if (raw.includes('/') || raw.includes(' ')) return;
             const num = parseFloat(raw.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, ''));
             if (isNaN(num) || num === 0) return;
             const isNeg = num < 0, hasCurrency = raw.includes('€');

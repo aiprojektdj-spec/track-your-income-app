@@ -1369,11 +1369,11 @@ const Akademie = {
                 <div class="card stat-card success">
                     <div class="card-label">Achievements</div>
                     <div class="card-value">${unlockedCount} / ${totalAchievements}</div>
-                    <div class="card-subtitle">${Math.round(unlockedCount/totalAchievements*100)}% freigeschaltet</div>
+                    <div class="card-subtitle">${totalAchievements > 0 ? Math.round(unlockedCount/totalAchievements*100) : 0}% freigeschaltet</div>
                 </div>
                 <div class="card stat-card">
                     <div class="card-label">Aktiver Lagerbestand</div>
-                    <div class="card-value">${data.activeStock}</div>
+                    <div class="card-value">${data.activeStock ?? 0}</div>
                     <div class="card-subtitle">verfügbare Artikel</div>
                 </div>
                 <div class="card stat-card warning">
@@ -1477,7 +1477,9 @@ const Akademie = {
                     const valEl = card.querySelector('.card-value');
                     if (!valEl) return;
                     const raw = valEl.textContent.trim();
-                    const num = parseFloat(raw.replace(/\./g,'').replace(',','.').replace(/[^\d.%€]/g,''));
+                    // Skip ratio values like "10 / 27" — don't try to count them up
+                    if (raw.includes('/') || (raw.match(/\d/) && raw.match(/[a-zA-Z]/) && !raw.includes('€') && !raw.includes('%'))) return;
+                    const num = parseFloat(raw.replace(/\./g,'').replace(',','.').replace(/[^\d.%€-]/g,''));
                     if (isNaN(num) || num === 0) return;
                     const hasCurrency = raw.includes('€'), hasPct = raw.includes('%');
                     const obj = { val: 0 };

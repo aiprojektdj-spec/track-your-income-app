@@ -1590,6 +1590,7 @@ const Lager = {
             const valEl = card.querySelector('.card-value');
             if (!valEl) return;
             const raw = valEl.textContent.trim();
+            if (raw.includes('/')) return; // Skip ratio values like "10 / 27"
             const num = parseFloat(raw.replace(/\./g,'').replace(',','.').replace(/[^\d.-]/g,''));
             if (isNaN(num) || num === 0) return;
             const hasCurrency = raw.includes('€');

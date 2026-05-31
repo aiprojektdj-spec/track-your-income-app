@@ -126,10 +126,11 @@ var AuthUI = (function () {
         var w = document.getElementById('authWidget');
         if (!w) return;
         if (user) {
-            var short = (user.email || '').split('@')[0].substring(0, 12);
+            var email = user.email || user.user_metadata?.email || '';
+            var short = email ? email.split('@')[0].substring(0, 14) : 'Angemeldet';
             w.innerHTML =
                 '<span id="cloudSyncDot" style="font-size:14px;color:var(--success,#22c55e);" title="Cloud-Sync aktiv">☁</span>' +
-                '<button class="auth-user-btn" onclick="AuthUI.openUserMenu(this)" title="' + (user.email || '') + '">👤 ' + short + '</button>';
+                '<button class="auth-user-btn" onclick="AuthUI.openUserMenu(this)" title="' + email + '"><i class="ti ti-user" style="font-size:13px;"></i> ' + short + '</button>';
         } else {
             w.innerHTML =
                 '<span id="cloudSyncDot" style="font-size:14px;color:#888;" title="Nicht angemeldet">☁</span>' +

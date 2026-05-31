@@ -146,12 +146,12 @@ const Dashboard = {
                         : `Letztes Backup ist <strong>${daysSince} Tage</strong> alt.`;
                     backupReminder = `
                         <div id="backupReminder" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-                            <span style="font-size:22px;flex-shrink:0;">💾</span>
+                            <span style="font-size:22px;flex-shrink:0;color:var(--warning);"><i class="ti ti-device-floppy"></i></span>
                             <div style="flex:1;min-width:200px;font-size:13px;">
                                 <strong style="color:var(--warning);">Backup-Erinnerung</strong>
                                 <div style="margin-top:2px;color:var(--text-secondary);">${msg}</div>
                             </div>
-                            <button class="btn btn-warning" id="backupReminderNow" style="font-size:13px;">💾 Jetzt sichern</button>
+                            <button class="btn btn-warning" id="backupReminderNow" style="font-size:13px;"><i class="ti ti-device-floppy"></i> Jetzt sichern</button>
                             <button class="btn btn-small" id="backupReminderLater" style="opacity:.7;font-size:12px;">7 Tage später erinnern</button>
                         </div>`;
                 }

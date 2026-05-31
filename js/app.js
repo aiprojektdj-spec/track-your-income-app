@@ -968,7 +968,7 @@ const App = {
                     <input type="hidden" id="ob_ustMode" value="${d.ustMode || 'klein'}">
                     <div class="ust-picker" id="ob_ust_picker">
                         <div class="ust-card ${(d.ustMode || 'klein') === 'klein' ? 'selected' : ''}" data-value="klein" onclick="App._pickUst('ob','klein')">
-                            <div class="ust-card-icon">🟢</div>
+                            <div class="ust-card-icon" style="color:var(--success);"><i class="ti ti-shield-check"></i></div>
                             <div class="ust-card-title">Kleinunternehmer</div>
                             <div class="ust-card-law">§ 19 UStG</div>
                             <ul class="ust-card-facts">
@@ -980,7 +980,7 @@ const App = {
                             <div class="ust-card-hint">Ideal für Einsteiger &amp; Nebengewerbe</div>
                         </div>
                         <div class="ust-card ${d.ustMode === 'regel' ? 'selected' : ''}" data-value="regel" onclick="App._pickUst('ob','regel')">
-                            <div class="ust-card-icon">🔵</div>
+                            <div class="ust-card-icon" style="color:var(--info);"><i class="ti ti-trending-up"></i></div>
                             <div class="ust-card-title">Regelbesteuerung</div>
                             <div class="ust-card-law">§ 19 UStG Opt-out</div>
                             <ul class="ust-card-facts">
@@ -1092,19 +1092,19 @@ const App = {
         // Lizenz-Info Block aufbauen
         const ld = License.getData();
         const licBlock = License.isDevMode()
-            ? `<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px;color:var(--warning);">⚙️ <strong>Entwicklermodus</strong> – Lizenzprüfung deaktiviert (kein Public Key konfiguriert)</div>`
+            ? `<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px;color:var(--warning);"><i class="ti ti-tool"></i> <strong>Entwicklermodus</strong> – Lizenzprüfung deaktiviert (kein Public Key konfiguriert)</div>`
             : ld
                 ? (() => {
                     const days = License.daysUntilExpiry();
                     const expColor = days < 0 ? '#ef4444' : days <= 30 ? '#f59e0b' : 'var(--success)';
                     return `<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px;">
-                        <div style="font-weight:600;color:var(--success);margin-bottom:4px;">✅ Lizenz aktiv</div>
+                        <div style="font-weight:600;color:var(--success);margin-bottom:4px;"><i class="ti ti-circle-check"></i> Lizenz aktiv</div>
                         <div style="color:var(--text-secondary);">Lizenziert für: <strong>${Utils.escapeHtml(ld.name)}</strong></div>
                         <div style="color:var(--text-secondary);">Typ: <strong>${Utils.escapeHtml(ld.tier || 'standard')}</strong></div>
                         <div style="color:${expColor};">Gültig bis: <strong>${Utils.escapeHtml(ld.expires)}</strong>${days !== null ? ` (${days >= 0 ? 'noch ' + days + ' Tage' : 'seit ' + Math.abs(days) + ' Tagen abgelaufen'})` : ''}</div>
                     </div>`;
                   })()
-                : `<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px;color:#ef4444;">⚠️ Keine gültige Lizenz gefunden</div>`;
+                : `<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px;color:#ef4444;"><i class="ti ti-alert-triangle"></i> Keine gültige Lizenz gefunden</div>`;
 
         const body = `${licBlock}
             <div class="form-row">
@@ -1156,7 +1156,7 @@ const App = {
                 <input type="hidden" id="set_ustMode" value="${s.ustMode || 'klein'}">
                 <div class="ust-picker ust-picker--compact" id="set_ust_picker">
                     <div class="ust-card ${(s.ustMode || 'klein') === 'klein' ? 'selected' : ''}" data-value="klein" onclick="App._pickUst('set','klein')">
-                        <div class="ust-card-icon">🟢</div>
+                        <div class="ust-card-icon" style="color:var(--success);"><i class="ti ti-shield-check"></i></div>
                         <div class="ust-card-title">Kleinunternehmer</div>
                         <div class="ust-card-law">§ 19 UStG</div>
                         <ul class="ust-card-facts">
@@ -1166,7 +1166,7 @@ const App = {
                         </ul>
                     </div>
                     <div class="ust-card ${s.ustMode === 'regel' ? 'selected' : ''}" data-value="regel" onclick="App._pickUst('set','regel')">
-                        <div class="ust-card-icon">🔵</div>
+                        <div class="ust-card-icon" style="color:var(--info);"><i class="ti ti-trending-up"></i></div>
                         <div class="ust-card-title">Regelbesteuerung</div>
                         <div class="ust-card-law">19 % USt</div>
                         <ul class="ust-card-facts">
@@ -1213,7 +1213,7 @@ const App = {
             <hr style="border-color:var(--border);margin:16px 0;">
             <div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px;">
                 <div style="font-size:11px;color:var(--text-muted);text-align:right;">
-                    Overview Your Income v1.5 &nbsp;·&nbsp;
+                    Stackr v1.7 &nbsp;·&nbsp;
                     <a href="mailto:secondlife.vintage07@gmail.com" style="color:var(--text-muted);">secondlife.vintage07@gmail.com</a>
                 </div>
             </div>
@@ -1300,36 +1300,36 @@ const App = {
         const body = `
             <div id="persistStorageBlock" style="margin-bottom:4px;">
                 <div style="padding:12px 14px;border-radius:8px;background:rgba(251,191,36,0.12);border:1px solid var(--warning);font-size:13px;display:flex;align-items:center;gap:10px;">
-                    <span style="font-size:20px;">⏳</span>
+                    <span style="font-size:20px;color:var(--warning);"><i class="ti ti-loader"></i></span>
                     <span style="color:var(--warning);">Prüfe Speicherschutz…</span>
                 </div>
             </div>
             <div class="section" style="border:2px solid var(--success);border-radius:8px;padding:14px;background:rgba(34,197,94,0.04);margin-bottom:4px;">
-                <div class="section-title" style="color:var(--success);">💾 Datei-Backup — Ordner auf deinem PC</div>
+                <div class="section-title" style="color:var(--success);"><i class="ti ti-device-floppy"></i> Datei-Backup — Ordner auf deinem PC</div>
                 ${!fsSupported ? `
                     <div style="background:rgba(220,38,38,0.1);border-radius:6px;padding:10px;font-size:13px;color:var(--danger);">
-                        ⚠️ Dein Browser unterstützt kein Datei-Backup. Bitte <strong>Chrome</strong> oder <strong>Edge</strong> verwenden.
+                        <i class="ti ti-alert-triangle"></i> Dein Browser unterstützt kein Datei-Backup. Bitte <strong>Chrome</strong> oder <strong>Edge</strong> verwenden.
                     </div>
                 ` : `
                     <div id="fsFolderInfo" style="margin-bottom:12px;padding:10px;background:var(--bg-main);border-radius:6px;font-size:13px;">
                         ${fsFolder ? `
-                            <div style="color:var(--success);font-weight:600;margin-bottom:4px;">✅ Aktiv — Ordner: <strong>${Utils.escapeHtml(fsFolder)}</strong></div>
+                            <div style="color:var(--success);font-weight:600;margin-bottom:4px;"><i class="ti ti-circle-check"></i> Aktiv — Ordner: <strong>${Utils.escapeHtml(fsFolder)}</strong></div>
                             <div style="color:var(--text-muted);font-size:11px;">Letztes Backup: ${fsLastStr} &nbsp;·&nbsp; Datei: ${Utils.escapeHtml(fsLastFile)}</div>
-                            <div style="color:var(--text-secondary);font-size:11px;margin-top:4px;">📌 Backup wird automatisch nach jeder Änderung + bei Session-Ende geschrieben. Letzte 60 Dateien werden behalten.</div>
+                            <div style="color:var(--text-secondary);font-size:11px;margin-top:4px;"><i class="ti ti-pin"></i> Backup wird automatisch nach jeder Änderung + bei Session-Ende geschrieben. Letzte 60 Dateien werden behalten.</div>
                         ` : `
-                            <div style="color:var(--warning);font-weight:600;">⚠️ Kein Backup-Ordner festgelegt</div>
+                            <div style="color:var(--warning);font-weight:600;"><i class="ti ti-alert-triangle"></i> Kein Backup-Ordner festgelegt</div>
                             <div style="color:var(--text-secondary);font-size:12px;margin-top:4px;">Wähle einmal einen Ordner — danach läuft alles automatisch.</div>
                         `}
                     </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-                        <button class="btn btn-primary" id="fsSelectFolderBtn">${fsFolder ? '📁 Ordner ändern' : '📁 Backup-Ordner wählen'}</button>
-                        ${fsFolder ? `<button class="btn" id="fsBackupNowBtn">💾 Jetzt sichern</button>` : ''}
-                        ${fsFolder ? `<button class="btn btn-small" id="fsListBackupsBtn">📋 Vorhandene Backups</button>` : ''}
-                        ${fsFolder ? `<button class="btn btn-small btn-danger" id="fsClearFolderBtn">✕ Ordner entfernen</button>` : ''}
+                        <button class="btn btn-primary" id="fsSelectFolderBtn"><i class="ti ti-folder"></i> ${fsFolder ? 'Ordner ändern' : 'Backup-Ordner wählen'}</button>
+                        ${fsFolder ? `<button class="btn" id="fsBackupNowBtn"><i class="ti ti-device-floppy"></i> Jetzt sichern</button>` : ''}
+                        ${fsFolder ? `<button class="btn btn-small" id="fsListBackupsBtn"><i class="ti ti-list"></i> Vorhandene Backups</button>` : ''}
+                        ${fsFolder ? `<button class="btn btn-small btn-danger" id="fsClearFolderBtn"><i class="ti ti-x"></i> Ordner entfernen</button>` : ''}
                     </div>
                     ${!fsFolder ? `
                         <div style="font-size:11px;color:var(--text-muted);padding:8px;background:var(--bg-main);border-radius:4px;">
-                            💡 <strong>Tipp:</strong> Erstelle einen Ordner namens <code>Reselling_Backups</code> in deinen Dokumenten und wähle ihn hier aus.
+                            <i class="ti ti-bulb"></i> <strong>Tipp:</strong> Erstelle einen Ordner namens <code>Reselling_Backups</code> in deinen Dokumenten und wähle ihn hier aus.
                             Der Browser fragt einmalig nach Berechtigung — danach läuft das Backup vollautomatisch.
                         </div>
                     ` : ''}
@@ -1339,7 +1339,7 @@ const App = {
                 <div class="section-title">Speichernutzung</div>
                 <div style="margin-bottom:12px;">
                     <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">
-                        <span>📦 Buchhaltungsdaten (IndexedDB)</span>
+                        <span><i class="ti ti-database"></i> Buchhaltungsdaten (IndexedDB)</span>
                         <span style="color:var(--success);">${parseFloat(si.usedMB) >= 1 ? si.usedMB + ' MB' : si.usedKB + ' KB'} genutzt</span>
                     </div>
                     <div style="font-size:11px;color:var(--text-muted);margin-top:2px;margin-bottom:8px;">
@@ -1348,7 +1348,7 @@ const App = {
                 </div>
                 <div style="margin-bottom:12px;">
                     <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">
-                        <span>🔄 Auto-Backups (IndexedDB)</span>
+                        <span><i class="ti ti-refresh"></i> Auto-Backups (IndexedDB)</span>
                         <span id="idbSizeDisplay" style="color:var(--success);">Berechne…</span>
                     </div>
                     <div style="background:var(--bg-main);border-radius:6px;height:8px;overflow:hidden;">
@@ -1356,12 +1356,12 @@ const App = {
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
-                    <button class="btn btn-small" id="trimAuditBtn" style="font-size:12px;">🧹 Alte Protokolleinträge kürzen (&gt;90 Tage)</button>
-                    <button class="btn btn-small" id="pruneSnapshotsBtn" style="font-size:12px;">🗑️ Auto-Backups bereinigen</button>
+                    <button class="btn btn-small" id="trimAuditBtn" style="font-size:12px;"><i class="ti ti-brush"></i> Protokolleinträge kürzen (&gt;90 Tage)</button>
+                    <button class="btn btn-small" id="pruneSnapshotsBtn" style="font-size:12px;"><i class="ti ti-trash"></i> Auto-Backups bereinigen</button>
                 </div>
             </div>
             <div class="section">
-                <div class="section-title">🔄 Auto-Backup Verlauf</div>
+                <div class="section-title"><i class="ti ti-refresh"></i> Auto-Backup Verlauf</div>
                 <p style="color:var(--text-secondary);font-size:12px;margin-bottom:10px;">Wird automatisch nach jeder Änderung gespeichert (letzte <strong>20 Stände</strong> + localStorage-Spiegel). Gespeichert in IndexedDB des Browsers.</p>
                 <div id="idbSnapshotsList" style="font-size:13px;color:var(--text-secondary);">Lade Snapshots…</div>
             </div>
@@ -1369,16 +1369,16 @@ const App = {
                 <div class="section-title">Manuelles Backup herunterladen</div>
                 <p style="margin-bottom:8px;color:var(--text-secondary);font-size:13px;">Letztes manuelles Backup: <strong>${lastBackupStr}</strong></p>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                    <button class="btn btn-primary" id="exportBackupBtn">📦 Backup herunterladen</button>
-                    <button class="btn btn-secondary" id="exportEncryptedBtn">🔐 Verschlüsseltes Backup</button>
+                    <button class="btn btn-primary" id="exportBackupBtn"><i class="ti ti-package-export"></i> Backup herunterladen</button>
+                    <button class="btn btn-secondary" id="exportEncryptedBtn"><i class="ti ti-lock"></i> Verschlüsseltes Backup</button>
                 </div>
             </div>
             <div class="section" style="border:2px solid var(--accent);border-radius:8px;padding:14px;background:rgba(124,58,237,0.04);">
-                <div class="section-title" style="color:var(--accent);">🧹 Speicher aufräumen</div>
+                <div class="section-title" style="color:var(--accent);"><i class="ti ti-brush"></i> Speicher aufräumen</div>
                 <p style="color:var(--text-secondary);font-size:12px;margin-bottom:10px;">
                     Speicherplatz freigeben durch Komprimierung und Foto-Bereinigung. <strong>Daten bleiben GoBD-konform erhalten.</strong>
                 </p>
-                <button class="btn" id="openCleanupBtn">🧹 Aufräum-Analyse öffnen</button>
+                <button class="btn" id="openCleanupBtn"><i class="ti ti-brush"></i> Aufräum-Analyse öffnen</button>
             </div>
             <div class="section">
                 <div class="section-title">Daten importieren</div>
@@ -1386,22 +1386,22 @@ const App = {
                 <input type="file" accept=".json,.enc.json" id="importBackupFile" class="form-input">
             </div>
             <div class="section" style="border:2px solid var(--info);border-radius:8px;padding:14px;background:rgba(59,130,246,0.04);">
-                <div class="section-title" style="color:var(--info);">📊 Excel-Import — Daten wiedereingeben</div>
+                <div class="section-title" style="color:var(--info);"><i class="ti ti-file-spreadsheet"></i> Excel-Import — Daten wiedereingeben</div>
                 <p style="color:var(--text-secondary);font-size:12px;margin-bottom:10px;">
                     Daten über eine Excel-Vorlage importieren. Ideal wenn Daten manuell neu erfasst werden müssen.<br>
                     <strong>Sheets:</strong> Einkäufe · Verkäufe · Ausgaben
                 </p>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-                    <button class="btn btn-small" id="xlsxTemplateBtn">⬇️ Excel-Vorlage herunterladen</button>
-                    <button class="btn btn-small btn-primary" id="xlsxImportOpenBtn">📂 Excel-Datei importieren</button>
+                    <button class="btn btn-small" id="xlsxTemplateBtn"><i class="ti ti-download"></i> Excel-Vorlage herunterladen</button>
+                    <button class="btn btn-small btn-primary" id="xlsxImportOpenBtn"><i class="ti ti-folder-open"></i> Excel-Datei importieren</button>
                 </div>
                 <input type="file" accept=".xlsx,.xls" id="xlsxImportFile" style="display:none;">
                 <div id="xlsxImportStatus" style="font-size:12px;color:var(--text-secondary);"></div>
             </div>
             <div class="section" style="border:2px solid var(--danger);border-radius:8px;padding:14px;background:rgba(220,38,38,0.04);">
-                <div class="section-title" style="color:var(--danger);">🚨 Notfall-Datenwiederherstellung</div>
+                <div class="section-title" style="color:var(--danger);"><i class="ti ti-urgent"></i> Notfall-Datenwiederherstellung</div>
                 <p style="color:var(--text-secondary);font-size:12px;margin-bottom:10px;">Falls Daten verloren gegangen sind — das System prüft alle verfügbaren Quellen (Auto-Backups, localStorage-Spiegel, raw localStorage).</p>
-                <button class="btn btn-danger" id="emergencyRecoverBtn">🔍 Verfügbare Backups prüfen &amp; wiederherstellen</button>
+                <button class="btn btn-danger" id="emergencyRecoverBtn"><i class="ti ti-search"></i> Verfügbare Backups prüfen &amp; wiederherstellen</button>
             </div>
             <div class="section">
                 <div class="section-title">Alle Daten loeschen</div>
@@ -2177,7 +2177,7 @@ const App = {
                     <button class="btn cleanup-action" id="cleanupSold" ${verkaufteFotos.length === 0 ? 'disabled' : ''}
                             style="text-align:left;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
                         <div>
-                            <div style="font-weight:700;margin-bottom:2px;">🗑️ Fotos verkaufter Artikel entfernen</div>
+                            <div style="font-weight:700;margin-bottom:2px;"><i class="ti ti-photo-off"></i> Fotos verkaufter Artikel entfernen</div>
                             <div style="font-size:11px;color:var(--text-muted);font-weight:400;">Datensatz bleibt — Foto wird gelöscht</div>
                         </div>
                         <strong style="color:var(--success);white-space:nowrap;">spart ${fmt(verkaufteBytes)}</strong>

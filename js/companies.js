@@ -337,7 +337,7 @@ const CompanyManager = {
                 <div class="form-group">
                     <label class="form-label">Firmenname *</label>
                     <input type="text" class="form-input" id="new_firma_name"
-                           placeholder="z.B. Mein Reselling-Business" maxlength="40"
+                           placeholder="z.B. Mein Business, Max Mustermann" maxlength="40"
                            style="font-size:16px;" autofocus>
                 </div>
                 <div class="form-group">
@@ -503,12 +503,12 @@ const CompanyManager = {
             margin:auto;
         ">
             <div style="text-align:center;margin-bottom:24px;">
-                <div style="font-size:40px;margin-bottom:8px;">🏢</div>
-                <h2 style="font-size:20px;font-weight:800;margin:0 0 6px;">Willkommen bei<br>Overview Your Income</h2>
+                <div style="font-size:36px;color:var(--accent);margin-bottom:10px;line-height:1;">◆</div>
+                <h2 style="font-size:22px;font-weight:800;margin:0 0 6px;letter-spacing:-.3px;">Willkommen bei Stackr</h2>
                 <p style="font-size:13px;color:var(--text-secondary);margin:0;">
                     ${hasExistingData
                         ? 'Deine bestehenden Daten bleiben erhalten — benenne einfach deine erste Firma.'
-                        : 'Richte deine erste Firma ein, um zu starten.'}
+                        : 'Richte dein Business ein — dauert unter 60 Sekunden.'}
                 </p>
             </div>
 
@@ -544,7 +544,7 @@ const CompanyManager = {
                 <div class="form-group">
                     <label class="form-label" style="font-size:14px;font-weight:700;">Firmenname *</label>
                     <input type="text" class="form-input" id="onb_name"
-                           placeholder="z.B. Mein Reselling-Business"
+                           placeholder="z.B. Mein Business, Max Mustermann"
                            maxlength="40" style="font-size:16px;"
                            onkeydown="if(event.key==='Enter') CompanyManager._submitOnboarding()">
                 </div>

@@ -641,7 +641,7 @@ const App = {
             </div>
             <div class="agb-scroll-box">
                 <h3>§ 1 Geltungsbereich</h3>
-                <p>Diese Nutzungsbedingungen gelten für die Nutzung der Software <strong>„Overview Your Income"</strong> (nachfolgend „Software"). Mit der Nutzung der Software erklären Sie sich mit diesen Bedingungen einverstanden.</p>
+                <p>Diese Nutzungsbedingungen gelten für die Nutzung der Software <strong>„Stackr"</strong> (nachfolgend „Software"). Mit der Nutzung der Software erklären Sie sich mit diesen Bedingungen einverstanden.</p>
 
                 <h3>§ 2 Haftungsausschluss</h3>
                 <p>Die Software wird <strong>„wie besehen" (as-is)</strong> ohne jegliche ausdrückliche oder stillschweigende Gewährleistung bereitgestellt. Der Entwickler übernimmt <strong>keinerlei Haftung</strong> für:</p>
@@ -657,7 +657,7 @@ const App = {
                 <p>Die Software ersetzt <strong>keinen professionellen Steuerberater</strong> und stellt keine steuerliche oder rechtliche Beratung dar. Alle durch die Software erzeugten Auswertungen (insbesondere EÜR, Gewinnberechnungen) sind <strong>unverbindliche Hilfsmittel</strong> und müssen vor Abgabe an Finanzbehörden durch einen qualifizierten Steuerberater oder Buchhalter geprüft werden.</p>
 
                 <h3>§ 4 Datenspeicherung</h3>
-                <p>Alle eingegebenen Daten werden ausschließlich <strong>lokal im Browser</strong> gespeichert – primär in <code>IndexedDB</code> (Hauptspeicher, mehrere GB), ergänzend in <code>localStorage</code> als Spiegel. Es findet keine Übertragung an externe Server statt. Der Nutzer ist selbst für die Datensicherung verantwortlich. Der Entwickler übernimmt keine Haftung für Datenverlust.</p>
+                <p>Daten werden <strong>lokal im Browser</strong> gespeichert (IndexedDB / localStorage). Bei aktiviertem Cloud-Sync werden Daten zusätzlich verschlüsselt auf EU-Servern (Supabase, Frankfurt) gespeichert. Der Nutzer ist selbst für regelmäßige Backups verantwortlich. Der Entwickler übernimmt keine Haftung für Datenverlust.</p>
 
                 <h3>§ 5 GoBD-Konformität</h3>
                 <p>Die Software enthält Funktionen zur Unterstützung der GoBD-Konformität (Protokollierung, Stornierung, Prüfsummen). Der Entwickler übernimmt jedoch <strong>keine Garantie</strong>, dass die Software den jeweils geltenden steuerrechtlichen Anforderungen vollständig entspricht. Die Prüfung der steuerrechtlichen Anforderungen obliegt dem Nutzer.</p>

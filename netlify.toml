@@ -1,0 +1,45 @@
+[build]
+  publish = "."
+  # Kein Build-Schritt — reines Static HTML/JS/CSS
+
+[[redirects]]
+  from = "/app"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/app/*"
+  to = "/index.html"
+  status = 200
+
+# Fallback: unbekannte Pfade → Landing Page
+[[redirects]]
+  from = "/*"
+  to = "/landing.html"
+  status = 200
+
+# ── Security & Cache Headers ──────────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# JS/CSS lang cachen (haben keine Versionierung via Query-String)
+[[headers]]
+  for = "/js/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/css/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+# Vendor-Libs länger cachen
+[[headers]]
+  for = "/js/vendor/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"

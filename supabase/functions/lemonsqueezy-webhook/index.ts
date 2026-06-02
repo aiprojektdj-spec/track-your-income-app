@@ -28,7 +28,7 @@ const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 // ── HMAC-SHA256 Signatur-Prüfung ───────────────────────────────
 async function verifySignature(body: string, signature: string): Promise<boolean> {
-    if (!WEBHOOK_SECRET) return true; // Dev-Mode: Prüfung überspringen
+    if (!WEBHOOK_SECRET) return false; // Kein Secret → immer ablehnen (nie im Dev-Mode deployen)
     const enc = new TextEncoder();
     const key = await crypto.subtle.importKey(
         "raw",

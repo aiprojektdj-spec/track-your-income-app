@@ -2012,7 +2012,26 @@ const Lager = {
                     const quellenOptions = einkaufsquellen.map(q => `<option value="${Utils.escapeHtml(q)}" ${p.einkaufsquelle === q ? 'selected' : ''}>${Utils.escapeHtml(q)}</option>`).join('');
                     const lo = p.lagerort || {};
 
+                    const statusOptions = Object.entries(this.STATUS_CONFIG).map(([k, v]) =>
+                        `<option value="${k}" ${p.status === k ? 'selected' : ''}>${v.icon} ${v.label}</option>`
+                    ).join('');
+
                     const body = `
+                        <!-- Status -->
+                        <div class="form-group" style="margin-bottom:16px;padding:12px 14px;background:var(--bg-secondary,rgba(255,255,255,.04));border-radius:8px;border:1px solid var(--border);">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                                <div>
+                                    <div style="font-size:11px;color:var(--text-muted);font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">Status</div>
+                                    <div id="le_status_badge">${this._statusBadge(p.status, p.storniert)}</div>
+                                </div>
+                                ${!p.storniert ? `
+                                <div style="flex:1;min-width:140px;max-width:200px;">
+                                    <select class="form-select" id="le_status" style="font-size:13px;">
+                                        ${statusOptions}
+                                    </select>
+                                </div>` : '<div style="font-size:12px;color:var(--danger,#ef4444);">Storniert — Status kann nicht geändert werden</div>'}
+                            </div>
+                        </div>
                         <!-- Foto -->
                         <div class="form-group" style="margin-bottom:16px;">
                             <label class="form-label">Foto</label>
@@ -2134,6 +2153,15 @@ const Lager = {
                         if (changeBtn2) changeBtn2.textContent = '📷 Hinzufügen';
                     });
 
+                    // Status-Dropdown → Badge live aktualisieren
+                    const leStatusSelect = document.getElementById('le_status');
+                    const leStatusBadge  = document.getElementById('le_status_badge');
+                    if (leStatusSelect && leStatusBadge) {
+                        leStatusSelect.addEventListener('change', () => {
+                            leStatusBadge.innerHTML = Lager._statusBadge(leStatusSelect.value, false);
+                        });
+                    }
+
                     // Einkaufsquelle "Sonstiges" toggle
                     const leQuelleSelect = document.getElementById('le_einkaufsquelle');
                     const leCustomGroup  = document.getElementById('le_customQuelleGroup');
@@ -2154,6 +2182,7 @@ const Lager = {
                             if (custom) { einkaufsquelle = custom; Store.addEinkaufsquelle(custom); }
                         }
 
+                        const newStatus = document.getElementById('le_status')?.value || p.status;
                         Store.savePurchase({
                             ...p,
                             datum:          Utils.getDateInputValue('le_datum'),
@@ -2164,6 +2193,7 @@ const Lager = {
                             einkaufspreis:  parseFloat(document.getElementById('le_preis').value) || 0,
                             anzahl:         parseInt(document.getElementById('le_anzahl').value)  || 1,
                             einkaufsquelle,
+                            status:         newStatus,
                             tags:           (document.getElementById('le_tags')?.value || '').split(',').map(t=>t.trim()).filter(Boolean),
                             notizen:        document.getElementById('le_notizen').value.trim(),
                             lagerort: {

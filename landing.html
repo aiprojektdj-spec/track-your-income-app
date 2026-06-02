@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Stackr — Buchhaltung für Selbstständige</title>
-<meta name="description" content="Die smarte Buchhaltungssoftware für Selbstständige und Freelancer. Rechnungen, EÜR, Statistiken — alles an einem Ort.">
+<meta name="description" content="Rechnungen, EÜR und GoBD-Protokoll für Freelancer, Selbstständige und GbRs. Kostenlos starten — kein Abo nötig. EU-Server, DSGVO-konform.">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -652,7 +652,7 @@ footer {
             <div class="popular-badge">✦ Empfohlen</div>
             <div class="plan-name">Pro</div>
             <div class="plan-price">9,99 € <span>/ Monat</span></div>
-            <div class="plan-desc">Jederzeit kündbar</div>
+            <div class="plan-desc">inkl. MwSt. · Jederzeit kündbar · Lexoffice kostet bis 29 €</div>
             <ul class="plan-features">
                 <li><span class="check">✓</span> Alles aus Gratis</li>
                 <li><span class="check">✓</span> <strong>Unbegrenzte Buchungen</strong></li>
@@ -714,7 +714,35 @@ footer {
                 Gibt es eine Desktop-App?
                 <span class="arrow">+</span>
             </button>
-            <div class="faq-a">Stackr ist eine moderne Web-App, die in jedem aktuellen Browser (Chrome, Firefox, Edge, Safari) läuft — kein Download, keine Installation. Du kannst sie auch als PWA auf deinem Desktop installieren.</div>
+            <div class="faq-a">Stackr ist eine moderne Web-App, die in jedem aktuellen Browser (Chrome, Firefox, Edge, Safari) läuft — kein Download, keine Installation.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Ist Stackr GoBD-konform?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Ja. Stackr führt ein lückenloses GoBD-konformes Protokoll: Buchungen werden mit Zeitstempel, Vorher-/Nachher-Wert und Checksumme unveränderlich gespeichert. Das Protokoll ist jederzeit exportierbar. Hinweis: Stackr ist ein Werkzeug — kein Ersatz für einen Steuerberater.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Brauche ich noch einen Steuerberater?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Stackr ersetzt keine Steuerberatung, macht sie aber günstiger. EÜR, USt-Voranmeldung und GoBD-Protokoll sind exportbereit — dein Steuerberater braucht weniger Zeit (= weniger Kosten). Viele Stackr-Nutzer übergeben ihrem Steuerberater einfach den XLSX-Export.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Funktioniert Stackr für meine GbR?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Ja — Stackr ist eines der wenigen Tools mit echter GbR-Unterstützung: Gesellschafter-Verrechnungskonten, automatische Gewinnverteilung und GoBD-konforme Jahresabrechnung für alle Partner. Ideal für Zweimannbetriebe und kleine Agenturen.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Was passiert mit meinen Daten wenn ich kündige?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Deine Daten gehören dir. Vor der Kündigung kannst du alles als XLSX, CSV oder ZIP exportieren. Nach Ablauf des bezahlten Zeitraums wechselst du automatisch auf den Gratis-Plan — keine Daten werden gelöscht.</div>
         </div>
     </div>
 </section>
@@ -723,7 +751,7 @@ footer {
 <div style="padding:0 24px;">
 <div class="cta-banner">
     <h2>Bereit loszulegen?</h2>
-    <p>Kostenlos starten — kein Kreditkarte erforderlich.</p>
+    <p>Kostenlos starten — keine Kreditkarte erforderlich.</p>
     <button class="btn-hero" onclick="openAuth('register')">Jetzt kostenlos registrieren →</button>
 </div>
 </div>

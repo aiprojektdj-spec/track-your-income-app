@@ -189,12 +189,12 @@ const CompanyManager = {
                 transition:background .12s;
             " onmouseenter="if(!${isActive})this.style.background='var(--bg-secondary)'"
                onmouseleave="this.style.background='${isActive ? 'rgba(99,102,241,.10)' : 'transparent'}'">
-                <span style="width:12px;height:12px;border-radius:50%;background:${co.farbe};flex-shrink:0;"></span>
+                <span style="width:12px;height:12px;border-radius:50%;background:${/^#[0-9a-fA-F]{6}$/.test(co.farbe) ? co.farbe : '#6366f1'};flex-shrink:0;"></span>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         ${Utils.escapeHtml(co.name)}
                     </div>
-                    <div style="font-size:11px;color:var(--text-muted);">${co.branche} · ${co.land === 'AT' ? '🇦🇹' : '🇩🇪'}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(co.branche || '')} · ${co.land === 'AT' ? '🇦🇹' : '🇩🇪'}</div>
                 </div>
                 ${isActive
                     ? `<span style="font-size:11px;padding:2px 8px;background:rgba(99,102,241,.2);color:#818cf8;border-radius:10px;font-weight:600;white-space:nowrap;">✓ Aktiv</span>`

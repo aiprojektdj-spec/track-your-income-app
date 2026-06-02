@@ -17,3 +17,6 @@ backup_*.json
 
 # Logs
 *.log
+
+# Claude Code session files
+.claude/

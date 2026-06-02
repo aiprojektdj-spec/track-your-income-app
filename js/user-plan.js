@@ -89,6 +89,9 @@ var UserPlan = (function () {
         overlay.addEventListener('click', function (e) {
             if (e.target === overlay) overlay.remove();
         });
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); }
+        });
     }
 
     // ── Checkout-Link (LemonSqueezy) ──────────────────────────────

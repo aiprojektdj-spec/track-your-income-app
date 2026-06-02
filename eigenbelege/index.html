@@ -257,6 +257,7 @@
     </script>
 
 <script src="../js/companies.js"></script>
+<script src="../js/user-plan.js"></script>
 <script>
 // ── GbR-Tab: show when GbR/eGbR is active ──
 (function() {
@@ -405,6 +406,14 @@ const OYI_IDB = {
 // KONSTANTEN
 // ═══════════════════════════════════════════════════════════════════
 const STD_KAT = [
+    // ── Wareneinkauf ──────────────────────────────────────────────────
+    { id:'wareneinkauf',          name:'Wareneinkauf (allgemein)',              farbe:'#22c55e', std:true },
+    { id:'waren_privatkauf',      name:'Wareneinkauf – Privatkauf / Kleinanzeigen', farbe:'#16a34a', std:true },
+    { id:'waren_flohmarkt',       name:'Wareneinkauf – Flohmarkt / Second-Hand',    farbe:'#15803d', std:true },
+    { id:'waren_grosshandel',     name:'Wareneinkauf – Großhändler / B2B',          farbe:'#166534', std:true },
+    { id:'waren_online',          name:'Wareneinkauf – Online-Marktplatz (eBay, Amazon …)', farbe:'#14532d', std:true },
+    { id:'rohstoffe',             name:'Rohstoffe / Materialien (Produktion)',      farbe:'#84cc16', std:true },
+    // ── Betriebsausgaben ─────────────────────────────────────────────
     { id:'verpackung',  name:'Verpackung / Versandmaterial', farbe:'#3b82f6', std:true },
     { id:'fahrtkosten', name:'Fahrtkosten',                   farbe:'#10b981', std:true },
     { id:'buero',       name:'Bürobedarf',                    farbe:'#f59e0b', std:true },

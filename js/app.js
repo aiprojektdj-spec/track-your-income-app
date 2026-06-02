@@ -480,7 +480,7 @@ const App = {
         // Close mobile menu
         const sidebarEl = document.getElementById('sidebar');
         const overlayEl = document.getElementById('mobileOverlay');
-        if (sidebarEl) sidebarEl.classList.remove('open');
+        if (sidebarEl) sidebarEl.classList.remove('sidebar-open');
         if (overlayEl) overlayEl.classList.remove('active');
 
         // Akademie: Sidebar ausblenden → volle Breite
@@ -549,9 +549,10 @@ const App = {
 
     showModal(title, bodyHtml, footerHtml) {
         const modal = document.getElementById('modal');
+        const safeTitle = String(title).replace(/</g, '&lt;').replace(/>/g, '&gt;');
         modal.innerHTML = `
             <div class="modal-header">
-                <h3>${title}</h3>
+                <h3>${safeTitle}</h3>
                 <button class="modal-close" onclick="App.closeModal()">&times;</button>
             </div>
             <div class="modal-body">${bodyHtml}</div>

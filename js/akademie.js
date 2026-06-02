@@ -1081,6 +1081,283 @@ const Akademie = {
                     `
                 }
             ]
+        },
+
+        // ── MODUL 9: Krankenversicherung ──────────────────────────────────
+        {
+            id: 'krankenversicherung',
+            icon: '🏥',
+            title: 'Krankenversicherung',
+            description: 'GKV oder PKV? Was gilt für Schüler, Azubis, Arbeitslose und Arbeitnehmer — alle Fälle erklärt.',
+            level: 'Einsteiger',
+            lessons: [
+                {
+                    id: 'kv0',
+                    title: 'GKV vs. PKV — der Unterschied auf einen Blick',
+                    duration: '5 min',
+                    content: `
+                        <p>In Deutschland gilt <strong>Versicherungspflicht</strong>: Du musst krankenversichert sein. Die Wahl liegt zwischen <strong>gesetzlicher (GKV)</strong> und <strong>privater (PKV)</strong> Krankenversicherung.</p>
+
+                        <h4>Gesetzliche Krankenversicherung (GKV)</h4>
+                        <ul>
+                            <li>Beitrag abhängig vom <strong>Einkommen</strong> (nicht vom Gesundheitszustand)</li>
+                            <li>Allgemeiner Beitragssatz 2025: <strong>14,6 %</strong> + kassenindividueller Zusatzbeitrag (Ø ~1,7 %)</li>
+                            <li>Beitrag wird zwischen Arbeitnehmer und Arbeitgeber geteilt (<strong>je ~8,2 %</strong>)</li>
+                            <li>Familienversicherung: Kinder + Ehepartner ohne eigenes Einkommen kostenlos mitversichert</li>
+                            <li>Beitragsbemessungsgrenze 2025: <strong>5.512,50 € / Monat</strong> — darüber wird kein höherer Beitrag fällig</li>
+                        </ul>
+
+                        <h4>Private Krankenversicherung (PKV)</h4>
+                        <ul>
+                            <li>Beitrag abhängig vom <strong>Eintrittsalter, Gesundheit und gewähltem Tarif</strong></li>
+                            <li>Jede versicherte Person zahlt eigenen Beitrag (keine Familienversicherung)</li>
+                            <li>Zugang: Arbeitnehmer erst ab Jahreseinkommen > Versicherungspflichtgrenze (<strong>73.800 € / Jahr in 2025</strong>), oder Selbstständige / Beamte</li>
+                            <li>Kann günstiger starten, steigt aber im Alter stark an</li>
+                        </ul>
+
+                        <h4>Pflegeversicherung (PV)</h4>
+                        <p>Immer zusammen mit KV: Beitrag 2025 = <strong>3,4 %</strong> (Kinderlose zahlen <strong>4,0 %</strong>). Auch hier je 50 % AG/AN.</p>
+
+                        <div class="akademie-tip">💡 <strong>Faustregel:</strong> Als Angestellter mit Standardgehalt → GKV. Als Selbstständiger, Beamter oder gut verdienender Arbeitnehmer → PKV-Vergleich lohnt sich. Im Zweifel: unabhängigen Versicherungsberater konsultieren (kein Makler!).</div>
+                    `
+                },
+                {
+                    id: 'kv1',
+                    title: 'Schüler — Familienversicherung & erste eigene Versicherung',
+                    duration: '6 min',
+                    content: `
+                        <p>Für Schüler gilt: solange die Eltern GKV-Mitglieder sind, können Kinder <strong>kostenlos familienversichert</strong> werden — ohne eigenen Beitrag.</p>
+
+                        <h4>Wann greift die Familienversicherung?</h4>
+                        <ul>
+                            <li>Kinder bis <strong>18 Jahre</strong>: immer (egal ob und wie viel sie jobben)</li>
+                            <li>Ab 18 bis maximal <strong>25 Jahre</strong>: wenn kein regelmäßiges Einkommen über <strong>505 € / Monat</strong></li>
+                            <li>Ausnahme Minijob: bis zur Geringfügigkeitsgrenze <strong>538 € / Monat</strong> ist Familienversicherung trotzdem möglich (Sonderregelung für geringfügige Beschäftigung)</li>
+                            <li>Wehr-/Zivildienst/FSJ: Familienschutz verlängert sich um die Dauer des Dienstes</li>
+                        </ul>
+
+                        <h4>Was passiert wenn das Einkommen die Grenze überschreitet?</h4>
+                        <p>Wird die 505-€-Grenze <strong>dauerhaft</strong> überschritten (z. B. durch einen Werkstudentenjob), fällt die Familienversicherung weg. Ab dann:</p>
+                        <ol>
+                            <li>Eigene freiwillige GKV-Mitgliedschaft (für Schüler/Studenten günstiger Tarif)</li>
+                            <li>Oder: eigene Pflichtmitgliedschaft wenn regulär beschäftigt</li>
+                        </ol>
+
+                        <h4>Praktische Fälle</h4>
+                        <table style="width:100%;font-size:13px;border-collapse:collapse;margin:10px 0;">
+                            <tr style="background:var(--bg-secondary);"><th style="text-align:left;padding:6px;">Situation</th><th style="text-align:left;padding:6px;">KV-Status</th><th style="text-align:left;padding:6px;">Kosten</th></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Schüler, 16 Jahre, kein Job</td><td style="padding:6px;">Familienversicherung</td><td style="padding:6px;">0 €</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Schüler, 20 Jahre, Minijob 500 €</td><td style="padding:6px;">Familienversicherung (Minijob-Ausnahme)</td><td style="padding:6px;">0 €</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Schüler, 20 Jahre, Werkstudent 800 €</td><td style="padding:6px;">Eigene GKV-Pflichtmitgliedschaft</td><td style="padding:6px;">~131 €/Monat (AN-Anteil)</td></tr>
+                            <tr><td style="padding:6px;">Schüler, 26 Jahre (Studium verlängert)</td><td style="padding:6px;">Freiwillige GKV (Studententarif)</td><td style="padding:6px;">~130–160 €/Monat</td></tr>
+                        </table>
+
+                        <h4>Wichtige Fristen</h4>
+                        <ul>
+                            <li>Nach Ende der Schulzeit: <strong>3 Monate</strong> um sich bei einer Krankenkasse anzumelden (oder Ausbildung/Studium beginnt)</li>
+                            <li>Ohne Anmeldung: Krankenkasse fordert rückwirkend Beiträge — teuer!</li>
+                        </ul>
+
+                        <div class="akademie-tip">⚠️ <strong>Achtung Reselling + Familienversicherung:</strong> Wenn du als Schüler Reselling gewerblich betreibst und regelmäßig mehr als 505 € Gewinn erzielst, fällt die Familienversicherung weg. Gewerbegewinn zählt als Einkommen. Unter 505 € Gewinn/Monat im Jahresdurchschnitt: kein Problem.</div>
+                    `
+                },
+                {
+                    id: 'kv2',
+                    title: 'Azubi — Pflichtversicherung & Beitragsteilung',
+                    duration: '5 min',
+                    content: `
+                        <p>Als Auszubildende/r bist du <strong>automatisch GKV-pflichtversichert</strong> — genauso wie reguläre Arbeitnehmer. Die Krankenkasse kannst du frei wählen.</p>
+
+                        <h4>Wie berechnet sich der Beitrag?</h4>
+                        <p>Beitrag = Ausbildungsvergütung × Beitragssatz. Beitragssatz 2025:</p>
+                        <table style="width:100%;font-size:13px;border-collapse:collapse;margin:10px 0;">
+                            <tr style="background:var(--bg-secondary);"><th style="padding:6px;text-align:left;">Posten</th><th style="padding:6px;text-align:right;">Satz</th><th style="padding:6px;text-align:right;">Beispiel bei 800 €</th></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">KV allgemein (Gesamt)</td><td style="padding:6px;text-align:right;">14,6 %</td><td style="padding:6px;text-align:right;">116,80 €</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">KV Zusatzbeitrag Ø (Gesamt)</td><td style="padding:6px;text-align:right;">~1,7 %</td><td style="padding:6px;text-align:right;">13,60 €</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Pflegeversicherung (Gesamt)</td><td style="padding:6px;text-align:right;">3,4 %</td><td style="padding:6px;text-align:right;">27,20 €</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);font-weight:600;"><td style="padding:6px;">Gesamt</td><td style="padding:6px;text-align:right;">~19,7 %</td><td style="padding:6px;text-align:right;">157,60 €</td></tr>
+                            <tr style="color:var(--success);"><td style="padding:6px;">Dein Anteil (ca. 50 %)</td><td style="padding:6px;text-align:right;">~9,85 %</td><td style="padding:6px;text-align:right;">~78,80 €</td></tr>
+                            <tr style="color:var(--text-muted);"><td style="padding:6px;">Arbeitgeber zahlt (ca. 50 %)</td><td style="padding:6px;text-align:right;">~9,85 %</td><td style="padding:6px;text-align:right;">~78,80 €</td></tr>
+                        </table>
+
+                        <h4>Sonderfall: Azubi-Vergütung unter 325 € / Monat</h4>
+                        <p>Bei sehr geringer Vergütung (z. B. bestimmte Berufsfelder oder Teilzeit-Ausbildung): <strong>Arbeitgeber trägt den gesamten Beitrag allein</strong> — du zahlst nichts. Seit 2020 gibt es außerdem eine Sonderregel: Arbeitgeber zahlt gesamten Beitrag wenn das Ausbildungsentgelt unterhalb eines bestimmten Schwellenwerts liegt.</p>
+
+                        <h4>Welche Krankenkasse wählen?</h4>
+                        <p>Du kannst zum Ausbildungsstart frei wählen. Wichtige Kriterien:</p>
+                        <ul>
+                            <li><strong>Zusatzbeitrag</strong>: unterscheidet sich je nach Kasse (0,9 % – 2,5 % in 2025)</li>
+                            <li><strong>Bonusprogramme</strong>: Fitness, Vorsorge, Zahn (lohnt sich im jungen Alter)</li>
+                            <li><strong>App + Service</strong>: digitale Gesundheitskarte, Online-Arzttermin</li>
+                            <li><strong>Regionale Präsenz</strong> (falls du persönliche Beratung schätzt)</li>
+                        </ul>
+
+                        <h4>Was ist mit dem Job nach der Ausbildung?</h4>
+                        <p>Nach Abschluss der Ausbildung: automatisch Pflichtmitglied als Arbeitnehmer. Kasse bleibt die gleiche sofern du nicht aktiv wechselst (Kassenwahlrecht jederzeit nach 12 Monaten Mitgliedschaft).</p>
+
+                        <div class="akademie-tip">💡 <strong>Tipp für Azubi-Reseller:</strong> Wenn du nebenher Reselling betreibst und Gewinn machst: dieser zählt als selbstständiges Einkommen. Liegt der Gesamtgewinn unter der Geringfügigkeitsgrenze und überschreitest du keine 20 Wochenstunden, ändert sich an der Pflichtversicherung als Azubi nichts. Bei höherem Gewinn → Kasse informieren.</div>
+                    `
+                },
+                {
+                    id: 'kv3',
+                    title: 'Arbeitslos — ALG I, Bürgergeld & Beitragspflicht',
+                    duration: '6 min',
+                    content: `
+                        <p>Wer seinen Job verliert, muss nicht automatisch die Krankenversicherung verlieren. Das System schützt dich — aber du musst rechtzeitig handeln.</p>
+
+                        <h4>Fall 1: Arbeitslosengeld I (ALG I)</h4>
+                        <p>Du beziehst ALG I von der <strong>Bundesagentur für Arbeit (BA)</strong>:</p>
+                        <ul>
+                            <li>Die BA meldet dich automatisch bei deiner bisherigen Krankenkasse als Pflichtmitglied an</li>
+                            <li>Die BA zahlt die GKV-Beiträge <strong>direkt an die Kasse</strong> — du zahlst nichts selbst</li>
+                            <li>Bemessungsgrundlage: 80 % des letzten Bruttoentgelts (gedeckelt auf Beitragsbemessungsgrenze)</li>
+                            <li>Pflegeversicherung läuft parallel — ebenfalls von der BA getragen</li>
+                        </ul>
+
+                        <h4>Fall 2: Bürgergeld (ehem. ALG II)</h4>
+                        <p>Du beziehst Bürgergeld vom <strong>Jobcenter</strong>:</p>
+                        <ul>
+                            <li>Jobcenter übernimmt GKV-Beiträge vollständig</li>
+                            <li>Du bleibst <strong>Pflichtmitglied</strong> in der GKV — voller Leistungsanspruch</li>
+                            <li>Kassenwahlrecht: du kannst die Kasse wechseln</li>
+                            <li>Nicht möglich: in die PKV wechseln (kein Zuschuss vom Jobcenter für PKV)</li>
+                        </ul>
+
+                        <h4>Fall 3: Keine Leistungen (selbst gekündigt / Sperrzeit)</h4>
+                        <p>Beziehst du weder ALG I noch Bürgergeld und bist nicht anderweitig versichert:</p>
+                        <ul>
+                            <li>Du musst dich <strong>freiwillig in der GKV versichern</strong></li>
+                            <li>Frist: binnen <strong>14 Tagen</strong> nach Ende der Pflichtversicherung (z. B. Beschäftigungsende)</li>
+                            <li>Mindestbeitrag 2025: ca. <strong>207 € / Monat</strong> (auf Basis Mindest-Einnahme 1.178,33 €)</li>
+                            <li>Nachweis geringes Einkommen möglich → reduzierter Beitrag auf Antrag</li>
+                        </ul>
+
+                        <h4>Fall 4: Wenn du vorher PKV hattest</h4>
+                        <p>Wer als Selbstständiger oder Arbeitnehmer in der PKV war und nun arbeitslos wird:</p>
+                        <ul>
+                            <li>PKV-Beitrag läuft weiter — Jobcenter zahlt <strong>keinen Zuschuss</strong> für PKV</li>
+                            <li>Bei ALG I: Zuschuss des Jobcenters zu PKV bis zur Hälfte des Mindestbeitrags der GKV</li>
+                            <li>Option: Wechsel in den <strong>Notlagentarif</strong> der PKV (stark reduzierte Leistungen, sehr günstiger Beitrag)</li>
+                            <li>Rückkehr in GKV: nur möglich wenn Beschäftigung unter Pflichtversicherungsgrenze aufgenommen wird</li>
+                        </ul>
+
+                        <h4>Wichtige Fristen</h4>
+                        <table style="width:100%;font-size:13px;border-collapse:collapse;margin:10px 0;">
+                            <tr style="background:var(--bg-secondary);"><th style="padding:6px;text-align:left;">Situation</th><th style="padding:6px;text-align:left;">Frist</th></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Arbeitsverhältnis endet</td><td style="padding:6px;">Innerhalb 14 Tage KV-Anschluss sichern</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">ALG-I-Antrag</td><td style="padding:6px;">Spätestens am 1. Tag der Arbeitslosigkeit anmelden</td></tr>
+                            <tr><td style="padding:6px;">Lücke in Versicherung</td><td style="padding:6px;">Kasse berechnet rückwirkend Beiträge — unvermeidlich</td></tr>
+                        </table>
+
+                        <div class="akademie-tip">⚠️ <strong>Reselling während Arbeitslosigkeit:</strong> Betreibst du während des Bürgergeld-Bezugs Reselling als Gewerbe, musst du Einnahmen dem Jobcenter melden. Gewinn wird auf das Bürgergeld angerechnet. Freibetrag 2025: erste 100 € des Einkommens anrechnungsfrei, danach 20 % Freibetrag bis 1.000 € monatlicher Einnahmen.</div>
+                    `
+                },
+                {
+                    id: 'kv4',
+                    title: 'Arbeitnehmer — Pflichtversicherung, Wahltarife & PKV-Option',
+                    duration: '7 min',
+                    content: `
+                        <p>Als sozialversicherungspflichtig Beschäftigter bist du automatisch GKV-Mitglied — sofern dein Jahresgehalt die <strong>Versicherungspflichtgrenze</strong> nicht überschreitet.</p>
+
+                        <h4>Pflichtversicherungsgrenze 2025</h4>
+                        <ul>
+                            <li>Jahresarbeitsentgeltgrenze (JAEG): <strong>73.800 € brutto / Jahr</strong> = 6.150 € / Monat</li>
+                            <li>Liegt dein Jahresgehalt darunter: <strong>GKV-Pflicht</strong>, kein Wechsel in PKV möglich</li>
+                            <li>Liegt dein Jahresgehalt darüber: <strong>Wahlfreiheit</strong> — GKV freiwillig oder PKV</li>
+                        </ul>
+
+                        <h4>Beitragsberechnung 2025 (Beispiel 3.500 € Brutto)</h4>
+                        <table style="width:100%;font-size:13px;border-collapse:collapse;margin:10px 0;">
+                            <tr style="background:var(--bg-secondary);"><th style="padding:6px;text-align:left;">Posten</th><th style="padding:6px;text-align:right;">Dein Anteil</th><th style="padding:6px;text-align:right;">AG-Anteil</th></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">KV (14,6 % + Ø 1,7 %)</td><td style="padding:6px;text-align:right;">~284 €</td><td style="padding:6px;text-align:right;">~284 €</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Pflegeversicherung (3,4 %)</td><td style="padding:6px;text-align:right;">~60 €</td><td style="padding:6px;text-align:right;">~60 €</td></tr>
+                            <tr style="font-weight:600;"><td style="padding:6px;">Gesamt KV+PV</td><td style="padding:6px;text-align:right;">~344 €</td><td style="padding:6px;text-align:right;">~344 €</td></tr>
+                        </table>
+                        <p style="font-size:12px;color:var(--text-muted);">Kinderlose zahlen 0,6 % Pflegeversicherungs-Zuschlag zusätzlich (seit 2023).</p>
+
+                        <h4>Kassenwahlrecht</h4>
+                        <p>Du kannst die GKV frei wählen. Wechsel möglich:</p>
+                        <ul>
+                            <li>Nach mindestens <strong>12 Monaten</strong> Mitgliedschaft in der aktuellen Kasse</li>
+                            <li>Mit <strong>2 Monaten Kündigungsfrist</strong> zum Monatsende</li>
+                            <li>Ausnahme: Kasse erhöht Zusatzbeitrag → sofortiges Sonderkündigungsrecht</li>
+                        </ul>
+
+                        <h4>PKV als Arbeitnehmer — wann lohnt es sich?</h4>
+                        <p>Wenn dein Bruttogehalt die JAEG <strong>3 Jahre in Folge</strong> überschreitet (oder im 1. Jahr bei Neueinstellung):</p>
+                        <ul>
+                            <li>PKV kann im jungen Alter günstiger sein als GKV</li>
+                            <li>Kein Familienschutz: Kinder/Partner müssen separat versichert werden → Kostenfaktor</li>
+                            <li>Beiträge steigen im Alter stark — <strong>Langzeit-Vergleich</strong> entscheidend</li>
+                            <li>Rückkehr in GKV schwierig (nur unter bestimmten Bedingungen)</li>
+                        </ul>
+
+                        <h4>Sonderfall: Nebentätigkeit als Reseller / Selbstständiger</h4>
+                        <p>Du bist Arbeitnehmer und betreibst <strong>nebenberuflich</strong> Reselling als Gewerbe:</p>
+                        <ul>
+                            <li>Bleibt in der GKV-Pflichtversicherung (Hauptbeschäftigung als AN dominiert)</li>
+                            <li>Nebenberuflich = wöchentliche Selbstständigen-Arbeitszeit <strong>unter 18 Stunden</strong> UND Gewinn unter Arbeitnehmereinkommen</li>
+                            <li>Gewinn aus Reselling wird <strong>nicht für GKV-Beitrag herangezogen</strong> (Beitrag nur aus AN-Einkommen)</li>
+                            <li>Übersteigt Reselling-Einkommen das AN-Einkommen: Status wechselt → höhere Beiträge möglich</li>
+                        </ul>
+
+                        <h4>Besonderheit: Mini- und Midijob (Nebenjob neben Hauptbeschäftigung)</h4>
+                        <ul>
+                            <li>Minijob bis 538 €/Monat: KV-frei (kein Beitrag des Minijobbers), AG zahlt Pauschale</li>
+                            <li>Midijob 538–2.000 €/Monat (Übergangsbereich): reduzierter AN-Anteil, AG zahlt vollen AG-Anteil</li>
+                        </ul>
+
+                        <div class="akademie-tip">💡 <strong>Praxis-Tipp Kassenvergleich:</strong> Der Zusatzbeitrag ist der größte Unterschied zwischen Kassen (0,9 % bis 2,5 % in 2025). Bei 3.500 € Brutto sind das 31 € bis 87 € pro Monat Unterschied — also bis zu 672 € / Jahr. Krankenkassen-Vergleich auf krankenkassen.de oder GKV-Spitzenverband jährlich prüfen!</div>
+                    `
+                },
+                {
+                    id: 'kv5',
+                    title: 'Selbstständige & Freelancer — freiwillige GKV oder PKV?',
+                    duration: '6 min',
+                    content: `
+                        <p>Wer sich selbstständig macht, verliert automatisch die Pflichtversicherung als Arbeitnehmer. Innerhalb von <strong>3 Monaten</strong> muss eine neue Lösung gefunden werden.</p>
+
+                        <h4>Option 1: Freiwillige GKV</h4>
+                        <p>Selbstständige können freiwillig in der GKV bleiben:</p>
+                        <ul>
+                            <li>Beitrag: 14,6 % + Zusatzbeitrag + PV auf das <strong>gesamte Einkommen</strong> (keine AG-Beteiligung!)</li>
+                            <li>Mindesteinkommen-Bemessungsgrundlage: <strong>1.178,33 € / Monat</strong> (auch wenn du weniger verdienst)</li>
+                            <li>Mindestbeitrag 2025: ca. <strong>207 € / Monat</strong> (KV) + ca. 50 € (PV) = ~257 €/Monat</li>
+                            <li>Bei Nachweis geringeren Einkommens: Antrag auf reduzierten Beitrag möglich</li>
+                            <li>Familienschutz: Kinder + Ehepartner weiterhin beitragsfrei mitversichert</li>
+                        </ul>
+
+                        <h4>Option 2: Private Krankenversicherung (PKV)</h4>
+                        <ul>
+                            <li>Selbstständige haben jederzeit Zugang zur PKV (keine Einkommensgrenze)</li>
+                            <li>Günstiger Einstiegsbeitrag im jungen Alter (z. B. 25–35 Jahre)</li>
+                            <li>Kein Beitrag auf Einkommen — fester Tarif, unabhängig vom Gewinn</li>
+                            <li>Nachteil: Beitrag steigt mit dem Alter stark, keine Familienversicherung</li>
+                        </ul>
+
+                        <h4>Typischer Vergleich: Reseller mit 2.000 € Gewinn / Monat</h4>
+                        <table style="width:100%;font-size:13px;border-collapse:collapse;margin:10px 0;">
+                            <tr style="background:var(--bg-secondary);"><th style="padding:6px;text-align:left;">Option</th><th style="padding:6px;text-align:right;">Monatsbeitrag</th><th style="padding:6px;text-align:left;">Besonderheit</th></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Freiwillige GKV</td><td style="padding:6px;text-align:right;">~332 € KV+PV</td><td style="padding:6px;">Kinder mitversichert</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">PKV (30 J., gesund)</td><td style="padding:6px;text-align:right;">~250–350 €</td><td style="padding:6px;">Tarif-abhängig</td></tr>
+                            <tr><td style="padding:6px;">PKV (50 J., normal)</td><td style="padding:6px;text-align:right;">~450–700 €</td><td style="padding:6px;">Steigt mit Alter</td></tr>
+                        </table>
+
+                        <h4>Wenn der Gewinn im ersten Jahr gering ist</h4>
+                        <p>Neu-Selbstständige können in den <strong>ersten 3 Jahren</strong> beantragen, den GKV-Beitrag auf Basis des tatsächlichen (niedrigeren) Einkommens zu berechnen, anstatt des Mindestbeitrags. Voraussetzung: Nachweis via Einkommensteuerbescheid oder Prognose-Erklärung.</p>
+
+                        <h4>Praxis: Was muss ich tun wenn ich mich selbstständig mache?</h4>
+                        <ol>
+                            <li>Ende der Pflichtversicherung feststellen (letzter AN-Tag)</li>
+                            <li>Innerhalb <strong>14 Tagen</strong>: bisherige Kasse über Statusänderung informieren</li>
+                            <li>Antrag auf freiwillige Mitgliedschaft stellen (oder PKV-Antrag)</li>
+                            <li>Wenn Gewinn noch nicht bekannt: Beitragsanpassung jährlich möglich</li>
+                        </ol>
+
+                        <div class="akademie-tip">⚠️ <strong>Häufiger Fehler:</strong> Selbstständige vergessen die Krankenversicherung anzumelden und erhalten rückwirkend Beiträge seit Beginn der Selbstständigkeit. Die Kasse rechnet das konsequent ab — inklusive Säumniszuschlägen. Sofort anmelden spart bares Geld!</div>
+                    `
+                }
+            ]
         }
     ],
 
@@ -1112,7 +1389,7 @@ const Akademie = {
         { id: 'stock_value_5k',  icon: '🏛️', title: 'Lager-Magnat',            desc: 'Lagerwert (verfügbar) ≥ 5.000 €.',                       tier: 'gold',   check: d => d.activeStockValue >= 5000 },
         { id: 'comeback',        icon: '🌱', title: 'Comeback',                desc: 'Profitabler Monat nach mindestens einem Verlustmonat.',  tier: 'silver', check: d => d.hadComeback },
         { id: 'listing_master',  icon: '📷', title: 'Listing-Master',          desc: '100 Artikel mit Foto UND Beschreibung.',                 tier: 'gold',   check: d => d.fullyListedCount >= 100 },
-        { id: 'all_modules',     icon: '🎖️', title: 'Wissens-Champion',        desc: 'ALLE Akademie-Module komplett durchgearbeitet.',         tier: 'gold',   check: d => d.modulesComplete >= 8 },
+        { id: 'all_modules',     icon: '🎖️', title: 'Wissens-Champion',        desc: 'ALLE Akademie-Module komplett durchgearbeitet.',         tier: 'gold',   check: d => d.modulesComplete >= 9 },
         { id: 'audit_clean',     icon: '🛡️', title: 'Audit-Saubermann',        desc: 'GoBD-konform: 100+ dokumentierte Änderungen im Protokoll.', tier: 'silver', check: d => d.auditEntries >= 100 },
         { id: 'bulk_master',     icon: '📦', title: 'Bulk-Master',             desc: '5+ Bulk-Sessions im Lager angelegt.',                    tier: 'silver', check: d => d.bulkSessions >= 5 }
     ],

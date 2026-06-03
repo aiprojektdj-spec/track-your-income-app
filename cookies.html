@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cookie-Richtlinie — Stackr</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+    --bg: #08080f; --surface: #0e0e1a; --card: #131320;
+    --border: rgba(255,255,255,.07); --accent: #10b981;
+    --text: #f1f5f9; --muted: #64748b; --subtle: #94a3b8;
+}
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.7; }
+nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(8,8,15,.9); backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px; height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+}
+.nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; }
+.nav-brand-icon { font-size:22px; color:var(--accent); }
+.nav-brand-text { font-size:15px; font-weight:700; color:var(--text); }
+.nav-back { color:var(--subtle); text-decoration:none; font-size:13px; }
+.nav-back:hover { color:var(--text); }
+.page-wrap { max-width: 780px; margin: 0 auto; padding: 60px 24px 80px; }
+h1 { font-size:32px; font-weight:800; letter-spacing:-.5px; margin-bottom:6px; }
+.subtitle { font-size:14px; color:var(--muted); margin-bottom:48px; }
+.section { margin-bottom:40px; }
+h2 {
+    font-size:14px; font-weight:700; text-transform:uppercase;
+    letter-spacing:1px; color:var(--accent);
+    margin-bottom:14px; padding-bottom:8px;
+    border-bottom:1px solid rgba(16,185,129,.2);
+}
+h3 { font-size:15px; font-weight:600; color:var(--text); margin:18px 0 8px; }
+p { font-size:15px; color:var(--subtle); margin-bottom:10px; }
+ul { padding-left:20px; margin-bottom:10px; }
+li { font-size:15px; color:var(--subtle); margin-bottom:4px; }
+a { color:#34d399; text-decoration:none; }
+a:hover { text-decoration:underline; }
+.highlight-box {
+    background:rgba(16,185,129,.06); border:1px solid rgba(16,185,129,.15);
+    border-radius:10px; padding:16px 20px; font-size:13px; color:var(--subtle);
+    line-height:1.6; margin-bottom:24px;
+}
+.highlight-box strong { color:#34d399; }
+.update-date { font-size:12px; color:var(--muted); margin-bottom:40px; }
+.cookie-table {
+    width:100%; border-collapse:collapse; margin-bottom:16px; font-size:14px;
+}
+.cookie-table th {
+    text-align:left; padding:10px 12px; font-size:12px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.5px; color:var(--muted);
+    border-bottom:1px solid var(--border);
+}
+.cookie-table td {
+    padding:10px 12px; color:var(--subtle); border-bottom:1px solid var(--border);
+    vertical-align:top;
+}
+.cookie-table tr:last-child td { border-bottom:none; }
+.cookie-table td:first-child { color:var(--text); font-family:monospace; font-size:13px; }
+.badge {
+    display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px;
+    font-weight:600; text-transform:uppercase; letter-spacing:.5px;
+}
+.badge-required {
+    background:rgba(16,185,129,.15); color:#34d399;
+}
+footer {
+    border-top:1px solid var(--border); padding:24px;
+    text-align:center; font-size:13px; color:var(--muted);
+}
+footer a { color:var(--muted); text-decoration:none; }
+footer a:hover { color:var(--subtle); }
+</style>
+</head>
+<body>
+
+<nav>
+    <a href="landing.html" class="nav-brand">
+        <span class="nav-brand-icon">◆</span>
+        <span class="nav-brand-text">Stackr</span>
+    </a>
+    <a href="landing.html" class="nav-back">← Zurück</a>
+</nav>
+
+<div class="page-wrap">
+
+    <h1>Cookie-Richtlinie</h1>
+    <p class="subtitle">Informationen über den Einsatz von Cookies und lokaler Datenspeicherung</p>
+    <p class="update-date">Stand: Juni 2026</p>
+
+    <div class="highlight-box">
+        <strong>Kurzfassung:</strong> Stackr verwendet ausschließlich technisch notwendige Cookies
+        und lokale Speicherung. Es werden keine Marketing-, Tracking- oder Analyse-Cookies eingesetzt.
+        Ein Cookie-Banner ist daher nicht erforderlich.
+    </div>
+
+    <div class="section">
+        <h2>1. Was sind Cookies?</h2>
+        <p>
+            Cookies sind kleine Textdateien, die beim Besuch einer Website auf deinem Gerät gespeichert werden.
+            Sie dienen dazu, bestimmte Informationen zwischen Browser-Sitzungen zu erhalten.
+            Neben klassischen Cookies nutzen moderne Web-Apps auch verwandte Technologien
+            wie <strong style="color:var(--text);">localStorage</strong> und
+            <strong style="color:var(--text);">IndexedDB</strong> des Browsers zur lokalen Datenspeicherung.
+        </p>
+        <p>
+            Cookies können je nach Zweck in verschiedene Kategorien eingeteilt werden:
+        </p>
+        <ul>
+            <li><strong style="color:var(--text);">Technisch notwendige Cookies</strong> — für die Grundfunktionalität der Anwendung unbedingt erforderlich</li>
+            <li><strong style="color:var(--text);">Analyse-Cookies</strong> — zur Auswertung des Nutzerverhaltens (werden von Stackr <em>nicht</em> eingesetzt)</li>
+            <li><strong style="color:var(--text);">Marketing-Cookies</strong> — für personalisierte Werbung (werden von Stackr <em>nicht</em> eingesetzt)</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>2. Welche Cookies nutzt Stackr?</h2>
+        <p>
+            Stackr setzt ausschließlich technisch notwendige Cookies und lokale Speicherung ein,
+            die für den Betrieb der Anwendung unerlässlich sind. Alle eingesetzten Technologien
+            sind im Folgenden vollständig aufgelistet.
+        </p>
+
+        <h3>Sitzungs-Cookie (Supabase Auth)</h3>
+        <table class="cookie-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Zweck</th>
+                    <th>Speicherdauer</th>
+                    <th>Typ</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>sb-*-auth-token</td>
+                    <td>Speichert die Authentifizierungs-Session nach dem Login, damit du angemeldet bleibst</td>
+                    <td>7 Tage (oder bis zum Logout)</td>
+                    <td><span class="badge badge-required">Notwendig</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Lokale Speicherung (localStorage)</h3>
+        <table class="cookie-table">
+            <thead>
+                <tr>
+                    <th>Schlüssel</th>
+                    <th>Zweck</th>
+                    <th>Speicherdauer</th>
+                    <th>Typ</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>stackr_*</td>
+                    <td>Speichert deine Buchhaltungsdaten (Einnahmen, Ausgaben, Rechnungen) lokal im Browser</td>
+                    <td>Dauerhaft (bis zum manuellen Löschen)</td>
+                    <td><span class="badge badge-required">Notwendig</span></td>
+                </tr>
+                <tr>
+                    <td>stackr_settings</td>
+                    <td>Speichert App-Einstellungen (z. B. aktivierte Features, UI-Präferenzen)</td>
+                    <td>Dauerhaft (bis zum manuellen Löschen)</td>
+                    <td><span class="badge badge-required">Notwendig</span></td>
+                </tr>
+                <tr>
+                    <td>stackr_plan</td>
+                    <td>Speichert den aktuellen Abo-Status (Free/Pro) zur Anzeige der richtigen Funktionen</td>
+                    <td>Sitzungsbasiert / synchronisiert</td>
+                    <td><span class="badge badge-required">Notwendig</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>IndexedDB (lokale Datenbank)</h3>
+        <p>
+            Für größere Datenmengen (z. B. umfangreiche Buchungshistorie) nutzt Stackr die
+            <strong style="color:var(--text);">IndexedDB</strong> des Browsers — eine strukturierte
+            lokale Datenbank, die ausschließlich auf deinem Gerät gespeichert wird und das Gerät
+            nicht verlässt, sofern kein Cloud-Sync aktiviert ist.
+        </p>
+        <p>Rechtsgrundlage für alle o. g. Technologien: § 25 Abs. 2 TTDSG (technisch notwendig).</p>
+    </div>
+
+    <div class="section">
+        <h2>3. Keine Marketing- oder Tracking-Cookies</h2>
+        <p>
+            Stackr setzt <strong style="color:var(--text);">keinerlei</strong> der folgenden Technologien ein:
+        </p>
+        <ul>
+            <li>Analyse-Dienste (z. B. Google Analytics, Matomo, Mixpanel)</li>
+            <li>Werbenetzwerke oder Retargeting-Pixel (z. B. Facebook Pixel, Google Ads)</li>
+            <li>Social-Media-Plugins mit Tracking-Funktion</li>
+            <li>Heatmap- oder Session-Recording-Dienste (z. B. Hotjar, FullStory)</li>
+            <li>A/B-Testing-Dienste mit Nutzer-Tracking</li>
+        </ul>
+        <p>
+            Da Stackr ausschließlich technisch notwendige Cookies und lokale Speicherung verwendet,
+            ist nach § 25 Abs. 2 TTDSG kein Cookie-Einwilligungsbanner erforderlich.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>4. Drittanbieter</h2>
+        <p>
+            Beim Betrieb von Stackr werden folgende Drittanbieter eingesetzt, die ebenfalls
+            auf technisch notwendige Weise mit Daten arbeiten können:
+        </p>
+
+        <h3>Supabase (Authentifizierung &amp; Cloud-Sync)</h3>
+        <p>
+            Für die Benutzeranmeldung und den optionalen Cloud-Sync nutzen wir
+            <strong style="color:var(--text);">Supabase</strong> (Supabase, Inc., Oakland, CA, USA).
+            Supabase setzt beim Login einen Session-Cookie zur Aufrechterhaltung der Authentifizierung.
+            Die Datenspeicherung erfolgt auf EU-Servern in Frankfurt, Deutschland.
+            Datenschutzerklärung: <a href="https://supabase.com/privacy" target="_blank" rel="noopener">supabase.com/privacy</a>
+        </p>
+
+        <h3>jsDelivr / CDN-Bibliotheken</h3>
+        <p>
+            Zur Auslieferung technischer JavaScript-Bibliotheken nutzt Stackr
+            <strong style="color:var(--text);">jsDelivr</strong> (ProspectOne Sp. z o.o., Polen)
+            über das Cloudflare CDN. Beim Laden dieser Ressourcen kann deine IP-Adresse an
+            CDN-Server übertragen werden. Es werden dabei keine Tracking-Cookies gesetzt.
+            Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der
+            Bereitstellung der App-Funktionalität).
+        </p>
+
+        <h3>LemonSqueezy (Zahlungsabwicklung)</h3>
+        <p>
+            Bei der Buchung des Pro-Plans wirst du zu
+            <strong style="color:var(--text);">LemonSqueezy</strong> weitergeleitet.
+            LemonSqueezy kann im Rahmen des Bezahlvorgangs eigene Cookies setzen.
+            Diese unterliegen den Datenschutzbestimmungen von LemonSqueezy:
+            <a href="https://www.lemonsqueezy.com/privacy" target="_blank" rel="noopener">lemonsqueezy.com/privacy</a>
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>5. Cookies verwalten und löschen</h2>
+        <p>
+            Du kannst Cookies jederzeit in den Einstellungen deines Browsers einsehen, verwalten
+            und löschen. Beachte jedoch, dass das Löschen von Stackr-Cookies dazu führt,
+            dass du abgemeldet wirst und lokal gespeicherte Daten verloren gehen können,
+            sofern kein Cloud-Sync aktiviert ist.
+        </p>
+        <p>Anleitungen zur Cookie-Verwaltung in gängigen Browsern:</p>
+        <ul>
+            <li><a href="https://support.google.com/chrome/answer/95647" target="_blank" rel="noopener">Google Chrome</a></li>
+            <li><a href="https://support.mozilla.org/de/kb/cookies-erlauben-und-ablehnen" target="_blank" rel="noopener">Mozilla Firefox</a></li>
+            <li><a href="https://support.apple.com/de-de/guide/safari/sfri11471/mac" target="_blank" rel="noopener">Apple Safari</a></li>
+            <li><a href="https://support.microsoft.com/de-de/microsoft-edge/cookies-in-microsoft-edge-löschen-63947406-40ac-c3b8-57b9-2a946a29ae09" target="_blank" rel="noopener">Microsoft Edge</a></li>
+        </ul>
+        <p>
+            Ausführlichere Informationen zur Datenverarbeitung findest du in unserer
+            <a href="datenschutz.html">Datenschutzerklärung</a>.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>6. Kontakt</h2>
+        <p>
+            Bei Fragen zu dieser Cookie-Richtlinie wende dich an:
+        </p>
+        <p>
+            <strong style="color:var(--text);">Jonathan Reck</strong><br>
+            E-Mail: <a href="mailto:secondlife.vintage07@gmail.com">secondlife.vintage07@gmail.com</a>
+        </p>
+    </div>
+
+</div>
+
+<footer>
+    <div style="margin-bottom:8px;">◆ <strong style="color:#94a3b8;">Stackr</strong></div>
+    <div>
+        <a href="landing.html">Startseite</a> ·
+        <a href="impressum.html">Impressum</a> ·
+        <a href="datenschutz.html">Datenschutz</a> ·
+        <a href="agb.html">AGB</a> ·
+        <a href="refund.html">Widerruf</a> ·
+        <a href="cookies.html">Cookies</a>
+    </div>
+</footer>
+
+</body>
+</html>

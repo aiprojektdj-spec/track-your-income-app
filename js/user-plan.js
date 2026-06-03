@@ -100,9 +100,18 @@ var UserPlan = (function () {
     //   2. Reiter "Sharing" → "Checkout URL" kopieren
     //   Beispiel: https://trackyourincome.lemonsqueezy.com/checkout/buy/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
     //
-    var CHECKOUT_URL = 'https://trackyourincome.lemonsqueezy.com/checkout/buy/DEIN-PRODUKT-ID';
+    var CHECKOUT_URL = '#'; // TODO: LemonSqueezy Produkt-URL hier eintragen (z.B. https://your-store.lemonsqueezy.com/buy/PRODUKT-ID)
 
     function openCheckout() {
+        if (!CHECKOUT_URL || CHECKOUT_URL === '#') {
+            if (typeof Notyf !== 'undefined') {
+                new Notyf().error('Pro-Upgrade derzeit nicht verfügbar.');
+            } else {
+                alert('Pro-Upgrade derzeit nicht verfügbar.');
+            }
+            return;
+        }
+
         // E-Mail des Users vorausfüllen wenn möglich
         var email = '';
         try {

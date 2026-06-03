@@ -1004,7 +1004,7 @@ footer {
 <!-- ═══════════════════ FOOTER ═══════════════════ -->
 <footer>
     <div style="margin-bottom:8px;">◆ <strong style="color:var(--subtle);">Stackr</strong></div>
-    <div>© 2026 Stackr · <a href="datenschutz.html" style="color:var(--muted);text-decoration:none;">Datenschutz</a> · <a href="impressum.html" style="color:var(--muted);text-decoration:none;">Impressum</a></div>
+    <div>© 2026 Stackr · <a href="datenschutz.html" style="color:var(--muted);text-decoration:none;">Datenschutz</a> · <a href="impressum.html" style="color:var(--muted);text-decoration:none;">Impressum</a> · <a href="agb.html" style="color:var(--muted);text-decoration:none;">AGB</a></div>
 </footer>
 
 <!-- ═══════════════════ AUTH MODAL ═══════════════════ -->
@@ -1023,6 +1023,7 @@ footer {
         <input id="authEmail" type="email" class="auth-inp" placeholder="deine@email.de" autocomplete="username">
         <label class="auth-lbl">Passwort</label>
         <input id="authPassword" type="password" class="auth-inp" placeholder="Mindestens 6 Zeichen" autocomplete="current-password">
+        <a href="#" onclick="resetPassword(); return false;" style="font-size:12px;color:var(--muted);text-decoration:none;display:block;text-align:right;margin-top:4px;">Passwort vergessen?</a>
         <div id="authErr" class="auth-err"></div>
         <div id="authOk"  class="auth-ok"></div>
         <button id="authBtn" class="auth-sub" onclick="submitAuth()">Konto erstellen</button>
@@ -1185,6 +1186,28 @@ footer {
             showErr('Verbindungsfehler: ' + (e.message || String(e)));
             btn.disabled = false;
             btn.textContent = _mode === 'login' ? 'Anmelden' : 'Kostenlos registrieren';
+        }
+    };
+
+    window.resetPassword = async function () {
+        var email = (document.getElementById('authEmail').value || '').trim();
+        clearMessages();
+        if (!email) { showErr('Bitte E-Mail eingeben.'); return; }
+        var c = getClient();
+        if (!c) { showErr('Keine Verbindung. Bitte Seite neu laden.'); return; }
+        try {
+            var result = await c.auth.resetPasswordForEmail(email, {
+                redirectTo: 'https://stackr-buchhaltung.netlify.app/index.html'
+            });
+            if (result.error) {
+                var msg = result.error.message || 'Fehler';
+                if (/rate limit/i.test(msg)) msg = 'Zu viele Versuche. Bitte warte kurz.';
+                showErr(msg);
+            } else {
+                showOk('Passwort-Reset E-Mail gesendet. Prüfe dein Postfach.');
+            }
+        } catch (e) {
+            showErr('Verbindungsfehler: ' + (e.message || String(e)));
         }
     };
 

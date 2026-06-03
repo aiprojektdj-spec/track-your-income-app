@@ -19,25 +19,7 @@ const License = {
     // PUBLIC_KEY_JWK: {"kty":"EC","x":"...","y":"...","crv":"P-256"},
     // ──────────────────────────────────────────────────────────
 
-    // ── Master-Override-Keys (Backdoor für persönliche Nutzung) ─
-    // ⚠️ Wer den Source-Code lesen kann, sieht diese Keys. Nur für
-    // eigene Nutzung gedacht — bei kommerzieller Verteilung entfernen!
-    MASTER_KEYS: {
-        // Universal-Schlüssel — gilt bis Ende 2099
-        'OYI-MASTER-UNIVERSAL-2099': {
-            name:    'Universal Master',
-            email:   'master@local',
-            tier:    'enterprise',
-            expires: '2099-12-31'
-        },
-        // Demo-Schlüssel für Test-User — automatisch +90 Tage ab Aktivierung
-        'OYI-DEMO-90-DAYS': {
-            name:    'Demo-Lizenz (90 Tage)',
-            email:   'demo@local',
-            tier:    'pro',
-            _dynamicExpiry: 90  // Tage ab Aktivierung
-        }
-    },
+    MASTER_KEYS: {},
 
     _LS_KEY:     'app_license',
     _cachedData: null,
@@ -119,26 +101,6 @@ const License = {
     // ── Lizenzschlüssel verifizieren ──────────────────────────
     async _verify(licenseStr) {
         licenseStr = licenseStr.trim();
-
-        // ── Master-Key-Check (vor Signatur-Verifikation) ──
-        const master = this.MASTER_KEYS && this.MASTER_KEYS[licenseStr];
-        if (master) {
-            const today = new Date().toISOString().split('T')[0];
-            let expires = master.expires;
-            if (master._dynamicExpiry) {
-                const d = new Date();
-                d.setDate(d.getDate() + master._dynamicExpiry);
-                expires = d.toISOString().split('T')[0];
-            }
-            return {
-                name:    master.name,
-                email:   master.email,
-                tier:    master.tier,
-                expires: expires,
-                issued:  today,
-                _isMaster: true
-            };
-        }
 
         const parts = licenseStr.split('.');
         if (parts.length !== 2) throw new Error('Ungültiges Format');

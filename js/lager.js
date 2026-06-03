@@ -936,6 +936,7 @@ const Lager = {
     },
 
     exportXLSX() {
+        if (typeof UserPlan !== 'undefined' && !UserPlan.requirePro('Excel-Export')) return;
         if (typeof XLSX === 'undefined') {
             Utils.showToast('XLSX-Library nicht geladen', 'error');
             return;

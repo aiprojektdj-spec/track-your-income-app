@@ -1102,6 +1102,11 @@ const Store = {
                 purchases.push(this._stampRecord(purchase));
             }
         } else {
+            // Free-Plan Limit
+            if (typeof UserPlan !== 'undefined' && !UserPlan.isPro()) {
+                const total = this.getAllPurchasesRaw().length + this.getAllSalesRaw().length + this.getAllExpensesRaw().length;
+                if (total >= UserPlan.getLimit('maxBuchungen')) { UserPlan.requirePro('Mehr als 50 Buchungen'); return purchase; }
+            }
             purchase.id = this.generateId();
             purchase.createdAt = new Date().toISOString();
             // Auto-generate Artikelnummer (YYYY-NNN)
@@ -1172,6 +1177,11 @@ const Store = {
                 sales.push(this._stampRecord(sale));
             }
         } else {
+            // Free-Plan Limit
+            if (typeof UserPlan !== 'undefined' && !UserPlan.isPro()) {
+                const total = this.getAllPurchasesRaw().length + this.getAllSalesRaw().length + this.getAllExpensesRaw().length;
+                if (total >= UserPlan.getLimit('maxBuchungen')) { UserPlan.requirePro('Mehr als 50 Buchungen'); return sale; }
+            }
             sale.id = this.generateId();
             sale.createdAt = new Date().toISOString();
             this._stampRecord(sale);
@@ -1307,6 +1317,11 @@ const Store = {
                 expenses.push(this._stampRecord(expense));
             }
         } else {
+            // Free-Plan Limit
+            if (typeof UserPlan !== 'undefined' && !UserPlan.isPro()) {
+                const total = this.getAllPurchasesRaw().length + this.getAllSalesRaw().length + this.getAllExpensesRaw().length;
+                if (total >= UserPlan.getLimit('maxBuchungen')) { UserPlan.requirePro('Mehr als 50 Buchungen'); return expense; }
+            }
             expense.id = this.generateId();
             expense.createdAt = new Date().toISOString();
             this._stampRecord(expense);

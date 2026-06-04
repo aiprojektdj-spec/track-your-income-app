@@ -35,7 +35,7 @@ var AuthUI = (function () {
             await _onSignedIn(user, false);
         } else {
             // Nicht eingeloggt → Landing Page (Login/Register dort)
-            location.replace('landing.html');
+            location.replace('index.html');
         }
     }
 
@@ -93,7 +93,7 @@ var AuthUI = (function () {
         _updateWidget(null);
         // Alle lokalen Daten löschen und zur Landing Page
         try { localStorage.clear(); } catch(e) {}
-        location.replace('landing.html');
+        location.replace('index.html');
     }
 
     // ──────────────────────────────────────────
@@ -365,7 +365,7 @@ var AuthUI = (function () {
         await SupabaseDB.signOut();
         // Supabase-First: ohne Konto kein Zugriff → zur Landing Page
         try { localStorage.clear(); } catch(e) {}
-        location.replace('landing.html');
+        location.replace('index.html');
     }
 
     // ── Konto löschen (DSGVO Art. 17) ───────────────────────────
@@ -415,7 +415,7 @@ var AuthUI = (function () {
         try { await SupabaseDB.signOut(); } catch(e) {}
         _hideLoader();
         _toast('✅ Konto gelöscht. Bis bald!', 'success');
-        setTimeout(function() { location.replace('landing.html'); }, 2000);
+        setTimeout(function() { location.replace('index.html'); }, 2000);
     }
 
     // ──────────────────────────────────────────

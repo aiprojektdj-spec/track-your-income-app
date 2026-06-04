@@ -1,308 +1,1386 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Gate: Kein Supabase-Session → sofort zur Landing Page (synchron, vor allem anderen) -->
-    <script>
-    (function(){
-        try {
-            var raw = localStorage.getItem('oyi_auth_session');
-            if (!raw) { location.replace('landing.html'); return; }
-            var s = JSON.parse(raw);
-            // Supabase v2 speichert access_token direkt oder unter currentSession
-            var token = (s && s.access_token) || (s && s.currentSession && s.currentSession.access_token);
-            if (!token) location.replace('landing.html');
-        } catch(e) {
-            location.replace('landing.html');
-        }
-    })();
-    </script>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.paddle.com; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co https://*.paddle.com; frame-src https://buy.paddle.com https://checkout.paddle.com;">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
-    <title>Stackr</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
-    <script src="js/vendor/chart.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/de.js"></script>
-    <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
-    <script>Paddle.Initialize({ token: 'live_7d279f61a3499fed520f7cd8c08' });</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co; frame-src 'none';">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
+<title>Stackr — Buchhaltung für Selbstständige</title>
+<meta name="description" content="Rechnungen, EÜR und GoBD-Protokoll für Freelancer, Selbstständige und GbRs. 5 Tage kostenlos testen — keine Kreditkarte nötig. EU-Server, DSGVO-konform.">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg:        #0a0a0b;
+    --surface:   #111113;
+    --card:      #1c1c1f;
+    --border:    rgba(255,255,255,.07);
+    --border-hi: rgba(16,185,129,.3);
+    --accent:    #10b981;
+    --accent2:   #059669;
+    --text:      #f1f5f9;
+    --muted:     #64748b;
+    --subtle:    #94a3b8;
+    --green:     #22c55e;
+    --red:       #ef4444;
+}
+
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; overflow-x: hidden; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
+
+/* ════════════════════════════════════════
+   NAV
+   ════════════════════════════════════════ */
+nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(8,8,15,.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+}
+.nav-brand-icon { font-size: 22px; color: var(--accent); }
+.nav-brand-text { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -.2px; }
+.nav-links { display: flex; gap: 4px; }
+.nav-link {
+    color: var(--subtle);
+    text-decoration: none;
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: color .15s;
+}
+.nav-link:hover { color: var(--text); }
+.nav-actions { display: flex; align-items: center; gap: 8px; }
+.btn-ghost {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--subtle);
+    padding: 7px 16px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: .15s;
+}
+.btn-ghost:hover { border-color: rgba(255,255,255,.15); color: var(--text); }
+.btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: opacity .15s;
+    white-space: nowrap;
+}
+.btn-primary:hover { opacity: .88; }
+
+/* ════════════════════════════════════════
+   HERO
+   ════════════════════════════════════════ */
+.hero {
+    position: relative;
+    padding: 100px 24px 80px;
+    text-align: center;
+    overflow: hidden;
+}
+.hero-glow {
+    position: absolute;
+    top: -120px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 700px;
+    height: 400px;
+    background: radial-gradient(ellipse at center, rgba(16,185,129,.18) 0%, transparent 70%);
+    pointer-events: none;
+}
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(16,185,129,.1);
+    border: 1px solid var(--border-hi);
+    color: #34d399;
+    font-size: 12px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    margin-bottom: 24px;
+}
+.hero h1 {
+    font-size: clamp(32px, 6vw, 62px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    margin-bottom: 20px;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.hero h1 .grad {
+    background: linear-gradient(135deg, #34d399, #10b981, #059669);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.hero-sub {
+    font-size: clamp(15px, 2.5vw, 18px);
+    color: var(--subtle);
+    max-width: 560px;
+    margin: 0 auto 36px;
+    line-height: 1.65;
+}
+.hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 48px; }
+.btn-hero {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    transition: opacity .15s, transform .15s;
+    box-shadow: 0 4px 24px rgba(16,185,129,.35);
+}
+.btn-hero:hover { opacity: .9; transform: translateY(-1px); }
+.btn-hero-ghost {
+    background: rgba(255,255,255,.04);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 14px 28px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: background .15s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+.btn-hero-ghost:hover { background: rgba(255,255,255,.08); }
+
+/* App-Mockup */
+.hero-mockup {
+    max-width: 820px;
+    margin: 0 auto;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04);
+}
+.mockup-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+.mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+.mockup-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+.mockup-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+}
+.mockup-stat-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+.mockup-stat-val { font-size: 18px; font-weight: 700; color: var(--text); }
+.mockup-stat-sub { font-size: 10px; color: var(--green); margin-top: 2px; }
+
+/* Stats row */
+.hero-stats {
+    display: flex;
+    gap: 32px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 48px;
+    padding-top: 40px;
+    border-top: 1px solid var(--border);
+}
+.hero-stat { text-align: center; }
+.hero-stat-num { font-size: 28px; font-weight: 800; color: var(--text); }
+.hero-stat-lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* ════════════════════════════════════════
+   FEATURES
+   ════════════════════════════════════════ */
+section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
+.section-tag {
+    display: inline-block;
+    background: rgba(16,185,129,.1);
+    border: 1px solid var(--border-hi);
+    color: #34d399;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 999px;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+}
+.section-title {
+    font-size: clamp(24px, 4vw, 36px);
+    font-weight: 800;
+    letter-spacing: -.5px;
+    margin-bottom: 10px;
+}
+.section-sub { font-size: 16px; color: var(--subtle); margin-bottom: 48px; }
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+.feature-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    transition: border-color .2s, transform .2s;
+}
+.feature-card:hover { border-color: var(--border-hi); transform: translateY(-2px); }
+.feature-icon { font-size: 28px; margin-bottom: 12px; }
+.feature-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.feature-desc { font-size: 13px; color: var(--subtle); line-height: 1.55; }
+.pro-chip {
+    display: inline-block;
+    background: linear-gradient(135deg, rgba(16,185,129,.2), rgba(5,150,105,.2));
+    border: 1px solid rgba(16,185,129,.3);
+    color: #34d399;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: 6px;
+    letter-spacing: .3px;
+    vertical-align: middle;
+}
+
+/* ════════════════════════════════════════
+   PRICING
+   ════════════════════════════════════════ */
+#preise { background: linear-gradient(to bottom, var(--bg), var(--surface)); padding: 80px 24px; }
+#preise > div { max-width: 1100px; margin: 0 auto; }
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    max-width: 700px;
+    margin: 0 auto;
+}
+.pricing-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    position: relative;
+}
+.pricing-card.popular {
+    border-color: var(--border-hi);
+    background: linear-gradient(135deg, rgba(16,185,129,.06) 0%, rgba(5,150,105,.04) 100%);
+    box-shadow: 0 0 0 1px rgba(16,185,129,.15), 0 20px 48px rgba(0,0,0,.4);
+}
+.popular-badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 16px;
+    border-radius: 999px;
+    white-space: nowrap;
+    letter-spacing: .3px;
+}
+.plan-name { font-size: 13px; font-weight: 600; color: var(--subtle); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+.plan-price { font-size: 42px; font-weight: 800; color: var(--text); line-height: 1; }
+.plan-price span { font-size: 16px; font-weight: 400; color: var(--muted); }
+.plan-desc { font-size: 13px; color: var(--muted); margin: 8px 0 24px; }
+.plan-features { list-style: none; margin-bottom: 28px; }
+.plan-features li { font-size: 13px; color: var(--subtle); padding: 6px 0; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+.plan-features li:last-child { border-bottom: none; }
+.plan-features li .check { color: var(--green); font-size: 14px; flex-shrink: 0; }
+.plan-features li .cross { color: var(--muted); font-size: 14px; flex-shrink: 0; }
+.btn-plan {
+    width: 100%;
+    padding: 12px;
+    border-radius: 9px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: .15s;
+}
+.btn-plan-free { background: rgba(255,255,255,.05); border: 1px solid var(--border); color: var(--text); }
+.btn-plan-free:hover { background: rgba(255,255,255,.09); }
+.btn-plan-pro { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; color: #fff; box-shadow: 0 4px 20px rgba(16,185,129,.35); }
+.btn-plan-pro:hover { opacity: .9; }
+
+/* ════════════════════════════════════════
+   FAQ
+   ════════════════════════════════════════ */
+.faq-list { max-width: 680px; }
+.faq-item { border-bottom: 1px solid var(--border); }
+.faq-q {
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text);
+    text-align: left;
+    padding: 18px 0;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+.faq-q .arrow { color: var(--muted); font-size: 18px; transition: transform .2s; flex-shrink: 0; }
+.faq-item.open .faq-q .arrow { transform: rotate(45deg); }
+.faq-a { display: none; padding-bottom: 16px; font-size: 14px; color: var(--subtle); line-height: 1.65; }
+.faq-item.open .faq-a { display: block; }
+
+/* ════════════════════════════════════════
+   CTA BANNER
+   ════════════════════════════════════════ */
+.cta-banner {
+    background: linear-gradient(135deg, rgba(16,185,129,.12), rgba(5,150,105,.08));
+    border: 1px solid var(--border-hi);
+    border-radius: 20px;
+    padding: 56px 32px;
+    text-align: center;
+    max-width: 720px;
+    margin: 0 auto 80px;
+}
+.cta-banner h2 { font-size: clamp(22px, 4vw, 32px); font-weight: 800; margin-bottom: 12px; }
+.cta-banner p { font-size: 15px; color: var(--subtle); margin-bottom: 28px; }
+
+/* ════════════════════════════════════════
+   FOOTER
+   ════════════════════════════════════════ */
+footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 24px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+/* ════════════════════════════════════════
+   AUTH MODAL
+   ════════════════════════════════════════ */
+#authOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+#authOverlay.open { display: flex; }
+#authBox {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 32px 80px rgba(0,0,0,.7);
+    animation: fadeUp .2s ease;
+}
+@keyframes fadeUp { from { opacity:0; transform: translateY(16px); } to { opacity:1; transform: translateY(0); } }
+.auth-header { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+.auth-header h2 { flex:1; font-size: 17px; font-weight: 700; }
+.auth-x { background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; padding:0; line-height:1; }
+.auth-tabs { display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:22px; }
+.auth-tab { flex:1; padding:8px; border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:13px; transition:.15s; }
+.auth-tab.active { background:var(--accent); color:#fff; font-weight:600; }
+.auth-lbl { display:block; font-size:11px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px; }
+.auth-inp {
+    width:100%; padding:10px 12px; border-radius:8px;
+    border:1px solid var(--border); background: var(--surface);
+    color:var(--text); font-size:14px; margin-bottom:12px; outline:none;
+    transition:border-color .15s;
+}
+.auth-inp:focus { border-color: var(--accent); }
+.auth-err { display:none; background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3); color:#f87171; border-radius:6px; padding:8px 12px; font-size:12px; margin-bottom:12px; }
+.auth-ok  { display:none; background:rgba(34,197,94,.1);  border:1px solid rgba(34,197,94,.3);  color:#4ade80; border-radius:6px; padding:8px 12px; font-size:12px; margin-bottom:12px; }
+.auth-sub {
+    width:100%; padding:11px; background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600;
+    margin-bottom:12px; transition:opacity .15s;
+}
+.auth-sub:hover { opacity:.88; }
+.auth-sub:disabled { opacity:.5; cursor:default; }
+.auth-skip { background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; display:block; margin:0 auto; }
+.auth-skip:hover { color:var(--subtle); }
+.auth-note { text-align:center; font-size:11px; color:var(--muted); margin-top:14px; }
+
+/* ════════════════════════════════════════
+   LOADER
+   ════════════════════════════════════════ */
+#pageLoader {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+}
+#pageLoader.show { display: flex; }
+.loader-spin {
+    width: 40px; height: 40px;
+    border: 3px solid rgba(16,185,129,.25);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-text { font-size: 14px; color: var(--muted); }
+
+@media (max-width: 640px) {
+    .nav-links { display: none; }
+    .mockup-stats { grid-template-columns: repeat(2,1fr); }
+    .hero-stats { gap: 20px; }
+}
+</style>
 </head>
 <body>
 
-    <!-- ══════════════════════════════════════════════
-         TOPNAV — persistent top bar
-         ══════════════════════════════════════════════ -->
-    <div class="topnav">
-        <!-- Brand -->
-        <div class="topnav-brand">
-            <span style="font-size:20px;color:var(--accent);line-height:1;">◆</span>
-            <div style="font-size:16px;font-weight:800;color:var(--text-primary);line-height:1;letter-spacing:-.4px;">Stackr</div>
-        </div>
+<!-- ═══════════════════ NAV ═══════════════════ -->
+<nav>
+    <a href="#" class="nav-brand">
+        <span class="nav-brand-icon">◆</span>
+        <span class="nav-brand-text">Stackr</span>
+    </a>
+    <div class="nav-links">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#preise" class="nav-link">Preise</a>
+        <a href="#faq" class="nav-link">FAQ</a>
+    </div>
+    <div class="nav-actions">
+        <button class="btn-ghost" onclick="openAuth('login')">Anmelden</button>
+        <button class="btn-primary" onclick="openAuth('register')">Kostenlos starten →</button>
+    </div>
+</nav>
 
-        <!-- Cross-app navigation -->
-        <div class="topnav-apps">
-            <a href="index.html" class="tool-tab active" title="Overview Dashboard">
-                <span class="tab-icon">📊</span> Dashboard
-            </a>
-            <a href="rechnungen/index.html" class="tool-tab" title="Rechnungsbuch">
-                <span class="tab-icon">🧾</span> Rechnungen
-            </a>
-            <a href="eigenbelege/index.html" class="tool-tab" title="Eigenbelege">
-                <span class="tab-icon">📋</span> Eigenbelege
-            </a>
-            <a href="lager/index.html" class="tool-tab" id="toolTabLager" title="Lager">
-                <span class="tab-icon">📦</span> Lager
-            </a>
-            <a href="index.html?page=euer" class="tool-tab" id="toolTabEuer" title="EÜR">
-                <span class="tab-icon">📋</span> EÜR
-            </a>
-            <a href="index.html?page=akademie" class="tool-tab" id="toolTabAkademie" title="Akademie">
-                <span class="tab-icon">🎓</span> Akademie
-            </a>
-            <a href="index.html?page=gbr" class="tool-tab" id="toolTabGbr" title="GbR-Verwaltung" style="display:none;">
-                <span class="tab-icon">🤝</span> GbR
-            </a>
-        </div>
+<!-- ═══════════════════ HERO ═══════════════════ -->
+<div class="hero">
+    <div class="hero-glow"></div>
 
-        <!-- Right controls -->
-        <div class="topnav-controls">
-            <div id="companySwitcher"></div>
-            <button class="theme-toggle" id="themeToggle" title="Theme wechseln">🌙 Dark Mode</button>
-            <a href="#" id="settingsLink" title="Einstellungen" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-settings"></i></a>
-            <a href="#" id="backupLink" title="Backup & Daten" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-device-floppy"></i></a>
-            <div id="fsBackupStatus" style="display:none;"></div>
+    <div class="hero-badge">✦ Buchhaltung neu gedacht</div>
+
+    <h1>Deine Finanzen.<br><span class="grad">Immer unter Kontrolle.</span></h1>
+
+    <p class="hero-sub">
+        Stackr ist die smarte Buchhaltungssoftware für Selbstständige und Freelancer —
+        Rechnungen, EÜR, Statistiken und Cloud-Sync, alles in einem.
+    </p>
+
+    <div class="hero-actions">
+        <button class="btn-hero" onclick="openAuth('register')">5 Tage kostenlos testen →</button>
+        <a href="#features" class="btn-hero-ghost">Features ansehen ↓</a>
+    </div>
+
+    <!-- App-Mockup -->
+    <div class="hero-mockup">
+        <div class="mockup-bar">
+            <div class="mockup-dot" style="background:#ef4444;"></div>
+            <div class="mockup-dot" style="background:#f59e0b;"></div>
+            <div class="mockup-dot" style="background:#22c55e;"></div>
+            <span style="font-size:12px;color:var(--muted);margin-left:8px;">Stackr — Dashboard</span>
+        </div>
+        <div class="mockup-stats">
+            <div class="mockup-stat">
+                <div class="mockup-stat-label">Einnahmen (Monat)</div>
+                <div class="mockup-stat-val">8.450 €</div>
+                <div class="mockup-stat-sub">↑ +12% vs. Vormonat</div>
+            </div>
+            <div class="mockup-stat">
+                <div class="mockup-stat-label">Ausgaben</div>
+                <div class="mockup-stat-val">2.130 €</div>
+                <div class="mockup-stat-sub" style="color:#f87171;">↑ +3%</div>
+            </div>
+            <div class="mockup-stat">
+                <div class="mockup-stat-label">Offene Rechnungen</div>
+                <div class="mockup-stat-val">3</div>
+                <div class="mockup-stat-sub" style="color:var(--muted);">1.240 € offen</div>
+            </div>
+            <div class="mockup-stat">
+                <div class="mockup-stat-label">Gewinn (netto)</div>
+                <div class="mockup-stat-val">6.320 €</div>
+                <div class="mockup-stat-sub">↑ +18%</div>
+            </div>
         </div>
     </div>
 
-    <!-- ══════════════════════════════════════════════
-         SIDEBAR — fixed, hidden by default
-         Opens via toggle button
-         ══════════════════════════════════════════════ -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h1>◆ Stackr</h1>
-            <div class="subtitle">Your Financial Overview</div>
+    <div class="hero-stats">
+        <div class="hero-stat">
+            <div class="hero-stat-num">100%</div>
+            <div class="hero-stat-lbl">Browser-basiert</div>
         </div>
-        <nav class="sidebar-nav">
-
-            <!-- ── GbR-Sektion (nur sichtbar wenn GbR aktiv) ── -->
-            <div class="sidebar-section" id="gbrSidebarSection" style="display:none;">GbR-Verwaltung</div>
-            <div class="sidebar-section-items" id="gbrSidebarItems" style="display:none;">
-                <div class="sidebar-link" data-page="gbr" data-gbr-tab="uebersicht">
-                    <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> Übersicht</span>
-                </div>
-                <div class="sidebar-link" data-page="gbr" data-gbr-tab="verrechnung">
-                    <span class="icon"><i class="ti ti-credit-card"></i></span><span class="sidebar-link-label"> Verrechnungskonten</span>
-                </div>
-                <div class="sidebar-link" data-page="gbr" data-gbr-tab="gewerbesteuer">
-                    <span class="icon"><i class="ti ti-building-bank"></i></span><span class="sidebar-link-label"> Gewerbesteuer</span>
-                </div>
-                <div class="sidebar-link" data-page="gbr" data-gbr-tab="feststellung">
-                    <span class="icon"><i class="ti ti-file"></i></span><span class="sidebar-link-label"> Feststellung</span>
-                </div>
-                <div class="sidebar-link" data-page="gbr" data-gbr-tab="stammdaten">
-                    <span class="icon"><i class="ti ti-settings"></i></span><span class="sidebar-link-label"> Stammdaten</span>
-                </div>
-            </div>
-
-            <!-- ── EÜR-Sektion (nur sichtbar wenn EÜR aktiv) ── -->
-            <div class="sidebar-section" id="euerSidebarSection" style="display:none;">EÜR – Auswertung</div>
-            <div class="sidebar-section-items" id="euerSidebarItems" style="display:none;">
-                <div class="sidebar-link" id="euerNav_jahr" data-euer-period="jahr">
-                    <span class="icon"><i class="ti ti-clipboard-list"></i></span><span class="sidebar-link-label"> Jahres-EÜR</span>
-                </div>
-                <div class="sidebar-link" id="euerNav_monat" data-euer-period="monat">
-                    <span class="icon"><i class="ti ti-calendar"></i></span><span class="sidebar-link-label"> Monatliche EÜR</span>
-                </div>
-                <div class="sidebar-link" id="euerNav_quartal" data-euer-period="quartal">
-                    <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> Quartals-EÜR</span>
-                </div>
-                <div class="sidebar-link" data-page="steuertermine" id="euerNav_steuer">
-                    <span class="icon"><i class="ti ti-calendar-event"></i></span><span class="sidebar-link-label"> Steuertermine</span>
-                </div>
-                <div style="border-top:1px solid var(--border);margin:6px 12px;"></div>
-                <div class="sidebar-link" data-page="statistiken" id="euerNav_statistiken">
-                    <span class="icon"><i class="ti ti-trending-up"></i></span><span class="sidebar-link-label"> Statistiken</span>
-                </div>
-                <div class="sidebar-link" data-page="ausgaben" id="euerNav_ausgaben">
-                    <span class="icon"><i class="ti ti-cash"></i></span><span class="sidebar-link-label"> Ausgaben (Betrieb)</span>
-                </div>
-            </div>
-
-            <!-- ── Steuer & Soziales ── -->
-            <div class="sidebar-section" id="steuerSidebarSection" style="display:none;">Steuer &amp; Soziales</div>
-            <div class="sidebar-section-items" id="steuerSidebarItems" style="display:none;">
-                <div class="sidebar-link" data-page="afa">
-                    <span class="icon"><i class="ti ti-trending-down"></i></span><span class="sidebar-link-label"> AfA / Abschreibungen</span>
-                </div>
-                <div class="sidebar-link" data-page="privatbuchungen">
-                    <span class="icon"><i class="ti ti-briefcase"></i></span><span class="sidebar-link-label"> Privatentnahmen/-einlagen</span>
-                </div>
-                <div class="sidebar-link" data-page="ustvoranmeldung">
-                    <span class="icon"><i class="ti ti-receipt"></i></span><span class="sidebar-link-label"> USt-Voranmeldung</span>
-                </div>
-                <div class="sidebar-link" data-page="ksk">
-                    <span class="icon"><i class="ti ti-palette"></i></span><span class="sidebar-link-label"> KSK (Künstlersozialks.)</span>
-                </div>
-            </div>
-
-            <!-- ── GoBD Protokoll — immer sichtbar ── -->
-            <div class="sidebar-link" id="protokollFixedLink" data-page="protokoll" style="margin:4px 8px;border-radius:6px;border:1px solid rgba(99,102,241,0.25);background:rgba(99,102,241,0.06);">
-                <span class="icon"><i class="ti ti-notebook"></i></span><span class="sidebar-link-label"> GoBD Protokoll</span>
-            </div>
-
-            <!-- ── Hauptmenü ── -->
-            <div class="sidebar-section" data-section="hauptmenu" id="mainSidebarSection">Hauptmenü<i class="section-toggle-icon">▾</i></div>
-            <div class="sidebar-section-items" id="section-hauptmenu">
-                <div class="sidebar-link active" data-page="dashboard">
-                    <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> Dashboard</span>
-                </div>
-                <div class="sidebar-link" data-page="buchungen">
-                    <span class="icon"><i class="ti ti-pencil"></i></span><span class="sidebar-link-label"> Buchungen</span>
-                </div>
-                <div class="sidebar-link" data-page="ausgaben">
-                    <span class="icon"><i class="ti ti-cash"></i></span><span class="sidebar-link-label"> Ausgaben (Betrieb)</span>
-                </div>
-                <div class="sidebar-link" data-page="statistiken">
-                    <span class="icon"><i class="ti ti-trending-up"></i></span><span class="sidebar-link-label"> Statistiken</span>
-                </div>
-                <div class="sidebar-link" data-page="fahrtenbuch">
-                    <span class="icon"><i class="ti ti-car"></i></span><span class="sidebar-link-label"> Fahrtenbuch</span>
-                </div>
-                <div style="border-top:1px solid var(--border);margin:6px 12px;"></div>
-                <div class="sidebar-link" data-page="afa">
-                    <span class="icon"><i class="ti ti-trending-down"></i></span><span class="sidebar-link-label"> Steuer &amp; Soziales</span>
-                </div>
-            </div>
-        </nav>
-        <div class="sidebar-footer">
-            <span class="version-badge">Stackr v1.7</span>
-            <div style="margin-top:6px;font-size:11px;text-align:center;">
-                <a href="impressum.html" style="color:var(--text-muted,#888);text-decoration:none;" target="_blank">Impressum</a>
-                &nbsp;·&nbsp;
-                <a href="datenschutz.html" style="color:var(--text-muted,#888);text-decoration:none;" target="_blank">Datenschutz</a>
-            </div>
+        <div class="hero-stat">
+            <div class="hero-stat-num">DSGVO</div>
+            <div class="hero-stat-lbl">EU-Server (Frankfurt)</div>
         </div>
-        <!-- Kept for JS compatibility (app.js may reference this ID) -->
-        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" style="display:none;">‹</button>
-    </aside>
+        <div class="hero-stat">
+            <div class="hero-stat-num">GoBD</div>
+            <div class="hero-stat-lbl">Konformes Protokoll</div>
+        </div>
+        <div class="hero-stat">
+            <div class="hero-stat-num">10 €</div>
+            <div class="hero-stat-lbl">Pro Monat, kündbar</div>
+        </div>
+    </div>
+</div>
 
-    <!-- ══════════════════════════════════════════════
-         FLOATING SIDEBAR TOGGLE BUTTON
-         ══════════════════════════════════════════════ -->
-    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Navigation öffnen">›</button>
+<!-- ═══════════════════ FEATURES ═══════════════════ -->
+<section id="features">
+    <div class="section-tag">Features</div>
+    <h2 class="section-title">Alles was du brauchst</h2>
+    <p class="section-sub">Keine Kompromisse — von der ersten Buchung bis zur Steuer.</p>
 
-    <!-- ══════════════════════════════════════════════
-         MAIN APP CONTAINER
-         ══════════════════════════════════════════════ -->
-    <div class="app-container">
-        <div class="mobile-overlay" id="mobileOverlay"></div>
-        <main class="main-content">
-            <button class="btn btn-icon mobile-menu-btn" id="mobileMenuBtn" style="display:none;">☰</button>
-            <div id="content"></div>
-        </main>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <div class="feature-title">Dashboard & Übersicht</div>
+            <div class="feature-desc">Einnahmen, Ausgaben, Gewinn — alles auf einen Blick. Mit Monats-, Quartals- und Jahresvergleich.</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🧾</div>
+            <div class="feature-title">Rechnungen & Angebote <span class="pro-chip">PRO</span></div>
+            <div class="feature-desc">Professionelle Rechnungen und Angebote in Sekunden erstellen und als PDF exportieren.</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">☁</div>
+            <div class="feature-title">Cloud-Sync <span class="pro-chip">PRO</span></div>
+            <div class="feature-desc">Deine Daten auf allen Geräten — Laptop, Tablet, Handy. Immer synchron, immer aktuell.</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📋</div>
+            <div class="feature-title">EÜR Auswertung <span class="pro-chip">PRO</span></div>
+            <div class="feature-desc">Einnahmen-Überschuss-Rechnung automatisch berechnet. Perfekt für die Steuererklärung.</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📦</div>
+            <div class="feature-title">Lager & Materialien <span class="pro-chip">PRO</span></div>
+            <div class="feature-desc">Bestand verwalten, Einkaufspreise tracken und direkt in Buchungen übernehmen.</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🤝</div>
+            <div class="feature-title">GbR-Verwaltung <span class="pro-chip">PRO</span></div>
+            <div class="feature-desc">Mehrere Gesellschafter, Verrechnungskonten und Gewinnfeststellung — alles automatisch.</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🚗</div>
+            <div class="feature-title">Fahrtenbuch <span class="pro-chip">PRO</span></div>
+            <div class="feature-desc">Fahrten erfassen, Kilometer auswerten und steuerlich korrekt abrechnen.</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📈</div>
+            <div class="feature-title">Statistiken & Auswertungen</div>
+            <div class="feature-desc">Detaillierte Charts zu Einnahmen, Kategorien und Entwicklung über die Zeit.</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">💾</div>
+            <div class="feature-title">Backup & Datensicherheit</div>
+            <div class="feature-desc">Automatische lokale Backups, ZIP-Export und verschlüsselte Cloud-Speicherung.</div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════ FEATURE PREVIEW ═══════════════════ -->
+<section id="preview" style="padding:80px 24px;max-width:1100px;margin:0 auto;">
+    <div style="text-align:center;margin-bottom:48px;">
+        <div class="section-tag">So funktioniert's</div>
+        <h2 class="section-title">Alles auf einen Blick</h2>
+        <p class="section-sub">Klick dich durch die Module — sieh wie Stackr in der Praxis aussieht.</p>
     </div>
 
-    <!-- Modal -->
-    <div class="modal-overlay" id="modalOverlay">
-        <div class="modal" id="modal"></div>
+    <!-- Tab-Nav -->
+    <div id="previewTabs" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:32px;">
+        <button class="ptab ptab-active" data-tab="dashboard">📊 Dashboard</button>
+        <button class="ptab" data-tab="buchungen">✏️ Buchungen</button>
+        <button class="ptab" data-tab="rechnungen">🧾 Rechnungen</button>
+        <button class="ptab" data-tab="eigenbelege">📋 Eigenbelege</button>
+        <button class="ptab" data-tab="euer">📊 EÜR</button>
+        <button class="ptab" data-tab="lager">📦 Lager</button>
+        <button class="ptab" data-tab="fahrtenbuch">🚗 Fahrtenbuch</button>
+        <button class="ptab" data-tab="statistiken">📈 Statistiken</button>
+        <button class="ptab" data-tab="gobd">🔒 GoBD</button>
+        <button class="ptab" data-tab="steuer">💼 Steuer</button>
+        <button class="ptab" data-tab="gbr">🤝 GbR</button>
+        <button class="ptab" data-tab="akademie">🎓 Akademie</button>
     </div>
-    <div id="onboarding"></div>
 
-    <!-- Scripts -->
-    <script src="js/cookie-banner.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/vendor/xlsx.full.min.js"></script>
-    <script src="js/license.js"></script>
-    <script src="js/companies.js"></script>
-    <script src="js/store.js"></script>
-    <script src="js/supabase-client.js"></script>
-    <script src="js/cloud-sync.js?v=2"></script>
-    <script src="js/user-plan.js?v=2"></script>
-    <script src="js/auth-ui.js?v=2"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/dashboard.js"></script>
-    <script src="js/buchungen.js"></script>
-    <script src="js/lager.js"></script>
-    <script src="js/euer.js"></script>
-    <script src="js/ausgaben.js"></script>
-    <script src="js/statistiken.js"></script>
-    <script src="js/protokoll.js"></script>
-    <script src="js/retouren.js"></script>
-    <script src="js/fahrtenbuch.js"></script>
-    <script src="js/kassenbuch.js"></script>
-    <script src="js/steuertermine.js"></script>
-    <script src="js/afa.js"></script>
-    <script src="js/privatbuchungen.js"></script>
-    <script src="js/ustvoranmeldung.js"></script>
-    <script src="js/ksk.js"></script>
-    <script src="js/gbr.js"></script>
-    <script src="js/gbr-modul.js"></script>
-    <script src="js/svs.js"></script>
-    <script src="js/materiallager.js"></script>
-    <script src="js/akademie.js"></script>
-    <script src="js/app.js?v=2"></script>
+    <!-- Tab-Content -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:center;" id="previewContent">
 
-    <script>
-        // ── Mark active tool tab based on ?page= param ──
-        (function() {
-            const page = new URLSearchParams(location.search).get('page');
-            const tabIds = { euer: 'toolTabEuer', akademie: 'toolTabAkademie', gbr: 'toolTabGbr' };
-            const tabId = tabIds[page];
-            if (tabId) {
-                document.querySelector('.topnav-apps .tool-tab.active')?.classList.remove('active');
-                document.getElementById(tabId)?.classList.add('active');
-            }
-        })();
+        <!-- Mockup Frame -->
+        <div class="preview-frame" id="previewFrame">
+            <!-- Dashboard -->
+            <div class="pmock" id="pmock-dashboard">
+                <div class="pmock-topbar"><span style="color:var(--accent);font-weight:700;">◆ Stackr</span><span style="color:var(--muted);font-size:11px;">Dashboard · 2025</span></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+                    <div class="pmock-card"><div class="pmock-lbl">EINNAHMEN</div><div class="pmock-val" style="color:var(--accent);">12.480 €</div><div class="pmock-sub">↑ 18% ggü. Vormonat</div></div>
+                    <div class="pmock-card"><div class="pmock-lbl">AUSGABEN</div><div class="pmock-val" style="color:var(--red);">4.230 €</div><div class="pmock-sub">Einkauf + Kosten</div></div>
+                    <div class="pmock-card"><div class="pmock-lbl">GEWINN</div><div class="pmock-val" style="color:var(--green);">8.250 €</div><div class="pmock-sub">66% Marge</div></div>
+                </div>
+                <div class="pmock-card" style="height:90px;display:flex;align-items:flex-end;gap:4px;padding:12px;">
+                    <div style="flex:1;background:var(--accent);opacity:.3;height:40%;border-radius:3px 3px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);opacity:.5;height:60%;border-radius:3px 3px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);opacity:.4;height:50%;border-radius:3px 3px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);opacity:.7;height:80%;border-radius:3px 3px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);opacity:.6;height:70%;border-radius:3px 3px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);height:100%;border-radius:3px 3px 0 0;"></div>
+                </div>
+            </div>
 
-        // ── Sidebar toggle button ──
-        (function() {
-            const btn     = document.getElementById('sidebarToggleBtn');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobileOverlay');
+            <!-- Buchungen -->
+            <div class="pmock" id="pmock-buchungen" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">✏️ Buchungen</span><span style="background:var(--accent);color:#fff;font-size:10px;padding:2px 8px;border-radius:4px;">+ Neue Buchung</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">03.06.25</span><span>Nike Air Max — Flohmarkt</span><span style="color:var(--accent);font-weight:700;">+ 89,00 €</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">02.06.25</span><span>Versandmaterial DHL</span><span style="color:var(--red);">− 12,50 €</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">01.06.25</span><span>Vintage Jacke — eBay</span><span style="color:var(--accent);font-weight:700;">+ 145,00 €</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">31.05.25</span><span>Einkauf Secondhand-Laden</span><span style="color:var(--red);">− 34,00 €</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">30.05.25</span><span>Jordan 1 — Vinted</span><span style="color:var(--accent);font-weight:700;">+ 210,00 €</span></div>
+                </div>
+            </div>
 
-            function openSidebar() {
-                sidebar.classList.add('sidebar-open');
-                btn.classList.add('sidebar-open');
-                btn.textContent = '‹';
-                btn.title = 'Navigation schließen';
-                overlay.classList.add('active');
-            }
+            <!-- Rechnungen -->
+            <div class="pmock" id="pmock-rechnungen" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">🧾 Rechnungen</span><span style="background:var(--accent);color:#fff;font-size:10px;padding:2px 8px;border-radius:4px;">+ Neue Rechnung</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span style="font-family:monospace;font-size:11px;color:var(--accent);">RE-2025-042</span><span>Max Mustermann</span><span style="background:rgba(34,197,94,.15);color:#4ade80;font-size:10px;padding:2px 7px;border-radius:4px;">Bezahlt</span></div>
+                    <div class="pmock-row"><span style="font-family:monospace;font-size:11px;color:var(--accent);">RE-2025-041</span><span>Vintage Store GmbH</span><span style="background:rgba(245,158,11,.15);color:#fbbf24;font-size:10px;padding:2px 7px;border-radius:4px;">Offen</span></div>
+                    <div class="pmock-row"><span style="font-family:monospace;font-size:11px;color:var(--accent);">RE-2025-040</span><span>Stefan Meier</span><span style="background:rgba(34,197,94,.15);color:#4ade80;font-size:10px;padding:2px 7px;border-radius:4px;">Bezahlt</span></div>
+                </div>
+                <div style="margin-top:10px;padding:10px;background:var(--surface);border-radius:8px;font-size:11px;color:var(--muted);">PDF-Export · Angebote · §14 UStG konform</div>
+            </div>
 
-            function closeSidebar() {
-                sidebar.classList.remove('sidebar-open');
-                btn.classList.remove('sidebar-open');
-                btn.textContent = '›';
-                btn.title = 'Navigation öffnen';
-                overlay.classList.remove('active');
-            }
+            <!-- EÜR -->
+            <div class="pmock" id="pmock-euer" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">📋 EÜR 2025</span><span style="color:var(--muted);font-size:11px;">Jahresauswertung</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span style="color:var(--subtle);">Betriebseinnahmen</span><span style="color:var(--accent);font-weight:700;">48.920,00 €</span></div>
+                    <div class="pmock-row"><span style="color:var(--subtle);">Wareneinsatz</span><span style="color:var(--red);">− 18.340,00 €</span></div>
+                    <div class="pmock-row"><span style="color:var(--subtle);">Betriebsausgaben</span><span style="color:var(--red);">− 4.120,00 €</span></div>
+                    <div style="border-top:1px solid var(--border);padding-top:8px;" class="pmock-row"><span style="font-weight:700;color:var(--text);">Gewinn</span><span style="color:var(--green);font-weight:800;font-size:16px;">26.460,00 €</span></div>
+                </div>
+                <div style="margin-top:10px;padding:10px;background:var(--surface);border-radius:8px;font-size:11px;color:var(--muted);">Excel-Export · Monat / Quartal / Jahr · Steuerberater-ready</div>
+            </div>
 
-            btn.addEventListener('click', function() {
-                if (sidebar.classList.contains('sidebar-open')) {
-                    closeSidebar();
-                } else {
-                    openSidebar();
-                }
-            });
+            <!-- Lager -->
+            <div class="pmock" id="pmock-lager" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">📦 Lager</span><span style="color:var(--muted);font-size:11px;">27 Artikel · Wert: 1.840 €</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span>👟 Nike Air Force 1 Gr. 43</span><span style="color:var(--muted);font-size:11px;">EK 65 €</span><span style="color:var(--accent);">VK 120 €</span></div>
+                    <div class="pmock-row"><span>👜 Gucci Tasche Vintage</span><span style="color:var(--muted);font-size:11px;">EK 180 €</span><span style="color:var(--accent);">VK 380 €</span></div>
+                    <div class="pmock-row"><span>🧥 Levi's Jacke M</span><span style="color:var(--muted);font-size:11px;">EK 22 €</span><span style="color:var(--accent);">VK 75 €</span></div>
+                    <div class="pmock-row"><span>⌚ Casio G-Shock</span><span style="color:var(--muted);font-size:11px;">EK 45 €</span><span style="color:var(--accent);">VK 95 €</span></div>
+                </div>
+            </div>
 
-            // Click overlay → close sidebar
-            overlay.addEventListener('click', closeSidebar);
+            <!-- Eigenbelege -->
+            <div class="pmock" id="pmock-eigenbelege" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">📋 Eigenbelege</span><span style="background:var(--accent);color:#fff;font-size:10px;padding:2px 8px;border-radius:4px;">+ Neuer Beleg</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">EB-2025-012</span><span>Versandmaterial Tedi</span><span style="color:var(--accent);">Verpackung</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">EB-2025-011</span><span>Flohmarkt-Einkauf bar</span><span style="color:var(--green);">Wareneinkauf</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">EB-2025-010</span><span>Fahrtkosten Kundenbesuch</span><span style="color:var(--muted);">Fahrtkosten</span></div>
+                </div>
+                <div style="margin-top:10px;padding:10px;background:var(--surface);border-radius:8px;font-size:11px;color:var(--muted);">Foto-Upload · §14 UStG · GoBD-konform</div>
+            </div>
 
-            // Click a sidebar link → close sidebar (optional, nice UX)
-            sidebar.querySelectorAll('.sidebar-link').forEach(function(link) {
-                link.addEventListener('click', function() {
-                    // Small delay so the page transition feels smoother
-                    setTimeout(closeSidebar, 150);
+            <!-- Fahrtenbuch -->
+            <div class="pmock" id="pmock-fahrtenbuch" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">🚗 Fahrtenbuch</span><span style="color:var(--accent);font-size:11px;">1.240 km · 2025</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">03.06.25</span><span>Hamburg → Flohmarkt Bremen</span><span style="color:var(--accent);font-weight:700;">94 km</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">01.06.25</span><span>Büro → Postfiliale</span><span style="color:var(--accent);font-weight:700;">12 km</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">28.05.25</span><span>Lager → Kunden vor Ort</span><span style="color:var(--accent);font-weight:700;">38 km</span></div>
+                </div>
+                <div style="margin-top:8px;padding:8px 10px;background:var(--surface);border-radius:8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">0,30 €/km (steuerlich)</span><span style="color:var(--green);font-weight:700;">= 372,00 € absetzbar</span></div>
+            </div>
+
+            <!-- Statistiken -->
+            <div class="pmock" id="pmock-statistiken" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">📈 Statistiken</span><span style="color:var(--muted);font-size:11px;">Jan – Jun 2025</span></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                    <div class="pmock-card"><div class="pmock-lbl">Beste Kategorie</div><div style="font-size:13px;font-weight:700;color:var(--accent);">👟 Schuhe</div><div class="pmock-sub">Ø 68% Marge</div></div>
+                    <div class="pmock-card"><div class="pmock-lbl">Bester Monat</div><div style="font-size:13px;font-weight:700;color:var(--green);">März</div><div class="pmock-sub">4.820 € Gewinn</div></div>
+                </div>
+                <div class="pmock-card" style="height:70px;display:flex;align-items:flex-end;gap:3px;padding:10px;">
+                    <div style="flex:1;background:var(--accent);opacity:.4;height:50%;border-radius:2px 2px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);opacity:.6;height:70%;border-radius:2px 2px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);height:100%;border-radius:2px 2px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);opacity:.8;height:85%;border-radius:2px 2px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);opacity:.6;height:65%;border-radius:2px 2px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);opacity:.75;height:75%;border-radius:2px 2px 0 0;"></div>
+                </div>
+            </div>
+
+            <!-- GoBD -->
+            <div class="pmock" id="pmock-gobd" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">🔒 GoBD Protokoll</span><span style="color:var(--green);font-size:11px;">● Unveränderlich</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:10px;font-family:monospace;">2025-06-03 14:22</span><span style="font-size:11px;">Buchung #B-2025-089 erstellt</span><span style="color:var(--green);font-size:10px;">CREATE</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:10px;font-family:monospace;">2025-06-03 13:11</span><span style="font-size:11px;">Rechnung RE-2025-042 bezahlt</span><span style="color:var(--accent);font-size:10px;">UPDATE</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:10px;font-family:monospace;">2025-06-02 09:05</span><span style="font-size:11px;">Buchung #B-2025-088 storniert</span><span style="color:var(--red);font-size:10px;">STORNO</span></div>
+                </div>
+                <div style="margin-top:8px;padding:8px 10px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:8px;font-size:11px;color:var(--subtle);">§ 147 AO · 10 Jahre Aufbewahrung · nicht löschbar</div>
+            </div>
+
+            <!-- Steuer & Soziales -->
+            <div class="pmock" id="pmock-steuer" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">💼 Steuer & Soziales</span></div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div class="pmock-card" style="display:flex;align-items:center;gap:10px;padding:10px;">
+                        <span style="font-size:18px;">📉</span><div><div style="font-size:12px;font-weight:600;">AfA / Abschreibungen</div><div style="font-size:10px;color:var(--muted);">3 Anlagen · Restwert 1.240 €</div></div>
+                    </div>
+                    <div class="pmock-card" style="display:flex;align-items:center;gap:10px;padding:10px;">
+                        <span style="font-size:18px;">🎨</span><div><div style="font-size:12px;font-weight:600;">KSK-Abgabe</div><div style="font-size:10px;color:var(--muted);">2025: 5,0% · Basis 12.400 €</div></div>
+                    </div>
+                    <div class="pmock-card" style="display:flex;align-items:center;gap:10px;padding:10px;">
+                        <span style="font-size:18px;">🧾</span><div><div style="font-size:12px;font-weight:600;">USt-Voranmeldung</div><div style="font-size:10px;color:var(--muted);">Q2 2025 · fällig 10.07.2025</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GbR -->
+            <div class="pmock" id="pmock-gbr" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">🤝 GbR-Verwaltung</span><span style="color:var(--muted);font-size:11px;">2 Gesellschafter</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span>👤 Max Mustermann</span><span style="color:var(--muted);font-size:11px;">60%</span><span style="color:var(--accent);font-weight:700;">15.876 €</span></div>
+                    <div class="pmock-row"><span>👤 Anna Müller</span><span style="color:var(--muted);font-size:11px;">40%</span><span style="color:var(--accent);font-weight:700;">10.584 €</span></div>
+                </div>
+                <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span style="color:var(--subtle);font-size:11px;">Gesamtgewinn 2025</span><span style="color:var(--green);font-weight:700;">26.460 €</span></div>
+                    <div class="pmock-row"><span style="color:var(--subtle);font-size:11px;">Verrechnungskonto Max</span><span style="color:var(--muted);">− 2.400 €</span></div>
+                </div>
+            </div>
+
+            <!-- Akademie -->
+            <div class="pmock" id="pmock-akademie" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">🎓 Akademie</span><span style="color:var(--accent);font-size:11px;">4 / 9 Module ✓</span></div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div class="pmock-card" style="display:flex;align-items:center;gap:10px;padding:10px;">
+                        <span style="font-size:20px;">🚀</span>
+                        <div><div style="font-size:12px;font-weight:600;">Grundlagen Reselling</div><div style="font-size:10px;color:var(--green);">✓ Abgeschlossen</div></div>
+                        <span style="margin-left:auto;font-size:10px;color:var(--muted);">3 Lektionen</span>
+                    </div>
+                    <div class="pmock-card" style="display:flex;align-items:center;gap:10px;padding:10px;">
+                        <span style="font-size:20px;">🏥</span>
+                        <div><div style="font-size:12px;font-weight:600;">Krankenversicherung</div><div style="font-size:10px;color:var(--muted);">1 / 6 Lektionen</div></div>
+                        <span style="margin-left:auto;font-size:10px;color:var(--muted);">6 Lektionen</span>
+                    </div>
+                    <div class="pmock-card" style="display:flex;align-items:center;gap:10px;padding:10px;opacity:.5;">
+                        <span style="font-size:20px;">💰</span>
+                        <div><div style="font-size:12px;font-weight:600;">Steuern & EÜR</div><div style="font-size:10px;color:var(--muted);">Gesperrt</div></div>
+                        <span style="margin-left:auto;">🔒</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Description -->
+        <div id="previewDesc">
+            <div class="pdesc" id="pdesc-dashboard">
+                <div class="section-tag" style="margin-bottom:14px;">Dashboard</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Deine Zahlen — sofort.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Einnahmen, Ausgaben und Gewinn auf einen Blick. Mit Live-Chart und Jahresvergleich — kein Tabellenblatt, kein manuelles Zusammenrechnen.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Automatische Gewinnberechnung</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Monatliche & jährliche Charts</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Mehrere Firmen parallel</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Akademie-Fortschritt sichtbar</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-buchungen" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">Buchungen</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Einnahmen & Ausgaben erfassen.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Jede Buchung in Sekunden eingetragen. Kategorien, Datum, Betrag — GoBD-konform protokolliert. Kein Beleg geht verloren.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> GoBD-konformes Audit-Log</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Storno statt Löschen</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Excel & CSV Export</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Automatisch in EÜR übernommen</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-rechnungen" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">Rechnungen</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Professionelle Rechnungen in 30 Sek.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Erstelle §14 UStG-konforme Rechnungen mit Logo, exportiere als PDF oder Excel — und schick sie direkt weiter.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Pflichtangaben §14 UStG</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> PDF-Export mit eigenem Logo</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Fortlaufende Rechnungsnummern</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Angebote & Mahnungen</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-euer" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">EÜR</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">EÜR auf Knopfdruck.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Deine Einnahmen-Überschuss-Rechnung wird automatisch aus deinen Buchungen berechnet. Monat, Quartal, Jahr — für deinen Steuerberater exportierbar.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Automatisch aus Buchungen</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Monat / Quartal / Jahr</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Excel-Export für Steuerberater</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> USt-Voranmeldung-Vorbereitung</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-lager" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">Lager</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Bestand immer im Griff.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Artikel mit EK, VK, Zustand und Marge tracken. Beim Verkauf direkt als Buchung übernehmen — kein doppeltes Eintippen.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> EK / VK / Marge je Artikel</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> 1-Klick → Buchung übernehmen</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Lagerwert automatisch</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Retouren-Tracking</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-eigenbelege" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">Eigenbelege</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Kein Beleg? Kein Problem.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Barzahlungen, Flohmarkt-Käufe oder verlorene Quittungen — mit Eigenbelegen dokumentierst du jeden Ausgabe GoBD-konform, auch ohne Original.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Wareneinkauf in allen Formen</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Foto-Upload als Belegersatz</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> GoBD-konforme Begründung</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Automatisch in EÜR übernommen</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-fahrtenbuch" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">Fahrtenbuch</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Fahrten absetzen — automatisch.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Jede Geschäftsfahrt erfassen, Kilometer summieren — Stackr berechnet den steuerlich absetzbaren Betrag (0,30 €/km) direkt mit.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> 0,30 €/km Pauschale automatisch</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Jahreskilometer-Übersicht</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Excel-Export für Steuerberater</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> GoBD-konform protokolliert</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-statistiken" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">Statistiken</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Daten die dich schlauer machen.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Welche Kategorie bringt die beste Marge? Welcher Monat war am stärksten? Stackr zeigt dir Charts und Kennzahlen die wirklich zählen.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Kategorie-Analyse & Margen</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Monats- & Jahresvergleiche</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Top-Artikel & Plattformen</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Interaktive Charts (ApexCharts)</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-gobd" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">GoBD Protokoll</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Prüfungssicher. Von Anfang an.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Jede Änderung wird automatisch ins unveränderliche Audit-Log geschrieben. Kein Löschen, kein Überschreiben — genau wie es das Finanzamt verlangt.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Unveränderliches Audit-Log</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Storno statt Löschen (§ 146 AO)</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> 10 Jahre Aufbewahrung</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Export als CSV für Betriebsprüfung</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-steuer" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">Steuer & Soziales</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Alle Steuer-Module. Ein Ort.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">AfA, KSK, USt-Voranmeldung und Privatentnahmen — alles an einem Ort. Kein Jonglieren zwischen verschiedenen Tools.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> AfA / Abschreibungen mit Anlagenverzeichnis</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> KSK-Abgabe (2025: 5,0%)</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> USt-Voranmeldung vorbereiten</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Privatentnahmen & -einlagen</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-gbr" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">GbR-Verwaltung</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Gemeinsam. Transparent. Fair.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Mehrere Gesellschafter, automatische Gewinnverteilung, Verrechnungskonten — Stackr macht GbR-Buchhaltung so einfach wie Einzelunternehmen.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Automatische Gewinnverteilung nach Quote</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Verrechnungskonten je Gesellschafter</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Gewerbesteuer & Feststellung</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Separate EÜR pro Gesellschafter</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-akademie" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">Akademie</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Lerne während du buchst.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">9 Module mit 31+ Lektionen: Steuern, Krankenversicherung, Buchführung, Reselling-Basics. Gamifiziert mit Achievements.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> 9 Module · 31+ Lektionen</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Krankenversicherung für Selbstständige</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Steuern & EÜR erklärt</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> 27 Achievements freischalten</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+/* ── Preview Tabs ── */
+.ptab {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--subtle);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: .15s;
+    white-space: nowrap;
+}
+.ptab:hover { border-color: rgba(16,185,129,.3); color: var(--text); }
+.ptab-active { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.4); color: var(--accent); font-weight: 600; }
+
+/* ── Preview Frame ── */
+.preview-frame {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    min-height: 260px;
+}
+.pmock { display: flex; flex-direction: column; gap: 10px; }
+.pmock-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+.pmock-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+.pmock-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.pmock-val { font-size: 18px; font-weight: 700; }
+.pmock-sub { font-size: 10px; color: var(--subtle); margin-top: 2px; }
+.pmock-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 10px;
+    background: var(--surface);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text);
+    gap: 8px;
+}
+
+@media (max-width: 768px) {
+    #previewContent { grid-template-columns: 1fr; }
+    #previewDesc { order: -1; }
+}
+</style>
+
+<!-- ═══════════════════ PRICING ═══════════════════ -->
+<div id="preise">
+<div>
+    <div style="text-align:center;margin-bottom:48px;">
+        <div class="section-tag">Preise</div>
+        <h2 class="section-title">Einfach & transparent</h2>
+        <p class="section-sub">5 Tage alles kostenlos testen — keine Kreditkarte nötig.</p>
+    </div>
+
+    <div class="pricing-grid">
+        <!-- TRIAL -->
+        <div class="pricing-card">
+            <div class="plan-name">5 Tage Trial</div>
+            <div class="plan-price">0 € <span>/ kostenlos</span></div>
+            <div class="plan-desc">Kein Abo, keine Kreditkarte</div>
+            <ul class="plan-features">
+                <li><span class="check">✓</span> <strong>Alle Features freigeschaltet</strong></li>
+                <li><span class="check">✓</span> Unbegrenzte Buchungen</li>
+                <li><span class="check">✓</span> Cloud-Sync & Backup</li>
+                <li><span class="check">✓</span> Rechnungen & Angebote</li>
+                <li><span class="check">✓</span> EÜR, Lager, Fahrtenbuch</li>
+                <li><span class="check">✓</span> PDF & Excel Export</li>
+                <li style="color:var(--muted);font-size:12px;padding-top:4px;">Nach 5 Tagen: Upgrade erforderlich</li>
+            </ul>
+            <button class="btn-plan btn-plan-free" onclick="openAuth('register')">Jetzt 5 Tage testen →</button>
+        </div>
+
+        <!-- PRO -->
+        <div class="pricing-card popular">
+            <div class="popular-badge">✦ Empfohlen</div>
+            <div class="plan-name">Pro</div>
+            <div class="plan-price">10,00 € <span>/ Monat</span></div>
+            <div class="plan-desc">inkl. MwSt. · oder 90 € / Jahr (25% sparen) · Jederzeit kündbar</div>
+            <ul class="plan-features">
+                <li><span class="check">✓</span> <strong>Alle Features dauerhaft</strong></li>
+                <li><span class="check">✓</span> <strong>Unbegrenzte Buchungen</strong></li>
+                <li><span class="check">✓</span> <strong>Cloud-Sync (alle Geräte)</strong></li>
+                <li><span class="check">✓</span> Rechnungen & Angebote</li>
+                <li><span class="check">✓</span> EÜR Auswertung</li>
+                <li><span class="check">✓</span> PDF & Excel Export</li>
+                <li><span class="check">✓</span> Lager, GbR, Fahrtenbuch</li>
+                <li><span class="check">✓</span> Prioritäts-Support</li>
+            </ul>
+            <button class="btn-plan btn-plan-pro" onclick="openAuth('register')">Jetzt Pro starten →</button>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- ═══════════════════ FAQ ═══════════════════ -->
+<section id="faq">
+    <div class="section-tag">FAQ</div>
+    <h2 class="section-title">Häufige Fragen</h2>
+    <div class="faq-list">
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Kann ich die App kostenlos testen?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Ja! Du erhältst 5 Tage vollen Zugriff auf alle Features — komplett kostenlos und ohne Kreditkarte. Nach der Testphase kannst du für 10 €/Monat oder 90 €/Jahr upgraden.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Wie kann ich kündigen?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Jederzeit mit einem Klick — keine Mindestlaufzeit, kein Kleingedrucktes. Nach der Kündigung behältst du den Pro-Zugang bis zum Ende des bezahlten Zeitraums.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Wo werden meine Daten gespeichert?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Deine Daten werden verschlüsselt auf EU-Servern in Frankfurt (Deutschland) gespeichert. Alle Datenschutzanforderungen der DSGVO werden eingehalten. Du hast jederzeit Zugriff auf deine Daten und kannst sie vollständig exportieren.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Kann ich auf mehreren Geräten arbeiten?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Ja, mit dem Pro-Abo und Cloud-Sync kannst du auf unbegrenzt vielen Geräten arbeiten. Alle Daten werden in Echtzeit synchronisiert.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Was passiert mit meinen lokalen Daten wenn ich mich anmelde?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Deine bereits vorhandenen lokalen Daten werden beim ersten Login automatisch in die Cloud hochgeladen — nichts geht verloren. Du kannst die App auch weiterhin offline nutzen; Daten werden bei der nächsten Verbindung synchronisiert.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Gibt es eine Desktop-App?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Stackr ist eine moderne Web-App, die in jedem aktuellen Browser (Chrome, Firefox, Edge, Safari) läuft — kein Download, keine Installation.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Ist Stackr GoBD-konform?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Ja. Stackr führt ein lückenloses GoBD-konformes Protokoll: Buchungen werden mit Zeitstempel, Vorher-/Nachher-Wert und Checksumme unveränderlich gespeichert. Das Protokoll ist jederzeit exportierbar. Hinweis: Stackr ist ein Werkzeug — kein Ersatz für einen Steuerberater.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Brauche ich noch einen Steuerberater?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Stackr ersetzt keine Steuerberatung, macht sie aber günstiger. EÜR, USt-Voranmeldung und GoBD-Protokoll sind exportbereit — dein Steuerberater braucht weniger Zeit (= weniger Kosten). Viele Stackr-Nutzer übergeben ihrem Steuerberater einfach den XLSX-Export.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Funktioniert Stackr für meine GbR?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Ja — Stackr ist eines der wenigen Tools mit echter GbR-Unterstützung: Gesellschafter-Verrechnungskonten, automatische Gewinnverteilung und GoBD-konforme Jahresabrechnung für alle Partner. Ideal für Zweimannbetriebe und kleine Agenturen.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" onclick="toggleFaq(this)">
+                Was passiert mit meinen Daten wenn ich kündige?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Deine Daten gehören dir. Vor der Kündigung kannst du alles als XLSX, CSV oder ZIP exportieren. Nach Ablauf des Abonnements wird der Zugang zur App gesperrt, deine Daten bleiben aber erhalten und können nach einer Reaktivierung wieder genutzt werden.</div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════ CTA BANNER ═══════════════════ -->
+<div style="padding:0 24px;">
+<div class="cta-banner">
+    <h2>Bereit loszulegen?</h2>
+    <p>Kostenlos starten — keine Kreditkarte erforderlich.</p>
+    <button class="btn-hero" onclick="openAuth('register')">Jetzt kostenlos registrieren →</button>
+</div>
+</div>
+
+<!-- ═══════════════════ FOOTER ═══════════════════ -->
+<footer>
+    <div style="margin-bottom:8px;">◆ <strong style="color:var(--subtle);">Stackr</strong></div>
+    <div>© 2026 Stackr · <a href="datenschutz.html" style="color:var(--muted);text-decoration:none;">Datenschutz</a> · <a href="impressum.html" style="color:var(--muted);text-decoration:none;">Impressum</a> · <a href="agb.html" style="color:var(--muted);text-decoration:none;">AGB</a> · <a href="refund.html" style="color:var(--muted);text-decoration:none;">Widerruf</a> · <a href="cookies.html" style="color:var(--muted);text-decoration:none;">Cookies</a></div>
+</footer>
+
+<!-- ═══════════════════ AUTH MODAL ═══════════════════ -->
+<div id="authOverlay" onclick="if(event.target===this)closeAuth()">
+    <div id="authBox">
+        <div class="auth-header">
+            <span style="font-size:20px;">☁</span>
+            <h2 id="authTitle">Konto erstellen</h2>
+            <button class="auth-x" onclick="closeAuth()">×</button>
+        </div>
+        <div class="auth-tabs">
+            <button id="tab-login"    class="auth-tab"        onclick="switchTab('login')">Anmelden</button>
+            <button id="tab-register" class="auth-tab active" onclick="switchTab('register')">Registrieren</button>
+        </div>
+        <label class="auth-lbl">E-Mail-Adresse</label>
+        <input id="authEmail" type="email" class="auth-inp" placeholder="deine@email.de" autocomplete="username">
+        <label class="auth-lbl">Passwort</label>
+        <input id="authPassword" type="password" class="auth-inp" placeholder="Mindestens 6 Zeichen" autocomplete="current-password">
+        <a href="#" onclick="resetPassword(); return false;" style="font-size:12px;color:var(--muted);text-decoration:none;display:block;text-align:right;margin-top:4px;">Passwort vergessen?</a>
+        <div id="authErr" class="auth-err"></div>
+        <div id="authOk"  class="auth-ok"></div>
+        <button id="authBtn" class="auth-sub" onclick="submitAuth()">Konto erstellen</button>
+        <button class="auth-skip" onclick="closeAuth()">Ohne Konto weiternutzen</button>
+        <p class="auth-note">Deine Daten werden verschlüsselt auf EU-Servern gespeichert.</p>
+    </div>
+</div>
+
+<!-- ═══════════════════ LOADER ═══════════════════ -->
+<div id="pageLoader">
+    <div class="loader-spin"></div>
+    <div class="loader-text" id="loaderText">Wird geladen...</div>
+</div>
+
+<!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+<script src="js/cookie-banner.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+    'use strict';
+
+    var SUPABASE_URL = 'https://csfvzmlihkrxokbbjyhf.supabase.co';
+    var SUPABASE_KEY = 'sb_publishable_rERij3K0Dyeo5OYTOJsCeg_UTKZS5fL';
+    var APP_URL      = 'app.html';   // Haupt-App nach Login
+
+    var _client = null;
+    var _mode   = 'register';
+
+    // ── Supabase initialisieren ───────────────
+    function getClient() {
+        if (_client) return _client;
+        if (typeof window.supabase === 'undefined') return null;
+        _client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+            auth: { persistSession: true, autoRefreshToken: true, storageKey: 'oyi_auth_session' }
+        });
+        return _client;
+    }
+
+    // ── Bereits eingeloggt? → "Zur App" Button einblenden (kein Auto-Redirect) ──
+    async function checkExistingSession() {
+        var c = getClient();
+        if (!c) return;
+        try {
+            var r = await c.auth.getSession();
+            if (r.data && r.data.session) {
+                // Zeige "Zur App" Button statt Auto-Redirect
+                var btns = document.querySelectorAll('.btn-hero, .btn-plan-free, .btn-plan-pro');
+                btns.forEach(function(btn) {
+                    btn.textContent = 'Zur App →';
+                    btn.onclick = function() {
+                        showLoader('App wird geöffnet...');
+                        window.location.href = APP_URL;
+                    };
                 });
+            }
+        } catch (e) {}
+    }
+
+    // ── Feature Preview Tabs ──────────────────
+    document.querySelectorAll('.ptab').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var tab = btn.dataset.tab;
+            // Update tab buttons
+            document.querySelectorAll('.ptab').forEach(function(b) { b.classList.remove('ptab-active'); });
+            btn.classList.add('ptab-active');
+            // Update mockups
+            document.querySelectorAll('.pmock').forEach(function(m) { m.style.display = 'none'; });
+            var mock = document.getElementById('pmock-' + tab);
+            if (mock) mock.style.display = 'flex';
+            // Update descriptions
+            document.querySelectorAll('.pdesc').forEach(function(d) { d.style.display = 'none'; });
+            var desc = document.getElementById('pdesc-' + tab);
+            if (desc) desc.style.display = 'block';
+        });
+    });
+
+    // ── FAQ Toggle ────────────────────────────
+    window.toggleFaq = function (btn) {
+        var item = btn.closest('.faq-item');
+        var isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item.open').forEach(function (i) { i.classList.remove('open'); });
+        if (!isOpen) item.classList.add('open');
+    };
+
+    // ── Auth Modal ────────────────────────────
+    window.openAuth = function (mode) {
+        _mode = mode || 'register';
+        document.getElementById('authOverlay').classList.add('open');
+        _refreshTabs();
+        setTimeout(function () { document.getElementById('authEmail').focus(); }, 50);
+    };
+    window.closeAuth = function () {
+        document.getElementById('authOverlay').classList.remove('open');
+        clearMessages();
+    };
+    window.switchTab = function (mode) {
+        _mode = mode;
+        _refreshTabs();
+        clearMessages();
+    };
+
+    function _refreshTabs() {
+        var isLogin = _mode === 'login';
+        document.getElementById('tab-login').classList.toggle('active', isLogin);
+        document.getElementById('tab-register').classList.toggle('active', !isLogin);
+        document.getElementById('authTitle').textContent = isLogin ? 'Willkommen zurück' : 'Konto erstellen';
+        document.getElementById('authBtn').textContent   = isLogin ? 'Anmelden' : 'Kostenlos registrieren';
+        document.getElementById('authPassword').autocomplete = isLogin ? 'current-password' : 'new-password';
+    }
+
+    function showErr(msg) { var e = document.getElementById('authErr'); e.textContent = msg; e.style.display = 'block'; }
+    function showOk(msg)  { var e = document.getElementById('authOk');  e.textContent = msg; e.style.display = 'block'; }
+    function clearMessages() {
+        var err = document.getElementById('authErr'); if(err){err.textContent='';err.style.display='none';}
+        var ok  = document.getElementById('authOk');  if(ok) {ok.textContent=''; ok.style.display='none';}
+    }
+    function showLoader(msg) {
+        document.getElementById('loaderText').textContent = msg || 'Wird geladen...';
+        document.getElementById('pageLoader').classList.add('show');
+    }
+
+    window.submitAuth = async function () {
+        var email    = (document.getElementById('authEmail').value    || '').trim();
+        var password =  document.getElementById('authPassword').value || '';
+        clearMessages();
+
+        if (!email)          { showErr('Bitte E-Mail-Adresse eingeben.'); return; }
+        if (!password)       { showErr('Bitte Passwort eingeben.'); return; }
+        if (password.length < 6) { showErr('Passwort muss mindestens 6 Zeichen lang sein.'); return; }
+
+        var btn = document.getElementById('authBtn');
+        btn.disabled = true;
+        btn.textContent = '...';
+
+        var c = getClient();
+        if (!c) { showErr('Keine Verbindung. Bitte Seite neu laden.'); btn.disabled=false; btn.textContent=_mode==='login'?'Anmelden':'Kostenlos registrieren'; return; }
+
+        try {
+            var result = _mode === 'login'
+                ? await c.auth.signInWithPassword({ email: email, password: password })
+                : await c.auth.signUp({ email: email, password: password });
+
+            if (result.error) {
+                var msg = result.error.message || 'Fehler';
+                if (/invalid login credentials/i.test(msg)) msg = 'Falsche E-Mail oder falsches Passwort.';
+                if (/user already registered/i.test(msg))   msg = 'Diese E-Mail ist bereits registriert. Bitte anmelden.';
+                if (/email not confirmed/i.test(msg))       msg = 'Bitte bestätige zuerst deine E-Mail-Adresse.';
+                showErr(msg);
+                btn.disabled = false;
+                btn.textContent = _mode === 'login' ? 'Anmelden' : 'Kostenlos registrieren';
+                return;
+            }
+
+            // Registrierung ohne sofortige Session → E-Mail-Bestätigung
+            if (_mode === 'register' && result.data && !result.data.session) {
+                showOk('✅ Bestätigungs-E-Mail gesendet! Bitte prüfe dein Postfach und klicke auf den Bestätigungs-Link.');
+                btn.disabled = false;
+                btn.textContent = 'Kostenlos registrieren';
+                return;
+            }
+
+            // Login / Registrierung erfolgreich → in App weiterleiten
+            showLoader('Wird geöffnet...');
+            setTimeout(function () { window.location.href = APP_URL; }, 500);
+
+        } catch (e) {
+            showErr('Verbindungsfehler: ' + (e.message || String(e)));
+            btn.disabled = false;
+            btn.textContent = _mode === 'login' ? 'Anmelden' : 'Kostenlos registrieren';
+        }
+    };
+
+    window.resetPassword = async function () {
+        var email = (document.getElementById('authEmail').value || '').trim();
+        clearMessages();
+        if (!email) { showErr('Bitte E-Mail eingeben.'); return; }
+        var c = getClient();
+        if (!c) { showErr('Keine Verbindung. Bitte Seite neu laden.'); return; }
+        try {
+            var result = await c.auth.resetPasswordForEmail(email, {
+                redirectTo: 'https://stackr-buchhaltung.netlify.app/app.html'
             });
-        })();
-    </script>
+            if (result.error) {
+                var msg = result.error.message || 'Fehler';
+                if (/rate limit/i.test(msg)) msg = 'Zu viele Versuche. Bitte warte kurz.';
+                showErr(msg);
+            } else {
+                showOk('Passwort-Reset E-Mail gesendet. Prüfe dein Postfach.');
+            }
+        } catch (e) {
+            showErr('Verbindungsfehler: ' + (e.message || String(e)));
+        }
+    };
+
+    // Enter-Taste im Modal
+    document.addEventListener('keydown', function (e) {
+        var overlay = document.getElementById('authOverlay');
+        if (!overlay.classList.contains('open')) return;
+        if (e.key === 'Enter') submitAuth();
+        if (e.key === 'Escape') closeAuth();
+    });
+
+    // Init
+    checkExistingSession();
+})();
+</script>
 </body>
 </html>

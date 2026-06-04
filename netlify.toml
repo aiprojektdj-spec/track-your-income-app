@@ -2,6 +2,12 @@
   publish = "."
   # Kein Build-Schritt — reines Static HTML/JS/CSS
 
+# Root → Landing Page (neue Besucher)
+[[redirects]]
+  from = "/"
+  to = "/landing.html"
+  status = 302
+
 [[redirects]]
   from = "/app"
   to = "/index.html"

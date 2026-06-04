@@ -68,6 +68,17 @@ const App = {
     },
 
     _bootAfterLicense() {
+        // Supabase-First: AuthUI prüft Session, pullt Cloud-Daten, dann _continueAfterAuth()
+        if (typeof AuthUI !== 'undefined' && AuthUI.boot) {
+            AuthUI.boot();
+        } else {
+            // Fallback (kein Supabase geladen)
+            this._continueInit();
+        }
+    },
+
+    // Von AuthUI aufgerufen nachdem Auth + pullAll abgeschlossen
+    _continueAfterAuth(user) {
         this._continueInit();
     },
 

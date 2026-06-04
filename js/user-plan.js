@@ -80,7 +80,8 @@ var UserPlan = (function () {
             '<div style="font-size:28px;font-weight:700;color:var(--text-primary,#fff);">9,99 € <span style="font-size:14px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
             '<div style="font-size:12px;color:var(--text-muted,#888);margin-top:4px;">Jederzeit kündbar</div>',
             '</div>',
-            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;margin-bottom:10px;">Jetzt upgraden →</button>',
+            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;margin-bottom:8px;">Monatlich — 9,99 €/Monat →</button>',
+            '<button onclick="UserPlan.openCheckoutYearly()" style="width:100%;padding:11px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:10px;">Jährlich — 79,99 €/Jahr <span style="font-size:11px;opacity:.8;">· 33% sparen</span></button>',
             '<button onclick="document.getElementById(\'upgradeModalOverlay\').remove()" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:13px;">Vielleicht später</button>',
             '</div>'
         ].join('');
@@ -94,37 +95,38 @@ var UserPlan = (function () {
         });
     }
 
-    // ── Checkout-Link (LemonSqueezy) ──────────────────────────────
-    // So erhältst du die URL:
-    //   1. LemonSqueezy → Dein Store → Products → Produkt wählen
-    //   2. Reiter "Sharing" → "Checkout URL" kopieren
-    //   Beispiel: https://trackyourincome.lemonsqueezy.com/checkout/buy/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    //
-    var CHECKOUT_URL = '#'; // TODO: LemonSqueezy Produkt-URL hier eintragen (z.B. https://your-store.lemonsqueezy.com/buy/PRODUKT-ID)
+    // ── Paddle Checkout ───────────────────────────────────────────
+    var PADDLE_TOKEN     = 'live_7d279f61a3499fed520f7cd8c08';
+    var PRICE_ID_MONTHLY = 'pri_01kt7ksxhv4q4evpz78jsfjv98';
+    var PRICE_ID_YEARLY  = 'pri_01kt7m5y77v2d49kgc8hfpr13n';
 
-    function openCheckout() {
-        if (!CHECKOUT_URL || CHECKOUT_URL === '#') {
-            if (typeof Notyf !== 'undefined') {
-                new Notyf().error('Pro-Upgrade derzeit nicht verfügbar.');
-            } else {
-                alert('Pro-Upgrade derzeit nicht verfügbar.');
-            }
+    function openCheckout(priceId) {
+        priceId = priceId || PRICE_ID_MONTHLY;
+
+        if (typeof Paddle === 'undefined') {
+            if (typeof Notyf !== 'undefined') new Notyf().error('Paddle nicht geladen. Bitte Seite neu laden.');
+            else alert('Paddle nicht geladen.');
             return;
         }
 
-        // E-Mail des Users vorausfüllen wenn möglich
-        var email = '';
+        var email = '', userId = _userId || '';
         try {
             var session = JSON.parse(localStorage.getItem('oyi_auth_session') || '{}');
-            email = (session.user && session.user.email) || '';
+            email  = (session.user && session.user.email) || '';
+            userId = (session.user && session.user.id) || userId;
         } catch (e) {}
 
-        var url = CHECKOUT_URL;
-        if (email) url += (url.includes('?') ? '&' : '?') + 'checkout[email]=' + encodeURIComponent(email);
-        if (_userId) url += '&checkout[custom][user_id]=' + encodeURIComponent(_userId);
+        var opts = {
+            items: [{ priceId: priceId, quantity: 1 }],
+            customData: { user_id: userId },
+            successUrl: 'https://stackr-buchhaltung.netlify.app/index.html?upgrade=success'
+        };
+        if (email) opts.customer = { email: email };
 
-        window.open(url, '_blank');
+        Paddle.Checkout.open(opts);
     }
+
+    function openCheckoutYearly() { openCheckout(PRICE_ID_YEARLY); }
 
     // ── UI aktualisieren ──────────────────────
     function _updateUI() {
@@ -152,5 +154,5 @@ var UserPlan = (function () {
         _updateUI();
     }
 
-    return { load, isPro, isFree, getPlan, requirePro, getLimit, openCheckout, injectBadge, _showUpgradeModal };
+    return { load, isPro, isFree, getPlan, requirePro, getLimit, openCheckout, openCheckoutYearly, injectBadge, _showUpgradeModal };
 })();

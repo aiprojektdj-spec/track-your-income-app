@@ -1,24 +1,74 @@
 // ============================================
 // UserPlan — Abo-Verwaltung & Feature-Gates
 //
-// Free:  Buchungen (max 50), Basis-Dashboard
-// Pro:   Alles — 10,00 € / Monat
+// Trial: 5 Tage voller Zugriff (kein Credit Card nötig)
+// Pro:   Alles nach Trial — 10,00 € / Monat
+// Abgelaufen: App gesperrt bis Upgrade
 // ============================================
 var UserPlan = (function () {
     'use strict';
 
-    var _plan    = 'free';   // 'free' | 'pro'
-    var _expiry  = null;
-    var _loaded  = false;
-    var _userId  = null;
+    var _plan        = 'trial';  // 'trial' | 'pro' | 'expired'
+    var _expiry      = null;
+    var _loaded      = false;
+    var _userId      = null;
+    var _trialStart  = null;
+
+    var TRIAL_DAYS        = 5;
+    var TRIAL_STORAGE_KEY = 'oyi_trial_start';
+
+    // ── Trial-Start initialisieren (für nicht-eingeloggte User) ───
+    function _initTrialStart() {
+        var stored = localStorage.getItem(TRIAL_STORAGE_KEY);
+        if (!stored) {
+            stored = new Date().toISOString();
+            localStorage.setItem(TRIAL_STORAGE_KEY, stored);
+        }
+        _trialStart = new Date(stored);
+    }
+
+    // ── Trial-Tage berechnen ──────────────────
+    function getTrialDaysLeft() {
+        if (_plan === 'pro') return null;
+        if (!_trialStart) return 0;
+        var elapsed = (Date.now() - _trialStart.getTime()) / (1000 * 60 * 60 * 24);
+        return Math.max(0, Math.ceil(TRIAL_DAYS - elapsed));
+    }
+
+    function isTrialActive()  { return _plan !== 'pro' && getTrialDaysLeft() > 0; }
+    function isTrialExpired() { return _plan !== 'pro' && getTrialDaysLeft() === 0; }
 
     // ── Abo aus Supabase laden ────────────────
     async function load(userId) {
         _userId = userId;
         var client = SupabaseDB.getClient();
-        if (!client || !userId) { _plan = 'free'; _loaded = true; return; }
+
+        // Trial-Start aus localStorage laden (Fallback für nicht eingeloggte)
+        _initTrialStart();
+
+        if (!client || !userId) {
+            _plan = isTrialActive() ? 'trial' : 'expired';
+            _loaded = true;
+            _updateUI();
+            if (isTrialExpired()) _showLockModal();
+            return;
+        }
 
         try {
+            // trial_start aus Supabase user-metadata lesen (verhindert Reset via localStorage-Clear)
+            var { data: { user } } = await client.auth.getUser();
+            if (user && user.user_metadata && user.user_metadata.trial_start) {
+                _trialStart = new Date(user.user_metadata.trial_start);
+                localStorage.setItem(TRIAL_STORAGE_KEY, user.user_metadata.trial_start);
+            } else if (user) {
+                // Noch kein trial_start in Metadata → jetzt setzen
+                var localStart = localStorage.getItem(TRIAL_STORAGE_KEY) || new Date().toISOString();
+                _trialStart = new Date(localStart);
+                localStorage.setItem(TRIAL_STORAGE_KEY, localStart);
+                await client.auth.updateUser({ data: { trial_start: localStart } });
+            }
+
+            // Subscription-Status prüfen
             var res = await client
                 .from('subscriptions')
                 .select('status, current_period_end, plan')
@@ -29,44 +79,72 @@ var UserPlan = (function () {
                 var expired = res.data.current_period_end
                     ? new Date(res.data.current_period_end) < new Date()
                     : false;
-                _plan   = expired ? 'free' : 'pro';
+                _plan   = expired ? (isTrialActive() ? 'trial' : 'expired') : 'pro';
                 _expiry = res.data.current_period_end;
             } else {
-                _plan = 'free';
+                _plan = isTrialActive() ? 'trial' : 'expired';
             }
         } catch (e) {
             console.warn('[UserPlan] Laden fehlgeschlagen:', e.message);
-            _plan = 'free';
+            _plan = isTrialActive() ? 'trial' : 'expired';
         }
         _loaded = true;
         _updateUI();
+        if (isTrialExpired()) _showLockModal();
     }
 
     // ── Getter ────────────────────────────────
     function isPro()  { return _plan === 'pro'; }
-    function isFree() { return _plan === 'free'; }
+    function isFree() { return _plan === 'expired'; }
     function getPlan() { return _plan; }
 
     // ── Feature-Gate ──────────────────────────
-    // Gibt true zurück wenn Pro, zeigt sonst Upgrade-Modal
+    // Gibt true zurück wenn Pro oder Trial aktiv, zeigt sonst Lock-Modal
     function requirePro(featureName) {
-        if (isPro()) return true;
-        _showUpgradeModal(featureName);
+        if (isPro() || isTrialActive()) return true;
+        _showLockModal();
         return false;
     }
 
-    // ── Freemium-Limits ───────────────────────
-    var LIMITS = {
-        maxBuchungen: 50    // Free: max 50 Buchungen
-    };
-
+    // ── Limits ───────────────────────────────
     function getLimit(key) {
-        if (isPro()) return Infinity;
-        return LIMITS[key] || 0;
+        if (isPro() || isTrialActive()) return Infinity;
+        return 0; // Trial abgelaufen: alles gesperrt
     }
 
-    // ── Upgrade Modal ─────────────────────────
+    // ── Lock-Modal (Trial abgelaufen — nicht schließbar) ──────────
+    function _showLockModal() {
+        if (document.getElementById('trialLockOverlay')) return;
+
+        var overlay = document.createElement('div');
+        overlay.id = 'trialLockOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px;';
+
+        overlay.innerHTML = [
+            '<div style="background:var(--surface,#1e1e2e);border:1px solid rgba(99,102,241,.4);border-radius:16px;padding:36px 32px;max-width:420px;width:100%;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,.8);">',
+            '<div style="font-size:44px;margin-bottom:14px;">⏳</div>',
+            '<h2 style="color:var(--text-primary,#fff);font-size:20px;margin:0 0 10px;font-weight:800;">Testphase abgelaufen</h2>',
+            '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 24px;line-height:1.6;">',
+            'Deine <strong style="color:var(--text-secondary,#ccc);">5-tägige Testphase</strong> ist beendet.<br>',
+            'Wähle ein Abo um Stackr weiter zu nutzen.',
+            '</p>',
+            '<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:16px;margin-bottom:20px;">',
+            '<div style="font-size:26px;font-weight:800;color:var(--text-primary,#fff);">10,00 € <span style="font-size:13px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
+            '<div style="font-size:11px;color:var(--text-muted,#888);margin-top:4px;">Jederzeit kündbar · Alle Features entsperrt</div>',
+            '</div>',
+            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;margin-bottom:8px;">Monatlich — 10,00 €/Monat →</button>',
+            '<button onclick="UserPlan.openCheckoutYearly()" style="width:100%;padding:12px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:4px;">Jährlich — 90,00 €/Jahr <span style="font-size:11px;opacity:.8;">· 25% sparen</span></button>',
+            '</div>'
+        ].join('');
+
+        document.body.appendChild(overlay);
+        // Keine Escape/Backdrop-Dismiss — App ist gesperrt
+    }
+
+    // ── Upgrade-Modal (während Trial — schließbar) ────────────────
     function _showUpgradeModal(feature) {
+        if (document.getElementById('upgradeModalOverlay')) return;
+        var daysLeft = getTrialDaysLeft();
         var overlay = document.createElement('div');
         overlay.id = 'upgradeModalOverlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:10001;padding:20px;';
@@ -75,7 +153,8 @@ var UserPlan = (function () {
             '<div style="background:var(--surface,#1e1e2e);border:1px solid rgba(99,102,241,.35);border-radius:14px;padding:32px;max-width:400px;width:100%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6);">',
             '<div style="font-size:40px;margin-bottom:12px;">⭐</div>',
             '<h2 style="color:var(--text-primary,#fff);font-size:18px;margin:0 0 8px;">Pro-Feature</h2>',
-            feature ? '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 20px;"><strong style="color:var(--text-secondary,#ccc);">' + (feature+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong> ist nur im Pro-Abo verfügbar.</p>' : '',
+            feature ? '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 8px;"><strong style="color:var(--text-secondary,#ccc);">' + (feature+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong> ist nur im Pro-Abo verfügbar.</p>' : '',
+            daysLeft !== null ? '<p style="color:var(--text-muted,#888);font-size:12px;margin:0 0 16px;">Noch <strong style="color:#fbbf24;">' + daysLeft + ' Tag' + (daysLeft === 1 ? '' : 'e') + '</strong> in deiner Testphase.</p>' : '',
             '<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:16px;margin-bottom:20px;">',
             '<div style="font-size:28px;font-weight:700;color:var(--text-primary,#fff);">10,00 € <span style="font-size:14px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
             '<div style="font-size:12px;color:var(--text-muted,#888);margin-top:4px;">Jederzeit kündbar</div>',
@@ -176,16 +255,23 @@ var UserPlan = (function () {
 
     // ── UI aktualisieren ──────────────────────
     function _updateUI() {
-        // Plan-Badge in Topnav aktualisieren
         var badge = document.getElementById('planBadge');
         if (!badge) return;
+
         if (isPro()) {
             badge.textContent = 'PRO';
             badge.style.cssText = 'background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;';
-        } else {
-            badge.textContent = 'FREE';
-            badge.style.cssText = 'background:rgba(255,255,255,.08);color:var(--text-muted,#888);font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;cursor:pointer;';
+            badge.onclick = null;
+        } else if (isTrialActive()) {
+            var d = getTrialDaysLeft();
+            var urgent = d <= 2;
+            badge.textContent = 'TRIAL ' + d + 'T';
+            badge.style.cssText = 'background:' + (urgent ? 'rgba(239,68,68,.15)' : 'rgba(251,191,36,.15)') + ';color:' + (urgent ? '#ef4444' : '#fbbf24') + ';font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;cursor:pointer;border:1px solid ' + (urgent ? 'rgba(239,68,68,.3)' : 'rgba(251,191,36,.3)') + ';';
             badge.onclick = function () { _showUpgradeModal(); };
+        } else {
+            badge.textContent = 'ABGELAUFEN';
+            badge.style.cssText = 'background:rgba(239,68,68,.15);color:#ef4444;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;cursor:pointer;border:1px solid rgba(239,68,68,.3);';
+            badge.onclick = function () { _showLockModal(); };
         }
     }
 
@@ -200,5 +286,14 @@ var UserPlan = (function () {
         _updateUI();
     }
 
-    return { load, isPro, isFree, getPlan, requirePro, getLimit, openCheckout, openCheckoutYearly, injectBadge, _showUpgradeModal };
+    // Trial bei Seitenload initialisieren (für nicht-eingeloggte User)
+    _initTrialStart();
+
+    return {
+        load, isPro, isFree, getPlan,
+        isTrialActive, isTrialExpired, getTrialDaysLeft,
+        requirePro, getLimit,
+        openCheckout, openCheckoutYearly,
+        injectBadge, _showUpgradeModal, _showLockModal
+    };
 })();

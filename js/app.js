@@ -565,20 +565,68 @@ const App = {
 
         // Render page — mit try-catch damit nie ein leerer schwarzer Screen kommt
         const contentEl = document.getElementById('content');
+
+        // Skeleton Loading: kurz Platzhalter zeigen, dann echten Inhalt einblenden
+        contentEl.innerHTML = this._skeletonFor(page);
+
         try {
-            contentEl.innerHTML = this.pages[page].render();
-            this.pages[page].init();
+            // Kleiner rAF-Delay damit Skeleton sichtbar wird und dann Inhalt smooth einfliegt
+            requestAnimationFrame(() => {
+                try {
+                    contentEl.innerHTML = this.pages[page].render();
+                    contentEl.classList.add('skeleton-fade-in');
+                    setTimeout(() => contentEl.classList.remove('skeleton-fade-in'), 300);
+                    this.pages[page].init();
+                } catch(err) {
+                    console.error('[navigate] Fehler auf Seite', page, err);
+                    contentEl.innerHTML = `
+                        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;text-align:center;padding:40px;">
+                            <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+                            <h2 style="color:var(--text-primary);margin-bottom:12px;">Seite konnte nicht geladen werden</h2>
+                            <p style="color:var(--text-secondary);max-width:400px;margin-bottom:20px;">Fehler: <code style="background:var(--bg-card);padding:4px 8px;border-radius:4px;">${err.message || err}</code></p>
+                            <button class="btn btn-primary" onclick="App.navigate('dashboard')">→ Zum Dashboard</button>
+                        </div>
+                    `;
+                }
+            });
+            // Early return — init läuft im rAF callback oben
+            return;
         } catch(err) {
-            console.error('[navigate] Fehler auf Seite', page, err);
-            contentEl.innerHTML = `
-                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;text-align:center;padding:40px;">
-                    <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
-                    <h2 style="color:var(--text-primary);margin-bottom:12px;">Seite konnte nicht geladen werden</h2>
-                    <p style="color:var(--text-secondary);max-width:400px;margin-bottom:20px;">Fehler: <code style="background:var(--bg-card);padding:4px 8px;border-radius:4px;">${err.message || err}</code></p>
-                    <button class="btn btn-primary" onclick="App.navigate('dashboard')">→ Zum Dashboard</button>
-                </div>
-            `;
+            // Nur falls das rAF-Setup selbst fehlschlägt (sehr selten)
+            console.error('[navigate] Setup-Fehler', page, err);
         }
+    },
+
+    // Erzeugt ein Skeleton-Platzhalter-Layout je nach Seite
+    _skeletonFor(page) {
+        const card = () => `
+            <div class="skeleton-card">
+                <div class="skeleton-line title"></div>
+                <div class="skeleton-line value"></div>
+                <div class="skeleton-line sub"></div>
+            </div>`;
+
+        if (page === 'dashboard') {
+            return `
+                <div class="page-header" style="margin-bottom:16px;">
+                    <div class="skeleton-line" style="width:140px;height:22px;"></div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:24px;">
+                    ${card()}${card()}${card()}${card()}${card()}${card()}
+                </div>
+                <div class="skeleton-card" style="height:200px;"></div>`;
+        }
+
+        // Generisches Skeleton für alle anderen Seiten
+        return `
+            <div class="page-header" style="margin-bottom:16px;">
+                <div class="skeleton-line" style="width:160px;height:22px;"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+                <div class="skeleton-card" style="height:60px;"></div>
+                <div class="skeleton-card" style="height:200px;"></div>
+                <div class="skeleton-card" style="height:140px;"></div>
+            </div>`;
     },
 
     showModal(title, bodyHtml, footerHtml) {

@@ -129,34 +129,8 @@ const Dashboard = {
             .map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('');
         const yearBtns = `<select class="year-select" id="yearSelect">${yearOptions}</select>`;
 
-        // Backup-Reminder: prüfen wie alt das letzte Datei-Backup ist
-        let backupReminder = '';
-        try {
-            const lastBackup = localStorage.getItem('_fs_backup_last');
-            const dismissed  = parseInt(localStorage.getItem('_backup_reminder_dismissed_until') || '0');
-            const now = Date.now();
-            if (now > dismissed) {
-                let daysSince = null;
-                if (lastBackup) {
-                    daysSince = Math.floor((now - new Date(lastBackup).getTime()) / 86400000);
-                }
-                if (!lastBackup || daysSince >= 7) {
-                    const msg = !lastBackup
-                        ? 'Du hast noch <strong>kein Datei-Backup</strong> eingerichtet — bei einem Festplatten-Crash wäre alles weg.'
-                        : `Letztes Backup ist <strong>${daysSince} Tage</strong> alt.`;
-                    backupReminder = `
-                        <div id="backupReminder" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-                            <span style="font-size:22px;flex-shrink:0;color:var(--warning);"><i class="ti ti-device-floppy"></i></span>
-                            <div style="flex:1;min-width:200px;font-size:13px;">
-                                <strong style="color:var(--warning);">Backup-Erinnerung</strong>
-                                <div style="margin-top:2px;color:var(--text-secondary);">${msg}</div>
-                            </div>
-                            <button class="btn btn-warning" id="backupReminderNow" style="font-size:13px;"><i class="ti ti-device-floppy"></i> Jetzt sichern</button>
-                            <button class="btn btn-small" id="backupReminderLater" style="opacity:.7;font-size:12px;">7 Tage später erinnern</button>
-                        </div>`;
-                }
-            }
-        } catch(e) { /* ignore */ }
+        // Web-Version: kein lokales Datei-Backup nötig (Cloud-Sync via Supabase)
+        const backupReminder = '';
 
         return `
             <div class="page-header">

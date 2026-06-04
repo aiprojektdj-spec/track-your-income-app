@@ -243,7 +243,7 @@ var UserPlan = (function () {
             var opts = {
                 items: [{ priceId: priceId, quantity: 1 }],
                 customData: { user_id: userId },
-                successUrl: 'https://stackr-buchhaltung.netlify.app/index.html?upgrade=success'
+                successUrl: 'https://stackr-buchhaltung.netlify.app/index.html?from=app&upgrade=success'
             };
             if (email) opts.customer = { email: email };
 

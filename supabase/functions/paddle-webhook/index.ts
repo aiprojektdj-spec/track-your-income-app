@@ -12,23 +12,31 @@ serve(async (req) => {
   const signature = req.headers.get('paddle-signature') ?? ''
 
   // ── HMAC-Signatur prüfen ──────────────────────────────────────
-  if (PADDLE_WEBHOOK_SECRET && signature) {
-    const parts = Object.fromEntries(signature.split(';').map(p => p.split('=')))
-    const ts = parts['ts']
-    const h1 = parts['h1']
-    if (!ts || !h1) return new Response('Invalid signature', { status: 401 })
-
-    const key = await crypto.subtle.importKey(
-      'raw', new TextEncoder().encode(PADDLE_WEBHOOK_SECRET),
-      { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-    )
-    const mac = await crypto.subtle.sign(
-      'HMAC', key, new TextEncoder().encode(`${ts}:${body}`)
-    )
-    const expected = Array.from(new Uint8Array(mac))
-      .map(b => b.toString(16).padStart(2, '0')).join('')
-    if (expected !== h1) return new Response('Invalid signature', { status: 401 })
+  if (!PADDLE_WEBHOOK_SECRET) {
+    return new Response('Webhook secret not configured', { status: 500 })
   }
+  if (!signature) {
+    return new Response('Missing signature', { status: 401 })
+  }
+
+  const parts = Object.fromEntries(signature.split(';').map(p => p.split('=')))
+  const ts = parts['ts']
+  const h1 = parts['h1']
+  if (!ts || !h1) return new Response('Invalid signature', { status: 401 })
+
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(PADDLE_WEBHOOK_SECRET),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  )
+  const mac = await crypto.subtle.sign(
+    'HMAC', key, new TextEncoder().encode(`${ts}:${body}`)
+  )
+  const expected = Array.from(new Uint8Array(mac))
+    .map(b => b.toString(16).padStart(2, '0')).join('')
+  if (expected !== h1) return new Response('Invalid signature', { status: 401 })
+
+  // ── UUID-Validierung userId ───────────────────────────────────
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
   const event     = JSON.parse(body)
   const eventType = event.event_type as string
@@ -41,6 +49,7 @@ serve(async (req) => {
 
   const userId = data?.custom_data?.user_id
   if (!userId) return new Response('No user_id in custom_data', { status: 200 })
+  if (!uuidRegex.test(userId)) return new Response('Invalid user_id format', { status: 400 })
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 

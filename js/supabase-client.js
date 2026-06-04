@@ -1,6 +1,6 @@
 // ============================================
 // SupabaseDB — Cloud-Client (Supabase JS v2)
-// Projekt: TrackYourIncome
+// Projekt: Stackr
 // URL:     https://csfvzmlihkrxokbbjyhf.supabase.co
 // ============================================
 var SUPABASE_URL      = 'https://csfvzmlihkrxokbbjyhf.supabase.co';

@@ -75,7 +75,7 @@ var UserPlan = (function () {
             '<div style="background:var(--surface,#1e1e2e);border:1px solid rgba(99,102,241,.35);border-radius:14px;padding:32px;max-width:400px;width:100%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6);">',
             '<div style="font-size:40px;margin-bottom:12px;">⭐</div>',
             '<h2 style="color:var(--text-primary,#fff);font-size:18px;margin:0 0 8px;">Pro-Feature</h2>',
-            feature ? '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 20px;"><strong style="color:var(--text-secondary,#ccc);">' + feature + '</strong> ist nur im Pro-Abo verfügbar.</p>' : '',
+            feature ? '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 20px;"><strong style="color:var(--text-secondary,#ccc);">' + (feature+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong> ist nur im Pro-Abo verfügbar.</p>' : '',
             '<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:16px;margin-bottom:20px;">',
             '<div style="font-size:28px;font-weight:700;color:var(--text-primary,#fff);">10,00 € <span style="font-size:14px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
             '<div style="font-size:12px;color:var(--text-muted,#888);margin-top:4px;">Jederzeit kündbar</div>',

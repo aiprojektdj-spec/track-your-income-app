@@ -2,7 +2,7 @@
 // UserPlan — Abo-Verwaltung & Feature-Gates
 //
 // Free:  Buchungen (max 50), Basis-Dashboard
-// Pro:   Alles — 9,99 € / Monat
+// Pro:   Alles — 10,00 € / Monat
 // ============================================
 var UserPlan = (function () {
     'use strict';
@@ -77,11 +77,11 @@ var UserPlan = (function () {
             '<h2 style="color:var(--text-primary,#fff);font-size:18px;margin:0 0 8px;">Pro-Feature</h2>',
             feature ? '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 20px;"><strong style="color:var(--text-secondary,#ccc);">' + feature + '</strong> ist nur im Pro-Abo verfügbar.</p>' : '',
             '<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:16px;margin-bottom:20px;">',
-            '<div style="font-size:28px;font-weight:700;color:var(--text-primary,#fff);">9,99 € <span style="font-size:14px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
+            '<div style="font-size:28px;font-weight:700;color:var(--text-primary,#fff);">10,00 € <span style="font-size:14px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
             '<div style="font-size:12px;color:var(--text-muted,#888);margin-top:4px;">Jederzeit kündbar</div>',
             '</div>',
-            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;margin-bottom:8px;">Monatlich — 9,99 €/Monat →</button>',
-            '<button onclick="UserPlan.openCheckoutYearly()" style="width:100%;padding:11px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:10px;">Jährlich — 79,99 €/Jahr <span style="font-size:11px;opacity:.8;">· 33% sparen</span></button>',
+            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;margin-bottom:8px;">Monatlich — 10,00 €/Monat →</button>',
+            '<button onclick="UserPlan.openCheckoutYearly()" style="width:100%;padding:11px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:10px;">Jährlich — 90,00 €/Jahr <span style="font-size:11px;opacity:.8;">· 25% sparen</span></button>',
             '<button onclick="document.getElementById(\'upgradeModalOverlay\').remove()" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:13px;">Vielleicht später</button>',
             '</div>'
         ].join('');

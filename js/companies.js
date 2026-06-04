@@ -42,8 +42,8 @@ const CompanyManager = {
 
     create(name, farbe, branche, land) {
         const companies = this.getAll();
-        // Free-Plan: max. 1 Firma
-        if (typeof UserPlan !== 'undefined' && !UserPlan.isPro() && companies.length >= 1) {
+        // Trial/Plan: max. 1 Firma ohne Pro
+        if (typeof UserPlan !== 'undefined' && !UserPlan.isPro() && !UserPlan.isTrialActive() && companies.length >= 1) {
             UserPlan.requirePro('Mehrere Unternehmen');
             return null;
         }

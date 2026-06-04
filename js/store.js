@@ -1102,10 +1102,10 @@ const Store = {
                 purchases.push(this._stampRecord(purchase));
             }
         } else {
-            // Free-Plan Limit
-            if (typeof UserPlan !== 'undefined' && !UserPlan.isPro()) {
+            // Trial/Plan Limit
+            if (typeof UserPlan !== 'undefined' && !UserPlan.isPro() && !UserPlan.isTrialActive()) {
                 const total = this.getAllPurchasesRaw().length + this.getAllSalesRaw().length + this.getAllExpensesRaw().length;
-                if (total >= UserPlan.getLimit('maxBuchungen')) { UserPlan.requirePro('Mehr als 50 Buchungen'); return purchase; }
+                if (total >= UserPlan.getLimit('maxBuchungen')) { UserPlan.requirePro('Unbegrenzte Buchungen'); return purchase; }
             }
             purchase.id = this.generateId();
             purchase.createdAt = new Date().toISOString();
@@ -1177,10 +1177,10 @@ const Store = {
                 sales.push(this._stampRecord(sale));
             }
         } else {
-            // Free-Plan Limit
-            if (typeof UserPlan !== 'undefined' && !UserPlan.isPro()) {
+            // Trial/Plan Limit
+            if (typeof UserPlan !== 'undefined' && !UserPlan.isPro() && !UserPlan.isTrialActive()) {
                 const total = this.getAllPurchasesRaw().length + this.getAllSalesRaw().length + this.getAllExpensesRaw().length;
-                if (total >= UserPlan.getLimit('maxBuchungen')) { UserPlan.requirePro('Mehr als 50 Buchungen'); return sale; }
+                if (total >= UserPlan.getLimit('maxBuchungen')) { UserPlan.requirePro('Unbegrenzte Buchungen'); return sale; }
             }
             sale.id = this.generateId();
             sale.createdAt = new Date().toISOString();
@@ -1215,10 +1215,10 @@ const Store = {
 
     // saveSaleMulti: Verkauf mit mehreren Artikeln (purchaseIds Array)
     saveSaleMulti(sale) {
-        // Free-Plan Limit (gleich wie saveSale)
-        if (typeof UserPlan !== 'undefined' && !UserPlan.isPro()) {
+        // Trial/Plan Limit
+        if (typeof UserPlan !== 'undefined' && !UserPlan.isPro() && !UserPlan.isTrialActive()) {
             const total = this.getAllPurchasesRaw().length + this.getAllSalesRaw().length + this.getAllExpensesRaw().length;
-            if (total >= UserPlan.getLimit('maxBuchungen')) { UserPlan.requirePro('Mehr als 50 Buchungen'); return sale; }
+            if (total >= UserPlan.getLimit('maxBuchungen')) { UserPlan.requirePro('Unbegrenzte Buchungen'); return sale; }
         }
         const sales = this.getAllSalesRaw();
         sale.id = this.generateId();
@@ -1322,10 +1322,10 @@ const Store = {
                 expenses.push(this._stampRecord(expense));
             }
         } else {
-            // Free-Plan Limit
-            if (typeof UserPlan !== 'undefined' && !UserPlan.isPro()) {
+            // Trial/Plan Limit
+            if (typeof UserPlan !== 'undefined' && !UserPlan.isPro() && !UserPlan.isTrialActive()) {
                 const total = this.getAllPurchasesRaw().length + this.getAllSalesRaw().length + this.getAllExpensesRaw().length;
-                if (total >= UserPlan.getLimit('maxBuchungen')) { UserPlan.requirePro('Mehr als 50 Buchungen'); return expense; }
+                if (total >= UserPlan.getLimit('maxBuchungen')) { UserPlan.requirePro('Unbegrenzte Buchungen'); return expense; }
             }
             expense.id = this.generateId();
             expense.createdAt = new Date().toISOString();

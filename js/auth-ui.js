@@ -34,8 +34,8 @@ var AuthUI = (function () {
         if (user) {
             await _onSignedIn(user, false);
         } else {
-            _hideLoader();
-            _showLoginRequired();
+            // Nicht eingeloggt → Landing Page (Login/Register dort)
+            location.replace('landing.html');
         }
     }
 

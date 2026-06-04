@@ -2,11 +2,12 @@
   publish = "."
   # Kein Build-Schritt — reines Static HTML/JS/CSS
 
-# Root → Landing Page (neue Besucher)
+# Root → Landing Page (force überschreibt index.html)
 [[redirects]]
   from = "/"
   to = "/landing.html"
   status = 302
+  force = true
 
 [[redirects]]
   from = "/app"

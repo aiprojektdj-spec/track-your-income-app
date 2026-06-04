@@ -1214,15 +1214,22 @@ footer {
         return _client;
     }
 
-    // ── Bereits eingeloggt? → direkt in App ──
+    // ── Bereits eingeloggt? → "Zur App" Button einblenden (kein Auto-Redirect) ──
     async function checkExistingSession() {
         var c = getClient();
         if (!c) return;
         try {
             var r = await c.auth.getSession();
             if (r.data && r.data.session) {
-                showLoader('App wird geöffnet...');
-                window.location.href = APP_URL;
+                // Zeige "Zur App" Button statt Auto-Redirect
+                var btns = document.querySelectorAll('.btn-hero, .btn-plan-free, .btn-plan-pro');
+                btns.forEach(function(btn) {
+                    btn.textContent = 'Zur App →';
+                    btn.onclick = function() {
+                        showLoader('App wird geöffnet...');
+                        window.location.href = APP_URL;
+                    };
+                });
             }
         } catch (e) {}
     }

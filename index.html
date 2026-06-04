@@ -3,7 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Supabase-First: AuthUI.boot() übernimmt Auth-Gate — kein JS-Redirect nötig -->
+    <!-- Gate: Kein Supabase-Session → sofort zur Landing Page (synchron, vor allem anderen) -->
+    <script>
+    (function(){
+        try {
+            var raw = localStorage.getItem('oyi_auth_session');
+            if (!raw) { location.replace('landing.html'); return; }
+            var s = JSON.parse(raw);
+            // Supabase v2 speichert access_token direkt oder unter currentSession
+            var token = (s && s.access_token) || (s && s.currentSession && s.currentSession.access_token);
+            if (!token) location.replace('landing.html');
+        } catch(e) {
+            location.replace('landing.html');
+        }
+    })();
+    </script>
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.paddle.com; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co https://*.paddle.com; frame-src https://buy.paddle.com https://checkout.paddle.com;">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
     <title>Stackr</title>

@@ -68,6 +68,21 @@ var RechDashboard = (function() {
             html += '</div>';
         }
 
+        // ── E-Rechnung Hinweis (ab 2025 Pflicht für B2B) ─────────────────
+        var curYear = new Date().getFullYear();
+        if (curYear >= 2025) {
+            html += '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;margin-bottom:16px;';
+            html += 'background:rgba(234,179,8,.07);border:1px solid rgba(234,179,8,.25);border-radius:10px;">';
+            html += '<div style="font-size:22px;padding-top:1px;">📋</div>';
+            html += '<div style="flex:1;">';
+            html += '<div style="font-weight:700;font-size:13px;color:#fbbf24;">E-Rechnung ab 2025 Pflicht (B2B)</div>';
+            html += '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;line-height:1.5;">';
+            html += 'Für Rechnungen zwischen Unternehmen (B2B) ist ab dem 1.&nbsp;Januar&nbsp;2025 die Empfangspflicht für strukturierte E-Rechnungen (XRechnung / ZUGFeRD) in Kraft. ';
+            html += 'Ab&nbsp;2027 auch Ausstellungspflicht für Umsätze >&nbsp;0&nbsp;€. ';
+            html += '<a href="https://www.bundesfinanzministerium.de/Content/DE/FAQ/2024-03-22-steuerforum-e-rechnung.html" target="_blank" rel="noopener" style="color:#fbbf24;">Mehr Info →</a>';
+            html += '</div></div></div>';
+        }
+
         // ── Stat-Kacheln ─────────────────────────────────────────────────
         var cards = [
             { label: 'Offene Rechnungen',   count: offeneRechnungen.length, amount: offeneSum,   color: '#3b82f6', icon: '📄' },

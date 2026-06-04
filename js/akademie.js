@@ -1402,6 +1402,7 @@ const Akademie = {
 
     // ── Datenanalyse für Achievements ─────────────────────────────────────
     _analyzeData() {
+        try {
         const purchases = Store.getPurchases();
         const sales     = Store.getSales();
         const invoices  = Store.getRechInvoices ? Store.getRechInvoices() : [];
@@ -1534,6 +1535,17 @@ const Akademie = {
             daysSinceFirstPurchase, activeStockValue, hadComeback,
             fullyListedCount, auditEntries, bulkSessions
         };
+        } catch (e) {
+            console.warn('[Akademie] _analyzeData Fehler:', e);
+            return {
+                purchases: [], sales: [], activeStock: 0, totalRevenue: 0,
+                invoices: 0, maxSessionSize: 0, profitableMonths: 0,
+                flags: {}, lessonsRead: 0, modulesComplete: 0,
+                activeDays7in30: 0, uniquePlatforms: 0, fastFlips: 0, maxMarginPct: 0,
+                daysSinceFirstPurchase: 0, activeStockValue: 0, hadComeback: false,
+                fullyListedCount: 0, auditEntries: 0, bulkSessions: 0
+            };
+        }
     },
 
     // ── Progress Storage ──────────────────────────────────────────────────

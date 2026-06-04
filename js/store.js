@@ -1215,6 +1215,11 @@ const Store = {
 
     // saveSaleMulti: Verkauf mit mehreren Artikeln (purchaseIds Array)
     saveSaleMulti(sale) {
+        // Free-Plan Limit (gleich wie saveSale)
+        if (typeof UserPlan !== 'undefined' && !UserPlan.isPro()) {
+            const total = this.getAllPurchasesRaw().length + this.getAllSalesRaw().length + this.getAllExpensesRaw().length;
+            if (total >= UserPlan.getLimit('maxBuchungen')) { UserPlan.requirePro('Mehr als 50 Buchungen'); return sale; }
+        }
         const sales = this.getAllSalesRaw();
         sale.id = this.generateId();
         sale.createdAt = new Date().toISOString();
@@ -1830,9 +1835,15 @@ const Store = {
         const counter = this.getRechInvoiceCounter();
         const prefix = typ === 'rechnung' ? 'RE' : typ === 'angebot' ? 'AN' : 'GU';
         const year = new Date().getFullYear();
-        counter[prefix] = (counter[prefix] || 0) + 1;
+        // Existierende Nummern laden, um Duplikate zu vermeiden (Schutz vor Counter-Desync)
+        const existingNrs = new Set((this._rechGet('dokumente') || []).map(i => i.nummer || ''));
+        let candidate;
+        do {
+            counter[prefix] = (counter[prefix] || 0) + 1;
+            candidate = `${prefix}-${year}-${String(counter[prefix]).padStart(3, '0')}`;
+        } while (existingNrs.has(candidate));
         this._rechSet('invoice_counter', counter);
-        return `${prefix}-${year}-${String(counter[prefix]).padStart(3, '0')}`;
+        return candidate;
     },
 
     // ============================================

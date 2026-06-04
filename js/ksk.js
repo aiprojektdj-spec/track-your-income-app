@@ -17,14 +17,26 @@ const Ksk = {
             || this._beitragssaetze[Math.max(...Object.keys(this._beitragssaetze).map(Number))];
     },
 
+    // BBG (Beitragsbemessungsgrenzen) nach Jahr — jährlich anpassen
+    _BBG: {
+        2024: { kvpv: 5175.00, rv: 7550.00 },
+        2025: { kvpv: 5512.50, rv: 8050.00 },
+        2026: { kvpv: 5512.50, rv: 8050.00 }  // vorläufig bis Bekanntgabe
+    },
+
+    _getBBG(year) {
+        return this._BBG[year]
+            || this._BBG[Math.max(...Object.keys(this._BBG).map(Number))];
+    },
+
     _calcBeitrag(jahreseinkommen, year) {
-        const s = this._getSaetze(year);
+        const s   = this._getSaetze(year);
+        const bbg = this._getBBG(year);
         const monatl = jahreseinkommen / 12;
-        // BBG 2024: KV 5.175 €/M, PV 5.175 €/M, RV 7.550 €/M
-        // Vereinfacht: voller Satz (KSK trägt 50%, Künstler 50%)
-        const kvBeitrag = Math.min(monatl, 5175) * s.kv * 12;
-        const pvBeitrag = Math.min(monatl, 5175) * s.pv * 12;
-        const rvBeitrag = Math.min(monatl, 7550) * s.av * 12;
+        // KSK trägt 50% — Künstler zahlt 50% der gesetzlichen Sätze
+        const kvBeitrag = Math.min(monatl, bbg.kvpv) * s.kv * 12;
+        const pvBeitrag = Math.min(monatl, bbg.kvpv) * s.pv * 12;
+        const rvBeitrag = Math.min(monatl, bbg.rv)   * s.av * 12;
         return { kv: kvBeitrag, pv: pvBeitrag, rv: rvBeitrag, gesamt: kvBeitrag + pvBeitrag + rvBeitrag };
     },
 

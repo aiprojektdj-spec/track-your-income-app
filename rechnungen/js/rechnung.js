@@ -885,7 +885,7 @@ var Rechnung = (function() {
         html += '<th>Einheit</th>';
         html += '<th class="r">Einzelpreis</th>';
         if (!isKlein) html += '<th class="r">MwSt</th>';
-        html += '<th class="r">Gesamt</th>';
+        html += '<th class="r">Gesamt (netto)</th>';
         html += '</tr></thead><tbody>';
 
         var netto = 0;

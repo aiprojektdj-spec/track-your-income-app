@@ -299,7 +299,9 @@ var AuthUI = (function () {
             '<hr class="auth-menu-sep">' +
             '<button class="auth-menu-item" onclick="AuthUI._syncNow()">⬆ Jetzt synchronisieren</button>' +
             '<hr class="auth-menu-sep">' +
-            '<button class="auth-menu-item danger" onclick="AuthUI._logout()">🚪 Abmelden</button>';
+            '<button class="auth-menu-item danger" onclick="AuthUI._logout()">🚪 Abmelden</button>' +
+            '<hr class="auth-menu-sep">' +
+            '<button class="auth-menu-item danger" onclick="AuthUI._deleteAccount()" style="font-size:12px;opacity:.7;">🗑 Konto löschen (DSGVO)</button>';
 
         document.body.appendChild(menu);
 
@@ -329,6 +331,59 @@ var AuthUI = (function () {
         await SupabaseDB.signOut();
         _toast('Abgemeldet — lokale Daten bleiben erhalten', 'info');
         setTimeout(_showLoginBanner, 1000);
+    }
+
+    // ── Konto löschen (DSGVO Art. 17) ───────────────────────────
+    async function _deleteAccount() {
+        var m = document.getElementById('authUserMenu');
+        if (m) m.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'deleteAccountOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:10003;padding:20px;';
+        overlay.innerHTML = [
+            '<div style="background:var(--surface,#1e1e2e);border:1px solid rgba(239,68,68,.4);border-radius:14px;padding:28px 32px;max-width:420px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.6);text-align:center;">',
+            '<div style="font-size:38px;margin-bottom:12px;">⚠️</div>',
+            '<h2 style="color:#ef4444;font-size:17px;margin:0 0 10px;">Konto wirklich löschen?</h2>',
+            '<p style="color:var(--text-muted,#888);font-size:13px;line-height:1.55;margin:0 0 20px;">',
+            'Alle <strong style="color:var(--text-secondary,#ccc);">lokalen Daten</strong> werden sofort entfernt. ',
+            'Deine Cloud-Daten (E-Mail, Buchungen) werden innerhalb von ',
+            '<strong style="color:var(--text-secondary,#ccc);">3 Werktagen</strong> vollständig gelöscht.<br><br>',
+            'Diese Aktion kann <strong style="color:#ef4444;">nicht rückgängig</strong> gemacht werden.',
+            '</p>',
+            '<button id="delAccConfirmBtn" style="width:100%;padding:11px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:8px;">Ja, Konto endgültig löschen</button>',
+            '<button id="delAccCancelBtn" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:13px;width:100%;padding:6px 0;">Abbrechen</button>',
+            '</div>'
+        ].join('');
+        document.body.appendChild(overlay);
+
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.getElementById('delAccCancelBtn').addEventListener('click', function() { overlay.remove(); });
+        document.getElementById('delAccConfirmBtn').addEventListener('click', async function() {
+            overlay.remove();
+            await _doDeleteAccount();
+        });
+    }
+
+    async function _doDeleteAccount() {
+        _toast('⏳ Konto wird gelöscht...', 'info');
+        try {
+            var client = SupabaseDB.getClient();
+            var user   = await SupabaseDB.getCurrentUser();
+            if (client && user) {
+                // Cloud-Daten löschen (RLS erlaubt nur eigene Zeilen)
+                await client.from('user_data').delete().eq('user_id', user.id);
+                await client.from('subscriptions').delete().eq('user_id', user.id);
+            }
+        } catch (e) {
+            console.warn('[AuthUI] Cloud-Datenlöschung teilweise fehlgeschlagen:', e);
+        }
+        // Alle lokalen Daten löschen
+        try { localStorage.clear(); } catch(e) {}
+        // Abmelden
+        try { await SupabaseDB.signOut(); } catch(e) {}
+        _toast('✅ Konto gelöscht. Bis bald!', 'success');
+        setTimeout(function() { location.reload(); }, 2000);
     }
 
     // ──────────────────────────────────────────
@@ -582,5 +637,5 @@ var AuthUI = (function () {
         setTimeout(init, 300);
     }
 
-    return { init, openModal, closeModal, switchTab, _submit, openUserMenu, _syncNow, _logout };
+    return { init, openModal, closeModal, switchTab, _submit, openUserMenu, _syncNow, _logout, _deleteAccount };
 })();

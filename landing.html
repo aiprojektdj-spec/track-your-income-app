@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co; frame-src 'none';">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
 <title>Stackr — Buchhaltung für Selbstständige</title>
 <meta name="description" content="Rechnungen, EÜR und GoBD-Protokoll für Freelancer, Selbstständige und GbRs. Kostenlos starten — kein Abo nötig. EU-Server, DSGVO-konform.">
 <style>
@@ -632,8 +634,14 @@ footer {
         <button class="ptab ptab-active" data-tab="dashboard">📊 Dashboard</button>
         <button class="ptab" data-tab="buchungen">✏️ Buchungen</button>
         <button class="ptab" data-tab="rechnungen">🧾 Rechnungen</button>
-        <button class="ptab" data-tab="euer">📋 EÜR</button>
+        <button class="ptab" data-tab="eigenbelege">📋 Eigenbelege</button>
+        <button class="ptab" data-tab="euer">📊 EÜR</button>
         <button class="ptab" data-tab="lager">📦 Lager</button>
+        <button class="ptab" data-tab="fahrtenbuch">🚗 Fahrtenbuch</button>
+        <button class="ptab" data-tab="statistiken">📈 Statistiken</button>
+        <button class="ptab" data-tab="gobd">🔒 GoBD</button>
+        <button class="ptab" data-tab="steuer">💼 Steuer</button>
+        <button class="ptab" data-tab="gbr">🤝 GbR</button>
         <button class="ptab" data-tab="akademie">🎓 Akademie</button>
     </div>
 
@@ -703,6 +711,85 @@ footer {
                     <div class="pmock-row"><span>👜 Gucci Tasche Vintage</span><span style="color:var(--muted);font-size:11px;">EK 180 €</span><span style="color:var(--accent);">VK 380 €</span></div>
                     <div class="pmock-row"><span>🧥 Levi's Jacke M</span><span style="color:var(--muted);font-size:11px;">EK 22 €</span><span style="color:var(--accent);">VK 75 €</span></div>
                     <div class="pmock-row"><span>⌚ Casio G-Shock</span><span style="color:var(--muted);font-size:11px;">EK 45 €</span><span style="color:var(--accent);">VK 95 €</span></div>
+                </div>
+            </div>
+
+            <!-- Eigenbelege -->
+            <div class="pmock" id="pmock-eigenbelege" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">📋 Eigenbelege</span><span style="background:var(--accent);color:#fff;font-size:10px;padding:2px 8px;border-radius:4px;">+ Neuer Beleg</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">EB-2025-012</span><span>Versandmaterial Tedi</span><span style="color:var(--accent);">Verpackung</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">EB-2025-011</span><span>Flohmarkt-Einkauf bar</span><span style="color:var(--green);">Wareneinkauf</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">EB-2025-010</span><span>Fahrtkosten Kundenbesuch</span><span style="color:var(--muted);">Fahrtkosten</span></div>
+                </div>
+                <div style="margin-top:10px;padding:10px;background:var(--surface);border-radius:8px;font-size:11px;color:var(--muted);">Foto-Upload · §14 UStG · GoBD-konform</div>
+            </div>
+
+            <!-- Fahrtenbuch -->
+            <div class="pmock" id="pmock-fahrtenbuch" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">🚗 Fahrtenbuch</span><span style="color:var(--accent);font-size:11px;">1.240 km · 2025</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">03.06.25</span><span>Hamburg → Flohmarkt Bremen</span><span style="color:var(--accent);font-weight:700;">94 km</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">01.06.25</span><span>Büro → Postfiliale</span><span style="color:var(--accent);font-weight:700;">12 km</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:11px;">28.05.25</span><span>Lager → Kunden vor Ort</span><span style="color:var(--accent);font-weight:700;">38 km</span></div>
+                </div>
+                <div style="margin-top:8px;padding:8px 10px;background:var(--surface);border-radius:8px;font-size:11px;display:flex;justify-content:space-between;"><span style="color:var(--muted);">0,30 €/km (steuerlich)</span><span style="color:var(--green);font-weight:700;">= 372,00 € absetzbar</span></div>
+            </div>
+
+            <!-- Statistiken -->
+            <div class="pmock" id="pmock-statistiken" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">📈 Statistiken</span><span style="color:var(--muted);font-size:11px;">Jan – Jun 2025</span></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                    <div class="pmock-card"><div class="pmock-lbl">Beste Kategorie</div><div style="font-size:13px;font-weight:700;color:var(--accent);">👟 Schuhe</div><div class="pmock-sub">Ø 68% Marge</div></div>
+                    <div class="pmock-card"><div class="pmock-lbl">Bester Monat</div><div style="font-size:13px;font-weight:700;color:var(--green);">März</div><div class="pmock-sub">4.820 € Gewinn</div></div>
+                </div>
+                <div class="pmock-card" style="height:70px;display:flex;align-items:flex-end;gap:3px;padding:10px;">
+                    <div style="flex:1;background:var(--accent);opacity:.4;height:50%;border-radius:2px 2px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);opacity:.6;height:70%;border-radius:2px 2px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);height:100%;border-radius:2px 2px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);opacity:.8;height:85%;border-radius:2px 2px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);opacity:.6;height:65%;border-radius:2px 2px 0 0;"></div>
+                    <div style="flex:1;background:var(--accent);opacity:.75;height:75%;border-radius:2px 2px 0 0;"></div>
+                </div>
+            </div>
+
+            <!-- GoBD -->
+            <div class="pmock" id="pmock-gobd" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">🔒 GoBD Protokoll</span><span style="color:var(--green);font-size:11px;">● Unveränderlich</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:10px;font-family:monospace;">2025-06-03 14:22</span><span style="font-size:11px;">Buchung #B-2025-089 erstellt</span><span style="color:var(--green);font-size:10px;">CREATE</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:10px;font-family:monospace;">2025-06-03 13:11</span><span style="font-size:11px;">Rechnung RE-2025-042 bezahlt</span><span style="color:var(--accent);font-size:10px;">UPDATE</span></div>
+                    <div class="pmock-row"><span style="color:var(--muted);font-size:10px;font-family:monospace;">2025-06-02 09:05</span><span style="font-size:11px;">Buchung #B-2025-088 storniert</span><span style="color:var(--red);font-size:10px;">STORNO</span></div>
+                </div>
+                <div style="margin-top:8px;padding:8px 10px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:8px;font-size:11px;color:var(--subtle);">§ 147 AO · 10 Jahre Aufbewahrung · nicht löschbar</div>
+            </div>
+
+            <!-- Steuer & Soziales -->
+            <div class="pmock" id="pmock-steuer" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">💼 Steuer & Soziales</span></div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div class="pmock-card" style="display:flex;align-items:center;gap:10px;padding:10px;">
+                        <span style="font-size:18px;">📉</span><div><div style="font-size:12px;font-weight:600;">AfA / Abschreibungen</div><div style="font-size:10px;color:var(--muted);">3 Anlagen · Restwert 1.240 €</div></div>
+                    </div>
+                    <div class="pmock-card" style="display:flex;align-items:center;gap:10px;padding:10px;">
+                        <span style="font-size:18px;">🎨</span><div><div style="font-size:12px;font-weight:600;">KSK-Abgabe</div><div style="font-size:10px;color:var(--muted);">2025: 5,0% · Basis 12.400 €</div></div>
+                    </div>
+                    <div class="pmock-card" style="display:flex;align-items:center;gap:10px;padding:10px;">
+                        <span style="font-size:18px;">🧾</span><div><div style="font-size:12px;font-weight:600;">USt-Voranmeldung</div><div style="font-size:10px;color:var(--muted);">Q2 2025 · fällig 10.07.2025</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GbR -->
+            <div class="pmock" id="pmock-gbr" style="display:none;">
+                <div class="pmock-topbar"><span style="font-weight:700;">🤝 GbR-Verwaltung</span><span style="color:var(--muted);font-size:11px;">2 Gesellschafter</span></div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span>👤 Max Mustermann</span><span style="color:var(--muted);font-size:11px;">60%</span><span style="color:var(--accent);font-weight:700;">15.876 €</span></div>
+                    <div class="pmock-row"><span>👤 Anna Müller</span><span style="color:var(--muted);font-size:11px;">40%</span><span style="color:var(--accent);font-weight:700;">10.584 €</span></div>
+                </div>
+                <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+                    <div class="pmock-row"><span style="color:var(--subtle);font-size:11px;">Gesamtgewinn 2025</span><span style="color:var(--green);font-weight:700;">26.460 €</span></div>
+                    <div class="pmock-row"><span style="color:var(--subtle);font-size:11px;">Verrechnungskonto Max</span><span style="color:var(--muted);">− 2.400 €</span></div>
                 </div>
             </div>
 
@@ -784,6 +871,72 @@ footer {
                     <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> 1-Klick → Buchung übernehmen</li>
                     <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Lagerwert automatisch</li>
                     <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Retouren-Tracking</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-eigenbelege" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">Eigenbelege</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Kein Beleg? Kein Problem.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Barzahlungen, Flohmarkt-Käufe oder verlorene Quittungen — mit Eigenbelegen dokumentierst du jeden Ausgabe GoBD-konform, auch ohne Original.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Wareneinkauf in allen Formen</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Foto-Upload als Belegersatz</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> GoBD-konforme Begründung</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Automatisch in EÜR übernommen</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-fahrtenbuch" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">Fahrtenbuch</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Fahrten absetzen — automatisch.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Jede Geschäftsfahrt erfassen, Kilometer summieren — Stackr berechnet den steuerlich absetzbaren Betrag (0,30 €/km) direkt mit.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> 0,30 €/km Pauschale automatisch</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Jahreskilometer-Übersicht</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Excel-Export für Steuerberater</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> GoBD-konform protokolliert</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-statistiken" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">Statistiken</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Daten die dich schlauer machen.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Welche Kategorie bringt die beste Marge? Welcher Monat war am stärksten? Stackr zeigt dir Charts und Kennzahlen die wirklich zählen.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Kategorie-Analyse & Margen</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Monats- & Jahresvergleiche</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Top-Artikel & Plattformen</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Interaktive Charts (ApexCharts)</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-gobd" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">GoBD Protokoll</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Prüfungssicher. Von Anfang an.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Jede Änderung wird automatisch ins unveränderliche Audit-Log geschrieben. Kein Löschen, kein Überschreiben — genau wie es das Finanzamt verlangt.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Unveränderliches Audit-Log</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Storno statt Löschen (§ 146 AO)</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> 10 Jahre Aufbewahrung</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Export als CSV für Betriebsprüfung</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-steuer" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">Steuer & Soziales</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Alle Steuer-Module. Ein Ort.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">AfA, KSK, USt-Voranmeldung und Privatentnahmen — alles an einem Ort. Kein Jonglieren zwischen verschiedenen Tools.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> AfA / Abschreibungen mit Anlagenverzeichnis</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> KSK-Abgabe (2025: 5,0%)</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> USt-Voranmeldung vorbereiten</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Privatentnahmen & -einlagen</li>
+                </ul>
+            </div>
+            <div class="pdesc" id="pdesc-gbr" style="display:none;">
+                <div class="section-tag" style="margin-bottom:14px;">GbR-Verwaltung</div>
+                <h3 style="font-size:22px;font-weight:800;margin-bottom:12px;letter-spacing:-.3px;">Gemeinsam. Transparent. Fair.</h3>
+                <p style="color:var(--subtle);font-size:14px;line-height:1.7;margin-bottom:20px;">Mehrere Gesellschafter, automatische Gewinnverteilung, Verrechnungskonten — Stackr macht GbR-Buchhaltung so einfach wie Einzelunternehmen.</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Automatische Gewinnverteilung nach Quote</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Verrechnungskonten je Gesellschafter</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Gewerbesteuer & Feststellung</li>
+                    <li style="font-size:13px;color:var(--subtle);display:flex;gap:8px;"><span style="color:var(--accent);">✓</span> Separate EÜR pro Gesellschafter</li>
                 </ul>
             </div>
             <div class="pdesc" id="pdesc-akademie" style="display:none;">

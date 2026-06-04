@@ -1,0 +1,17 @@
+User-agent: *
+
+# App-Seiten nicht indexieren (keine öffentlichen Inhalte)
+Disallow: /index.html
+Disallow: /lager/
+Disallow: /rechnungen/
+Disallow: /eigenbelege/
+
+# Öffentliche Seiten erlauben
+Allow: /landing.html
+Allow: /agb.html
+Allow: /datenschutz.html
+Allow: /impressum.html
+Allow: /cookies.html
+Allow: /refund.html
+
+Sitemap: https://stackr-buchhaltung.netlify.app/sitemap.xml

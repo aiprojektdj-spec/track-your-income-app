@@ -12,11 +12,11 @@
   to = "/index.html"
   status = 200
 
-# Fallback: unbekannte Pfade → Landing Page
+# Fallback: unbekannte Pfade → Landing Page (404 für Search-Engines)
 [[redirects]]
   from = "/*"
   to = "/landing.html"
-  status = 200
+  status = 404
 
 # ── Security & Cache Headers ──────────────────────────────────────
 [[headers]]
@@ -26,6 +26,7 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.paddle.com; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co https://*.paddle.com; frame-src https://buy.paddle.com https://checkout.paddle.com;"
 
 # JS/CSS lang cachen (haben keine Versionierung via Query-String)
 [[headers]]

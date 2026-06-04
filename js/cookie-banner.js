@@ -103,13 +103,13 @@
         banner.id = 'cookieBanner';
         banner.innerHTML =
             '<div class="cb-text">' +
-                '<strong>🍪 Diese Seite verwendet Cookies</strong><br>' +
-                'Wir nutzen ausschließlich technisch notwendige Cookies für Anmeldung und Session-Verwaltung. ' +
-                'Mehr dazu in unserer <a href="datenschutz.html">Datenschutzerklärung</a>.' +
+                '<strong>🍪 Hinweis</strong><br>' +
+                'Diese App verwendet ausschließlich technisch notwendige Cookies für Anmeldung und Session-Verwaltung. ' +
+                'Keine Tracking- oder Werbe-Cookies. ' +
+                'Mehr in unserer <a href="datenschutz.html">Datenschutzerklärung</a>.' +
             '</div>' +
             '<div class="cb-actions">' +
-                '<button class="cb-btn-min" onclick="CookieBanner.acceptNecessary()">Nur notwendige</button>' +
-                '<button class="cb-btn-all" onclick="CookieBanner.acceptAll()">Alle akzeptieren ✓</button>' +
+                '<button class="cb-btn-all" onclick="CookieBanner.acceptNecessary()">Verstanden ✓</button>' +
             '</div>';
 
         // Nach kurzem Delay anzeigen (Seitenaufbau abwarten)

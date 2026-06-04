@@ -289,6 +289,16 @@ var UserPlan = (function () {
     // Trial bei Seitenload initialisieren (für nicht-eingeloggte User)
     _initTrialStart();
 
+    // ── Periodischer Trial-Check (alle 5 Minuten) ─────────────────
+    // Sperrt App wenn Trial während einer laufenden Sitzung abläuft
+    setInterval(function () {
+        if (_plan !== 'pro' && _loaded && isTrialExpired()) {
+            _plan = 'expired';
+            _updateUI();
+            _showLockModal();
+        }
+    }, 5 * 60 * 1000);
+
     return {
         load, isPro, isFree, getPlan,
         isTrialActive, isTrialExpired, getTrialDaysLeft,

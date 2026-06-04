@@ -59,13 +59,13 @@ serve(async (req) => {
   const customerId       = data.customer_id
 
   await supabase.from('subscriptions').upsert({
-    user_id:                      userId,
-    plan:                         'pro',
-    status:                       status,
-    current_period_end:           currentPeriodEnd,
-    lemonsqueezy_subscription_id: subscriptionId,
-    lemonsqueezy_customer_id:     customerId,
-    updated_at:                   new Date().toISOString()
+    user_id:                  userId,
+    plan:                     'pro',
+    status:                   status,
+    current_period_end:       currentPeriodEnd,
+    paddle_subscription_id:   subscriptionId,
+    paddle_customer_id:       customerId,
+    updated_at:               new Date().toISOString()
   }, { onConflict: 'user_id' })
 
   return new Response('OK', { status: 200 })

@@ -164,7 +164,30 @@ const App = {
             if (params.get('openBackup') === '1') {
                 setTimeout(() => this.showBackupModal && this.showBackupModal(), 300);
             }
-            // C: Backup-Hinweis-Banner (verzögert damit Seite erst gerendert ist)
+            // ?upgrade=success → Erfolgsmeldung nach Paddle-Checkout
+            if (params.get('upgrade') === 'success') {
+                setTimeout(() => {
+                    // URL bereinigen ohne Reload
+                    history.replaceState(null, '', location.pathname);
+                    // Notyf-Toast wenn verfügbar, sonst einfacher Alert
+                    if (typeof Notyf !== 'undefined') {
+                        new Notyf({ duration: 6000, position: { x: 'center', y: 'top' } })
+                            .success('🎉 Willkommen im Pro-Plan! Alle Features sind jetzt freigeschaltet.');
+                    } else {
+                        alert('🎉 Upgrade erfolgreich! Willkommen im Pro-Plan.');
+                    }
+                    // Plan neu laden damit Badge + Gates sofort aktualisiert werden
+                    if (typeof UserPlan !== 'undefined' && typeof SupabaseDB !== 'undefined') {
+                        const client = SupabaseDB.getClient();
+                        if (client) {
+                            client.auth.getUser().then(({ data }) => {
+                                if (data && data.user) UserPlan.load(data.user.id);
+                            }).catch(() => {});
+                        }
+                    }
+                }, 800);
+            }
+            // Backup-Hinweis-Banner (verzögert damit Seite erst gerendert ist)
             setTimeout(() => this._showBackupBanner(), 2000);
         }
     },

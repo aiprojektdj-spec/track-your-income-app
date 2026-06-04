@@ -62,34 +62,33 @@ CREATE POLICY "user_data: delete own"
 
 -- ================================================================
 -- TABELLE 2: subscriptions
--- Pro-Abo-Verwaltung — wird vom LemonSqueezy-Webhook beschrieben
+-- Pro-Abo-Verwaltung — wird vom Paddle-Webhook beschrieben
 -- user-plan.js liest hieraus: status, current_period_end, plan
 -- ================================================================
 CREATE TABLE IF NOT EXISTS public.subscriptions (
-    id                             bigserial    PRIMARY KEY,
-    user_id                        uuid         NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    id                         bigserial    PRIMARY KEY,
+    user_id                    uuid         NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
 
-    -- Abo-Status (von LemonSqueezy)
-    plan                           text         NOT NULL DEFAULT 'pro',
-    status                         text         NOT NULL DEFAULT 'active',
+    -- Abo-Status (von Paddle)
+    plan                       text         NOT NULL DEFAULT 'pro',
+    status                     text         NOT NULL DEFAULT 'active',
     -- Mögliche Status-Werte:
     --   active     → Pro-Features aktiv
-    --   on_trial   → Testphase (wird wie active behandelt)
+    --   trialing   → Testphase (wird wie active behandelt)
     --   cancelled  → Läuft bis current_period_end weiter
     --   paused     → Pausiert
     --   past_due   → Zahlung überfällig
     --   expired    → Abgelaufen
 
-    current_period_end             timestamptz,
+    current_period_end         timestamptz,
 
-    -- LemonSqueezy-IDs (für Webhook-Matching)
-    lemonsqueezy_subscription_id   text         UNIQUE,
-    lemonsqueezy_customer_id       text,
-    lemonsqueezy_order_id          text,
-    variant_id                     text,
+    -- Paddle-IDs (für Webhook-Matching)
+    paddle_subscription_id     text         UNIQUE,
+    paddle_customer_id         text,
+    variant_id                 text,
 
-    created_at                     timestamptz  NOT NULL DEFAULT now(),
-    updated_at                     timestamptz  NOT NULL DEFAULT now()
+    created_at                 timestamptz  NOT NULL DEFAULT now(),
+    updated_at                 timestamptz  NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id
@@ -111,10 +110,19 @@ CREATE POLICY "subscriptions: select own"
 
 
 -- ================================================================
+-- MIGRATION: Falls DB bereits mit lemonsqueezy_* Spalten deployt:
+-- ALTER TABLE public.subscriptions
+--   RENAME COLUMN lemonsqueezy_subscription_id TO paddle_subscription_id;
+-- ALTER TABLE public.subscriptions
+--   RENAME COLUMN lemonsqueezy_customer_id TO paddle_customer_id;
+-- ALTER TABLE public.subscriptions
+--   DROP COLUMN IF EXISTS lemonsqueezy_order_id;
+-- ================================================================
 -- FERTIG
 -- Nach dem Ausführen:
--- 1. Edge Function deployen (supabase/functions/lemonsqueezy-webhook/)
--- 2. In LemonSqueezy: Webhook-URL eintragen + Secret kopieren
--- 3. In Supabase: LEMONSQUEEZY_WEBHOOK_SECRET als Secret setzen
--- 4. In user-plan.js: CHECKOUT_URL mit echtem Produkt-Link ersetzen
+-- 1. Edge Function deployen (supabase/functions/paddle-webhook/)
+-- 2. In Paddle: Webhook-URL eintragen + Secret kopieren
+--    URL: https://<project-ref>.supabase.co/functions/v1/paddle-webhook
+-- 3. In Supabase: PADDLE_WEBHOOK_SECRET als Secret setzen
+--    (Dashboard → Edge Functions → Secrets)
 -- ================================================================

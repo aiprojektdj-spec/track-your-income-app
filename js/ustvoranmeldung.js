@@ -17,25 +17,40 @@ const UstVoranmeldung = {
         const expenses  = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
         const retouren  = Store.getRetouren().filter(r => Utils.isInPeriod(r.datum, startDate, endDate));
 
-        // Brutto-Umsätze aus Verkäufen (Marktplätze zeigen Brutto)
-        const bruttoUmsatz = sales.reduce((s, v) =>
-            s + (parseFloat(v.verkaufspreis) || 0) + (parseFloat(v.versandkostenKaeufer) || 0), 0)
+        // Brutto-Umsätze nach Steuersatz aufteilen (Feld: steuersatz, Default: 19)
+        const _rate = item => (parseFloat(item.steuersatz) || 19);
+        const _brutto = item => (parseFloat(item.verkaufspreis) || 0) + (parseFloat(item.versandkostenKaeufer) || 0);
+
+        const bruttoUmsatz7  = sales.filter(v => _rate(v) === 7)
+            .reduce((s, v) => s + _brutto(v), 0);
+        const bruttoUmsatz19 = sales.filter(v => _rate(v) !== 7)
+            .reduce((s, v) => s + _brutto(v), 0)
             - retouren.reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
 
-        // Umsätze (§10 UStG): Kz. 81 = Netto-Umsätze 19%
-        const nettoUmsatz19 = bruttoUmsatz / 1.19;
-        const ust19 = nettoUmsatz19 * 0.19;
+        const bruttoUmsatz = bruttoUmsatz19 + bruttoUmsatz7;
+
+        // Kz. 81 + Kz. 83: Netto-Umsätze 19%
+        const nettoUmsatz19 = bruttoUmsatz19 / 1.19;
+        const ust19         = nettoUmsatz19 * 0.19;
+
+        // Kz. 86 + Kz. 35: Netto-Umsätze 7%
+        const nettoUmsatz7  = bruttoUmsatz7 / 1.07;
+        const ust7          = nettoUmsatz7 * 0.07;
 
         // Vorsteuer aus Einkäufen + Ausgaben: Kz. 66
-        const bruttoAusgaben = purchases.reduce((s, p) =>
-            s + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1), 0)
+        const _rateP = item => (parseFloat(item.steuersatz) || 19);
+        const bruttoAusgaben7  = purchases.filter(p => _rateP(p) === 7)
+            .reduce((s, p) => s + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1), 0);
+        const bruttoAusgaben19 = purchases.filter(p => _rateP(p) !== 7)
+            .reduce((s, p) => s + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1), 0)
             + expenses.reduce((s, e) => s + (parseFloat(e.betrag) || 0), 0);
-        const vorsteuer = bruttoAusgaben / 1.19 * 0.19;
+
+        const vorsteuer = (bruttoAusgaben19 / 1.19 * 0.19) + (bruttoAusgaben7 / 1.07 * 0.07);
 
         // Zahllast / Erstattung
-        const zahllast = ust19 - vorsteuer;
+        const zahllast = ust19 + ust7 - vorsteuer;
 
-        return { bruttoUmsatz, nettoUmsatz19, ust19, vorsteuer, zahllast };
+        return { bruttoUmsatz, bruttoUmsatz19, bruttoUmsatz7, nettoUmsatz19, nettoUmsatz7, ust19, ust7, vorsteuer, zahllast };
     },
 
     // Startdatum eines Quartals
@@ -134,6 +149,10 @@ const UstVoranmeldung = {
                     <tbody>
                         <tr><td><strong>Kz. 81</strong></td><td>Steuerpflichtige Umsätze (19%) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoUmsatz19)}</td></tr>
                         <tr><td><strong>Kz. 83</strong></td><td>Umsatzsteuer darauf (19%)</td><td style="text-align:right">${Utils.formatCurrency(calc.ust19)}</td></tr>
+                        ${calc.nettoUmsatz7 > 0 ? `
+                        <tr><td><strong>Kz. 86</strong></td><td>Steuerpflichtige Umsätze (7%) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoUmsatz7)}</td></tr>
+                        <tr><td><strong>Kz. 35</strong></td><td>Umsatzsteuer darauf (7%)</td><td style="text-align:right">${Utils.formatCurrency(calc.ust7)}</td></tr>
+                        ` : ''}
                         <tr><td><strong>Kz. 66</strong></td><td>Vorsteuerbeträge (§15 UStG)</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(calc.vorsteuer)}</td></tr>
                         <tr class="euer-result">
                             <td></td>
@@ -186,6 +205,8 @@ const UstVoranmeldung = {
             <div style="padding:12px 16px;font-size:13px;color:var(--text-muted);line-height:1.7;">
                 <strong>Kz. 81:</strong> Netto-Umsätze aus Lieferungen und Leistungen zum Regelsteuersatz 19%.<br>
                 <strong>Kz. 83:</strong> Steuerbetrag (19%) auf die Umsätze aus Kz. 81.<br>
+                <strong>Kz. 86:</strong> Netto-Umsätze zum ermäßigten Steuersatz 7% (z.B. Bücher, Lebensmittel).<br>
+                <strong>Kz. 35:</strong> Steuerbetrag (7%) auf die Umsätze aus Kz. 86.<br>
                 <strong>Kz. 66:</strong> Abzugsfähige Vorsteuer aus Eingangsrechnungen (§15 UStG).<br>
                 <strong>Abgabefrist:</strong> 10. des auf den Voranmeldungszeitraum folgenden Monats (§18 Abs. 1 UStG).<br>
                 <strong>Dauerfreigabe:</strong> Auf Antrag kann eine Dauerfristverlängerung von 1 Monat gewährt werden.<br>
@@ -236,6 +257,10 @@ const UstVoranmeldung = {
             ['Kennzahl', 'Bezeichnung', 'Betrag EUR'],
             ['Kz. 81', 'Steuerpflichtige Umsätze 19% (Netto)', c.nettoUmsatz19.toFixed(2)],
             ['Kz. 83', 'Umsatzsteuer 19%', c.ust19.toFixed(2)],
+            ...(c.nettoUmsatz7 > 0 ? [
+                ['Kz. 86', 'Steuerpflichtige Umsätze 7% (Netto)', c.nettoUmsatz7.toFixed(2)],
+                ['Kz. 35', 'Umsatzsteuer 7%', c.ust7.toFixed(2)],
+            ] : []),
             ['Kz. 66', 'Vorsteuer', c.vorsteuer.toFixed(2)],
             ['', 'Verbleibende Zahllast', c.zahllast.toFixed(2)],
         ];

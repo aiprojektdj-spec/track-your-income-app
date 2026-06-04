@@ -104,8 +104,7 @@
         banner.innerHTML =
             '<div class="cb-text">' +
                 '<strong>🍪 Diese Seite verwendet Cookies</strong><br>' +
-                'Wir nutzen notwendige Cookies für die Anmeldung und Session-Verwaltung. ' +
-                'Optionale Cookies helfen uns, die App zu verbessern. ' +
+                'Wir nutzen ausschließlich technisch notwendige Cookies für Anmeldung und Session-Verwaltung. ' +
                 'Mehr dazu in unserer <a href="datenschutz.html">Datenschutzerklärung</a>.' +
             '</div>' +
             '<div class="cb-actions">' +

@@ -100,6 +100,50 @@ var UserPlan = (function () {
     var PRICE_ID_MONTHLY = 'pri_01kt7ksxhv4q4evpz78jsfjv98';
     var PRICE_ID_YEARLY  = 'pri_01kt7m5y77v2d49kgc8hfpr13n';
 
+    // Widerrufsrecht-Bestätigung vor Checkout (§ 356 Abs. 5 BGB)
+    function _confirmWiderrufsrecht(onConfirmed) {
+        var overlay = document.createElement('div');
+        overlay.id = 'widerrufsModalOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:10002;padding:20px;';
+
+        overlay.innerHTML = [
+            '<div style="background:var(--surface,#1e1e2e);border:1px solid rgba(99,102,241,.35);border-radius:14px;padding:28px 32px;max-width:460px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.6);">',
+            '<h2 style="color:var(--text-primary,#fff);font-size:17px;margin:0 0 6px;">Bestellung bestätigen</h2>',
+            '<p style="color:var(--text-muted,#888);font-size:12px;margin:0 0 18px;">Bitte bestätige vor dem Kauf:</p>',
+            '<label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;margin-bottom:22px;padding:14px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.15);border-radius:8px;">',
+            '<input type="checkbox" id="widerrufsCheckbox" style="margin-top:2px;flex-shrink:0;width:16px;height:16px;accent-color:#6366f1;cursor:pointer;">',
+            '<span style="color:var(--text-secondary,#ccc);font-size:13px;line-height:1.55;">',
+            'Ich stimme ausdrücklich zu, dass mit der Ausführung des Vertrags sofort begonnen wird, ',
+            'und nehme zur Kenntnis, dass ich damit mein Widerrufsrecht verliere, sobald der Dienst ',
+            'vollständig erbracht wurde (§&nbsp;356 Abs.&nbsp;5 BGB).',
+            '</span>',
+            '</label>',
+            '<button id="widerrufsWeiterBtn" disabled style="width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;margin-bottom:8px;opacity:.35;cursor:not-allowed;transition:opacity .2s,cursor .2s;">Weiter zur Zahlung →</button>',
+            '<button id="widerrufsAbbrBtn" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:13px;width:100%;padding:6px 0;">Abbrechen</button>',
+            '</div>'
+        ].join('');
+
+        document.body.appendChild(overlay);
+
+        var cb  = document.getElementById('widerrufsCheckbox');
+        var btn = document.getElementById('widerrufsWeiterBtn');
+        var abb = document.getElementById('widerrufsAbbrBtn');
+
+        cb.addEventListener('change', function () {
+            btn.disabled = !cb.checked;
+            btn.style.opacity = cb.checked ? '1' : '.35';
+            btn.style.cursor  = cb.checked ? 'pointer' : 'not-allowed';
+        });
+        btn.addEventListener('click', function () {
+            if (cb.checked) { overlay.remove(); onConfirmed(); }
+        });
+        abb.addEventListener('click', function () { overlay.remove(); });
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+        document.addEventListener('keydown', function escH(e) {
+            if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escH); }
+        });
+    }
+
     function openCheckout(priceId) {
         priceId = priceId || PRICE_ID_MONTHLY;
 
@@ -109,21 +153,23 @@ var UserPlan = (function () {
             return;
         }
 
-        var email = '', userId = _userId || '';
-        try {
-            var session = JSON.parse(localStorage.getItem('oyi_auth_session') || '{}');
-            email  = (session.user && session.user.email) || '';
-            userId = (session.user && session.user.id) || userId;
-        } catch (e) {}
+        _confirmWiderrufsrecht(function () {
+            var email = '', userId = _userId || '';
+            try {
+                var session = JSON.parse(localStorage.getItem('oyi_auth_session') || '{}');
+                email  = (session.user && session.user.email) || '';
+                userId = (session.user && session.user.id) || userId;
+            } catch (e) {}
 
-        var opts = {
-            items: [{ priceId: priceId, quantity: 1 }],
-            customData: { user_id: userId },
-            successUrl: 'https://stackr-buchhaltung.netlify.app/index.html?upgrade=success'
-        };
-        if (email) opts.customer = { email: email };
+            var opts = {
+                items: [{ priceId: priceId, quantity: 1 }],
+                customData: { user_id: userId },
+                successUrl: 'https://stackr-buchhaltung.netlify.app/index.html?upgrade=success'
+            };
+            if (email) opts.customer = { email: email };
 
-        Paddle.Checkout.open(opts);
+            Paddle.Checkout.open(opts);
+        });
     }
 
     function openCheckoutYearly() { openCheckout(PRICE_ID_YEARLY); }

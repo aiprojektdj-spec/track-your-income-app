@@ -4,13 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Gate: Kein Supabase-Session → sofort zur Landing Page (synchron, vor allem anderen) -->
+    <!-- Ausnahme: Supabase Password-Reset-Link (#type=recovery) darf durch -->
     <script>
     (function(){
+        // Password-Reset-Link von Supabase: hash enthält type=recovery
+        var hash = location.hash || '';
+        if (hash.indexOf('type=recovery') !== -1) return; // Reset-Handler läuft weiter unten
+
         try {
             var raw = localStorage.getItem('oyi_auth_session');
             if (!raw) { location.replace('index.html'); return; }
             var s = JSON.parse(raw);
-            // Supabase v2 speichert access_token direkt oder unter currentSession
             var token = (s && s.access_token) || (s && s.currentSession && s.currentSession.access_token);
             if (!token) location.replace('index.html');
         } catch(e) {
@@ -303,6 +307,67 @@
                 });
             });
         })();
+    </script>
+
+    <!-- Password-Reset Handler (Supabase #type=recovery) -->
+    <script>
+    (function() {
+        var hash = location.hash || '';
+        if (hash.indexOf('type=recovery') === -1) return;
+
+        // Access-Token aus Hash extrahieren
+        var params = {};
+        hash.replace(/^#/, '').split('&').forEach(function(p) {
+            var kv = p.split('=');
+            params[kv[0]] = decodeURIComponent(kv[1] || '');
+        });
+
+        // Overlay sofort zeigen (vor allem anderen)
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px;';
+        overlay.innerHTML = [
+            '<div style="background:var(--surface,#1e1e2e);border:1px solid rgba(99,102,241,.35);border-radius:14px;padding:32px;max-width:380px;width:100%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6);">',
+            '<div style="font-size:32px;margin-bottom:12px;">🔑</div>',
+            '<h2 style="color:var(--text-primary,#fff);font-size:18px;margin:0 0 20px;">Neues Passwort setzen</h2>',
+            '<input id="pwResetInput" type="password" placeholder="Neues Passwort (mind. 6 Zeichen)" style="width:100%;padding:10px 12px;background:var(--surface-2,rgba(255,255,255,.06));border:1px solid var(--border,#444);border-radius:8px;color:var(--text-primary,#fff);font-size:14px;box-sizing:border-box;margin-bottom:12px;">',
+            '<button id="pwResetBtn" style="width:100%;padding:10px;background:var(--accent,#10b981);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">Passwort speichern</button>',
+            '<div id="pwResetMsg" style="margin-top:12px;font-size:13px;min-height:20px;"></div>',
+            '</div>'
+        ].join('');
+        document.body.appendChild(overlay);
+
+        document.getElementById('pwResetBtn').addEventListener('click', async function() {
+            var pw = document.getElementById('pwResetInput').value;
+            var msg = document.getElementById('pwResetMsg');
+            if (pw.length < 6) { msg.style.color = '#ef4444'; msg.textContent = 'Mind. 6 Zeichen.'; return; }
+
+            this.disabled = true;
+            this.textContent = 'Speichern...';
+            msg.textContent = '';
+
+            try {
+                // Warte bis Supabase-Client geladen ist
+                var tries = 0;
+                while (typeof SupabaseDB === 'undefined' && tries++ < 50) {
+                    await new Promise(function(r) { setTimeout(r, 100); });
+                }
+                var c = SupabaseDB.getClient();
+                if (!c) throw new Error('Kein Supabase-Client');
+
+                var result = await c.auth.updateUser({ password: pw });
+                if (result.error) throw result.error;
+
+                msg.style.color = '#10b981';
+                msg.textContent = '✅ Passwort geändert! Weiterleitung...';
+                setTimeout(function() { overlay.remove(); location.hash = ''; }, 1500);
+            } catch(e) {
+                msg.style.color = '#ef4444';
+                msg.textContent = e.message || 'Fehler beim Speichern.';
+                document.getElementById('pwResetBtn').disabled = false;
+                document.getElementById('pwResetBtn').textContent = 'Passwort speichern';
+            }
+        });
+    })();
     </script>
 </body>
 </html>

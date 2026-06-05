@@ -1356,7 +1356,7 @@ footer {
         if (!c) { showErr('Keine Verbindung. Bitte Seite neu laden.'); return; }
         try {
             var result = await c.auth.resetPasswordForEmail(email, {
-                redirectTo: 'https://stackr-buchhaltung.netlify.app/app.html'
+                redirectTo: 'https://track-your-income-app.vercel.app/app.html'
             });
             if (result.error) {
                 var msg = result.error.message || 'Fehler';

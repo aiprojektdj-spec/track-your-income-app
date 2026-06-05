@@ -1174,7 +1174,10 @@ footer {
         <label class="auth-lbl">E-Mail-Adresse</label>
         <input id="authEmail" type="email" class="auth-inp" placeholder="deine@email.de" autocomplete="username">
         <label class="auth-lbl">Passwort</label>
-        <input id="authPassword" type="password" class="auth-inp" placeholder="Mindestens 6 Zeichen" autocomplete="current-password">
+        <div style="position:relative;">
+            <input id="authPassword" type="password" class="auth-inp" placeholder="Mindestens 6 Zeichen" autocomplete="current-password" style="padding-right:44px;">
+            <button type="button" onclick="var i=document.getElementById('authPassword');var b=this;if(i.type==='password'){i.type='text';b.textContent='🙈';}else{i.type='password';b.textContent='👁';}" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px;line-height:1;" title="Passwort anzeigen">👁</button>
+        </div>
         <a href="#" onclick="resetPassword(); return false;" style="font-size:12px;color:var(--muted);text-decoration:none;display:block;text-align:right;margin-top:4px;">Passwort vergessen?</a>
         <div id="authErr" class="auth-err"></div>
         <div id="authOk"  class="auth-ok"></div>

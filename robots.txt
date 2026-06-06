@@ -14,4 +14,4 @@ Allow: /impressum.html
 Allow: /cookies.html
 Allow: /refund.html
 
-Sitemap: https://stackr-buchhaltung.netlify.app/sitemap.xml
+Sitemap: https://track-your-income-app.vercel.app/sitemap.xml

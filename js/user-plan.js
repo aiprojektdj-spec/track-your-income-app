@@ -61,11 +61,11 @@ var UserPlan = (function () {
                 _trialStart = new Date(user.user_metadata.trial_start);
                 localStorage.setItem(TRIAL_STORAGE_KEY, user.user_metadata.trial_start);
             } else if (user) {
-                // Noch kein trial_start in Metadata → jetzt setzen
-                var localStart = localStorage.getItem(TRIAL_STORAGE_KEY) || new Date().toISOString();
-                _trialStart = new Date(localStart);
-                localStorage.setItem(TRIAL_STORAGE_KEY, localStart);
-                await client.auth.updateUser({ data: { trial_start: localStart } });
+                // Noch kein trial_start → user.created_at nutzen (zuverlässig, nicht manipulierbar)
+                var accountCreated = user.created_at || new Date().toISOString();
+                _trialStart = new Date(accountCreated);
+                localStorage.setItem(TRIAL_STORAGE_KEY, accountCreated);
+                await client.auth.updateUser({ data: { trial_start: accountCreated } });
             }
 
             // Subscription-Status prüfen
@@ -243,7 +243,7 @@ var UserPlan = (function () {
             var opts = {
                 items: [{ priceId: priceId, quantity: 1 }],
                 customData: { user_id: userId },
-                successUrl: 'https://stackr-buchhaltung.netlify.app/app.html?upgrade=success'
+                successUrl: 'https://track-your-income-app.vercel.app/app.html?upgrade=success'
             };
             if (email) opts.customer = { email: email };
 

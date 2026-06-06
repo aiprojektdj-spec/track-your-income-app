@@ -147,7 +147,7 @@ const GbrModul = {
                             <span style="text-align:right;font-weight:700;color:${offen>0.01?'var(--danger)':'var(--success)'};">${Utils.formatCurrency(Math.max(0,offen))}</span>
                         </div>
                         <button class="btn btn-small btn-primary" style="width:100%;margin-top:12px;"
-                            onclick="GbR.openBuchenModal(${year},null,'${g.id}')">💸 Auszahlung buchen</button>
+                            onclick="GbrModul._tab='verrechnung';GbrModul._refresh();">💸 Auszahlung buchen</button>
                     </div>`;
                 }).join('')}
             </div>`}

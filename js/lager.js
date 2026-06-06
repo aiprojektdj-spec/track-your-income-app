@@ -442,6 +442,7 @@ const Lager = {
             const serviceCount  = purchases.filter(p => ['beschadigt','reinigung','reparatur'].includes(p.status)).reduce((s, p) => s + (parseInt(p.anzahl) || 1), 0);
 
             const brands = [...new Set(allPurchases.map(p => p.marke).filter(Boolean))].sort();
+            const years  = [...new Set(allPurchases.map(p => (p.datum||'').slice(0,4)).filter(Boolean))].sort().reverse();
             const f = this._filters;
 
             let filtered = [...allPurchases];
@@ -450,6 +451,8 @@ const Lager = {
             if (f.artikeltyp)    filtered = filtered.filter(p => p.artikeltyp === f.artikeltyp);
             if (f.warenkategorie)filtered = filtered.filter(p => (p.warenkategorie || '') === f.warenkategorie);
             if (f.status)        filtered = filtered.filter(p => p.status === f.status);
+            if (f.filterJahr)    filtered = filtered.filter(p => (p.datum||'').startsWith(f.filterJahr));
+            if (f.filterMonat)   filtered = filtered.filter(p => (p.datum||'').slice(5,7) === f.filterMonat);
             if (f.search && f.search.trim()) {
                 const term = f.search.trim().toLowerCase();
                 filtered = filtered.filter(p =>
@@ -541,6 +544,22 @@ const Lager = {
                         <select class="form-select" id="lagerFilterStatus">
                             <option value="">Alle</option>
                             ${Object.entries(this.STATUS_CONFIG).map(([k,v]) => `<option value="${k}" ${f.status === k ? 'selected' : ''}>${v.icon} ${v.label}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Jahr</label>
+                        <select class="form-select" id="lagerFilterJahr">
+                            <option value="">Alle</option>
+                            ${years.map(y => `<option value="${y}" ${f.filterJahr == y ? 'selected' : ''}>${y}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Monat</label>
+                        <select class="form-select" id="lagerFilterMonat">
+                            <option value="">Alle</option>
+                            ${['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'].map((m,i) =>
+                                `<option value="${String(i+1).padStart(2,'0')}" ${f.filterMonat === String(i+1).padStart(2,'0') ? 'selected' : ''}>${m}</option>`
+                            ).join('')}
                         </select>
                     </div>
                     <div class="filter-group">
@@ -1729,12 +1748,14 @@ const Lager = {
                     artikeltyp:     (document.getElementById('lagerFilterTyp')       || {}).value || '',
                     warenkategorie: (document.getElementById('lagerFilterKat')       || {}).value || '',
                     status:         (document.getElementById('lagerFilterStatus')    || {}).value || '',
+                    filterJahr:     (document.getElementById('lagerFilterJahr')      || {}).value || '',
+                    filterMonat:    (document.getElementById('lagerFilterMonat')     || {}).value || '',
                     showStorniert:  !!(document.getElementById('lagerFilterStorniert') || {}).checked
                 };
                 this._currentPage = 1;
                 rerender();
             };
-            ['lagerFilterMarke','lagerFilterTyp','lagerFilterKat','lagerFilterStatus','lagerFilterStorniert'].forEach(id => {
+            ['lagerFilterMarke','lagerFilterTyp','lagerFilterKat','lagerFilterStatus','lagerFilterJahr','lagerFilterMonat','lagerFilterStorniert'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('change', applyFilters);
             });

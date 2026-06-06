@@ -96,10 +96,12 @@ const GbrModul = {
         const gewSt      = GbR.berechneGewSt(gewinn);
         const nettoGewinn = gewinn - gewSt;
 
-        const auszData  = Store.get('gbr_auszahlungen') || {};
-        const totalAusz = Object.entries(auszData)
-            .filter(([ym]) => ym.startsWith(String(year)))
-            .reduce((s,[,m]) => s + Object.values(m).reduce((a,e)=>a+(parseFloat(e.betrag)||0),0), 0);
+        // V2: ausgezahlt korrekt aus gbr_auszahlungen_v2 lesen
+        let totalAusz = 0;
+        for (let mIdx = 0; mIdx < 12; mIdx++) {
+            const mk = `${year}-${String(mIdx+1).padStart(2,'0')}`;
+            gs.forEach(g => { totalAusz += GbR.getTotalAusgezahlt(mk, g.id); });
+        }
 
         return `
         <!-- KPI-Kacheln -->
@@ -123,9 +125,11 @@ const GbrModul = {
                     const brutto  = parseFloat(v.gewinnanteil)||0;
                     const gst     = parseFloat(v.gewSt)||0;
                     const netto   = brutto - gst;
-                    const ausgezahlt = Object.entries(auszData)
-                        .filter(([ym])=>ym.startsWith(String(year)))
-                        .reduce((s,[,m])=>s+(parseFloat((m[g.id]||{}).betrag)||0), 0);
+                    let ausgezahlt = 0;
+                    for (let mIdx = 0; mIdx < 12; mIdx++) {
+                        const mk = `${year}-${String(mIdx+1).padStart(2,'0')}`;
+                        ausgezahlt += GbR.getTotalAusgezahlt(mk, g.id);
+                    }
                     const offen = netto - ausgezahlt;
                     return `
                     <div style="background:var(--bg-secondary);border-radius:10px;padding:16px;border:1px solid var(--border);">

@@ -51,7 +51,7 @@
 <!-- ── SIDEBAR (fixed, hidden by default) ── -->
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <h1>📦 Lager</h1>
+        <h1>Lager</h1>
         <div class="subtitle">Artikel · Fotos · EÜR</div>
     </div>
 
@@ -59,75 +59,78 @@
         <div class="sidebar-section">Aktionen</div>
         <div class="sidebar-section-items">
             <div class="sidebar-link active" id="sidebarNeuArtikel">
-                <span class="icon">➕</span><span class="sidebar-link-label"> Neuer Artikel</span>
+                <span class="icon"><i class="ti ti-plus"></i></span><span class="sidebar-link-label"> Neuer Artikel</span>
             </div>
             <div class="sidebar-link" id="sidebarBuchungen" onclick="LagerPage.switchTab('buchungen')">
-                <span class="icon">📝</span><span class="sidebar-link-label"> Buchungen</span>
+                <span class="icon"><i class="ti ti-notes"></i></span><span class="sidebar-link-label"> Buchungen</span>
             </div>
             <div class="sidebar-link" id="sidebarBulkEinkauf">
-                <span class="icon">📦</span><span class="sidebar-link-label"> Bulk-Einkauf</span>
+                <span class="icon"><i class="ti ti-package"></i></span><span class="sidebar-link-label"> Bulk-Einkauf</span>
             </div>
             <div class="sidebar-link" id="sidebarExcelImport">
-                <span class="icon">📊</span><span class="sidebar-link-label"> Excel-Import</span>
+                <span class="icon"><i class="ti ti-table-import"></i></span><span class="sidebar-link-label"> Excel-Import</span>
             </div>
             <div class="sidebar-link" id="sidebarSalesImport">
-                <span class="icon">📥</span><span class="sidebar-link-label"> Verkäufe-Import</span>
+                <span class="icon"><i class="ti ti-download"></i></span><span class="sidebar-link-label"> Verkäufe-Import</span>
             </div>
         </div>
 
         <div class="sidebar-section">Schnellfilter</div>
         <div class="sidebar-section-items">
             <div class="sidebar-link" data-quick-filter="">
-                <span class="icon">📋</span><span class="sidebar-link-label"> Alle Artikel</span>
+                <span class="icon"><i class="ti ti-list"></i></span><span class="sidebar-link-label"> Alle Artikel</span>
             </div>
             <div class="sidebar-link" data-quick-filter="verfuegbar">
-                <span class="icon" style="color:#22c55e;">●</span>
+                <span class="icon" style="color:#22c55e;"><i class="ti ti-circle-filled"></i></span>
                 <span class="sidebar-link-label"> Verfügbar</span>
                 <span class="sidebar-link-badge" id="badge_verfuegbar"></span>
             </div>
             <div class="sidebar-link" data-quick-filter="reserviert">
-                <span class="icon" style="color:#3b82f6;">◐</span>
+                <span class="icon" style="color:#3b82f6;"><i class="ti ti-circle-half"></i></span>
                 <span class="sidebar-link-label"> Reserviert</span>
                 <span class="sidebar-link-badge" id="badge_reserviert"></span>
             </div>
             <div class="sidebar-link" data-quick-filter="verkauft">
-                <span class="icon" style="color:#6b7280;">○</span>
+                <span class="icon" style="color:#6b7280;"><i class="ti ti-circle"></i></span>
                 <span class="sidebar-link-label"> Verkauft</span>
                 <span class="sidebar-link-badge" id="badge_verkauft"></span>
             </div>
             <div class="sidebar-link" data-quick-filter="beschadigt">
-                <span class="icon" style="color:#ef4444;">⚠</span><span class="sidebar-link-label"> Beschädigt</span>
+                <span class="icon" style="color:#ef4444;"><i class="ti ti-alert-triangle"></i></span><span class="sidebar-link-label"> Beschädigt</span>
             </div>
             <div class="sidebar-link" data-quick-filter="reinigung">
-                <span class="icon">🧺</span><span class="sidebar-link-label"> Reinigung</span>
+                <span class="icon"><i class="ti ti-wash"></i></span><span class="sidebar-link-label"> Reinigung</span>
             </div>
             <div class="sidebar-link" data-quick-filter="reparatur">
-                <span class="icon">🔧</span><span class="sidebar-link-label"> Reparatur</span>
+                <span class="icon"><i class="ti ti-tool"></i></span><span class="sidebar-link-label"> Reparatur</span>
             </div>
             <div class="sidebar-link" data-quick-filter="ausgelistet">
-                <span class="icon" style="color:#9ca3af;">🚫</span><span class="sidebar-link-label"> Ausgelistet</span>
+                <span class="icon" style="color:#9ca3af;"><i class="ti ti-ban"></i></span><span class="sidebar-link-label"> Ausgelistet</span>
             </div>
         </div>
 
         <div class="sidebar-section">Verknüpfungen</div>
         <div class="sidebar-section-items">
             <div class="sidebar-link" onclick="window.location.href='../app.html'">
-                <span class="icon">📊</span><span class="sidebar-link-label"> Dashboard</span>
+                <span class="icon"><i class="ti ti-layout-dashboard"></i></span><span class="sidebar-link-label"> Dashboard</span>
             </div>
             <div class="sidebar-link" onclick="window.location.href='../app.html?page=euer'">
-                <span class="icon">📋</span><span class="sidebar-link-label"> EÜR ansehen</span>
+                <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> EÜR ansehen</span>
+            </div>
+            <div class="sidebar-link" id="sidebarGbrLink" style="display:none;" onclick="window.location.href='../app.html?page=gbr'">
+                <span class="icon"><i class="ti ti-users"></i></span><span class="sidebar-link-label"> GbR-Verwaltung</span>
             </div>
             <div class="sidebar-link" onclick="window.location.href='../app.html?page=retouren'">
-                <span class="icon">↩️</span><span class="sidebar-link-label"> Retouren</span>
+                <span class="icon"><i class="ti ti-arrow-back-up"></i></span><span class="sidebar-link-label"> Retouren</span>
             </div>
             <div class="sidebar-link" onclick="window.location.href='../app.html?page=kassenbuch'">
-                <span class="icon">💵</span><span class="sidebar-link-label"> Kassenbuch</span>
+                <span class="icon"><i class="ti ti-cash"></i></span><span class="sidebar-link-label"> Kassenbuch</span>
             </div>
             <div class="sidebar-link" onclick="window.location.href='../app.html?page=materiallager'">
-                <span class="icon">🗃️</span><span class="sidebar-link-label"> Materiallager</span>
+                <span class="icon"><i class="ti ti-box"></i></span><span class="sidebar-link-label"> Materiallager</span>
             </div>
             <div class="sidebar-link" onclick="window.location.href='../app.html?openBackup=1'">
-                <span class="icon">💾</span><span class="sidebar-link-label"> Backup &amp; Daten</span>
+                <span class="icon"><i class="ti ti-device-floppy"></i></span><span class="sidebar-link-label"> Backup &amp; Daten</span>
             </div>
         </div>
     </nav>
@@ -2349,7 +2352,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 </style>
 
 <script>
-// ── GbR-Tab: show when GbR/eGbR is active ──
+// ── GbR-Tab + Sidebar-Link: show when GbR/eGbR is active ──
 (function() {
     try {
         var coId = localStorage.getItem('oyi_active_company') || '';
@@ -2358,6 +2361,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (gbr.firmenform === 'GbR' || gbr.firmenform === 'eGbR') {
             var tab = document.getElementById('toolTabGbr');
             if (tab) tab.style.display = '';
+            var sidebarLink = document.getElementById('sidebarGbrLink');
+            if (sidebarLink) sidebarLink.style.display = '';
         }
     } catch(e) {}
 })();

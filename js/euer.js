@@ -7,6 +7,8 @@ const Euer = {
     _selectedMonth: new Date().getMonth(),
     _customStart: '',
     _customEnd: '',
+    _detailView: null,   // 'einnahmen' | 'ausgaben' | 'gewinn' | null
+    _lastRenderData: {},
 
     render() {
         const settings = Store.getSettings();
@@ -169,6 +171,7 @@ const Euer = {
 
         const gewinn = summeEinnahmen - summeAusgaben;
         this._lastGewinn = gewinn; // für Gewerbesteuer-Live-Update
+        this._lastRenderData = { sales, periodPurchases, expenses, eigenbelegeRaw, startDate, endDate, periodLabel, summeEinnahmen, summeAusgaben, gewinn, wareneinkauf, versandkosten, plattformgebuehren, fahrtkosten, materialKosten, sonstigeAusgaben, eigenbelegeAusgaben, afaKosten };
 
         // GbR-Gewinnverteilung Block
         const gbrBlock = (typeof GbR !== 'undefined') ? GbR.renderEuerBlock(gewinn) : '';
@@ -239,21 +242,25 @@ const Euer = {
             </div>
 
             <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;" id="euerKpiGrid">
-                <div class="card stat-card success" style="padding:14px;">
-                    <div class="card-label" style="font-size:11px;"><i class="ti ti-trending-up"></i> Einnahmen</div>
+                <div class="card stat-card success" data-euer-detail="einnahmen" style="padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s;${this._detailView==='einnahmen'?'outline:2px solid var(--success);outline-offset:2px;':''}">
+                    <div class="card-label" style="font-size:11px;"><i class="ti ti-trending-up"></i> Einnahmen <span style="float:right;font-size:10px;opacity:.6;">${this._detailView==='einnahmen'?'▲':'▼'}</span></div>
                     <div class="card-value" style="font-size:22px;" id="euerKpiEin">${Utils.formatCurrency(summeEinnahmen)}</div>
                     <div class="card-subtitle" style="font-size:11px;">${periodLabel}</div>
                 </div>
-                <div class="card stat-card danger" style="padding:14px;">
-                    <div class="card-label" style="font-size:11px;"><i class="ti ti-trending-down"></i> Ausgaben</div>
+                <div class="card stat-card danger" data-euer-detail="ausgaben" style="padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s;${this._detailView==='ausgaben'?'outline:2px solid var(--danger);outline-offset:2px;':''}">
+                    <div class="card-label" style="font-size:11px;"><i class="ti ti-trending-down"></i> Ausgaben <span style="float:right;font-size:10px;opacity:.6;">${this._detailView==='ausgaben'?'▲':'▼'}</span></div>
                     <div class="card-value" style="font-size:22px;" id="euerKpiAus">${Utils.formatCurrency(summeAusgaben)}</div>
                     <div class="card-subtitle" style="font-size:11px;">${periodPurchases.length} Einkäufe · ${expenses.length} BA</div>
                 </div>
-                <div class="card stat-card ${gewinn >= 0 ? 'success' : 'danger'}" style="padding:14px;">
-                    <div class="card-label" style="font-size:11px;"><i class="ti ti-scale"></i> ${gewinn >= 0 ? 'Gewinn' : 'Verlust'}</div>
+                <div class="card stat-card ${gewinn >= 0 ? 'success' : 'danger'}" data-euer-detail="gewinn" style="padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s;${this._detailView==='gewinn'?'outline:2px solid '+(gewinn>=0?'var(--success)':'var(--danger)')+';outline-offset:2px;':''}">
+                    <div class="card-label" style="font-size:11px;"><i class="ti ti-scale"></i> ${gewinn >= 0 ? 'Gewinn' : 'Verlust'} <span style="float:right;font-size:10px;opacity:.6;">${this._detailView==='gewinn'?'▲':'▼'}</span></div>
                     <div class="card-value" style="font-size:22px;color:${gewinn >= 0 ? 'var(--success)' : 'var(--danger)'};" id="euerKpiGewinn">${Utils.formatCurrency(gewinn)}</div>
                     <div class="card-subtitle" style="font-size:11px;">${sales.length} Verkäufe</div>
                 </div>
+            </div>
+
+            <div id="euerDetailSection" style="margin-bottom:16px;">
+                ${this._detailView ? this._renderDetailSection(this._detailView) : ''}
             </div>
 
             <div class="card">
@@ -450,6 +457,147 @@ const Euer = {
         if (el) el.textContent = Utils.formatCurrency(gewerbesteuer);
     },
 
+    _renderDetailSection(type) {
+        const d = this._lastRenderData;
+        if (!d || !d.sales) return '';
+
+        const thStyle = 'padding:8px 12px;font-size:11px;font-weight:700;color:var(--text-muted);text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;';
+        const tdStyle = 'padding:7px 12px;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle;';
+        const tdR     = tdStyle + 'text-align:right;font-weight:600;';
+
+        if (type === 'einnahmen') {
+            const rows = d.sales.map(s => {
+                const vk   = parseFloat(s.verkaufspreis)||0;
+                const vkK  = parseFloat(s.versandkostenKaeufer)||0;
+                return `<tr>
+                    <td style="${tdStyle}">${Utils.formatDate(s.datum)}</td>
+                    <td style="${tdStyle}"><strong>${Utils.escapeHtml(s.marke||'—')}</strong>${s.artikeltyp?' <span style="color:var(--text-muted);">'+Utils.escapeHtml(s.artikeltyp)+'</span>':''}</td>
+                    <td style="${tdStyle};color:var(--text-muted);">${Utils.escapeHtml(s.beschreibung||s.groesse||'—')}</td>
+                    <td style="${tdStyle}">${Utils.escapeHtml(s.plattform||s.verkaufsplattform||'—')}</td>
+                    <td style="${tdR}">${Utils.formatCurrency(vk)}</td>
+                    <td style="${tdR};color:var(--text-muted);">${vkK>0?Utils.formatCurrency(vkK):'—'}</td>
+                    <td style="${tdR};color:var(--success);">${Utils.formatCurrency(vk+vkK)}</td>
+                </tr>`;
+            }).join('');
+            return `<div class="card" style="padding:0;overflow:hidden;">
+                <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+                    <div style="font-weight:700;font-size:13px;"><i class="ti ti-trending-up" style="color:var(--success);"></i> Einnahmen — ${d.periodLabel} <span style="color:var(--text-muted);font-weight:400;">(${d.sales.length} Verkäufe)</span></div>
+                    <div style="font-weight:800;font-size:15px;color:var(--success);">${Utils.formatCurrency(d.summeEinnahmen)}</div>
+                </div>
+                ${d.sales.length === 0 ? '<div style="padding:24px;text-align:center;color:var(--text-muted);">Keine Einnahmen im Zeitraum</div>' :
+                `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">
+                    <thead><tr>
+                        <th style="${thStyle}">Datum</th>
+                        <th style="${thStyle}">Artikel</th>
+                        <th style="${thStyle}">Beschreibung</th>
+                        <th style="${thStyle}">Plattform</th>
+                        <th style="${thStyle};text-align:right;">VK-Preis</th>
+                        <th style="${thStyle};text-align:right;">Versand</th>
+                        <th style="${thStyle};text-align:right;">Gesamt</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table></div>`}
+            </div>`;
+        }
+
+        if (type === 'ausgaben') {
+            const einkaufRows = d.periodPurchases.filter(p => !p.eigenbeleg_id).map(p => `<tr>
+                <td style="${tdStyle}">${Utils.formatDate(p.datum)}</td>
+                <td style="${tdStyle};color:var(--text-muted);font-size:11px;">${Utils.escapeHtml(p.artikelNr||'—')}</td>
+                <td style="${tdStyle}"><strong>${Utils.escapeHtml(p.marke||'—')}</strong>${p.artikeltyp?' <span style="color:var(--text-muted);">'+Utils.escapeHtml(p.artikeltyp)+'</span>':''}</td>
+                <td style="${tdStyle};color:var(--text-muted);">${Utils.escapeHtml(p.beschreibung||p.groesse||'—')}</td>
+                <td style="${tdStyle}">${Utils.escapeHtml(p.einkaufsquelle||'—')}</td>
+                <td style="${tdR};color:var(--danger);">${Utils.formatCurrency((parseFloat(p.einkaufspreis)||0)*(parseInt(p.anzahl)||1))}</td>
+            </tr>`).join('');
+
+            const baRows = d.expenses.map(e => `<tr>
+                <td style="${tdStyle}">${Utils.formatDate(e.datum)}</td>
+                <td style="${tdStyle}"><span style="padding:2px 8px;border-radius:10px;background:rgba(99,102,241,.12);color:var(--accent);font-size:11px;">${Utils.escapeHtml(e.kategorie||'Sonstiges')}</span></td>
+                <td style="${tdStyle};color:var(--text-muted);">${Utils.escapeHtml(e.beschreibung||'—')}</td>
+                <td style="${tdR};color:var(--danger);">${Utils.formatCurrency(parseFloat(e.betrag)||0)}</td>
+            </tr>`).join('');
+
+            const filteredEB = d.eigenbelegeRaw.filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, d.startDate, d.endDate));
+            const ebRows = filteredEB.map(b => `<tr>
+                <td style="${tdStyle}">${Utils.formatDate(b.belegDatum)}</td>
+                <td style="${tdStyle}"><span style="padding:2px 8px;border-radius:10px;background:rgba(245,158,11,.12);color:var(--warning);font-size:11px;">Eigenbeleg</span></td>
+                <td style="${tdStyle};color:var(--text-muted);">${Utils.escapeHtml(b.beschreibung||b.belegNr||'—')}</td>
+                <td style="${tdR};color:var(--danger);">${Utils.formatCurrency(parseFloat(b.betragNetto)||parseFloat(b.betragBrutto)||0)}</td>
+            </tr>`).join('');
+
+            return `<div class="card" style="padding:0;overflow:hidden;">
+                <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+                    <div style="font-weight:700;font-size:13px;"><i class="ti ti-trending-down" style="color:var(--danger);"></i> Ausgaben — ${d.periodLabel}</div>
+                    <div style="font-weight:800;font-size:15px;color:var(--danger);">${Utils.formatCurrency(d.summeAusgaben)}</div>
+                </div>
+                ${d.periodPurchases.filter(p=>!p.eigenbeleg_id).length > 0 ? `
+                <div style="padding:10px 16px 6px;font-size:12px;font-weight:700;color:var(--text-secondary);border-bottom:1px solid var(--border);">🛒 Wareneinkauf (${d.periodPurchases.filter(p=>!p.eigenbeleg_id).length} Artikel)</div>
+                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">
+                    <thead><tr>
+                        <th style="${thStyle}">Datum</th><th style="${thStyle}">Art.-Nr.</th>
+                        <th style="${thStyle}">Artikel</th><th style="${thStyle}">Beschreibung</th>
+                        <th style="${thStyle}">Quelle</th><th style="${thStyle};text-align:right;">Betrag</th>
+                    </tr></thead>
+                    <tbody>${einkaufRows}</tbody>
+                </table></div>` : ''}
+                ${d.expenses.length > 0 ? `
+                <div style="padding:10px 16px 6px;font-size:12px;font-weight:700;color:var(--text-secondary);border-bottom:1px solid var(--border);">💼 Betriebsausgaben (${d.expenses.length})</div>
+                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">
+                    <thead><tr>
+                        <th style="${thStyle}">Datum</th><th style="${thStyle}">Kategorie</th>
+                        <th style="${thStyle}">Beschreibung</th><th style="${thStyle};text-align:right;">Betrag</th>
+                    </tr></thead>
+                    <tbody>${baRows}</tbody>
+                </table></div>` : ''}
+                ${filteredEB.length > 0 ? `
+                <div style="padding:10px 16px 6px;font-size:12px;font-weight:700;color:var(--text-secondary);border-bottom:1px solid var(--border);">🧾 Eigenbelege (${filteredEB.length})</div>
+                <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">
+                    <thead><tr>
+                        <th style="${thStyle}">Datum</th><th style="${thStyle}">Typ</th>
+                        <th style="${thStyle}">Beschreibung</th><th style="${thStyle};text-align:right;">Betrag</th>
+                    </tr></thead>
+                    <tbody>${ebRows}</tbody>
+                </table></div>` : ''}
+                ${d.periodPurchases.filter(p=>!p.eigenbeleg_id).length===0 && d.expenses.length===0 && filteredEB.length===0 ?
+                    '<div style="padding:24px;text-align:center;color:var(--text-muted);">Keine Ausgaben im Zeitraum</div>' : ''}
+            </div>`;
+        }
+
+        if (type === 'gewinn') {
+            const isPos = d.gewinn >= 0;
+            const rows = [
+                ['Summe Einnahmen', d.summeEinnahmen, 'var(--success)'],
+                ['− Wareneinkauf', -d.wareneinkauf, 'var(--danger)'],
+                ['− Versandkosten', -d.versandkosten, 'var(--danger)'],
+                ['− Plattformgebühren', -d.plattformgebuehren, 'var(--danger)'],
+                d.fahrtkosten > 0   ? ['− Fahrtkosten', -d.fahrtkosten, 'var(--danger)'] : null,
+                d.materialKosten > 0? ['− Verpackungsmaterial', -d.materialKosten, 'var(--danger)'] : null,
+                d.afaKosten > 0     ? ['− AfA / Abschreibungen', -d.afaKosten, 'var(--danger)'] : null,
+                d.sonstigeAusgaben > 0 ? ['− Betriebsausgaben', -d.sonstigeAusgaben, 'var(--danger)'] : null,
+                d.eigenbelegeAusgaben > 0 ? ['− Eigenbelege', -d.eigenbelegeAusgaben, 'var(--danger)'] : null,
+            ].filter(Boolean);
+            const rowHtml = rows.map(([label, val, color]) => `<tr>
+                <td style="${tdStyle}">${label}</td>
+                <td style="${tdR};color:${color};">${val < 0 ? Utils.formatCurrency(Math.abs(val)) : Utils.formatCurrency(val)}</td>
+            </tr>`).join('');
+            return `<div class="card" style="padding:0;overflow:hidden;">
+                <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+                    <div style="font-weight:700;font-size:13px;"><i class="ti ti-scale" style="color:${isPos?'var(--success)':'var(--danger)'};"></i> Gewinnzusammensetzung — ${d.periodLabel}</div>
+                    <div style="font-weight:800;font-size:15px;color:${isPos?'var(--success)':'var(--danger)'};">${Utils.formatCurrency(d.gewinn)}</div>
+                </div>
+                <div style="overflow-x:auto;max-width:480px;"><table style="width:100%;border-collapse:collapse;">
+                    <tbody>${rowHtml}
+                    <tr style="border-top:2px solid var(--border);">
+                        <td style="${tdStyle};font-weight:800;font-size:14px;">= ${isPos?'Gewinn':'Verlust'}</td>
+                        <td style="${tdR};font-size:15px;font-weight:800;color:${isPos?'var(--success)':'var(--danger)'};">${Utils.formatCurrency(Math.abs(d.gewinn))}</td>
+                    </tr>
+                    </tbody>
+                </table></div>
+            </div>`;
+        }
+        return '';
+    },
+
     init() {
         // GSAP KPI card animation
         if (typeof gsap !== 'undefined') {
@@ -473,6 +621,27 @@ const Euer = {
                 });
             }
         }
+
+        // KPI-Karten Detail-Toggle
+        document.querySelectorAll('[data-euer-detail]').forEach(card => {
+            card.addEventListener('click', () => {
+                const type = card.dataset.euerDetail;
+                this._detailView = this._detailView === type ? null : type;
+                const section = document.getElementById('euerDetailSection');
+                if (section) {
+                    section.innerHTML = this._detailView ? this._renderDetailSection(this._detailView) : '';
+                }
+                // Update outline + arrow indicators
+                document.querySelectorAll('[data-euer-detail]').forEach(c => {
+                    const t = c.dataset.euerDetail;
+                    const isActive = t === this._detailView;
+                    c.style.outline = isActive ? '2px solid var(--accent)' : '';
+                    c.style.outlineOffset = isActive ? '2px' : '';
+                    const arrow = c.querySelector('span');
+                    if (arrow) arrow.textContent = isActive ? '▲' : '▼';
+                });
+            });
+        });
 
         // Sicherstellen dass alle bezahlten Rechnungen in Sales gesynct sind
         Store.autoSyncInvoices();

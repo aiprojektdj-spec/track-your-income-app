@@ -124,21 +124,7 @@ const App = {
         // Periodisches Datei-Backup starten (alle 10 Minuten)
         this._startPeriodicBackup();
 
-        // Theme initialization
-        const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-                const current = document.documentElement.getAttribute('data-theme');
-                const newTheme = current === 'light' ? 'dark' : 'light';
-                document.documentElement.setAttribute('data-theme', newTheme === 'light' ? 'light' : '');
-                localStorage.setItem('app_theme', newTheme);
-                themeToggle.textContent = newTheme === 'light' ? '\u2600\uFE0F Light Mode' : '\uD83C\uDF19 Dark Mode';
-            });
-            // Set initial text and theme
-            const theme = localStorage.getItem('app_theme') || 'dark';
-            document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : '');
-            themeToggle.textContent = theme === 'light' ? '\u2600\uFE0F Light Mode' : '\uD83C\uDF19 Dark Mode';
-        }
+        // Theme: system preference via prefers-color-scheme (no manual toggle)
 
         // AGB-Pruefung vor allem anderen
         if (!localStorage.getItem('agb_accepted')) {

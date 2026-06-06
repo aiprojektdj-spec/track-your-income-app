@@ -117,7 +117,7 @@ const Statistiken = {
     },
 
     _getThemeColors() {
-        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const isLight = window.matchMedia('(prefers-color-scheme: light)').matches;
         return {
             textColor: isLight ? '#64748b' : '#94a3b8',
             gridColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(45,45,68,0.5)'

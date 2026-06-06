@@ -360,7 +360,7 @@ const Dashboard = {
         if (this._chartGewinn) { this._chartGewinn.destroy(); this._chartGewinn = null; }
         if (typeof ApexCharts === 'undefined') return;
 
-        const isDark    = document.documentElement.getAttribute('data-theme') !== 'light';
+        const isDark    = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const textColor = isDark ? '#94a3b8' : '#64748b';
         const allSales = Store.getSales(true), allPurchases = Store.getPurchases(true), allExpenses = Store.getExpenses(true);
 
@@ -500,7 +500,7 @@ const Dashboard = {
         const sales     = Store.getSales(true);
         const purchases = Store.getPurchases(true);
         const expenses  = Store.getExpenses(true);
-        const isDark    = document.documentElement.getAttribute('data-theme') !== 'light';
+        const isDark    = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const textColor = isDark ? '#94a3b8' : '#64748b';
 
         const labels = [], einnahmen = [], ausgaben = [];

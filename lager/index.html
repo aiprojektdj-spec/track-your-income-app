@@ -23,21 +23,25 @@
 <!-- ── TOPNAV ── -->
 <div class="topnav">
     <div class="topnav-brand">
-        <span style="font-size:20px;color:var(--accent);line-height:1;">◆</span>
-        <div style="font-size:16px;font-weight:800;color:var(--text-primary);line-height:1;letter-spacing:-.4px;">Stackr</div>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+            <rect width="20" height="20" rx="5" fill="var(--accent)"/>
+            <path d="M6 7.5C6 6.67 6.67 6 7.5 6h2C10.88 6 12 7.12 12 8.5S10.88 11 9.5 11H8v3H6V7.5zm2 2h1.5c.28 0 .5-.22.5-.5S9.78 8.5 9.5 8.5H8V9.5z" fill="white"/>
+            <path d="M12.5 11c.83 0 1.5.67 1.5 1.5S13.33 14 12.5 14H11v-3h1.5z" fill="white" opacity=".7"/>
+        </svg>
+        <div style="font-size:14px;font-weight:700;color:var(--text-primary);line-height:1;letter-spacing:-.3px;">Stackr</div>
     </div>
     <div class="topnav-apps">
-        <a href="../app.html" class="tool-tab" title="Overview Dashboard"><span class="tab-icon">📊</span> Dashboard</a>
-        <a href="../rechnungen/index.html" class="tool-tab" title="Rechnungsbuch"><span class="tab-icon">🧾</span> Rechnungen</a>
-        <a href="../eigenbelege/index.html" class="tool-tab" title="Eigenbelege"><span class="tab-icon">📋</span> Eigenbelege</a>
-        <a href="index.html" class="tool-tab active" title="Lager"><span class="tab-icon">📦</span> Lager</a>
-        <a href="../app.html?page=euer" class="tool-tab" title="EÜR"><span class="tab-icon">📋</span> EÜR</a>
-        <a href="../app.html?page=akademie" class="tool-tab" title="Akademie"><span class="tab-icon">🎓</span> Akademie</a>
-        <a href="../app.html?page=gbr" class="tool-tab" id="toolTabGbr" style="display:none;" title="GbR-Verwaltung"><span class="tab-icon">🤝</span> GbR</a>
+        <a href="../app.html" class="tool-tab" title="Overview Dashboard"><i class="ti ti-layout-dashboard tab-icon"></i> Dashboard</a>
+        <a href="../rechnungen/index.html" class="tool-tab" title="Rechnungsbuch"><i class="ti ti-file-invoice tab-icon"></i> Rechnungen</a>
+        <a href="../eigenbelege/index.html" class="tool-tab" title="Eigenbelege"><i class="ti ti-receipt tab-icon"></i> Eigenbelege</a>
+        <a href="index.html" class="tool-tab active" title="Lager"><i class="ti ti-package tab-icon"></i> Lager</a>
+        <a href="../app.html?page=euer" class="tool-tab" title="EÜR"><i class="ti ti-chart-bar tab-icon"></i> EÜR</a>
+        <a href="../app.html?page=akademie" class="tool-tab" title="Akademie"><i class="ti ti-school tab-icon"></i> Akademie</a>
+        <a href="../app.html?page=gbr" class="tool-tab" id="toolTabGbr" style="display:none;" title="GbR-Verwaltung"><i class="ti ti-users tab-icon"></i> GbR</a>
     </div>
     <div class="topnav-controls">
         <div id="companySwitcher"></div>
-        <button class="theme-toggle" id="themeToggle" title="Theme wechseln">🌙 Dark Mode</button>
+        <button class="theme-toggle" id="themeToggle" title="Theme wechseln" style="display:none;"></button>
         <a href="../app.html" id="settingsLink" title="Einstellungen" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-settings"></i></a>
         <a href="../app.html" id="backupLink" title="Backup & Daten" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-device-floppy"></i></a>
         <div id="fsBackupStatus" style="display:none;"></div>
@@ -245,36 +249,15 @@ document.addEventListener('keydown', e => {
 // ── Sidebar-Collapse (Legacy — Button ist hidden, kein Effekt nötig) ──────
 // sidebarCollapseBtn ist display:none; Toggle läuft über sidebarToggleBtn
 
-// ── Theme ─────────────────────────────────────────────────────────────────
-(function() {
-    function applyTheme(t) {
-        document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : '');
-        const btn = document.getElementById('themeToggle');
-        if (btn) btn.textContent = t === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode';
+// ── Theme: system preference via prefers-color-scheme ─────────────────────
+// Änderungen aus anderen Tabs sofort übernehmen (nur Lager-Sync, kein Theme)
+window.addEventListener('storage', e => {
+    if (e.key === '_oyi_lsmirror_ts' && Store._mainIdbReady && Store._mainIdb) {
+        Store._loadCacheFromMainIDB().then(() => {
+            if (typeof renderPage === 'function') renderPage();
+        });
     }
-
-    // Liest aus 'app_theme' (Hauptapp-Key) mit Fallback auf 'theme' (Legacy) und 'dark'
-    const savedTheme = localStorage.getItem('app_theme') || localStorage.getItem('theme') || 'dark';
-    applyTheme(savedTheme);
-
-    const btn = document.getElementById('themeToggle');
-    btn.addEventListener('click', () => {
-        const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-        localStorage.setItem('app_theme', next); // gleicher Key wie Hauptapp
-        applyTheme(next);
-    });
-
-    // Änderungen aus anderen Tabs sofort übernehmen
-    window.addEventListener('storage', e => {
-        if (e.key === 'app_theme' || e.key === 'theme') applyTheme(e.newValue || 'dark');
-        // Eigenbeleg hat neue Artikel ins Lager synchronisiert → Lager neu laden
-        if (e.key === '_oyi_lsmirror_ts' && Store._mainIdbReady && Store._mainIdb) {
-            Store._loadCacheFromMainIDB().then(() => {
-                if (typeof renderPage === 'function') renderPage();
-            });
-        }
-    });
-})();
+});
 
 // ── Buchungen-Umschaltung ─────────────────────────────────────────────────
 const LagerPage = {

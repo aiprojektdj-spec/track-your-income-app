@@ -6,32 +6,55 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co; frame-src 'none';">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
 <title>Stackr — Buchhaltung für Selbstständige</title>
-<meta name="description" content="Rechnungen, EÜR und GoBD-Protokoll für Freelancer, Selbstständige und GbRs. 5 Tage kostenlos testen — keine Kreditkarte nötig. EU-Server, DSGVO-konform.">
+<meta name="description" content="Rechnungen, EÜR und GoBD-Protokoll für Freelancer, Selbstständige und GbRs. 14 Tage kostenlos testen — keine Kreditkarte nötig. EU-Server, DSGVO-konform.">
+<link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Fonts: self-hosted (DSGVO) ── */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('fonts/inter-var-latin.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Fraunces';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('fonts/fraunces-var-latin.woff2') format('woff2');
+}
+
 :root {
-    --bg:        #0a0a0b;
-    --surface:   #111113;
-    --card:      #1c1c1f;
-    --border:    rgba(255,255,255,.07);
-    --border-hi: rgba(16,185,129,.3);
+    /* ── Core palette — Ruhige Souveränität (warm dark) ── */
+    --bg:        #0a0c0b;
+    --surface:   #101312;
+    --card:      #161a18;
+    --border:    rgba(255,255,255,.06);
+    --border-hi: rgba(16,185,129,.28);
     --accent:    #10b981;
-    --accent2:   #059669;
-    --text:      #f1f5f9;
-    --muted:     #64748b;
-    --subtle:    #94a3b8;
+    --accent2:   #0da271;
+    --text:      #eef2f0;
+    --muted:     #71807a;
+    --subtle:    #9ba8a1;
     --green:     #22c55e;
-    --red:       #ef4444;
+    --red:       #ef5350;
+
+    --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
 }
 
 html { scroll-behavior: smooth; }
-body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; overflow-x: hidden; }
+body { background: var(--bg); color: var(--text); font-family: var(--font-sans); line-height: 1.6; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+::selection { background: rgba(16,185,129,.25); }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #2a332e; border-radius: 4px; }
 
 /* ════════════════════════════════════════
    NAV
@@ -40,7 +63,7 @@ nav {
     position: sticky;
     top: 0;
     z-index: 100;
-    background: rgba(8,8,15,.85);
+    background: rgba(10,12,11,.82);
     backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
     padding: 0 24px;
@@ -126,12 +149,14 @@ nav {
     margin-bottom: 24px;
 }
 .hero h1 {
-    font-size: clamp(32px, 6vw, 62px);
-    font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: -1.5px;
-    margin-bottom: 20px;
-    max-width: 800px;
+    font-family: var(--font-display);
+    font-size: clamp(34px, 6vw, 64px);
+    font-weight: 580;
+    font-variation-settings: 'opsz' 110;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+    margin-bottom: 22px;
+    max-width: 820px;
     margin-left: auto;
     margin-right: auto;
 }
@@ -153,21 +178,21 @@ nav {
     background: linear-gradient(135deg, var(--accent), var(--accent2));
     color: #fff;
     border: none;
-    padding: 14px 28px;
-    border-radius: 10px;
+    padding: 14px 30px;
+    border-radius: 12px;
     cursor: pointer;
     font-size: 15px;
     font-weight: 600;
-    transition: opacity .15s, transform .15s;
-    box-shadow: 0 4px 24px rgba(16,185,129,.35);
+    transition: opacity .2s, transform .2s cubic-bezier(.35,.7,.25,1);
+    box-shadow: 0 8px 32px -8px rgba(16,185,129,.45), inset 0 1px 0 rgba(255,255,255,.18);
 }
-.btn-hero:hover { opacity: .9; transform: translateY(-1px); }
+.btn-hero:hover { opacity: .92; transform: translateY(-1px); }
 .btn-hero-ghost {
     background: rgba(255,255,255,.04);
     color: var(--text);
     border: 1px solid var(--border);
-    padding: 14px 28px;
-    border-radius: 10px;
+    padding: 14px 30px;
+    border-radius: 12px;
     cursor: pointer;
     font-size: 15px;
     transition: background .15s;
@@ -183,9 +208,9 @@ nav {
     margin: 0 auto;
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 18px;
     padding: 16px;
-    box-shadow: 0 32px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04);
+    box-shadow: 0 40px 96px -24px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.04), inset 0 1px 0 rgba(255,255,255,.05);
 }
 .mockup-bar {
     display: flex;
@@ -222,7 +247,7 @@ nav {
     border-top: 1px solid var(--border);
 }
 .hero-stat { text-align: center; }
-.hero-stat-num { font-size: 28px; font-weight: 800; color: var(--text); }
+.hero-stat-num { font-family: var(--font-display); font-size: 28px; font-weight: 580; font-variation-settings: 'opsz' 48; color: var(--text); }
 .hero-stat-lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
 /* ════════════════════════════════════════
@@ -243,9 +268,11 @@ section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
     margin-bottom: 14px;
 }
 .section-title {
-    font-size: clamp(24px, 4vw, 36px);
-    font-weight: 800;
-    letter-spacing: -.5px;
+    font-family: var(--font-display);
+    font-size: clamp(25px, 4vw, 38px);
+    font-weight: 580;
+    font-variation-settings: 'opsz' 72;
+    letter-spacing: -0.01em;
     margin-bottom: 10px;
 }
 .section-sub { font-size: 16px; color: var(--subtle); margin-bottom: 48px; }
@@ -258,9 +285,10 @@ section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
 .feature-card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    transition: border-color .2s, transform .2s;
+    border-radius: 14px;
+    padding: 26px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    transition: border-color .25s cubic-bezier(.35,.7,.25,1), transform .25s cubic-bezier(.35,.7,.25,1);
 }
 .feature-card:hover { border-color: var(--border-hi); transform: translateY(-2px); }
 .feature-icon { font-size: 28px; margin-bottom: 12px; }
@@ -295,9 +323,10 @@ section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
 .pricing-card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 32px;
+    border-radius: 18px;
+    padding: 34px;
     position: relative;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
 }
 .pricing-card.popular {
     border-color: var(--border-hi);
@@ -319,8 +348,8 @@ section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
     letter-spacing: .3px;
 }
 .plan-name { font-size: 13px; font-weight: 600; color: var(--subtle); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-.plan-price { font-size: 42px; font-weight: 800; color: var(--text); line-height: 1; }
-.plan-price span { font-size: 16px; font-weight: 400; color: var(--muted); }
+.plan-price { font-family: var(--font-display); font-size: 44px; font-weight: 580; font-variation-settings: 'opsz' 72; color: var(--text); line-height: 1; font-variant-numeric: tabular-nums; }
+.plan-price span { font-family: var(--font-sans); font-size: 16px; font-weight: 400; color: var(--muted); }
 .plan-desc { font-size: 13px; color: var(--muted); margin: 8px 0 24px; }
 .plan-features { list-style: none; margin-bottom: 28px; }
 .plan-features li { font-size: 13px; color: var(--subtle); padding: 6px 0; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
@@ -370,15 +399,15 @@ section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
    CTA BANNER
    ════════════════════════════════════════ */
 .cta-banner {
-    background: linear-gradient(135deg, rgba(16,185,129,.12), rgba(5,150,105,.08));
+    background: linear-gradient(150deg, rgba(16,185,129,.1), rgba(13,162,113,.05));
     border: 1px solid var(--border-hi);
-    border-radius: 20px;
+    border-radius: 24px;
     padding: 56px 32px;
     text-align: center;
     max-width: 720px;
     margin: 0 auto 80px;
 }
-.cta-banner h2 { font-size: clamp(22px, 4vw, 32px); font-weight: 800; margin-bottom: 12px; }
+.cta-banner h2 { font-family: var(--font-display); font-size: clamp(23px, 4vw, 34px); font-weight: 580; font-variation-settings: 'opsz' 72; letter-spacing: -0.01em; margin-bottom: 12px; }
 .cta-banner p { font-size: 15px; color: var(--subtle); margin-bottom: 28px; }
 
 /* ════════════════════════════════════════
@@ -510,7 +539,7 @@ footer {
     </p>
 
     <div class="hero-actions">
-        <button class="btn-hero" onclick="openAuth('register')">5 Tage kostenlos testen →</button>
+        <button class="btn-hero" onclick="openAuth('register')">14 Tage kostenlos testen →</button>
         <a href="#features" class="btn-hero-ghost">Features ansehen ↓</a>
     </div>
 
@@ -975,10 +1004,16 @@ footer {
 .preview-frame {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 16px;
-    box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    box-shadow: 0 32px 72px -20px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
     min-height: 260px;
+}
+.pdesc h3 {
+    font-family: var(--font-display);
+    font-weight: 580 !important;
+    font-variation-settings: 'opsz' 40;
+    letter-spacing: -0.01em !important;
 }
 .pmock { display: flex; flex-direction: column; gap: 10px; }
 .pmock-topbar {
@@ -1023,13 +1058,13 @@ footer {
     <div style="text-align:center;margin-bottom:48px;">
         <div class="section-tag">Preise</div>
         <h2 class="section-title">Einfach & transparent</h2>
-        <p class="section-sub">5 Tage alles kostenlos testen — keine Kreditkarte nötig.</p>
+        <p class="section-sub">14 Tage alles kostenlos testen — keine Kreditkarte nötig.</p>
     </div>
 
     <div class="pricing-grid">
         <!-- TRIAL -->
         <div class="pricing-card">
-            <div class="plan-name">5 Tage Trial</div>
+            <div class="plan-name">14 Tage Trial</div>
             <div class="plan-price">0 € <span>/ kostenlos</span></div>
             <div class="plan-desc">Kein Abo, keine Kreditkarte</div>
             <ul class="plan-features">
@@ -1039,9 +1074,9 @@ footer {
                 <li><span class="check">✓</span> Rechnungen & Angebote</li>
                 <li><span class="check">✓</span> EÜR, Lager, Fahrtenbuch</li>
                 <li><span class="check">✓</span> PDF & Excel Export</li>
-                <li style="color:var(--muted);font-size:12px;padding-top:4px;">Nach 5 Tagen: Upgrade erforderlich</li>
+                <li style="color:var(--muted);font-size:12px;padding-top:4px;">Nach 14 Tagen: Upgrade erforderlich</li>
             </ul>
-            <button class="btn-plan btn-plan-free" onclick="openAuth('register')">Jetzt 5 Tage testen →</button>
+            <button class="btn-plan btn-plan-free" onclick="openAuth('register')">Jetzt 14 Tage testen →</button>
         </div>
 
         <!-- PRO -->
@@ -1076,7 +1111,7 @@ footer {
                 Kann ich die App kostenlos testen?
                 <span class="arrow">+</span>
             </button>
-            <div class="faq-a">Ja! Du erhältst 5 Tage vollen Zugriff auf alle Features — komplett kostenlos und ohne Kreditkarte. Nach der Testphase kannst du für 10 €/Monat oder 90 €/Jahr upgraden.</div>
+            <div class="faq-a">Ja! Du erhältst 14 Tage vollen Zugriff auf alle Features — komplett kostenlos und ohne Kreditkarte. Nach der Testphase kannst du für 10 €/Monat (inkl. MwSt.) oder 90 €/Jahr upgraden.</div>
         </div>
         <div class="faq-item">
             <button class="faq-q" onclick="toggleFaq(this)">
@@ -1194,6 +1229,7 @@ footer {
 </div>
 
 <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+<script src="js/i18n.js"></script>
 <script src="js/cookie-banner.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>

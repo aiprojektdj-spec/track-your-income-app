@@ -23,7 +23,9 @@ const App = {
         afa: Afa,
         privatbuchungen: Privatbuchungen,
         ustvoranmeldung: UstVoranmeldung,
-        ksk: Ksk
+        ksk: Ksk,
+        bankimport: BankImport,
+        steuerberater: Steuerberater
     },
 
     init() {
@@ -83,6 +85,9 @@ const App = {
     },
 
     _continueInit() {
+        // Apply i18n translations to static DOM elements
+        if (typeof I18n !== 'undefined') I18n.applyAll();
+
         // ── Firmen-Check: Muss VOR allem anderen laufen ──
         const companies = CompanyManager.getAll();
         if (companies.length === 0) {
@@ -307,7 +312,14 @@ const App = {
 
         // Sidebar navigation
         document.querySelectorAll('.sidebar-link').forEach(link => {
-            link.addEventListener('click', () => {
+            // WCAG 2.1.1: make div-based links keyboard accessible
+            if (!link.hasAttribute('tabindex')) link.setAttribute('tabindex', '0');
+            if (!link.hasAttribute('role'))     link.setAttribute('role', 'button');
+            // derive label from visible text
+            const labelText = link.querySelector('.sidebar-link-label')?.textContent?.trim();
+            if (labelText && !link.hasAttribute('aria-label')) link.setAttribute('aria-label', labelText);
+
+            const _activate = () => {
                 const page = link.dataset.page;
 
                 // GbR Tab wechseln (bevor navigate, damit _tab gesetzt ist)
@@ -328,6 +340,12 @@ const App = {
                         el.classList.toggle('active', el.dataset.euerPeriod === period);
                     });
                 }
+            };
+
+            link.addEventListener('click', _activate);
+            // Enter / Space activate (WCAG 2.1.1)
+            link.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _activate(); }
             });
         });
 
@@ -620,13 +638,17 @@ const App = {
         const safeTitle = String(title).replace(/</g, '&lt;').replace(/>/g, '&gt;');
         modal.innerHTML = `
             <div class="modal-header">
-                <h3>${safeTitle}</h3>
-                <button class="modal-close" onclick="App.closeModal()">&times;</button>
+                <h3 id="modalTitle">${safeTitle}</h3>
+                <button class="modal-close" onclick="App.closeModal()" aria-label="Schließen">&times;</button>
             </div>
             <div class="modal-body">${bodyHtml}</div>
             ${footerHtml ? `<div class="modal-footer">${footerHtml}</div>` : ''}
         `;
+        modal.setAttribute('aria-label', safeTitle);
         document.getElementById('modalOverlay').classList.add('active');
+        // Focus first focusable element (WCAG 2.1.2)
+        const focusable = modal.querySelector('button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])');
+        if (focusable) focusable.focus();
     },
 
     closeModal() {
@@ -961,14 +983,58 @@ const App = {
     },
 
     showOnboarding() {
+        // Show language picker first if not already chosen explicitly
+        const langChosen = localStorage.getItem('stackr_lang_chosen');
+        if (!langChosen) {
+            this._showLangPicker();
+            return;
+        }
         this._onboardingStep = 1;
         this._onboardingData = {};
         this._renderOnboarding();
     },
 
+    _showLangPicker() {
+        const L = (typeof I18n !== 'undefined') ? I18n : { t: function(k) { return k; } };
+        document.getElementById('onboarding').innerHTML = `
+            <div class="onboarding-overlay">
+                <div class="onboarding-card" style="text-align:center;max-width:420px;">
+                    <div style="font-size:36px;color:var(--accent);margin-bottom:16px;">◆</div>
+                    <h2 style="margin-bottom:8px;">${L.t('ob.lang.title')}</h2>
+                    <p style="color:var(--text-muted);font-size:13px;margin-bottom:32px;">${L.t('ob.lang.subtitle')}</p>
+                    <div style="display:flex;gap:16px;justify-content:center;">
+                        <button class="btn btn-lg" id="langPickDE" style="flex:1;padding:18px;font-size:16px;display:flex;flex-direction:column;align-items:center;gap:8px;border:2px solid var(--border);border-radius:12px;background:var(--card);">
+                            <span style="font-size:32px;">🇩🇪</span>
+                            <span style="font-weight:600;">Deutsch</span>
+                        </button>
+                        <button class="btn btn-lg" id="langPickEN" style="flex:1;padding:18px;font-size:16px;display:flex;flex-direction:column;align-items:center;gap:8px;border:2px solid var(--border);border-radius:12px;background:var(--card);">
+                            <span style="font-size:32px;">🇬🇧</span>
+                            <span style="font-weight:600;">English</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('langPickDE').addEventListener('click', () => {
+            localStorage.setItem('stackr_lang', 'de');
+            localStorage.setItem('stackr_lang_chosen', '1');
+            this._onboardingStep = 1;
+            this._onboardingData = {};
+            this._renderOnboarding();
+        });
+        document.getElementById('langPickEN').addEventListener('click', () => {
+            localStorage.setItem('stackr_lang', 'en');
+            localStorage.setItem('stackr_lang_chosen', '1');
+            this._onboardingStep = 1;
+            this._onboardingData = {};
+            this._renderOnboarding();
+        });
+    },
+
     _renderOnboarding() {
         const step = this._onboardingStep;
         const d = this._onboardingData;
+        const L = (typeof I18n !== 'undefined') ? I18n : { t: function(k) { return k; } };
         const totalSteps = 5;
 
         let stepsHtml = '<div class="onboarding-steps">';
@@ -981,116 +1047,116 @@ const App = {
         let title = '', subtitle = '', fieldsHtml = '';
 
         if (step === 1) {
-            title = 'Willkommen!';
-            subtitle = 'Lass uns dein Reselling-Business einrichten.';
+            title = L.t('ob.step1.title');
+            subtitle = L.t('ob.step1.subtitle');
             fieldsHtml = `
                 <div class="form-group">
-                    <label class="form-label">Firmenname (optional)</label>
+                    <label class="form-label" for="ob_firmenname">${L.t('field.company')}</label>
                     <input type="text" class="form-input" id="ob_firmenname" value="${Utils.escapeHtml(d.firmenname || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Dein Name *</label>
+                    <label class="form-label" for="ob_name">${L.t('field.name.req')}</label>
                     <input type="text" class="form-input" id="ob_name" value="${Utils.escapeHtml(d.name || '')}" required>
                 </div>
             `;
         } else if (step === 2) {
-            title = 'Adresse';
-            subtitle = 'Deine Geschäftsadresse für Rechnungen.';
+            title = L.t('ob.step2.title');
+            subtitle = L.t('ob.step2.subtitle');
             fieldsHtml = `
                 <div class="form-group">
-                    <label class="form-label">Strasse & Hausnummer</label>
+                    <label class="form-label" for="ob_adresse">${L.t('field.address')}</label>
                     <input type="text" class="form-input" id="ob_adresse" value="${Utils.escapeHtml(d.adresse || '')}">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">PLZ</label>
+                        <label class="form-label" for="ob_plz">${L.t('field.zip')}</label>
                         <input type="text" class="form-input" id="ob_plz" value="${Utils.escapeHtml(d.plz || '')}">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Ort</label>
+                        <label class="form-label" for="ob_ort">${L.t('field.city')}</label>
                         <input type="text" class="form-input" id="ob_ort" value="${Utils.escapeHtml(d.ort || '')}">
                     </div>
                 </div>
             `;
         } else if (step === 3) {
-            title = 'Kontakt';
-            subtitle = 'Wie bist du erreichbar?';
+            title = L.t('ob.step3.title');
+            subtitle = L.t('ob.step3.subtitle');
             fieldsHtml = `
                 <div class="form-group">
-                    <label class="form-label">Telefon</label>
+                    <label class="form-label" for="ob_telefon">${L.t('field.phone')}</label>
                     <input type="text" class="form-input" id="ob_telefon" value="${Utils.escapeHtml(d.telefon || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">E-Mail</label>
+                    <label class="form-label" for="ob_email">${L.t('field.email')}</label>
                     <input type="email" class="form-input" id="ob_email" value="${Utils.escapeHtml(d.email || '')}">
                 </div>
             `;
         } else if (step === 4) {
-            title = 'Steuer';
-            subtitle = 'Steuerliche Angaben für die EÜR.';
+            title = L.t('ob.step4.title');
+            subtitle = L.t('ob.step4.subtitle');
             fieldsHtml = `
                 <div class="form-group">
-                    <label class="form-label">Steuernummer</label>
+                    <label class="form-label" for="ob_steuernummer">${L.t('field.taxnr')}</label>
                     <input type="text" class="form-input" id="ob_steuernummer" value="${Utils.escapeHtml(d.steuernummer || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">USt-ID (optional)</label>
+                    <label class="form-label" for="ob_ustId">${L.t('field.ustid')}</label>
                     <input type="text" class="form-input" id="ob_ustId" value="${Utils.escapeHtml(d.ustId || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Umsatzsteuer-Modus</label>
+                    <label class="form-label">${L.t('field.ustmode')}</label>
                     <input type="hidden" id="ob_ustMode" value="${d.ustMode || 'klein'}">
                     <div class="ust-picker" id="ob_ust_picker">
                         <div class="ust-card ${(d.ustMode || 'klein') === 'klein' ? 'selected' : ''}" data-value="klein" onclick="App._pickUst('ob','klein')">
                             <div class="ust-card-icon" style="color:var(--success);"><i class="ti ti-shield-check"></i></div>
-                            <div class="ust-card-title">Kleinunternehmer</div>
-                            <div class="ust-card-law">§ 19 UStG</div>
+                            <div class="ust-card-title">${L.t('ust.klein.title')}</div>
+                            <div class="ust-card-law">${L.t('ust.klein.law')}</div>
                             <ul class="ust-card-facts">
-                                <li>Keine USt auf Ausgangsrechnungen</li>
-                                <li>Kein Vorsteuerabzug</li>
-                                <li>Umsatzgrenze 25.000 € / Jahr</li>
-                                <li>Keine USt-Voranmeldung nötig</li>
+                                <li>${L.t('ust.klein.f1')}</li>
+                                <li>${L.t('ust.klein.f2')}</li>
+                                <li>${L.t('ust.klein.f3')}</li>
+                                <li>${L.t('ust.klein.f4')}</li>
                             </ul>
-                            <div class="ust-card-hint">Ideal für Einsteiger &amp; Nebengewerbe</div>
+                            <div class="ust-card-hint">${L.t('ust.klein.hint')}</div>
                         </div>
                         <div class="ust-card ${d.ustMode === 'regel' ? 'selected' : ''}" data-value="regel" onclick="App._pickUst('ob','regel')">
                             <div class="ust-card-icon" style="color:var(--info);"><i class="ti ti-trending-up"></i></div>
-                            <div class="ust-card-title">Regelbesteuerung</div>
-                            <div class="ust-card-law">§ 19 UStG Opt-out</div>
+                            <div class="ust-card-title">${L.t('ust.regel.title')}</div>
+                            <div class="ust-card-law">${L.t('ust.regel.law')}</div>
                             <ul class="ust-card-facts">
-                                <li>19 % USt auf Ausgangsrechnungen</li>
-                                <li>Vorsteuer vom Finanzamt erstattbar</li>
-                                <li>Monatl./viertelj. Voranmeldung</li>
-                                <li>Pflicht ab 25.000 € Jahresumsatz</li>
+                                <li>${L.t('ust.regel.f1')}</li>
+                                <li>${L.t('ust.regel.f2')}</li>
+                                <li>${L.t('ust.regel.f3')}</li>
+                                <li>${L.t('ust.regel.f4')}</li>
                             </ul>
-                            <div class="ust-card-hint">Für B2B &amp; höhere Umsätze empfohlen</div>
+                            <div class="ust-card-hint">${L.t('ust.regel.hint')}</div>
                         </div>
                     </div>
                 </div>
             `;
         } else if (step === 5) {
-            title = 'Bankverbindung';
-            subtitle = 'Für Rechnungen und Zahlungen.';
+            title = L.t('ob.step5.title');
+            subtitle = L.t('ob.step5.subtitle');
             fieldsHtml = `
                 <div class="form-group">
-                    <label class="form-label">Bankname</label>
+                    <label class="form-label">${L.t('field.bank')}</label>
                     <input type="text" class="form-input" id="ob_bankname" value="${Utils.escapeHtml(d.bankname || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">IBAN</label>
+                    <label class="form-label">${L.t('field.iban')}</label>
                     <input type="text" class="form-input" id="ob_iban" value="${Utils.escapeHtml(d.iban || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">BIC</label>
+                    <label class="form-label">${L.t('field.bic')}</label>
                     <input type="text" class="form-input" id="ob_bic" value="${Utils.escapeHtml(d.bic || '')}">
                 </div>
             `;
         }
 
-        const prevBtn = step > 1 ? `<button class="btn" id="obPrev">Zurück</button>` : '';
+        const prevBtn = step > 1 ? `<button class="btn" id="obPrev">${L.t('ob.back')}</button>` : '';
         const nextBtn = step < totalSteps
-            ? `<button class="btn btn-primary" id="obNext">Weiter</button>`
-            : `<button class="btn btn-success" id="obFinish">Los geht's! 🚀</button>`;
+            ? `<button class="btn btn-primary" id="obNext">${L.t('ob.next')}</button>`
+            : `<button class="btn btn-success" id="obFinish">${L.t('ob.finish')}</button>`;
 
         document.getElementById('onboarding').innerHTML = `
             <div class="onboarding-overlay">
@@ -1183,45 +1249,45 @@ const App = {
         const body = `${licBlock}
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">Firmenname</label>
+                    <label class="form-label" for="set_firmenname">Firmenname</label>
                     <input type="text" class="form-input" id="set_firmenname" value="${Utils.escapeHtml(s.firmenname || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Name</label>
+                    <label class="form-label" for="set_name">Name</label>
                     <input type="text" class="form-input" id="set_name" value="${Utils.escapeHtml(s.name || '')}">
                 </div>
             </div>
             <div class="form-group">
-                <label class="form-label">Adresse</label>
+                <label class="form-label" for="set_adresse">Adresse</label>
                 <input type="text" class="form-input" id="set_adresse" value="${Utils.escapeHtml(s.adresse || '')}">
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">PLZ</label>
+                    <label class="form-label" for="set_plz">PLZ</label>
                     <input type="text" class="form-input" id="set_plz" value="${Utils.escapeHtml(s.plz || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Ort</label>
+                    <label class="form-label" for="set_ort">Ort</label>
                     <input type="text" class="form-input" id="set_ort" value="${Utils.escapeHtml(s.ort || '')}">
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">Telefon</label>
+                    <label class="form-label" for="set_telefon">Telefon</label>
                     <input type="text" class="form-input" id="set_telefon" value="${Utils.escapeHtml(s.telefon || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">E-Mail</label>
+                    <label class="form-label" for="set_email">E-Mail</label>
                     <input type="email" class="form-input" id="set_email" value="${Utils.escapeHtml(s.email || '')}">
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">Steuernummer</label>
+                    <label class="form-label" for="set_steuernummer">Steuernummer</label>
                     <input type="text" class="form-input" id="set_steuernummer" value="${Utils.escapeHtml(s.steuernummer || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">USt-ID</label>
+                    <label class="form-label" for="set_ustId">USt-ID</label>
                     <input type="text" class="form-input" id="set_ustId" value="${Utils.escapeHtml(s.ustId || '')}">
                 </div>
             </div>
@@ -1253,15 +1319,15 @@ const App = {
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">Bankname</label>
+                    <label class="form-label" for="set_bankname">Bankname</label>
                     <input type="text" class="form-input" id="set_bankname" value="${Utils.escapeHtml(s.bankname || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">IBAN</label>
+                    <label class="form-label" for="set_iban">IBAN</label>
                     <input type="text" class="form-input" id="set_iban" value="${Utils.escapeHtml(s.iban || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">BIC</label>
+                    <label class="form-label" for="set_bic">BIC</label>
                     <input type="text" class="form-input" id="set_bic" value="${Utils.escapeHtml(s.bic || '')}">
                 </div>
             </div>
@@ -1269,21 +1335,29 @@ const App = {
             <div class="section-title" style="margin-bottom:12px;">Rechnungs-Design</div>
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">Logo (PNG/JPG)</label>
+                    <label class="form-label" for="set_logo">Logo (PNG/JPG)</label>
                     <input type="file" accept="image/png,image/jpeg,image/gif,image/svg+xml" class="form-input" id="set_logo">
                     <div class="form-hint" id="set_logo_preview" style="margin-top:6px;"></div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Header-Farbe</label>
-                    <input type="color" class="form-input" id="set_headerColor" value="${s.invoiceHeaderColor || '#7c3aed'}" style="height:42px;padding:4px;">
+                    <label class="form-label" for="set_headerColor">Header-Farbe</label>
+                    <input type="color" class="form-input" id="set_headerColor" value="${s.invoiceHeaderColor || '#0e3b2e'}" style="height:42px;padding:4px;">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Primärfarbe (Akzent)</label>
-                    <input type="color" class="form-input" id="set_primaryColor" value="${s.invoicePrimaryColor || '#7c3aed'}" style="height:42px;padding:4px;">
+                    <label class="form-label" for="set_primaryColor">Primärfarbe (Akzent)</label>
+                    <input type="color" class="form-input" id="set_primaryColor" value="${s.invoicePrimaryColor || '#10b981'}" style="height:42px;padding:4px;">
                 </div>
             </div>
             ${s.logoBase64 ? `<div style="margin-top:8px;"><img src="${s.logoBase64}" style="max-height:60px;max-width:200px;object-fit:contain;border:1px solid var(--border);border-radius:6px;padding:4px;background:white;"></div>` : ''}
             ${(typeof GbR !== 'undefined') ? GbR.renderSettingsBlock() : ''}
+            <hr style="border-color:var(--border);margin:16px 0;">
+            <div class="form-group">
+                <label class="form-label">🌐 Sprache / Language</label>
+                <div style="display:flex;gap:10px;margin-top:6px;">
+                    <button class="btn${(typeof I18n !== 'undefined' && I18n.isDE()) ? ' btn-primary' : ''}" onclick="I18n.setLang('de')" style="flex:1;">🇩🇪 Deutsch</button>
+                    <button class="btn${(typeof I18n !== 'undefined' && I18n.isEN()) ? ' btn-primary' : ''}" onclick="I18n.setLang('en')" style="flex:1;">🇬🇧 English</button>
+                </div>
+            </div>
             <hr style="border-color:var(--border);margin:16px 0;">
             <div style="display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px;">
                 <div style="font-size:11px;color:var(--text-muted);text-align:right;">

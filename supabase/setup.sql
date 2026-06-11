@@ -46,6 +46,48 @@ CREATE POLICY "user_data: select own"
     ON public.user_data FOR SELECT
     USING (auth.uid() = user_id);
 
+-- ── Row-Count Guard (Red-Team F2/F3 fix) ────────────────────────────────────
+-- Prevents direct API abuse: limits user_data rows per user when no active
+-- Pro subscription exists. Counts store_key rows; each key = one JSON blob.
+-- Pro users (active/trialing/cancelled-but-valid) bypass this limit.
+-- NOTE: Free users are blocked from adding more than 100 store-keys via API.
+--       The app itself enforces "50 Buchungen" in JS; this is the server-side
+--       backstop against raw API access.
+CREATE OR REPLACE FUNCTION public.check_user_data_row_limit()
+RETURNS TRIGGER AS $$
+DECLARE
+    has_pro BOOLEAN;
+    row_count INTEGER;
+BEGIN
+    -- Check for active Pro subscription
+    SELECT EXISTS (
+        SELECT 1 FROM public.subscriptions s
+        WHERE s.user_id = NEW.user_id
+          AND s.status IN ('active', 'trialing', 'cancelled')
+          AND (s.current_period_end IS NULL OR s.current_period_end > now())
+    ) INTO has_pro;
+
+    -- Pro users: no limit
+    IF has_pro THEN
+        RETURN NEW;
+    END IF;
+
+    -- Free/Trial users: limit to 100 store_key rows per user
+    SELECT COUNT(*) INTO row_count
+    FROM public.user_data WHERE user_id = NEW.user_id;
+
+    IF row_count >= 100 THEN
+        RAISE EXCEPTION 'Row limit exceeded. Upgrade to Pro for unlimited storage.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_user_data_row_limit
+    BEFORE INSERT ON public.user_data
+    FOR EACH ROW EXECUTE FUNCTION public.check_user_data_row_limit();
+
 CREATE POLICY "user_data: insert own"
     ON public.user_data FOR INSERT
     WITH CHECK (auth.uid() = user_id);

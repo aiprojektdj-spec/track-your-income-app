@@ -23,20 +23,29 @@
     })();
     </script>
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.paddle.com; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co https://*.paddle.com; frame-src https://buy.paddle.com https://checkout.paddle.com;">
+
+    <!-- ── Resource Hints: faster CDN connections ── -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://csfvzmlihkrxokbbjyhf.supabase.co">
+    <link rel="preconnect" href="https://cdn.paddle.com">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
     <title>Stackr</title>
+
+    <!-- ── Critical: i18n (sync, tiny ~8KB) ── -->
+    <script src="js/i18n.js"></script>
+
+    <!-- ── Fonts: self-hosted (DSGVO) — preload verhindert FOUT ── -->
+    <link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+
+    <!-- ── CSS only in head — non-blocking ── -->
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/tabler-icons.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
-    <script src="js/vendor/chart.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/de.js"></script>
-    <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
-    <script>Paddle.Initialize({ token: 'live_7d279f61a3499fed520f7cd8c08' });</script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/themes/dark.css">
+    <!-- JS moved to body bottom with defer — no render blocking -->
 </head>
 <body>
 
@@ -46,7 +55,7 @@
     <div class="topnav">
         <!-- Brand -->
         <div class="topnav-brand">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;" aria-hidden="true" focusable="false">
                 <rect width="20" height="20" rx="5" fill="var(--accent)"/>
                 <path d="M6 7.5C6 6.67 6.67 6 7.5 6h2C10.88 6 12 7.12 12 8.5S10.88 11 9.5 11H8v3H6V7.5zm2 2h1.5c.28 0 .5-.22.5-.5S9.78 8.5 9.5 8.5H8V9.5z" fill="white"/>
                 <path d="M12.5 11c.83 0 1.5.67 1.5 1.5S13.33 14 12.5 14H11v-3h1.5z" fill="white" opacity=".7"/>
@@ -56,26 +65,26 @@
 
         <!-- Cross-app navigation -->
         <div class="topnav-apps">
-            <a href="app.html" class="tool-tab active" title="Overview Dashboard">
-                <i class="ti ti-layout-dashboard tab-icon"></i> Dashboard
+            <a href="app.html" class="tool-tab active" title="Dashboard">
+                <i class="ti ti-layout-dashboard tab-icon"></i> <span data-i18n="nav.dashboard">Dashboard</span>
             </a>
-            <a href="rechnungen/index.html" class="tool-tab" title="Rechnungsbuch">
-                <i class="ti ti-file-invoice tab-icon"></i> Rechnungen
+            <a href="rechnungen/index.html" class="tool-tab" title="Rechnungen / Invoices">
+                <i class="ti ti-file-invoice tab-icon"></i> <span data-i18n="nav.invoices">Rechnungen</span>
             </a>
-            <a href="eigenbelege/index.html" class="tool-tab" title="Eigenbelege">
-                <i class="ti ti-receipt tab-icon"></i> Eigenbelege
+            <a href="eigenbelege/index.html" class="tool-tab" title="Eigenbelege / Receipts">
+                <i class="ti ti-receipt tab-icon"></i> <span data-i18n="nav.receipts">Eigenbelege</span>
             </a>
-            <a href="lager/index.html" class="tool-tab" id="toolTabLager" title="Lager">
-                <i class="ti ti-package tab-icon"></i> Lager
+            <a href="lager/index.html" class="tool-tab" id="toolTabLager" title="Lager / Inventory">
+                <i class="ti ti-package tab-icon"></i> <span data-i18n="nav.inventory">Lager</span>
             </a>
-            <a href="app.html?page=euer" class="tool-tab" id="toolTabEuer" title="EÜR">
-                <i class="ti ti-chart-bar tab-icon"></i> EÜR
+            <a href="app.html?page=euer" class="tool-tab" id="toolTabEuer" title="EÜR / P&L">
+                <i class="ti ti-chart-bar tab-icon"></i> <span data-i18n="nav.euer">EÜR</span>
             </a>
-            <a href="app.html?page=akademie" class="tool-tab" id="toolTabAkademie" title="Akademie">
-                <i class="ti ti-school tab-icon"></i> Akademie
+            <a href="app.html?page=akademie" class="tool-tab" id="toolTabAkademie" title="Akademie / Academy">
+                <i class="ti ti-school tab-icon"></i> <span data-i18n="nav.academy">Akademie</span>
             </a>
-            <a href="app.html?page=gbr" class="tool-tab" id="toolTabGbr" title="GbR-Verwaltung" style="display:none;">
-                <i class="ti ti-users tab-icon"></i> GbR
+            <a href="app.html?page=gbr" class="tool-tab" id="toolTabGbr" title="GbR" style="display:none;">
+                <i class="ti ti-users tab-icon"></i> <span data-i18n="nav.gbr">GbR</span>
             </a>
         </div>
 
@@ -83,8 +92,8 @@
         <div class="topnav-controls">
             <div id="companySwitcher"></div>
             <button class="theme-toggle" id="themeToggle" title="Theme wechseln" style="display:none;"></button>
-            <a href="#" id="settingsLink" title="Einstellungen" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-settings"></i></a>
-            <a href="#" id="backupLink" title="Backup & Daten" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-device-floppy"></i></a>
+            <a href="#" id="settingsLink" title="Einstellungen" aria-label="Einstellungen" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-settings" aria-hidden="true"></i></a>
+            <a href="#" id="backupLink" title="Backup & Daten" aria-label="Backup & Daten" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-device-floppy" aria-hidden="true"></i></a>
             <div id="fsBackupStatus" style="display:none;"></div>
         </div>
     </div>
@@ -142,6 +151,9 @@
                 <div class="sidebar-link" data-page="ausgaben" id="euerNav_ausgaben">
                     <span class="icon"><i class="ti ti-cash"></i></span><span class="sidebar-link-label"> Ausgaben (Betrieb)</span>
                 </div>
+                <div class="sidebar-link" data-page="bankimport">
+                    <span class="icon"><i class="ti ti-building-bank"></i></span><span class="sidebar-link-label"> Bank-Import</span>
+                </div>
             </div>
 
             <!-- ── Steuer & Soziales ── -->
@@ -159,10 +171,13 @@
                 <div class="sidebar-link" data-page="ksk">
                     <span class="icon"><i class="ti ti-palette"></i></span><span class="sidebar-link-label"> KSK (Künstlersozialks.)</span>
                 </div>
+                <div class="sidebar-link" data-page="steuerberater">
+                    <span class="icon"><i class="ti ti-user-check"></i></span><span class="sidebar-link-label"> Steuerberater-Export</span>
+                </div>
             </div>
 
             <!-- ── GoBD Protokoll — immer sichtbar ── -->
-            <div class="sidebar-link" id="protokollFixedLink" data-page="protokoll" style="margin:4px 8px;border-radius:6px;border:1px solid rgba(99,102,241,0.25);background:rgba(99,102,241,0.06);">
+            <div class="sidebar-link" id="protokollFixedLink" data-page="protokoll" style="margin:4px 8px;border-radius:8px;border:1px solid rgba(139,147,248,0.25);background:rgba(139,147,248,0.06);">
                 <span class="icon"><i class="ti ti-notebook"></i></span><span class="sidebar-link-label"> GoBD Protokoll</span>
             </div>
 
@@ -205,7 +220,7 @@
     <!-- ══════════════════════════════════════════════
          FLOATING SIDEBAR TOGGLE BUTTON
          ══════════════════════════════════════════════ -->
-    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Navigation öffnen">›</button>
+    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Navigation öffnen" aria-label="Navigation öffnen" aria-expanded="false" aria-controls="sidebar">›</button>
 
     <!-- ══════════════════════════════════════════════
          MAIN APP CONTAINER
@@ -214,49 +229,89 @@
         <div class="mobile-overlay" id="mobileOverlay"></div>
         <main class="main-content">
             <button class="btn btn-icon mobile-menu-btn" id="mobileMenuBtn" style="display:none;">☰</button>
-            <div id="content"></div>
+            <!-- Loading skeleton — visible until app.js replaces it -->
+            <div id="content">
+                <div id="appLoadingSkeleton" style="padding:24px;">
+                    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">
+                        <div style="height:90px;flex:1;min-width:140px;background:var(--surface,#101312);border-radius:12px;animation:skeletonPulse 1.4s ease-in-out infinite;"></div>
+                        <div style="height:90px;flex:1;min-width:140px;background:var(--surface,#101312);border-radius:12px;animation:skeletonPulse 1.4s ease-in-out infinite .1s;"></div>
+                        <div style="height:90px;flex:1;min-width:140px;background:var(--surface,#101312);border-radius:12px;animation:skeletonPulse 1.4s ease-in-out infinite .2s;"></div>
+                        <div style="height:90px;flex:1;min-width:140px;background:var(--surface,#101312);border-radius:12px;animation:skeletonPulse 1.4s ease-in-out infinite .3s;"></div>
+                    </div>
+                    <div style="height:240px;background:var(--surface,#101312);border-radius:12px;animation:skeletonPulse 1.4s ease-in-out infinite .4s;"></div>
+                </div>
+                <style>
+                @keyframes skeletonPulse {
+                    0%,100% { opacity:.5; }
+                    50%      { opacity:1; }
+                }
+                </style>
+            </div>
         </main>
     </div>
 
     <!-- Modal -->
-    <div class="modal-overlay" id="modalOverlay">
-        <div class="modal" id="modal"></div>
+    <div class="modal-overlay" id="modalOverlay" role="presentation">
+        <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
     </div>
     <div id="onboarding"></div>
 
-    <!-- Scripts -->
-    <script src="js/cookie-banner.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/vendor/xlsx.full.min.js"></script>
-    <script src="js/license.js"></script>
-    <script src="js/companies.js"></script>
-    <script src="js/store.js"></script>
-    <script src="js/supabase-client.js"></script>
-    <script src="js/cloud-sync.js?v=2"></script>
-    <script src="js/user-plan.js?v=2"></script>
-    <script src="js/auth-ui.js?v=2"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/dashboard.js"></script>
-    <script src="js/buchungen.js"></script>
-    <script src="js/lager.js"></script>
-    <script src="js/euer.js"></script>
-    <script src="js/ausgaben.js"></script>
-    <script src="js/statistiken.js"></script>
-    <script src="js/protokoll.js"></script>
-    <script src="js/retouren.js"></script>
-    <script src="js/fahrtenbuch.js"></script>
-    <script src="js/kassenbuch.js"></script>
-    <script src="js/steuertermine.js"></script>
-    <script src="js/afa.js"></script>
-    <script src="js/privatbuchungen.js"></script>
-    <script src="js/ustvoranmeldung.js"></script>
-    <script src="js/ksk.js"></script>
-    <script src="js/gbr.js"></script>
-    <script src="js/gbr-modul.js"></script>
-    <script src="js/svs.js"></script>
-    <script src="js/materiallager.js"></script>
-    <script src="js/akademie.js"></script>
-    <script src="js/app.js?v=2"></script>
+    <!-- ══════════════════════════════════════════════
+         Scripts — defer: parallel download, in-order
+         execution after HTML parsed, zero render blocking
+         ══════════════════════════════════════════════ -->
+
+    <!-- ── Vendor: CDN libs (downloaded in parallel) ── -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="js/vendor/chart.min.js"></script>
+    <script defer src="js/vendor/xlsx.full.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/l10n/de.js"></script>
+    <!-- ApexCharts (~600KB): lazy-loaded by dashboard.js only when chart tab opens -->
+    <!-- Paddle.js: lazy-loaded by js/paddle-init.js only on upgrade click -->
+
+    <!-- ── App core ── -->
+    <script defer src="js/cookie-banner.js"></script>
+    <script defer src="js/error-logger.js"></script>
+    <script defer src="js/license.js"></script>
+    <script defer src="js/companies.js"></script>
+    <script defer src="js/store.js"></script>
+    <script defer src="js/supabase-client.js"></script>
+    <script defer src="js/cloud-sync.js?v=2"></script>
+    <script defer src="js/user-plan.js?v=2"></script>
+    <script defer src="js/auth-ui.js?v=2"></script>
+    <script defer src="js/utils.js"></script>
+
+    <!-- ── Feature modules ── -->
+    <script defer src="js/dashboard.js"></script>
+    <script defer src="js/buchungen.js"></script>
+    <script defer src="js/lager.js"></script>
+    <script defer src="js/datev.js"></script>
+    <script defer src="js/bank-import.js"></script>
+    <script defer src="js/steuerberater.js"></script>
+    <script defer src="js/euer.js"></script>
+    <script defer src="js/ausgaben.js"></script>
+    <script defer src="js/statistiken.js"></script>
+    <script defer src="js/protokoll.js"></script>
+    <script defer src="js/retouren.js"></script>
+    <script defer src="js/fahrtenbuch.js"></script>
+    <script defer src="js/kassenbuch.js"></script>
+    <script defer src="js/steuertermine.js"></script>
+    <script defer src="js/afa.js"></script>
+    <script defer src="js/privatbuchungen.js"></script>
+    <script defer src="js/ustvoranmeldung.js"></script>
+    <script defer src="js/ksk.js"></script>
+    <script defer src="js/gbr.js"></script>
+    <script defer src="js/gbr-modul.js"></script>
+    <script defer src="js/svs.js"></script>
+    <script defer src="js/materiallager.js"></script>
+    <script defer src="js/akademie.js"></script>
+    <script defer src="js/paddle-init.js"></script>
+
+    <!-- ── Entry point (last, depends on all above) ── -->
+    <script defer src="js/app.js?v=2"></script>
 
     <script>
         // ── Mark active tool tab based on ?page= param ──
@@ -281,6 +336,8 @@
                 btn.classList.add('sidebar-open');
                 btn.textContent = '‹';
                 btn.title = 'Navigation schließen';
+                btn.setAttribute('aria-expanded', 'true');
+                btn.setAttribute('aria-label', 'Navigation schließen');
                 overlay.classList.add('active');
             }
 
@@ -289,6 +346,8 @@
                 btn.classList.remove('sidebar-open');
                 btn.textContent = '›';
                 btn.title = 'Navigation öffnen';
+                btn.setAttribute('aria-expanded', 'false');
+                btn.setAttribute('aria-label', 'Navigation öffnen');
                 overlay.classList.remove('active');
             }
 
@@ -330,7 +389,7 @@
         var overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px;';
         overlay.innerHTML = [
-            '<div style="background:var(--surface,#1e1e2e);border:1px solid rgba(99,102,241,.35);border-radius:14px;padding:32px;max-width:380px;width:100%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6);">',
+            '<div style="background:var(--surface,#101312);border:1px solid rgba(16,185,129,.3);border-radius:14px;padding:32px;max-width:380px;width:100%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.6);">',
             '<div style="font-size:32px;margin-bottom:12px;">🔑</div>',
             '<h2 style="color:var(--text-primary,#fff);font-size:18px;margin:0 0 20px;">Neues Passwort setzen</h2>',
             '<input id="pwResetInput" type="password" placeholder="Neues Passwort (mind. 6 Zeichen)" style="width:100%;padding:10px 12px;background:var(--surface-2,rgba(255,255,255,.06));border:1px solid var(--border,#444);border-radius:8px;color:var(--text-primary,#fff);font-size:14px;box-sizing:border-box;margin-bottom:12px;">',

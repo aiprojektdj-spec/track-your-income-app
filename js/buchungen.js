@@ -1163,12 +1163,20 @@ const Buchungen = {
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Einkaufspreis</label>
+                            <label class="form-label" for="ep_preis">Einkaufspreis (Brutto)</label>
                             <input type="number" step="0.01" class="form-input" id="ep_preis" value="${p.einkaufspreis || 0}">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Anzahl</label>
+                            <label class="form-label" for="ep_anzahl">Anzahl</label>
                             <input type="number" min="1" class="form-input" id="ep_anzahl" value="${p.anzahl || 1}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="ep_ustSatz">USt-Satz</label>
+                            <select class="form-select" id="ep_ustSatz">
+                                <option value="19" ${(p.ustSatz === 19 || p.ustSatz == null) ? 'selected' : ''}>19 % (Standard)</option>
+                                <option value="7"  ${p.ustSatz === 7 ? 'selected' : ''}>7 % (ermäßigt)</option>
+                                <option value="0"  ${p.ustSatz === 0 ? 'selected' : ''}>0 % (keine USt)</option>
+                            </select>
                         </div>
                     </div>
                     <div class="form-group">
@@ -1212,6 +1220,7 @@ const Buchungen = {
                     beschreibung: document.getElementById('ep_beschreibung').value.trim(),
                     einkaufspreis: parseFloat(document.getElementById('ep_preis').value) || 0,
                     anzahl: parseInt(document.getElementById('ep_anzahl').value) || 1,
+                    ustSatz: parseInt(document.getElementById('ep_ustSatz').value) ?? 19,
                     einkaufsquelle: einkaufsquelle,
                     notizen: document.getElementById('ep_notizen').value.trim(),
                     status: p.status,

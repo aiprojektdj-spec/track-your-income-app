@@ -7,7 +7,7 @@ const CompanyManager = {
     MAX_COMPANIES: 5,
 
     FARBEN: [
-        { name: 'Indigo',  hex: '#6366f1' },
+        { name: 'Emerald', hex: '#10b981' },
         { name: 'Grün',    hex: '#22c55e' },
         { name: 'Orange',  hex: '#f97316' },
         { name: 'Blau',    hex: '#3b82f6' },
@@ -54,7 +54,7 @@ const CompanyManager = {
         const company = {
             id,
             name:           name.trim(),
-            farbe:          farbe || '#6366f1',
+            farbe:          farbe || '#10b981',
             branche:        branche || 'Reselling',
             land:           land || 'DE',
             erstellt:       new Date().toISOString(),
@@ -145,7 +145,7 @@ const CompanyManager = {
     // Rendert den Company-Switcher-Button (oben rechts im tool-switcher)
     renderSwitcherBtn() {
         const co    = this.getActive();
-        const color = co ? co.farbe : '#6366f1';
+        const color = co ? co.farbe : '#10b981';
         const name  = co ? co.name  : '—';
 
         return `
@@ -194,7 +194,7 @@ const CompanyManager = {
                 transition:background .12s;
             " onmouseenter="if(!${isActive})this.style.background='var(--bg-secondary)'"
                onmouseleave="this.style.background='${isActive ? 'rgba(99,102,241,.10)' : 'transparent'}'">
-                <span style="width:12px;height:12px;border-radius:50%;background:${/^#[0-9a-fA-F]{6}$/.test(co.farbe) ? co.farbe : '#6366f1'};flex-shrink:0;"></span>
+                <span style="width:12px;height:12px;border-radius:50%;background:${/^#[0-9a-fA-F]{6}$/.test(co.farbe) ? co.farbe : '#10b981'};flex-shrink:0;"></span>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         ${Utils.escapeHtml(co.name)}
@@ -364,7 +364,7 @@ const CompanyManager = {
     _createFromModal() {
         const name    = document.getElementById('new_firma_name')?.value?.trim();
         const branche = document.getElementById('new_firma_branche')?.value || 'Reselling';
-        const farbe   = document.querySelector('input[name="firma_farbe"]:checked')?.value || '#6366f1';
+        const farbe   = document.querySelector('input[name="firma_farbe"]:checked')?.value || '#10b981';
         const land    = document.querySelector('input[name="new_firma_land"]:checked')?.value || 'DE';
 
         if (!name) {
@@ -617,7 +617,7 @@ const CompanyManager = {
     async _submitOnboarding() {
         const name    = document.getElementById('onb_name')?.value?.trim();
         const branche = document.getElementById('onb_branche')?.value || 'Reselling';
-        const farbe   = document.querySelector('input[name="onb_farbe"]:checked')?.value || '#6366f1';
+        const farbe   = document.querySelector('input[name="onb_farbe"]:checked')?.value || '#10b981';
         const land    = document.querySelector('input[name="onb_land"]:checked')?.value || 'DE';
 
         if (!name) {

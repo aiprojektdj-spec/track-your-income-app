@@ -35,7 +35,7 @@ var CloudSync = (function () {
         if (!dot) return;
         var cfg = {
             idle:    { icon: '☁',  color: 'var(--success,#22c55e)', title: 'Cloud-Sync aktiv' },
-            syncing: { icon: '↻',  color: 'var(--accent,#6366f1)',  title: 'Synchronisiere...' },
+            syncing: { icon: '↻',  color: 'var(--accent,#10b981)',  title: 'Synchronisiere...' },
             error:   { icon: '⚠',  color: '#ef4444',                title: 'Sync-Fehler' },
             offline: { icon: '☁',  color: '#888',                   title: 'Nicht angemeldet' }
         };

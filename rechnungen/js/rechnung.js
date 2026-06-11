@@ -664,6 +664,18 @@ var Rechnung = (function() {
             return null;
         }
 
+        // \u00A714 UStG \u2014 warn if required fields missing on invoices
+        if (typ === 'rechnung') {
+            var kd = Store.getRechCustomers().find(function(c) { return c.id === kundeId; });
+            if (kd && (!kd.strasse || !kd.plz || !kd.ort)) {
+                Utils.showToast('\u26A0\uFE0F Kundenadresse unvollst\u00E4ndig (Stra\u00DFe, PLZ, Ort) \u2014 \u00A714 UStG Pflichtangabe.', 'warning');
+            }
+            var s14 = Store.getRechUnternehmen ? Store.getRechUnternehmen() : {};
+            if (!s14.steuernummer && !s14.ustId) {
+                Utils.showToast('\u26A0\uFE0F Keine Steuernummer / USt-IdNr. hinterlegt \u2014 \u00A714 UStG Pflichtangabe.', 'warning');
+            }
+        }
+
         if (!nummer) {
             nummer = Store.nextRechInvoiceNumber(typ);
         }

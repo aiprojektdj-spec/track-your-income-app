@@ -987,6 +987,9 @@ const Store = {
 
     _addAuditEntry(action, entityType, entityId, oldValues, newValues, details) {
         const log = this.getAuditLog();
+        // Hash-chain: prevHash = checksum of last entry (GoBD Rz.64 — Unveränderlichkeit)
+        const prevEntry = log.length ? log[log.length - 1] : null;
+        const prevHash  = prevEntry ? (prevEntry.checksum || '') : 'GENESIS';
         const entry = {
             id: this.generateId(),
             timestamp: new Date().toISOString(),
@@ -996,6 +999,7 @@ const Store = {
             oldValues: oldValues || null,
             newValues: newValues || null,
             details: details || '',
+            prevHash,  // chain link: tampering one entry breaks all subsequent prevHash checks
             checksum: ''
         };
         entry.checksum = this._calcChecksum(JSON.stringify(entry));
@@ -1004,6 +1008,27 @@ const Store = {
         this._cache[this._auditKey] = str;
         this._idbPut(this._auditKey, str);
         return entry;
+    },
+
+    // Verify audit log chain integrity — returns { valid, broken, total }
+    verifyAuditChain() {
+        const log = this.getAuditLog();
+        let broken = 0;
+        for (let i = 0; i < log.length; i++) {
+            const entry = log[i];
+            // Recompute entry checksum (excluding checksum field itself)
+            const copy = Object.assign({}, entry, { checksum: '' });
+            const expected = this._calcChecksum(JSON.stringify(copy));
+            if (entry.checksum !== expected) { broken++; continue; }
+            // Verify chain link
+            if (i > 0) {
+                const expectedPrev = log[i - 1].checksum || '';
+                if (entry.prevHash !== expectedPrev) broken++;
+            } else {
+                if (entry.prevHash !== 'GENESIS') broken++;
+            }
+        }
+        return { valid: broken === 0, broken, total: log.length };
     },
 
     _calcChecksum(str) {
@@ -2158,21 +2183,34 @@ const Store = {
 
     saveFahrt(f) {
         const all = this.getFahrten();
-        if (!f.id) { f.id = this.generateId(); f.createdAt = new Date().toISOString(); }
+        const isNew = !f.id;
+        if (isNew) { f.id = this.generateId(); f.createdAt = new Date().toISOString(); }
         const idx = all.findIndex(x => x.id === f.id);
+        const old = idx >= 0 ? Object.assign({}, all[idx]) : null;
         if (idx >= 0) all[idx] = f; else all.push(f);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'fahrtenbuch'] = str;
         this._idbPut(this._prefix + 'fahrtenbuch', str);
+        this._addAuditEntry(isNew ? 'erstellt' : 'bearbeitet', 'fahrt', f.id, old, f, isNew ? 'Fahrt erstellt' : 'Fahrt bearbeitet');
         this._triggerAutoBackup();
         return f;
     },
 
-    deleteFahrt(id) {
-        const all = this.getFahrten().filter(f => f.id !== id);
+    deleteFahrt(id, grund) {
+        // GoBD §146 AO: Physisches Löschen verboten — Eintrag stornieren statt löschen
+        const all = this.getFahrten();
+        const idx = all.findIndex(f => f.id === id);
+        if (idx < 0) return;
+        const old = Object.assign({}, all[idx]);
+        all[idx] = Object.assign({}, all[idx], {
+            storniert:   true,
+            stornoGrund: grund || 'Manuell storniert',
+            stornoAt:    new Date().toISOString()
+        });
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'fahrtenbuch'] = str;
         this._idbPut(this._prefix + 'fahrtenbuch', str);
+        this._addAuditEntry('storniert', 'fahrt', id, old, all[idx], grund || 'Fahrtenbucheintrag storniert');
         this._triggerAutoBackup();
     },
 
@@ -2193,11 +2231,21 @@ const Store = {
         return e;
     },
 
-    deleteKassenEintrag(id) {
-        const all = this.getKassenbuch().filter(e => e.id !== id);
+    deleteKassenEintrag(id, grund) {
+        // GoBD §146 AO: Physisches Löschen verboten — Eintrag stornieren statt löschen
+        const all = this.getKassenbuch();
+        const idx = all.findIndex(e => e.id === id);
+        if (idx < 0) return;
+        const old = Object.assign({}, all[idx]);
+        all[idx] = Object.assign({}, all[idx], {
+            storniert:   true,
+            stornoGrund: grund || 'Manuell storniert',
+            stornoAt:    new Date().toISOString()
+        });
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'kassenbuch'] = str;
         this._idbPut(this._prefix + 'kassenbuch', str);
+        this._addAuditEntry('storniert', 'kassenbuch', id, old, all[idx], grund || 'Kassenbucheintrag storniert');
         this._triggerAutoBackup();
     },
 

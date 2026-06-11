@@ -1053,7 +1053,7 @@ const GbR = {
         </div>`;
 
         // ── 2. Ausgaben-Torte (SVG) ──────────────────────────────────────
-        const katColors = { wareneinkauf:'#6366f1', versandkosten:'#3b82f6', plattformgebuehren:'#f59e0b', fahrtkosten:'#10b981', material:'#8b5cf6', sonstige:'#6b7280' };
+        const katColors = { wareneinkauf:'#8b93f8', versandkosten:'#3b82f6', plattformgebuehren:'#f5a623', fahrtkosten:'#10b981', material:'#14b8a6', sonstige:'#6b7280' };
         const katLabels = { wareneinkauf:'Wareneinkauf', versandkosten:'Versandkosten', plattformgebuehren:'Plattformgeb.', fahrtkosten:'Fahrtkosten', material:'Material', sonstige:'Sonstige' };
         const katSegs   = Object.entries(katTotals).filter(([,v]) => v > 0.01).map(([k, v]) => ({ key:k, label:katLabels[k], value:v, color:katColors[k] }));
         const katTotal  = katSegs.reduce((s, x) => s + x.value, 0);

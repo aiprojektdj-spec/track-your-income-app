@@ -50,9 +50,11 @@ const Fahrtenbuch = {
     render() {
         const fahrten = Store.getFahrten();
         const filtered = this._getFiltered(fahrten);
-        const totalKm = filtered.reduce((s, f) => s + (parseFloat(f.gesamtKm || f.km) || 0), 0);
-        const totalKosten = filtered.reduce((s, f) => s + (parseFloat(f.kosten) || 0), 0);
-        const totalFahrten = filtered.length;
+        // GoBD: stornierte Einträge anzeigen aber nicht in Summen zählen
+        const aktivFiltered = filtered.filter(f => !f.storniert);
+        const totalKm = aktivFiltered.reduce((s, f) => s + (parseFloat(f.gesamtKm || f.km) || 0), 0);
+        const totalKosten = aktivFiltered.reduce((s, f) => s + (parseFloat(f.kosten) || 0), 0);
+        const totalFahrten = aktivFiltered.length;
 
         const years = Array.from(new Set(fahrten.map(f => (f.datum || '').substring(0, 4)).filter(Boolean))).sort().reverse();
         const yearOpts = ['all', ...years].map(y =>
@@ -292,25 +294,28 @@ const Fahrtenbuch = {
                     ? f.zweckSonstiges
                     : (zweckObj?.label.split('(')[0].trim() || f.zweck || '–');
                 const gesamtKm = parseFloat(f.gesamtKm || f.km) || 0;
-                return `<tr>
-                    <td style="font-family:monospace;font-size:11px;white-space:nowrap;color:var(--text-muted);">${Utils.escapeHtml(f.nummer || '–')}</td>
+                const isSt = !!f.storniert;
+                const rowStyle = isSt ? 'opacity:.45;text-decoration:line-through;' : '';
+                return `<tr style="${rowStyle}">
+                    <td style="font-family:monospace;font-size:11px;white-space:nowrap;color:var(--text-muted);">${Utils.escapeHtml(f.nummer || '–')}${isSt ? ' <span style="text-decoration:none;font-size:10px;color:#94a3b8;">[ST]</span>' : ''}</td>
                     <td style="white-space:nowrap;">${Utils.formatDate(f.datum)}</td>
                     <td style="font-size:12px;color:var(--text-muted);">${this.getWochentag(f.datum)}</td>
                     <td>${Utils.escapeHtml(f.von || '')} → ${Utils.escapeHtml(f.nach || '')}${f.hinUndRueck ? ' <span style="font-size:10px;color:var(--text-muted);">(H+R)</span>' : ''}</td>
                     <td style="text-align:right">${gesamtKm.toFixed(1)} km</td>
                     <td style="font-size:12px;max-width:160px;">${Utils.escapeHtml(zweckLabel)}</td>
                     <td style="font-size:12px;color:var(--text-muted);">${Utils.escapeHtml(f.fahrzeug || 'PKW')}</td>
-                    <td style="text-align:right;font-weight:600;color:var(--success);">${Utils.formatCurrency(f.kosten)}</td>
+                    <td style="text-align:right;font-weight:600;color:var(--success);">${isSt ? '–' : Utils.formatCurrency(f.kosten)}</td>
                     <td class="table-actions">
-                        <button class="btn btn-small" data-edit-fahrt="${f.id}" title="Bearbeiten">✏️</button>
-                        <button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Löschen">🗑️</button>
+                        ${isSt ? '' : `<button class="btn btn-small" data-edit-fahrt="${f.id}" title="Bearbeiten">✏️</button>`}
+                        ${isSt ? '' : `<button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Stornieren">🗑️</button>`}
                     </td>
                 </tr>`;
             }).join('');
         }
 
-        const totalKm = filtered.reduce((s, f) => s + (parseFloat(f.gesamtKm || f.km) || 0), 0);
-        const totalKosten = filtered.reduce((s, f) => s + (parseFloat(f.kosten) || 0), 0);
+        const aktivFiltered = filtered.filter(f => !f.storniert);
+        const totalKm = aktivFiltered.reduce((s, f) => s + (parseFloat(f.gesamtKm || f.km) || 0), 0);
+        const totalKosten = aktivFiltered.reduce((s, f) => s + (parseFloat(f.kosten) || 0), 0);
 
         return `
             <div class="table-container">
@@ -329,10 +334,10 @@ const Fahrtenbuch = {
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
-                    ${filtered.length > 0 ? `<tfoot>
+                    ${aktivFiltered.length > 0 ? `<tfoot>
                         <tr style="font-weight:600;background:var(--bg-card);">
                             <td colspan="4" style="text-align:right;padding-right:12px;color:var(--text-secondary);">
-                                Summe (${filtered.length} Fahrten):
+                                Summe (${aktivFiltered.length} Fahrten):
                             </td>
                             <td style="text-align:right">${totalKm.toFixed(1)} km</td>
                             <td colspan="2"></td>
@@ -347,7 +352,7 @@ const Fahrtenbuch = {
 
     _renderMonate(filtered) {
         const monate = {};
-        filtered.forEach(f => {
+        filtered.filter(f => !f.storniert).forEach(f => {
             const key = (f.datum || '').substring(0, 7);
             if (!key || key.length < 7) return;
             if (!monate[key]) monate[key] = { fahrten: [], km: 0, kosten: 0 };
@@ -445,9 +450,10 @@ const Fahrtenbuch = {
 
         document.querySelectorAll('[data-delete-fahrt]').forEach(btn => {
             btn.addEventListener('click', () => {
-                if (!confirm('Fahrt löschen?')) return;
-                Store.deleteFahrt(btn.dataset.deleteFahrt);
-                Utils.showToast('Fahrt gelöscht', 'success');
+                const grund = prompt('Stornogrund (GoBD-Pflicht):', 'Falscheingabe');
+                if (grund === null) return;
+                Store.deleteFahrt(btn.dataset.deleteFahrt, grund || 'Manuell storniert');
+                Utils.showToast('Fahrt storniert (GoBD-konform)', 'success');
                 this._refresh();
             });
         });

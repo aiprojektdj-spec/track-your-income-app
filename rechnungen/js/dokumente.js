@@ -153,6 +153,9 @@ var Dokumente = (function() {
             html += '<button class="action-btn doc-send" data-id="' + inv.id + '" title="Versenden"><i class="ti ti-send"></i></button> ';
         }
         html += '<button class="action-btn doc-pdf" data-id="' + inv.id + '" title="PDF / Drucken"><i class="ti ti-file-download"></i></button> ';
+        if (inv.typ === 'rechnung' || inv.typ === 'gutschrift') {
+            html += '<button class="action-btn doc-xrechnung" data-id="' + inv.id + '" title="XRechnung XML exportieren (EN 16931)" style="font-size:10px;font-weight:700;letter-spacing:.3px;">XR</button> ';
+        }
         if (inv.typ !== 'stornorechnung' && inv.status !== 'storniert') {
             html += '<button class="action-btn action-btn-danger doc-cancel" data-id="' + inv.id + '" title="Stornieren"><i class="ti ti-ban"></i></button> ';
         }
@@ -513,8 +516,9 @@ var Dokumente = (function() {
                 var id = this.getAttribute('data-id');
                 var invoices = Store.getRechInvoices();
                 var inv = invoices.find(function(i) { return i.id === id; });
-                if (inv && (inv.status === 'bezahlt' || inv.status === 'storniert')) {
-                    alert('Dieses Dokument ist gesperrt und kann nicht mehr bearbeitet werden.');
+                if (inv && (inv.status === 'bezahlt' || inv.status === 'storniert' || inv.status === 'versendet')) {
+                    var statusLabel = { bezahlt:'Bezahlt', storniert:'Storniert', versendet:'Versendet' }[inv.status] || inv.status;
+                    alert('Dieses Dokument ist gesperrt.\n\nStatus: ' + statusLabel + '\nGrund: GoBD §146 – Buchungen müssen unveränderlich sein.\n\nFür Korrekturen: Dokument stornieren und neu ausstellen.');
                     return;
                 }
                 RechApp.navigate('rechnung-edit', { invoiceId: id });
@@ -560,6 +564,19 @@ var Dokumente = (function() {
         document.querySelectorAll('.doc-pdf').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 showPreview(this.getAttribute('data-id'));
+            });
+        });
+
+        document.querySelectorAll('.doc-xrechnung').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var id = this.getAttribute('data-id');
+                var invoices = Store.getRechInvoices();
+                var inv = invoices.find(function(i) { return i.id === id; });
+                if (inv && typeof XRechnung !== 'undefined') {
+                    XRechnung.download(inv);
+                } else {
+                    Utils.showToast('XRechnung-Modul nicht geladen', 'error');
+                }
             });
         });
     }

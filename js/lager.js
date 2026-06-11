@@ -32,7 +32,7 @@ const Lager = {
         boden:     { label: 'Boden',      icon: '📐' },
         sonstiges: { label: 'Sonstiges',  icon: '📍' }
     },
-    ZONE_COLORS: ['#7c3aed','#2563eb','#059669','#d97706','#dc2626','#0891b2','#9333ea','#16a34a','#ea580c','#be185d'],
+    ZONE_COLORS: ['#10b981','#2563eb','#8b93f8','#d97706','#dc2626','#0891b2','#9333ea','#16a34a','#ea580c','#be185d'],
 
     STATUS_CONFIG: {
         verfuegbar:  { label: 'Verfügbar',   color: '#22c55e', bg: 'rgba(34,197,94,.15)',   icon: '●', badge: 'badge-success' },
@@ -45,12 +45,12 @@ const Lager = {
     },
 
     SORT_OPTIONS: [
-        { value: 'newest',    label: '🕐 Neueste zuerst' },
-        { value: 'oldest',    label: '📅 Älteste / FIFO'  },
-        { value: 'ek_desc',   label: '💰 Höchster EK'    },
-        { value: 'ek_asc',    label: '💸 Niedrigster EK' },
-        { value: 'marke',     label: '🏷️ Marke (A–Z)'    },
-        { value: 'artikelnr', label: '🔢 Artikelnummer'   }
+        { value: 'newest',    label: 'Neueste zuerst' },
+        { value: 'oldest',    label: 'Älteste / FIFO'  },
+        { value: 'ek_desc',   label: 'Höchster EK'    },
+        { value: 'ek_asc',    label: 'Niedrigster EK' },
+        { value: 'marke',     label: 'Marke (A–Z)'    },
+        { value: 'artikelnr', label: 'Artikelnummer'   }
     ],
 
     _loadPrefs() {
@@ -365,10 +365,10 @@ const Lager = {
     _vkTotalEK: 0,
 
     _statusBadge(status, storniert) {
-        if (storniert) return '<span class="badge badge-danger">Storniert</span>';
+        if (storniert) return '<span class="badge badge-danger" style="font-weight:600;padding:3px 8px;">Storniert</span>';
         const cfg = this.STATUS_CONFIG[status];
         if (!cfg) return `<span class="badge badge-neutral">${Utils.escapeHtml(status || '—')}</span>`;
-        return `<span class="badge ${cfg.badge}">${cfg.icon} ${cfg.label}</span>`;
+        return `<span class="badge" style="background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.color}40;font-weight:600;padding:3px 8px;border-radius:6px;">${cfg.label}</span>`;
     },
 
     _setPhoto(id, base64) {
@@ -440,6 +440,9 @@ const Lager = {
             const availCount    = purchases.filter(p => p.status === 'verfuegbar').reduce((s, p) => s + (parseInt(p.anzahl) || 1), 0);
             const availValue    = purchases.filter(p => p.status === 'verfuegbar').reduce((s, p) => s + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1), 0);
             const serviceCount  = purchases.filter(p => ['beschadigt','reinigung','reparatur'].includes(p.status)).reduce((s, p) => s + (parseInt(p.anzahl) || 1), 0);
+            const avgEK         = availCount > 0 ? availValue / availCount : 0;
+            const potentialRev  = availValue * 2;
+            const umschlag      = totalCount > 0 ? Math.round(soldCount / totalCount * 100) : 0;
 
             const brands = [...new Set(allPurchases.map(p => p.marke).filter(Boolean))].sort();
             const years  = [...new Set(allPurchases.map(p => (p.datum||'').slice(0,4)).filter(Boolean))].sort().reverse();
@@ -509,76 +512,83 @@ const Lager = {
 
             const selectedCount = this._selected.size;
 
+            const hasActiveFilters = !!(f.marke || f.artikeltyp || f.warenkategorie || f.status || f.filterJahr || f.filterMonat || f.search || f.showStorniert);
             const filterBar = `
-                <div class="filter-bar no-print" style="flex-wrap:wrap;gap:10px;align-items:flex-end;">
-                    <div class="filter-group" style="flex:1;min-width:200px;">
-                        <label>🔍 Suche</label>
-                        <input type="text" class="form-input" id="lagerSearch"
-                               placeholder="Marke, Typ, Art.-Nr., Größe …"
-                               value="${Utils.escapeHtml(f.search || '')}"
-                               style="font-size:13px;">
+                <div class="card no-print" style="padding:14px 16px;margin-bottom:14px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                        <i class="ti ti-filter" style="color:var(--text-secondary);font-size:15px;"></i>
+                        <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">Filter &amp; Sortierung</span>
+                        ${hasActiveFilters ? `<button class="btn btn-small" id="lagerFilterReset" title="Alle Filter zurücksetzen" style="margin-left:auto;font-size:11px;padding:3px 9px;gap:4px;display:flex;align-items:center;"><i class="ti ti-filter-off"></i> Zurücksetzen</button>` : ''}
                     </div>
-                    <div class="filter-group">
-                        <label>Marke</label>
-                        <select class="form-select" id="lagerFilterMarke">
-                            <option value="">Alle</option>
-                            ${brands.map(b => `<option value="${Utils.escapeHtml(b)}" ${f.marke === b ? 'selected' : ''}>${Utils.escapeHtml(b)}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Artikeltyp</label>
-                        <select class="form-select" id="lagerFilterTyp">
-                            <option value="">Alle</option>
-                            ${['Jacke','Hose','Shirt','Hoodie','Schuhe','Accessoire','Sonstiges'].map(t => `<option value="${t}" ${f.artikeltyp === t ? 'selected' : ''}>${t}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Kategorie</label>
-                        <select class="form-select" id="lagerFilterKat">
-                            <option value="">Alle</option>
-                            ${['Kleidung','Schuhe','Elektronik','Bücher','Haushalt','Sport','Accessoires','Sonstiges'].map(k => `<option value="${k}" ${f.warenkategorie === k ? 'selected' : ''}>${k}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Status</label>
-                        <select class="form-select" id="lagerFilterStatus">
-                            <option value="">Alle</option>
-                            ${Object.entries(this.STATUS_CONFIG).map(([k,v]) => `<option value="${k}" ${f.status === k ? 'selected' : ''}>${v.icon} ${v.label}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Jahr</label>
-                        <select class="form-select" id="lagerFilterJahr">
-                            <option value="">Alle</option>
-                            ${years.map(y => `<option value="${y}" ${f.filterJahr == y ? 'selected' : ''}>${y}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Monat</label>
-                        <select class="form-select" id="lagerFilterMonat">
-                            <option value="">Alle</option>
-                            ${['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'].map((m,i) =>
-                                `<option value="${String(i+1).padStart(2,'0')}" ${f.filterMonat === String(i+1).padStart(2,'0') ? 'selected' : ''}>${m}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label style="white-space:nowrap;cursor:pointer;">
-                            <input type="checkbox" id="lagerFilterStorniert" ${f.showStorniert ? 'checked' : ''}>
-                            Stornierte
-                        </label>
-                    </div>
-                    <div class="filter-group" style="margin-left:auto;">
-                        <label>Sortierung</label>
-                        <select class="form-select" id="lagerSortBy">
-                            ${this.SORT_OPTIONS.map(o => `<option value="${o.value}" ${this._sortBy === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>&nbsp;</label>
-                        <div style="display:flex;gap:6px;">
-                            <button class="btn btn-small ${this._viewMode === 'table' ? 'btn-primary' : ''}" id="lagerViewTable" title="Tabellenansicht"><i class="ti ti-table"></i> Tabelle</button>
-                            <button class="btn btn-small ${this._viewMode === 'grid' ? 'btn-primary' : ''}" id="lagerViewGrid" title="Kartenansicht"><i class="ti ti-layout-grid"></i> Karten</button>
+                    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+                        <div class="filter-group" style="flex:1;min-width:200px;">
+                            <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-search" style="font-size:13px;"></i> Suche</label>
+                            <input type="text" class="form-input" id="lagerSearch"
+                                   placeholder="Marke, Typ, Art.-Nr., Größe …"
+                                   value="${Utils.escapeHtml(f.search || '')}"
+                                   style="font-size:13px;">
+                        </div>
+                        <div class="filter-group">
+                            <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-brand-abstract" style="font-size:13px;"></i> Marke</label>
+                            <select class="form-select" id="lagerFilterMarke">
+                                <option value="">Alle</option>
+                                ${brands.map(b => `<option value="${Utils.escapeHtml(b)}" ${f.marke === b ? 'selected' : ''}>${Utils.escapeHtml(b)}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-tag" style="font-size:13px;"></i> Artikeltyp</label>
+                            <select class="form-select" id="lagerFilterTyp">
+                                <option value="">Alle</option>
+                                ${['Jacke','Hose','Shirt','Hoodie','Schuhe','Accessoire','Sonstiges'].map(t => `<option value="${t}" ${f.artikeltyp === t ? 'selected' : ''}>${t}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-category" style="font-size:13px;"></i> Kategorie</label>
+                            <select class="form-select" id="lagerFilterKat">
+                                <option value="">Alle</option>
+                                ${['Kleidung','Schuhe','Elektronik','Bücher','Haushalt','Sport','Accessoires','Sonstiges'].map(k => `<option value="${k}" ${f.warenkategorie === k ? 'selected' : ''}>${k}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-circle-dot" style="font-size:13px;"></i> Status</label>
+                            <select class="form-select" id="lagerFilterStatus">
+                                <option value="">Alle</option>
+                                ${Object.entries(this.STATUS_CONFIG).map(([k,v]) => `<option value="${k}" ${f.status === k ? 'selected' : ''}>${v.label}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-calendar" style="font-size:13px;"></i> Jahr</label>
+                            <select class="form-select" id="lagerFilterJahr">
+                                <option value="">Alle</option>
+                                ${years.map(y => `<option value="${y}" ${f.filterJahr == y ? 'selected' : ''}>${y}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-calendar-month" style="font-size:13px;"></i> Monat</label>
+                            <select class="form-select" id="lagerFilterMonat">
+                                <option value="">Alle</option>
+                                ${['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'].map((m,i) =>
+                                    `<option value="${String(i+1).padStart(2,'0')}" ${f.filterMonat === String(i+1).padStart(2,'0') ? 'selected' : ''}>${m}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group" style="align-self:flex-end;padding-bottom:2px;">
+                            <label style="white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:5px;margin-bottom:6px;">
+                                <input type="checkbox" id="lagerFilterStorniert" ${f.showStorniert ? 'checked' : ''}>
+                                <span style="font-size:12px;">Stornierte</span>
+                            </label>
+                        </div>
+                        <div class="filter-group" style="margin-left:auto;">
+                            <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-arrows-sort" style="font-size:13px;"></i> Sortierung</label>
+                            <select class="form-select" id="lagerSortBy">
+                                ${this.SORT_OPTIONS.map(o => `<option value="${o.value}" ${this._sortBy === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group" style="align-self:flex-end;">
+                            <div style="display:flex;gap:6px;">
+                                <button class="btn btn-small ${this._viewMode === 'table' ? 'btn-primary' : ''}" id="lagerViewTable" title="Tabellenansicht"><i class="ti ti-table"></i> Tabelle</button>
+                                <button class="btn btn-small ${this._viewMode === 'grid' ? 'btn-primary' : ''}" id="lagerViewGrid" title="Kartenansicht"><i class="ti ti-layout-grid"></i> Karten</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -658,31 +668,48 @@ const Lager = {
                     </button>
                 </div>
 
-                <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;">
-                    <div class="card stat-card info" style="padding:12px;">
-                        <div class="card-label" style="font-size:11px;">Verfügbar</div>
-                        <div class="card-value" style="font-size:22px;">${availCount}</div>
-                        <div class="card-subtitle" style="font-size:11px;">EK: ${Utils.formatCurrency(availValue)}</div>
+                <div class="stats-grid-primary" style="margin-bottom:10px;">
+                    <div class="card stat-card info" style="padding:14px 16px;border-left:3px solid var(--info,#3b82f6);">
+                        <div class="card-label" style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:4px;"><i class="ti ti-box"></i> Verfügbar</div>
+                        <div class="card-value" style="font-size:26px;font-weight:700;line-height:1;">${availCount}</div>
+                        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted);margin-top:4px;">EK ${Utils.formatCurrency(availValue)}</div>
                     </div>
-                    <div class="card stat-card success" style="padding:12px;">
-                        <div class="card-label" style="font-size:11px;">Lagerwert</div>
-                        <div class="card-value" style="font-size:22px;">${Utils.formatCurrency(availValue)}</div>
-                        <div class="card-subtitle" style="font-size:11px;">Verfügbar</div>
+                    <div class="card stat-card success" style="padding:14px 16px;border-left:3px solid var(--success,#22c55e);">
+                        <div class="card-label" style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:4px;"><i class="ti ti-building-warehouse"></i> Lagerwert</div>
+                        <div class="card-value" style="font-size:26px;font-weight:700;line-height:1;">${Utils.formatCurrency(availValue)}</div>
+                        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted);margin-top:4px;">verfügbare Artikel</div>
                     </div>
-                    <div class="card stat-card" style="padding:12px;">
-                        <div class="card-label" style="font-size:11px;">Gesamt</div>
-                        <div class="card-value" style="font-size:22px;">${totalCount}</div>
-                        <div class="card-subtitle" style="font-size:11px;">${Utils.formatCurrency(totalValue)}</div>
+                    <div class="card stat-card" style="padding:14px 16px;border-left:3px solid var(--accent);">
+                        <div class="card-label" style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:4px;"><i class="ti ti-stack"></i> Gesamt</div>
+                        <div class="card-value" style="font-size:26px;font-weight:700;line-height:1;">${totalCount}</div>
+                        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted);margin-top:4px;">${Utils.formatCurrency(totalValue)}</div>
                     </div>
-                    <div class="card stat-card warning" style="padding:12px;">
-                        <div class="card-label" style="font-size:11px;">Im Service</div>
-                        <div class="card-value" style="font-size:22px;">${serviceCount}</div>
-                        <div class="card-subtitle" style="font-size:11px;">Reinigung/Reparatur</div>
+                    <div class="card stat-card warning" style="padding:14px 16px;border-left:3px solid var(--warning,#f59e0b);">
+                        <div class="card-label" style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:4px;"><i class="ti ti-tool"></i> Im Service</div>
+                        <div class="card-value" style="font-size:26px;font-weight:700;line-height:1;">${serviceCount}</div>
+                        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted);margin-top:4px;">Reinigung / Reparatur</div>
                     </div>
-                    <div class="card stat-card" style="padding:12px;">
-                        <div class="card-label" style="font-size:11px;">Verkauft</div>
-                        <div class="card-value" style="font-size:22px;">${soldCount}</div>
-                        <div class="card-subtitle" style="font-size:11px;">Artikel</div>
+                </div>
+                <div class="stats-grid-secondary" style="margin-bottom:14px;">
+                    <div class="card stat-card" style="padding:12px 14px;border-left:3px solid var(--text-muted);">
+                        <div class="card-label" style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:3px;"><i class="ti ti-shopping-cart"></i> Verkauft</div>
+                        <div class="card-value" style="font-size:20px;font-weight:700;line-height:1;">${soldCount}</div>
+                        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted);margin-top:3px;">Artikel</div>
+                    </div>
+                    <div class="card stat-card info" style="padding:12px 14px;border-left:3px solid var(--info,#3b82f6);">
+                        <div class="card-label" style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:3px;"><i class="ti ti-refresh"></i> Umschlag</div>
+                        <div class="card-value" style="font-size:20px;font-weight:700;line-height:1;">${umschlag}%</div>
+                        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted);margin-top:3px;">Verkauft / Gesamt</div>
+                    </div>
+                    <div class="card stat-card" style="padding:12px 14px;border-left:3px solid var(--text-muted);">
+                        <div class="card-label" style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:3px;"><i class="ti ti-tag"></i> Ø EK</div>
+                        <div class="card-value" style="font-size:20px;font-weight:700;line-height:1;">${Utils.formatCurrency(avgEK)}</div>
+                        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted);margin-top:3px;">pro Artikel</div>
+                    </div>
+                    <div class="card stat-card success" style="padding:12px 14px;border-left:3px solid var(--success,#22c55e);">
+                        <div class="card-label" style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:3px;"><i class="ti ti-trending-up"></i> Pot. Umsatz</div>
+                        <div class="card-value" style="font-size:20px;font-weight:700;line-height:1;">${Utils.formatCurrency(potentialRev)}</div>
+                        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted);margin-top:3px;">2× Lagerwert</div>
                     </div>
                 </div>
 
@@ -769,7 +796,7 @@ const Lager = {
                         data-inline-ek="${p.id}" data-ek-val="${p.einkaufspreis || 0}"
                         title="Doppelklick → EK direkt bearbeiten">${Utils.formatCurrency(p.einkaufspreis)}</td>
                     <td style="padding:3px 6px;line-height:1.25;min-width:90px;">
-                        ${lagerortStr ? `<div style="font-size:10px;color:var(--text-secondary);white-space:nowrap;">📍 ${Utils.escapeHtml(lagerortStr)}</div>` : ''}
+                        ${lagerortStr ? `<div style="font-size:10px;color:var(--text-secondary);white-space:nowrap;display:flex;align-items:center;gap:3px;"><i class="ti ti-map-pin" style="font-size:11px;"></i>${Utils.escapeHtml(lagerortStr)}</div>` : ''}
                         <div style="display:flex;gap:2px;flex-wrap:wrap;${lagerortStr ? 'margin-top:2px;' : ''}">${sessionBadge}${invBadge}${ebBadge}</div>
                         ${zoneBadge}
                     </td>
@@ -792,7 +819,7 @@ const Lager = {
                     <thead>
                         <tr>
                             <th style="width:26px;padding:5px 2px;"><input type="checkbox" id="lagerSelectAll" title="Alle"></th>
-                            <th style="width:42px;padding:5px;">📷</th>
+                            <th style="width:42px;padding:5px;"><i class="ti ti-camera" style="font-size:13px;"></i></th>
                             <th style="padding:5px 6px;text-align:left;">Art.-Nr. / Datum</th>
                             <th style="padding:5px 6px;text-align:left;">Artikel / Beschreibung</th>
                             <th style="padding:5px 6px;text-align:left;">Größe</th>
@@ -1113,7 +1140,7 @@ const Lager = {
 
         // Darken a hex color for the 3D depth side panel
         const hexDarken = (hex, amt = 50) => {
-            const n = parseInt((hex||'#7c3aed').replace('#',''), 16);
+            const n = parseInt((hex||'#10b981').replace('#',''), 16);
             const r = Math.max(0, (n >> 16) - amt);
             const g = Math.max(0, ((n >> 8) & 0xff) - amt);
             const b = Math.max(0, (n & 0xff) - amt);
@@ -1740,6 +1767,16 @@ const Lager = {
                     this._openZonePicker(btn.dataset.zonePick);
                 });
             });
+
+            // Filter-Reset-Button
+            const resetBtn = document.getElementById('lagerFilterReset');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                    this._filters = { marke:'', artikeltyp:'', warenkategorie:'', status:'', filterJahr:'', filterMonat:'', search:'', showStorniert: false };
+                    this._currentPage = 1;
+                    rerender();
+                });
+            }
 
             // Filters → Seite immer auf 1 zurücksetzen
             const applyFilters = () => {

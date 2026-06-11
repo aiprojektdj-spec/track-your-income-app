@@ -1358,6 +1358,413 @@ const Akademie = {
                     `
                 }
             ]
+        },
+
+        // ── MODUL 10: Internationaler Handel ─────────────────────────
+        {
+            id: 'international',
+            icon: '🌍',
+            title: 'Internationaler Handel',
+            description: 'EU-Ausland, OSS-Verfahren, Zoll & Import — grenzenlos verkaufen.',
+            level: 'Profi',
+            lessons: [
+                {
+                    id: 'int1',
+                    title: 'EU-Ausland verkaufen — OSS & Lieferschwellen',
+                    duration: '6 min',
+                    content: `
+                        <p>Sobald du als Reseller regelmäßig an Käufer in anderen EU-Ländern verkaufst, kommt die <strong>Umsatzsteuer-Thematik</strong> ins Spiel — auch als Kleinunternehmer ist Wissen hier wichtig.</p>
+
+                        <h4>Die EU-Lieferschwelle</h4>
+                        <p>Seit 1. Juli 2021 gilt EU-weit eine einheitliche Lieferschwelle von <strong>10.000 €</strong> Jahresumsatz an Privatkunden in anderen EU-Staaten. Überschreitest du diese Grenze, musst du im Land des Käufers USt abführen — oder das <strong>OSS-Verfahren</strong> nutzen.</p>
+
+                        <h4>One-Stop-Shop (OSS)</h4>
+                        <ul>
+                            <li>Registrierung einmalig beim Bundeszentralamt für Steuern (BZSt)</li>
+                            <li>Anmeldung über <em>elster.de</em> → Bereich "OSS"</li>
+                            <li>Quartalsweise Meldung aller EU-Auslands-Umsätze in einer einzigen Erklärung</li>
+                            <li>BZSt leitet Beträge an die jeweiligen Länder weiter</li>
+                        </ul>
+
+                        <h4>Kleinunternehmer im EU-Ausland</h4>
+                        <p>Die §19 UStG Kleinunternehmerregelung gilt <strong>nur in Deutschland</strong>. Wenn du z.B. auf Vinted.fr verkaufst, gelten die französischen USt-Regeln — bis zur 10.000€-Grenze kannst du aber die deutsche Regelung anwenden. Dahinter: OSS pflicht.</p>
+
+                        <h4>Plattformen und Marketplace-Haftung</h4>
+                        <p>eBay, Vinted und Amazon sind in der EU als <strong>deemed supplier</strong> registriert: Ab bestimmten Umsätzen führen sie die USt direkt ab. Das entlastet dich — aber prüfe in deinem Seller-Account, ob du als "privat" oder "gewerblich" eingestuft bist. Nur gewerbliche Accounts fallen darunter.</p>
+
+                        <div class="akademie-tip">💡 <strong>Praxis-Tipp:</strong> Unter 10.000 € EU-Auslands-Umsatz pro Jahr brauchst du nichts extra zu tun. Tracke deine Auslands-VKs separat — Stackr ermöglicht das über das Plattform-Feld in jedem Verkauf.</div>
+                    `
+                },
+                {
+                    id: 'int2',
+                    title: 'UK & USA — Plattformen und Steuerregeln',
+                    duration: '5 min',
+                    content: `
+                        <p>Nach dem Brexit 2021 ist das Vereinigte Königreich ein <strong>Drittland</strong>. Ähnliches gilt für die USA. Was bedeutet das für Reseller?</p>
+
+                        <h4>Verkäufe nach Großbritannien</h4>
+                        <ul>
+                            <li><strong>Unter 135 GBP</strong>: Plattformen wie eBay UK führen die UK-VAT direkt ab (Marketplace Facilitator). Du musst nichts tun.</li>
+                            <li><strong>Über 135 GBP</strong>: Du bräuchtest UK VAT-Registrierung. Für die meisten deutschen Reseller unrelevant.</li>
+                            <li>Versand: Zollformular CN22/CN23 ausfüllen, Warenwert angeben.</li>
+                        </ul>
+
+                        <h4>Verkäufe in die USA</h4>
+                        <ul>
+                            <li>US Sales Tax ist Staatssache — jeder der 50 Bundesstaaten hat eigene Regeln.</li>
+                            <li>Plattformen wie eBay.com und Etsy sammeln die Sales Tax für dich (Marketplace Facilitator Laws).</li>
+                            <li>Als ausländischer Anbieter mit keiner US-Betriebsstätte hast du in der Regel <strong>keine eigene Steuerpflicht</strong> in den USA.</li>
+                        </ul>
+
+                        <h4>Einfuhrgebühren für den Käufer</h4>
+                        <p>Käufer im UK/USA zahlen Importzölle und Steuern für Pakete über einem Freibetrag. Das ist ihre Verantwortung — stelle es klar in dein Listing: <em>"Import duties/taxes not included"</em>. Andernfalls werden Pakete abgewiesen oder du wirst nach Erstattungen gefragt.</p>
+
+                        <h4>Währungsrisiko</h4>
+                        <p>Bei eBay.com in USD verkaufen heißt: Kurs-Schwankungen können Marge fressen. PayPal und Wise bieten günstigere Umrechnungen als eBay selbst. Kalkuliere immer mit einem Kurs-Puffer von 3–5%.</p>
+
+                        <div class="akademie-tip">💡 Für die meisten deutschen Reseller gilt: UK und USA über Marktplätze abwickeln → Plattform übernimmt Steuern. Nur bei Direktverkäufen (eigener Shop) wird's komplizierter.</div>
+                    `
+                },
+                {
+                    id: 'int3',
+                    title: 'Import & Zoll — Ware aus Asien einkaufen',
+                    duration: '6 min',
+                    content: `
+                        <p>Viele Reseller erkunden irgendwann den Import aus China, Bangladesch oder der Türkei. Hier lauern versteckte Kosten, wenn man die Regeln nicht kennt.</p>
+
+                        <h4>Einfuhrabgaben aus Drittländern</h4>
+                        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">
+                            <tr style="background:var(--bg-secondary);"><th style="padding:6px;text-align:left;">Abgabe</th><th style="padding:6px;text-align:left;">Höhe</th><th style="padding:6px;text-align:left;">Grundlage</th></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Zoll</td><td style="padding:6px;">0–12% je Warengruppe</td><td style="padding:6px;">Zolltarifnummer (HS Code)</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Einfuhrumsatzsteuer</td><td style="padding:6px;">19% (7% für best. Waren)</td><td style="padding:6px;">Warenwert + Zoll + Versand</td></tr>
+                            <tr><td style="padding:6px;">ggf. Antidumping-Zoll</td><td style="padding:6px;">0–85%</td><td style="padding:6px;">Bestimmte Produktkategorien aus China</td></tr>
+                        </table>
+
+                        <h4>Freibetrag ab 150 €</h4>
+                        <p>Seit 1. Juli 2021 gibt es <strong>keinen Freigrenze mehr</strong> für Sendungen aus Drittstaaten. Bereits ab 1 € Warenwert fällt Einfuhrumsatzsteuer an. Zoll entfällt noch bis 150 € Warenwert pro Sendung.</p>
+
+                        <h4>Wichtige Begriffe</h4>
+                        <ul>
+                            <li><strong>DDP (Delivered Duty Paid)</strong>: Lieferant übernimmt Zoll und Steuern → du zahlst alles im Kaufpreis inkl.</li>
+                            <li><strong>DAP (Delivered at Place)</strong>: Du zahlst Zoll und Steuern beim Empfang → Überraschung möglich!</li>
+                            <li><strong>EXW (Ex Works)</strong>: Du organisierst alles selbst ab Fabrik.</li>
+                        </ul>
+
+                        <h4>Produktkonformität</h4>
+                        <p>Für den gewerblichen Verkauf in der EU muss Ware <strong>CE-gekennzeichnet</strong> sein (Elektronik, Spielzeug, Kleidung für Kinder etc.). Fehlende CE-Kennzeichnung → Abmahnung oder Rückruf. Sichere dir Konformitätserklärungen vom Lieferanten.</p>
+
+                        <div class="akademie-tip">💡 <strong>Kalkulations-Formel:</strong> Gesamtkosten = Warenwert + Versand + Zoll (% auf Warenwert) + EUSt (19% auf Warenwert+Versand+Zoll). Plane mindestens +25–35% auf den Netto-Einkaufspreis ein.</div>
+                    `
+                }
+            ]
+        },
+
+        // ── MODUL 11: Verkaufspsychologie ─────────────────────────────
+        {
+            id: 'psychologie',
+            icon: '🧩',
+            title: 'Verkaufspsychologie',
+            description: 'Preisanker, Verhandlungsführung und Bundle-Strategien für höhere Margen.',
+            level: 'Fortgeschritten',
+            lessons: [
+                {
+                    id: 'psy1',
+                    title: 'Preisanker & Verankern — mehr Geld für dieselbe Ware',
+                    duration: '5 min',
+                    content: `
+                        <p>Der <strong>Preisanker-Effekt</strong> ist eines der mächtigsten Werkzeuge im Verkauf: Der erste Preis, den ein Käufer sieht, beeinflusst unbewusst seine gesamte Preis-Wahrnehmung.</p>
+
+                        <h4>Wie Preisanker funktionieren</h4>
+                        <p>Wenn du ein Listing mit "UVP 299 € — Dein Preis: 89 €" aufbaust, wirken 89 € plötzlich sehr günstig. Selbst wenn der tatsächliche UVP 120 € war — solange du die Zahl ehrlich angibst, ist es legitim und effektiv.</p>
+
+                        <h4>Preis-Anker-Strategien für Reseller</h4>
+                        <ol>
+                            <li><strong>UVP-Referenz</strong>: Originalpreis im Listing nennen (wenn bekannt und real). "Originalpreis 180 €" → dein 65 € wirkt wie Schnäppchen.</li>
+                            <li><strong>Preis-Staffelung</strong>: "Verhandelbar, Mindest-VB: 45 €" setzt 45 als Anker — manche zahlen mehr.</li>
+                            <li><strong>Bundle-Anker</strong>: Drei Teile einzeln "à 30 €" anbieten — Bundle für 70 € wirkt als Ersparnis.</li>
+                            <li><strong>Runde vs. nicht-runde Preise</strong>: 49 € läuft oft besser als 50 € (Schwellen-Effekt). Bei Premiumprodukten gilt das Gegenteil: 120 € wirkt "seriöser" als 119 €.</li>
+                        </ol>
+
+                        <h4>Psychological Pricing in der Praxis</h4>
+                        <ul>
+                            <li>Sneaker-Drop-Reselling: Verweise auf aktuellen Marktpreis auf StockX/Kicks Crew als Anker</li>
+                            <li>Kleidung: UVP-Label im Foto sichtbar lassen (wenn original-Preisschild noch dran)</li>
+                            <li>Elektronik: Vergleich mit "ähnliche Artikel auf eBay: 150–200 €" im Listing-Text</li>
+                        </ul>
+
+                        <div class="akademie-tip">💡 <strong>A/B testen:</strong> Probiere für zwei gleiche Artikel unterschiedliche Preisrahmen. Track über Stackr welcher schneller und zu welchem Preis verkauft. Daten schlagen Bauchgefühl.</div>
+                    `
+                },
+                {
+                    id: 'psy2',
+                    title: 'Verhandlungsführung — Preise durchsetzen ohne Käufer zu verlieren',
+                    duration: '4 min',
+                    content: `
+                        <p>Auf Plattformen wie Vinted oder eBay kommen täglich Preisanfragen. Wer die richtigen Techniken kennt, verliert weniger Marge.</p>
+
+                        <h4>Die 3 häufigsten Käufer-Typen bei Preisverhandlungen</h4>
+                        <ol>
+                            <li><strong>Der Taktiker</strong>: Bietet absurd wenig (50% vom Preis) um einen neuen Anker zu setzen. Strategie: Ignorieren oder kurz ablehnen ohne Gegenwert.</li>
+                            <li><strong>Der Echte</strong>: Budget ist wirklich begrenzt. Bereit zu zahlen wenn du einen Weg bietest (Bundle, leicht reduziert).</li>
+                            <li><strong>Der Sammler</strong>: Will mehrere Stücke — hier lohnt Rabatt für Volumen.</li>
+                        </ol>
+
+                        <h4>Verhandlungs-Techniken</h4>
+                        <ul>
+                            <li><strong>ZOPA kennen</strong>: Zone of Possible Agreement — unter welchen Preis gehst du nie? Definiere das vorher.</li>
+                            <li><strong>Gegenwert fordern</strong>: "Für 55 € ja — wenn du sofort zahlst und ich 5 Sterne bekomme."</li>
+                            <li><strong>Silence is golden</strong>: Angebot machen, nicht weiter reden. Wer zuerst spricht, verliert.</li>
+                            <li><strong>Höflich ablehnen</strong>: "Danke für dein Interesse, der Preis ist festgesetzt" — dann nichts mehr dazu.</li>
+                        </ul>
+
+                        <h4>Automatischer Preisabfall statt manueller Verhandlung</h4>
+                        <p>Auf eBay kannst du die <em>Automatische Annahme</em> aktivieren: Biete automatisch bei Angeboten ab X% Rabatt an. Spart Zeit und zieht Käufer an ohne dein Zutun. Empfehlung: 5–10% Auto-Rabatt ab 10 Tagen Laufzeit.</p>
+
+                        <div class="akademie-tip">💡 <strong>Goldene Regel:</strong> Der beste Schutz vor schlechten Verhandlungen ist ein gutes Erstangebot. Kalkuliere deinen Mindestpreis ein und liste mit 15–20% Puffer. Dann kannst du Rabatte geben ohne Verlust zu machen.</div>
+                    `
+                },
+                {
+                    id: 'psy3',
+                    title: 'Bundle & Cross-Selling — den Warenkorb erhöhen',
+                    duration: '5 min',
+                    content: `
+                        <p>Die billigste Art mehr Umsatz zu machen: <strong>dem gleichen Käufer mehr verkaufen</strong>. Bundling ist im Reselling massiv unterschätzt.</p>
+
+                        <h4>Bundle-Strategien für Reseller</h4>
+                        <ul>
+                            <li><strong>Outfit-Bundle</strong>: Hose + Shirt + Gürtel = "Komplettes Outfit, 45 €". Dreimal schneller abverkauft als einzeln.</li>
+                            <li><strong>Größen-Bundle</strong>: "Paket M: 5 T-Shirts, 35 €" — gut für Floh-Fund Massen-Einkäufe.</li>
+                            <li><strong>Marken-Bundle</strong>: "3× Nike Laufschuhe, versch. Größen, 65 €"</li>
+                            <li><strong>Saison-Bundle</strong>: Winterjacke + Schal + Handschuhe — thematisch zusammenfassen.</li>
+                        </ul>
+
+                        <h4>Cross-Selling in Listings</h4>
+                        <p>Auf Vinted und eBay: In der Beschreibung auf andere Artikel hinweisen. "Passende Hose dazu findest du in meinem Shop" + Link. Conversion-Rate: 3–8% — jede 30. Person klickt und kauft oft beides.</p>
+
+                        <h4>Bundle-Kalkulation</h4>
+                        <p>Bundle-Preis sollte <strong>10–20% günstiger</strong> als Summe der Einzelpreise sein — aber immer noch über deinen Mindestpreisen. Käufer fühlen sich als "Gewinner". Du verkaufst schneller und sparst Listings.</p>
+
+                        <h4>Was nicht gebündelt werden sollte</h4>
+                        <ul>
+                            <li>Verschiedene Größen (Käufer passen nicht in alles)</li>
+                            <li>Hochpreisartikel mit Ladenhütern (verteuert den Ladenhüter künstlich)</li>
+                            <li>Artikel mit sehr unterschiedlichen Margen (du verlierst den Überblick)</li>
+                        </ul>
+
+                        <div class="akademie-tip">💡 In Stackr kannst du Bundle-Verkäufe über den Paketverkauf im Lager anlegen — mehrere Artikel werden einem Verkauf zugeordnet. So bleibt die EÜR sauber.</div>
+                    `
+                }
+            ]
+        },
+
+        // ── MODUL 12: Social Media & Werbung ─────────────────────────
+        {
+            id: 'social',
+            icon: '📱',
+            title: 'Social Media & Werbung',
+            description: 'Instagram, TikTok & Co. als Verkaufskanal für dein Reselling-Business.',
+            level: 'Einsteiger',
+            lessons: [
+                {
+                    id: 'sm1',
+                    title: 'Instagram & TikTok für Reseller — Sichtbarkeit aufbauen',
+                    duration: '5 min',
+                    content: `
+                        <p>Social Media ist für Reseller ein <strong>Multiplikator</strong> — nicht das Fundament. Wer ohne solides Lager-/Listing-Management anfängt "Content zu machen", verliert Zeit ohne Ergebnis.</p>
+
+                        <h4>Wann lohnt Social Media?</h4>
+                        <p>Erst wenn du:</p>
+                        <ul>
+                            <li>Einen konsistenten Lager-Workflow hast (50+ Artikel verfügbar)</li>
+                            <li>Fotos machst die du ohne Scham zeigen kannst</li>
+                            <li>Eine Nische hast (Vintage Adidas, Y2K, Luxus-Second-Hand, Sneaker etc.)</li>
+                        </ul>
+
+                        <h4>Instagram-Strategie für Reseller</h4>
+                        <ol>
+                            <li><strong>Grid als Schaufenster</strong>: Konsistenter Stil (Hintergrundfarbe, Lichtsetzung). Käufer scrollen durch deinen Feed — mach ihn einladend.</li>
+                            <li><strong>Stories für Neuzugänge</strong>: "Neue Ware" Stories mit Swipe-Up zum Listing.</li>
+                            <li><strong>Bio-Link</strong>: Linktree mit deinen Shops (Vinted, eBay, Etsy) als direkter Kaufkanal.</li>
+                            <li><strong>Hashtags</strong>: 5–15 relevante (z.B. #vintagefashion #thriftedfinds #reseller_de) + 1–2 Nischen-spezifische.</li>
+                        </ol>
+
+                        <h4>TikTok für Reseller</h4>
+                        <p>TikTok bevorzugt <strong>Unterhaltungswert über Qualität</strong>. Formate die funktionieren:</p>
+                        <ul>
+                            <li>"Was ich für X€ auf dem Flohmarkt gefunden habe" — Sourcing-Vlogs</li>
+                            <li>"Ich liste 30 Artikel in 30 Minuten" — Zeitraffer-Listing-Videos</li>
+                            <li>"Vorher/Nachher" — gereinigt, restauriert, neu fotografiert</li>
+                            <li>"Preis-Check" — Ich bewerte Random-Kleidungsstücke live</li>
+                        </ul>
+
+                        <div class="akademie-tip">💡 <strong>Zeitaufwand realistisch einschätzen:</strong> 2–3 Posts pro Woche = ~3 Stunden Aufwand. Erst wenn Social Media messbaren Mehrumsatz bringt, lohnt mehr Invest. Track Links aus Bio vs. organische Suche.</div>
+                    `
+                },
+                {
+                    id: 'sm2',
+                    title: 'Content-Strategie ohne Aufwand',
+                    duration: '4 min',
+                    content: `
+                        <p>Der häufigste Fehler: Stundenlang Content produzieren ohne System. Mit dem richtigen Framework reichen 45 Minuten pro Woche.</p>
+
+                        <h4>Der Reseller Content-Kalender (Wochenplan)</h4>
+                        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">
+                            <tr style="background:var(--bg-secondary);"><th style="padding:6px;text-align:left;">Tag</th><th style="padding:6px;text-align:left;">Inhalt</th><th style="padding:6px;text-align:left;">Aufwand</th></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Mo</td><td style="padding:6px;">Neue Artikel Story (3–5 Fotos)</td><td style="padding:6px;">10 min</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Mi</td><td style="padding:6px;">Highlight-Stück Post (1 Artikel mit Geschichte)</td><td style="padding:6px;">15 min</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Fr</td><td style="padding:6px;">Behind-the-Scenes (Sourcing, Verpacken)</td><td style="padding:6px;">10 min</td></tr>
+                            <tr><td style="padding:6px;">So</td><td style="padding:6px;">Sold-Posts / Wochenrückblick</td><td style="padding:6px;">10 min</td></tr>
+                        </table>
+
+                        <h4>Batch-Produktion</h4>
+                        <p>Fotografiere beim Listing-Session gleich Social-Media-Content mit. Extra Kamerawinkel, kurzer Clip mit Handy = kein zusätzlicher Aufwand, doppelter Content.</p>
+
+                        <h4>Caption-Vorlage</h4>
+                        <p>Eine einfache Formel: <em>[Artikel] | [Marke] | [Größe] | [Zustand] | [Preis] | Mehr in Bio 🔗</em><br>
+                        Beispiel: "Vintage Levis 501 | Größe W32 L32 | Top Zustand | 55€ | Shop-Link in Bio 🔗 #vintagedenim #levis501"</p>
+
+                        <div class="akademie-tip">💡 Nutze <strong>Canva</strong> für einen einheitlichen visuellen Stil mit Templates. Einmal erstellen, immer wieder nutzen. Eure Brand kostet 2 Stunden Setup und spart dauerhaft Zeit.</div>
+                    `
+                },
+                {
+                    id: 'sm3',
+                    title: 'Bezahlte Werbung — wann lohnt es sich?',
+                    duration: '4 min',
+                    content: `
+                        <p>Paid Ads für Reseller: In den meisten Fällen <strong>nicht sinnvoll</strong> — aber es gibt Ausnahmen. Hier eine ehrliche Analyse.</p>
+
+                        <h4>Wann Paid Ads NICHT funktionieren</h4>
+                        <ul>
+                            <li>Einzelne Unikate (du kannst sie nur einmal verkaufen — Ads-Kosten amortisieren sich nicht)</li>
+                            <li>Niedrig-Preis-Ware unter 30 € (Marge reicht nach Ads-Kosten oft nicht)</li>
+                            <li>Ohne eigenen Shop (auf Vinted/eBay sind externe Ads oft gegen AGB)</li>
+                        </ul>
+
+                        <h4>Wann Paid Ads Sinn machen</h4>
+                        <ul>
+                            <li><strong>Eigenmarke / Curated Shop</strong>: Wenn du einen eigenen Shopify/WooCommerce betreibst mit konsistentem Sortiment</li>
+                            <li><strong>Reproduzierbare Artikel</strong>: Mehrere Einheiten (z.B. 20 gleiche Sneakers aus Bulk)</li>
+                            <li><strong>Hochwertige Einzelstücke 200€+</strong>: Marge lässt 5–15 € Ad-Spend je Verkauf zu</li>
+                        </ul>
+
+                        <h4>eBay Promoted Listings</h4>
+                        <p>eBay's eigenes Werbesystem ist für Reseller oft interessanter als Meta/Google Ads. Du zahlst nur bei erfolgreicher Transaktion (meist 2–5% des Verkaufspreises extra). Aktiviere es für Artikel die lange stehen.</p>
+
+                        <h4>ROAS-Kalkulation</h4>
+                        <p><strong>Return on Ad Spend</strong> = Umsatz aus Werbung ÷ Werbekosten. Für Reselling rechne mit Margen von 30–60% → ROAS muss mindestens 2–3 sein damit es sich lohnt. Teste mit kleinem Budget (10–20 €), miss exakt, dann skaliere.</p>
+
+                        <div class="akademie-tip">💡 Für die meisten Reseller gilt: Die Zeit in bessere Fotos und mehr Listings zu investieren bringt mehr ROI als Paid Ads. Erst wenn organisch läuft, über Ads nachdenken.</div>
+                    `
+                }
+            ]
+        },
+
+        // ── MODUL 13: AfA & Anlagenverzeichnis ───────────────────────
+        {
+            id: 'afa_recht',
+            icon: '📉',
+            title: 'AfA & Anlagenverzeichnis',
+            description: 'Abschreibungen, GWG-Grenze und das Anlagenverzeichnis korrekt führen.',
+            level: 'Fortgeschritten',
+            lessons: [
+                {
+                    id: 'afa1',
+                    title: 'Was ist AfA? — Abschreibungen für Reseller erklärt',
+                    duration: '5 min',
+                    content: `
+                        <p><strong>AfA</strong> (Absetzung für Abnutzung, §7 EStG) erlaubt dir, teure betriebliche Anschaffungen nicht sofort voll als Ausgabe abzusetzen, sondern <em>über die Nutzungsdauer zu verteilen</em>.</p>
+
+                        <h4>Wann ist AfA relevant für Reseller?</h4>
+                        <p>Wenn du Gegenstände kaufst, die länger als 1 Jahr genutzt werden und über 800 € (netto) kosten:</p>
+                        <ul>
+                            <li>Hochwertige Kamera / Studioblitz-Set</li>
+                            <li>Laptop oder PC (rein betrieblich)</li>
+                            <li>Professionelle Lager-Regale oder Schrank-System</li>
+                            <li>Fahrzeug (anteilig betrieblich genutzt)</li>
+                        </ul>
+
+                        <h4>Lineare AfA — die Standardmethode</h4>
+                        <p>Jährliche Abschreibung = Anschaffungskosten ÷ Nutzungsdauer (in Jahren). Die amtliche AfA-Tabelle des BMF gibt Nutzungsdauern vor:</p>
+                        <ul>
+                            <li>Laptop/PC: 3 Jahre</li>
+                            <li>Kamera (professionell): 7 Jahre</li>
+                            <li>PKW: 6 Jahre</li>
+                            <li>Büromöbel: 13 Jahre</li>
+                        </ul>
+
+                        <h4>Beispiel-Berechnung</h4>
+                        <p>Kamera für 1.400 € (netto) gekauft. Nutzungsdauer laut AfA-Tabelle: 7 Jahre.<br>
+                        Jährliche AfA: 1.400 € ÷ 7 = <strong>200 € pro Jahr</strong> als Betriebsausgabe absetzbar.</p>
+
+                        <div class="akademie-tip">💡 In Stackr gibt es das Anlagenverzeichnis unter EÜR → AfA. Dort trägst du Anschaffung und Nutzungsdauer ein — die AfA wird automatisch in die EÜR eingerechnet.</div>
+                    `
+                },
+                {
+                    id: 'afa2',
+                    title: 'GWG-Grenze 800 € — sofort abschreiben statt verteilen',
+                    duration: '4 min',
+                    content: `
+                        <p>Gegenstände bis <strong>800 € netto</strong> (952 € brutto bei 19% USt) sind <em>Geringwertige Wirtschaftsgüter (GWG)</em> und können <strong>sofort im Kaufjahr voll abgeschrieben</strong> werden — keine Verteilung auf Jahre nötig.</p>
+
+                        <h4>GWG-Regelungen im Überblick</h4>
+                        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">
+                            <tr style="background:var(--bg-secondary);"><th style="padding:6px;text-align:left;">Wert (netto)</th><th style="padding:6px;text-align:left;">Behandlung</th></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">Bis 250 €</td><td style="padding:6px;">Sofortabschreibung, kein Verzeichnis nötig</td></tr>
+                            <tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">251 € – 800 €</td><td style="padding:6px;">GWG-Sofortabschreibung, muss im Verzeichnis stehen</td></tr>
+                            <tr><td style="padding:6px;">Über 800 €</td><td style="padding:6px;">Reguläre AfA über Nutzungsdauer</td></tr>
+                        </table>
+
+                        <h4>Was kann als GWG sofort abgeschrieben werden?</h4>
+                        <ul>
+                            <li>Smartphone (betrieblich genutzt) unter 800 € netto</li>
+                            <li>Einfache Kamera oder Ringlicht</li>
+                            <li>Drucker, Scanner</li>
+                            <li>Bürostuhl, Schreibtisch (muss selbstständig nutzbar sein)</li>
+                        </ul>
+
+                        <h4>Sammelposten-Methode (Alternative)</h4>
+                        <p>Statt GWG-Sofortabschreibung kann man alle Anschaffungen über 250 € bis 1.000 € in einem <em>Sammelposten</em> zusammenfassen und gleichmäßig über 5 Jahre abschreiben. Für die meisten Reseller empfiehlt sich die einfachere GWG-Sofortabschreibung.</p>
+
+                        <div class="akademie-tip">💡 <strong>Praxis-Tipp:</strong> Wenn du planst eine Kamera für 850 € zu kaufen — Kleinunternehmer achtet auf den Bruttobetrag (unter 952 € brutto = GWG). Bei Regelbesteuerung gilt der Nettobetrag.</div>
+                    `
+                },
+                {
+                    id: 'afa3',
+                    title: 'Das Anlagenverzeichnis korrekt führen',
+                    duration: '4 min',
+                    content: `
+                        <p>Das Anlagenverzeichnis ist die <strong>Pflicht-Dokumentation</strong> aller abzuschreibenden Wirtschaftsgüter. Ohne Verzeichnis lässt das Finanzamt die AfA im Zweifelsfall nicht gelten.</p>
+
+                        <h4>Pflichtangaben im Anlagenverzeichnis</h4>
+                        <ol>
+                            <li>Bezeichnung des Wirtschaftsguts</li>
+                            <li>Anschaffungsdatum</li>
+                            <li>Anschaffungskosten (netto)</li>
+                            <li>Nutzungsdauer (Jahre)</li>
+                            <li>Jährlicher AfA-Betrag</li>
+                            <li>Kumulierte AfA bisher</li>
+                            <li>Restbuchwert (= AK minus kumul. AfA)</li>
+                        </ol>
+
+                        <h4>Anlagenverzeichnis in Stackr</h4>
+                        <p>Im Bereich <strong>EÜR → AfA</strong> kannst du Anlagen anlegen. Stackr berechnet automatisch:</p>
+                        <ul>
+                            <li>Lineare Jahres-AfA</li>
+                            <li>Zeitanteilige AfA bei Halbjahres-Regel (im Kaufjahr 1/2-AfA)</li>
+                            <li>Restbuchwert in Echtzeit</li>
+                            <li>Automatische Übernahme in die EÜR-Ausgaben</li>
+                        </ul>
+
+                        <h4>Halbjahres-Regel (§7 Abs. 1 EStG)</h4>
+                        <p>Im Jahr der Anschaffung wird grundsätzlich nur die <strong>halbe Jahres-AfA</strong> angesetzt, unabhängig vom tatsächlichen Kaufmonat. Ausnahme: GWG-Sofortabschreibung — dort volle AfA im Kaufjahr.</p>
+
+                        <h4>Veräußerung und Ausbuchung</h4>
+                        <p>Wenn du ein Wirtschaftsgut verkaufst oder entsorgst, muss es aus dem Verzeichnis ausgebucht werden. Verkaufspreis über Restbuchwert = steuerpflichtiger Gewinn. Unter Restbuchwert = Verlust (absetzbar).</p>
+
+                        <div class="akademie-tip">💡 <strong>GoBD-Hinweis:</strong> Das Anlagenverzeichnis ist eine GoBD-Pflicht. Es muss für 10 Jahre aufbewahrt werden. Stackr exportiert das Verzeichnis als PDF/CSV für deine Archivierung.</div>
+                    `
+                }
+            ]
         }
     ],
 
@@ -1389,7 +1796,7 @@ const Akademie = {
         { id: 'stock_value_5k',  icon: '🏛️', title: 'Lager-Magnat',            desc: 'Lagerwert (verfügbar) ≥ 5.000 €.',                       tier: 'gold',   check: d => d.activeStockValue >= 5000 },
         { id: 'comeback',        icon: '🌱', title: 'Comeback',                desc: 'Profitabler Monat nach mindestens einem Verlustmonat.',  tier: 'silver', check: d => d.hadComeback },
         { id: 'listing_master',  icon: '📷', title: 'Listing-Master',          desc: '100 Artikel mit Foto UND Beschreibung.',                 tier: 'gold',   check: d => d.fullyListedCount >= 100 },
-        { id: 'all_modules',     icon: '🎖️', title: 'Wissens-Champion',        desc: 'ALLE Akademie-Module komplett durchgearbeitet.',         tier: 'gold',   check: d => d.modulesComplete >= 9 },
+        { id: 'all_modules',     icon: '🎖️', title: 'Wissens-Champion',        desc: 'ALLE Akademie-Module komplett durchgearbeitet.',         tier: 'gold',   check: d => d.modulesComplete >= 13 },
         { id: 'audit_clean',     icon: '🛡️', title: 'Audit-Saubermann',        desc: 'GoBD-konform: 100+ dokumentierte Änderungen im Protokoll.', tier: 'silver', check: d => d.auditEntries >= 100 },
         { id: 'bulk_master',     icon: '📦', title: 'Bulk-Master',             desc: '5+ Bulk-Sessions im Lager angelegt.',                    tier: 'silver', check: d => d.bulkSessions >= 5 }
     ],
@@ -1598,50 +2005,137 @@ const Akademie = {
             return this._renderLesson();
         }
 
-        const progress = this._getProgress();
-        const data = this._analyzeData();
+        const progress  = this._getProgress();
+        const data      = this._analyzeData();
         const totalLessons = this.MODULES.reduce((s, m) => s + m.lessons.length, 0);
-        const readPercent = totalLessons > 0 ? Math.round(progress.completedLessons.length / totalLessons * 100) : 0;
-
-        const unlockedCount = progress.unlockedAchievements.length;
+        const readPercent  = totalLessons > 0 ? Math.round(progress.completedLessons.length / totalLessons * 100) : 0;
+        const unlockedCount    = progress.unlockedAchievements.length;
         const totalAchievements = this.ACHIEVEMENTS.length;
 
+        // ── Icon lookup + level colours ──────────────────────────────────
+        const MOD_ICONS = {
+            grundlagen:'ti-rocket', einkauf:'ti-shopping-cart', steuer:'ti-chart-bar',
+            listing:'ti-camera', mindset:'ti-brain', steuerprofi:'ti-file-certificate',
+            skalierung:'ti-settings-cog', kundenservice:'ti-star',
+            krankenversicherung:'ti-heart-rate-monitor', international:'ti-world',
+            psychologie:'ti-user-star', social:'ti-brand-instagram', afa_recht:'ti-trending-down',
+        };
+        const LEVEL_COLORS = { 'Einsteiger':'#22c55e', 'Fortgeschritten':'#3b82f6', 'Profi':'#8b93f8' };
+
+        // ── SVG progress ring ────────────────────────────────────────────
+        const RADIUS = 16, CIRC = 2 * Math.PI * RADIUS;
+        const ringFor = (pct, accent) => {
+            const offset = (CIRC - (pct / 100) * CIRC).toFixed(1);
+            return `<svg width="40" height="40" viewBox="0 0 40 40" style="transform:rotate(-90deg);flex-shrink:0;">
+                <circle cx="20" cy="20" r="${RADIUS}" fill="none" stroke="var(--bg-secondary)" stroke-width="3.5"/>
+                <circle cx="20" cy="20" r="${RADIUS}" fill="none" stroke="${accent}" stroke-width="3.5"
+                    stroke-dasharray="${CIRC.toFixed(1)}" stroke-dashoffset="${offset}"
+                    stroke-linecap="round" style="transition:stroke-dashoffset .4s ease;"/>
+            </svg>`;
+        };
+
+        // ── "Weiter lernen" banner ───────────────────────────────────────
+        let nextLesson = null, nextModule = null;
+        for (const m of this.MODULES) {
+            for (const l of m.lessons) {
+                if (!progress.completedLessons.includes(l.id)) { nextLesson = l; nextModule = m; break; }
+            }
+            if (nextLesson) break;
+        }
+        const continueBanner = nextLesson ? `
+        <div id="akademieContinueBanner" class="card" style="display:flex;align-items:center;gap:16px;padding:14px 18px;margin-bottom:18px;border-left:3px solid var(--accent);cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+            <div style="width:38px;height:38px;border-radius:10px;background:rgba(16,185,129,.13);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="ti ti-player-play-filled" style="color:var(--accent);font-size:18px;"></i>
+            </div>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.7px;font-weight:600;">Weiter lernen</div>
+                <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${Utils.escapeHtml(nextLesson.title)}</div>
+                <div style="font-size:11px;color:var(--text-secondary);">${Utils.escapeHtml(nextModule.title)} · ${Utils.escapeHtml(nextLesson.duration)}</div>
+            </div>
+            <i class="ti ti-chevron-right" style="color:var(--text-muted);font-size:20px;flex-shrink:0;"></i>
+        </div>` : '';
+
+        // ── KPI cards ────────────────────────────────────────────────────
+        const kpiCards = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;">
+            <div class="card stat-card info" style="border-left:3px solid #3b82f6;">
+                <div class="card-label"><i class="ti ti-book" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Lern-Fortschritt</div>
+                <div class="card-value">${readPercent}%</div>
+                <div class="card-subtitle">${progress.completedLessons.length} / ${totalLessons} Lektionen</div>
+            </div>
+            <div class="card stat-card success" style="border-left:3px solid var(--success);">
+                <div class="card-label"><i class="ti ti-trophy" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Achievements</div>
+                <div class="card-value">${unlockedCount} / ${totalAchievements}</div>
+                <div class="card-subtitle">${totalAchievements > 0 ? Math.round(unlockedCount/totalAchievements*100) : 0}% freigeschaltet</div>
+            </div>
+            <div class="card stat-card" style="border-left:3px solid var(--accent);">
+                <div class="card-label"><i class="ti ti-package" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Aktiver Lagerbestand</div>
+                <div class="card-value">${data.activeStock ?? 0}</div>
+                <div class="card-subtitle">verfügbare Artikel</div>
+            </div>
+            <div class="card stat-card warning" style="border-left:3px solid #f59e0b;">
+                <div class="card-label"><i class="ti ti-cash" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Gesamt-Umsatz</div>
+                <div class="card-value">${Utils.formatCurrency(data.totalRevenue)}</div>
+                <div class="card-subtitle">${(data.sales || []).length} Verkäufe</div>
+            </div>
+        </div>`;
+
+        // ── Module cards ─────────────────────────────────────────────────
         const moduleCards = this.MODULES.map(m => {
             const done = m.lessons.filter(l => progress.completedLessons.includes(l.id)).length;
-            const pct = m.lessons.length > 0 ? Math.round(done / m.lessons.length * 100) : 0;
-            const isComplete = done === m.lessons.length;
+            const pct  = m.lessons.length > 0 ? Math.round(done / m.lessons.length * 100) : 0;
+            const isComplete   = done === m.lessons.length;
+            const lvlColor     = LEVEL_COLORS[m.level] || 'var(--accent)';
+            const iconKey      = MOD_ICONS[m.id] || 'ti-book';
+            const ring         = ringFor(pct, isComplete ? '#22c55e' : lvlColor);
+            const lvlBadge     = `<span style="display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;background:${lvlColor}22;color:${lvlColor};border:1px solid ${lvlColor}44;text-transform:uppercase;">${m.level}</span>`;
             return `
-            <div class="card akademie-mod-card" data-mod-id="${m.id}" style="cursor:pointer;padding:18px;border-left:4px solid var(--accent);">
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-                    <span style="font-size:32px;">${m.icon}</span>
-                    <div style="flex:1;">
-                        <div style="font-weight:700;font-size:15px;">${Utils.escapeHtml(m.title)}</div>
-                        <div style="font-size:11px;color:var(--text-muted);">${m.level} · ${m.lessons.length} Lektionen</div>
+            <div class="card akademie-mod-card" data-mod-id="${m.id}" style="cursor:pointer;padding:16px 18px;border-left:3px solid ${isComplete ? '#22c55e' : lvlColor};transition:border-color .2s,box-shadow .2s;">
+                <div style="display:flex;align-items:flex-start;gap:12px;">
+                    <div style="width:40px;height:40px;border-radius:10px;background:${lvlColor}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
+                        <i class="ti ${iconKey}" style="color:${lvlColor};font-size:20px;"></i>
                     </div>
-                    ${isComplete ? '<span style="color:var(--success);font-size:20px;"><i class="ti ti-circle-check-filled"></i></span>' : ''}
+                    <div style="flex:1;min-width:0;">
+                        <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap;">
+                            <span style="font-weight:700;font-size:14px;">${Utils.escapeHtml(m.title)}</span>
+                            ${lvlBadge}
+                        </div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;line-height:1.4;">${Utils.escapeHtml(m.description)}</div>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="flex:1;background:var(--bg-secondary);border-radius:6px;height:5px;overflow:hidden;">
+                                <div style="height:100%;background:${isComplete ? '#22c55e' : lvlColor};width:${pct}%;transition:width .35s;"></div>
+                            </div>
+                            <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${done}/${m.lessons.length}</span>
+                        </div>
+                    </div>
+                    <div style="position:relative;flex-shrink:0;margin-top:2px;" title="${pct}% abgeschlossen">
+                        ${ring}
+                        <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:9px;font-weight:700;color:${isComplete ? '#22c55e' : 'var(--text-muted)'};">${isComplete ? '✓' : pct+'%'}</span>
+                    </div>
                 </div>
-                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.4;">${Utils.escapeHtml(m.description)}</div>
-                <div style="background:var(--bg-secondary);border-radius:6px;height:8px;overflow:hidden;margin-bottom:6px;">
-                    <div style="height:100%;background:var(--accent);width:${pct}%;transition:width .3s;"></div>
-                </div>
-                <div style="font-size:11px;color:var(--text-muted);">${done} / ${m.lessons.length} Lektionen abgeschlossen</div>
-            </div>
-            `;
+            </div>`;
         }).join('');
 
+        // ── Tier pills ───────────────────────────────────────────────────
+        const TIER_LABELS = { bronze:'Bronze', silver:'Silber', gold:'Gold' };
         const achBadges = this.ACHIEVEMENTS.map(a => {
             const isUnlocked = progress.unlockedAchievements.includes(a.id);
             const colors = this.TIER_COLORS[a.tier];
+            const tierPill = `<span style="display:inline-block;padding:1px 6px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.4px;background:${colors.bg};color:${colors.color};border:1px solid ${colors.border}40;text-transform:uppercase;">${TIER_LABELS[a.tier]||a.tier}</span>`;
             return `
-            <div class="akademie-ach" style="border:1px solid ${isUnlocked ? colors.border : 'var(--border)'};background:${isUnlocked ? colors.bg : 'transparent'};border-radius:10px;padding:12px;display:flex;gap:10px;align-items:center;${isUnlocked ? '' : 'opacity:.45;'}">
-                <span style="font-size:30px;${isUnlocked ? '' : 'filter:grayscale(1);'}">${a.icon}</span>
+            <div class="akademie-ach" style="border:1px solid ${isUnlocked ? colors.border+'80' : 'var(--border)'};background:${isUnlocked ? colors.bg : 'transparent'};border-radius:10px;padding:12px 14px;display:flex;gap:12px;align-items:center;${isUnlocked ? `box-shadow:0 0 12px ${colors.border}25;` : 'opacity:.45;'}">
+                <span style="font-size:28px;flex-shrink:0;${isUnlocked ? '' : 'filter:grayscale(1);'}">${a.icon}</span>
                 <div style="flex:1;min-width:0;">
-                    <div style="font-weight:700;font-size:13px;color:${isUnlocked ? colors.color : 'var(--text-secondary)'};">${Utils.escapeHtml(a.title)}</div>
-                    <div style="font-size:11px;color:var(--text-muted);line-height:1.3;">${Utils.escapeHtml(a.desc)}</div>
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap;">
+                        <span style="font-weight:700;font-size:13px;color:${isUnlocked ? colors.color : 'var(--text-secondary)'};">${Utils.escapeHtml(a.title)}</span>
+                        ${tierPill}
+                    </div>
+                    <div style="font-size:11px;color:var(--text-muted);line-height:1.35;">${Utils.escapeHtml(a.desc)}</div>
                 </div>
-                ${isUnlocked ? '<span style="font-size:18px;color:var(--success);"><i class="ti ti-check"></i></span>' : '<span style="font-size:14px;opacity:.4;"><i class="ti ti-lock"></i></span>'}
-            </div>
-            `;
+                ${isUnlocked
+                    ? '<span style="font-size:18px;color:var(--success);flex-shrink:0;"><i class="ti ti-circle-check-filled"></i></span>'
+                    : '<span style="font-size:14px;opacity:.35;flex-shrink:0;"><i class="ti ti-lock"></i></span>'}
+            </div>`;
         }).join('');
 
         return `
@@ -1649,35 +2143,23 @@ const Akademie = {
                 <h2><i class="ti ti-school"></i> Akademie</h2>
             </div>
 
-            <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px;">
-                <div class="card stat-card info">
-                    <div class="card-label">Lern-Fortschritt</div>
-                    <div class="card-value">${readPercent}%</div>
-                    <div class="card-subtitle">${progress.completedLessons.length} / ${totalLessons} Lektionen</div>
-                </div>
-                <div class="card stat-card success">
-                    <div class="card-label">Achievements</div>
-                    <div class="card-value">${unlockedCount} / ${totalAchievements}</div>
-                    <div class="card-subtitle">${totalAchievements > 0 ? Math.round(unlockedCount/totalAchievements*100) : 0}% freigeschaltet</div>
-                </div>
-                <div class="card stat-card">
-                    <div class="card-label">Aktiver Lagerbestand</div>
-                    <div class="card-value">${data.activeStock ?? 0}</div>
-                    <div class="card-subtitle">verfügbare Artikel</div>
-                </div>
-                <div class="card stat-card warning">
-                    <div class="card-label">Gesamt-Umsatz</div>
-                    <div class="card-value">${Utils.formatCurrency(data.totalRevenue)}</div>
-                    <div class="card-subtitle">${data.sales.length} Verkäufe</div>
-                </div>
-            </div>
+            ${continueBanner}
+            ${kpiCards}
 
-            <h3 style="margin:0 0 12px;font-size:18px;"><i class="ti ti-books"></i> Lernpfad</h3>
-            <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:24px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                <i class="ti ti-books" style="color:var(--accent);font-size:18px;"></i>
+                <h3 style="margin:0;font-size:17px;font-weight:700;">Lernpfad</h3>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">${this.MODULES.length} Module</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:26px;">
                 ${moduleCards}
             </div>
 
-            <h3 style="margin:0 0 12px;font-size:18px;"><i class="ti ti-trophy"></i> Achievements</h3>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+                <i class="ti ti-trophy" style="color:#fbbf24;font-size:18px;"></i>
+                <h3 style="margin:0;font-size:17px;font-weight:700;">Achievements</h3>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">${unlockedCount} / ${totalAchievements} freigeschaltet</span>
+            </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;">
                 ${achBadges}
             </div>
@@ -1825,6 +2307,24 @@ const Akademie = {
                 });
             });
             return;
+        }
+
+        // "Weiter lernen" Banner
+        const continueBannerEl = document.getElementById('akademieContinueBanner');
+        if (continueBannerEl) {
+            continueBannerEl.addEventListener('click', () => {
+                const progress = this._getProgress();
+                for (const m of this.MODULES) {
+                    for (const l of m.lessons) {
+                        if (!progress.completedLessons.includes(l.id)) {
+                            this._activeModule = m.id;
+                            this._activeLesson = l.id;
+                            App.navigate('akademie');
+                            return;
+                        }
+                    }
+                }
+            });
         }
 
         // Übersichts-Seite

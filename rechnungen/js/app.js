@@ -15,6 +15,7 @@ var RechApp = (function() {
         'protokoll':         RechProtokoll,
         'testrechnung':      TestRechnung,
         'unternehmensdaten': Unternehmensdaten,
+        'wiederkehrend':     Wiederkehrend,
     };
 
     function navigate(page, params) {
@@ -203,6 +204,11 @@ var RechApp = (function() {
 
         // Check overdue invoices on load
         checkOverdueInvoices();
+
+        // Auto-process due recurring invoices
+        if (typeof Wiederkehrend !== 'undefined') {
+            setTimeout(function() { Wiederkehrend.processDueRules(); }, 500);
+        }
 
         // Sidebar navigation
         document.querySelectorAll('.sidebar-link').forEach(function(link) {

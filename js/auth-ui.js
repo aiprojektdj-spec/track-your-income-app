@@ -224,7 +224,7 @@ var AuthUI = (function () {
             : '<div class="auth-modal-header"><div style="font-size:22px;">☁</div><h2>Cloud-Konto</h2><button class="auth-close-btn" onclick="AuthUI.closeModal()">×</button></div>';
 
         var subtext = _required
-            ? '<p style="color:var(--text-muted,#888);font-size:12px;text-align:center;margin:-10px 0 18px;line-height:1.5;">Registriere dich kostenlos für <strong style="color:var(--text-primary,#fff);">5 Tage gratis</strong> — keine Kreditkarte nötig.</p>'
+            ? '<p style="color:var(--text-muted,#888);font-size:12px;text-align:center;margin:-10px 0 18px;line-height:1.5;">Registriere dich kostenlos für <strong style="color:var(--text-primary,#fff);">14 Tage gratis</strong> — keine Kreditkarte nötig.</p>'
             : '';
 
         return '<div id="authModal">' +
@@ -239,6 +239,7 @@ var AuthUI = (function () {
                 '<input id="authEmail" type="email" class="auth-input" placeholder="deine@email.de" autocomplete="username">' +
                 '<label class="auth-label" style="margin-top:10px;">Passwort</label>' +
                 '<input id="authPassword" type="password" class="auth-input" placeholder="Mindestens 6 Zeichen" autocomplete="' + (isLogin ? 'current-password' : 'new-password') + '">' +
+                (isLogin ? '<p style="text-align:right;margin-top:6px;"><a href="#" onclick="AuthUI._resetPassword(event)" style="font-size:12px;color:var(--accent,#10b981);text-decoration:none;opacity:.8;">Passwort vergessen?</a></p>' : '') +
             '</div>' +
             '<div id="authError"   class="auth-msg error"   style="display:none;"></div>' +
             '<div id="authSuccess" class="auth-msg success" style="display:none;"></div>' +
@@ -301,6 +302,27 @@ var AuthUI = (function () {
             _showError('Verbindungsfehler: ' + (e.message || String(e)));
             if (btn) { btn.disabled = false; btn.textContent = _mode === 'login' ? 'Anmelden' : 'Konto erstellen'; }
         }
+    }
+
+    async function _resetPassword(e) {
+        if (e) e.preventDefault();
+        _clearMessages();
+        var emailEl = document.getElementById('authEmail');
+        var email = emailEl ? emailEl.value.trim() : '';
+        if (!email) { _showError('Bitte zuerst E-Mail-Adresse eingeben.'); return; }
+        var btn = document.getElementById('authSubmit');
+        if (btn) btn.disabled = true;
+        try {
+            var result = await SupabaseDB.resetPasswordForEmail(email);
+            if (result.error) {
+                _showError('Fehler: ' + (result.error.message || 'Unbekannter Fehler'));
+            } else {
+                _showSuccess('Reset-Link gesendet! Bitte prüfe deine E-Mail.');
+            }
+        } catch (ex) {
+            _showError('Verbindungsfehler: ' + (ex.message || String(ex)));
+        }
+        if (btn) btn.disabled = false;
     }
 
     function _showError(msg)   {
@@ -618,6 +640,6 @@ var AuthUI = (function () {
     return {
         boot,
         openModal, closeModal, switchTab,
-        _submit, openUserMenu, _syncNow, _logout, _deleteAccount
+        _submit, _resetPassword, openUserMenu, _syncNow, _logout, _deleteAccount
     };
 })();

@@ -7,6 +7,20 @@ const Dashboard = {
     _chartGewinn: null,
     _selectedYear: new Date().getFullYear(),
 
+    /** Lazy-loads ApexCharts (~600KB) only when dashboard is opened, then renders charts */
+    _ensureApexCharts() {
+        if (typeof ApexCharts !== 'undefined') {
+            this._renderChart();
+            this._renderGewinnChart();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3';
+        script.onload = () => { this._renderChart(); this._renderGewinnChart(); };
+        script.onerror = () => console.warn('[Dashboard] ApexCharts failed to load');
+        document.head.appendChild(script);
+    },
+
     render() {
         const year = this._selectedYear;
         const startDate = `${year}-01-01`;
@@ -132,6 +146,30 @@ const Dashboard = {
         // Web-Version: kein lokales Datei-Backup nötig (Cloud-Sync via Supabase)
         const backupReminder = '';
 
+        // Derived metrics
+        const monthsElapsed    = isCurrentYear ? (curMonth + 1) : 12;
+        const avgMonthlyProfit = monthsElapsed > 0 ? yearProfit / monthsElapsed : 0;
+        const marginPct        = yearRevenue > 0 ? (yearProfit / yearRevenue * 100) : 0;
+
+        // Akademie card (computed once, used below)
+        const akademieCard = (() => {
+            if (typeof Akademie === 'undefined') return '';
+            try {
+                const prog = Akademie._getProgress();
+                const totalAch = Akademie.ACHIEVEMENTS.length;
+                const totalLessons = Akademie.MODULES.reduce((s, m) => s + m.lessons.length, 0);
+                const lessonPct = totalLessons > 0 ? Math.round(prog.completedLessons.length / totalLessons * 100) : 0;
+                const L = (typeof I18n !== 'undefined') ? I18n : { t: function(k,v) { return k; } };
+                return `<div class="card stat-card" id="dashAkademieWidget" style="cursor:pointer;border-left-color:var(--accent);">
+                    <div class="card-label"><i class="ti ti-school"></i> ${L.t('dash.academy')}</div>
+                    <div class="card-value">${prog.unlockedAchievements.length} / ${totalAch}</div>
+                    <div class="card-subtitle">${L.t('dash.pct.learned', {n: lessonPct})}</div>
+                </div>`;
+            } catch(e) { return ''; }
+        })();
+
+        const L = (typeof I18n !== 'undefined') ? I18n : { t: function(k, v) { return k; } };
+
         return `
             <div class="page-header">
                 <h2>Dashboard</h2>
@@ -148,87 +186,105 @@ const Dashboard = {
                 return (land === 'AT' && typeof SVS !== 'undefined') ? SVS.renderDashboardKachel() : '';
             })()}
 
-            <div class="stats-grid">
+            <!-- Primary KPIs: 4 main financial metrics -->
+            <div class="stats-grid-primary">
                 <div class="card stat-card success">
-                    <div class="card-label">Einnahmen ${year}</div>
+                    <div class="card-label"><i class="ti ti-trending-up"></i> ${L.t('dash.revenue')} ${year}</div>
                     <div class="card-value">${Utils.formatCurrency(yearRevenue)}</div>
-                    <div class="card-subtitle">${sales.length} Verkäufe</div>
+                    <div class="card-subtitle">${L.t('dash.sales.count', {n: sales.length})}</div>
                 </div>
                 <div class="card stat-card danger">
-                    <div class="card-label">Ausgaben ${year}</div>
+                    <div class="card-label"><i class="ti ti-trending-down"></i> ${L.t('dash.expenses')} ${year}</div>
                     <div class="card-value">${Utils.formatCurrency(yearAllExpenses)}</div>
-                    <div class="card-subtitle">Einkauf + Kosten</div>
+                    <div class="card-subtitle">${L.t('dash.buy.costs')}</div>
                 </div>
                 <div class="card stat-card ${monthProfit >= 0 ? 'success' : 'danger'}">
-                    <div class="card-label">${isCurrentYear ? 'Gewinn (akt. Monat)' : 'Gewinn ' + Utils.getMonthShort(curMonth)}</div>
+                    <div class="card-label"><i class="ti ti-calendar-stats"></i> ${L.t('dash.profit.month', {m: Utils.getMonthShort(curMonth)})}</div>
                     <div class="card-value">${Utils.formatCurrency(monthProfit)}</div>
                     <div class="card-subtitle">${Utils.getMonthName(curMonth)} ${year}</div>
                 </div>
                 <div class="card stat-card ${yearProfit >= 0 ? 'success' : 'warning'}">
-                    <div class="card-label">Gewinn ${year}</div>
+                    <div class="card-label"><i class="ti ti-chart-bar"></i> ${L.t('dash.profit.year', {y: year})}</div>
                     <div class="card-value">${Utils.formatCurrency(yearProfit)}</div>
-                    <div class="card-subtitle">Jahresgewinn</div>
+                    <div class="card-subtitle">${L.t('dash.annual.profit')}</div>
+                </div>
+            </div>
+
+            <!-- Secondary metrics: smaller operational cards -->
+            <div class="stats-grid-secondary">
+                <div class="card stat-card ${avgMonthlyProfit >= 0 ? 'success' : 'danger'}">
+                    <div class="card-label"><i class="ti ti-calendar-repeat"></i> ${L.t('dash.avg.profit')}</div>
+                    <div class="card-value">${Utils.formatCurrency(avgMonthlyProfit)}</div>
+                    <div class="card-subtitle">${L.t('dash.months.elapsed', {n: monthsElapsed})}</div>
+                </div>
+                <div class="card stat-card ${marginPct >= 20 ? 'success' : marginPct >= 0 ? 'warning' : 'danger'}">
+                    <div class="card-label"><i class="ti ti-percentage"></i> ${L.t('dash.margin')}</div>
+                    <div class="card-value">${marginPct.toFixed(1)}%</div>
+                    <div class="card-subtitle">${L.t('dash.profit.revenue')}</div>
                 </div>
                 <div class="card stat-card info">
-                    <div class="card-label">Lagerbestand</div>
+                    <div class="card-label"><i class="ti ti-package"></i> ${L.t('dash.inventory')}</div>
                     <div class="card-value">${inventoryCount}</div>
-                    <div class="card-subtitle">Wert: ${Utils.formatCurrency(inventoryValue)}</div>
+                    <div class="card-subtitle">${Utils.formatCurrency(inventoryValue)}</div>
                 </div>
-                ${(() => {
-                    if (typeof Akademie === 'undefined') return '';
-                    try {
-                        const prog = Akademie._getProgress();
-                        const totalLessons = Akademie.MODULES.reduce((s, m) => s + m.lessons.length, 0);
-                        const totalAch = Akademie.ACHIEVEMENTS.length;
-                        const lessonPct = totalLessons > 0 ? Math.round(prog.completedLessons.length / totalLessons * 100) : 0;
-                        return `
-                        <div class="card stat-card" id="dashAkademieWidget" style="cursor:pointer;border-left:4px solid var(--accent);">
-                            <div class="card-label">🎓 Akademie</div>
-                            <div class="card-value" style="font-size:22px;">${prog.unlockedAchievements.length} / ${totalAch}</div>
-                            <div class="card-subtitle">Achievements · ${lessonPct}% gelernt</div>
-                        </div>
-                        `;
-                    } catch(e) { return ''; }
-                })()}
+                ${offeneSumme > 0 ? `
+                <div class="card stat-card ${ueberfaelligCount > 0 ? 'danger' : 'warning'}">
+                    <div class="card-label"><i class="ti ti-file-invoice"></i> ${L.t('dash.open.invoices')}</div>
+                    <div class="card-value">${Utils.formatCurrency(offeneSumme)}</div>
+                    <div class="card-subtitle">${L.t('dash.invoices.count', {n: offeneRechnungen.length})}${ueberfaelligCount > 0 ? ` · <span style="color:var(--danger)">${L.t('dash.overdue', {n: ueberfaelligCount})}</span>` : ''}</div>
+                </div>` : ''}
+                ${akademieCard}
             </div>
 
             ${(typeof GbR !== 'undefined') ? GbR.renderDashboardKacheln(yearProfit) : ''}
 
-            ${this._renderTopMarkenWidget(allSales, allPurchases, year)}
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <!-- Mid row: Top Marken + Letzte Buchungen -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+                ${this._renderTopMarkenWidget(allSales, allPurchases, year)}
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title">Letzte Buchungen ${year}</div>
+                        <div class="card-title" style="display:flex;align-items:center;gap:7px;"><i class="ti ti-history" style="font-size:15px;color:var(--text-muted);"></i> ${L.t('dash.recent.bookings', {y: year})}</div>
                     </div>
                     <div class="table-container" style="border:none;">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Datum</th>
-                                    <th>Typ</th>
-                                    <th>Artikel</th>
-                                    <th>Beschreibung</th>
-                                    <th style="text-align:right">Betrag</th>
+                                    <th>${L.t('field.date')}</th>
+                                    <th>${L.t('book.category')}</th>
+                                    <th>${L.t('book.article')}</th>
+                                    <th>${L.t('field.description')}</th>
+                                    <th style="text-align:right">${L.t('field.amount')}</th>
                                 </tr>
                             </thead>
                             <tbody>${bookingsRows}</tbody>
                         </table>
                     </div>
                 </div>
+            </div>
+
+            <!-- Charts + Jahresvergleich -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title">Einnahmen vs. Ausgaben ${year}</div>
+                        <div class="card-title">${L.t('dash.rev.vs.exp', {y: year})}</div>
                     </div>
                     <div class="chart-container">
                         <div id="dashChart"></div>
                     </div>
                 </div>
+                ${this._renderJahresvergleich(year) || `<div class="card"><div class="card-header"><div class="card-title">${L.t('dash.year.comparison')}</div></div><div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px;">${L.t('dash.no.data')}</div></div>`}
             </div>
 
-            ${this._renderJahresvergleich(year)}
-
-            <div style="display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px;">
+            <!-- Jahresvergleich chart + Gewinn chart -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">${L.t('dash.year.chart')}</div>
+                    </div>
+                    <div class="chart-container">
+                        <div id="dashChartJahres"></div>
+                    </div>
+                </div>
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">Monatsverlauf Gewinn (letzte 12 Monate)</div>
@@ -274,8 +330,7 @@ const Dashboard = {
             this._refresh();
         });
 
-        this._renderChart();
-        this._renderGewinnChart();
+        this._ensureApexCharts();
         this._animateIn();
     },
 
@@ -317,14 +372,15 @@ const Dashboard = {
     _renderJahresvergleich(currentYear) {
         const years = [currentYear - 2, currentYear - 1, currentYear].filter(y => y >= 2020);
         if (years.length < 2) return '';
+        const L = (typeof I18n !== 'undefined') ? I18n : { t: function(k) { return k; } };
         const stats = years.map(y => ({ year: y, ...this._getYearStats(y) }));
         const rows = [
-            { label: 'Einnahmen', key: 'einnahmen', fmt: v => Utils.formatCurrency(v) },
-            { label: 'Ausgaben', key: 'ausgaben', fmt: v => Utils.formatCurrency(v) },
-            { label: 'Gewinn', key: 'gewinn', fmt: v => Utils.formatCurrency(v) },
-            { label: 'Marge', key: 'marge', fmt: v => v.toFixed(1) + '%' },
-            { label: 'Verkäufe', key: 'anzahl', fmt: v => v },
-            { label: 'Ø VK-Preis', key: 'avgVK', fmt: v => Utils.formatCurrency(v) }
+            { label: L.t('table.revenue'), key: 'einnahmen', fmt: v => Utils.formatCurrency(v) },
+            { label: L.t('table.expenses'), key: 'ausgaben', fmt: v => Utils.formatCurrency(v) },
+            { label: L.t('table.profit'), key: 'gewinn', fmt: v => Utils.formatCurrency(v) },
+            { label: L.t('table.margin'), key: 'marge', fmt: v => v.toFixed(1) + '%' },
+            { label: L.t('table.sales'), key: 'anzahl', fmt: v => v },
+            { label: L.t('table.avg.price'), key: 'avgVK', fmt: v => Utils.formatCurrency(v) }
         ];
         const headerCells = stats.map(s => `<th style="text-align:right">${s.year}</th>`).join('');
         const tableRows = rows.map(r => {
@@ -337,21 +393,15 @@ const Dashboard = {
         }).join('');
 
         return `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
             <div class="card">
-                <div class="card-header"><div class="card-title">Jahresvergleich</div></div>
+                <div class="card-header"><div class="card-title">${L.t('dash.year.comparison')}</div></div>
                 <div class="table-container" style="border:none;">
                     <table>
-                        <thead><tr><th>Kennzahl</th>${headerCells}</tr></thead>
+                        <thead><tr><th>${L.t('table.revenue').split('')[0] ? 'KPI' : 'KPI'}</th>${headerCells}</tr></thead>
                         <tbody>${tableRows}</tbody>
                     </table>
                 </div>
-            </div>
-            <div class="card">
-                <div class="card-header"><div class="card-title">Jahresvergleich Chart</div></div>
-                <div class="chart-container"><div id="dashChartJahres"></div></div>
-            </div>
-        </div>`;
+            </div>`;
     },
 
     _renderGewinnChart() {
@@ -385,8 +435,8 @@ const Dashboard = {
         this._chartGewinn = new ApexCharts(el, {
             chart: { type: 'area', height: 220, background: 'transparent', toolbar: { show: false }, fontFamily: 'inherit', animations: { enabled: true, speed: 800 } },
             theme: { mode: isDark ? 'dark' : 'light' },
-            series: [{ name: 'Gewinn', data: gewinne }],
-            colors: ['#7c3aed'],
+            series: [{ name: (typeof I18n !== 'undefined' ? I18n.t('chart.profit') : 'Gewinn'), data: gewinne }],
+            colors: ['#10b981'],
             fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.02, stops: [0, 100] } },
             stroke: { curve: 'smooth', width: 2 },
             markers: { size: 4, colors: gewinne.map(v => v >= 0 ? '#10b981' : '#ef4444'), strokeColors: gewinne.map(v => v >= 0 ? '#10b981' : '#ef4444'), strokeWidth: 0 },
@@ -408,11 +458,11 @@ const Dashboard = {
                 chart: { type: 'bar', height: 220, background: 'transparent', toolbar: { show: false }, fontFamily: 'inherit', animations: { enabled: true, speed: 600 } },
                 theme: { mode: isDark ? 'dark' : 'light' },
                 series: [
-                    { name: 'Einnahmen', data: stats.map(s => parseFloat(s.einnahmen.toFixed(2))) },
-                    { name: 'Ausgaben',  data: stats.map(s => parseFloat(s.ausgaben.toFixed(2)))  },
-                    { name: 'Gewinn',    data: stats.map(s => parseFloat(s.gewinn.toFixed(2)))    }
+                    { name: (typeof I18n !== 'undefined' ? I18n.t('chart.revenue')  : 'Einnahmen'), data: stats.map(s => parseFloat(s.einnahmen.toFixed(2))) },
+                    { name: (typeof I18n !== 'undefined' ? I18n.t('chart.expenses') : 'Ausgaben'),  data: stats.map(s => parseFloat(s.ausgaben.toFixed(2)))  },
+                    { name: (typeof I18n !== 'undefined' ? I18n.t('chart.profit')   : 'Gewinn'),    data: stats.map(s => parseFloat(s.gewinn.toFixed(2)))    }
                 ],
-                colors: ['#10b981', '#ef4444', '#7c3aed'],
+                colors: ['#10b981', '#ef5350', '#8b93f8'],
                 plotOptions: { bar: { columnWidth: '70%', borderRadius: 3 } },
                 xaxis: { categories: years.map(String), labels: { style: { colors: textColor, fontSize: '11px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
                 yaxis: { labels: { style: { colors: textColor, fontSize: '11px' }, formatter: v => Utils.formatCurrency(v) } },
@@ -460,17 +510,25 @@ const Dashboard = {
 
         const maxGewinn = Math.max(...top.map(([, v]) => Math.abs(v.totalGewinn)), 1);
 
+        const rankColors = [
+            { bg: 'rgba(251,191,36,0.12)', color: '#f59e0b' },
+            { bg: 'rgba(148,163,184,0.12)', color: '#94a3b8' },
+            { bg: 'rgba(205,127,50,0.12)',  color: '#cd7f32' },
+            { bg: 'var(--bg-card)',          color: 'var(--text-muted)' },
+            { bg: 'var(--bg-card)',          color: 'var(--text-muted)' },
+        ];
+
         const rows = top.map(([brand, v], i) => {
             const marge = v.totalNet > 0 ? v.totalGewinn / v.totalNet * 100 : 0;
             const barW  = Math.round(Math.abs(v.totalGewinn) / maxGewinn * 100);
             const barCol = v.totalGewinn >= 0 ? 'var(--success)' : 'var(--danger)';
-            const medals = ['🥇', '🥈', '🥉', '4.', '5.'];
-            return `<div style="display:grid;grid-template-columns:28px 1fr auto auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
-                <div style="font-size:15px;text-align:center;">${medals[i]}</div>
+            const rc = rankColors[i];
+            return `<div style="display:grid;grid-template-columns:28px 1fr auto auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);">
+                <div style="width:22px;height:22px;border-radius:6px;background:${rc.bg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${rc.color};flex-shrink:0;">${i + 1}</div>
                 <div>
-                    <div style="font-size:13px;font-weight:600;">${Utils.escapeHtml(brand)}</div>
-                    <div style="margin-top:3px;height:4px;border-radius:2px;background:var(--border);overflow:hidden;">
-                        <div style="width:${barW}%;height:100%;background:${barCol};border-radius:2px;"></div>
+                    <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${Utils.escapeHtml(brand)}</div>
+                    <div style="margin-top:4px;height:3px;border-radius:2px;background:var(--border);overflow:hidden;">
+                        <div style="width:${barW}%;height:100%;background:${barCol};border-radius:2px;transition:width 0.4s ease;"></div>
                     </div>
                 </div>
                 <div style="text-align:right;font-size:12px;color:var(--text-muted);">${v.count} Stk.<br><span style="color:${marge >= 20 ? 'var(--success)' : marge >= 0 ? 'var(--warning)' : 'var(--danger)'};font-weight:600;">${marge.toFixed(0)}%</span></div>
@@ -479,12 +537,12 @@ const Dashboard = {
         }).join('');
 
         return `
-        <div class="card" style="margin-bottom:16px;">
+        <div class="card">
             <div class="card-header">
-                <div class="card-title">🏆 Top Marken ${year}</div>
-                <a href="#" onclick="App.navigate('statistiken');return false;" style="font-size:12px;color:var(--info);">Volle Analyse →</a>
+                <div class="card-title" style="display:flex;align-items:center;gap:7px;"><i class="ti ti-trophy" style="color:var(--warning);font-size:16px;"></i> Top Marken ${year}</div>
+                <a href="#" onclick="App.navigate('statistiken');return false;" style="font-size:12px;color:var(--accent);">Analyse →</a>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0;">
+            <div style="display:flex;flex-direction:column;">
                 ${rows}
             </div>
         </div>`;

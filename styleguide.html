@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
+    <title>Stackr — Styleguide (Design System v2)</title>
+    <link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div class="topnav">
+        <div class="topnav-brand">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;" aria-hidden="true">
+                <rect width="20" height="20" rx="5" fill="var(--accent)"/>
+                <path d="M6 7.5C6 6.67 6.67 6 7.5 6h2C10.88 6 12 7.12 12 8.5S10.88 11 9.5 11H8v3H6V7.5zm2 2h1.5c.28 0 .5-.22.5-.5S9.78 8.5 9.5 8.5H8V9.5z" fill="white"/>
+                <path d="M12.5 11c.83 0 1.5.67 1.5 1.5S13.33 14 12.5 14H11v-3h1.5z" fill="white" opacity=".7"/>
+            </svg>
+            <div style="font-size:14px;font-weight:700;color:var(--text-primary);line-height:1;letter-spacing:-.3px;">Stackr</div>
+        </div>
+        <div class="topnav-apps">
+            <a href="#" class="tool-tab active">Dashboard</a>
+            <a href="#" class="tool-tab">Rechnungen</a>
+            <a href="#" class="tool-tab">Eigenbelege</a>
+            <a href="#" class="tool-tab">Lager</a>
+            <a href="#" class="tool-tab">EÜR</a>
+            <a href="#" class="tool-tab">Akademie</a>
+        </div>
+        <div class="topnav-controls">
+            <a href="#">Einstellungen</a>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <main class="main-content">
+            <div id="content">
+
+                <div class="page-header">
+                    <h2>Dashboard</h2>
+                    <div class="page-header-actions">
+                        <button class="btn">Exportieren</button>
+                        <button class="btn btn-primary">+ Neue Buchung</button>
+                    </div>
+                </div>
+
+                <div class="stats-grid-primary">
+                    <div class="card stat-card success">
+                        <div class="card-label">Einnahmen (Monat)</div>
+                        <div class="card-value">8.450,00 €</div>
+                        <div class="card-subtitle">↑ +12 % ggü. Vormonat</div>
+                    </div>
+                    <div class="card stat-card danger">
+                        <div class="card-label">Ausgaben</div>
+                        <div class="card-value">2.130,00 €</div>
+                        <div class="card-subtitle">Einkauf + Kosten</div>
+                    </div>
+                    <div class="card stat-card info">
+                        <div class="card-label">Offene Rechnungen</div>
+                        <div class="card-value">3</div>
+                        <div class="card-subtitle">1.240,00 € offen</div>
+                    </div>
+                    <div class="card stat-card warning">
+                        <div class="card-label">Gewinn (netto)</div>
+                        <div class="card-value">6.320,00 €</div>
+                        <div class="card-subtitle">↑ +18 %</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Letzte Buchungen</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr><th>Datum</th><th>Beschreibung</th><th>Kategorie</th><th>Status</th><th style="text-align:right;">Betrag</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>03.06.2026</td><td>Nike Air Max — Flohmarkt</td><td><span class="platform-badge">eBay</span></td><td><span class="badge badge-success">Gebucht</span></td><td style="text-align:right;color:var(--success);">+ 89,00 €</td></tr>
+                                <tr><td>02.06.2026</td><td>Versandmaterial DHL</td><td><span class="platform-badge platform-buy">Einkauf</span></td><td><span class="badge badge-warning">Offen</span></td><td style="text-align:right;color:var(--danger);">− 12,50 €</td></tr>
+                                <tr class="row-storniert"><td>01.06.2026</td><td>Vintage Jacke — eBay</td><td><span class="platform-badge">eBay</span></td><td><span class="badge badge-danger">Storniert</span></td><td style="text-align:right;">+ 145,00 €</td></tr>
+                                <tr><td>30.05.2026</td><td>Jordan 1 — Vinted</td><td><span class="platform-badge">Vinted</span></td><td><span class="badge badge-info">Sync</span></td><td style="text-align:right;color:var(--success);">+ 210,00 €</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="form-row" style="margin-bottom:28px;">
+                    <div class="card">
+                        <div class="card-header"><div class="card-title">Neue Buchung</div></div>
+                        <div class="form-group">
+                            <label class="form-label required">Beschreibung</label>
+                            <input class="form-input" placeholder="z. B. Verkauf Sneaker">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Betrag</label>
+                                <input class="form-input date-input-smart" value="89,00 €">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Kategorie</label>
+                                <select class="form-select"><option>Verkauf</option></select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn">Abbrechen</button>
+                            <button class="btn btn-primary">Speichern</button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><div class="card-title">Komponenten</div></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+                            <button class="btn btn-primary">Primär</button>
+                            <button class="btn">Sekundär</button>
+                            <button class="btn btn-success">Erfolg</button>
+                            <button class="btn btn-danger">Stornieren</button>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+                            <span class="badge badge-success">Bezahlt</span>
+                            <span class="badge badge-warning">Offen</span>
+                            <span class="badge badge-danger">Überfällig</span>
+                            <span class="badge badge-info">Entwurf</span>
+                            <span class="badge badge-neutral">Archiv</span>
+                            <span class="mahnung-level mahnung-2">2. Mahnung</span>
+                        </div>
+                        <div class="toggle-container" style="margin-bottom:14px;">
+                            <div class="toggle active"></div>
+                            <span class="toggle-label">Cloud-Sync aktiv</span>
+                        </div>
+                        <div class="info-box"><strong>Hinweis:</strong> USt-Voranmeldung Q2 ist am 10.07. fällig.</div>
+                        <div class="empty-state" style="padding:24px 12px;">
+                            <div class="icon">◆</div>
+                            <h3>Noch keine Belege</h3>
+                            <p>Lege deinen ersten Eigenbeleg an.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <div id="toast-stack">
+        <div class="toast toast-success show">Buchung gespeichert.</div>
+    </div>
+
+</body>
+</html>

@@ -18,8 +18,10 @@ const Kassenbuch = {
             `<option value="${y}" ${this._filterYear === y ? 'selected' : ''}>${y === 'all' ? 'Alle Jahre' : y}</option>`
         ).join('');
 
+        // GoBD: Stornierte Einträge nicht aus Saldo herausrechnen, aber visuell kennzeichnen
+        const aktiv = filtered.filter(e => !e.storniert);
         const typSummen = { Einnahme: 0, Ausgabe: 0, Privateinlage: 0, Privatentnahme: 0 };
-        filtered.forEach(e => { if (typSummen[e.typ] !== undefined) typSummen[e.typ] += parseFloat(e.betrag) || 0; });
+        aktiv.forEach(e => { if (typSummen[e.typ] !== undefined) typSummen[e.typ] += parseFloat(e.betrag) || 0; });
         const endbestand = anfangsbestand
             + typSummen['Einnahme'] + typSummen['Privateinlage']
             - typSummen['Ausgabe'] - typSummen['Privatentnahme'];
@@ -32,20 +34,26 @@ const Kassenbuch = {
             rows = filtered.map(e => {
                 const betrag = parseFloat(e.betrag) || 0;
                 const isEin = e.typ === 'Einnahme' || e.typ === 'Privateinlage';
-                if (isEin) balance += betrag; else balance -= betrag;
-                const typBadge = e.typ === 'Einnahme' ? '<span class="badge badge-success">Einnahme</span>'
+                const isSt  = !!e.storniert;
+                if (!isSt) { if (isEin) balance += betrag; else balance -= betrag; }
+                const typBadge = isSt
+                    ? '<span class="badge" style="background:rgba(100,116,139,.2);color:#94a3b8;">Storniert</span>'
+                    : e.typ === 'Einnahme' ? '<span class="badge badge-success">Einnahme</span>'
                     : e.typ === 'Ausgabe' ? '<span class="badge badge-danger">Ausgabe</span>'
                     : e.typ === 'Privateinlage' ? '<span class="badge badge-info">Privateinlage</span>'
                     : '<span class="badge badge-warning">Privatentnahme</span>';
+                const rowStyle = isSt ? 'opacity:.45;text-decoration:line-through;' : '';
+                const balanceCell = isSt ? '—' : Utils.formatCurrency(balance);
+                const balanceColor = isSt ? 'var(--text-muted,#888)' : (balance >= 0 ? 'var(--success)' : 'var(--danger)');
                 return `
-                <tr>
+                <tr style="${rowStyle}">
                     <td>${Utils.formatDate(e.datum)}</td>
                     <td>${typBadge}</td>
-                    <td>${Utils.escapeHtml(e.beschreibung || '')}</td>
-                    <td style="text-align:right;color:${isEin ? 'var(--success)' : 'var(--danger)'};">${isEin ? '+' : '-'}${Utils.formatCurrency(betrag)}</td>
-                    <td style="text-align:right;font-weight:600;color:${balance >= 0 ? 'var(--success)' : 'var(--danger)'};">${Utils.formatCurrency(balance)}</td>
+                    <td>${Utils.escapeHtml(e.beschreibung || '')}${isSt ? ` <small style="color:var(--text-muted,#888);text-decoration:none;">(${Utils.escapeHtml(e.stornoGrund || '')})</small>` : ''}</td>
+                    <td style="text-align:right;color:${isSt ? 'var(--text-muted,#888)' : (isEin ? 'var(--success)' : 'var(--danger)')};">${isSt ? '' : (isEin ? '+' : '-')}${Utils.formatCurrency(betrag)}</td>
+                    <td style="text-align:right;font-weight:600;color:${balanceColor};">${balanceCell}</td>
                     <td class="table-actions">
-                        <button class="btn btn-small btn-danger" data-delete-kasse="${e.id}">Löschen</button>
+                        ${isSt ? '' : `<button class="btn btn-small btn-danger" data-delete-kasse="${e.id}">Stornieren</button>`}
                     </td>
                 </tr>`;
             }).join('');
@@ -65,12 +73,12 @@ const Kassenbuch = {
                 <div class="card stat-card success">
                     <div class="card-label">Einnahmen ${year === 'all' ? '' : year}</div>
                     <div class="card-value">${Utils.formatCurrency(typSummen['Einnahme'] + typSummen['Privateinlage'])}</div>
-                    <div class="card-subtitle">${filtered.filter(e => e.typ === 'Einnahme' || e.typ === 'Privateinlage').length} Einträge</div>
+                    <div class="card-subtitle">${aktiv.filter(e => e.typ === 'Einnahme' || e.typ === 'Privateinlage').length} Einträge</div>
                 </div>
                 <div class="card stat-card danger">
                     <div class="card-label">Ausgaben ${year === 'all' ? '' : year}</div>
                     <div class="card-value">${Utils.formatCurrency(typSummen['Ausgabe'] + typSummen['Privatentnahme'])}</div>
-                    <div class="card-subtitle">${filtered.filter(e => e.typ === 'Ausgabe' || e.typ === 'Privatentnahme').length} Einträge</div>
+                    <div class="card-subtitle">${aktiv.filter(e => e.typ === 'Ausgabe' || e.typ === 'Privatentnahme').length} Einträge</div>
                 </div>
                 <div class="card stat-card ${endbestand >= 0 ? 'success' : 'danger'}">
                     <div class="card-label">Kassensaldo ${year === 'all' ? '' : year}</div>
@@ -84,11 +92,11 @@ const Kassenbuch = {
                 <form id="kasseForm">
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Datum</label>
+                            <label class="form-label" for="kb_datum">Datum</label>
                             <input type="date" class="form-input" id="kb_datum" value="${Utils.todayISO()}">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Typ</label>
+                            <label class="form-label" for="kb_typ">Typ</label>
                             <select class="form-select" id="kb_typ">
                                 <option value="Einnahme">Einnahme</option>
                                 <option value="Ausgabe">Ausgabe</option>
@@ -97,17 +105,17 @@ const Kassenbuch = {
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Betrag (€)</label>
+                            <label class="form-label" for="kb_betrag">Betrag (€)</label>
                             <input type="number" step="0.01" min="0" class="form-input" id="kb_betrag" placeholder="0,00">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Beschreibung</label>
+                            <label class="form-label" for="kb_beschreibung">Beschreibung</label>
                             <input type="text" class="form-input" id="kb_beschreibung" placeholder="Wofür?">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Beleg-Nr. (optional)</label>
+                            <label class="form-label" for="kb_beleg">Beleg-Nr. (optional)</label>
                             <input type="text" class="form-input" id="kb_beleg" placeholder="z.B. B-001">
                         </div>
                     </div>
@@ -131,12 +139,12 @@ const Kassenbuch = {
                 <table>
                     <thead>
                         <tr>
-                            <th>Datum</th>
-                            <th>Typ</th>
-                            <th>Beschreibung</th>
-                            <th style="text-align:right">Betrag</th>
-                            <th style="text-align:right">Saldo</th>
-                            <th>Aktionen</th>
+                            <th scope="col">Datum</th>
+                            <th scope="col">Typ</th>
+                            <th scope="col">Beschreibung</th>
+                            <th scope="col" style="text-align:right">Betrag</th>
+                            <th scope="col" style="text-align:right">Saldo</th>
+                            <th scope="col">Aktionen</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
@@ -171,9 +179,10 @@ const Kassenbuch = {
 
         document.querySelectorAll('[data-delete-kasse]').forEach(btn => {
             btn.addEventListener('click', () => {
-                if (!confirm('Eintrag löschen?')) return;
-                Store.deleteKassenEintrag(btn.dataset.deleteKasse);
-                Utils.showToast('Eintrag gelöscht', 'success');
+                const grund = prompt('Stornogrund (GoBD-Pflicht):', 'Falscheingabe');
+                if (grund === null) return; // Abbrechen
+                Store.deleteKassenEintrag(btn.dataset.deleteKasse, grund || 'Manuell storniert');
+                Utils.showToast('Eintrag storniert (GoBD-konform)', 'success');
                 this._refresh();
             });
         });
@@ -193,8 +202,11 @@ const Kassenbuch = {
         const exportBtn = document.getElementById('kbExportCSV');
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
-                const rows = [['Datum', 'Typ', 'Beschreibung', 'Betrag', 'Beleg']];
-                Store.getKassenbuch().forEach(e => rows.push([e.datum, e.typ, e.beschreibung, e.betrag, e.beleg || '']));
+                const rows = [['Datum', 'Typ', 'Beschreibung', 'Betrag', 'Beleg', 'Storniert', 'Stornogrund']];
+                Store.getKassenbuch().forEach(e => rows.push([
+                    e.datum, e.typ, e.beschreibung, e.betrag, e.beleg || '',
+                    e.storniert ? 'Ja' : 'Nein', e.stornoGrund || ''
+                ]));
                 Utils.downloadCSV(rows, 'kassenbuch_export.csv');
                 Utils.showToast('CSV exportiert', 'success');
             });

@@ -205,7 +205,25 @@ const Utils = {
         });
     },
 
+    // ── aria-live region for screen readers (WCAG 4.1.3) ───────────────────
+    _ensureAriaLive() {
+        if (this._ariaLive) return;
+        const el = document.createElement('div');
+        el.id = 'toast-aria-live';
+        el.setAttribute('role', 'status');
+        el.setAttribute('aria-live', 'polite');
+        el.setAttribute('aria-atomic', 'true');
+        el.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;';
+        document.body.appendChild(el);
+        this._ariaLive = el;
+    },
+
     showToast(message, type = 'success') {
+        // Announce to screen readers
+        this._ensureAriaLive();
+        this._ariaLive.textContent = '';
+        setTimeout(() => { this._ariaLive.textContent = message; }, 50);
+
         if (typeof Notyf !== 'undefined') {
             if (!this._notyf) {
                 this._notyf = new Notyf({

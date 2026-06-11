@@ -6,15 +6,18 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.paddle.com; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co https://*.paddle.com; frame-src https://buy.paddle.com https://checkout.paddle.com;">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
     <title>Stackr — Rechnungsbuch</title>
+    <link rel="preload" href="../fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="../fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <script src="../js/i18n.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/tabler-icons.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/de.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/l10n/de.js"></script>
     <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
     <script>Paddle.Initialize({ token: 'live_7d279f61a3499fed520f7cd8c08' });</script>
 </head>
@@ -51,25 +54,26 @@
     <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h1>📄 Rechnungsbuch</h1>
+            <h1>Rechnungsbuch</h1>
             <div class="subtitle">Rechnungen & Angebote</div>
         </div>
         <nav class="sidebar-nav">
             <div class="sidebar-section">Verwaltung</div>
             <div class="sidebar-section-items" id="section-hauptmenu">
-                <div class="sidebar-link active" data-page="rech-dashboard"><span class="icon">📊</span><span class="sidebar-link-label"> Dashboard</span></div>
-                <div class="sidebar-link" data-page="rechnung-neu"><span class="icon">➕</span><span class="sidebar-link-label"> Neue Rechnung</span></div>
-                <div class="sidebar-link" data-page="angebot-neu"><span class="icon">📝</span><span class="sidebar-link-label"> Neues Angebot</span></div>
-                <div class="sidebar-link" data-page="dokumente"><span class="icon">📁</span><span class="sidebar-link-label"> Dokumente</span></div>
-                <div class="sidebar-link" data-page="kunden"><span class="icon">👥</span><span class="sidebar-link-label"> Kunden</span></div>
-                <div class="sidebar-link" data-page="produkte"><span class="icon">📦</span><span class="sidebar-link-label"> Produkte</span></div>
-                <div class="sidebar-link" data-page="mahnungen"><span class="icon">⚠️</span><span class="sidebar-link-label"> Mahnungen</span></div>
-                <div class="sidebar-link" data-page="protokoll"><span class="icon">📋</span><span class="sidebar-link-label"> Protokoll</span></div>
-                <div class="sidebar-link" data-page="testrechnung"><span class="icon">🧪</span><span class="sidebar-link-label"> Testrechnung</span></div>
+                <div class="sidebar-link active" data-page="rech-dashboard"><span class="icon"><i class="ti ti-layout-dashboard"></i></span><span class="sidebar-link-label"> Dashboard</span></div>
+                <div class="sidebar-link" data-page="rechnung-neu"><span class="icon"><i class="ti ti-plus"></i></span><span class="sidebar-link-label"> Neue Rechnung</span></div>
+                <div class="sidebar-link" data-page="angebot-neu"><span class="icon"><i class="ti ti-file-text"></i></span><span class="sidebar-link-label"> Neues Angebot</span></div>
+                <div class="sidebar-link" data-page="dokumente"><span class="icon"><i class="ti ti-folder"></i></span><span class="sidebar-link-label"> Dokumente</span></div>
+                <div class="sidebar-link" data-page="kunden"><span class="icon"><i class="ti ti-users"></i></span><span class="sidebar-link-label"> Kunden</span></div>
+                <div class="sidebar-link" data-page="produkte"><span class="icon"><i class="ti ti-package"></i></span><span class="sidebar-link-label"> Produkte</span></div>
+                <div class="sidebar-link" data-page="mahnungen"><span class="icon"><i class="ti ti-alert-triangle"></i></span><span class="sidebar-link-label"> Mahnungen</span></div>
+                <div class="sidebar-link" data-page="protokoll"><span class="icon"><i class="ti ti-notebook"></i></span><span class="sidebar-link-label"> Protokoll</span></div>
+                <div class="sidebar-link" data-page="testrechnung"><span class="icon"><i class="ti ti-flask"></i></span><span class="sidebar-link-label"> Testrechnung</span></div>
+                <div class="sidebar-link" data-page="wiederkehrend"><span class="icon"><i class="ti ti-repeat"></i></span><span class="sidebar-link-label"> Wiederkehrend</span></div>
             </div>
             <div class="sidebar-section" style="margin-top:8px;">Einstellungen</div>
             <div class="sidebar-section-items">
-                <div class="sidebar-link" data-page="unternehmensdaten"><span class="icon">🏢</span><span class="sidebar-link-label"> Unternehmensdaten</span></div>
+                <div class="sidebar-link" data-page="unternehmensdaten"><span class="icon"><i class="ti ti-building"></i></span><span class="sidebar-link-label"> Unternehmensdaten</span></div>
             </div>
         </nav>
         <div class="sidebar-footer">
@@ -109,6 +113,7 @@
     <script src="../js/user-plan.js"></script>
     <script src="../js/auth-ui.js"></script>
     <script src="../js/utils.js"></script>
+    <script src="js/xrechnung.js"></script>
     <script src="js/rech-dashboard.js"></script>
     <script src="js/rechnung.js"></script>
     <script src="js/dokumente.js"></script>
@@ -117,6 +122,7 @@
     <script src="js/mahnungen.js"></script>
     <script src="js/protokoll.js"></script>
     <script src="js/unternehmensdaten.js"></script>
+    <script src="js/wiederkehrend.js"></script>
     <script src="js/app.js"></script>
 
     <script>

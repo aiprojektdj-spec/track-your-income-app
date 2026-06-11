@@ -58,13 +58,13 @@ var RechDashboard = (function() {
         // ── Unternehmensdaten-Hinweis (nur wenn noch nicht ausgefüllt) ────
         if (!hasUd) {
             html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;margin-bottom:20px;';
-            html += 'background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:10px;">';
-            html += '<div style="font-size:24px;">🏢</div>';
+            html += 'background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:var(--radius);">';
+            html += '<i class="ti ti-building" style="font-size:22px;color:var(--accent);flex-shrink:0;"></i>';
             html += '<div style="flex:1;">';
             html += '<div style="font-weight:700;font-size:13px;">Unternehmensdaten noch nicht eingerichtet</div>';
-            html += '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Füge Firmenname, Adresse, Bankverbindung & Logo hinzu — sie erscheinen automatisch auf deinen Rechnungen.</div>';
+            html += '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Füge Firmenname, Adresse, Bankverbindung &amp; Logo hinzu — sie erscheinen automatisch auf deinen Rechnungen.</div>';
             html += '</div>';
-            html += '<button class="btn btn-small btn-outline" id="dashGoUd" style="white-space:nowrap;">&#9881; Jetzt einrichten</button>';
+            html += '<button class="btn btn-small btn-outline" id="dashGoUd" style="white-space:nowrap;"><i class="ti ti-settings" style="font-size:13px;"></i> Jetzt einrichten</button>';
             html += '</div>';
         }
 
@@ -72,60 +72,56 @@ var RechDashboard = (function() {
         var curYear = new Date().getFullYear();
         if (curYear >= 2025) {
             html += '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;margin-bottom:16px;';
-            html += 'background:rgba(234,179,8,.07);border:1px solid rgba(234,179,8,.25);border-radius:10px;">';
-            html += '<div style="font-size:22px;padding-top:1px;">📋</div>';
+            html += 'background:rgba(234,179,8,.07);border:1px solid rgba(234,179,8,.25);border-radius:var(--radius);">';
+            html += '<i class="ti ti-receipt" style="font-size:20px;color:var(--warning,#f59e0b);flex-shrink:0;padding-top:1px;"></i>';
             html += '<div style="flex:1;">';
-            html += '<div style="font-weight:700;font-size:13px;color:#fbbf24;">E-Rechnung ab 2025 Pflicht (B2B)</div>';
+            html += '<div style="font-weight:700;font-size:13px;color:var(--warning,#fbbf24);">E-Rechnung ab 2025 Pflicht (B2B)</div>';
             html += '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;line-height:1.5;">';
             html += 'Für Rechnungen zwischen Unternehmen (B2B) ist ab dem 1.&nbsp;Januar&nbsp;2025 die Empfangspflicht für strukturierte E-Rechnungen (XRechnung / ZUGFeRD) in Kraft. ';
             html += 'Ab&nbsp;2027 auch Ausstellungspflicht für Umsätze >&nbsp;0&nbsp;€. ';
-            html += '<a href="https://www.bundesfinanzministerium.de/Content/DE/FAQ/2024-03-22-steuerforum-e-rechnung.html" target="_blank" rel="noopener" style="color:#fbbf24;">Mehr Info →</a>';
+            html += '<a href="https://www.bundesfinanzministerium.de/Content/DE/FAQ/2024-03-22-steuerforum-e-rechnung.html" target="_blank" rel="noopener" style="color:var(--warning,#fbbf24);">Mehr Info →</a>';
             html += '</div></div></div>';
         }
 
         // ── Stat-Kacheln ─────────────────────────────────────────────────
         var cards = [
-            { label: 'Offene Rechnungen',   count: offeneRechnungen.length, amount: offeneSum,   color: '#3b82f6', icon: '📄' },
-            { label: 'Bezahlt (dieser Monat)', count: bezahlteRechnungen.length, amount: bezahlteSum, color: '#22c55e', icon: '✅' },
-            { label: 'Überfällige Rechnungen', count: ueberfaellige.length,   amount: ueberfaelligeSum, color: '#ef4444', icon: '⚠️' },
-            { label: 'Offene Angebote',      count: offeneAngebote.length,   amount: angeboteSum,  color: '#f59e0b', icon: '📝' },
+            { label: 'Offene Rechnungen',      count: offeneRechnungen.length,   amount: offeneSum,        color: 'var(--info,#3b82f6)',    icon: 'ti-file-invoice'   },
+            { label: 'Bezahlt (dieser Monat)', count: bezahlteRechnungen.length, amount: bezahlteSum,      color: 'var(--success,#22c55e)', icon: 'ti-circle-check'   },
+            { label: 'Überfällige Rechnungen', count: ueberfaellige.length,      amount: ueberfaelligeSum, color: 'var(--danger,#ef4444)',  icon: 'ti-alert-triangle' },
+            { label: 'Offene Angebote',         count: offeneAngebote.length,    amount: angeboteSum,      color: 'var(--warning,#f59e0b)', icon: 'ti-file-text'      },
         ];
 
-        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-bottom:28px;">';
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px;">';
         cards.forEach(function(c) {
-            html += '<div style="background:var(--bg-card,var(--bg-secondary));border:1px solid var(--border);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;">';
-            // top accent bar
-            html += '<div style="position:absolute;top:0;left:0;right:0;height:3px;background:' + c.color + ';border-radius:12px 12px 0 0;"></div>';
-            html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;">';
-            html += '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);line-height:1.4;">' + c.label + '</div>';
-            html += '<div style="font-size:20px;line-height:1;">' + c.icon + '</div>';
+            html += '<div style="background:var(--bg-card,var(--bg-secondary));border:1px solid var(--border);border-left:3px solid ' + c.color + ';border-radius:var(--radius);padding:16px 18px;">';
+            html += '<div style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:10px;">';
+            html += '<i class="ti ' + c.icon + '" style="font-size:13px;opacity:.7;"></i> ' + c.label;
             html += '</div>';
-            html += '<div style="font-size:34px;font-weight:900;color:var(--text-primary);line-height:1;margin-top:10px;">' + c.count + '</div>';
-            html += '<div style="font-size:13px;font-weight:600;color:' + c.color + ';margin-top:5px;">' + Utils.formatCurrency(c.amount) + '</div>';
+            html += '<div style="font-size:32px;font-weight:800;color:var(--text-primary);line-height:1;">' + c.count + '</div>';
+            html += '<div style="font-size:13px;font-weight:600;color:' + c.color + ';margin-top:6px;">' + Utils.formatCurrency(c.amount) + '</div>';
             html += '</div>';
         });
         html += '</div>';
 
         // ── Letzte Dokumente ──────────────────────────────────────────────
-        html += '<div style="background:var(--bg-card,var(--bg-secondary));border:1px solid var(--border);border-radius:12px;overflow:hidden;">';
+        html += '<div style="background:var(--bg-card,var(--bg-secondary));border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">';
 
         // Section header
         html += '<div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">';
-        html += '<div style="font-size:14px;font-weight:700;">Letzte Dokumente</div>';
+        html += '<div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px;"><i class="ti ti-files" style="font-size:15px;color:var(--text-muted);"></i> Letzte Dokumente</div>';
         if (recent.length > 0) {
-            html += '<button class="btn btn-small btn-outline" id="dashGoDoc" style="font-size:11px;border-radius:20px;padding:4px 12px;">Alle anzeigen →</button>';
+            html += '<button class="btn btn-small btn-outline" id="dashGoDoc" style="font-size:11px;">Alle anzeigen →</button>';
         }
         html += '</div>';
 
         if (recent.length === 0) {
-            // Nice empty state
             html += '<div style="padding:52px 20px;text-align:center;">';
-            html += '<div style="font-size:44px;margin-bottom:14px;opacity:.5;">📄</div>';
-            html += '<div style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">Noch keine Dokumente</div>';
+            html += '<i class="ti ti-file-invoice" style="font-size:48px;color:var(--text-muted);opacity:.35;"></i>';
+            html += '<div style="font-size:16px;font-weight:700;color:var(--text-primary);margin:14px 0 6px;">Noch keine Dokumente</div>';
             html += '<div style="font-size:13px;color:var(--text-muted);">Erstelle deine erste Rechnung oder dein erstes Angebot.</div>';
             html += '<div style="display:flex;gap:10px;justify-content:center;margin-top:20px;">';
-            html += '<button class="btn btn-primary" id="emptyNewInvoice">&#xFF0B; Neue Rechnung</button>';
-            html += '<button class="btn btn-outline" id="emptyNewOffer">&#xFF0B; Neues Angebot</button>';
+            html += '<button class="btn btn-primary" id="emptyNewInvoice"><i class="ti ti-plus"></i> Neue Rechnung</button>';
+            html += '<button class="btn" id="emptyNewOffer"><i class="ti ti-plus"></i> Neues Angebot</button>';
             html += '</div>';
             html += '</div>';
         } else {
@@ -145,31 +141,31 @@ var RechDashboard = (function() {
                 var kunde = customerMap[inv.kundeId];
                 var kundeName = kunde ? Utils.escapeHtml(kunde.firma || kunde.ansprechpartner || '') : '—';
                 var typLabel  = inv.typ === 'rechnung' ? 'Rechnung' : inv.typ === 'angebot' ? 'Angebot' : 'Gutschrift';
-                var typColor  = inv.typ === 'rechnung' ? '#3b82f6' : inv.typ === 'angebot' ? '#f59e0b' : '#8b5cf6';
+                var typColor  = inv.typ === 'rechnung' ? 'var(--info,#3b82f6)' : inv.typ === 'angebot' ? 'var(--warning,#f59e0b)' : 'var(--accent)';
 
                 var statusMap = {
-                    bezahlt:     { label: 'Bezahlt',    bg: 'rgba(34,197,94,.15)',  color: '#16a34a' },
-                    ueberfaellig:{ label: 'Überfällig', bg: 'rgba(239,68,68,.15)',  color: '#dc2626' },
-                    storniert:   { label: 'Storniert',  bg: 'rgba(107,114,128,.15)',color: '#6b7280' },
-                    offen:       { label: 'Offen',      bg: 'rgba(59,130,246,.12)', color: '#3b82f6' },
-                    versendet:   { label: 'Versendet',  bg: 'rgba(245,158,11,.15)', color: '#d97706' },
+                    bezahlt:     { label: 'Bezahlt',    bg: 'rgba(16,185,129,.12)', color: 'var(--success,#16a34a)' },
+                    ueberfaellig:{ label: 'Überfällig', bg: 'rgba(239,68,68,.12)',  color: 'var(--danger,#dc2626)'  },
+                    storniert:   { label: 'Storniert',  bg: 'rgba(107,114,128,.12)',color: 'var(--text-secondary)'  },
+                    offen:       { label: 'Offen',      bg: 'rgba(59,130,246,.10)', color: 'var(--info,#3b82f6)'    },
+                    versendet:   { label: 'Versendet',  bg: 'rgba(245,158,11,.12)', color: 'var(--warning,#d97706)' },
                 };
                 var st = statusMap[inv.status] || statusMap['offen'];
 
-                html += '<tr style="border-top:1px solid var(--border);' + (i % 2 === 1 ? 'background:rgba(0,0,0,.02);' : '') + '">';
+                html += '<tr style="border-top:1px solid var(--border);">';
                 html += '<td style="padding:10px 14px;font-weight:700;font-size:13px;">' + Utils.escapeHtml(inv.nummer || '—') + '</td>';
                 html += '<td style="padding:10px 14px;">';
-                html += '<span style="font-size:12px;font-weight:600;color:' + typColor + ';">' + typLabel + '</span>';
+                html += '<span style="font-size:11px;font-weight:600;color:' + typColor + ';padding:2px 8px;background:rgba(99,102,241,.08);border-radius:var(--radius-sm);">' + typLabel + '</span>';
                 html += '</td>';
                 html += '<td style="padding:10px 14px;font-size:13px;">' + kundeName + '</td>';
                 html += '<td style="padding:10px 14px;font-size:12px;color:var(--text-muted);">' + Utils.formatDate(inv.datum) + '</td>';
                 html += '<td style="padding:10px 14px;text-align:right;font-weight:700;font-size:13px;">' + Utils.formatCurrency(calcBrutto(inv)) + '</td>';
                 html += '<td style="padding:10px 14px;">';
-                html += '<span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:' + st.bg + ';color:' + st.color + ';">' + st.label + '</span>';
+                html += '<span style="padding:3px 8px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;background:' + st.bg + ';color:' + st.color + ';">' + st.label + '</span>';
                 html += '</td>';
-                html += '<td style="padding:10px 14px;white-space:nowrap;text-align:right;">';
-                html += '<button class="btn btn-small dash-view" data-id="' + inv.id + '" style="font-size:11px;border-radius:20px;padding:4px 10px;">Anzeigen</button> ';
-                html += '<button class="btn btn-small btn-primary dash-edit" data-id="' + inv.id + '" style="font-size:11px;border-radius:20px;padding:4px 10px;">Bearbeiten</button>';
+                html += '<td style="padding:10px 14px;white-space:nowrap;text-align:right;display:flex;gap:6px;justify-content:flex-end;">';
+                html += '<button class="btn btn-small dash-view" data-id="' + inv.id + '" style="font-size:11px;"><i class="ti ti-eye" style="font-size:12px;"></i></button>';
+                html += '<button class="btn btn-small btn-primary dash-edit" data-id="' + inv.id + '" style="font-size:11px;"><i class="ti ti-edit" style="font-size:12px;"></i> Bearbeiten</button>';
                 html += '</td></tr>';
             });
 

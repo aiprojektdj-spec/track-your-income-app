@@ -164,14 +164,53 @@ const Euer = {
         // Kleinunternehmer: Brutto-Ausgaben (USt ist echter Kostenfaktor, kein Vorsteuerabzug)
         // Regelbesteuerung: Netto-Ausgaben (USt wird als Vorsteuer abgezogen = Durchlaufposten)
         const abzugsfaehig = wareneinkauf + versandkosten + plattformgebuehren + fahrtkosten + materialKosten + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten;
-        // Vorsteuer ist bei Regelbesteuerung ebenfalls im eingegebenen Brutto enthalten
-        const vorsteuer = isRegel ? (abzugsfaehig / 1.19 * 0.19) : 0;
+
+        // ── Vorsteuer: tatsächlicher USt-Satz pro Einkauf (Fix: war pauschal /1.19) ──
+        // Purchases können jetzt ustSatz = 19 | 7 | 0 tragen.
+        // Fallback: 19% wenn kein ustSatz gespeichert (Altdaten-Kompatibilität).
+        const vorsteuer = isRegel ? (() => {
+            // Einkäufe: nach tatsächlichem Satz gewichtet
+            const vstPurch = purchases
+                .filter(p => !p.storniert && Utils.isInPeriod(p.datum, startDate, endDate))
+                .reduce((sum, p) => {
+                    const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
+                    const rate   = (p.ustSatz != null ? Number(p.ustSatz) : 19) / 100;
+                    const factor = rate / (1 + rate); // extract USt from brutto
+                    return sum + brutto * factor;
+                }, 0);
+            // Sonstige Ausgaben, Fahrtkosten, Eigenbelege, AfA: pauschal 19% (keine Satz-Info)
+            const vstOther = (versandkosten + plattformgebuehren + fahrtkosten + materialKosten + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten) / 1.19 * 0.19;
+            return vstPurch + vstOther;
+        })() : 0;
         // Bei Regelbesteuerung zählt nur Netto als abzugsfähige BA; USt ist Durchlaufposten
-        const summeAusgaben = isRegel ? (abzugsfaehig / 1.19) + vorsteuer : abzugsfaehig;
+        const summeAusgaben = isRegel ? (abzugsfaehig - vorsteuer) + vorsteuer : abzugsfaehig;
 
         const gewinn = summeEinnahmen - summeAusgaben;
         this._lastGewinn = gewinn; // für Gewerbesteuer-Live-Update
-        this._lastRenderData = { sales, periodPurchases, expenses, eigenbelegeRaw, startDate, endDate, periodLabel, summeEinnahmen, summeAusgaben, gewinn, wareneinkauf, versandkosten, plattformgebuehren, fahrtkosten, materialKosten, sonstigeAusgaben, eigenbelegeAusgaben, afaKosten };
+
+        // ── Chart-Daten ────────────────────────────────────────────────────────
+        // Monatliche Einnahmen/Ausgaben für das gesamte Jahr (unabhängig vom Zeitraum-Filter)
+        const monthlyData = Array.from({length: 12}, (_, m) => {
+            const mS = `${year}-${String(m+1).padStart(2,'0')}-01`;
+            const mE = (() => { const d = new Date(year, m+1, 0); return `${year}-${String(m+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
+            const mSales = Store.getSales().filter(s => !s.storniert && Utils.isInPeriod(s.datum, mS, mE));
+            const mPurch = Store.getPurchases().filter(p => !p.storniert && Utils.isInPeriod(p.datum, mS, mE));
+            const mExp   = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, mS, mE));
+            const ein = Math.round(mSales.reduce((s,x) => s+(parseFloat(x.verkaufspreis)||0)+(parseFloat(x.versandkostenKaeufer)||0), 0)*100)/100;
+            const aus = Math.round((mPurch.reduce((s,p) => s+(parseFloat(p.einkaufspreis)||0)*(parseInt(p.anzahl)||1), 0)+mExp.reduce((s,e) => s+(parseFloat(e.betrag)||0),0))*100)/100;
+            return { ein, aus };
+        });
+
+        // Donut-Daten: Ausgaben nach Kategorie
+        const donutLabels = ['Wareneinkauf','Versandkosten','Plattformgebühren'];
+        const donutValues = [wareneinkauf, versandkosten, plattformgebuehren];
+        if (fahrtkosten     > 0) { donutLabels.push('Fahrtkosten');      donutValues.push(fahrtkosten); }
+        if (materialKosten  > 0) { donutLabels.push('Verpackung');       donutValues.push(materialKosten); }
+        if (afaKosten       > 0) { donutLabels.push('AfA');              donutValues.push(afaKosten); }
+        if (sonstigeAusgaben> 0) { donutLabels.push('Betriebsausgaben'); donutValues.push(sonstigeAusgaben); }
+        if (eigenbelegeAusgaben>0){ donutLabels.push('Eigenbelege');     donutValues.push(eigenbelegeAusgaben); }
+
+        this._lastRenderData = { sales, periodPurchases, expenses, eigenbelegeRaw, startDate, endDate, periodLabel, summeEinnahmen, summeAusgaben, gewinn, wareneinkauf, versandkosten, plattformgebuehren, fahrtkosten, materialKosten, sonstigeAusgaben, eigenbelegeAusgaben, afaKosten, monthlyData, donutLabels, donutValues, chartYear: year };
 
         // GbR-Gewinnverteilung Block
         const gbrBlock = (typeof GbR !== 'undefined') ? GbR.renderEuerBlock(gewinn) : '';
@@ -241,21 +280,47 @@ const Euer = {
                 ${ustMode === 'klein' ? '<div class="form-hint">Kleinunternehmerregelung nach &sect;19 UStG - keine Umsatzsteuer wird ausgewiesen.</div>' : ''}
             </div>
 
-            <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;" id="euerKpiGrid">
-                <div class="card stat-card success" data-euer-detail="einnahmen" style="padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s;${this._detailView==='einnahmen'?'outline:2px solid var(--success);outline-offset:2px;':''}">
-                    <div class="card-label" style="font-size:11px;"><i class="ti ti-trending-up"></i> Einnahmen <span style="float:right;font-size:10px;opacity:.6;">${this._detailView==='einnahmen'?'▲':'▼'}</span></div>
-                    <div class="card-value" style="font-size:22px;" id="euerKpiEin">${Utils.formatCurrency(summeEinnahmen)}</div>
-                    <div class="card-subtitle" style="font-size:11px;">${periodLabel}</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px;" id="euerKpiGrid">
+                <div class="card stat-card success" data-euer-detail="einnahmen" style="padding:14px 16px;border-left:3px solid var(--success,#22c55e);cursor:pointer;transition:transform .15s,box-shadow .15s;${this._detailView==='einnahmen'?'outline:2px solid var(--success);outline-offset:2px;':''}">
+                    <div class="card-label" style="display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:6px;">
+                        <span style="display:flex;align-items:center;gap:5px;"><i class="ti ti-trending-up"></i> Einnahmen</span>
+                        <span style="font-size:10px;opacity:.6;">${this._detailView==='einnahmen'?'▲':'▼'}</span>
+                    </div>
+                    <div class="card-value" style="font-size:28px;font-weight:700;line-height:1;" id="euerKpiEin">${Utils.formatCurrency(summeEinnahmen)}</div>
+                    <div class="card-subtitle" style="font-size:11px;color:var(--text-muted);margin-top:5px;">${periodLabel}</div>
                 </div>
-                <div class="card stat-card danger" data-euer-detail="ausgaben" style="padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s;${this._detailView==='ausgaben'?'outline:2px solid var(--danger);outline-offset:2px;':''}">
-                    <div class="card-label" style="font-size:11px;"><i class="ti ti-trending-down"></i> Ausgaben <span style="float:right;font-size:10px;opacity:.6;">${this._detailView==='ausgaben'?'▲':'▼'}</span></div>
-                    <div class="card-value" style="font-size:22px;" id="euerKpiAus">${Utils.formatCurrency(summeAusgaben)}</div>
-                    <div class="card-subtitle" style="font-size:11px;">${periodPurchases.length} Einkäufe · ${expenses.length} BA</div>
+                <div class="card stat-card danger" data-euer-detail="ausgaben" style="padding:14px 16px;border-left:3px solid var(--danger,#ef4444);cursor:pointer;transition:transform .15s,box-shadow .15s;${this._detailView==='ausgaben'?'outline:2px solid var(--danger);outline-offset:2px;':''}">
+                    <div class="card-label" style="display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:6px;">
+                        <span style="display:flex;align-items:center;gap:5px;"><i class="ti ti-trending-down"></i> Ausgaben</span>
+                        <span style="font-size:10px;opacity:.6;">${this._detailView==='ausgaben'?'▲':'▼'}</span>
+                    </div>
+                    <div class="card-value" style="font-size:28px;font-weight:700;line-height:1;" id="euerKpiAus">${Utils.formatCurrency(summeAusgaben)}</div>
+                    <div class="card-subtitle" style="font-size:11px;color:var(--text-muted);margin-top:5px;">${periodPurchases.length} Einkäufe · ${expenses.length} BA</div>
                 </div>
-                <div class="card stat-card ${gewinn >= 0 ? 'success' : 'danger'}" data-euer-detail="gewinn" style="padding:14px;cursor:pointer;transition:transform .15s,box-shadow .15s;${this._detailView==='gewinn'?'outline:2px solid '+(gewinn>=0?'var(--success)':'var(--danger)')+';outline-offset:2px;':''}">
-                    <div class="card-label" style="font-size:11px;"><i class="ti ti-scale"></i> ${gewinn >= 0 ? 'Gewinn' : 'Verlust'} <span style="float:right;font-size:10px;opacity:.6;">${this._detailView==='gewinn'?'▲':'▼'}</span></div>
-                    <div class="card-value" style="font-size:22px;color:${gewinn >= 0 ? 'var(--success)' : 'var(--danger)'};" id="euerKpiGewinn">${Utils.formatCurrency(gewinn)}</div>
-                    <div class="card-subtitle" style="font-size:11px;">${sales.length} Verkäufe</div>
+                <div class="card stat-card ${gewinn >= 0 ? 'success' : 'danger'}" data-euer-detail="gewinn" style="padding:14px 16px;border-left:3px solid ${gewinn >= 0 ? 'var(--success,#22c55e)' : 'var(--danger,#ef4444)'};cursor:pointer;transition:transform .15s,box-shadow .15s;${this._detailView==='gewinn'?'outline:2px solid '+(gewinn>=0?'var(--success)':'var(--danger)')+';outline-offset:2px;':''}">
+                    <div class="card-label" style="display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);margin-bottom:6px;">
+                        <span style="display:flex;align-items:center;gap:5px;"><i class="ti ti-scale"></i> ${gewinn >= 0 ? 'Gewinn' : 'Verlust'}</span>
+                        <span style="font-size:10px;opacity:.6;">${this._detailView==='gewinn'?'▲':'▼'}</span>
+                    </div>
+                    <div class="card-value" style="font-size:28px;font-weight:700;line-height:1;color:${gewinn >= 0 ? 'var(--success)' : 'var(--danger)'};" id="euerKpiGewinn">${Utils.formatCurrency(gewinn)}</div>
+                    <div class="card-subtitle" style="font-size:11px;color:var(--text-muted);margin-top:5px;">${sales.length} Verkäufe</div>
+                </div>
+            </div>
+
+            <div class="no-print" style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:16px;" id="euerChartsRow">
+                <div class="card" style="padding:16px 16px 10px;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+                        <i class="ti ti-chart-bar" style="color:var(--text-secondary);font-size:14px;"></i>
+                        <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">Monatsübersicht ${year}</span>
+                    </div>
+                    <div id="euerMonthChart"></div>
+                </div>
+                <div class="card" style="padding:16px 16px 10px;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+                        <i class="ti ti-chart-donut" style="color:var(--text-secondary);font-size:14px;"></i>
+                        <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-secondary);">Ausgaben-Aufteilung</span>
+                    </div>
+                    <div id="euerDonutChart"></div>
                 </div>
             </div>
 
@@ -277,7 +342,7 @@ const Euer = {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr class="euer-section-header"><td colspan="2">Einnahmen</td></tr>
+                            <tr class="euer-section-header" style="background:rgba(34,197,94,.07);"><td colspan="2" style="color:var(--success);padding:10px 14px;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.8px;"><i class="ti ti-trending-up" style="margin-right:5px;vertical-align:middle;font-size:13px;"></i>Einnahmen</td></tr>
                             <tr>
                                 <td>Bruttoerlöse aus Verkäufen <span style="font-size:11px;color:var(--text-muted);">(Verkaufspreis + Versand vom Käufer)</span></td>
                                 <td style="text-align:right">${Utils.formatCurrency(bruttoEinnahmen - rechnungsEinnahmen)}</td>
@@ -307,7 +372,7 @@ const Euer = {
                                 <td style="text-align:right"><strong>${Utils.formatCurrency(summeEinnahmen)}</strong></td>
                             </tr>
 
-                            <tr class="euer-section-header"><td colspan="2">Ausgaben</td></tr>
+                            <tr class="euer-section-header" style="background:rgba(239,68,68,.07);"><td colspan="2" style="color:var(--danger);padding:10px 14px;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.8px;"><i class="ti ti-trending-down" style="margin-right:5px;vertical-align:middle;font-size:13px;"></i>Ausgaben</td></tr>
                             <tr>
                                 <td>Wareneinkauf <span style="font-size:11px;color:var(--text-muted);">(${periodPurchases.length} Artikel im Zeitraum eingekauft)</span></td>
                                 <td style="text-align:right">${Utils.formatCurrency(wareneinkauf)}</td>
@@ -355,7 +420,7 @@ const Euer = {
                                 <td style="text-align:right">${Utils.formatCurrency(eigenbelegeAusgaben)}</td>
                             </tr>` : ''}
                             ${isRegel ? `<tr style="opacity:0.8;">
-                                <td style="padding-left:16px;font-size:12px;">↳ Vorsteuer (19%) <span style="color:var(--text-muted);">aus Brutto-Ausgaben herausgerechnet</span></td>
+                                <td style="padding-left:16px;font-size:12px;">↳ Vorsteuer <span style="color:var(--text-muted);">aus Brutto-Ausgaben (tatsächlicher Satz je Einkauf)</span></td>
                                 <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(vorsteuer)}</td>
                             </tr>` : ''}
                             <tr class="euer-total">
@@ -383,6 +448,8 @@ const Euer = {
             ${gbrBlock}
 
             ${this._period === 'jahr' ? this._renderGewerbesteuerBlock(gewinn) : ''}
+
+            ${typeof DatevExport !== 'undefined' ? DatevExport.renderCard() : ''}
         `;
     },
 
@@ -599,6 +666,55 @@ const Euer = {
     },
 
     init() {
+        // ── ApexCharts ───────────────────────────────────────────────────────
+        if (typeof ApexCharts !== 'undefined') {
+            const d = this._lastRenderData;
+            const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+            const textMuted = isDark ? '#71717a' : '#9ca3af';
+            const borderColor = isDark ? '#27272a' : '#e4e4e7';
+
+            // Monats-Balken
+            const monthEl = document.getElementById('euerMonthChart');
+            if (monthEl && d.monthlyData) {
+                const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+                new ApexCharts(monthEl, {
+                    chart: { type: 'bar', height: 200, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: { enabled: true, speed: 500 } },
+                    series: [
+                        { name: 'Einnahmen', data: d.monthlyData.map(m => m.ein) },
+                        { name: 'Ausgaben',  data: d.monthlyData.map(m => m.aus) }
+                    ],
+                    xaxis: { categories: months, labels: { style: { fontSize: '10px', colors: textMuted } }, axisBorder: { show: false }, axisTicks: { show: false } },
+                    yaxis: { labels: { formatter: v => v >= 1000 ? (v/1000).toLocaleString('de-DE',{maximumFractionDigits:1})+'k€' : v+'€', style: { fontSize: '10px', colors: textMuted } } },
+                    colors: ['#22c55e', '#ef4444'],
+                    plotOptions: { bar: { borderRadius: 3, columnWidth: '65%', borderRadiusApplication: 'end' } },
+                    dataLabels: { enabled: false },
+                    grid: { borderColor, strokeDashArray: 3, padding: { left: 0, right: 0 } },
+                    legend: { labels: { colors: textMuted }, fontSize: '11px', position: 'top', horizontalAlign: 'right', offsetY: -5 },
+                    tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v.toLocaleString('de-DE',{style:'currency',currency:'EUR'}) } }
+                }).render();
+            }
+
+            // Donut Ausgaben
+            const donutEl = document.getElementById('euerDonutChart');
+            if (donutEl && d.donutLabels && d.donutValues) {
+                const total = d.donutValues.reduce((a,b) => a+b, 0);
+                if (total > 0) {
+                    new ApexCharts(donutEl, {
+                        chart: { type: 'donut', height: 200, background: 'transparent', fontFamily: 'inherit', animations: { enabled: true, speed: 500 } },
+                        series: d.donutValues,
+                        labels: d.donutLabels,
+                        colors: ['#ef5350','#f5a623','#3b82f6','#8b93f8','#ec4899','#10b981','#6b7280','#f97316'],
+                        dataLabels: { enabled: false },
+                        plotOptions: { pie: { donut: { size: '68%', labels: { show: true, total: { show: true, label: 'Gesamt', color: textMuted, fontSize: '11px', formatter: () => total.toLocaleString('de-DE',{style:'currency',currency:'EUR'}) } } } } },
+                        legend: { position: 'bottom', fontSize: '10px', labels: { colors: textMuted }, itemMargin: { horizontal: 5, vertical: 2 } },
+                        tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v.toLocaleString('de-DE',{style:'currency',currency:'EUR'}) } }
+                    }).render();
+                } else {
+                    donutEl.innerHTML = '<div style="height:180px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13px;">Keine Ausgaben im Zeitraum</div>';
+                }
+            }
+        }
+
         // GSAP KPI card animation
         if (typeof gsap !== 'undefined') {
             const cards = document.querySelectorAll('#euerKpiGrid .stat-card');
@@ -791,6 +907,9 @@ const Euer = {
                 Utils.showToast('ELSTER CSV exportiert', 'success');
             });
         }
+
+        // DATEV Export card
+        if (typeof DatevExport !== 'undefined') DatevExport.initCard();
 
         const syncBtn = document.getElementById('euerSync');
         if (syncBtn) {

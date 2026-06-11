@@ -22,8 +22,8 @@ var Unternehmensdaten = (function() {
             iban:                 ud.iban                  !== undefined ? ud.iban                  : (s.iban         || ''),
             bic:                  ud.bic                   !== undefined ? ud.bic                   : (s.bic          || ''),
             logoBase64:           ud.logoBase64            !== undefined ? ud.logoBase64            : (s.logoBase64   || ''),
-            invoiceHeaderColor:   ud.invoiceHeaderColor    !== undefined ? ud.invoiceHeaderColor    : (s.invoiceHeaderColor  || '#7c3aed'),
-            invoicePrimaryColor:  ud.invoicePrimaryColor   !== undefined ? ud.invoicePrimaryColor   : (s.invoicePrimaryColor || '#7c3aed'),
+            invoiceHeaderColor:   ud.invoiceHeaderColor    !== undefined ? ud.invoiceHeaderColor    : (s.invoiceHeaderColor  || '#0e3b2e'),
+            invoicePrimaryColor:  ud.invoicePrimaryColor   !== undefined ? ud.invoicePrimaryColor   : (s.invoicePrimaryColor || '#10b981'),
         };
     }
 
@@ -305,9 +305,9 @@ var Unternehmensdaten = (function() {
         function updatePreview() {
             var bar   = document.getElementById('ud_previewBar');
             var title = document.getElementById('ud_previewTitle');
-            if (bar)   bar.style.background = (headerColorInput || {}).value || '#7c3aed';
+            if (bar)   bar.style.background = (headerColorInput || {}).value || '#0e3b2e';
             if (bar && firmennameInput) bar.textContent = firmennameInput.value || 'Firmenname';
-            if (title) title.style.color = (primaryColorInput || {}).value || '#7c3aed';
+            if (title) title.style.color = (primaryColorInput || {}).value || '#10b981';
         }
 
         if (headerColorInput)  headerColorInput.addEventListener('input', updatePreview);
@@ -352,8 +352,8 @@ var Unternehmensdaten = (function() {
             iban:                val('ud_iban').replace(/\s/g, ''),
             bic:                 val('ud_bic'),
             logoBase64:          logoBase64,
-            invoiceHeaderColor:  val('ud_headerColor') || '#7c3aed',
-            invoicePrimaryColor: val('ud_primaryColor') || '#7c3aed',
+            invoiceHeaderColor:  val('ud_headerColor') || '#0e3b2e',
+            invoicePrimaryColor: val('ud_primaryColor') || '#10b981',
         };
 
         Store.saveRechUnternehmen(ud);

@@ -8,15 +8,17 @@
 <title>AGB — Stackr</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+@font-face { font-family:'Inter'; font-style:normal; font-weight:100 900; font-display:swap; src:url('fonts/inter-var-latin.woff2') format('woff2'); }
+@font-face { font-family:'Fraunces'; font-style:normal; font-weight:100 900; font-display:swap; src:url('fonts/fraunces-var-latin.woff2') format('woff2'); }
 :root {
-    --bg: #08080f; --surface: #0e0e1a; --card: #131320;
-    --border: rgba(255,255,255,.07); --accent: #10b981;
-    --text: #f1f5f9; --muted: #64748b; --subtle: #94a3b8;
+    --bg: #0a0c0b; --surface: #101312; --card: #161a18;
+    --border: rgba(255,255,255,.06); --accent: #10b981;
+    --text: #eef2f0; --muted: #71807a; --subtle: #9ba8a1;
 }
-body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.7; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; line-height: 1.7; -webkit-font-smoothing: antialiased; }
 nav {
     position: sticky; top: 0; z-index: 100;
-    background: rgba(8,8,15,.9); backdrop-filter: blur(16px);
+    background: rgba(10,12,11,.85); backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
     padding: 0 24px; height: 60px;
     display: flex; align-items: center; justify-content: space-between;
@@ -27,7 +29,7 @@ nav {
 .nav-back { color:var(--subtle); text-decoration:none; font-size:13px; }
 .nav-back:hover { color:var(--text); }
 .page-wrap { max-width: 780px; margin: 0 auto; padding: 60px 24px 80px; }
-h1 { font-size:32px; font-weight:800; letter-spacing:-.5px; margin-bottom:6px; }
+h1 { font-family:'Fraunces', Georgia, serif; font-size:33px; font-weight:580; font-variation-settings:'opsz' 48; letter-spacing:-.01em; margin-bottom:6px; }
 .subtitle { font-size:14px; color:var(--muted); margin-bottom:48px; }
 .section { margin-bottom:40px; }
 h2 {
@@ -75,7 +77,8 @@ footer a:hover { color:var(--subtle); }
 
     <div class="highlight-box">
         <strong>Kurzfassung:</strong> Stackr ist eine Buchhaltungssoftware für Selbstständige und kleine Unternehmen.
-        Neue Nutzer erhalten einen kostenlosen 5-Tage-Testzugang (Trial) ohne Kreditkarte. Pro-Nutzer zahlen ein monatliches oder jährliches Abo.
+        Neue Nutzer erhalten einen kostenlosen 14-Tage-Testzugang (Trial) ohne Kreditkarte. Pro-Nutzer zahlen
+        <strong>10,00 €/Monat</strong> oder <strong>90,00 €/Jahr</strong> (inkl. MwSt.).
         Stackr ersetzt keine Steuerberatung.
     </div>
 
@@ -139,7 +142,7 @@ footer a:hover { color:var(--subtle); }
         <h3>Kostenloser Testzugang (Trial)</h3>
         <p>
             Neue Nutzer erhalten nach der Registrierung einen kostenlosen Testzugang für
-            <strong style="color:var(--text);">5 Tage</strong>. Während des Testzeitraums stehen alle
+            <strong style="color:var(--text);">14 Tage</strong>. Während des Testzeitraums stehen alle
             Funktionen von Stackr uneingeschränkt zur Verfügung. Eine Kreditkarte ist für den
             Testzugang nicht erforderlich.
         </p>
@@ -150,12 +153,17 @@ footer a:hover { color:var(--subtle); }
         <h3>Pro-Plan</h3>
         <p>
             Der Pro-Plan bietet unbegrenzte Buchungen sowie Zugang zu allen Funktionen.
-            Er ist kostenpflichtig und wird als Abonnement (monatlich oder jährlich) abgerechnet.
-            Aktuelle Preise sind auf der Startseite einsehbar.
+            Er ist kostenpflichtig und wird als Abonnement angeboten:
         </p>
+        <ul>
+            <li><strong style="color:var(--text);">Monatlich:</strong> 10,00 € / Monat (inkl. MwSt.)</li>
+            <li><strong style="color:var(--text);">Jährlich:</strong> 90,00 € / Jahr (inkl. MwSt.) — entspricht 7,50 € / Monat</li>
+        </ul>
         <p>
-            Das Pro-Abonnement wird automatisch verlängert, sofern es nicht vor Ablauf der Abrechnungsperiode
-            gekündigt wird. Die Kündigung ist jederzeit über das Kundenportal von Paddle möglich.
+            Das Pro-Abonnement verlängert sich automatisch um die jeweils gewählte Laufzeit (1 Monat oder
+            1 Jahr), sofern es nicht vor Ablauf der Abrechnungsperiode gekündigt wird.
+            Die Kündigung ist jederzeit über das Kundenportal von Paddle möglich und wirkt zum
+            Ende der laufenden Abrechnungsperiode.
         </p>
     </div>
 
@@ -181,16 +189,25 @@ footer a:hover { color:var(--subtle); }
             ausdrücklich zugestimmt hat und zur Kenntnis genommen hat, dass er dadurch sein Widerrufsrecht verliert.
         </p>
         <p>
-            Zur Ausübung des Widerrufsrechts wende dich an die im Impressum angegebene Kontaktadresse.
+            Die vollständige Widerrufsbelehrung sowie das Muster-Widerrufsformular findest du unter
+            <a href="refund.html">Widerruf &amp; Rückgabe</a>.
+            Zur Ausübung des Widerrufsrechts wende dich an die im <a href="impressum.html">Impressum</a>
+            angegebene Kontaktadresse.
         </p>
     </div>
 
     <div class="section">
-        <h2>§7 Datenspeicherung</h2>
+        <h2>§7 Datenspeicherung &amp; Kündigung</h2>
         <p>
             Buchhaltungsdaten werden lokal im Browser (localStorage/IndexedDB) gespeichert.
             Bei aktiviertem Cloud-Sync werden die Daten zusätzlich verschlüsselt auf EU-Servern
             (Supabase, Frankfurt/Deutschland) gespeichert.
+        </p>
+        <p>
+            Nach Kündigung des Pro-Abonnements werden die Cloud-gespeicherten Nutzerdaten
+            auf Anfrage gelöscht. Lokale Browserdaten verbleiben auf dem Gerät des Nutzers und
+            können jederzeit manuell gelöscht werden. Der Nutzer hat das Recht, seine Daten
+            vor der Kündigung zu exportieren (CSV/XLSX-Export in der App).
         </p>
         <p>
             Weitere Informationen zur Datenverarbeitung findest du in der

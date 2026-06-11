@@ -31,8 +31,8 @@
     left: 50%;
     transform: translateX(-50%);
     z-index: 9000;
-    background: #131320;
-    border: 1px solid rgba(255,255,255,.1);
+    background: #161a18;
+    border: 1px solid rgba(255,255,255,.08);
     border-radius: 14px;
     padding: 18px 22px;
     display: flex;
@@ -41,7 +41,7 @@
     flex-wrap: wrap;
     max-width: 820px;
     width: calc(100% - 32px);
-    box-shadow: 0 8px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(99,102,241,.08);
+    box-shadow: 0 8px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(16,185,129,.08);
     animation: cookieSlideUp .35s ease;
 }
 @keyframes cookieSlideUp {
@@ -52,11 +52,11 @@
     flex: 1;
     min-width: 220px;
     font-size: 13px;
-    color: #94a3b8;
+    color: #9ba8a1;
     line-height: 1.55;
 }
-#cookieBanner .cb-text strong { color: #f1f5f9; }
-#cookieBanner .cb-text a { color: #818cf8; text-decoration: none; }
+#cookieBanner .cb-text strong { color: #eef2f0; }
+#cookieBanner .cb-text a { color: #34d399; text-decoration: none; }
 #cookieBanner .cb-text a:hover { text-decoration: underline; }
 #cookieBanner .cb-actions {
     display: flex;
@@ -65,7 +65,7 @@
     flex-wrap: wrap;
 }
 #cookieBanner .cb-btn-all {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: linear-gradient(135deg, #10b981, #0da271);
     color: #fff;
     border: none;
     padding: 9px 20px;
@@ -79,7 +79,7 @@
 #cookieBanner .cb-btn-all:hover { opacity: .88; }
 #cookieBanner .cb-btn-min {
     background: rgba(255,255,255,.05);
-    color: #94a3b8;
+    color: #9ba8a1;
     border: 1px solid rgba(255,255,255,.1);
     padding: 9px 16px;
     border-radius: 8px;
@@ -88,7 +88,7 @@
     white-space: nowrap;
     transition: background .15s;
 }
-#cookieBanner .cb-btn-min:hover { background: rgba(255,255,255,.09); color: #f1f5f9; }
+#cookieBanner .cb-btn-min:hover { background: rgba(255,255,255,.09); color: #eef2f0; }
 @media (max-width: 520px) {
     #cookieBanner { flex-direction: column; gap: 12px; }
     #cookieBanner .cb-actions { width: 100%; }

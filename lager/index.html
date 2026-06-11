@@ -6,15 +6,18 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.paddle.com; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co https://*.paddle.com; frame-src https://buy.paddle.com https://checkout.paddle.com;">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
     <title>Stackr — Lager</title>
+    <link rel="preload" href="../fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="../fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+    <script src="../js/i18n.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/tabler-icons.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/de.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/l10n/de.js"></script>
     <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
     <script>Paddle.Initialize({ token: 'live_7d279f61a3499fed520f7cd8c08' });</script>
 </head>
@@ -164,13 +167,13 @@
                     <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">Artikel verwalten · Einkauf &amp; EÜR in einem Schritt</div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="btn btn-primary" id="neuArtikelBtn" style="font-size:14px;padding:9px 20px;">
-                        + Neuer Artikel
+                    <button class="btn btn-primary" id="neuArtikelBtn" style="font-size:14px;padding:9px 20px;display:flex;align-items:center;gap:6px;">
+                        <i class="ti ti-plus"></i> Neuer Artikel
                     </button>
                     <button class="btn" id="bulkEinkaufBtn" style="font-size:14px;padding:9px 20px;">
                         <i class="ti ti-packages"></i> Bulk-Einkauf
                     </button>
-                    <button class="btn btn-outline" id="lagerExportBtn" style="font-size:14px;padding:9px 20px;">
+                    <button class="btn btn-secondary" id="lagerExportBtn" style="font-size:14px;padding:9px 20px;">
                         <i class="ti ti-table-export"></i> Export
                     </button>
                 </div>
@@ -376,7 +379,7 @@ const LagerPage = {
 
                     <!-- Auswahl-Infobar (nur sichtbar wenn Artikel gewählt) -->
                     <div id="buchSelectionInfo"
-                         style="padding:8px 16px;background:rgba(99,102,241,.08);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;font-size:13px;flex-wrap:wrap;${selectedCount === 0 ? 'display:none;' : ''}">
+                         style="padding:8px 16px;background:rgba(16,185,129,.08);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;font-size:13px;flex-wrap:wrap;${selectedCount === 0 ? 'display:none;' : ''}">
                         <span style="font-weight:600;color:var(--accent);" id="buchSelCount">${selectedCount} Artikel ausgewählt</span>
                         <span style="color:var(--text-secondary);">EK: <strong id="buchSelEK" style="color:var(--danger);">${Utils.formatCurrency(totalEK)}</strong></span>
                         <span style="color:var(--text-secondary);">VP: <strong id="buchSelVP" style="color:var(--text-primary);">—</strong></span>
@@ -2334,7 +2337,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     background: var(--bg-secondary);
 }
 .buch-row-selected {
-    background: rgba(99,102,241,.07) !important;
+    background: rgba(16,185,129,.08) !important;
 }
 
 /* Mobile: Bulk-Tabelle kompakter */

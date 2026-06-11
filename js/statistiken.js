@@ -202,7 +202,7 @@ const Statistiken = {
         </div>`;
 
         // Pie chart: Umsatz per platform
-        const colors = ['#7c3aed', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
+        const colors = ['#10b981', '#3b82f6', '#8b93f8', '#f5a623', '#ef5350', '#14b8a6', '#0891b2', '#f97316'];
         const { textColor } = this._getThemeColors();
         const platLabels = entries.map(([p]) => p);
         this._createChart('chartPlatPie', {
@@ -368,8 +368,8 @@ const Statistiken = {
                 datasets: [{
                     label: 'Gewinn',
                     data: platLabels.length ? platLabels.map(p => platProfit[p]) : [0],
-                    backgroundColor: 'rgba(124,58,237,0.7)',
-                    borderColor: '#7c3aed',
+                    backgroundColor: 'rgba(16,185,129,0.7)',
+                    borderColor: '#10b981',
                     borderWidth: 1
                 }]
             },
@@ -383,7 +383,7 @@ const Statistiken = {
             typeCounts[t] = (typeCounts[t] || 0) + 1;
         });
         const typeLabels = Object.keys(typeCounts).sort((a, b) => typeCounts[b] - typeCounts[a]);
-        const colors = ['#7c3aed', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
+        const colors = ['#10b981', '#3b82f6', '#8b93f8', '#f5a623', '#ef5350', '#14b8a6', '#0891b2', '#f97316'];
 
         this._createChart('chartTypes', {
             type: 'doughnut',

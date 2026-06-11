@@ -1,8 +1,8 @@
 // ============================================
 // UserPlan — Abo-Verwaltung & Feature-Gates
 //
-// Trial: 5 Tage voller Zugriff (kein Credit Card nötig)
-// Pro:   Alles nach Trial — 10,00 € / Monat
+// Trial: 14 Tage voller Zugriff (kein Credit Card nötig)
+// Pro:   Alles nach Trial — 10,00 € / Monat (inkl. MwSt.)
 // Abgelaufen: App gesperrt bis Upgrade
 // ============================================
 var UserPlan = (function () {
@@ -14,17 +14,37 @@ var UserPlan = (function () {
     var _userId      = null;
     var _trialStart  = null;
 
-    var TRIAL_DAYS        = 5;
+    var TRIAL_DAYS        = 14;
     var TRIAL_STORAGE_KEY = 'oyi_trial_start';
 
     // ── Trial-Start initialisieren (für nicht-eingeloggte User) ───
+    // Defence-in-depth: Store in both localStorage AND sessionStorage.
+    // If localStorage is cleared, sessionStorage (tab-persistent) catches reset
+    // within the same browser session. Cross-session resets still possible for
+    // non-logged-in users — full fix requires server-side (see load() which
+    // reads trial_start from Supabase user_metadata for logged-in users).
+    var SESSION_TRIAL_KEY = 'oyi_trial_start_session';
     function _initTrialStart() {
-        var stored = localStorage.getItem(TRIAL_STORAGE_KEY);
-        if (!stored) {
-            stored = new Date().toISOString();
-            localStorage.setItem(TRIAL_STORAGE_KEY, stored);
+        var lsVal  = localStorage.getItem(TRIAL_STORAGE_KEY);
+        var ssVal  = sessionStorage.getItem(SESSION_TRIAL_KEY);
+
+        // Use the EARLIER of the two dates to prevent rollback attacks
+        var candidates = [lsVal, ssVal].filter(Boolean).map(function(v) { return new Date(v); }).filter(function(d) { return !isNaN(d.getTime()); });
+        var earliest = candidates.length ? candidates.reduce(function(a, b) { return a < b ? a : b; }) : null;
+
+        if (!earliest) {
+            // First visit: record now in both storages
+            var now = new Date().toISOString();
+            localStorage.setItem(TRIAL_STORAGE_KEY, now);
+            sessionStorage.setItem(SESSION_TRIAL_KEY, now);
+            _trialStart = new Date(now);
+        } else {
+            // Sync both to the earliest recorded value (rollback prevention)
+            var iso = earliest.toISOString();
+            localStorage.setItem(TRIAL_STORAGE_KEY, iso);
+            sessionStorage.setItem(SESSION_TRIAL_KEY, iso);
+            _trialStart = earliest;
         }
-        _trialStart = new Date(stored);
     }
 
     // ── Trial-Tage berechnen ──────────────────
@@ -125,15 +145,15 @@ var UserPlan = (function () {
             '<div style="font-size:44px;margin-bottom:14px;">⏳</div>',
             '<h2 style="color:var(--text-primary,#fff);font-size:20px;margin:0 0 10px;font-weight:800;">Testphase abgelaufen</h2>',
             '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 24px;line-height:1.6;">',
-            'Deine <strong style="color:var(--text-secondary,#ccc);">5-tägige Testphase</strong> ist beendet.<br>',
+            'Deine <strong style="color:var(--text-secondary,#ccc);">14-tägige Testphase</strong> ist beendet.<br>',
             'Wähle ein Abo um Stackr weiter zu nutzen.',
             '</p>',
             '<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:16px;margin-bottom:20px;">',
-            '<div style="font-size:26px;font-weight:800;color:var(--text-primary,#fff);">10,00 € <span style="font-size:13px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
-            '<div style="font-size:11px;color:var(--text-muted,#888);margin-top:4px;">Jederzeit kündbar · Alle Features entsperrt</div>',
+            '<div style="font-size:26px;font-weight:800;color:var(--text-primary,#fff);">7,50 € <span style="font-size:13px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
+            '<div style="font-size:11px;color:var(--text-muted,#888);margin-top:4px;">bei jährlicher Zahlung · 90,00 €/Jahr inkl. MwSt.</div>',
             '</div>',
-            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;margin-bottom:8px;">Monatlich — 10,00 €/Monat →</button>',
-            '<button onclick="UserPlan.openCheckoutYearly()" style="width:100%;padding:12px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:4px;">Jährlich — 90,00 €/Jahr <span style="font-size:11px;opacity:.8;">· 25% sparen</span></button>',
+            '<button onclick="UserPlan.openCheckoutYearly()" style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;margin-bottom:8px;">Jährlich — 90,00 €/Jahr <span style="font-size:12px;font-weight:400;opacity:.9;">· 25% sparen →</span></button>',
+            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:12px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:4px;">Monatlich — 10,00 €/Monat <span style="font-size:11px;opacity:.7;">inkl. MwSt.</span></button>',
             '</div>'
         ].join('');
 
@@ -156,11 +176,11 @@ var UserPlan = (function () {
             feature ? '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 8px;"><strong style="color:var(--text-secondary,#ccc);">' + (feature+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong> ist nur im Pro-Abo verfügbar.</p>' : '',
             daysLeft !== null ? '<p style="color:var(--text-muted,#888);font-size:12px;margin:0 0 16px;">Noch <strong style="color:#fbbf24;">' + daysLeft + ' Tag' + (daysLeft === 1 ? '' : 'e') + '</strong> in deiner Testphase.</p>' : '',
             '<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:16px;margin-bottom:20px;">',
-            '<div style="font-size:28px;font-weight:700;color:var(--text-primary,#fff);">10,00 € <span style="font-size:14px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
-            '<div style="font-size:12px;color:var(--text-muted,#888);margin-top:4px;">Jederzeit kündbar</div>',
+            '<div style="font-size:28px;font-weight:700;color:var(--text-primary,#fff);">7,50 € <span style="font-size:14px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
+            '<div style="font-size:12px;color:var(--text-muted,#888);margin-top:4px;">bei jährlicher Zahlung · 90,00 €/Jahr inkl. MwSt.</div>',
             '</div>',
-            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;margin-bottom:8px;">Monatlich — 10,00 €/Monat →</button>',
-            '<button onclick="UserPlan.openCheckoutYearly()" style="width:100%;padding:11px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:10px;">Jährlich — 90,00 €/Jahr <span style="font-size:11px;opacity:.8;">· 25% sparen</span></button>',
+            '<button onclick="UserPlan.openCheckoutYearly()" style="width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;margin-bottom:8px;">Jährlich — 90,00 €/Jahr <span style="font-size:12px;font-weight:400;opacity:.9;">· 25% sparen →</span></button>',
+            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:11px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:10px;">Monatlich — 10,00 €/Monat <span style="font-size:11px;opacity:.7;">inkl. MwSt.</span></button>',
             '<button onclick="document.getElementById(\'upgradeModalOverlay\').remove()" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:13px;">Vielleicht später</button>',
             '</div>'
         ].join('');
@@ -189,12 +209,13 @@ var UserPlan = (function () {
             '<div style="background:var(--surface,#1e1e2e);border:1px solid rgba(99,102,241,.35);border-radius:14px;padding:28px 32px;max-width:460px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.6);">',
             '<h2 style="color:var(--text-primary,#fff);font-size:17px;margin:0 0 6px;">Bestellung bestätigen</h2>',
             '<p style="color:var(--text-muted,#888);font-size:12px;margin:0 0 18px;">Bitte bestätige vor dem Kauf:</p>',
-            '<label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;margin-bottom:22px;padding:14px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.15);border-radius:8px;">',
-            '<input type="checkbox" id="widerrufsCheckbox" style="margin-top:2px;flex-shrink:0;width:16px;height:16px;accent-color:#6366f1;cursor:pointer;">',
+            '<label style="display:flex;gap:12px;align-items:flex-start;cursor:pointer;margin-bottom:22px;padding:14px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.15);border-radius:8px;">',
+            '<input type="checkbox" id="widerrufsCheckbox" style="margin-top:2px;flex-shrink:0;width:16px;height:16px;accent-color:#10b981;cursor:pointer;">',
             '<span style="color:var(--text-secondary,#ccc);font-size:13px;line-height:1.55;">',
             'Ich stimme ausdrücklich zu, dass mit der Ausführung des Vertrags sofort begonnen wird, ',
             'und nehme zur Kenntnis, dass ich damit mein Widerrufsrecht verliere, sobald der Dienst ',
-            'vollständig erbracht wurde (§&nbsp;356 Abs.&nbsp;5 BGB).',
+            'vollständig erbracht wurde (§&nbsp;356 Abs.&nbsp;5 BGB). ',
+            'Ich habe die <a href="refund.html" target="_blank" style="color:#34d399;">Widerrufsbelehrung</a> gelesen.',
             '</span>',
             '</label>',
             '<button id="widerrufsWeiterBtn" disabled style="width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;margin-bottom:8px;opacity:.35;cursor:not-allowed;transition:opacity .2s,cursor .2s;">Weiter zur Zahlung →</button>',
@@ -247,7 +268,21 @@ var UserPlan = (function () {
             };
             if (email) opts.customer = { email: email };
 
-            Paddle.Checkout.open(opts);
+            // Lazy-load Paddle.js on first upgrade click (saves ~120KB on initial page load)
+            if (typeof PaddleLoader !== 'undefined') {
+                PaddleLoader.load().then(function () {
+                    Paddle.Checkout.open(opts);
+                }).catch(function (err) {
+                    console.error('[UserPlan] Paddle load failed', err);
+                    if (typeof notyf !== 'undefined') {
+                        notyf.error('Checkout konnte nicht geladen werden. Bitte Seite neu laden.');
+                    }
+                });
+            } else if (typeof Paddle !== 'undefined') {
+                Paddle.Checkout.open(opts); // fallback: Paddle already loaded
+            } else {
+                console.error('[UserPlan] Paddle not available');
+            }
         });
     }
 
@@ -260,7 +295,7 @@ var UserPlan = (function () {
 
         if (isPro()) {
             badge.textContent = 'PRO';
-            badge.style.cssText = 'background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;';
+            badge.style.cssText = 'background:linear-gradient(135deg,#10b981,#0da271);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;';
             badge.onclick = null;
         } else if (isTrialActive()) {
             var d = getTrialDaysLeft();
@@ -299,11 +334,14 @@ var UserPlan = (function () {
         }
     }, 5 * 60 * 1000);
 
-    return {
+    var _public = {
         load, isPro, isFree, getPlan,
         isTrialActive, isTrialExpired, getTrialDaysLeft,
         requirePro, getLimit,
         openCheckout, openCheckoutYearly,
         injectBadge, _showUpgradeModal, _showLockModal
     };
+    // Prevent Object.defineProperty bypass attacks (e.g. isPro: () => true)
+    Object.freeze(_public);
+    return _public;
 })();

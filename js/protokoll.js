@@ -169,7 +169,7 @@ const Protokoll = {
             });
         }
 
-        // Integrity check
+        // Integrity check — now also verifies audit log hash-chain
         const verifyBtn = document.getElementById('auditVerifyBtn');
         if (verifyBtn) {
             verifyBtn.addEventListener('click', () => {
@@ -184,10 +184,24 @@ const Protokoll = {
                         if (!Store.verifyIntegrity(item)) issues++;
                     });
                 });
+
+                // Verify audit log hash chain (new — detects retroactive tampering)
+                const chainResult = Store.verifyAuditChain();
+                if (!chainResult.valid) {
+                    Utils.showToast(
+                        `⚠ Audit-Log: ${chainResult.broken} Einträge mit gebrochener Hash-Kette (mögliche Manipulation)!`,
+                        'error'
+                    );
+                    return;
+                }
+
                 if (issues === 0) {
-                    Utils.showToast('Integritaetspruefung bestanden - keine Manipulationen erkannt', 'success');
+                    Utils.showToast(
+                        `✓ Integritätsprüfung bestanden — ${chainResult.total} Log-Einträge, Hash-Kette intakt`,
+                        'success'
+                    );
                 } else {
-                    Utils.showToast(`Warnung: ${issues} Datensaetze mit ungueltige Pruefsumme!`, 'error');
+                    Utils.showToast(`Warnung: ${issues} Datensätze mit ungültiger Prüfsumme!`, 'error');
                 }
             });
         }

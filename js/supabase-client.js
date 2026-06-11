@@ -65,6 +65,14 @@ var SupabaseDB = (function () {
         await c.auth.signOut();
     }
 
+    async function resetPasswordForEmail(email) {
+        var c = getClient();
+        if (!c) throw new Error('Keine Verbindung zu Supabase');
+        return c.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + '/app.html'
+        });
+    }
+
     // Gibt eine Unsubscribe-Funktion zurück
     function onAuthStateChange(callback) {
         var c = getClient();
@@ -77,5 +85,5 @@ var SupabaseDB = (function () {
         } catch (e) { return function () {}; }
     }
 
-    return { getClient, getSession, getCurrentUser, signIn, signUp, signOut, onAuthStateChange };
+    return { getClient, getSession, getCurrentUser, signIn, signUp, signOut, resetPasswordForEmail, onAuthStateChange };
 })();

@@ -25,7 +25,11 @@ const App = {
         ustvoranmeldung: UstVoranmeldung,
         ksk: Ksk,
         bankimport: BankImport,
-        steuerberater: Steuerberater
+        steuerberater: Steuerberater,
+        vorsteuer: Vorsteuer,
+        koerperschaftsteuer: Koerperschaftsteuer,
+        bilanz: Bilanz,
+        rechtsform: Rechtsform
     },
 
     init() {
@@ -489,6 +493,15 @@ const App = {
         const isGbR = (typeof GbR !== 'undefined' && GbR.isGbR());
         const gbrTabEl = document.getElementById('toolTabGbr');
         if (gbrTabEl) gbrTabEl.style.display = isGbR ? '' : 'none';
+
+        // KSt + Bilanz Sidebar-Links je nach Rechtsform ein-/ausblenden
+        if (typeof Rechtsform !== 'undefined') {
+            const cfg = Rechtsform.getConfig();
+            const kstLink = document.getElementById('kstSidebarLink');
+            if (kstLink) kstLink.style.display = cfg.koerperschaftsteuer ? '' : 'none';
+            const bilanzLink = document.getElementById('bilanzSidebarLink');
+            if (bilanzLink) bilanzLink.style.display = (cfg.bilanzPflicht || cfg.bilanzOptional) ? '' : 'none';
+        }
     },
 
     navigate(page) {
@@ -550,7 +563,7 @@ const App = {
         if (euerItems)   euerItems.style.display    = (onEuer && !onGbr) ? '' : 'none';
 
         // Steuer & Soziales Sektion ein-/ausblenden
-        const onSteuer = ['afa', 'privatbuchungen', 'ustvoranmeldung', 'ksk'].includes(page);
+        const onSteuer = ['afa', 'privatbuchungen', 'ustvoranmeldung', 'ksk', 'vorsteuer', 'koerperschaftsteuer', 'bilanz', 'rechtsform', 'steuerberater', 'bankimport'].includes(page);
         const steuerSection = document.getElementById('steuerSidebarSection');
         const steuerItems   = document.getElementById('steuerSidebarItems');
         if (steuerSection) steuerSection.style.display = (onSteuer && !onGbr) ? '' : 'none';

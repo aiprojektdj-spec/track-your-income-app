@@ -2,7 +2,7 @@
 // UserPlan — Abo-Verwaltung & Feature-Gates
 //
 // Trial: 14 Tage voller Zugriff (kein Credit Card nötig)
-// Pro:   Alles nach Trial — 10,00 € / Monat (inkl. MwSt.)
+// Pro:   Alles nach Trial — 15,00 € / Monat (inkl. MwSt.)
 // Abgelaufen: App gesperrt bis Upgrade
 // ============================================
 var UserPlan = (function () {
@@ -149,11 +149,11 @@ var UserPlan = (function () {
             'Wähle ein Abo um Stackr weiter zu nutzen.',
             '</p>',
             '<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:16px;margin-bottom:20px;">',
-            '<div style="font-size:26px;font-weight:800;color:var(--text-primary,#fff);">7,50 € <span style="font-size:13px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
-            '<div style="font-size:11px;color:var(--text-muted,#888);margin-top:4px;">bei jährlicher Zahlung · 90,00 €/Jahr inkl. MwSt.</div>',
+            '<div style="font-size:26px;font-weight:800;color:var(--text-primary,#fff);">11,25 € <span style="font-size:13px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
+            '<div style="font-size:11px;color:var(--text-muted,#888);margin-top:4px;">bei jährlicher Zahlung · 135,00 €/Jahr inkl. MwSt.</div>',
             '</div>',
-            '<button onclick="UserPlan.openCheckoutYearly()" style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;margin-bottom:8px;">Jährlich — 90,00 €/Jahr <span style="font-size:12px;font-weight:400;opacity:.9;">· 25% sparen →</span></button>',
-            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:12px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:4px;">Monatlich — 10,00 €/Monat <span style="font-size:11px;opacity:.7;">inkl. MwSt.</span></button>',
+            '<button onclick="UserPlan.openCheckoutYearly()" style="width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;margin-bottom:8px;">Jährlich — 135,00 €/Jahr <span style="font-size:12px;font-weight:400;opacity:.9;">· 25% sparen →</span></button>',
+            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:12px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:4px;">Monatlich — 15,00 €/Monat <span style="font-size:11px;opacity:.7;">inkl. MwSt.</span></button>',
             '</div>'
         ].join('');
 
@@ -176,11 +176,11 @@ var UserPlan = (function () {
             feature ? '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 8px;"><strong style="color:var(--text-secondary,#ccc);">' + (feature+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong> ist nur im Pro-Abo verfügbar.</p>' : '',
             daysLeft !== null ? '<p style="color:var(--text-muted,#888);font-size:12px;margin:0 0 16px;">Noch <strong style="color:#fbbf24;">' + daysLeft + ' Tag' + (daysLeft === 1 ? '' : 'e') + '</strong> in deiner Testphase.</p>' : '',
             '<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:16px;margin-bottom:20px;">',
-            '<div style="font-size:28px;font-weight:700;color:var(--text-primary,#fff);">7,50 € <span style="font-size:14px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
-            '<div style="font-size:12px;color:var(--text-muted,#888);margin-top:4px;">bei jährlicher Zahlung · 90,00 €/Jahr inkl. MwSt.</div>',
+            '<div style="font-size:28px;font-weight:700;color:var(--text-primary,#fff);">11,25 € <span style="font-size:14px;font-weight:400;color:var(--text-muted,#888);">/ Monat</span></div>',
+            '<div style="font-size:12px;color:var(--text-muted,#888);margin-top:4px;">bei jährlicher Zahlung · 135,00 €/Jahr inkl. MwSt.</div>',
             '</div>',
-            '<button onclick="UserPlan.openCheckoutYearly()" style="width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;margin-bottom:8px;">Jährlich — 90,00 €/Jahr <span style="font-size:12px;font-weight:400;opacity:.9;">· 25% sparen →</span></button>',
-            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:11px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:10px;">Monatlich — 10,00 €/Monat <span style="font-size:11px;opacity:.7;">inkl. MwSt.</span></button>',
+            '<button onclick="UserPlan.openCheckoutYearly()" style="width:100%;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;margin-bottom:8px;">Jährlich — 135,00 €/Jahr <span style="font-size:12px;font-weight:400;opacity:.9;">· 25% sparen →</span></button>',
+            '<button onclick="UserPlan.openCheckout()" style="width:100%;padding:11px;background:rgba(16,185,129,.1);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:10px;">Monatlich — 15,00 €/Monat <span style="font-size:11px;opacity:.7;">inkl. MwSt.</span></button>',
             '<button onclick="document.getElementById(\'upgradeModalOverlay\').remove()" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:13px;">Vielleicht später</button>',
             '</div>'
         ].join('');
@@ -196,6 +196,9 @@ var UserPlan = (function () {
 
     // ── Paddle Checkout ───────────────────────────────────────────
     var PADDLE_TOKEN     = 'live_7d279f61a3499fed520f7cd8c08';
+    // TODO vor Go-live: Diese Price-IDs gehören zu den alten 10-€/90-€-Preisen.
+    // Im Paddle-Dashboard neue Preise anlegen (15,00 €/Monat, 135,00 €/Jahr) und IDs hier tauschen,
+    // sonst zahlt der Kunde im Checkout weniger als auf Landing/AGB angegeben.
     var PRICE_ID_MONTHLY = 'pri_01kt7ksxhv4q4evpz78jsfjv98';
     var PRICE_ID_YEARLY  = 'pri_01kt7m5y77v2d49kgc8hfpr13n';
 

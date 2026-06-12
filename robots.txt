@@ -1,13 +1,14 @@
 User-agent: *
 
 # App-Seiten nicht indexieren (keine öffentlichen Inhalte)
-Disallow: /index.html
+Disallow: /app.html
+Disallow: /styleguide.html
 Disallow: /lager/
 Disallow: /rechnungen/
 Disallow: /eigenbelege/
 
 # Öffentliche Seiten erlauben
-Allow: /landing.html
+Allow: /index.html
 Allow: /agb.html
 Allow: /datenschutz.html
 Allow: /impressum.html

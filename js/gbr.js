@@ -224,17 +224,20 @@ const GbR = {
             <!-- Firmenform -->
             <div class="form-group">
                 <label class="form-label" style="font-weight:700;">Unternehmensform</label>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px;">
-                    ${['Einzelunternehmen','GbR','eGbR'].map(f => `
-                    <div onclick="GbR._selectForm('${f}')" id="gbr_form_${f.replace(/[^a-z]/gi,'')}" style="
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:6px;">
+                    ${(typeof Rechtsform !== 'undefined' ? Object.keys(Rechtsform.FORMEN) : ['Einzelunternehmen','Freiberufler','GbR','eGbR','OHG','KG','GmbH','UG','GmbH & Co. KG']).map(f => {
+                        const icons = {'Einzelunternehmen':'👤','Freiberufler':'💼','GbR':'🤝','eGbR':'🏛','OHG':'🏪','KG':'🏭','GmbH':'🏢','UG':'🏠','GmbH & Co. KG':'🏗'};
+                        return `<div onclick="GbR._selectForm('${f}')" id="gbr_form_${f.replace(/[^a-z0-9]/gi,'')}" style="
                         border:2px solid ${einst.firmenform===f ? 'var(--accent)' : 'var(--border)'};
                         background:${einst.firmenform===f ? 'rgba(99,102,241,.1)' : 'var(--bg-secondary)'};
                         border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .15s;">
-                        <div style="font-size:18px;">${f==='Einzelunternehmen'?'👤':f==='GbR'?'🤝':'🏛'}</div>
-                        <div style="font-weight:700;font-size:12px;margin-top:4px;">${f}</div>
-                    </div>`).join('')}
+                        <div style="font-size:18px;">${icons[f]||'🏢'}</div>
+                        <div style="font-weight:700;font-size:11px;margin-top:4px;">${f}</div>
+                    </div>`;
+                    }).join('')}
                 </div>
                 <input type="hidden" id="gbr_firmenform" value="${einst.firmenform}">
+                ${typeof Rechtsform !== 'undefined' ? '<div id="rechtsformPreviewInModal" style="margin-top:8px;"></div>' : ''}
             </div>
 
             <!-- eGbR Felder (nur sichtbar wenn eGbR) -->
@@ -316,8 +319,11 @@ const GbR = {
     },
 
     _selectForm(form) {
-        ['Einzelunternehmen','GbR','eGbR'].forEach(f => {
-            const el = document.getElementById('gbr_form_' + f.replace(/[^a-z]/gi,''));
+        const allForms = typeof Rechtsform !== 'undefined'
+            ? Object.keys(Rechtsform.FORMEN)
+            : ['Einzelunternehmen','Freiberufler','GbR','eGbR','OHG','KG','GmbH','UG','GmbH & Co. KG'];
+        allForms.forEach(f => {
+            const el = document.getElementById('gbr_form_' + f.replace(/[^a-z0-9]/gi,''));
             if (!el) return;
             if (f === form) {
                 el.style.border = '2px solid var(--accent)';
@@ -331,6 +337,11 @@ const GbR = {
         if (inp) inp.value = form;
         const egbr = document.getElementById('egbr_felder');
         if (egbr) egbr.style.display = form === 'eGbR' ? '' : 'none';
+        // Rechtsform-Preview im Modal
+        const preview = document.getElementById('rechtsformPreviewInModal');
+        if (preview && typeof Rechtsform !== 'undefined') {
+            preview.innerHTML = Rechtsform.renderPflichtenOverview(form);
+        }
     },
 
     _addGsRow() {

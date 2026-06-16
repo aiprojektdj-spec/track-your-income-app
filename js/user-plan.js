@@ -199,8 +199,8 @@ var UserPlan = (function () {
     // TODO vor Go-live: Diese Price-IDs gehören zu den alten 10-€/90-€-Preisen.
     // Im Paddle-Dashboard neue Preise anlegen (15,00 €/Monat, 135,00 €/Jahr) und IDs hier tauschen,
     // sonst zahlt der Kunde im Checkout weniger als auf Landing/AGB angegeben.
-    var PRICE_ID_MONTHLY = 'pri_01kt7ksxhv4q4evpz78jsfjv98';
-    var PRICE_ID_YEARLY  = 'pri_01kt7m5y77v2d49kgc8hfpr13n';
+    var PRICE_ID_MONTHLY = 'pri_01kv8abftwsz0evpfd3bkm2xcg'; // 15,00 €/Monat
+    var PRICE_ID_YEARLY  = 'pri_01kv8adqfbh9ctyc0jwt7nsn14'; // 135,00 €/Jahr
 
     // Widerrufsrecht-Bestätigung vor Checkout (§ 356 Abs. 5 BGB)
     function _confirmWiderrufsrecht(onConfirmed) {

@@ -25,13 +25,13 @@ const Gewerbesteuer = {
     },
 
     _calcGewinn(year) {
-        const sales     = (Store.get('sales') || []).filter(s => new Date(s.datum).getFullYear() === year);
-        const purchases = (Store.get('purchases') || []).filter(p => new Date(p.datum).getFullYear() === year);
-        const expenses  = (Store.get('expenses') || []).filter(e => new Date(e.datum).getFullYear() === year);
+        const sales     = Store.getSales().filter(s => new Date(s.datum).getFullYear() === year);
+        const purchases = Store.getPurchases().filter(p => new Date(p.datum).getFullYear() === year);
+        const expenses  = Store.getExpenses().filter(e => new Date(e.datum).getFullYear() === year);
 
         let einnahmen = 0, ausgaben = 0;
-        sales.forEach(s => einnahmen += parseFloat(s.netto || s.betrag) || 0);
-        purchases.forEach(p => ausgaben += parseFloat(p.netto || p.betrag) || 0);
+        sales.forEach(s => einnahmen += (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0));
+        purchases.forEach(p => ausgaben += (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1));
         expenses.forEach(e => ausgaben += parseFloat(e.betrag) || 0);
 
         return einnahmen - ausgaben;
@@ -43,14 +43,14 @@ const Gewerbesteuer = {
         const hatFreibetrag = this._hatFreibetrag();
         const freibetrag = hatFreibetrag ? this.FREIBETRAG_PERSONEN : 0;
 
-        // Gewerbeertrag nach Freibetrag
-        const gewerbeertrag = Math.max(0, gewinn - freibetrag);
+        // Gewerbeertrag nach Freibetrag, §11 Abs. 1 GewStG: auf volle 100 € abrunden
+        const gewerbeertrag = Math.floor(Math.max(0, gewinn - freibetrag) / 100) * 100;
         const messbetrag = gewerbeertrag * this.MESSZAHL;
         const gewSt = messbetrag * (hebesatz / 100);
 
         // §35 EStG Anrechnung (nur Personengesellschaften/EU)
-        // Max. Anrechnung = 4 × Messbetrag, begrenzt auf tatsächliche ESt
-        const anrechnung35 = hatFreibetrag ? messbetrag * 4 : 0;
+        // Max. Anrechnung = 3,8 × Messbetrag (seit VZ 2008), begrenzt auf tatsächliche ESt
+        const anrechnung35 = hatFreibetrag ? messbetrag * 3.8 : 0;
 
         const effektiverSatz = gewinn > 0 ? (gewSt / gewinn * 100) : 0;
 

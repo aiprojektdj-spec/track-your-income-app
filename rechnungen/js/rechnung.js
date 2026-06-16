@@ -131,7 +131,7 @@ var Rechnung = (function() {
         html += '</div>';
 
         // Inline new customer fields (hidden by default)
-        html += '<div id="newCustomerFields" style="display:none; border: 1px solid var(--border-color, #444); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">';
+        html += '<div id="newCustomerFields" style="display:none; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">';
         html += '<div class="section-title">Neuer Kunde</div>';
         html += '<div class="form-row">';
         html += '<div class="form-group"><label class="form-label">Firma</label><input class="form-input" id="ncFirma"></div>';
@@ -221,7 +221,7 @@ var Rechnung = (function() {
             }
         }
 
-        var html = '<div class="form-row position-row" data-idx="' + idx + '" style="align-items: flex-end; border-bottom: 1px solid var(--border-color, #333); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">';
+        var html = '<div class="form-row position-row" data-idx="' + idx + '" style="align-items: flex-end; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">';
 
         html += '<div class="form-group" style="flex: 1.5;">';
         if (idx === 0) html += '<label class="form-label">Produkt</label>';

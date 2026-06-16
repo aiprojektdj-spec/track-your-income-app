@@ -836,7 +836,7 @@ var I18n = (function () {
             'auth.forgot':               'Forgot password?',
             'auth.submit.login':         'Sign in',
             'auth.submit.register':      'Create account',
-            'auth.trial':                'Try free for 5 days — no credit card needed.',
+            'auth.trial':                'Try free for 14 days — no credit card needed.',
             'auth.security':             'Your data is encrypted and stored on EU servers.',
             'auth.reset.sent':           'Reset link sent! Please check your email.',
             'auth.logout':               'Sign out',

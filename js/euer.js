@@ -192,8 +192,8 @@ const Euer = {
         // Fallback: 19% wenn kein ustSatz gespeichert (Altdaten-Kompatibilität).
         const vorsteuer = isRegel ? (() => {
             // Einkäufe: nach tatsächlichem Satz gewichtet
-            const vstPurch = purchases
-                .filter(p => !p.storniert && Utils.isInPeriod(p.datum, startDate, endDate))
+            const vstPurch = periodPurchases
+                .filter(p => !p.storniert)
                 .reduce((sum, p) => {
                     const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
                     const rate   = (p.ustSatz != null ? Number(p.ustSatz) : 19) / 100;
@@ -205,7 +205,7 @@ const Euer = {
             return vstPurch + vstOther;
         })() : 0;
         // Bei Regelbesteuerung zählt nur Netto als abzugsfähige BA; USt ist Durchlaufposten
-        const summeAusgaben = isRegel ? (abzugsfaehig - vorsteuer) + vorsteuer : abzugsfaehig;
+        const summeAusgaben = isRegel ? (abzugsfaehig - vorsteuer) : abzugsfaehig;
 
         const gewinn = summeEinnahmen - summeAusgaben;
         this._lastGewinn = gewinn; // für Gewerbesteuer-Live-Update
@@ -438,7 +438,7 @@ const Euer = {
                             </tr>
                             `).join('')}
                             ${eigenbelegeAusgaben > 0 ? `<tr>
-                                <td>Eigenbelege (Ersatzbelege) <span style="font-size:11px;color:var(--text-muted);">(${eigenbelegeRaw.filter(b => !b.storniert && Utils.isInPeriod(b.datum, startDate, endDate)).length} Belege)</span></td>
+                                <td>Eigenbelege (Ersatzbelege) <span style="font-size:11px;color:var(--text-muted);">(${eigenbelegeRaw.filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, startDate, endDate)).length} Belege)</span></td>
                                 <td style="text-align:right">${Utils.formatCurrency(eigenbelegeAusgaben)}</td>
                             </tr>` : ''}
                             ${isRegel ? `<tr style="opacity:0.8;">

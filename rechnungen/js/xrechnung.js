@@ -164,7 +164,7 @@ var XRechnung = (function () {
              + '          <ram:PostcodeCode>' + esc(settings.plz || '') + '</ram:PostcodeCode>\n'
              + '          <ram:LineOne>' + esc(settings.adresse || '') + '</ram:LineOne>\n'
              + '          <ram:CityName>' + esc(settings.ort || '') + '</ram:CityName>\n'
-             + '          <ram:CountryID>DE</ram:CountryID>\n'
+             + '          <ram:CountryID>' + esc(settings.land || 'DE') + '</ram:CountryID>\n'
              + '        </ram:PostalTradeAddress>\n';
         if (settings.email) {
             xml += '        <ram:URIUniversalCommunication>\n'

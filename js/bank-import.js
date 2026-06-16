@@ -332,7 +332,10 @@ var BankImport = (function () {
                     _parsed = result.transactions;
                     renderPreview(_parsed);
                 };
-                reader.readAsText(file, 'UTF-8');
+                // MT940/STA from German banks is often ISO-8859-1; XML/CSV is UTF-8
+                const ext = file.name.split('.').pop().toLowerCase();
+                const encoding = (ext === 'sta' || ext === 'mt940') ? 'ISO-8859-1' : 'UTF-8';
+                reader.readAsText(file, encoding);
             });
         }
     }

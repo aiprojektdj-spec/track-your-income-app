@@ -12,7 +12,7 @@ const Lohnsteuer = {
         kv:      0.0765,   // Krankenversicherung 7,3% + Zusatzbeitrag ~0,65% → AG zahlt 7,65%
         rv:      0.093,    // Rentenversicherung 9,3%
         av:      0.013,    // Arbeitslosenversicherung 1,3%
-        pv:      0.01775,  // Pflegeversicherung 1,775% (AG-Anteil, seit 07/2023)
+        pv:      0.018,    // Pflegeversicherung 1,8% (AG-Anteil 2025, §55 Abs. 1 SGB XI)
     },
 
     // BBG 2025

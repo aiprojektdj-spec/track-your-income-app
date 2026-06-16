@@ -2003,7 +2003,13 @@ const Store = {
     },
 
     importAll(jsonStr) {
-        const data = JSON.parse(jsonStr);
+        let data;
+        try {
+            data = JSON.parse(jsonStr);
+        } catch (e) {
+            Utils.showToast('Backup-Datei ungültig — kein gültiges JSON. Datei möglicherweise beschädigt.', 'error');
+            return false;
+        }
 
         // ── Prüfsummen-Verifikation (B) ──────────────────────────────────────
         if (data._exportMeta) {

@@ -7,9 +7,9 @@ const Ksk = {
 
     // Aktuelle Beitragssätze (werden jährlich festgesetzt)
     _beitragssaetze: {
-        2024: { kv: 0.073, pv: 0.0170, av: 0.009 }, // Gesamt ~9,9%
-        2025: { kv: 0.075, pv: 0.0170, av: 0.009 },
-        2026: { kv: 0.075, pv: 0.0170, av: 0.009 }
+        2024: { kv: 0.073, pv: 0.0170, rv: 0.093 }, // KSK-Mitglied zahlt AN-Anteil RV 9,3% (§163 SGB VI)
+        2025: { kv: 0.075, pv: 0.0180, rv: 0.093 },
+        2026: { kv: 0.075, pv: 0.0180, rv: 0.093 }
     },
 
     _getSaetze(year) {
@@ -36,7 +36,7 @@ const Ksk = {
         // KSK trägt 50% — Künstler zahlt 50% der gesetzlichen Sätze
         const kvBeitrag = Math.min(monatl, bbg.kvpv) * s.kv * 12;
         const pvBeitrag = Math.min(monatl, bbg.kvpv) * s.pv * 12;
-        const rvBeitrag = Math.min(monatl, bbg.rv)   * s.av * 12;
+        const rvBeitrag = Math.min(monatl, bbg.rv)   * s.rv * 12;
         return { kv: kvBeitrag, pv: pvBeitrag, rv: rvBeitrag, gesamt: kvBeitrag + pvBeitrag + rvBeitrag };
     },
 

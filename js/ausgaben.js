@@ -9,14 +9,15 @@ const Ausgaben = {
     _kategorien: ['Versand', 'Verpackung', 'Plattformgebühren', 'Fahrtkosten', 'Büro', 'Equipment', 'Software/Abos', 'Sonstiges'],
 
     render() {
-        const expenses = Store.getExpenses(true);
+        const activeExpenses = Store.getExpenses();      // nur aktive (für Totals/Breakdown)
+        const expenses = Store.getExpenses(true);        // inkl. stornierte (für Tabellenansicht)
         const f = this;
 
-        // Summary
-        const totalExpenses = expenses.reduce((sum, e) => sum + (parseFloat(e.betrag) || 0), 0);
+        // Summary — nur aktive Ausgaben zählen
+        const totalExpenses = activeExpenses.reduce((sum, e) => sum + (parseFloat(e.betrag) || 0), 0);
         const catBreakdown = {};
         this._kategorien.forEach(k => catBreakdown[k] = 0);
-        expenses.forEach(e => {
+        activeExpenses.forEach(e => {
             const cat = e.kategorie || 'Sonstiges';
             catBreakdown[cat] = (catBreakdown[cat] || 0) + (parseFloat(e.betrag) || 0);
         });

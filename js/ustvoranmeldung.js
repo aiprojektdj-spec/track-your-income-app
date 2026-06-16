@@ -25,16 +25,19 @@ const UstVoranmeldung = {
             .reduce((s, v) => s + _brutto(v), 0);
         const bruttoUmsatz19 = sales.filter(v => _rate(v) !== 7)
             .reduce((s, v) => s + _brutto(v), 0)
-            - retouren.reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
+            - retouren.filter(r => (_rate(r) || 19) !== 7).reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
+        // 7%-Retouren separat vom 7%-Umsatz abziehen (§17 UStG)
+        const bruttoUmsatz7adj = bruttoUmsatz7
+            - retouren.filter(r => _rate(r) === 7).reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
 
-        const bruttoUmsatz = bruttoUmsatz19 + bruttoUmsatz7;
+        const bruttoUmsatz = bruttoUmsatz19 + bruttoUmsatz7adj;
 
         // Kz. 81 + Kz. 83: Netto-Umsätze 19%
         const nettoUmsatz19 = bruttoUmsatz19 / 1.19;
         const ust19         = nettoUmsatz19 * 0.19;
 
         // Kz. 86 + Kz. 35: Netto-Umsätze 7%
-        const nettoUmsatz7  = bruttoUmsatz7 / 1.07;
+        const nettoUmsatz7  = bruttoUmsatz7adj / 1.07;
         const ust7          = nettoUmsatz7 * 0.07;
 
         // Vorsteuer aus Einkäufen + Ausgaben + §13b/EU: Kz. 66

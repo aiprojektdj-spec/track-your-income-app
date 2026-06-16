@@ -11,6 +11,28 @@ const Euer = {
     _lastRenderData: {},
 
     render() {
+        // Schweiz-Modus: EAR nutzen statt EÜR
+        if (Store.getSettings().land === 'CH') {
+            return `<div class="page-header"><h2><i class="ti ti-file-analytics" style="margin-right:6px;"></i> EÜR</h2></div>
+            <div class="card" style="padding:40px;text-align:center;">
+                <div style="font-size:48px;margin-bottom:12px;">🇨🇭</div>
+                <div style="font-weight:700;font-size:16px;margin-bottom:8px;">EÜR nicht verfügbar im Schweiz-Modus</div>
+                <div style="color:var(--text-muted);margin-bottom:16px;">In der Schweiz wird die Einnahmen-Ausgaben-Rechnung (EAR) verwendet.<br>Nutze das Schweiz-Modul für deine Auswertung.</div>
+                <button class="btn btn-primary" onclick="App.navigate('schweiz')">→ Schweiz EAR öffnen</button>
+            </div>`;
+        }
+
+        // Kapitalgesellschaften nutzen Bilanz, nicht EÜR
+        if (typeof Rechtsform !== 'undefined' && Rechtsform.isKapitalgesellschaft()) {
+            return `<div class="page-header"><h2><i class="ti ti-file-analytics" style="margin-right:6px;"></i> EÜR</h2></div>
+            <div class="card" style="padding:40px;text-align:center;">
+                <div style="font-size:48px;margin-bottom:12px;">📊</div>
+                <div style="font-weight:700;font-size:16px;margin-bottom:8px;">EÜR nicht verfügbar</div>
+                <div style="color:var(--text-muted);margin-bottom:16px;">Als ${Rechtsform.get()} bist du bilanzpflichtig.<br>Nutze stattdessen die Bilanz / GuV.</div>
+                <button class="btn btn-primary" onclick="App.navigate('bilanz')">→ Bilanz / GuV öffnen</button>
+            </div>`;
+        }
+
         const settings = Store.getSettings();
         const ustMode = settings.ustMode || 'klein';
         const isRegel = ustMode === 'regel';

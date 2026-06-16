@@ -34,6 +34,23 @@ const GbR = {
         return e.firmenform === 'GbR' || e.firmenform === 'eGbR';
     },
 
+    // Alle Personengesellschaften mit Gesellschafter-Verwaltung
+    isPersonengesellschaft() {
+        const e = this.getEinstellungen();
+        return ['GbR', 'eGbR', 'OHG', 'KG', 'GmbH & Co. KG'].includes(e.firmenform);
+    },
+
+    // Kapitalgesellschaften mit Gesellschafter/Anteilen
+    isKapitalgesellschaft() {
+        const e = this.getEinstellungen();
+        return ['GmbH', 'UG'].includes(e.firmenform);
+    },
+
+    // Hat diese Rechtsform Gesellschafter?
+    hatGesellschafter() {
+        return this.isPersonengesellschaft() || this.isKapitalgesellschaft();
+    },
+
     // ── Gesellschafter ─────────────────────────────────────────────────────
     getGesellschafter() {
         return Store.get(this.KEY_GS) || [];
@@ -43,7 +60,7 @@ const GbR = {
         Store.set(this.KEY_GS, list);
     },
 
-    addGesellschafter(name, anteil, adresse, eingetreten) {
+    addGesellschafter(name, anteil, adresse, eingetreten, rolle) {
         const list = this.getGesellschafter();
         list.push({
             id:         Store.generateId(),
@@ -51,8 +68,17 @@ const GbR = {
             adresse:    adresse || '',
             anteil:     parseFloat(anteil) || 0,
             eingetreten: eingetreten || new Date().toISOString().split('T')[0],
+            rolle:      rolle || 'gesellschafter', // gesellschafter | komplementaer | kommanditist | geschaeftsfuehrer
         });
         this.saveGesellschafter(list);
+    },
+
+    // KG: Komplementäre und Kommanditisten getrennt
+    getKomplementaere() {
+        return this.getGesellschafter().filter(g => g.rolle === 'komplementaer');
+    },
+    getKommanditisten() {
+        return this.getGesellschafter().filter(g => g.rolle === 'kommanditist');
     },
 
     updateGesellschafter(id, data) {
@@ -191,6 +217,16 @@ const GbR = {
         const list  = this.getGesellschafter();
         const sumPct = this.sumAnteile();
 
+        const isKG = ['KG', 'GmbH & Co. KG'].includes(einst.firmenform);
+        const showRolle = ['KG', 'OHG', 'GmbH & Co. KG', 'GmbH', 'UG'].includes(einst.firmenform);
+        const rolleOptions = isKG
+            ? [['komplementaer','Komplementär'],['kommanditist','Kommanditist']]
+            : einst.firmenform === 'OHG'
+                ? [['gesellschafter','Gesellschafter']]
+                : ['GmbH','UG'].includes(einst.firmenform)
+                    ? [['gesellschafter','Gesellschafter'],['geschaeftsfuehrer','Geschäftsführer']]
+                    : [['gesellschafter','Gesellschafter']];
+
         const gsRows = list.map(g => `
             <tr id="gs_row_${g.id}">
                 <td style="padding:6px 8px;">
@@ -201,6 +237,11 @@ const GbR = {
                     <input type="text" class="form-input" id="gs_adresse_${g.id}" value="${Utils.escapeHtml(g.adresse || '')}"
                            style="font-size:12px;padding:5px 8px;" placeholder="Adresse (optional)">
                 </td>
+                ${showRolle ? `<td style="padding:6px 8px;width:130px;">
+                    <select class="form-select" id="gs_rolle_${g.id}" style="font-size:11px;padding:4px 6px;">
+                        ${rolleOptions.map(([v,l]) => `<option value="${v}" ${(g.rolle||'gesellschafter')===v?'selected':''}>${l}</option>`).join('')}
+                    </select>
+                </td>` : ''}
                 <td style="padding:6px 8px;width:90px;">
                     <div style="display:flex;align-items:center;gap:4px;">
                         <input type="number" class="form-input" id="gs_anteil_${g.id}" value="${g.anteil}"
@@ -256,6 +297,46 @@ const GbR = {
                             <label class="form-label">Registergericht</label>
                             <input type="text" class="form-input" id="gbr_reggericht" value="${Utils.escapeHtml(einst.eGbrRegistergericht || '')}"
                                    placeholder="z.B. Amtsgericht München">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Handelsregister-Felder (OHG/KG/GmbH/UG/GmbH & Co. KG) -->
+            <div id="hr_felder" style="${['OHG','KG','GmbH','UG','GmbH & Co. KG'].includes(einst.firmenform) ? '' : 'display:none;'}">
+                <div style="padding:12px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px;margin-bottom:4px;">
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
+                        📋 Handelsregister-Pflichtangaben (§37a HGB / §35a GmbHG)
+                    </div>
+                    <div class="form-row" style="gap:10px;">
+                        <div class="form-group">
+                            <label class="form-label">Registernummer (HRA/HRB)</label>
+                            <input type="text" class="form-input" id="gbr_hrnr" value="${Utils.escapeHtml(einst.handelsregisterNr || '')}"
+                                   placeholder="z.B. HRB 12345">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Registergericht</label>
+                            <input type="text" class="form-input" id="gbr_hrgericht" value="${Utils.escapeHtml(einst.handelsregisterGericht || '')}"
+                                   placeholder="z.B. Amtsgericht München">
+                        </div>
+                    </div>
+                    <div class="form-row" style="gap:10px;margin-top:8px;">
+                        <div class="form-group">
+                            <label class="form-label">Sitz der Gesellschaft</label>
+                            <input type="text" class="form-input" id="gbr_sitz" value="${Utils.escapeHtml(einst.sitz || '')}"
+                                   placeholder="z.B. München">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Geschäftsführer / Vertretungsberechtigte</label>
+                            <input type="text" class="form-input" id="gbr_gf" value="${Utils.escapeHtml(einst.geschaeftsfuehrer || '')}"
+                                   placeholder="z.B. Max Mustermann">
+                        </div>
+                    </div>
+                    <div class="form-row" style="gap:10px;margin-top:8px;" id="stammkapital_row" style="${['GmbH','UG'].includes(einst.firmenform) ? '' : 'display:none;'}">
+                        <div class="form-group" style="max-width:200px;">
+                            <label class="form-label">Stammkapital (€)</label>
+                            <input type="number" class="form-input" id="gbr_stammkapital" value="${einst.stammkapital || ''}"
+                                   placeholder="${einst.firmenform === 'UG' ? '1' : '25000'}" min="1" step="1">
                         </div>
                     </div>
                 </div>
@@ -337,6 +418,10 @@ const GbR = {
         if (inp) inp.value = form;
         const egbr = document.getElementById('egbr_felder');
         if (egbr) egbr.style.display = form === 'eGbR' ? '' : 'none';
+        const hr = document.getElementById('hr_felder');
+        if (hr) hr.style.display = ['OHG','KG','GmbH','UG','GmbH & Co. KG'].includes(form) ? '' : 'none';
+        const skRow = document.getElementById('stammkapital_row');
+        if (skRow) skRow.style.display = ['GmbH','UG'].includes(form) ? '' : 'none';
         // Rechtsform-Preview im Modal
         const preview = document.getElementById('rechtsformPreviewInModal');
         if (preview && typeof Rechtsform !== 'undefined') {
@@ -397,6 +482,11 @@ const GbR = {
         const hebesatz   = parseFloat(document.getElementById('gbr_hebesatz')?.value) || this.DEFAULT_HEBESATZ;
         const regNr      = document.getElementById('gbr_regnr')?.value?.trim() || '';
         const regGericht = document.getElementById('gbr_reggericht')?.value?.trim() || '';
+        const hrNr       = document.getElementById('gbr_hrnr')?.value?.trim() || '';
+        const hrGericht  = document.getElementById('gbr_hrgericht')?.value?.trim() || '';
+        const sitz       = document.getElementById('gbr_sitz')?.value?.trim() || '';
+        const gf         = document.getElementById('gbr_gf')?.value?.trim() || '';
+        const stammkapital = parseFloat(document.getElementById('gbr_stammkapital')?.value) || 0;
 
         // Gesellschafter aus Tabelle lesen
         const newList = [];
@@ -405,9 +495,10 @@ const GbR = {
             const name    = document.getElementById('gs_name_' + rowId)?.value?.trim();
             const adresse = document.getElementById('gs_adresse_' + rowId)?.value?.trim() || '';
             const anteil  = parseFloat(document.getElementById('gs_anteil_' + rowId)?.value) || 0;
+            const rolleEl = document.getElementById('gs_rolle_' + rowId);
+            const rolle   = rolleEl ? rolleEl.value : 'gesellschafter';
             const eintritt = document.getElementById('gs_eintritt_' + rowId)?.value || '';
-            if (!name) return;  // leere Zeilen überspringen
-            // Bestehende ID behalten oder neue vergeben
+            if (!name) return;
             const existing = this.getGesellschafter().find(g => g.id === rowId);
             newList.push({
                 id:          existing ? existing.id : Store.generateId(),
@@ -415,11 +506,12 @@ const GbR = {
                 adresse,
                 anteil,
                 eingetreten: eintritt,
+                rolle,
             });
         });
 
-        // Validierung: Anteile-Summe prüfen (nur bei GbR)
-        if ((firmenform === 'GbR' || firmenform === 'eGbR') && newList.length > 0) {
+        // Validierung: Anteile-Summe prüfen (Personengesellschaften)
+        if (['GbR', 'eGbR', 'OHG', 'KG', 'GmbH & Co. KG', 'GmbH', 'UG'].includes(firmenform) && newList.length > 0) {
             const sumPct = newList.reduce((s, g) => s + g.anteil, 0);
             if (Math.abs(sumPct - 100) > 0.01) {
                 Utils.showToast(`⚠️ Anteile ergeben ${sumPct.toFixed(1)} % — müssen 100 % sein`, 'warning');
@@ -431,6 +523,11 @@ const GbR = {
             firmenform,
             eGbrRegisternummer:  regNr,
             eGbrRegistergericht: regGericht,
+            handelsregisterNr:   hrNr,
+            handelsregisterGericht: hrGericht,
+            sitz,
+            geschaeftsfuehrer:   gf,
+            stammkapital,
             hebesatz,
         });
         this.saveGesellschafter(newList);

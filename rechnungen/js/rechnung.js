@@ -30,7 +30,8 @@ var Rechnung = (function() {
 
     function calcBrutto(invoice) {
         var settings = Store.getSettings();
-        var isKlein = settings.ustMode === 'klein';
+        var isCH = settings.land === 'CH';
+        var isKlein = isCH ? ((settings.chMwstMode || 'klein') === 'klein') : (settings.ustMode === 'klein');
         var sum = 0;
         (invoice.positionen || []).forEach(function(pos) {
             var netto = pos.menge * pos.einzelpreis;
@@ -255,11 +256,21 @@ var Rechnung = (function() {
         html += '<input class="form-input pos-einzelpreis" type="number" step="0.01" min="0" data-idx="' + idx + '" value="' + (pos.einzelpreis || 0) + '"></div>';
 
         html += '<div class="form-group" style="flex: 0.7;">';
-        if (idx === 0) html += '<label class="form-label">MwSt</label>';
+        var _posIsCH = (Store.getSettings().land === 'CH');
+        if (idx === 0) html += '<label class="form-label">' + (_posIsCH ? 'MWST' : 'MwSt') + '</label>';
         html += '<select class="form-select pos-mwst" data-idx="' + idx + '">';
-        html += '<option value="19"' + ((pos.mwstSatz === undefined || pos.mwstSatz === 19) ? ' selected' : '') + '>19%</option>';
-        html += '<option value="7"' + (pos.mwstSatz === 7 ? ' selected' : '') + '>7%</option>';
-        html += '<option value="0"' + (pos.mwstSatz === 0 ? ' selected' : '') + '>0%</option>';
+        if (_posIsCH) {
+            var _chDef = parseFloat(Store.getSettings().chMwstSatzDefault) || 8.1;
+            var _chSel = function(v) { return (pos.mwstSatz === undefined ? _chDef === v : pos.mwstSatz === v) ? ' selected' : ''; };
+            html += '<option value="8.1"'  + _chSel(8.1) + '>8.1%</option>';
+            html += '<option value="2.6"'  + _chSel(2.6) + '>2.6%</option>';
+            html += '<option value="3.8"'  + _chSel(3.8) + '>3.8%</option>';
+            html += '<option value="0"'    + _chSel(0)   + '>0%</option>';
+        } else {
+            html += '<option value="19"' + ((pos.mwstSatz === undefined || pos.mwstSatz === 19) ? ' selected' : '') + '>19%</option>';
+            html += '<option value="7"'  + (pos.mwstSatz === 7 ? ' selected' : '') + '>7%</option>';
+            html += '<option value="0"'  + (pos.mwstSatz === 0 ? ' selected' : '') + '>0%</option>';
+        }
         html += '</select></div>';
 
         html += '<div class="form-group" style="flex: 1;">';
@@ -368,7 +379,7 @@ var Rechnung = (function() {
             var menge = parseFloat(row.querySelector('.pos-menge').value) || 0;
             var einheit = row.querySelector('.pos-einheit').value;
             var einzelpreis = parseFloat(row.querySelector('.pos-einzelpreis').value) || 0;
-            var mwstSatz = parseInt(row.querySelector('.pos-mwst').value) || 0;
+            var mwstSatz = parseFloat(row.querySelector('.pos-mwst').value) || 0;
             var lagerIdEl = row.querySelector('.pos-lager-id');
             var lagerArtikelId = lagerIdEl ? (lagerIdEl.value || null) : null;
             if (beschreibung || einzelpreis > 0) {
@@ -388,7 +399,8 @@ var Rechnung = (function() {
     function updateSummen() {
         var positionen = collectPositionen();
         var settings = Store.getSettings();
-        var isKlein = settings.ustMode === 'klein';
+        var isCH = settings.land === 'CH';
+        var isKlein = isCH ? ((settings.chMwstMode || 'klein') === 'klein') : (settings.ustMode === 'klein');
 
         var netto = 0;
         var mwstMap = {};
@@ -405,7 +417,7 @@ var Rechnung = (function() {
         var mwstHtml = '';
         Object.keys(mwstMap).sort().forEach(function(satz) {
             totalMwst += mwstMap[satz];
-            mwstHtml += '<div>' + satz + '% MwSt: ' + Utils.formatCurrency(mwstMap[satz]) + '</div>';
+            mwstHtml += '<div>' + satz + '% ' + (isCH ? 'MWST' : 'MwSt') + ': ' + Utils.formatCurrency(mwstMap[satz]) + '</div>';
         });
 
         var brutto = netto + totalMwst;
@@ -413,7 +425,7 @@ var Rechnung = (function() {
         var html = '<div style="font-size: 0.95rem;">';
         html += '<div>Zwischensumme (netto): <strong>' + Utils.formatCurrency(netto) + '</strong></div>';
         if (isKlein) {
-            html += '<div style="font-style: italic; opacity: 0.7;">Gem. \u00A719 UStG wird keine Umsatzsteuer berechnet.</div>';
+            html += '<div style="font-style: italic; opacity: 0.7;">' + (isCH ? 'Nicht MWST-pflichtig gem. Art. 10 Abs. 2 MWSTG.' : 'Gem. \u00A719 UStG wird keine Umsatzsteuer berechnet.') + '</div>';
             html += '<div style="font-size: 1.2rem; margin-top: 0.5rem;"><strong>Gesamtbetrag: ' + Utils.formatCurrency(netto) + '</strong></div>';
         } else {
             html += mwstHtml;
@@ -566,7 +578,8 @@ var Rechnung = (function() {
                 modalBody += '<div class="form-row">';
                 modalBody += '<div class="form-group"><label class="form-label">Preis</label><input class="form-input" id="npPreis" type="number" step="0.01" min="0" value="0"></div>';
                 modalBody += '<div class="form-group"><label class="form-label">Einheit</label><select class="form-select" id="npEinheit"><option value="St\u00FCck">St\u00FCck</option><option value="Std.">Std.</option><option value="pauschal">pauschal</option></select></div>';
-                modalBody += '<div class="form-group"><label class="form-label">MwSt-Satz</label><select class="form-select" id="npMwst"><option value="19">19%</option><option value="7">7%</option><option value="0">0%</option></select></div>';
+                var _npIsCH = (Store.getSettings().land === 'CH');
+                modalBody += '<div class="form-group"><label class="form-label">' + (_npIsCH ? 'MWST-Satz' : 'MwSt-Satz') + '</label><select class="form-select" id="npMwst">' + (_npIsCH ? '<option value="8.1">8.1%</option><option value="2.6">2.6%</option><option value="3.8">3.8%</option><option value="0">0%</option>' : '<option value="19">19%</option><option value="7">7%</option><option value="0">0%</option>') + '</select></div>';
                 modalBody += '</div>';
 
                 var modalFooter = '<button class="btn btn-primary" id="npSave">Speichern</button> <button class="btn" onclick="RechApp.closeModal()">Abbrechen</button>';
@@ -671,7 +684,8 @@ var Rechnung = (function() {
                 Utils.showToast('\u26A0\uFE0F Kundenadresse unvollst\u00E4ndig (Stra\u00DFe, PLZ, Ort) \u2014 \u00A714 UStG Pflichtangabe.', 'warning');
             }
             var s14 = Store.getRechUnternehmen ? Store.getRechUnternehmen() : {};
-            if (!s14.steuernummer && !s14.ustId) {
+            var _s14isCH = (Store.getSettings().land === 'CH');
+            if (!_s14isCH && !s14.steuernummer && !s14.ustId) {
                 Utils.showToast('\u26A0\uFE0F Keine Steuernummer / USt-IdNr. hinterlegt \u2014 \u00A714 UStG Pflichtangabe.', 'warning');
             }
         }
@@ -762,7 +776,8 @@ var Rechnung = (function() {
         var accentColor = settings.invoicePrimaryColor || '#4f46e5';
         var customers = Store.getRechCustomers();
         var kunde = customers.find(function(c) { return c.id === inv.kundeId; });
-        var isKlein = settings.ustMode === 'klein';
+        var isCH = settings.land === 'CH';
+        var isKlein = isCH ? ((settings.chMwstMode || 'klein') === 'klein') : (settings.ustMode === 'klein');
         var isStorno = inv.typ === 'stornorechnung';
         if (isStorno) accentColor = '#dc2626';
 
@@ -825,7 +840,10 @@ var Rechnung = (function() {
         html += '<div class="inv-header">';
         html += '<div>';
         if (logoBase64) html += '<img src="' + logoBase64 + '" alt="Logo" class="inv-logo">';
-        html += '<div class="inv-co-name">' + Utils.escapeHtml(settings.firmenname || '') + '</div>';
+        var displayName = settings.firmenname || '';
+        var _gbrE = (typeof Store !== 'undefined') ? (Store.get('gbr_einstellungen') || {}) : {};
+        if (_gbrE.firmenform === 'UG' && displayName && displayName.indexOf('haftungsbeschr') === -1) displayName += ' UG (haftungsbeschränkt)';
+        html += '<div class="inv-co-name">' + Utils.escapeHtml(displayName) + '</div>';
         html += '<div class="inv-co-addr">';
         if (settings.name) html += Utils.escapeHtml(settings.name) + '<br>';
         html += Utils.escapeHtml(settings.adresse || '') + '<br>';
@@ -881,7 +899,11 @@ var Rechnung = (function() {
         }
 
         // Tax line
-        if (settings.steuernummer || settings.ustId) {
+        if (isCH) {
+            if (settings.chMwstNr) {
+                html += '<div class="inv-tax">MWST-Nr.: <strong>' + Utils.escapeHtml(settings.chMwstNr) + '</strong></div>';
+            }
+        } else if (settings.steuernummer || settings.ustId) {
             html += '<div class="inv-tax">';
             if (settings.steuernummer) html += 'Steuernr.: <strong>' + Utils.escapeHtml(settings.steuernummer) + '</strong>';
             if (settings.steuernummer && settings.ustId) html += '&nbsp;&nbsp;';
@@ -896,7 +918,7 @@ var Rechnung = (function() {
         html += '<th class="r">Menge</th>';
         html += '<th>Einheit</th>';
         html += '<th class="r">Einzelpreis</th>';
-        if (!isKlein) html += '<th class="r">MwSt</th>';
+        if (!isKlein) html += '<th class="r">' + (isCH ? 'MWST' : 'MwSt') + '</th>';
         html += '<th class="r">Gesamt (netto)</th>';
         html += '</tr></thead><tbody>';
 
@@ -930,7 +952,7 @@ var Rechnung = (function() {
         } else {
             Object.keys(mwstMap).sort().forEach(function(satz) {
                 totalMwst += mwstMap[satz];
-                html += '<div class="inv-tr"><span>MwSt. ' + satz + '%</span><span>' + Utils.formatCurrency(mwstMap[satz]) + '</span></div>';
+                html += '<div class="inv-tr"><span>' + (isCH ? 'MWST ' : 'MwSt. ') + satz + '%</span><span>' + Utils.formatCurrency(mwstMap[satz]) + '</span></div>';
             });
             html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(netto + totalMwst) + '</span></div>';
         }
@@ -938,7 +960,9 @@ var Rechnung = (function() {
 
         // Kleinunternehmer notice
         if (isKlein) {
-            html += '<div class="inv-klein">Gem\u00E4\u00DF \u00A719 UStG wird keine Umsatzsteuer berechnet.</div>';
+            html += isCH
+                ? '<div class="inv-klein">Nicht MWST-pflichtig gem. Art. 10 Abs. 2 MWSTG.</div>'
+                : '<div class="inv-klein">Gem\u00E4\u00DF \u00A719 UStG wird keine Umsatzsteuer berechnet.</div>';
         }
 
         // Payment terms & notes
@@ -962,6 +986,86 @@ var Rechnung = (function() {
             html += '</div>';
         }
 
+        // Swiss QR-Rechnung payment slip (QR-bill)
+        if (isCH && settings.iban && inv.typ === 'rechnung') {
+            var rawIban = (settings.iban || '').replace(/\s/g, '');
+            var fmtIban = rawIban.match(/.{1,4}/g).join(' ');
+            var totalBrutto = isKlein ? netto : (netto + totalMwst);
+
+            html += '<div style="border-top:2px dashed #aaa;margin-top:28px;page-break-inside:avoid;">';
+            html += '<div style="text-align:center;font-size:9px;color:#aaa;padding:3px 0;letter-spacing:1.5px;">✂ &nbsp; Hier abtrennen &nbsp; ✂</div>';
+            html += '<div style="display:flex;border-top:1px solid #000;font-family:Arial,Helvetica,sans-serif;min-height:88mm;">';
+
+            // Empfangsschein (left, 62mm ≈ 220px at 96dpi but we use flex)
+            html += '<div style="width:28%;max-width:220px;border-right:1px solid #000;padding:5mm 4mm;font-size:7pt;">';
+            html += '<div style="font-weight:700;font-size:9pt;margin-bottom:4mm;">Empfangsschein</div>';
+            html += '<div style="font-size:6pt;color:#555;margin-bottom:1mm;">Konto / Zahlbar an</div>';
+            html += '<div style="margin-bottom:3mm;">' + Utils.escapeHtml(fmtIban) + '<br>'
+                + Utils.escapeHtml(settings.firmenname || '') + '<br>'
+                + Utils.escapeHtml((settings.adresse || '') + ', ' + (settings.plz || '') + ' ' + (settings.ort || '')) + '</div>';
+            html += '<div style="font-size:6pt;color:#555;margin-bottom:1mm;">Referenz</div>';
+            html += '<div style="margin-bottom:3mm;">' + Utils.escapeHtml(inv.nummer || '') + '</div>';
+            html += '<div style="font-size:6pt;color:#555;margin-bottom:1mm;">Zahlbar durch</div>';
+            html += '<div style="height:12mm;border-bottom:1px solid #aaa;"></div>';
+            html += '<div style="display:flex;justify-content:space-between;margin-top:3mm;">';
+            html += '<div><div style="font-size:6pt;color:#555;">Währung</div><div style="font-weight:700;">CHF</div></div>';
+            html += '<div><div style="font-size:6pt;color:#555;">Betrag</div><div style="font-weight:700;">' + totalBrutto.toLocaleString('de-CH',{minimumFractionDigits:2}) + '</div></div>';
+            html += '</div>';
+            html += '<div style="font-size:6pt;color:#999;text-align:right;margin-top:16mm;">Annahmestelle</div>';
+            html += '</div>'; // Empfangsschein
+
+            // Zahlteil (right)
+            html += '<div style="flex:1;padding:5mm 6mm;font-size:8pt;">';
+            html += '<div style="font-weight:700;font-size:9pt;margin-bottom:4mm;">Zahlteil</div>';
+            html += '<div style="display:flex;gap:5mm;">';
+
+            // QR code area (46mm × 46mm per SPS 2023)
+            var _qrLines = [
+                'SPC', '0200', '1',
+                rawIban,
+                'K',
+                (settings.firmenname || '').substring(0, 70),
+                (settings.adresse || '').substring(0, 70),
+                ((settings.plz || '') + ' ' + (settings.ort || '')).trim().substring(0, 70),
+                '', '', 'CH',
+                '', '', '', '', '', '', '',
+                totalBrutto.toFixed(2), 'CHF',
+                '', '', '', '', '', '', '',
+                'NON', '', (inv.nummer || '').substring(0, 140), 'EPD'
+            ];
+            var _qrPayload = _qrLines.join('\r\n');
+            html += '<div style="flex-shrink:0;">';
+            html += '<div style="position:relative;width:175px;height:175px;">';
+            html += _generateChQrSvg(_qrPayload);
+            html += '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:26px;height:26px;background:#fff;display:flex;align-items:center;justify-content:center;pointer-events:none;">';
+            html += '<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><rect fill="#FF0000" x="6" y="0" width="6" height="18"/><rect fill="#FF0000" x="0" y="6" width="18" height="6"/></svg>';
+            html += '</div>';
+            html += '</div>';
+            // Currency + amount below QR
+            html += '<div style="display:flex;gap:6mm;margin-top:2mm;">';
+            html += '<div><div style="font-size:6pt;color:#555;">Währung</div><div style="font-weight:700;">CHF</div></div>';
+            html += '<div><div style="font-size:6pt;color:#555;">Betrag</div><div style="font-weight:700;">' + totalBrutto.toLocaleString('de-CH',{minimumFractionDigits:2}) + '</div></div>';
+            html += '</div>';
+            html += '</div>'; // QR area
+
+            // Payment details
+            html += '<div style="flex:1;">';
+            html += '<div style="font-size:6pt;color:#555;margin-bottom:1mm;">Konto / Zahlbar an</div>';
+            html += '<div style="margin-bottom:4mm;">' + Utils.escapeHtml(fmtIban) + '<br>'
+                + Utils.escapeHtml(settings.firmenname || '') + '<br>'
+                + Utils.escapeHtml((settings.adresse || '') + '<br>' + (settings.plz || '') + ' ' + (settings.ort || '')) + '</div>';
+            html += '<div style="font-size:6pt;color:#555;margin-bottom:1mm;">Referenz</div>';
+            html += '<div style="margin-bottom:4mm;">' + Utils.escapeHtml(inv.nummer || '') + '</div>';
+            html += '<div style="font-size:6pt;color:#555;margin-bottom:1mm;">Zahlbar durch</div>';
+            html += '<div style="height:14mm;border-bottom:1px solid #aaa;"></div>';
+            html += '</div>'; // Payment details
+
+            html += '</div>'; // flex row
+            html += '</div>'; // Zahlteil
+            html += '</div>'; // main flex
+            html += '</div>'; // QR-Rechnung container
+        }
+
         // Footer
         html += '<div class="inv-footer">';
         var footerParts = [];
@@ -974,11 +1078,49 @@ var Rechnung = (function() {
         }
         if (settings.email) footerParts.push(Utils.escapeHtml(settings.email));
         html += footerParts.join(' \u00B7 ');
+
+        // Rechtsform-Pflichtangaben (\u00A737a HGB / \u00A735a GmbHG)
+        var gbrEinst = (typeof Store !== 'undefined') ? (Store.get('gbr_einstellungen') || {}) : {};
+        var rechtsformParts = [];
+        var form = gbrEinst.firmenform || '';
+        if (['OHG','KG','GmbH','UG','GmbH & Co. KG'].includes(form)) {
+            if (gbrEinst.handelsregisterNr) rechtsformParts.push(Utils.escapeHtml(gbrEinst.handelsregisterNr));
+            if (gbrEinst.handelsregisterGericht) rechtsformParts.push(Utils.escapeHtml(gbrEinst.handelsregisterGericht));
+            if (gbrEinst.sitz) rechtsformParts.push('Sitz: ' + Utils.escapeHtml(gbrEinst.sitz));
+            if (gbrEinst.geschaeftsfuehrer) rechtsformParts.push('GF: ' + Utils.escapeHtml(gbrEinst.geschaeftsfuehrer));
+            if (['GmbH','UG'].includes(form) && gbrEinst.stammkapital) rechtsformParts.push('Stammkapital: ' + Utils.formatCurrency(gbrEinst.stammkapital));
+        } else if (form === 'eGbR') {
+            if (gbrEinst.eGbrRegisternummer) rechtsformParts.push(Utils.escapeHtml(gbrEinst.eGbrRegisternummer));
+            if (gbrEinst.eGbrRegistergericht) rechtsformParts.push(Utils.escapeHtml(gbrEinst.eGbrRegistergericht));
+        }
+        if (rechtsformParts.length > 0) {
+            html += '<br>' + rechtsformParts.join(' \u00B7 ');
+        }
+
         html += '</div>';
 
         html += '</div>'; // inv-body
         html += '</div>'; // inv-wrap
         return html;
+    }
+
+    function _generateChQR(box) {
+        var el = box;
+        while (el && !el.getAttribute('data-qr')) el = el.parentElement;
+        if (!el) return;
+        var qrData = decodeURIComponent(el.getAttribute('data-qr'));
+        function doQR() {
+            box.innerHTML = '';
+            new QRCode(box, { text: qrData, width: 175, height: 175, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+        }
+        if (typeof QRCode !== 'undefined') {
+            doQR();
+        } else {
+            var s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+            s.onload = doQR;
+            document.head.appendChild(s);
+        }
     }
 
     function printInvoiceWindow(invoiceHtml, asPdf, watermarkText) {
@@ -989,7 +1131,9 @@ var Rechnung = (function() {
             @page { size: A4; margin: 8mm; }
             @media print { .inv-wrap { max-width: 100% !important; } }
         `;
-        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rechnung</title><style>' + invoiceCss + '</style></head><body>' + invoiceHtml + '</body></html>';
+        var qrScript = '<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"><\/script>';
+        var qrInit = '<script>(function(){function tryQR(){var box=document.getElementById("ch-qr-box");if(!box||typeof QRCode==="undefined")return;var el=box;while(el&&!el.getAttribute("data-qr"))el=el.parentElement;if(el){var d=decodeURIComponent(el.getAttribute("data-qr"));box.innerHTML="";new QRCode(box,{text:d,width:175,height:175,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});}}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",tryQR);}else{tryQR();}}());<\/script>';
+        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rechnung</title>' + qrScript + '<style>' + invoiceCss + '</style></head><body>' + invoiceHtml + qrInit + '</body></html>';
 
         var iframe = document.createElement('iframe');
         iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:210mm;height:297mm;border:0;';
@@ -1008,6 +1152,21 @@ var Rechnung = (function() {
             iframe.contentWindow.addEventListener('afterprint', cleanup);
             setTimeout(cleanup, 30000);
         }, 500);
+    }
+
+    function _generateChQrSvg(payload) {
+        if (typeof qrcode === 'undefined') {
+            return '<div style="width:175px;height:175px;background:#f0f0f0;display:flex;align-items:center;justify-content:center;color:#999;font-size:9px;text-align:center;border:1px solid #ccc;flex-direction:column;"><div>QR-Code</div><div style="font-size:8px;">(Offline)</div></div>';
+        }
+        try {
+            var qr = qrcode(0, 'M');
+            qr.addData(payload, 'Byte');
+            qr.make();
+            var svg = qr.createSvgTag(4, 0);
+            return svg.replace('<svg ', '<svg style="width:175px;height:175px;" ');
+        } catch(e) {
+            return '<div style="width:175px;height:175px;background:#fee;color:#c00;font-size:8px;padding:4px;word-break:break-all;">QR-Fehler</div>';
+        }
     }
 
     function showInvoicePreview(inv) {

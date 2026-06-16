@@ -37,15 +37,25 @@ const UstVoranmeldung = {
         const nettoUmsatz7  = bruttoUmsatz7 / 1.07;
         const ust7          = nettoUmsatz7 * 0.07;
 
-        // Vorsteuer aus Einkäufen + Ausgaben: Kz. 66
-        const _rateP = item => (parseFloat(item.steuersatz) || 19);
-        const bruttoAusgaben7  = purchases.filter(p => _rateP(p) === 7)
-            .reduce((s, p) => s + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1), 0);
-        const bruttoAusgaben19 = purchases.filter(p => _rateP(p) !== 7)
-            .reduce((s, p) => s + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1), 0)
-            + expenses.reduce((s, e) => s + (parseFloat(e.betrag) || 0), 0);
-
-        const vorsteuer = (bruttoAusgaben19 / 1.19 * 0.19) + (bruttoAusgaben7 / 1.07 * 0.07);
+        // Vorsteuer aus Einkäufen + Ausgaben + §13b/EU: Kz. 66
+        // Per-item Berechnung statt flat rate (nutzt Vorsteuer-Modul wenn verfügbar)
+        let vorsteuer = 0;
+        if (typeof Vorsteuer !== 'undefined') {
+            const vstCalc = Vorsteuer._calcTotal(startDate, endDate);
+            vorsteuer = vstCalc.totalVorsteuer;
+        } else {
+            // Fallback: per-item Berechnung
+            purchases.forEach(p => {
+                const rate = parseFloat(p.steuersatz) || 19;
+                const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
+                vorsteuer += brutto - (brutto / (1 + rate / 100));
+            });
+            expenses.forEach(e => {
+                const rate = parseFloat(e.ustSatz || e.steuersatz) || 19;
+                const brutto = parseFloat(e.betrag) || 0;
+                if (rate > 0) vorsteuer += brutto - (brutto / (1 + rate / 100));
+            });
+        }
 
         // Zahllast / Erstattung
         const zahllast = ust19 + ust7 - vorsteuer;
@@ -63,6 +73,17 @@ const UstVoranmeldung = {
     },
 
     render() {
+        if (Store.getSettings().land === 'CH') {
+            return `
+            <div class="page-header"><h2><i class="ti ti-receipt-tax" style="margin-right:6px;"></i> USt-Voranmeldung</h2></div>
+            <div class="card" style="padding:40px;text-align:center;">
+                <div style="font-size:48px;margin-bottom:12px;">🇨🇭</div>
+                <div style="font-weight:700;font-size:16px;margin-bottom:8px;">Nicht verfügbar im Schweiz-Modus</div>
+                <div style="color:var(--text-muted);margin-bottom:16px;">Die deutsche USt-Voranmeldung (§18 UStG) gilt nicht in der Schweiz.<br>Für die MWST-Abrechnung nach MWSTG nutze das Schweiz-Modul.</div>
+                <button class="btn btn-primary" onclick="App.navigate('schweiz')">→ Schweiz MWST-Abrechnung</button>
+            </div>`;
+        }
+
         if (!this._isRegel()) {
             return `
             <div class="page-header"><h2>🧾 USt-Voranmeldung</h2></div>

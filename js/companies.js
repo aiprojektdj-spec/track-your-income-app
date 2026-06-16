@@ -199,7 +199,7 @@ const CompanyManager = {
                     <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         ${Utils.escapeHtml(co.name)}
                     </div>
-                    <div style="font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(co.branche || '')} · ${co.land === 'AT' ? '🇦🇹' : '🇩🇪'}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(co.branche || '')} · ${co.land === 'AT' ? '🇦🇹' : co.land === 'CH' ? '🇨🇭' : '🇩🇪'}</div>
                 </div>
                 ${isActive
                     ? `<span style="font-size:11px;padding:2px 8px;background:rgba(99,102,241,.2);color:#818cf8;border-radius:10px;font-weight:600;white-space:nowrap;">✓ Aktiv</span>`
@@ -318,7 +318,7 @@ const CompanyManager = {
             <div style="display:flex;flex-direction:column;gap:16px;padding:4px 0;">
                 <div class="form-group">
                     <label class="form-label">Steuerliches Sitzland</label>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:4px;">
                         <label style="cursor:pointer;">
                             <input type="radio" name="new_firma_land" value="DE" checked style="display:none;">
                             <div onclick="CompanyManager._selectLandBtn('new','DE')" id="new_land_de" style="
@@ -335,6 +335,15 @@ const CompanyManager = {
                                 background:var(--bg-secondary);cursor:pointer;">
                                 <span style="font-size:20px;">🇦🇹</span>
                                 <div style="font-size:12px;font-weight:700;">Österreich</div>
+                            </div>
+                        </label>
+                        <label style="cursor:pointer;">
+                            <input type="radio" name="new_firma_land" value="CH" style="display:none;">
+                            <div onclick="CompanyManager._selectLandBtn('new','CH')" id="new_land_ch" style="
+                                border:2px solid var(--border);border-radius:8px;padding:8px;text-align:center;
+                                background:var(--bg-secondary);cursor:pointer;">
+                                <span style="font-size:20px;">🇨🇭</span>
+                                <div style="font-size:12px;font-weight:700;">Schweiz</div>
                             </div>
                         </label>
                     </div>
@@ -522,7 +531,7 @@ const CompanyManager = {
                 <!-- Land / Steuerrecht -->
                 <div class="form-group">
                     <label class="form-label" style="font-size:14px;font-weight:700;">Steuerliches Sitzland *</label>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px;">
                         <label id="onb_land_de_lbl" style="cursor:pointer;">
                             <input type="radio" name="onb_land" value="DE" checked style="display:none;">
                             <div class="onb-land-btn" id="onb_land_de_btn" onclick="CompanyManager._selectLand('DE')" style="
@@ -541,6 +550,16 @@ const CompanyManager = {
                                 <div style="font-size:26px;">🇦🇹</div>
                                 <div style="font-weight:700;font-size:14px;margin-top:4px;">Österreich</div>
                                 <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">§6 UStG · E1a · SVS</div>
+                            </div>
+                        </label>
+                        <label id="onb_land_ch_lbl" style="cursor:pointer;">
+                            <input type="radio" name="onb_land" value="CH" style="display:none;">
+                            <div class="onb-land-btn" id="onb_land_ch_btn" onclick="CompanyManager._selectLand('CH')" style="
+                                border:2px solid var(--border);border-radius:10px;padding:12px;text-align:center;
+                                background:var(--bg-secondary);transition:all .15s;">
+                                <div style="font-size:26px;">🇨🇭</div>
+                                <div style="font-weight:700;font-size:14px;margin-top:4px;">Schweiz</div>
+                                <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">MWST · EAR · AHV</div>
                             </div>
                         </label>
                     </div>
@@ -578,21 +597,21 @@ const CompanyManager = {
     _selectLand(land) {
         const deBtn = document.getElementById('onb_land_de_btn');
         const atBtn = document.getElementById('onb_land_at_btn');
+        const chBtn = document.getElementById('onb_land_ch_btn');
         const deRad = document.querySelector('input[name="onb_land"][value="DE"]');
         const atRad = document.querySelector('input[name="onb_land"][value="AT"]');
-        if (!deBtn || !atBtn) return;
+        const chRad = document.querySelector('input[name="onb_land"][value="CH"]');
+        const reset = (btn) => { if (btn) { btn.style.border = '2px solid var(--border)'; btn.style.background = 'var(--bg-secondary)'; } };
+        reset(deBtn); reset(atBtn); reset(chBtn);
         if (land === 'DE') {
-            deBtn.style.border = '2px solid var(--accent)';
-            deBtn.style.background = 'rgba(99,102,241,.1)';
-            atBtn.style.border = '2px solid var(--border)';
-            atBtn.style.background = 'var(--bg-secondary)';
+            if (deBtn) { deBtn.style.border = '2px solid var(--accent)'; deBtn.style.background = 'rgba(99,102,241,.1)'; }
             if (deRad) deRad.checked = true;
-        } else {
-            atBtn.style.border = '2px solid #e4323e';
-            atBtn.style.background = 'rgba(228,50,62,.08)';
-            deBtn.style.border = '2px solid var(--border)';
-            deBtn.style.background = 'var(--bg-secondary)';
+        } else if (land === 'AT') {
+            if (atBtn) { atBtn.style.border = '2px solid #e4323e'; atBtn.style.background = 'rgba(228,50,62,.08)'; }
             if (atRad) atRad.checked = true;
+        } else if (land === 'CH') {
+            if (chBtn) { chBtn.style.border = '2px solid #e4323e'; chBtn.style.background = 'rgba(228,50,62,.08)'; }
+            if (chRad) chRad.checked = true;
         }
     },
 
@@ -600,17 +619,21 @@ const CompanyManager = {
     _selectLandBtn(prefix, land) {
         const de = document.getElementById(prefix + '_land_de');
         const at = document.getElementById(prefix + '_land_at');
+        const ch = document.getElementById(prefix + '_land_ch');
         const deR = document.querySelector(`input[name="${prefix}_firma_land"][value="DE"]`);
         const atR = document.querySelector(`input[name="${prefix}_firma_land"][value="AT"]`);
-        if (!de || !at) return;
+        const chR = document.querySelector(`input[name="${prefix}_firma_land"][value="CH"]`);
+        const reset = (el) => { if (el) { el.style.border = '2px solid var(--border)'; el.style.background = 'var(--bg-secondary)'; } };
+        reset(de); reset(at); reset(ch);
         if (land === 'DE') {
-            de.style.border = '2px solid var(--accent)'; de.style.background = 'rgba(99,102,241,.1)';
-            at.style.border = '2px solid var(--border)'; at.style.background = 'var(--bg-secondary)';
+            if (de) { de.style.border = '2px solid var(--accent)'; de.style.background = 'rgba(99,102,241,.1)'; }
             if (deR) deR.checked = true;
-        } else {
-            at.style.border = '2px solid #e4323e'; at.style.background = 'rgba(228,50,62,.08)';
-            de.style.border = '2px solid var(--border)'; de.style.background = 'var(--bg-secondary)';
+        } else if (land === 'AT') {
+            if (at) { at.style.border = '2px solid #e4323e'; at.style.background = 'rgba(228,50,62,.08)'; }
             if (atR) atR.checked = true;
+        } else if (land === 'CH') {
+            if (ch) { ch.style.border = '2px solid #e4323e'; ch.style.background = 'rgba(228,50,62,.08)'; }
+            if (chR) chR.checked = true;
         }
     },
 

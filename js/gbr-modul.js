@@ -29,7 +29,7 @@ const GbrModul = {
 
     // ── Haupt-Render ──────────────────────────────────────────────
     render() {
-        if (!GbR.isGbR()) return this._renderNotAvailable();
+        if (!GbR.isPersonengesellschaft()) return this._renderNotAvailable();
 
         const einst = this._getEinst();
         const gs    = GbR.getGesellschafter();
@@ -496,7 +496,8 @@ const GbrModul = {
                 <div style="border-top:1px solid var(--border);margin:6px 0;"></div>
                 ${gs.map(g=>{
                     const v = verteilung.find(x=>x.id===g.id)||{};
-                    return `<div><strong>${Utils.escapeHtml(g.name)} (${g.anteil}%):</strong>&nbsp; Brutto ${Utils.formatCurrency(v.gewinnanteil||0)} · Netto ${Utils.formatCurrency((v.gewinnanteil||0)-(v.gewSt||0))}</div>`;
+                    const rolleLabel = g.rolle && g.rolle !== 'gesellschafter' ? ` [${g.rolle}]` : '';
+                    return `<div><strong>${Utils.escapeHtml(g.name)}${rolleLabel} (${g.anteil}%):</strong>&nbsp; Brutto ${Utils.formatCurrency(v.gewinnanteil||0)} · Netto ${Utils.formatCurrency((v.gewinnanteil||0)-(v.gewSt||0))}</div>`;
                 }).join('')}
             </div>
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
@@ -525,8 +526,9 @@ const GbrModul = {
         const gewSt      = GbR.berechneGewSt(gewinn);
         const rows = [
             ['Feststellungserklärung Export',`Stand: ${new Date().toLocaleDateString('de-DE')}`],
-            ['GbR-Name', einst.gbr_name||''],
+            ['Gesellschaftsname', einst.gbr_name||''],
             ['Rechtsform', einst.firmenform||'GbR'],
+            ['Handelsregister', einst.handelsregisterNr ? (einst.handelsregisterNr + ' / ' + (einst.handelsregisterGericht||'')) : '—'],
             ['Steuernummer', einst.steuernummer||''],
             ['Finanzamt', einst.finanzamt||''],
             ['Wirtschaftsjahr', year],
@@ -537,10 +539,10 @@ const GbrModul = {
             ['Gewerbesteuer', gewSt.toFixed(2),'€'],
             ['Netto-Gewinn', (gewinn-gewSt).toFixed(2),'€'],
             [''],
-            ['GESELLSCHAFTER','Anteil %','Bruttoanteil €','GewSt-Anteil €','Nettoanteil €'],
+            ['GESELLSCHAFTER','Rolle','Anteil %','Bruttoanteil €','GewSt-Anteil €','Nettoanteil €'],
             ...gs.map(g=>{
                 const v = verteilung.find(x=>x.id===g.id)||{};
-                return [g.name, g.anteil, (v.gewinnanteil||0).toFixed(2), (v.gewSt||0).toFixed(2), ((v.gewinnanteil||0)-(v.gewSt||0)).toFixed(2)];
+                return [g.name, g.rolle||'gesellschafter', g.anteil, (v.gewinnanteil||0).toFixed(2), (v.gewSt||0).toFixed(2), ((v.gewinnanteil||0)-(v.gewSt||0)).toFixed(2)];
             })
         ];
         if (typeof Utils.downloadCSV === 'function') {
@@ -653,12 +655,12 @@ const GbrModul = {
         return `
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:55vh;text-align:center;padding:40px;">
             <div style="font-size:52px;margin-bottom:16px;">🤝</div>
-            <h2 style="margin-bottom:10px;color:var(--text-primary);">GbR-Modul nicht aktiv</h2>
+            <h2 style="margin-bottom:10px;color:var(--text-primary);">Gesellschafter-Modul nicht aktiv</h2>
             <p style="color:var(--text-secondary);max-width:400px;margin-bottom:24px;line-height:1.6;">
-                Dieses Modul ist nur verfügbar wenn die Rechtsform auf <strong>GbR</strong> oder <strong>eGbR</strong> eingestellt ist.
-                Aktiviere es in den GbR-Einstellungen.
+                Dieses Modul ist für <strong>Personengesellschaften</strong> verfügbar (GbR, eGbR, OHG, KG, GmbH & Co. KG).
+                Rechtsform in den Einstellungen ändern.
             </p>
-            <button class="btn btn-primary" style="min-width:180px;" onclick="GbR.openSettingsModal()">⚙️ GbR aktivieren</button>
+            <button class="btn btn-primary" style="min-width:180px;" onclick="App.navigate('rechtsform')">Rechtsform wählen</button>
         </div>`;
     },
 

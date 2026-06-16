@@ -20,6 +20,7 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/l10n/de.js"></script>
     <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
     <script>Paddle.Initialize({ token: 'live_7d279f61a3499fed520f7cd8c08' });</script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -38,10 +39,12 @@
             <a href="../rechnungen/index.html" class="tool-tab active" title="Rechnungsbuch"><i class="ti ti-file-invoice tab-icon"></i> Rechnungen</a>
             <a href="../eigenbelege/index.html" class="tool-tab" title="Eigenbelege"><i class="ti ti-receipt tab-icon"></i> Eigenbelege</a>
             <a href="../lager/index.html" class="tool-tab" title="Lager"><i class="ti ti-package tab-icon"></i> Lager</a>
-            <a href="../app.html?page=euer" class="tool-tab" title="EÜR"><i class="ti ti-chart-bar tab-icon"></i> EÜR</a>
+            <a href="../app.html?page=euer" class="tool-tab" id="tabEuer" title="EÜR"><i class="ti ti-chart-bar tab-icon"></i> EÜR</a>
+            <a href="../app.html?page=schweiz" class="tool-tab" id="tabSchweiz" style="display:none;" title="EAR · Schweiz"><i class="ti ti-file-analytics tab-icon"></i> EAR</a>
             <a href="../app.html?page=akademie" class="tool-tab" title="Akademie"><i class="ti ti-school tab-icon"></i> Akademie</a>
             <a href="../app.html?page=gbr" class="tool-tab" id="toolTabGbr" style="display:none;" title="GbR-Verwaltung"><i class="ti ti-users tab-icon"></i> GbR</a>
         </div>
+        <script>(function(){try{var cos=JSON.parse(localStorage.getItem('oyi_companies')||'[]');var aid=localStorage.getItem('oyi_active_company')||'';var co=cos.find(function(c){return c.id===aid;})||cos[0];if(co&&co.land==='CH'){document.getElementById('tabEuer').style.display='none';document.getElementById('tabSchweiz').style.display='';}}catch(e){}})();</script>
         <div class="topnav-controls">
             <div id="companySwitcher"></div>
             <button class="theme-toggle" id="themeToggle" title="Theme wechseln" style="display:none;"></button>

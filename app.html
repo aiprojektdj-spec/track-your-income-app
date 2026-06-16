@@ -86,6 +86,12 @@
             <a href="app.html?page=gbr" class="tool-tab" id="toolTabGbr" title="GbR" style="display:none;">
                 <i class="ti ti-users tab-icon"></i> <span data-i18n="nav.gbr">GbR</span>
             </a>
+            <a href="app.html?page=schweiz" class="tool-tab" id="toolTabSchweiz" title="Schweiz – EAR/MWST/AHV" style="display:none;">
+                <i class="ti ti-flag-3 tab-icon"></i> <span>Schweiz</span>
+            </a>
+            <a href="app.html?page=oesterreich" class="tool-tab" id="toolTabOesterreich" title="Österreich – EAR/USt/GSVG/ESt" style="display:none;">
+                <i class="ti ti-flag-3 tab-icon"></i> <span>Österreich</span>
+            </a>
         </div>
 
         <!-- Right controls -->
@@ -129,6 +135,53 @@
                 </div>
             </div>
 
+            <!-- ── Österreich-Sektion (nur sichtbar wenn AT-Modus aktiv) ── -->
+            <div class="sidebar-section" id="atSidebarSection" style="display:none;">Österreich</div>
+            <div class="sidebar-section-items" id="atSidebarItems" style="display:none;">
+                <div class="sidebar-link" onclick="Oesterreich._tab='ear';App.navigate('oesterreich')">
+                    <span class="icon"><i class="ti ti-clipboard-list"></i></span><span class="sidebar-link-label"> EAR</span>
+                </div>
+                <div class="sidebar-link" onclick="Oesterreich._tab='ust';App.navigate('oesterreich')">
+                    <span class="icon"><i class="ti ti-receipt-tax"></i></span><span class="sidebar-link-label"> USt</span>
+                </div>
+                <div class="sidebar-link" onclick="Oesterreich._tab='gsvg';App.navigate('oesterreich')">
+                    <span class="icon"><i class="ti ti-shield-heart"></i></span><span class="sidebar-link-label"> GSVG / SV</span>
+                </div>
+                <div class="sidebar-link" onclick="Oesterreich._tab='est';App.navigate('oesterreich')">
+                    <span class="icon"><i class="ti ti-calculator"></i></span><span class="sidebar-link-label"> Einkommensteuer</span>
+                </div>
+            </div>
+
+            <!-- ── Schweiz-Sektion (nur sichtbar wenn CH-Modus aktiv) ── -->
+            <div class="sidebar-section" id="chSidebarSection" style="display:none;">Schweiz – EAR</div>
+            <div class="sidebar-section-items" id="chSidebarItems" style="display:none;">
+                <div class="sidebar-link" id="chNav_jahr" data-ch-period="jahr">
+                    <span class="icon"><i class="ti ti-clipboard-list"></i></span><span class="sidebar-link-label"> Jahres-EAR</span>
+                </div>
+                <div class="sidebar-link" id="chNav_monat" data-ch-period="monat">
+                    <span class="icon"><i class="ti ti-calendar"></i></span><span class="sidebar-link-label"> Monatliche EAR</span>
+                </div>
+                <div class="sidebar-link" id="chNav_quartal" data-ch-period="quartal">
+                    <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> Quartals-EAR</span>
+                </div>
+                <div style="border-top:1px solid var(--border);margin:6px 12px;"></div>
+                <div class="sidebar-link" data-page="steuertermine">
+                    <span class="icon"><i class="ti ti-calendar-event"></i></span><span class="sidebar-link-label"> Steuertermine (CH)</span>
+                </div>
+                <div class="sidebar-link" data-page="statistiken">
+                    <span class="icon"><i class="ti ti-trending-up"></i></span><span class="sidebar-link-label"> Statistiken</span>
+                </div>
+                <div class="sidebar-link" data-page="ausgaben">
+                    <span class="icon"><i class="ti ti-cash"></i></span><span class="sidebar-link-label"> Ausgaben (Betrieb)</span>
+                </div>
+                <div class="sidebar-link" data-page="afa">
+                    <span class="icon"><i class="ti ti-trending-down"></i></span><span class="sidebar-link-label"> AfA / Abschreibungen</span>
+                </div>
+                <div class="sidebar-link" data-page="bankimport">
+                    <span class="icon"><i class="ti ti-building-bank"></i></span><span class="sidebar-link-label"> Bank-Import</span>
+                </div>
+            </div>
+
             <!-- ── EÜR-Sektion (nur sichtbar wenn EÜR aktiv) ── -->
             <div class="sidebar-section" id="euerSidebarSection" style="display:none;">EÜR – Auswertung</div>
             <div class="sidebar-section-items" id="euerSidebarItems" style="display:none;">
@@ -162,13 +215,13 @@
                 <div class="sidebar-link" data-page="afa">
                     <span class="icon"><i class="ti ti-trending-down"></i></span><span class="sidebar-link-label"> AfA / Abschreibungen</span>
                 </div>
-                <div class="sidebar-link" data-page="privatbuchungen">
+                <div class="sidebar-link" data-page="privatbuchungen" id="privatbuchungenSidebarLink">
                     <span class="icon"><i class="ti ti-briefcase"></i></span><span class="sidebar-link-label"> Privatentnahmen/-einlagen</span>
                 </div>
                 <div class="sidebar-link" data-page="ustvoranmeldung">
                     <span class="icon"><i class="ti ti-receipt"></i></span><span class="sidebar-link-label"> USt-Voranmeldung</span>
                 </div>
-                <div class="sidebar-link" data-page="ksk">
+                <div class="sidebar-link" data-page="ksk" id="kskSidebarLink">
                     <span class="icon"><i class="ti ti-palette"></i></span><span class="sidebar-link-label"> KSK (Künstlersozialks.)</span>
                 </div>
                 <div class="sidebar-link" data-page="steuerberater">
@@ -182,6 +235,12 @@
                 </div>
                 <div class="sidebar-link" data-page="bilanz" id="bilanzSidebarLink" style="display:none;">
                     <span class="icon"><i class="ti ti-report-analytics"></i></span><span class="sidebar-link-label"> Bilanz / GuV</span>
+                </div>
+                <div class="sidebar-link" data-page="gewerbesteuer" id="gewstSidebarLink" style="display:none;">
+                    <span class="icon"><i class="ti ti-building-store"></i></span><span class="sidebar-link-label"> Gewerbesteuer</span>
+                </div>
+                <div class="sidebar-link" data-page="lohnsteuer" id="lohnsteuerSidebarLink" style="display:none;">
+                    <span class="icon"><i class="ti ti-users"></i></span><span class="sidebar-link-label"> Lohnsteuer</span>
                 </div>
                 <div class="sidebar-link" data-page="rechtsform">
                     <span class="icon"><i class="ti ti-building"></i></span><span class="sidebar-link-label"> Rechtsform</span>
@@ -319,8 +378,12 @@
     <script defer src="js/vorsteuer.js"></script>
     <script defer src="js/koerperschaftsteuer.js"></script>
     <script defer src="js/bilanz.js"></script>
+    <script defer src="js/gewerbesteuer.js"></script>
+    <script defer src="js/lohnsteuer.js"></script>
     <script defer src="js/gbr.js"></script>
     <script defer src="js/gbr-modul.js"></script>
+    <script defer src="js/schweiz.js"></script>
+    <script defer src="js/oesterreich.js"></script>
     <script defer src="js/svs.js"></script>
     <script defer src="js/materiallager.js"></script>
     <script defer src="js/akademie.js"></script>
@@ -333,7 +396,7 @@
         // ── Mark active tool tab based on ?page= param ──
         (function() {
             const page = new URLSearchParams(location.search).get('page');
-            const tabIds = { euer: 'toolTabEuer', akademie: 'toolTabAkademie', gbr: 'toolTabGbr' };
+            const tabIds = { euer: 'toolTabEuer', akademie: 'toolTabAkademie', gbr: 'toolTabGbr', schweiz: 'toolTabSchweiz', oesterreich: 'toolTabOesterreich' };
             const tabId = tabIds[page];
             if (tabId) {
                 document.querySelector('.topnav-apps .tool-tab.active')?.classList.remove('active');

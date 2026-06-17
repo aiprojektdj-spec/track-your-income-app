@@ -3,31 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Gate: Kein Supabase-Session → sofort zur Landing Page (synchron, vor allem anderen) -->
-    <!-- Ausnahme: Supabase Password-Reset-Link (#type=recovery) darf durch -->
+    <!-- Gate: Whop OAuth callback (?code=) oder gespeichertes Token → durch -->
+    <!-- WhopAuth.boot() übernimmt Login-Logik nach Script-Load -->
     <script>
     (function(){
-        // Password-Reset-Link von Supabase: hash enthält type=recovery
-        var hash = location.hash || '';
-        if (hash.indexOf('type=recovery') !== -1) return; // Reset-Handler läuft weiter unten
-
-        try {
-            var raw = localStorage.getItem('oyi_auth_session');
-            if (!raw) { location.replace('index.html'); return; }
-            var s = JSON.parse(raw);
-            var token = (s && s.access_token) || (s && s.currentSession && s.currentSession.access_token);
-            if (!token) location.replace('index.html');
-        } catch(e) {
-            location.replace('index.html');
-        }
+        // OAuth-Callback immer durchlassen
+        if (new URLSearchParams(location.search).get('code')) return;
+        // Gespeichertes Whop-Token → App normal laden, WhopAuth.boot() validiert
+        // Kein Token → WhopAuth.boot() zeigt Login-Screen (kein Redirect nötig)
     })();
     </script>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.paddle.com; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.paddle.com; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co https://*.paddle.com; frame-src https://buy.paddle.com https://checkout.paddle.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co https://api.whop.com; frame-src 'none';">
 
     <!-- ── Resource Hints: faster CDN connections ── -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://csfvzmlihkrxokbbjyhf.supabase.co">
-    <link rel="preconnect" href="https://cdn.paddle.com">
+    <link rel="preconnect" href="https://api.whop.com">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
@@ -341,7 +332,6 @@
     <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/l10n/de.js"></script>
     <!-- ApexCharts (~600KB): lazy-loaded by dashboard.js only when chart tab opens -->
-    <!-- Paddle.js: lazy-loaded by js/paddle-init.js only on upgrade click -->
 
     <!-- ── App core ── -->
     <script defer src="js/cookie-banner.js"></script>
@@ -351,8 +341,8 @@
     <script defer src="js/store.js"></script>
     <script defer src="js/supabase-client.js"></script>
     <script defer src="js/cloud-sync.js?v=2"></script>
-    <script defer src="js/user-plan.js?v=2"></script>
-    <script defer src="js/auth-ui.js?v=2"></script>
+    <script defer src="js/user-plan.js?v=3"></script>
+    <script defer src="js/whop-auth.js"></script>
     <script defer src="js/utils.js"></script>
 
     <!-- ── Feature modules ── -->
@@ -387,7 +377,6 @@
     <script defer src="js/svs.js"></script>
     <script defer src="js/materiallager.js"></script>
     <script defer src="js/akademie.js"></script>
-    <script defer src="js/paddle-init.js"></script>
 
     <!-- ── Entry point (last, depends on all above) ── -->
     <script defer src="js/app.js?v=2"></script>

@@ -16,7 +16,7 @@ var AuthUI = (function () {
     var WHOP_CLIENT_ID    = 'app_dc3OND8eGv2Iim';
     var WHOP_REDIRECT_URI = 'https://track-your-income-app.vercel.app/app.html';
     var WHOP_SCOPE        = 'openid profile email';
-    var WHOP_PURCHASE_URL = 'https://whop.com/hub/app_dc3OND8eGv2Iim/';
+    var WHOP_PURCHASE_URL = 'https://whop.com/stackr-3244/';
     var PKCE_KEY          = 'whop_oauth_pkce';
 
     var LS_TOKEN = 'whop_access_token';

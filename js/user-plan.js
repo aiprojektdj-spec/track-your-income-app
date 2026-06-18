@@ -8,7 +8,7 @@
 var UserPlan = (function () {
     'use strict';
 
-    var WHOP_PURCHASE_URL = 'https://whop.com/hub/app_dc3OND8eGv2Iim/';
+    var WHOP_PURCHASE_URL = 'https://whop.com/stackr-3244/';
 
     var _plan   = 'pro';
     var _loaded = false;

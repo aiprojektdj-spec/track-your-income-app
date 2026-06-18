@@ -1,73 +1,141 @@
 // ============================================
-// WhopAuth — Whop OAuth Login + Membership Check
+// WhopAuth — Whop OAuth 2.1 + PKCE Login
 //
 // Ersetzt auth-ui.js vollständig.
 // Gleiche öffentliche API: AuthUI.boot(), openUserMenu(), _logout()
 //
-// Flow:
-//  1. boot() prüft ?code= (OAuth-Callback) oder gespeichertes Token
-//  2. Token-Exchange läuft server-seitig über /api/whop-token
-//  3. Membership-Check: GET api.whop.com/v5/me/has-access/app_dc3OND8eGv2Iim
-//  4. Bei Erfolg: App._continueAfterAuth(user) aufrufen
+// Flow (OAuth 2.1 + PKCE):
+//  1. _loginWithWhop(): erzeugt code_verifier/challenge, leitet zu Whop weiter
+//  2. boot(): erkennt ?code= Callback, tauscht Code gegen Token (PKCE, kein client_secret)
+//  3. _validateAndContinue(): prüft userinfo + has-access
+//  4. _onAuthorized(): App starten
 // ============================================
 var AuthUI = (function () {
     'use strict';
 
     var WHOP_CLIENT_ID    = 'app_dc3OND8eGv2Iim';
     var WHOP_REDIRECT_URI = 'https://track-your-income-app.vercel.app/app.html';
-    var WHOP_SCOPE        = 'openid';
+    var WHOP_SCOPE        = 'openid profile email';
     var WHOP_PURCHASE_URL = 'https://whop.com/hub/app_dc3OND8eGv2Iim/';
+    var PKCE_KEY          = 'whop_oauth_pkce';
 
     var LS_TOKEN = 'whop_access_token';
     var LS_USER  = 'whop_user';
 
     var _bootDone = false;
 
-    // ── Einstieg (von App._bootAfterLicense() aufgerufen) ────
+    // ── PKCE Helpers ──────────────────────────────────────────
+    function _base64url(bytes) {
+        return btoa(String.fromCharCode.apply(null, Array.from(bytes)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+
+    function _randomString(len) {
+        return _base64url(crypto.getRandomValues(new Uint8Array(len)));
+    }
+
+    async function _sha256(str) {
+        var data = new TextEncoder().encode(str);
+        var hash = await crypto.subtle.digest('SHA-256', data);
+        return _base64url(new Uint8Array(hash));
+    }
+
+    // ── Einstieg ──────────────────────────────────────────────
     async function boot() {
         _injectStyles();
         _injectWidget();
         _showLoader('Verbinde mit Stackr...');
 
-        // OAuth-Callback: ?code= in URL
         var urlParams = new URLSearchParams(location.search);
-        var code = urlParams.get('code');
+        var code      = urlParams.get('code');
+        var error     = urlParams.get('error');
 
-        if (code) {
-            history.replaceState({}, '', location.pathname); // Code aus URL entfernen
-            await _handleOAuthCallback(code);
+        if (error) {
+            history.replaceState({}, '', location.pathname);
+            _hideLoader();
+            _showLoginScreen('OAuth-Fehler: ' + error);
             return;
         }
 
-        // Gespeichertes Token prüfen
+        if (code) {
+            history.replaceState({}, '', location.pathname);
+            await _handleOAuthCallback(code, urlParams.get('state'));
+            return;
+        }
+
         var token = localStorage.getItem(LS_TOKEN);
         if (token) {
             var ok = await _validateAndContinue(token);
             if (ok) return;
         }
 
-        // Kein Token / ungültig → Login-Screen
         _hideLoader();
         _showLoginScreen();
     }
 
-    // ── OAuth-Callback: Code → Token ──────────────────────────
-    async function _handleOAuthCallback(code) {
+    // ── OAuth-Redirect mit PKCE ───────────────────────────────
+    async function _loginWithWhop() {
+        var btn = document.getElementById('whopLoginBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Weiterleitung...'; }
+
+        var codeVerifier  = _randomString(32);
+        var state         = _randomString(16);
+        var nonce         = _randomString(16);
+        var codeChallenge = await _sha256(codeVerifier);
+
+        sessionStorage.setItem(PKCE_KEY, JSON.stringify({ codeVerifier: codeVerifier, state: state, nonce: nonce }));
+
+        var params = new URLSearchParams({
+            response_type:         'code',
+            client_id:             WHOP_CLIENT_ID,
+            redirect_uri:          WHOP_REDIRECT_URI,
+            scope:                 WHOP_SCOPE,
+            state:                 state,
+            nonce:                 nonce,
+            code_challenge:        codeChallenge,
+            code_challenge_method: 'S256',
+        });
+
+        location.href = 'https://api.whop.com/oauth/authorize?' + params.toString();
+    }
+
+    // ── OAuth-Callback: Code → Token (PKCE, kein client_secret) ──
+    async function _handleOAuthCallback(code, returnedState) {
         _updateLoader('Authentifiziere mit Whop...');
+
+        var stored = null;
+        try { stored = JSON.parse(sessionStorage.getItem(PKCE_KEY) || 'null'); } catch (e) {}
+        sessionStorage.removeItem(PKCE_KEY);
+
+        if (!stored || (returnedState && returnedState !== stored.state)) {
+            _hideLoader();
+            _showLoginScreen('Sicherheitsfehler: Bitte erneut versuchen.');
+            return;
+        }
+
         try {
-            var res = await fetch('/api/whop-token', {
+            var res = await fetch('https://api.whop.com/oauth/token', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ code: code }),
+                body:    JSON.stringify({
+                    grant_type:    'authorization_code',
+                    code:          code,
+                    redirect_uri:  WHOP_REDIRECT_URI,
+                    client_id:     WHOP_CLIENT_ID,
+                    code_verifier: stored.codeVerifier,
+                }),
             });
             var data = await res.json();
-            if (!res.ok || !data.access_token) throw new Error(data.error || 'Token-Austausch fehlgeschlagen');
+
+            if (!res.ok || !data.access_token) {
+                throw new Error(data.error_description || data.error || 'Token-Austausch fehlgeschlagen');
+            }
 
             localStorage.setItem(LS_TOKEN, data.access_token);
             var ok = await _validateAndContinue(data.access_token);
-            if (!ok) { _hideLoader(); _showLoginScreen('Anmeldung fehlgeschlagen — kein aktives Abo gefunden.'); }
+            if (!ok) { _hideLoader(); _showLoginScreen('Kein aktives Stackr-Abo gefunden.'); }
         } catch (err) {
-            console.error('[WhopAuth] OAuth-Callback-Fehler:', err);
+            console.error('[WhopAuth] OAuth-Fehler:', err);
             _hideLoader();
             _showLoginScreen('Anmeldung fehlgeschlagen: ' + err.message);
         }
@@ -77,31 +145,32 @@ var AuthUI = (function () {
     async function _validateAndContinue(token) {
         _updateLoader('Überprüfe Mitgliedschaft...');
         try {
-            // Nutzer-Info abrufen
-            var meRes = await fetch('https://api.whop.com/v5/me', {
+            // Nutzer-Info via OIDC userinfo endpoint
+            var meRes = await fetch('https://api.whop.com/oauth/userinfo', {
                 headers: { 'Authorization': 'Bearer ' + token }
             });
             if (!meRes.ok) {
-                // Token abgelaufen oder ungültig
                 localStorage.removeItem(LS_TOKEN);
                 localStorage.removeItem(LS_USER);
                 return false;
             }
             var me = await meRes.json();
+            // OIDC-Felder normalisieren
+            me.id       = me.sub;
+            me.username = me.preferred_username || me.name || me.sub || 'User';
             localStorage.setItem(LS_USER, JSON.stringify(me));
 
-            // Membership prüfen (Zugang zur App)
+            // Membership-Check
             var accessRes = await fetch('https://api.whop.com/v5/me/has-access/' + WHOP_CLIENT_ID, {
                 headers: { 'Authorization': 'Bearer ' + token }
             });
             var accessData = accessRes.ok ? await accessRes.json() : {};
-            var hasAccess = accessData.has_access === true;
+            var hasAccess  = accessData.has_access === true;
 
             if (hasAccess) {
                 await _onAuthorized(me);
                 return true;
             } else {
-                // Token ok, aber kein aktives Abo
                 _hideLoader();
                 _showNoMembershipScreen(me);
                 return false;
@@ -118,12 +187,9 @@ var AuthUI = (function () {
         _updateLoader('Lade Stackr...');
         _updateWidget(user);
 
-        // Cloud-Sync deaktivieren (kein Supabase-Login mehr)
         if (typeof CloudSync !== 'undefined') {
             try { CloudSync.disable(); } catch (e) {}
         }
-
-        // UserPlan-Badge einblenden (jetzt immer PRO)
         if (typeof UserPlan !== 'undefined') {
             try { UserPlan.injectBadge(); UserPlan.load(user.id); } catch (e) {}
         }
@@ -133,7 +199,7 @@ var AuthUI = (function () {
         if (!_bootDone) {
             _bootDone = true;
             var appUser = {
-                id:       user.id,
+                id:       user.id || user.sub,
                 email:    user.email || (user.username + '@whop.stackr'),
                 username: user.username,
             };
@@ -141,6 +207,15 @@ var AuthUI = (function () {
                 App._continueAfterAuth(appUser);
             }
         }
+    }
+
+    // ── Abmelden ──────────────────────────────────────────────
+    function _logout() {
+        var m = document.getElementById('authUserMenu');
+        if (m) m.remove();
+        localStorage.removeItem(LS_TOKEN);
+        localStorage.removeItem(LS_USER);
+        location.replace('app.html');
     }
 
     // ── Login-Screen ──────────────────────────────────────────
@@ -157,7 +232,7 @@ var AuthUI = (function () {
             '<h1 style="color:var(--text-primary,#fff);font-size:26px;font-weight:800;margin:0 0 8px;letter-spacing:-.5px;">Stackr</h1>',
             '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 32px;line-height:1.6;">Dein Buchhaltungs-Tool für Selbstständige</p>',
             errorMsg ? '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:13px;color:#f87171;text-align:left;">' + _esc(errorMsg) + '</div>' : '',
-            '<button id="whopLoginBtn" onclick="AuthUI._loginWithWhop()" style="width:100%;padding:14px;background:var(--accent,#10b981);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:15px;font-weight:700;letter-spacing:-.2px;transition:opacity .15s;margin-bottom:12px;">',
+            '<button id="whopLoginBtn" onclick="AuthUI._loginWithWhop()" style="width:100%;padding:14px;background:var(--accent,#10b981);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:15px;font-weight:700;letter-spacing:-.2px;margin-bottom:12px;">',
             'Mit Whop anmelden →',
             '</button>',
             '<p style="color:var(--text-muted,#666);font-size:12px;margin:0;line-height:1.6;">',
@@ -168,7 +243,7 @@ var AuthUI = (function () {
         document.body.appendChild(overlay);
     }
 
-    // ── Kein Abo Screen ───────────────────────────────────────
+    // ── Kein-Abo Screen ───────────────────────────────────────
     function _showNoMembershipScreen(user) {
         var name = user ? (user.username || (user.email || '').split('@')[0] || 'User') : 'User';
         var existing = document.getElementById('whopNoMemberOverlay');
@@ -195,33 +270,6 @@ var AuthUI = (function () {
             '</div>'
         ].join('');
         document.body.appendChild(overlay);
-    }
-
-    // ── OAuth-Redirect zu Whop ────────────────────────────────
-    function _loginWithWhop() {
-        var btn = document.getElementById('whopLoginBtn');
-        if (btn) { btn.disabled = true; btn.textContent = 'Weiterleitung...'; }
-
-        var state = Math.random().toString(36).substring(2, 10);
-        sessionStorage.setItem('whop_oauth_state', state);
-
-        var url = 'https://whop.com/oauth' +
-            '?client_id='     + encodeURIComponent(WHOP_CLIENT_ID)    +
-            '&redirect_uri='  + encodeURIComponent(WHOP_REDIRECT_URI) +
-            '&response_type=code' +
-            '&scope='         + encodeURIComponent(WHOP_SCOPE)        +
-            '&state='         + encodeURIComponent(state);
-
-        location.href = url;
-    }
-
-    // ── Abmelden ──────────────────────────────────────────────
-    function _logout() {
-        var m = document.getElementById('authUserMenu');
-        if (m) m.remove();
-        localStorage.removeItem(LS_TOKEN);
-        localStorage.removeItem(LS_USER);
-        location.replace('app.html');
     }
 
     // ── Topnav-Widget ─────────────────────────────────────────
@@ -306,7 +354,7 @@ var AuthUI = (function () {
         if (el) el.remove();
     }
 
-    // ── Styles ───────────────────────────────────────────────
+    // ── Styles ────────────────────────────────────────────────
     function _injectStyles() {
         if (document.getElementById('authUiStyles')) return;
         var s = document.createElement('style');
@@ -318,7 +366,6 @@ var AuthUI = (function () {
         document.head.appendChild(s);
     }
 
-    // ── Hilfsfunktion ─────────────────────────────────────────
     function _esc(s) {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }

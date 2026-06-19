@@ -99,7 +99,7 @@ var AuthUI = (function () {
         location.href = 'https://api.whop.com/oauth/authorize?' + params.toString();
     }
 
-    // ── OAuth-Callback: Code → Token (PKCE, kein client_secret) ──
+    // ── OAuth-Callback: Code → Token (via /api/whop-token, PKCE + client_secret serverseitig) ──
     async function _handleOAuthCallback(code, returnedState) {
         _updateLoader('Authentifiziere mit Whop...');
 
@@ -114,14 +114,11 @@ var AuthUI = (function () {
         }
 
         try {
-            var res = await fetch('https://api.whop.com/oauth/token', {
+            var res = await fetch('/api/whop-token', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body:    JSON.stringify({
-                    grant_type:    'authorization_code',
                     code:          code,
-                    redirect_uri:  WHOP_REDIRECT_URI,
-                    client_id:     WHOP_CLIENT_ID,
                     code_verifier: stored.codeVerifier,
                 }),
             });

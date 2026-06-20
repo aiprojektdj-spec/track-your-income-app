@@ -1010,6 +1010,35 @@ const Store = {
         return entry;
     },
 
+    // Wie _addAuditEntry, aber für viele Einträge in EINER Schreiboperation (Bulk-Import).
+    // Hash-Chain bleibt identisch (jeder prevHash = checksum des Vorgängers) → verifyAuditChain() bleibt gültig.
+    _addAuditEntriesBatch(items) {
+        if (!items || !items.length) return 0;
+        const log = this.getAuditLog();
+        let prevHash = log.length ? (log[log.length - 1].checksum || '') : 'GENESIS';
+        for (const it of items) {
+            const entry = {
+                id: this.generateId(),
+                timestamp: new Date().toISOString(),
+                action: it.action,
+                entityType: it.entityType,
+                entityId: it.entityId,
+                oldValues: it.oldValues || null,
+                newValues: it.newValues || null,
+                details: it.details || '',
+                prevHash,
+                checksum: ''
+            };
+            entry.checksum = this._calcChecksum(JSON.stringify(entry));
+            prevHash = entry.checksum;   // Kettenglied für nächsten Eintrag
+            log.push(entry);
+        }
+        const str = JSON.stringify(log);
+        this._cache[this._auditKey] = str;
+        this._idbPut(this._auditKey, str);
+        return items.length;
+    },
+
     // Verify audit log chain integrity — returns { valid, broken, total }
     verifyAuditChain() {
         const log = this.getAuditLog();

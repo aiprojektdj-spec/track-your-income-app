@@ -31,17 +31,8 @@
         </svg>
         <div style="font-size:14px;font-weight:700;color:var(--text-primary);line-height:1;letter-spacing:-.3px;">Stackr</div>
     </div>
-    <div class="topnav-apps">
-        <a href="../app.html" class="tool-tab" title="Overview Dashboard"><i class="ti ti-layout-dashboard tab-icon"></i> Dashboard</a>
-        <a href="../rechnungen/index.html" class="tool-tab" title="Rechnungsbuch"><i class="ti ti-file-invoice tab-icon"></i> Rechnungen</a>
-        <a href="../eigenbelege/index.html" class="tool-tab" title="Eigenbelege"><i class="ti ti-receipt tab-icon"></i> Eigenbelege</a>
-        <a href="index.html" class="tool-tab active" title="Lager"><i class="ti ti-package tab-icon"></i> Lager</a>
-        <a href="../app.html?page=euer" class="tool-tab" id="tabEuer" title="EÜR"><i class="ti ti-chart-bar tab-icon"></i> EÜR</a>
-        <a href="../app.html?page=schweiz" class="tool-tab" id="tabSchweiz" style="display:none;" title="EAR · Schweiz"><i class="ti ti-file-analytics tab-icon"></i> EAR</a>
-        <a href="../app.html?page=akademie" class="tool-tab" title="Akademie"><i class="ti ti-school tab-icon"></i> Akademie</a>
-        <a href="../app.html?page=gbr" class="tool-tab" id="toolTabGbr" style="display:none;" title="GbR-Verwaltung"><i class="ti ti-users tab-icon"></i> GbR</a>
-    </div>
-    <script>(function(){try{var cos=JSON.parse(localStorage.getItem('oyi_companies')||'[]');var aid=localStorage.getItem('oyi_active_company')||'';var co=cos.find(function(c){return c.id===aid;})||cos[0];if(co&&co.land==='CH'){document.getElementById('tabEuer').style.display='none';document.getElementById('tabSchweiz').style.display='';}}catch(e){}})();</script>
+    <div class="topnav-apps" id="topnavApps" data-active="lager"></div>
+    <script src="../js/topnav.js"></script>
     <div class="topnav-controls">
         <div id="companySwitcher"></div>
         <button class="theme-toggle" id="themeToggle" title="Theme wechseln" style="display:none;"></button>
@@ -1573,17 +1564,69 @@ const ExcelImport = {
     _mapping: {},       // Field → ColumnName
 
     // Erkennt automatisch welche Spalte zu welchem Feld gehört (deutsch + englisch)
+    // Fragezeichen werden ignoriert ("was?" → "was", "wo?" → "wo")
     _autoDetect(columns) {
-        const lc = c => (c || '').toString().trim().toLowerCase();
+        const lc = c => (c || '').toString().trim().toLowerCase().replace(/\?/g, '');
         const find = (...names) => columns.find(c => names.includes(lc(c))) || '';
         return {
+            datum:        find('kaufdatum', 'datum', 'date', 'einkaufsdatum', 'kauf'),
             marke:        find('marke', 'brand', 'hersteller'),
             artikeltyp:   find('typ', 'artikeltyp', 'kategorie', 'type', 'category'),
             groesse:      find('größe', 'groesse', 'size', 'gr', 'gr.', 'gröse'),
-            beschreibung: find('beschreibung', 'description', 'modell', 'name', 'titel', 'title'),
-            einkaufspreis:find('ek', 'ek-preis', 'einkauf', 'einkaufspreis', 'preis', 'price', 'cost'),
-            anzahl:       find('anzahl', 'menge', 'quantity', 'qty', 'stück', 'stueck')
+            beschreibung: find('beschreibung', 'description', 'modell', 'name', 'titel', 'title', 'was', 'artikel', 'item', 'produkt', 'bezeichnung'),
+            einkaufspreis:find('ek', 'ek-preis', 'einkauf', 'einkaufspreis', 'preis', 'price', 'cost', 'kaufpreis'),
+            quelle:       find('wo', 'quelle', 'source', 'einkaufsquelle', 'händler', 'haendler', 'shop', 'laden'),
+            anzahl:       find('anzahl', 'menge', 'quantity', 'qty', 'stück', 'stueck'),
+            verkaufspreis:find('verkauf', 'verkaufspreis', 'vk', 'vk-preis', 'sale', 'sold', 'erlös', 'erloes'),
+            verkaufsdatum:find('verkaufsdatum', 'verkaufdatum', 'vk-datum', 'sale date', 'saledate', 'sold date'),
+            verkaufswo:   find('wo2', 'wohin', 'käufer', 'kaeufer', 'buyer', 'sold to'),
+            // Optionale Ausgaben-/Einnahmen-Posten für die EÜR (€ bzw. %) — nur bei passender Spalte
+            versandKaeufer:    find('versand käufer', 'versandkäufer', 'versandkosten käufer', 'versand vom käufer', 'shipping charged'),
+            versandVerkaeufer: find('versand', 'porto', 'shipping', 'versandkosten', 'versandkosten verkäufer', 'versand verkäufer'),
+            gebuehrProzent:    find('gebühr %', 'gebuehr %', 'provision %', 'fee %', 'plattformgebühr %', 'gebührprozent')
         };
+    },
+
+    // Findet die echte Header-Zeile (manche Exporte haben Titel-/Legenden-Zeilen darüber).
+    // aoa = Array-of-Arrays inkl. Leerzeilen, damit der Index der Tabellenzeile entspricht.
+    _findHeaderRow(aoa) {
+        const KW = new Set(['marke','brand','hersteller','typ','artikeltyp','kategorie','type','category',
+            'größe','groesse','size','beschreibung','description','modell','name','titel','title','was','artikel','bezeichnung',
+            'ek','ek-preis','einkauf','einkaufspreis','preis','price','cost','kaufpreis',
+            'wo','quelle','source','datum','kaufdatum','date','anzahl','menge','quantity','qty','stück','stueck']);
+        const clean = c => (c == null ? '' : String(c)).trim().toLowerCase().replace(/\?/g, '');
+        const limit = Math.min(aoa.length, 30);
+        let best = -1;
+        for (let i = 0; i < limit; i++) {
+            const cells = (aoa[i] || []).map(clean).filter(Boolean);
+            if (cells.length < 2) continue;
+            if (cells.some(c => KW.has(c))) return i;          // erste Zeile mit bekanntem Header-Stichwort
+            if (best === -1 && cells.length >= 3) best = i;     // Fallback: erste „volle“ Zeile
+        }
+        return best === -1 ? 0 : best;
+    },
+
+    // Robuster Datums-Parser → 'YYYY-MM-DD' (lokal, kein UTC-Versatz) oder null.
+    // Erkennt ISO, DE (TT.MM.JJJJ) und US (M/T/JJ) — bei 13/x ist die >12-Zahl zwingend der Tag.
+    _parseDate(v) {
+        if (v == null || v === '') return null;
+        const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (v instanceof Date) return isNaN(v.getTime()) ? null : fmt(v);
+        const s = String(v).trim();
+        if (!s) return null;
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+        const m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/);
+        if (m) {
+            let a = +m[1], b = +m[2], y = m[3]; if (y.length === 2) y = '20' + y;
+            let day, mon;
+            if (a > 12 && b <= 12)      { day = a; mon = b; }   // DE  TT/MM
+            else if (b > 12 && a <= 12) { day = b; mon = a; }   // US  MM/TT
+            else                        { day = a; mon = b; }   // mehrdeutig → DE-Default
+            if (mon >= 1 && mon <= 12 && day >= 1 && day <= 31)
+                return `${y}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : fmt(d);
     },
 
     open() {
@@ -1653,13 +1696,22 @@ const ExcelImport = {
                 const wb = XLSX.read(e.target.result, { type: 'array' });
                 const sheetName = wb.SheetNames[0];
                 const sheet = wb.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+                // 1) Rohe Zeilen lesen, um die echte Header-Zeile zu finden (Leerzeilen behalten → Index = Tabellenzeile)
+                const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+                if (aoa.length === 0) {
+                    Utils.showToast('Datei enthält keine Daten', 'warning');
+                    return;
+                }
+                const hdrIdx = this._findHeaderRow(aoa);
+                // 2) Ab erkannter Header-Zeile als Objekte lesen
+                const json = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false, range: hdrIdx });
                 if (json.length === 0) {
                     Utils.showToast('Datei enthält keine Daten', 'warning');
                     return;
                 }
                 this._rows = json;
-                this._columns = Object.keys(json[0]);
+                // Nur echte Spalten — leere __EMPTY-Platzhalter (z. B. erste Leerspalte) raus
+                this._columns = Object.keys(json[0]).filter(k => k && !/^__EMPTY/.test(k));
                 this._mapping = this._autoDetect(this._columns);
                 this._renderMapping();
                 this._renderPreview();
@@ -1678,12 +1730,20 @@ const ExcelImport = {
 
     _renderMapping() {
         const fields = [
+            { key: 'datum',         label: 'Kaufdatum',      required: false },
             { key: 'marke',         label: 'Marke',          required: false },
             { key: 'artikeltyp',    label: 'Artikeltyp',     required: false },
             { key: 'groesse',       label: 'Größe',          required: false },
             { key: 'beschreibung',  label: 'Beschreibung',   required: false },
-            { key: 'einkaufspreis', label: 'EK-Preis (€) *', required: true  },
-            { key: 'anzahl',        label: 'Anzahl',         required: false }
+            { key: 'einkaufspreis', label: 'EK-Preis *',     required: true  },
+            { key: 'quelle',        label: 'Einkaufsquelle', required: false },
+            { key: 'anzahl',        label: 'Anzahl',         required: false },
+            { key: 'verkaufspreis', label: 'Verkaufspreis',  required: false },
+            { key: 'verkaufsdatum', label: 'Verkaufsdatum',  required: false },
+            { key: 'verkaufswo',    label: 'Verkauft an / wo',required: false },
+            { key: 'versandKaeufer',    label: 'Versand v. Käufer (€)',  required: false },
+            { key: 'versandVerkaeufer', label: 'Versandkosten (€)',      required: false },
+            { key: 'gebuehrProzent',    label: 'Plattformgebühr (%)',    required: false }
         ];
         const opts = ['<option value="">— nicht zuordnen —</option>',
                       ...this._columns.map(c => `<option value="${Utils.escapeHtml(c)}">${Utils.escapeHtml(c)}</option>`)].join('');
@@ -1753,13 +1813,28 @@ const ExcelImport = {
 
             if (isNaN(preis) || preis < 0 || (!marke && !beschr)) { skipped++; continue; }
 
+            // Verkaufs-Daten (optional) — ist ein Verkaufspreis > 0 da, gilt der Artikel als verkauft
+            const num = v => parseFloat(String(v).replace(',', '.').replace(/[^\d.\-]/g, '')) || 0;
+            const vkPreis = parseFloat(String(get('verkaufspreis')).replace(',', '.').replace(/[^\d.\-]/g, ''));
+            const verkauft = !isNaN(vkPreis) && vkPreis > 0;
+            const rowDatum = this._parseDate(get('datum')) || datum;
+
             validRows.push({
+                datum:         rowDatum,                                       // pro Zeile, sonst gemeinsames Datum
                 marke,
                 artikeltyp:    String(get('artikeltyp') || 'Sonstiges').trim() || 'Sonstiges',
                 groesse:       String(get('groesse') || '').trim(),
                 beschreibung:  beschr,
                 einkaufspreis: preis,
-                anzahl:        Math.max(1, Math.min(9999, anzahl))
+                einkaufsquelle: String(get('quelle') || '').trim() || quelle,  // pro Zeile, sonst gemeinsame Quelle
+                anzahl:        Math.max(1, Math.min(9999, anzahl)),
+                verkauft,
+                verkaufspreis: verkauft ? vkPreis : 0,
+                verkaufsdatum: verkauft ? (this._parseDate(get('verkaufsdatum')) || rowDatum) : '',
+                verkaufswo:    String(get('verkaufswo') || '').trim(),
+                versandKaeufer:    verkauft ? num(get('versandKaeufer')) : 0,
+                versandVerkaeufer: verkauft ? num(get('versandVerkaeufer')) : 0,
+                gebuehrProzent:    verkauft ? num(get('gebuehrProzent')) : 0
             });
         }
 
@@ -1769,7 +1844,8 @@ const ExcelImport = {
         }
 
         const totalToCreate = validRows.reduce((s, r) => s + r.anzahl, 0);
-        if (!confirm(`${validRows.length} Excel-Zeilen → ${totalToCreate} einzelne Artikel werden angelegt.${skipped > 0 ? `\n\n${skipped} Zeilen übersprungen (ungültiger Preis oder fehlende Marke/Beschreibung).` : ''}\n\nFortfahren?`)) return;
+        const soldToCreate  = validRows.filter(r => r.verkauft).reduce((s, r) => s + r.anzahl, 0);
+        if (!confirm(`${validRows.length} Excel-Zeilen → ${totalToCreate} einzelne Artikel werden angelegt.${soldToCreate > 0 ? `\n\nDavon ${soldToCreate} direkt als „verkauft" markiert (mit Verkaufspreis + Verkaufsdatum).` : ''}${skipped > 0 ? `\n\n${skipped} Zeilen übersprungen (ungültiger Preis oder fehlende Marke/Beschreibung).` : ''}\n\nFortfahren?`)) return;
 
         btn.disabled = true;
         btn.textContent = '⏳ Importiere…';
@@ -1786,26 +1862,28 @@ const ExcelImport = {
                     if (!yearMax[y] || yearMax[y] < n) yearMax[y] = n;
                 }
             });
-            const year = String(new Date(datum).getFullYear());
-            if (!yearMax[year]) yearMax[year] = 0;
-
             const newRecords = [];
+            const newSales   = [];
+            const existingSales = Store.getAllSalesRaw ? Store.getAllSalesRaw() : [];
             validRows.forEach(row => {
                 if (row.marke) Store.addBrand(row.marke);
+                const ry = String(new Date(row.datum).getFullYear());   // Artikel-Nr. pro Jahr fortlaufend
+                if (!yearMax[ry]) yearMax[ry] = 0;
+                const unitIds = [];
                 for (let j = 0; j < row.anzahl; j++) {
-                    yearMax[year]++;
+                    yearMax[ry]++;
                     const record = {
-                        datum,
+                        datum:         row.datum,
                         marke:         row.marke,
                         artikeltyp:    row.artikeltyp,
                         groesse:       row.groesse,
                         beschreibung:  row.beschreibung,
                         einkaufspreis: row.einkaufspreis,
                         anzahl:        1,
-                        einkaufsquelle: quelle,
-                        status:        'verfuegbar',
+                        einkaufsquelle: row.einkaufsquelle,
+                        status:        row.verkauft ? 'verkauft' : 'verfuegbar',
                         sessionId,
-                        artikelNr:     `${year}-${String(yearMax[year]).padStart(3, '0')}`,
+                        artikelNr:     `${ry}-${String(yearMax[ry]).padStart(3, '0')}`,
                         lagerort:      { bereich: '', regal: '', fach: '' }
                     };
                     // EINDEUTIGE ID vergeben (sonst kollidieren UI-Selektionen)
@@ -1813,17 +1891,66 @@ const ExcelImport = {
                     record.createdAt = new Date().toISOString();
                     if (Store._stampRecord) Store._stampRecord(record);
                     newRecords.push(record);
+                    unitIds.push(record.id);
+                }
+
+                // Verkauft? → verlinkten Verkaufs-Datensatz anlegen (Preis = Gesamterlös der Zeile)
+                if (row.verkauft) {
+                    const sale = {
+                        datum:            row.verkaufsdatum || row.datum,
+                        verkaufsplattform: row.verkaufswo || 'Sonstiges',
+                        verkaufspreis:    row.verkaufspreis,
+                        versandkostenKaeufer:    row.versandKaeufer,
+                        plattformgebuehrProzent: row.gebuehrProzent,
+                        versandkostenVerkaufer:  row.versandVerkaeufer,
+                        kaeufer:          row.verkaufswo || '',
+                        notizen:          'Excel-Import',
+                        marke:            row.marke,
+                        artikeltyp:       row.artikeltyp,
+                        groesse:          row.groesse,
+                        beschreibung:     row.beschreibung,
+                        sessionId
+                    };
+                    if (unitIds.length === 1) sale.purchaseId = unitIds[0];
+                    else                      sale.purchaseIds = unitIds;
+                    sale.id = Store.generateId();
+                    sale.createdAt = new Date().toISOString();
+                    if (Store._stampRecord) Store._stampRecord(sale);
+                    newSales.push(sale);
+                    if (row.verkaufswo) Store.addPlatform && Store.addPlatform(row.verkaufswo);
                 }
             });
 
             await Store.setAsync('purchases', [...existing, ...newRecords]);
-            if (quelle) Store.addEinkaufsquelle(quelle);
+            if (newSales.length) await Store.setAsync('sales', [...existingSales, ...newSales]);
+            [...new Set(validRows.map(r => r.einkaufsquelle).filter(Boolean))].forEach(q => Store.addEinkaufsquelle(q));
+
+            // GoBD (Rz.64): jeden importierten Datensatz einzeln & unveränderlich protokollieren (Hash-Chain, eine Schreiboperation)
+            if (Store._addAuditEntriesBatch) {
+                const auditItems = [];
+                newRecords.forEach(r => auditItems.push({
+                    action: 'erstellt', entityType: 'einkauf', entityId: r.id,
+                    oldValues: null, newValues: r,
+                    details: `Einkauf erstellt (Excel-Import ${sessionId})`
+                }));
+                newSales.forEach(s => auditItems.push({
+                    action: 'erstellt', entityType: 'verkauf', entityId: s.id,
+                    oldValues: null, newValues: s,
+                    details: `Verkauf erstellt (Excel-Import ${sessionId})`
+                }));
+                Store._addAuditEntriesBatch(auditItems);
+            }
 
             App.closeModal();
-            Utils.showToast(`✅ ${totalToCreate} Artikel aus Excel importiert${skipped > 0 ? ` · ${skipped} übersprungen` : ''}`, 'success');
-            Lager._filters.status = 'verfuegbar';
+            Utils.showToast(`✅ ${totalToCreate} Artikel aus Excel importiert${soldToCreate > 0 ? ` · ${soldToCreate} als verkauft` : ''}${skipped > 0 ? ` · ${skipped} übersprungen` : ''}`, 'success');
+            Lager._filters.status = '';
             renderPage();
             document.getElementById('mainContent').scrollTop = 0;
+
+            // §19 UStG: nach Import mit Verkäufen Umsatzgrenze prüfen (Bulk umgeht sonst saveSale-Check)
+            if (newSales.length && window.App && typeof App._checkUstThreshold === 'function') {
+                setTimeout(() => App._checkUstThreshold(), 400);
+            }
 
         } catch (err) {
             console.error('[ExcelImport] Speicherfehler:', err);

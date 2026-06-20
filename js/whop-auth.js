@@ -19,6 +19,9 @@ var AuthUI = (function () {
     var WHOP_PURCHASE_URL = 'https://whop.com/stackr-3244/';
     var PKCE_KEY          = 'whop_oauth_pkce';
 
+    // Whop company owners can't self-subscribe — grant them permanent access
+    var OWNER_USERNAMES   = ['secondlifevintage41'];
+
     var LS_TOKEN = 'whop_access_token';
     var LS_USER  = 'whop_user';
 
@@ -107,7 +110,7 @@ var AuthUI = (function () {
         try { stored = JSON.parse(sessionStorage.getItem(PKCE_KEY) || 'null'); } catch (e) {}
         sessionStorage.removeItem(PKCE_KEY);
 
-        if (!stored || (returnedState && returnedState !== stored.state)) {
+        if (!stored || returnedState !== stored.state) {
             _hideLoader();
             _showLoginScreen('Sicherheitsfehler: Bitte erneut versuchen.');
             return;
@@ -156,6 +159,12 @@ var AuthUI = (function () {
             me.id       = me.sub;
             me.username = me.preferred_username || me.name || me.sub || 'User';
             localStorage.setItem(LS_USER, JSON.stringify(me));
+
+            // Owner bypass: Whop company owners can't self-subscribe
+            if (OWNER_USERNAMES.indexOf(me.username) !== -1) {
+                await _onAuthorized(me);
+                return true;
+            }
 
             // Membership-Check
             var accessRes = await fetch('https://api.whop.com/v5/me/has-access/' + WHOP_CLIENT_ID, {

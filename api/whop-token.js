@@ -42,8 +42,11 @@ module.exports = async function handler(req, res) {
         var data = await tokenRes.json();
 
         if (!tokenRes.ok) {
-            console.error('[whop-token] Token exchange failed:', data);
-            return res.status(400).json({ error: data.error || 'Token exchange failed' });
+            console.error('[whop-token] Token exchange failed:', JSON.stringify(data));
+            return res.status(400).json({
+                error:             data.error || 'Token exchange failed',
+                error_description: data.error_description || null,
+            });
         }
 
         return res.status(200).json({ access_token: data.access_token });

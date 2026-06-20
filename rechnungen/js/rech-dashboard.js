@@ -69,8 +69,9 @@ var RechDashboard = (function() {
         }
 
         // ── E-Rechnung Hinweis (ab 2025 Pflicht für B2B) ─────────────────
+        // Nur DE-Recht: XRechnung/ZUGFeRD-Empfangspflicht gilt nicht für CH/AT.
         var curYear = new Date().getFullYear();
-        if (curYear >= 2025) {
+        if (curYear >= 2025 && (Store.getSettings().land || 'DE') === 'DE') {
             html += '<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;margin-bottom:16px;';
             html += 'background:rgba(234,179,8,.07);border:1px solid rgba(234,179,8,.25);border-radius:var(--radius);">';
             html += '<i class="ti ti-receipt" style="font-size:20px;color:var(--warning,#f59e0b);flex-shrink:0;padding-top:1px;"></i>';

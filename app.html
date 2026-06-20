@@ -54,36 +54,9 @@
             <div style="font-size:14px;font-weight:700;color:var(--text-primary);line-height:1;letter-spacing:-.3px;">Stackr</div>
         </div>
 
-        <!-- Cross-app navigation -->
-        <div class="topnav-apps">
-            <a href="app.html" class="tool-tab active" title="Dashboard">
-                <i class="ti ti-layout-dashboard tab-icon"></i> <span data-i18n="nav.dashboard">Dashboard</span>
-            </a>
-            <a href="rechnungen/index.html" class="tool-tab" title="Rechnungen / Invoices">
-                <i class="ti ti-file-invoice tab-icon"></i> <span data-i18n="nav.invoices">Rechnungen</span>
-            </a>
-            <a href="eigenbelege/index.html" class="tool-tab" title="Eigenbelege / Receipts">
-                <i class="ti ti-receipt tab-icon"></i> <span data-i18n="nav.receipts">Eigenbelege</span>
-            </a>
-            <a href="lager/index.html" class="tool-tab" id="toolTabLager" title="Lager / Inventory">
-                <i class="ti ti-package tab-icon"></i> <span data-i18n="nav.inventory">Lager</span>
-            </a>
-            <a href="app.html?page=euer" class="tool-tab" id="toolTabEuer" title="EÜR / P&L">
-                <i class="ti ti-chart-bar tab-icon"></i> <span data-i18n="nav.euer">EÜR</span>
-            </a>
-            <a href="app.html?page=akademie" class="tool-tab" id="toolTabAkademie" title="Akademie / Academy">
-                <i class="ti ti-school tab-icon"></i> <span data-i18n="nav.academy">Akademie</span>
-            </a>
-            <a href="app.html?page=gbr" class="tool-tab" id="toolTabGbr" title="GbR" style="display:none;">
-                <i class="ti ti-users tab-icon"></i> <span data-i18n="nav.gbr">GbR</span>
-            </a>
-            <a href="app.html?page=schweiz" class="tool-tab" id="toolTabSchweiz" title="Schweiz – EAR/MWST/AHV" style="display:none;">
-                <i class="ti ti-flag-3 tab-icon"></i> <span>Schweiz</span>
-            </a>
-            <a href="app.html?page=oesterreich" class="tool-tab" id="toolTabOesterreich" title="Österreich – EAR/USt/GSVG/ESt" style="display:none;">
-                <i class="ti ti-flag-3 tab-icon"></i> <span>Österreich</span>
-            </a>
-        </div>
+        <!-- Cross-app navigation (zentral aus js/topnav.js, verhindert Nav-Drift) -->
+        <div class="topnav-apps" id="topnavApps" data-active="dashboard"></div>
+        <script src="js/topnav.js"></script>
 
         <!-- Right controls -->
         <div class="topnav-controls">

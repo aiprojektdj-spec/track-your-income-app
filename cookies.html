@@ -129,7 +129,7 @@ footer a:hover { color:var(--subtle); }
             sind im Folgenden vollständig aufgelistet.
         </p>
 
-        <h3>Sitzungs-Cookie (Supabase Auth)</h3>
+        <h3>Anmelde-Session (Whop Login)</h3>
         <table class="cookie-table">
             <thead>
                 <tr>
@@ -141,9 +141,9 @@ footer a:hover { color:var(--subtle); }
             </thead>
             <tbody>
                 <tr>
-                    <td>sb-*-auth-token</td>
-                    <td>Speichert die Authentifizierungs-Session nach dem Login, damit du angemeldet bleibst</td>
-                    <td>7 Tage (oder bis zum Logout)</td>
+                    <td>whop_access_token / whop_user</td>
+                    <td>Speichern die Anmelde-Session nach dem Login über Whop (im localStorage), damit du angemeldet bleibst</td>
+                    <td>Bis zum Logout</td>
                     <td><span class="badge badge-required">Notwendig</span></td>
                 </tr>
             </tbody>
@@ -186,7 +186,7 @@ footer a:hover { color:var(--subtle); }
             Für größere Datenmengen (z. B. umfangreiche Buchungshistorie) nutzt Stackr die
             <strong style="color:var(--text);">IndexedDB</strong> des Browsers — eine strukturierte
             lokale Datenbank, die ausschließlich auf deinem Gerät gespeichert wird und das Gerät
-            nicht verlässt, sofern kein Cloud-Sync aktiviert ist.
+            nicht verlässt.
         </p>
         <p>Rechtsgrundlage für alle o. g. Technologien: § 25 Abs. 2 TTDSG (technisch notwendig).</p>
     </div>
@@ -216,13 +216,14 @@ footer a:hover { color:var(--subtle); }
             auf technisch notwendige Weise mit Daten arbeiten können:
         </p>
 
-        <h3>Supabase (Authentifizierung &amp; Cloud-Sync)</h3>
+        <h3>Whop (Login &amp; Zahlung)</h3>
         <p>
-            Für die Benutzeranmeldung und den optionalen Cloud-Sync nutzen wir
-            <strong style="color:var(--text);">Supabase</strong> (Supabase, Inc., Oakland, CA, USA).
-            Supabase setzt beim Login einen Session-Cookie zur Aufrechterhaltung der Authentifizierung.
-            Die Datenspeicherung erfolgt auf EU-Servern in Frankfurt, Deutschland.
-            Datenschutzerklärung: <a href="https://supabase.com/privacy" target="_blank" rel="noopener">supabase.com/privacy</a>
+            Für die Benutzeranmeldung (OAuth), die Zugangsprüfung und — bei Buchung des Pro-Plans —
+            die Zahlungsabwicklung nutzen wir <strong style="color:var(--text);">Whop</strong>
+            (Whop Inc., USA). Die Anmelde-Session wird im localStorage deines Browsers gespeichert
+            (kein klassischer Cookie). Beim Bezahlvorgang kann Whop eigene Cookies setzen.
+            Die Übermittlung in die USA stützt sich auf die EU-Standardvertragsklauseln.
+            Datenschutzerklärung: <a href="https://whop.com/privacy/" target="_blank" rel="noopener">whop.com/privacy</a>
         </p>
 
         <h3>jsDelivr / CDN-Bibliotheken</h3>
@@ -235,14 +236,6 @@ footer a:hover { color:var(--subtle); }
             Bereitstellung der App-Funktionalität).
         </p>
 
-        <h3>Paddle (Zahlungsabwicklung)</h3>
-        <p>
-            Bei der Buchung des Pro-Plans wird der Checkout über
-            <strong style="color:var(--text);">Paddle</strong> (Paddle.com Market Limited, UK) abgewickelt.
-            Paddle kann im Rahmen des Bezahlvorgangs eigene Cookies setzen.
-            Diese unterliegen den Datenschutzbestimmungen von Paddle:
-            <a href="https://www.paddle.com/legal/privacy" target="_blank" rel="noopener">paddle.com/legal/privacy</a>
-        </p>
     </div>
 
     <div class="section">
@@ -250,8 +243,7 @@ footer a:hover { color:var(--subtle); }
         <p>
             Du kannst Cookies jederzeit in den Einstellungen deines Browsers einsehen, verwalten
             und löschen. Beachte jedoch, dass das Löschen von Stackr-Cookies dazu führt,
-            dass du abgemeldet wirst und lokal gespeicherte Daten verloren gehen können,
-            sofern kein Cloud-Sync aktiviert ist.
+            dass du abgemeldet wirst und lokal gespeicherte Daten verloren gehen können.
         </p>
         <p>Anleitungen zur Cookie-Verwaltung in gängigen Browsern:</p>
         <ul>

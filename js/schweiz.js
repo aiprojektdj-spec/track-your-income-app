@@ -374,7 +374,7 @@ const Schweiz = {
             return s;
         }, 0);
 
-        const eigenbelegeRaw = (() => { try { return JSON.parse(localStorage.getItem('eigenbelege_belege')||'[]'); } catch{return[];} })();
+        const eigenbelegeRaw = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; return JSON.parse(localStorage.getItem((_ebCo?_ebCo+'__':'')+'eigenbelege_belege')||'[]'); } catch{return[];} })();
         const eigenbelegeAusgaben = eigenbelegeRaw
             .filter(b=>!b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, start, end))
             .reduce((s,b)=>s+(parseFloat(b.betragNetto)||parseFloat(b.betragBrutto)||0), 0);
@@ -493,7 +493,7 @@ const Schweiz = {
         const d = this._calcEAR(start, end);
         const settings = Store.getSettings();
         const firma = settings.firma || settings.firmenname || 'Meine Firma';
-        const fmt = v => 'CHF ' + Number(v).toFixed(2).replace('.', ',');
+        const fmt = v => Utils.formatCurrency(v);   // CH-Format: CHF 1'234.55 (Punkt-Dezimal, Apostroph-Tausender)
 
         const detailRows = [
             ['Verkaufserlöse', d.sales.reduce((s,v)=>s+(parseFloat(v.verkaufspreis)||0),0)],
@@ -821,21 +821,22 @@ ${detailRows.filter(r=>r[1]<0).map(r=>`<tr><td style="padding-left:20px;color:#5
     // ── AHV/IV/EO: Sozialversicherungsbeiträge ──────────────────────────────
     _calcAHV(reingewinn) {
         const einkommen = Math.max(0, parseFloat(reingewinn) || 0);
-        // AHV/IV/EO-Beitragssatz 2024 (BSV Merkblatt 2.02): 10.0% für Selbstständige (AHV 8.1% + IV 1.4% + EO 0.5%)
+        // AHV/IV/EO-Beitragssatz 2026 (BSV Merkblatt 2.02): 10.0% für Selbstständige (AHV 8.1% + IV 1.4% + EO 0.5%)
         // Achtung: 10.6% gilt für Arbeitnehmer+Arbeitgeber zusammen — nicht für Selbstständige!
-        const MINDESTBEITRAG = 514;   // CHF/Jahr (Untergrenze Gleitzone)
-        const GRENZE_UNTEN   = 9800;  // kein Beitrag darunter
-        const GRENZE_OBEN    = 57200; // voller Satz ab hier (2024: CHF 57'200, Art. 21 AHVV)
+        const MINDESTBEITRAG = 530;    // CHF/Jahr (Mindestbeitrag 2026, Untergrenze Gleitzone)
+        const GRENZE_UNTEN   = 10100;  // kein Beitrag darunter (Skala-Untergrenze 2026)
+        const GRENZE_OBEN    = 60500;  // voller Satz ab hier (2026: CHF 60'500, Art. 21 AHVV)
         const VOLLSATZ       = 0.100; // 10.0% (AHV 8.1% + IV 1.4% + EO 0.5%)
 
-        if (einkommen < GRENZE_UNTEN) return { beitrag: 0, rate: 0, monatlich: 0, stufe: 'unter_mindest' };
+        // Selbstständige zahlen auch unter der Skala-Untergrenze den Mindestbeitrag (CHF 530/Jahr).
+        if (einkommen < GRENZE_UNTEN) return { beitrag: MINDESTBEITRAG, rate: einkommen>0 ? MINDESTBEITRAG/einkommen : 0, monatlich: Math.round(MINDESTBEITRAG/12*100)/100, stufe: 'mindest' };
 
         let beitrag, rate;
         if (einkommen >= GRENZE_OBEN) {
             beitrag = einkommen * VOLLSATZ;
             rate = VOLLSATZ;
         } else {
-            // Gleitende Skala: linear von Mindestbeitrag@9800 bis Vollsatz@58800 (Art. 21 AHVV)
+            // Gleitende Skala: linear von Mindestbeitrag@10100 bis Vollsatz@60500 (Art. 21 AHVV)
             const prop = (einkommen - GRENZE_UNTEN) / (GRENZE_OBEN - GRENZE_UNTEN);
             beitrag = Math.max(MINDESTBEITRAG, MINDESTBEITRAG + (GRENZE_OBEN * VOLLSATZ - MINDESTBEITRAG) * prop);
             rate = beitrag / einkommen;
@@ -852,9 +853,9 @@ ${detailRows.filter(r=>r[1]<0).map(r=>`<tr><td style="padding-left:20px;color:#5
         const fmt = v => Utils.formatCurrency(v);
 
         const stufeText = {
-            unter_mindest: 'Unter Mindestbeitragspflicht (CHF 9\'800)',
-            gleitend: 'Gleitende Skala (CHF 9\'800 – 57\'200)',
-            voll: 'Voller Beitragssatz (Einkommen ab CHF 57\'200)',
+            mindest: 'Mindestbeitrag CHF 530 (Einkommen unter CHF 10\'100)',
+            gleitend: 'Gleitende Skala (CHF 10\'100 – 60\'500)',
+            voll: 'Voller Beitragssatz (Einkommen ab CHF 60\'500)',
         };
 
         return `
@@ -879,7 +880,7 @@ ${detailRows.filter(r=>r[1]<0).map(r=>`<tr><td style="padding-left:20px;color:#5
             </div>
 
             <div class="card" style="padding:16px;margin-bottom:16px;">
-                <div style="font-weight:600;margin-bottom:14px;font-size:14px;"><i class="ti ti-shield-check" style="margin-right:6px;color:var(--accent);"></i>Beitragsberechnung AHV/IV/EO 2024</div>
+                <div style="font-weight:600;margin-bottom:14px;font-size:14px;"><i class="ti ti-shield-check" style="margin-right:6px;color:var(--accent);"></i>Beitragsberechnung AHV/IV/EO 2026</div>
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                     <tr><td style="padding:6px 8px;color:var(--text-secondary);">Reingewinn aus EAR</td><td style="padding:6px 8px;text-align:right;font-weight:600;">${fmt(reingewinn)}</td></tr>
                     <tr><td style="padding:6px 8px;color:var(--text-secondary);">Beitragstufe</td><td style="padding:6px 8px;text-align:right;">${stufeText[ahv.stufe] || ahv.stufe}</td></tr>
@@ -925,7 +926,7 @@ ${detailRows.filter(r=>r[1]<0).map(r=>`<tr><td style="padding-left:20px;color:#5
             </div>
 
             <div style="padding:10px 14px;background:rgba(100,116,139,.08);border-radius:8px;font-size:11px;color:var(--text-muted);">
-                <i class="ti ti-info-circle"></i> <strong>Beitragssätze 2024 (Selbstständige):</strong> AHV 8.1% + IV 1.4% + EO 0.5% = 10.0%. Mindestbeitrag CHF 514/Jahr. Gleitende Skala CHF 9'800 – 57'200. Quelle: BSV Merkblatt 2.02. Die Berechnung ist eine Schätzung — massgebend ist Ihre zuständige AHV-Ausgleichskasse.
+                <i class="ti ti-info-circle"></i> <strong>Beitragssätze 2026 (Selbstständige):</strong> AHV 8.1% + IV 1.4% + EO 0.5% = 10.0%. Mindestbeitrag CHF 530/Jahr. Gleitende Skala CHF 10'100 – 60'500. Quelle: BSV Merkblatt 2.02. Die Berechnung ist eine Schätzung — massgebend ist Ihre zuständige AHV-Ausgleichskasse.
             </div>
         `;
     },

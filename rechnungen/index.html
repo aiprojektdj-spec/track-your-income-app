@@ -32,17 +32,8 @@
             </svg>
             <div style="font-size:14px;font-weight:700;color:var(--text-primary);line-height:1;letter-spacing:-.3px;">Stackr</div>
         </div>
-        <div class="topnav-apps">
-            <a href="../app.html" class="tool-tab" title="Overview Dashboard"><i class="ti ti-layout-dashboard tab-icon"></i> Dashboard</a>
-            <a href="../rechnungen/index.html" class="tool-tab active" title="Rechnungsbuch"><i class="ti ti-file-invoice tab-icon"></i> Rechnungen</a>
-            <a href="../eigenbelege/index.html" class="tool-tab" title="Eigenbelege"><i class="ti ti-receipt tab-icon"></i> Eigenbelege</a>
-            <a href="../lager/index.html" class="tool-tab" title="Lager"><i class="ti ti-package tab-icon"></i> Lager</a>
-            <a href="../app.html?page=euer" class="tool-tab" id="tabEuer" title="EÜR"><i class="ti ti-chart-bar tab-icon"></i> EÜR</a>
-            <a href="../app.html?page=schweiz" class="tool-tab" id="tabSchweiz" style="display:none;" title="EAR · Schweiz"><i class="ti ti-file-analytics tab-icon"></i> EAR</a>
-            <a href="../app.html?page=akademie" class="tool-tab" title="Akademie"><i class="ti ti-school tab-icon"></i> Akademie</a>
-            <a href="../app.html?page=gbr" class="tool-tab" id="toolTabGbr" style="display:none;" title="GbR-Verwaltung"><i class="ti ti-users tab-icon"></i> GbR</a>
-        </div>
-        <script>(function(){try{var cos=JSON.parse(localStorage.getItem('oyi_companies')||'[]');var aid=localStorage.getItem('oyi_active_company')||'';var co=cos.find(function(c){return c.id===aid;})||cos[0];if(co&&co.land==='CH'){document.getElementById('tabEuer').style.display='none';document.getElementById('tabSchweiz').style.display='';}}catch(e){}})();</script>
+        <div class="topnav-apps" id="topnavApps" data-active="rechnungen"></div>
+        <script src="../js/topnav.js"></script>
         <div class="topnav-controls">
             <div id="companySwitcher"></div>
             <button class="theme-toggle" id="themeToggle" title="Theme wechseln" style="display:none;"></button>

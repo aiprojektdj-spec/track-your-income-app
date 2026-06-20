@@ -1,0 +1,12 @@
+Shared Top-Nav + Multi-Company-Scoping + Rechtstext-Updates
+
+- js/topnav.js (neu): zentrale App-Navigation als einzige Quelle für app.html,
+  Rechnungen, Eigenbelege und Lager — verhindert Nav-Drift; Inline-Nav aus den
+  Seiten entfernt und durch den gemeinsamen Container ersetzt
+  (behebt auch den toten ../js/topnav.js-Verweis der bereits gepushten Lager-Seite)
+- js/euer.js: Eigenbelege-localStorage nach aktiver Firma scopen
+  (oyi_active_company-Präfix) — Multi-Company-fähig
+- agb/cookies/datenschutz/refund/eigenbelege: Rechtstext- und UI-Updates
+- js/schweiz.js, rechnungen: kleinere Anpassungen
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>

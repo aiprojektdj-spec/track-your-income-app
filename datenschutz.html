@@ -77,8 +77,8 @@ footer a:hover { color:var(--subtle); }
 
     <div class="highlight-box">
         <strong>Kurz zusammengefasst:</strong> Wir speichern nur was nötig ist.
-        Deine Buchhaltungsdaten liegen verschlüsselt auf EU-Servern in Frankfurt.
-        Wir geben nichts an Dritte weiter und tracken dich nicht.
+        Deine Buchhaltungsdaten bleiben lokal auf deinem Gerät (Browser-Speicher) und werden nicht
+        an uns übertragen. Für Login und Zahlung nutzen wir Whop. Wir tracken dich nicht.
     </div>
 
     <!-- ── 1. Verantwortlicher ── -->
@@ -125,8 +125,9 @@ footer a:hover { color:var(--subtle); }
         <h3>2.3 Buchhaltungsdaten</h3>
         <p>
             Deine eingegebenen Buchhaltungsdaten (Einnahmen, Ausgaben, Rechnungen etc.)
-            werden ausschließlich auf deinem Gerät und — bei aktiviertem Cloud-Sync —
-            auf verschlüsselten EU-Servern gespeichert. Diese Daten sind nur für dich zugänglich.
+            werden ausschließlich lokal auf deinem Gerät gespeichert (localStorage/IndexedDB des
+            Browsers). Sie verlassen dein Gerät nicht und sind nur für dich zugänglich. Eine
+            Übermittlung an Server des Anbieters oder Dritter findet nicht statt.
         </p>
         <p>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.</p>
     </div>
@@ -139,8 +140,8 @@ footer a:hover { color:var(--subtle); }
         <p>Wir verwenden ausschließlich funktional notwendige Cookies:</p>
         <ul>
             <li>
-                <strong>oyi_auth_session</strong> — speichert deine Anmelde-Session (Supabase Auth).
-                Wird beim Abmelden gelöscht. Läuft nach 7 Tagen automatisch ab.
+                <strong>whop_access_token</strong> / <strong>whop_user</strong> — speichern deine
+                Anmelde-Session nach dem Login über Whop (im localStorage). Werden beim Abmelden gelöscht.
             </li>
             <li>
                 <strong>oyi_cookie_consent</strong> — speichert deine Cookie-Entscheidung (localStorage).
@@ -148,8 +149,8 @@ footer a:hover { color:var(--subtle); }
         </ul>
         <p>
             Darüber hinaus nutzt die App <strong>IndexedDB</strong> und <strong>localStorage</strong>
-            des Browsers zur lokalen Zwischenspeicherung deiner Buchhaltungsdaten.
-            Diese Daten verlassen deinen Browser nur bei aktiviertem Cloud-Sync.
+            des Browsers zur lokalen Speicherung deiner Buchhaltungsdaten.
+            Diese Daten verlassen deinen Browser nicht.
         </p>
         <p>Rechtsgrundlage: § 25 Abs. 2 TTDSG (technisch notwendig).</p>
 
@@ -157,35 +158,41 @@ footer a:hover { color:var(--subtle); }
         <p>Wir setzen <strong>keine</strong> Tracking-, Analyse- oder Werbe-Cookies ein.</p>
     </div>
 
-    <!-- ── 4. Supabase ── -->
+    <!-- ── 4. Lokale Datenspeicherung ── -->
     <div class="section">
-        <h2>4. Cloud-Infrastruktur (Supabase)</h2>
+        <h2>4. Datenspeicherung (lokal auf deinem Gerät)</h2>
         <p>
-            Für Authentifizierung und Cloud-Sync nutzen wir <strong>Supabase</strong>
-            (Supabase, Inc., 970 Trestle Glen Rd, Oakland, CA 94610, USA).
+            Stackr ist eine Local-First-Anwendung. Deine Buchhaltungsdaten werden ausschließlich
+            im Speicher deines Browsers (localStorage und IndexedDB) auf deinem eigenen Gerät
+            abgelegt. Ein aktiver Cloud-Sync besteht nicht; deine Buchhaltungsdaten werden nicht
+            an Server des Anbieters oder Dritter übertragen.
         </p>
         <p>
-            Die Datenspeicherung erfolgt auf Servern in <strong>Frankfurt, Deutschland (EU-West-1)</strong>.
-            Es findet kein Transfer in Drittländer außerhalb der EU statt.
+            Für die Sicherung deiner Daten bist du selbst verantwortlich (Export/Backup in der App).
+            Beim Löschen der Browserdaten gehen lokal gespeicherte Daten verloren.
         </p>
-        <p>
-            Supabase ist DSGVO-konform. Datenschutzerklärung von Supabase:
-            <a href="https://supabase.com/privacy" target="_blank" rel="noopener">supabase.com/privacy</a>
-        </p>
-        <p>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO, Art. 28 DSGVO (Auftragsverarbeitung).</p>
+        <p>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.</p>
     </div>
 
-    <!-- ── 5. Zahlungen ── -->
+    <!-- ── 5. Login & Zahlung (Whop) ── -->
     <div class="section">
-        <h2>5. Zahlungsabwicklung (Paddle)</h2>
+        <h2>5. Login &amp; Zahlungsabwicklung (Whop)</h2>
         <p>
-            Zahlungen werden über <strong>Paddle</strong> (Paddle.com Market Limited, 18-29 Mora St, London, EC1V 8BT, UK) abgewickelt.
-            Paddle fungiert als Merchant of Record — deine Zahlungsdaten werden direkt an Paddle übermittelt.
-            Wir haben keinen Zugriff auf deine Kreditkarten- oder Bankdaten.
+            Anmeldung, Zugangsprüfung (Free/Pro) und — sofern du ein Pro-Abo abschließt — die
+            Zahlungsabwicklung erfolgen über <strong>Whop</strong> (Whop Inc., USA).
+            Beim Login über Whop (OAuth 2.1) werden deine E-Mail-Adresse und Profildaten verarbeitet.
+            Whop tritt bei Käufen als Merchant of Record auf; Zahlungsdaten (z. B. Kreditkarte) werden
+            direkt an Whop übermittelt. Wir haben keinen Zugriff auf deine Zahlungsdaten.
         </p>
         <p>
-            Datenschutzerklärung von Paddle:
-            <a href="https://www.paddle.com/legal/privacy" target="_blank" rel="noopener">paddle.com/legal/privacy</a>
+            Da Whop seinen Sitz in den USA hat, findet eine Datenübermittlung in ein Drittland statt.
+            Diese stützt sich auf die EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO,
+            Durchführungsbeschluss (EU) 2021/914) gemäß dem Data Processing Agreement von Whop.
+        </p>
+        <div class="placeholder">TODO (Anbieter): Whop-DPA abschließen/bestätigen und DPF-Zertifizierungsstatus von Whop prüfen — Anwalt für finale Freigabe.</div>
+        <p>
+            Datenschutzerklärung von Whop:
+            <a href="https://whop.com/privacy/" target="_blank" rel="noopener">whop.com/privacy</a>
         </p>
         <p>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.</p>
     </div>
@@ -226,9 +233,10 @@ footer a:hover { color:var(--subtle); }
             <a href="https://www.edoeb.admin.ch" target="_blank" rel="noopener">www.edoeb.admin.ch</a>
         </p>
         <p style="margin-top:8px;">
-            Da die Daten auf EU-Servern in Deutschland (Frankfurt) gespeichert werden und die EU vom EDÖB
-            als Staat mit angemessenem Datenschutzniveau anerkannt ist, ist die Datenübermittlung für
-            Schweizer Nutzer nach nDSG zulässig.
+            Deine Buchhaltungsdaten werden ausschließlich lokal auf deinem Gerät gespeichert und nicht
+            ins Ausland übermittelt. Für Anmeldung und Zahlung über Whop (Whop Inc., USA) findet eine
+            Übermittlung in die USA statt; diese stützt sich auf die Standardvertragsklauseln, die der
+            EDÖB für die Schweiz anerkennt (mit den schweizspezifischen Anpassungen gemäss DSG).
         </p>
     </div>
 
@@ -236,15 +244,14 @@ footer a:hover { color:var(--subtle); }
     <div class="section">
         <h2>9. Auftragsverarbeitung (AVV)</h2>
         <p>
-            Für die Nutzung von Supabase als Cloud-Backend wurde ein
-            <strong>Auftragsverarbeitungsvertrag (AVV)</strong> gemäß Art. 28 DSGVO abgeschlossen.
-            Supabase verarbeitet personenbezogene Daten (E-Mail-Adresse, Buchungsdaten) ausschließlich
-            nach unserer Weisung und im Rahmen der vereinbarten Zwecke.
+            Buchhaltungsdaten werden ausschließlich lokal auf deinem Gerät verarbeitet; eine
+            Auftragsverarbeitung dieser Daten durch Dritte findet nicht statt.
         </p>
         <p>
-            Für die Zahlungsabwicklung über Paddle wurde ein entsprechender AVV / DPA (Data Processing Agreement)
-            mit Paddle.com Market Limited abgeschlossen. Paddle verarbeitet Zahlungsdaten als eigenständiger
-            Verantwortlicher (Merchant of Record).
+            Für Login und Zahlung wird <strong>Whop</strong> (Whop Inc., USA) eingesetzt. Whop
+            verarbeitet die dabei anfallenden Daten (E-Mail, Profil- und Zahlungsdaten) auf Grundlage
+            des Data Processing Agreement von Whop bzw. als Merchant of Record. Die Übermittlung in die
+            USA stützt sich auf die EU-Standardvertragsklauseln (Durchführungsbeschluss (EU) 2021/914).
         </p>
     </div>
 

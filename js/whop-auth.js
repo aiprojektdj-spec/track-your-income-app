@@ -193,9 +193,6 @@ var AuthUI = (function () {
         _updateLoader('Lade Stackr...');
         _updateWidget(user);
 
-        if (typeof CloudSync !== 'undefined') {
-            try { CloudSync.disable(); } catch (e) {}
-        }
         if (typeof UserPlan !== 'undefined') {
             try { UserPlan.injectBadge(); UserPlan.load(user.id); } catch (e) {}
         }

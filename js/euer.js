@@ -200,8 +200,10 @@ const Euer = {
                     const factor = rate / (1 + rate); // extract USt from brutto
                     return sum + brutto * factor;
                 }, 0);
-            // Sonstige Ausgaben, Fahrtkosten, Eigenbelege, AfA: pauschal 19% (keine Satz-Info)
-            const vstOther = (versandkosten + plattformgebuehren + fahrtkosten + materialKosten + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten) / 1.19 * 0.19;
+            // Sonstige Ausgaben, Fahrtkosten, Eigenbelege: pauschal 19% (keine Satz-Info).
+            // AfA NICHT enthalten: die Vorsteuer wurde bereits im Anschaffungsjahr in voller Höhe
+            // gezogen, die AfA selbst ist eine vorsteuerfreie (Netto-)Abschreibung.
+            const vstOther = (versandkosten + plattformgebuehren + fahrtkosten + materialKosten + sonstigeAusgaben + eigenbelegeAusgaben) / 1.19 * 0.19;
             return vstPurch + vstOther;
         })() : 0;
         // Bei Regelbesteuerung zählt nur Netto als abzugsfähige BA; USt ist Durchlaufposten

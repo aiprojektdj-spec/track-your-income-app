@@ -163,9 +163,13 @@ const Utils = {
 
     escapeHtml(str) {
         if (!str) return '';
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+        // Escaped auch Quotes — sicher für Attribut-Kontexte (value="…", title="…")
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     },
 
     downloadFile(content, filename, type = 'text/plain') {

@@ -73,7 +73,7 @@ footer a:hover { color:var(--subtle); }
 
     <h1>Datenschutzerklärung</h1>
     <p class="subtitle">Informationen zum Umgang mit deinen personenbezogenen Daten</p>
-    <p class="update-date">Stand: Mai 2026</p>
+    <p class="update-date">Stand: Juni 2026</p>
 
     <div class="highlight-box">
         <strong>Kurz zusammengefasst:</strong> Wir speichern nur was nötig ist.
@@ -101,7 +101,7 @@ footer a:hover { color:var(--subtle); }
         <h3>2.1 Beim Besuch der Website</h3>
         <p>Beim Aufrufen unserer Website speichern wir automatisch folgende Daten im Server-Log:</p>
         <ul>
-            <li>IP-Adresse (anonymisiert)</li>
+            <li>IP-Adresse</li>
             <li>Datum und Uhrzeit des Zugriffs</li>
             <li>Aufgerufene URL</li>
             <li>Browser und Betriebssystem</li>
@@ -114,13 +114,16 @@ footer a:hover { color:var(--subtle); }
             Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Bereitstellung der App-Funktionalität).
         </p>
 
-        <h3>2.2 Bei der Registrierung / Anmeldung</h3>
-        <p>Für die Nutzung von Stackr erheben wir:</p>
+        <h3>2.2 Bei der Anmeldung</h3>
+        <p>
+            Die Anmeldung erfolgt ausschließlich über <strong>Whop</strong> (OAuth 2.1). Stackr selbst
+            speichert kein Passwort. Von Whop erhalten wir nach erfolgreichem Login:
+        </p>
         <ul>
             <li><strong>E-Mail-Adresse</strong> — zur Identifikation und Kommunikation</li>
-            <li><strong>Passwort</strong> — wird verschlüsselt gespeichert (niemals im Klartext)</li>
+            <li><strong>Profildaten</strong> (Benutzername/Anzeigename) und die Information, ob ein aktives Abo besteht</li>
         </ul>
-        <p>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).</p>
+        <p>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung). Näheres unter Ziffer 5.</p>
 
         <h3>2.3 Buchhaltungsdaten</h3>
         <p>
@@ -152,7 +155,7 @@ footer a:hover { color:var(--subtle); }
             des Browsers zur lokalen Speicherung deiner Buchhaltungsdaten.
             Diese Daten verlassen deinen Browser nicht.
         </p>
-        <p>Rechtsgrundlage: § 25 Abs. 2 TTDSG (technisch notwendig).</p>
+        <p>Rechtsgrundlage: § 25 Abs. 2 TDDDG (technisch notwendig).</p>
 
         <h3>Optionale Cookies</h3>
         <p>Wir setzen <strong>keine</strong> Tracking-, Analyse- oder Werbe-Cookies ein.</p>
@@ -185,11 +188,17 @@ footer a:hover { color:var(--subtle); }
             direkt an Whop übermittelt. Wir haben keinen Zugriff auf deine Zahlungsdaten.
         </p>
         <p>
-            Da Whop seinen Sitz in den USA hat, findet eine Datenübermittlung in ein Drittland statt.
-            Diese stützt sich auf die EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO,
-            Durchführungsbeschluss (EU) 2021/914) gemäß dem Data Processing Agreement von Whop.
+            Whop entscheidet eigenständig über Zwecke und Mittel der bei Anmeldung und Zahlung
+            anfallenden Verarbeitung und ist insoweit <strong>eigenständig Verantwortlicher</strong>
+            im Sinne der DSGVO — nicht Auftragsverarbeiter für uns.
         </p>
-        <div class="placeholder">TODO (Anbieter): Whop-DPA abschließen/bestätigen und DPF-Zertifizierungsstatus von Whop prüfen — Anwalt für finale Freigabe.</div>
+        <p>
+            Da Whop seinen Sitz in den USA hat, ist damit eine Datenübermittlung in die USA (Drittland)
+            verbunden. Für einen geeigneten Transfermechanismus (z. B. EU-US Data Privacy Framework oder
+            EU-Standardvertragsklauseln nach Art. 46 DSGVO) und dessen Einhaltung ist Whop als
+            verantwortliche Empfängerin zuständig; Einzelheiten ergeben sich aus der Datenschutzerklärung
+            von Whop.
+        </p>
         <p>
             Datenschutzerklärung von Whop:
             <a href="https://whop.com/privacy/" target="_blank" rel="noopener">whop.com/privacy</a>
@@ -235,29 +244,30 @@ footer a:hover { color:var(--subtle); }
         <p style="margin-top:8px;">
             Deine Buchhaltungsdaten werden ausschließlich lokal auf deinem Gerät gespeichert und nicht
             ins Ausland übermittelt. Für Anmeldung und Zahlung über Whop (Whop Inc., USA) findet eine
-            Übermittlung in die USA statt; diese stützt sich auf die Standardvertragsklauseln, die der
-            EDÖB für die Schweiz anerkennt (mit den schweizspezifischen Anpassungen gemäss DSG).
+            Übermittlung in die USA statt; für einen geeigneten Transfermechanismus (Swiss-US Data
+            Privacy Framework bzw. Standardvertragsklauseln mit den schweizspezifischen Anpassungen
+            gemäss DSG) ist Whop als verantwortliche Empfängerin zuständig.
         </p>
     </div>
 
     <!-- ── AVV ── -->
     <div class="section">
-        <h2>9. Auftragsverarbeitung (AVV)</h2>
+        <h2>7. Auftragsverarbeitung (AVV)</h2>
         <p>
             Buchhaltungsdaten werden ausschließlich lokal auf deinem Gerät verarbeitet; eine
             Auftragsverarbeitung dieser Daten durch Dritte findet nicht statt.
         </p>
         <p>
-            Für Login und Zahlung wird <strong>Whop</strong> (Whop Inc., USA) eingesetzt. Whop
-            verarbeitet die dabei anfallenden Daten (E-Mail, Profil- und Zahlungsdaten) auf Grundlage
-            des Data Processing Agreement von Whop bzw. als Merchant of Record. Die Übermittlung in die
-            USA stützt sich auf die EU-Standardvertragsklauseln (Durchführungsbeschluss (EU) 2021/914).
+            Whop (Whop Inc., USA) wird nicht als Auftragsverarbeiter für uns tätig, sondern ist
+            hinsichtlich der bei Anmeldung und Zahlung anfallenden Daten (E-Mail, Profil- und
+            Zahlungsdaten) <strong>eigenständig Verantwortlicher</strong> (siehe Ziffer 5). Ein
+            Auftragsverarbeitungsvertrag mit Whop ist daher nicht einschlägig.
         </p>
     </div>
 
     <!-- ── 7. Datenlöschung ── -->
     <div class="section">
-        <h2>7. Speicherdauer &amp; Löschung</h2>
+        <h2>8. Speicherdauer &amp; Löschung</h2>
         <p>
             Deine Daten werden gelöscht sobald der Zweck der Speicherung entfällt und keine
             gesetzlichen Aufbewahrungspflichten entgegenstehen.
@@ -271,7 +281,7 @@ footer a:hover { color:var(--subtle); }
 
     <!-- ── 8. Änderungen ── -->
     <div class="section">
-        <h2>8. Änderungen dieser Erklärung</h2>
+        <h2>9. Änderungen dieser Erklärung</h2>
         <p>
             Wir behalten uns vor, diese Datenschutzerklärung zu aktualisieren.
             Die aktuelle Version ist stets auf dieser Seite abrufbar.

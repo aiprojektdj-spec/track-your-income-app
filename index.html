@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co; frame-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none';">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
 <title>Stackr — Buchhaltung für Freelancer, GbR &amp; Reseller | EÜR &amp; GoBD</title>
-<meta name="description" content="Buchhaltung für Freelancer, GbR &amp; Reseller — EÜR, GoBD, Rechnungen, Lager, KSK. Live-Demo direkt im Browser. 14 Tage kostenlos testen, danach ab 11,25 €/Monat. DSGVO-konform, EU-Server Frankfurt.">
+<meta name="description" content="Buchhaltung für Freelancer, GbR &amp; Reseller — EÜR, GoBD, Rechnungen, Lager, KSK. Live-Demo direkt im Browser. 14 Tage kostenlos testen, danach ab 11,25 €/Monat. DSGVO-konform — alle Daten bleiben lokal auf deinem Gerät.">
 <link rel="canonical" href="https://stackr.app/">
 <!-- Open Graph -->
 <meta property="og:type"        content="website">
@@ -1140,11 +1140,11 @@ footer a:hover { color: var(--subtle); }
     <div class="hero-stats">
         <div class="hero-stat">
             <div class="hero-stat-num">GoBD</div>
-            <div class="hero-stat-lbl">Unveränderliches Protokoll</div>
+            <div class="hero-stat-lbl">Änderungsprotokoll</div>
         </div>
         <div class="hero-stat">
             <div class="hero-stat-num">DSGVO</div>
-            <div class="hero-stat-lbl">EU-Server (Frankfurt)</div>
+            <div class="hero-stat-lbl">100 % lokal gespeichert</div>
         </div>
         <div class="hero-stat">
             <div class="hero-stat-num">§14 · §19</div>
@@ -1252,7 +1252,7 @@ footer a:hover { color: var(--subtle); }
                 <!-- GoBD -->
                 <div class="demo-view" id="dv-gobd" hidden>
                     <div class="demo-rows" id="demoLog"></div>
-                    <div class="demo-gobd-note">Jede Aktion landet unveränderlich im Protokoll — Storno statt Löschen, genau wie es § 146 AO verlangt.</div>
+                    <div class="demo-gobd-note">Jede Aktion wird lückenlos im Protokoll erfasst — Storno statt Löschen, genau wie es § 146 AO verlangt.</div>
                 </div>
             </div>
             <div class="demo-toast" id="demoToast"><span class="ok">✓</span> Buchung erfasst — GoBD-protokolliert</div>
@@ -1377,7 +1377,7 @@ footer a:hover { color: var(--subtle); }
         <div class="bento-card dly-3" data-reveal>
             <div class="bento-icon"><svg class="ic"><use href="#i-shield"/></svg></div>
             <div class="bento-title">GoBD-Protokoll</div>
-            <div class="bento-desc">Unveränderliches Audit-Log mit Zeitstempel und Checksumme. Storno statt Löschen.</div>
+            <div class="bento-desc">Lückenloses Audit-Log mit Zeitstempel und Checksumme. Storno statt Löschen.</div>
         </div>
         <div class="bento-card" data-reveal>
             <div class="bento-icon"><svg class="ic"><use href="#i-trend"/></svg></div>
@@ -1391,8 +1391,8 @@ footer a:hover { color: var(--subtle); }
         </div>
         <div class="bento-card dly-2" data-reveal>
             <div class="bento-icon"><svg class="ic"><use href="#i-cloud"/></svg></div>
-            <div class="bento-title">Cloud-Sync <span class="pro-chip">PRO</span></div>
-            <div class="bento-desc">Alle Geräte, immer synchron — verschlüsselt auf EU-Servern in Frankfurt.</div>
+            <div class="bento-title">Automatische Backups</div>
+            <div class="bento-desc">Deine Daten bleiben lokal auf deinem Gerät — automatische Sicherungen plus optionales Backup in einen Ordner deiner Wahl.</div>
         </div>
         <div class="bento-card dly-3" data-reveal>
             <div class="bento-icon"><svg class="ic"><use href="#i-percent"/></svg></div>
@@ -1624,7 +1624,7 @@ footer a:hover { color: var(--subtle); }
             <ul class="plan-features">
                 <li><span class="check">✓</span> <strong>Alle Features freigeschaltet</strong></li>
                 <li><span class="check">✓</span> Unbegrenzte Buchungen</li>
-                <li><span class="check">✓</span> Cloud-Sync &amp; Backup</li>
+                <li><span class="check">✓</span> Automatische lokale Backups</li>
                 <li><span class="check">✓</span> Rechnungen &amp; Angebote</li>
                 <li><span class="check">✓</span> EÜR, Lager, Fahrtenbuch</li>
                 <li><span class="check">✓</span> PDF &amp; Excel Export</li>
@@ -1642,7 +1642,7 @@ footer a:hover { color: var(--subtle); }
             <ul class="plan-features">
                 <li><span class="check">✓</span> <strong>Alle 12 Module dauerhaft</strong></li>
                 <li><span class="check">✓</span> <strong>Unbegrenzte Buchungen</strong></li>
-                <li><span class="check">✓</span> <strong>Cloud-Sync (alle Geräte)</strong></li>
+                <li><span class="check">✓</span> <strong>DATEV- &amp; E-Rechnung-Export (XRechnung)</strong></li>
                 <li><span class="check">✓</span> Rechnungen &amp; Angebote (§14 UStG)</li>
                 <li><span class="check">✓</span> EÜR, Lager, GbR, Fahrtenbuch</li>
                 <li><span class="check">✓</span> AfA, KSK &amp; GoBD-Protokoll</li>
@@ -1662,7 +1662,7 @@ footer a:hover { color: var(--subtle); }
         <span class="price-guarantee"><svg><use href="#i-check"/></svg> 14 Tage kostenlos testen</span>
         <span class="price-guarantee"><svg><use href="#i-check"/></svg> Monatlich kündbar</span>
         <span class="price-guarantee"><svg><use href="#i-check"/></svg> Daten jederzeit exportierbar</span>
-        <span class="price-guarantee"><svg><use href="#i-check"/></svg> EU-Server · DSGVO</span>
+        <span class="price-guarantee"><svg><use href="#i-check"/></svg> 100 % lokal · DSGVO</span>
     </div>
 </div>
 </div>
@@ -1691,21 +1691,21 @@ footer a:hover { color: var(--subtle); }
                 Wo werden meine Daten gespeichert?
                 <span class="arrow">+</span>
             </button>
-            <div class="faq-a">Deine Daten werden verschlüsselt auf EU-Servern in Frankfurt (Deutschland) gespeichert. Alle Datenschutzanforderungen der DSGVO werden eingehalten. Du hast jederzeit Zugriff auf deine Daten und kannst sie vollständig exportieren.</div>
+            <div class="faq-a">Deine Buchhaltungsdaten werden ausschließlich lokal auf deinem Gerät gespeichert (im Browser-Speicher) und verlassen es nicht. Alle Datenschutzanforderungen der DSGVO werden eingehalten. Du hast jederzeit vollen Zugriff und kannst deine Daten komplett exportieren.</div>
         </div>
         <div class="faq-item">
             <button class="faq-q" onclick="toggleFaq(this)">
                 Kann ich auf mehreren Geräten arbeiten?
                 <span class="arrow">+</span>
             </button>
-            <div class="faq-a">Ja, mit dem Pro-Abo und Cloud-Sync kannst du auf unbegrenzt vielen Geräten arbeiten. Alle Daten werden in Echtzeit synchronisiert.</div>
+            <div class="faq-a">Deine Daten werden lokal auf dem jeweiligen Gerät gespeichert — es gibt keine automatische Synchronisation zwischen Geräten. Über die Backup-Funktion kannst du deine Daten exportieren und auf einem anderen Gerät importieren, um sie zu übertragen.</div>
         </div>
         <div class="faq-item">
             <button class="faq-q" onclick="toggleFaq(this)">
                 Was passiert mit meinen lokalen Daten wenn ich mich anmelde?
                 <span class="arrow">+</span>
             </button>
-            <div class="faq-a">Deine bereits vorhandenen lokalen Daten werden beim ersten Login automatisch in die Cloud hochgeladen — nichts geht verloren. Du kannst die App auch weiterhin offline nutzen; Daten werden bei der nächsten Verbindung synchronisiert.</div>
+            <div class="faq-a">Nichts geht verloren — deine lokalen Daten bleiben unverändert auf deinem Gerät. Der Login über Whop dient nur der Freischaltung; es werden keine Buchhaltungsdaten hochgeladen. Die App funktioniert vollständig offline.</div>
         </div>
         <div class="faq-item">
             <button class="faq-q" onclick="toggleFaq(this)">
@@ -1719,7 +1719,7 @@ footer a:hover { color: var(--subtle); }
                 Ist Stackr GoBD-konform?
                 <span class="arrow">+</span>
             </button>
-            <div class="faq-a">Ja. Stackr führt ein lückenloses GoBD-konformes Protokoll: Buchungen werden mit Zeitstempel, Vorher-/Nachher-Wert und Checksumme unveränderlich gespeichert. Das Protokoll ist jederzeit exportierbar. Hinweis: Stackr ist ein Werkzeug — kein Ersatz für einen Steuerberater.</div>
+            <div class="faq-a">Ja. Stackr führt ein lückenloses GoBD-konformes Protokoll: Buchungen werden mit Zeitstempel, Vorher-/Nachher-Wert und Checksumme lückenlos protokolliert. Das Protokoll ist jederzeit exportierbar. Hinweis: Stackr ist ein Werkzeug — kein Ersatz für einen Steuerberater.</div>
         </div>
         <div class="faq-item">
             <button class="faq-q" onclick="toggleFaq(this)">
@@ -1782,38 +1782,8 @@ footer a:hover { color: var(--subtle); }
     <button class="btn-hero" onclick="openAuth('register')">Jetzt testen →</button>
 </div>
 
-<!-- ═══════════════════ AUTH MODAL ═══════════════════ -->
-<div id="authOverlay" onclick="if(event.target===this)closeAuth()">
-    <div id="authBox">
-        <div class="auth-header">
-            <span style="font-size:20px;">☁</span>
-            <h2 id="authTitle">Konto erstellen</h2>
-            <button class="auth-x" onclick="closeAuth()">×</button>
-        </div>
-        <div class="auth-tabs">
-            <button id="tab-login"    class="auth-tab"        onclick="switchTab('login')">Anmelden</button>
-            <button id="tab-register" class="auth-tab active" onclick="switchTab('register')">Registrieren</button>
-        </div>
-        <label class="auth-lbl">E-Mail-Adresse</label>
-        <input id="authEmail" type="email" class="auth-inp" placeholder="deine@email.de" autocomplete="username">
-        <label class="auth-lbl">Passwort</label>
-        <input id="authPassword" type="password" class="auth-inp" placeholder="Mindestens 6 Zeichen" autocomplete="current-password">
-        <a href="#" onclick="resetPassword(); return false;" style="font-size:12px;color:var(--muted);text-decoration:none;display:block;text-align:right;margin-top:4px;">Passwort vergessen?</a>
-        <!-- AGB-Checkbox: nur bei Registrierung sichtbar — ersetzt blocking Modal in app.js -->
-        <div id="agbRow" style="margin-bottom:10px;display:flex;align-items:flex-start;gap:8px;">
-            <input type="checkbox" id="agbCheck" style="margin-top:3px;flex-shrink:0;accent-color:var(--accent);">
-            <label for="agbCheck" style="font-size:12px;color:var(--muted);line-height:1.5;cursor:pointer;">
-                Ich akzeptiere die <a href="agb.html" target="_blank" style="color:var(--accent);">AGB</a>
-                und habe die <a href="datenschutz.html" target="_blank" style="color:var(--accent);">Datenschutzerklärung</a> gelesen.
-            </label>
-        </div>
-        <div id="authErr" class="auth-err"></div>
-        <div id="authOk"  class="auth-ok"></div>
-        <button id="authBtn" class="auth-sub" onclick="submitAuth()">Konto erstellen</button>
-        <button class="auth-skip" onclick="closeAuth()">Ohne Konto weiternutzen</button>
-        <p class="auth-note">Deine Daten werden verschlüsselt auf EU-Servern gespeichert.</p>
-    </div>
-</div>
+<!-- Auth-Modal entfernt: Anmeldung, Registrierung & Zahlung laufen vollständig über Whop in der App -->
+
 
 <!-- ═══════════════════ LOADER ═══════════════════ -->
 <div id="pageLoader">
@@ -1851,7 +1821,7 @@ footer a:hover { color: var(--subtle); }
         {
             "@type": "Question",
             "name": "Ist Stackr GoBD-konform?",
-            "acceptedAnswer": { "@type": "Answer", "text": "Ja. Stackr führt ein lückenloses GoBD-konformes Protokoll: Buchungen werden mit Zeitstempel, Vorher-/Nachher-Wert und Checksumme unveränderlich gespeichert. Das Protokoll ist jederzeit exportierbar." }
+            "acceptedAnswer": { "@type": "Answer", "text": "Ja. Stackr führt ein lückenloses GoBD-konformes Protokoll: Buchungen werden mit Zeitstempel, Vorher-/Nachher-Wert und Checksumme lückenlos protokolliert. Das Protokoll ist jederzeit exportierbar." }
         },
         {
             "@type": "Question",
@@ -1866,7 +1836,7 @@ footer a:hover { color: var(--subtle); }
         {
             "@type": "Question",
             "name": "Wo werden meine Daten gespeichert?",
-            "acceptedAnswer": { "@type": "Answer", "text": "Deine Daten werden verschlüsselt auf EU-Servern in Frankfurt (Deutschland) gespeichert. Alle Datenschutzanforderungen der DSGVO werden eingehalten." }
+            "acceptedAnswer": { "@type": "Answer", "text": "Deine Buchhaltungsdaten werden ausschließlich lokal auf deinem Gerät im Browser gespeichert und verlassen es nicht. Alle Datenschutzanforderungen der DSGVO werden eingehalten." }
         }
     ]
 }
@@ -1875,7 +1845,6 @@ footer a:hover { color: var(--subtle); }
 <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
 <script src="js/i18n.js"></script>
 <script src="js/cookie-banner.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <!-- ── Landing UI: Reveal, Counter, Demo, Pricing ── -->
 <script>
@@ -2234,186 +2203,39 @@ footer a:hover { color: var(--subtle); }
 })();
 </script>
 
-<!-- ── Auth / Supabase ── -->
+<!-- ── Auth / Whop ── -->
 <script>
 (function () {
     'use strict';
 
-    var SUPABASE_URL = 'https://csfvzmlihkrxokbbjyhf.supabase.co';
-    var SUPABASE_KEY = 'sb_publishable_rERij3K0Dyeo5OYTOJsCeg_UTKZS5fL';
-    var APP_URL      = 'app.html';   // Haupt-App nach Login
+    var APP_URL = 'app.html';   // Haupt-App; Anmeldung, Registrierung & Zahlung laufen dort über Whop (OAuth)
 
-    var _client = null;
-    var _mode   = 'register';
-
-    // ── Supabase initialisieren ───────────────
-    function getClient() {
-        if (_client) return _client;
-        if (typeof window.supabase === 'undefined') return null;
-        _client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-            auth: { persistSession: true, autoRefreshToken: true, storageKey: 'oyi_auth_session' }
-        });
-        return _client;
-    }
-
-    // ── Bereits eingeloggt? → "Zur App" Button einblenden (kein Auto-Redirect) ──
-    async function checkExistingSession() {
-        var c = getClient();
-        if (!c) return;
-        try {
-            var r = await c.auth.getSession();
-            if (r.data && r.data.session) {
-                // Zeige "Zur App" Button statt Auto-Redirect
-                var btns = document.querySelectorAll('.btn-hero, .btn-plan-free, .btn-plan-pro');
-                btns.forEach(function(btn) {
-                    btn.textContent = 'Zur App →';
-                    btn.onclick = function() {
-                        showLoader('App wird geöffnet...');
-                        window.location.href = APP_URL;
-                    };
-                });
-            }
-        } catch (e) {}
-    }
-
-    // ── Auth Modal ────────────────────────────
-    window.openAuth = function (mode) {
-        _mode = mode || 'register';
-        document.getElementById('authOverlay').classList.add('open');
-        _refreshTabs();
-        setTimeout(function () { document.getElementById('authEmail').focus(); }, 50);
-    };
-    window.closeAuth = function () {
-        document.getElementById('authOverlay').classList.remove('open');
-        clearMessages();
-    };
-    window.switchTab = function (mode) {
-        _mode = mode;
-        _refreshTabs();
-        clearMessages();
-    };
-
-    function _refreshTabs() {
-        var isLogin = _mode === 'login';
-        document.getElementById('tab-login').classList.toggle('active', isLogin);
-        document.getElementById('tab-register').classList.toggle('active', !isLogin);
-        document.getElementById('authTitle').textContent = isLogin ? 'Willkommen zurück' : 'Konto erstellen';
-        document.getElementById('authBtn').textContent   = isLogin ? 'Anmelden' : 'Kostenlos registrieren';
-        document.getElementById('authPassword').autocomplete = isLogin ? 'current-password' : 'new-password';
-        // AGB row only shown during registration
-        var agbRow = document.getElementById('agbRow');
-        if (agbRow) agbRow.style.display = isLogin ? 'none' : 'flex';
-    }
-
-    function showErr(msg) { var e = document.getElementById('authErr'); e.textContent = msg; e.style.display = 'block'; }
-    function showOk(msg)  { var e = document.getElementById('authOk');  e.textContent = msg; e.style.display = 'block'; }
-    function clearMessages() {
-        var err = document.getElementById('authErr'); if(err){err.textContent='';err.style.display='none';}
-        var ok  = document.getElementById('authOk');  if(ok) {ok.textContent=''; ok.style.display='none';}
-    }
     function showLoader(msg) {
         document.getElementById('loaderText').textContent = msg || 'Wird geladen...';
         document.getElementById('pageLoader').classList.add('show');
     }
 
-    window.submitAuth = async function () {
-        var email    = (document.getElementById('authEmail').value    || '').trim();
-        var password =  document.getElementById('authPassword').value || '';
-        clearMessages();
-
-        if (!email)          { showErr('Bitte E-Mail-Adresse eingeben.'); return; }
-        if (!password)       { showErr('Bitte Passwort eingeben.'); return; }
-        if (password.length < 6) { showErr('Passwort muss mindestens 6 Zeichen lang sein.'); return; }
-
-        // AGB must be accepted on registration
-        if (_mode === 'register') {
-            var agbCheck = document.getElementById('agbCheck');
-            if (agbCheck && !agbCheck.checked) {
-                showErr('Bitte akzeptiere die AGB und die Datenschutzerklärung.');
-                return;
-            }
-            // Mark AGB as accepted immediately (avoids blocking modal in app.js)
-            try { localStorage.setItem('agb_accepted', new Date().toISOString()); } catch(e) {}
-        }
-
-        var btn = document.getElementById('authBtn');
-        btn.disabled = true;
-        btn.textContent = '...';
-
-        var c = getClient();
-        if (!c) { showErr('Keine Verbindung. Bitte Seite neu laden.'); btn.disabled=false; btn.textContent=_mode==='login'?'Anmelden':'Kostenlos registrieren'; return; }
-
+    // ── Bereits über Whop angemeldet? → CTAs auf "Zur App" umstellen ──
+    function checkExistingSession() {
         try {
-            var result = _mode === 'login'
-                ? await c.auth.signInWithPassword({ email: email, password: password })
-                : await c.auth.signUp({ email: email, password: password });
+            if (!localStorage.getItem('whop_access_token')) return;
+        } catch (e) { return; }
+        var btns = document.querySelectorAll('.btn-hero, .btn-plan-free, .btn-plan-pro');
+        btns.forEach(function(btn) {
+            btn.textContent = 'Zur App →';
+            btn.onclick = function() {
+                showLoader('App wird geöffnet...');
+                window.location.href = APP_URL;
+            };
+        });
+    }
 
-            if (result.error) {
-                var msg = result.error.message || 'Fehler';
-                if (/invalid login credentials/i.test(msg)) msg = 'Falsche E-Mail oder falsches Passwort.';
-                if (/user already registered/i.test(msg))   msg = 'Diese E-Mail ist bereits registriert. Bitte anmelden.';
-                if (/email not confirmed/i.test(msg))       msg = 'Bitte bestätige zuerst deine E-Mail-Adresse.';
-                showErr(msg);
-                btn.disabled = false;
-                btn.textContent = _mode === 'login' ? 'Anmelden' : 'Kostenlos registrieren';
-                return;
-            }
-
-            // Registrierung ohne sofortige Session → E-Mail-Bestätigung
-            if (_mode === 'register' && result.data && !result.data.session) {
-                showOk('✅ Bestätigungs-E-Mail gesendet! Bitte prüfe dein Postfach und klicke auf den Bestätigungs-Link.');
-                btn.disabled = false;
-                btn.textContent = 'Kostenlos registrieren';
-                return;
-            }
-
-            // Mark DSGVO notice as shown on fresh registration (avoids blocking modal in app.js)
-            if (_mode === 'register') {
-                try { localStorage.setItem('dsgvo_notice_shown', new Date().toISOString()); } catch(e) {}
-            }
-
-            // Login / Registrierung erfolgreich → in App weiterleiten
-            showLoader('Wird geöffnet...');
-            setTimeout(function () { window.location.href = APP_URL; }, 500);
-
-        } catch (e) {
-            showErr('Verbindungsfehler: ' + (e.message || String(e)));
-            btn.disabled = false;
-            btn.textContent = _mode === 'login' ? 'Anmelden' : 'Kostenlos registrieren';
-        }
+    // Alle CTAs leiten direkt zur App — Login/Registrierung läuft dort über Whop
+    window.openAuth = function () {
+        showLoader('Weiter zur Anmeldung...');
+        window.location.href = APP_URL;
     };
 
-    window.resetPassword = async function () {
-        var email = (document.getElementById('authEmail').value || '').trim();
-        clearMessages();
-        if (!email) { showErr('Bitte E-Mail eingeben.'); return; }
-        var c = getClient();
-        if (!c) { showErr('Keine Verbindung. Bitte Seite neu laden.'); return; }
-        try {
-            var result = await c.auth.resetPasswordForEmail(email, {
-                redirectTo: 'https://track-your-income-app.vercel.app/app.html'
-            });
-            if (result.error) {
-                var msg = result.error.message || 'Fehler';
-                if (/rate limit/i.test(msg)) msg = 'Zu viele Versuche. Bitte warte kurz.';
-                showErr(msg);
-            } else {
-                showOk('Passwort-Reset E-Mail gesendet. Prüfe dein Postfach.');
-            }
-        } catch (e) {
-            showErr('Verbindungsfehler: ' + (e.message || String(e)));
-        }
-    };
-
-    // Enter-Taste im Modal
-    document.addEventListener('keydown', function (e) {
-        var overlay = document.getElementById('authOverlay');
-        if (!overlay.classList.contains('open')) return;
-        if (e.key === 'Enter') submitAuth();
-        if (e.key === 'Escape') closeAuth();
-    });
-
-    // Init
     checkExistingSession();
 })();
 </script>

@@ -16,15 +16,27 @@ Offline-First bleibt unangetastet: ohne Aktivierung passiert nichts.
 - **Multi-Firma:** `__account` synct die Firmen-Registry (gleiche IDs auf allen Geräten),
   danach je Firma ein Scope. Frisches Gerät verbindet → Registry adoptieren → Daten ziehen.
 
-## Vercel-ENV (EU-Region wählen!)
+## Vercel-ENV
+Eingerichtet via **Vercel → Storage → Upstash for Redis** (Marketplace), DB
+`upstash-kv-cyan-globe`, Region **fra1 (Frankfurt, EU)**, Plan Free, verbunden mit
+Projekt `track-your-income-app` (Production + Preview). Die Integration legt diese
+ENV-Vars automatisch an — Token wird nie manuell eingetragen:
 ```
-UPSTASH_REDIS_REST_URL   = https://<...>.upstash.io        # Upstash-DB in eu-central-1 anlegen
-UPSTASH_REDIS_REST_TOKEN = <REST-Token>
-WHOP_APP_ID              = app_dc3OND8eGv2Iim              # optional, default gesetzt
-SYNC_OWNER_USERNAMES     = secondlifevintage41             # optional, Owner ohne Abo
+KV_REST_API_URL          = https://<...>.upstash.io   # von Integration gesetzt
+KV_REST_API_TOKEN        = <RW-REST-Token>            # von Integration gesetzt (Sensitive)
+WHOP_APP_ID              = app_dc3OND8eGv2Iim          # optional, default gesetzt
+SYNC_OWNER_USERNAMES     = secondlifevintage41         # optional, Owner ohne Abo
 ```
+`api/sync.js` liest `KV_REST_API_URL/TOKEN` (Fallback: `UPSTASH_REDIS_REST_URL/TOKEN`,
+falls man die DB manuell statt über die Integration anlegt).
+
 CSP unverändert nötig: der Browser spricht nur mit `/api/sync` (`connect-src 'self'`);
 die Function spricht server-seitig mit Upstash.
+
+## Deploy (durch dich, nicht automatisch erledigt)
+`api/sync.js` ist erst live, wenn der Branch deployt ist. ENV-Vars greifen ab dem
+nächsten Deployment. Produktion = `master`: `feature/cloud-sync` → `master` mergen
+und pushen (Vercel deployt automatisch). Oder Branch pushen → Preview-URL testen.
 
 ## Unit-Test (reine Logik)
 ```

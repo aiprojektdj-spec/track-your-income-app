@@ -13,11 +13,16 @@
 //   Wert:  { ciphertext, iv, version, updatedAt, deviceId }   (nur Chiffrat)
 //   CAS:   optimistische Nebenläufigkeit per Versions-Vergleich (Lua EVAL).
 //
-// Env (Vercel, EU-Region):
-//   UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+// Env (Vercel, EU-Region) — von der Upstash-Marketplace-Integration automatisch
+// gesetzt (KV_REST_API_*). UPSTASH_REDIS_REST_* werden als Override unterstützt.
+//   KV_REST_API_URL / KV_REST_API_TOKEN    (Upstash REST-Endpoint + RW-Token)
 //   WHOP_APP_ID                (default app_dc3OND8eGv2Iim)
 //   SYNC_OWNER_USERNAMES       (optional, kommagetrennt — Owner ohne Abo)
 // =============================================================================
+
+// Variablennamen je nach Setup (manuell UPSTASH_* oder Vercel-Integration KV_*).
+var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
+var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
 
 var WHOP_APP_ID  = process.env.WHOP_APP_ID || 'app_dc3OND8eGv2Iim';
 var OWNERS       = (process.env.SYNC_OWNER_USERNAMES || 'secondlifevintage41')
@@ -40,11 +45,9 @@ var CAS_LUA = [
 ].join('\n');
 
 function redisCmd(cmd) {
-    var url   = process.env.UPSTASH_REDIS_REST_URL;
-    var token = process.env.UPSTASH_REDIS_REST_TOKEN;
-    return fetch(url, {
+    return fetch(REDIS_URL, {
         method:  'POST',
-        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' },
         body:    JSON.stringify(cmd)
     }).then(function (r) { return r.json(); })
       .then(function (j) {
@@ -61,8 +64,8 @@ module.exports = async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST')    return res.status(405).json({ error: 'method_not_allowed' });
 
-    if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-        console.error('[sync] UPSTASH env not set');
+    if (!REDIS_URL || !REDIS_TOKEN) {
+        console.error('[sync] Redis env not set (KV_REST_API_URL/TOKEN or UPSTASH_REDIS_REST_*)');
         return res.status(500).json({ error: 'server_misconfigured' });
     }
 

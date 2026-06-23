@@ -20,3 +20,6 @@ backup_*.json
 
 # Claude Code session files
 .claude/
+
+# Interne Compliance-Entwürfe (VVT/TIA/GoBD) — NICHT in den öffentlichen Repo
+compliance/

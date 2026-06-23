@@ -717,6 +717,8 @@ const Store = {
             if (this._fsDirHandle) {           // Schicht: Datei-Backup (wenn konfiguriert)
                 this.writeFileSystemBackup('auto');
             }
+            // Schicht: Cloud-Sync (opt-in, E2E) — debounced Push nach Änderung
+            if (window.CloudSync && CloudSync.onLocalChange) { try { CloudSync.onLocalChange(); } catch (e) {} }
         }, 1500);
     },
 
@@ -995,6 +997,7 @@ const Store = {
         const entry = {
             id: this.generateId(),
             timestamp: new Date().toISOString(),
+            _dev: this._deviceId(),   // Herkunft — stabiler Sortier-Tiebreak beim Merge-Re-Chaining
             action,
             entityType,
             entityId,
@@ -1022,6 +1025,7 @@ const Store = {
             const entry = {
                 id: this.generateId(),
                 timestamp: new Date().toISOString(),
+                _dev: this._deviceId(),
                 action: it.action,
                 entityType: it.entityType,
                 entityId: it.entityId,
@@ -1083,9 +1087,46 @@ const Store = {
         return record._checksum === this._calcRecordChecksum(record);
     },
 
+    // Stabile Geräte-ID — für Sync-Merge (LWW) & Audit-Re-Chaining. Einmalig erzeugt.
+    _deviceId() {
+        var id = localStorage.getItem('oyi_device_id');
+        if (!id) {
+            id = 'dev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+            localStorage.setItem('oyi_device_id', id);
+        }
+        return id;
+    },
+
     _stampRecord(record) {
+        // Sync-Metadaten: updatedAt (Last-Writer-Wins) + _dev (Herkunft).
+        // Vor der Prüfsumme gesetzt → wird mitgesichert und bleibt beim Transport stabil.
+        record.updatedAt = Date.now();
+        record._dev = this._deviceId();
         record._checksum = this._calcRecordChecksum(record);
         return record;
+    },
+
+    // ── Cloud-Sync-Schnittstelle (genutzt von js/cloud-sync.js) ──────────────
+    // Liest einen firmen-präfixierten Roh-Key, OHNE die aktive Firma zu wechseln.
+    _syncReadRaw(fullKey) {
+        var raw = this._cache[fullKey];
+        if (raw == null) { try { raw = localStorage.getItem(fullKey); } catch (e) {} }
+        if (raw == null) return null;
+        try { return JSON.parse(raw); } catch (e) { return null; }
+    },
+
+    // Schreibt mehrere Roh-Keys (firmen-präfixiert) in Cache + IDB in EINER Operation.
+    // Bewusst OHNE _stampRecord — der Merge liefert bereits gültige updatedAt/_checksum.
+    syncApplyKeys(map) {
+        var entries = [];
+        for (var k in map) {
+            if (!Object.prototype.hasOwnProperty.call(map, k)) continue;
+            var str = (typeof map[k] === 'string') ? map[k] : JSON.stringify(map[k]);
+            this._cache[k] = str;
+            entries.push({ k: k, v: str });
+        }
+        if (typeof this._idbPutBatch === 'function') this._idbPutBatch(entries);
+        else entries.forEach(function (e) { this._idbPut(e.k, e.v); }, this);
     },
 
     // Check if a record is locked (nicht mehr bearbeitbar)

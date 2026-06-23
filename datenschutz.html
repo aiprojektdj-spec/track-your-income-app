@@ -128,9 +128,11 @@ footer a:hover { color:var(--subtle); }
         <h3>2.3 Buchhaltungsdaten</h3>
         <p>
             Deine eingegebenen Buchhaltungsdaten (Einnahmen, Ausgaben, Rechnungen etc.)
-            werden ausschließlich lokal auf deinem Gerät gespeichert (localStorage/IndexedDB des
+            werden standardmäßig ausschließlich lokal auf deinem Gerät gespeichert (localStorage/IndexedDB des
             Browsers). Sie verlassen dein Gerät nicht und sind nur für dich zugänglich. Eine
-            Übermittlung an Server des Anbieters oder Dritter findet nicht statt.
+            Übermittlung an Server des Anbieters oder Dritter findet nicht statt — <strong>es sei denn, du
+            aktivierst ausdrücklich den optionalen Cloud-Sync</strong> (siehe Ziffer 4). In diesem Fall werden
+            ausschließlich Ende-zu-Ende-verschlüsselte, für uns und den Anbieter unlesbare Daten übertragen.
         </p>
         <p>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.</p>
     </div>
@@ -153,7 +155,14 @@ footer a:hover { color:var(--subtle); }
         <p>
             Darüber hinaus nutzt die App <strong>IndexedDB</strong> und <strong>localStorage</strong>
             des Browsers zur lokalen Speicherung deiner Buchhaltungsdaten.
-            Diese Daten verlassen deinen Browser nicht.
+            Diese Daten verlassen deinen Browser nicht, sofern du den optionalen Cloud-Sync
+            (Ziffer 4) nicht aktivierst.
+        </p>
+        <p>
+            Aktivierst du den Cloud-Sync, werden zusätzlich folgende Schlüssel lokal gespeichert:
+            <strong>oyi_sync_enabled</strong> (Status), <strong>oyi_sync_key_…</strong> (dein geheimer
+            Verschlüsselungsschlüssel — bleibt ausschließlich auf deinem Gerät) und
+            <strong>oyi_device_id</strong> (geräteinterne Kennung für die Zusammenführung).
         </p>
         <p>Rechtsgrundlage: § 25 Abs. 2 TDDDG (technisch notwendig).</p>
 
@@ -163,18 +172,51 @@ footer a:hover { color:var(--subtle); }
 
     <!-- ── 4. Lokale Datenspeicherung ── -->
     <div class="section">
-        <h2>4. Datenspeicherung (lokal auf deinem Gerät)</h2>
+        <h2>4. Datenspeicherung &amp; optionaler Cloud-Sync</h2>
         <p>
-            Stackr ist eine Local-First-Anwendung. Deine Buchhaltungsdaten werden ausschließlich
+            Stackr ist eine Local-First-Anwendung. Deine Buchhaltungsdaten werden standardmäßig ausschließlich
             im Speicher deines Browsers (localStorage und IndexedDB) auf deinem eigenen Gerät
-            abgelegt. Ein aktiver Cloud-Sync besteht nicht; deine Buchhaltungsdaten werden nicht
-            an Server des Anbieters oder Dritter übertragen.
+            abgelegt und nicht an Server des Anbieters oder Dritter übertragen.
         </p>
         <p>
             Für die Sicherung deiner Daten bist du selbst verantwortlich (Export/Backup in der App).
             Beim Löschen der Browserdaten gehen lokal gespeicherte Daten verloren.
         </p>
-        <p>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.</p>
+
+        <h3>4.1 Optionaler Cloud-Sync (Ende-zu-Ende-verschlüsselt)</h3>
+        <p>
+            Als Pro-Funktion kannst du einen <strong>optionalen Cloud-Sync</strong> aktivieren, der deine Daten
+            zwischen mehreren Geräten abgleicht. Dieser ist <strong>standardmäßig deaktiviert</strong> und wird
+            nur nach deiner ausdrücklichen Aktivierung (Opt-in) wirksam. Solange du ihn nicht aktivierst, bleiben
+            alle Aussagen zur rein lokalen Speicherung unverändert gültig.
+        </p>
+        <ul>
+            <li>
+                <strong>Echte Ende-zu-Ende-Verschlüsselung:</strong> Beim Aktivieren erzeugt Stackr auf deinem Gerät
+                einen geheimen 256-Bit-Schlüssel (AES-GCM). Dieser Schlüssel bleibt <strong>ausschließlich auf deinen
+                Geräten</strong> und wird niemals hochgeladen. Hochgeladen wird nur das damit verschlüsselte Chiffrat.
+            </li>
+            <li>
+                <strong>Was gespeichert wird:</strong> Auf dem Sync-Server liegt ausschließlich unlesbares Chiffrat
+                nebst technischen Metadaten (Versionsnummer, Zeitstempel, Geräte-Kennung). Weder wir noch der Anbieter
+                können diese Daten entschlüsseln oder einsehen.
+            </li>
+            <li>
+                <strong>Wo gespeichert wird:</strong> Die verschlüsselten Daten werden bei <strong>Upstash</strong>
+                (Upstash, Inc.) in der Region <strong>Frankfurt am Main (EU, eu-central-1)</strong> abgelegt. Der
+                Transport erfolgt ausschließlich über eine von uns betriebene, abgesicherte Serverless-Funktion
+                (Vercel) auf <a href="https://track-your-income-app.vercel.app">track-your-income-app.vercel.app</a>.
+            </li>
+            <li>
+                <strong>Wiederherstellungscode:</strong> Der Schlüssel wird dir als Wiederherstellungscode angezeigt.
+                Er ist der einzige Weg, die verschlüsselten Cloud-Daten zu lesen. Geht er samt aller Geräte verloren,
+                sind die Cloud-Daten unwiederbringlich — wir können ihn weder einsehen noch zurücksetzen.
+            </li>
+        </ul>
+        <p>
+            Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) bzw. Art. 6 Abs. 1 lit. a DSGVO
+            (deine Einwilligung durch Aktivierung). Zur Auftragsverarbeitung siehe Ziffer 7.
+        </p>
     </div>
 
     <!-- ── 5. Login & Zahlung (Whop) ── -->
@@ -243,7 +285,9 @@ footer a:hover { color:var(--subtle); }
         </p>
         <p style="margin-top:8px;">
             Deine Buchhaltungsdaten werden ausschließlich lokal auf deinem Gerät gespeichert und nicht
-            ins Ausland übermittelt. Für Anmeldung und Zahlung über Whop (Whop Inc., USA) findet eine
+            ins Ausland übermittelt — es sei denn, du aktivierst den optionalen Cloud-Sync (Ziffer 4); dann
+            werden ausschließlich Ende-zu-Ende-verschlüsselte, unlesbare Daten innerhalb der EU (Frankfurt)
+            abgelegt. Für Anmeldung und Zahlung über Whop (Whop Inc., USA) findet eine
             Übermittlung in die USA statt; für einen geeigneten Transfermechanismus (Swiss-US Data
             Privacy Framework bzw. Standardvertragsklauseln mit den schweizspezifischen Anpassungen
             gemäss DSG) ist Whop als verantwortliche Empfängerin zuständig.
@@ -254,8 +298,18 @@ footer a:hover { color:var(--subtle); }
     <div class="section">
         <h2>7. Auftragsverarbeitung (AVV)</h2>
         <p>
-            Buchhaltungsdaten werden ausschließlich lokal auf deinem Gerät verarbeitet; eine
-            Auftragsverarbeitung dieser Daten durch Dritte findet nicht statt.
+            Solange der optionale Cloud-Sync nicht aktiviert ist, werden Buchhaltungsdaten ausschließlich lokal
+            auf deinem Gerät verarbeitet; eine Auftragsverarbeitung dieser Daten durch Dritte findet nicht statt.
+        </p>
+        <p>
+            <strong>Bei aktiviertem Cloud-Sync (Ziffer 4)</strong> tritt <strong>Upstash, Inc.</strong> hinsichtlich
+            der Speicherung der verschlüsselten Daten als <strong>Auftragsverarbeiter</strong> nach Art. 28 DSGVO
+            auf; Gleiches gilt für <strong>Vercel Inc.</strong> bezüglich des Betriebs der Transport-Funktion.
+            Die Speicherung erfolgt in der EU (Frankfurt). Mit beiden Anbietern wird ein
+            Auftragsverarbeitungsvertrag (Data Processing Agreement) geschlossen. Da beide Anbieter US-Gesellschaften
+            sind, kann ein Drittlandbezug bestehen; als Transfermechanismus dienen die EU-Standardvertragsklauseln
+            (Art. 46 DSGVO) bzw. das EU-US Data Privacy Framework. Da ausschließlich Ende-zu-Ende-verschlüsseltes,
+            für die Anbieter unlesbares Chiffrat übertragen wird, ist das Risiko entsprechend minimiert.
         </p>
         <p>
             Whop (Whop Inc., USA) wird nicht als Auftragsverarbeiter für uns tätig, sondern ist

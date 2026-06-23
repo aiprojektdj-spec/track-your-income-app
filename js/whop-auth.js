@@ -197,6 +197,9 @@ var AuthUI = (function () {
             try { UserPlan.injectBadge(); UserPlan.load(user.id); } catch (e) {}
         }
 
+        // Cloud-Sync-Status-Punkt aktualisieren (opt-in; tut ohne Aktivierung nichts)
+        if (typeof CloudSync !== 'undefined') { try { CloudSync.init(); } catch (e) {} }
+
         _hideLoader();
 
         if (!_bootDone) {

@@ -178,6 +178,12 @@ footer a:hover { color:var(--subtle); }
                     <td>Sitzungsbasiert / synchronisiert</td>
                     <td><span class="badge badge-required">Notwendig</span></td>
                 </tr>
+                <tr>
+                    <td>oyi_sync_enabled / oyi_sync_key_… / oyi_device_id</td>
+                    <td>Nur bei aktiviertem optionalen Cloud-Sync: Status, dein geheimer Verschlüsselungsschlüssel (bleibt ausschließlich auf dem Gerät) und eine geräteinterne Kennung zur Zusammenführung</td>
+                    <td>Bis zur Deaktivierung des Cloud-Sync</td>
+                    <td><span class="badge badge-required">Notwendig (opt-in)</span></td>
+                </tr>
             </tbody>
         </table>
 
@@ -186,7 +192,9 @@ footer a:hover { color:var(--subtle); }
             Für größere Datenmengen (z. B. umfangreiche Buchungshistorie) nutzt Stackr die
             <strong style="color:var(--text);">IndexedDB</strong> des Browsers — eine strukturierte
             lokale Datenbank, die ausschließlich auf deinem Gerät gespeichert wird und das Gerät
-            nicht verlässt.
+            nicht verlässt — sofern du nicht den optionalen, Ende-zu-Ende-verschlüsselten Cloud-Sync
+            aktivierst. In diesem Fall wird ausschließlich unlesbares Chiffrat bei Upstash (Frankfurt, EU)
+            abgelegt; Details in der <a href="datenschutz.html">Datenschutzerklärung</a> (Ziffer 4).
         </p>
         <p>Rechtsgrundlage für alle o. g. Technologien: § 25 Abs. 2 TDDDG (technisch notwendig).</p>
     </div>

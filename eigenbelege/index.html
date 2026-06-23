@@ -1479,10 +1479,30 @@ function editBeleg(id) {
 }
 
 function deleteBeleg(id) {
-    if (!confirm(`Eigenbeleg ${id} wirklich löschen?\nDieser Vorgang kann nicht rückgängig gemacht werden.`)) return;
-    EB.saveBelege(EB.getBelege().filter(b=>b.id!==id));
-    toast('Eigenbeleg gelöscht','success');
+    if (!confirm(`Eigenbeleg ${id} wirklich löschen?\nDer Beleg wird in ALLEN Unternehmen entfernt (inkl. EÜR & Rechnungs-Auswahl).\nDieser Vorgang kann nicht rückgängig gemacht werden.`)) return;
+    const n = purgeEigenbelegEverywhere(id);
+    toast(n > 1 ? `Eigenbeleg in ${n} Unternehmen gelöscht` : 'Eigenbeleg gelöscht', 'success');
     applyFilter();
+}
+
+// Entfernt einen Eigenbeleg (per id) aus ALLEN firmen-präfixierten Keys + dem
+// globalen Alt-Key. Behebt Altlasten, bei denen derselbe Beleg in mehreren
+// Unternehmen lag. Gibt die Anzahl bereinigter Keys zurück.
+function purgeEigenbelegEverywhere(id) {
+    let count = 0;
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k === 'eigenbelege_belege' || k.endsWith('__eigenbelege_belege'))) keys.push(k);
+    }
+    keys.forEach(k => {
+        let arr = [];
+        try { arr = JSON.parse(localStorage.getItem(k) || '[]'); } catch(e) { return; }
+        if (!Array.isArray(arr)) return;
+        const kept = arr.filter(b => b && b.id !== id);
+        if (kept.length !== arr.length) { localStorage.setItem(k, JSON.stringify(kept)); count++; }
+    });
+    return count;
 }
 
 function printBeleg(id) {

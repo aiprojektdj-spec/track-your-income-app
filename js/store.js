@@ -9,6 +9,8 @@ const Store = {
     get _prefix()     { return (this._companyId ? this._companyId + '__' : '') + 'reselling_'; },
     get _rechPrefix() { return (this._companyId ? this._companyId + '__' : '') + 'rechnungsbuch_'; },
     get _auditKey()   { return (this._companyId ? this._companyId + '__' : '') + 'audit_log'; },
+    // Eigenbelege liegen company-präfixiert in localStorage (z.B. co_xxx__eigenbelege_belege)
+    get _ebKeyPrefix(){ return (this._companyId ? this._companyId + '__' : ''); },
 
     // ============================================
     // Haupt-Datenspeicher: IndexedDB Key-Value
@@ -1994,11 +1996,12 @@ const Store = {
             }
         }
 
-        // Eigenbelege (liegen nur in localStorage, nicht im IDB-Cache)
+        // Eigenbelege (liegen nur in localStorage, nicht im IDB-Cache) — company-präfixiert lesen
         const ebData = {};
+        const ebPfx  = this._ebKeyPrefix;
         this._EIGENBELEG_KEYS.forEach(k => {
-            const v = localStorage.getItem(k);
-            if (v && v !== '[]' && v !== '{}') ebData[k] = v;
+            const v = localStorage.getItem(ebPfx + k);
+            if (v && v !== '[]' && v !== '{}') ebData[k] = v;   // unter Roh-Key sichern → Import remappt auf Ziel-Firma
         });
         if (Object.keys(ebData).length) data._eigenbelege = JSON.stringify(ebData);
 
@@ -2107,11 +2110,16 @@ const Store = {
         // ── Schritt 3: Atomare Bulk-Transaktion — alles oder nichts ──────────
         this._idbPutBatch(entries);
 
-        // ── Eigenbelege wiederherstellen ─────────────────────────────────────
+        // ── Eigenbelege wiederherstellen (in die AKTIVE Firma) ───────────────
         if (data._eigenbelege) {
             try {
                 const ebData = JSON.parse(data._eigenbelege);
-                Object.entries(ebData).forEach(([k, v]) => localStorage.setItem(k, v));
+                const ebPfx  = this._ebKeyPrefix;
+                Object.entries(ebData).forEach(([k, v]) => {
+                    // Roh-Key ggf. von altem Firmen-Prefix bereinigen, dann auf Ziel-Firma mappen
+                    const rawKey = k.replace(/^co_[a-z0-9_]+__/, '');
+                    localStorage.setItem(ebPfx + rawKey, v);
+                });
             } catch(e) {}
         }
 
@@ -2488,14 +2496,9 @@ const Store = {
             this._idbDelete(k);
         });
 
-        // 2. Eigenbelege-Daten (separates Modul mit eigenen localStorage-Keys)
-        [
-            'eigenbelege_belege',
-            'eigenbelege_kategorien',
-            'eigenbelege_einstellungen',
-            'eigenbelege_naechste_nummer',
-            'eigenbelege_produkte'
-        ].forEach(k => localStorage.removeItem(k));
+        // 2. Eigenbelege-Daten der AKTIVEN FIRMA (company-präfixierte localStorage-Keys)
+        const ebPfx = this._ebKeyPrefix;
+        this._EIGENBELEG_KEYS.forEach(k => localStorage.removeItem(ebPfx + k));
 
         // 3. Akademie-Achievements (basieren auf Geschäftsdaten — werden sonst inkonsistent)
         localStorage.removeItem('akademie_progress');

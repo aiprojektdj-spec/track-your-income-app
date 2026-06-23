@@ -140,6 +140,124 @@ const CompanyManager = {
         return keysToMigrate.length;
     },
 
+    // ── Eigenbeleg-Migration ────────────────────────────────────────────────
+    // Früher lagen Eigenbelege unter einem globalen, firmenübergreifenden Key
+    // ('eigenbelege_belege'). Diese Migration verteilt sie auf die einzelnen
+    // Firmen: erkannt wird die erstellende Firma über die Lager-Verknüpfung
+    // (Einkauf.eigenbeleg_id ↔ Beleg.id bzw. warenPositionen[].lagerArtikelId).
+    // Wo nicht erkennbar, wird die aktive Firma verwendet. Läuft genau einmal.
+    EB_MIGRATION_FLAG: 'oyi_eb_migrated_v1',
+
+    // Liest alle Einkäufe einer Firma aus allen Quellen (Store-Cache, localStorage,
+    // Mirror, IndexedDB), dedupliziert nach id. Nur für die einmalige Migration.
+    async _readPurchasesAllSources(companyId) {
+        const key  = companyId + '__reselling_purchases';
+        const byId = {};
+        const add  = (arr) => { if (Array.isArray(arr)) arr.forEach(p => { if (p && p.id && !byId[p.id]) byId[p.id] = p; }); };
+        try { if (typeof Store !== 'undefined' && Store._cache && Store._cache[key]) add(JSON.parse(Store._cache[key])); } catch(e) {}
+        try { const v = localStorage.getItem(key); if (v) add(JSON.parse(v)); } catch(e) {}
+        try { const m = JSON.parse(localStorage.getItem('_oyi_lsmirror') || '{}'); if (m[key]) add(JSON.parse(m[key])); } catch(e) {}
+        try { add(await this._idbGet(key)); } catch(e) {}
+        return Object.values(byId);
+    },
+
+    _idbGet(key) {
+        return new Promise((resolve) => {
+            try {
+                const req = indexedDB.open('oyi_maindata', 1);
+                req.onsuccess = (e) => {
+                    const db = e.target.result;
+                    try {
+                        const tx = db.transaction('keyval', 'readonly');
+                        const r  = tx.objectStore('keyval').get(key);
+                        r.onsuccess = () => { try { resolve(r.result ? JSON.parse(r.result.v || '[]') : []); } catch(e2) { resolve([]); } };
+                        r.onerror   = () => resolve([]);
+                    } catch(e2) { resolve([]); }
+                };
+                req.onerror = () => resolve([]);
+            } catch(e) { resolve([]); }
+        });
+    },
+
+    // Gibt die Anzahl verschobener Belege zurück (0 = nichts zu tun / bereits erledigt).
+    async migrateEigenbelegeToCompanies() {
+        const FLAG = this.EB_MIGRATION_FLAG;
+        if (localStorage.getItem(FLAG)) return 0;
+
+        const companies = this.getAll();
+        if (!companies.length) return 0;   // noch keine Firma → Onboarding übernimmt
+
+        const BELEGE_KEY = 'eigenbelege_belege';
+        const OTHER_KEYS = ['eigenbelege_kategorien', 'eigenbelege_einstellungen', 'eigenbelege_naechste_nummer', 'eigenbelege_produkte'];
+
+        let globalBelege = [];
+        try { globalBelege = JSON.parse(localStorage.getItem(BELEGE_KEY) || '[]'); } catch(e) {}
+        if (!Array.isArray(globalBelege)) globalBelege = [];
+        const hasOther = OTHER_KEYS.some(k => localStorage.getItem(k) != null);
+
+        // Nichts Globales vorhanden → Flag setzen und fertig
+        if (!globalBelege.length && !hasOther) {
+            localStorage.setItem(FLAG, new Date().toISOString());
+            return 0;
+        }
+
+        const activeId = this.getActiveId() || companies[0].id;
+
+        // Lookup: Einkauf-id → Firma, Eigenbeleg-id → Firma
+        const purchaseToCo = {};
+        const ebIdToCo     = {};
+        for (const co of companies) {
+            const purchases = await this._readPurchasesAllSources(co.id);
+            purchases.forEach(p => {
+                if (p.id)            purchaseToCo[p.id] = co.id;
+                if (p.eigenbeleg_id) ebIdToCo[p.eigenbeleg_id] = co.id;
+            });
+        }
+
+        const detectCo = (beleg) => {
+            if (beleg.id && ebIdToCo[beleg.id]) return ebIdToCo[beleg.id];           // bidirektionaler Link (robust)
+            for (const pos of (beleg.warenPositionen || [])) {
+                if (pos.lagerArtikelId && purchaseToCo[pos.lagerArtikelId]) return purchaseToCo[pos.lagerArtikelId];
+            }
+            return activeId;                                                          // nicht erkennbar → aktive Firma
+        };
+
+        // Belege nach Ziel-Firma gruppieren
+        const byCo = {};
+        globalBelege.forEach(b => {
+            const target = detectCo(b);
+            (byCo[target] = byCo[target] || []).push(b);
+        });
+
+        // In firmen-präfixierte Keys einmischen (ohne Duplikate, ohne Überschreiben)
+        Object.entries(byCo).forEach(([coId, incoming]) => {
+            if (!incoming.length) return;
+            const key = coId + '__' + BELEGE_KEY;
+            let existing = [];
+            try { existing = JSON.parse(localStorage.getItem(key) || '[]'); } catch(e) {}
+            if (!Array.isArray(existing)) existing = [];
+            const ids    = new Set(existing.map(x => x && x.id));
+            const merged = existing.concat(incoming.filter(x => x && !ids.has(x.id)));
+            localStorage.setItem(key, JSON.stringify(merged));
+        });
+
+        // Übrige globale Keys → aktive Firma, nur falls dort noch nicht vorhanden
+        OTHER_KEYS.forEach(k => {
+            const v = localStorage.getItem(k);
+            if (v == null) return;
+            const target = activeId + '__' + k;
+            if (localStorage.getItem(target) == null) localStorage.setItem(target, v);
+        });
+
+        // Globale Keys entfernen → kein firmenübergreifendes Leck mehr
+        localStorage.removeItem(BELEGE_KEY);
+        OTHER_KEYS.forEach(k => localStorage.removeItem(k));
+
+        localStorage.setItem(FLAG, new Date().toISOString());
+        console.log(`[CompanyManager] Eigenbeleg-Migration: ${globalBelege.length} Belege auf Firmen verteilt`);
+        return globalBelege.length;
+    },
+
     // ── UI ──────────────────────────────────────────────────────────────────
 
     // Rendert den Company-Switcher-Button (oben rechts im tool-switcher)
@@ -658,6 +776,7 @@ const CompanyManager = {
         localStorage.setItem(this.ACTIVE_KEY, co.id);
 
         await this.migrateExistingData(co.id);
+        await this.migrateEigenbelegeToCompanies();   // ggf. vorhandene globale Eigenbelege dieser ersten Firma zuordnen
 
         Store._companyId = co.id;
 
@@ -673,3 +792,22 @@ const CompanyManager = {
     }
 };
 window.CompanyManager = CompanyManager;
+
+// Einmalige Eigenbeleg-Migration: globale (firmenübergreifende) Eigenbelege auf
+// Firmen verteilen. Läuft auf jeder Seite (alle laden companies.js), aber nur
+// einmal (Flag). Reload nur, wenn tatsächlich Belege verschoben wurden — damit
+// die gerade offene Seite die jetzt firmen-getrennten Daten zeigt.
+(function _runEbMigration() {
+    const go = () => {
+        try {
+            CompanyManager.migrateEigenbelegeToCompanies()
+                .then(moved => { if (moved > 0) location.reload(); })
+                .catch(() => {});
+        } catch(e) {}
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', go);
+    } else {
+        go();
+    }
+})();

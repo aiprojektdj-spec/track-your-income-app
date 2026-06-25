@@ -58,7 +58,9 @@ const Koerperschaftsteuer = {
         // GewSt (GmbH/UG: kein Freibetrag!)
         const einst    = Store.get('gbr_einstellungen') || {};
         const hebesatz = parseFloat(einst.hebesatz) || 400;
-        const messbetrag = zvE * 0.035;
+        // §11 GewStG: Gewerbeertrag auf volle 100 € abrunden, dann Steuermesszahl 3,5%
+        const gewerbeertrag = Math.floor(Math.max(0, zvE) / 100) * 100;
+        const messbetrag = gewerbeertrag * 0.035;
         const gewSt      = messbetrag * (hebesatz / 100);
 
         // Gesamtsteuerbelastung

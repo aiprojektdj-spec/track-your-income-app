@@ -728,7 +728,8 @@ var Rechnung = (function() {
     function renderEigenbelegAuswahl(selectedIds) {
         var belege = [];
         try {
-            belege = JSON.parse(localStorage.getItem('eigenbelege_belege') || '[]');
+            var _ebCo = localStorage.getItem('oyi_active_company') || '';
+            belege = JSON.parse(localStorage.getItem((_ebCo?_ebCo+'__':'')+'eigenbelege_belege') || '[]');
         } catch(e) {}
 
         if (belege.length === 0) {

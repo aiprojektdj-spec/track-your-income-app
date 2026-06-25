@@ -15,7 +15,9 @@ const Dashboard = {
             return;
         }
         const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3';
+        script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js';
+        script.integrity = 'sha384-KNaFJ+EK516RuHsoycvreec5pD7BkTKJEkjMrVSQWu9KGTl7En4dhIDv7t1DFJ+g';
+        script.crossOrigin = 'anonymous';
         script.onload = () => { this._renderChart(); this._renderGewinnChart(); };
         script.onerror = () => console.warn('[Dashboard] ApexCharts failed to load');
         document.head.appendChild(script);
@@ -143,7 +145,7 @@ const Dashboard = {
             .map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('');
         const yearBtns = `<select class="year-select" id="yearSelect">${yearOptions}</select>`;
 
-        // Web-Version: kein lokales Datei-Backup nötig (Cloud-Sync via Supabase)
+        // Backup-Reminder wird separat über das Backup-Banner gehandhabt
         const backupReminder = '';
 
         // Derived metrics

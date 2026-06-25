@@ -148,7 +148,7 @@ const Ksk = {
                     <tbody>
                         <tr><td>Krankenversicherung</td><td>${(saetze.kv * 100).toFixed(1)}%</td><td style="text-align:right">${Utils.formatCurrency(beitrag.kv)}</td><td style="text-align:right">${Utils.formatCurrency(beitrag.kv/12)}</td></tr>
                         <tr><td>Pflegeversicherung</td><td>${(saetze.pv * 100).toFixed(1)}%</td><td style="text-align:right">${Utils.formatCurrency(beitrag.pv)}</td><td style="text-align:right">${Utils.formatCurrency(beitrag.pv/12)}</td></tr>
-                        <tr><td>Rentenversicherung</td><td>${(saetze.av * 100).toFixed(1)}%</td><td style="text-align:right">${Utils.formatCurrency(beitrag.rv)}</td><td style="text-align:right">${Utils.formatCurrency(beitrag.rv/12)}</td></tr>
+                        <tr><td>Rentenversicherung</td><td>${(saetze.rv * 100).toFixed(1)}%</td><td style="text-align:right">${Utils.formatCurrency(beitrag.rv)}</td><td style="text-align:right">${Utils.formatCurrency(beitrag.rv/12)}</td></tr>
                         <tr style="font-weight:600;background:var(--bg-secondary);">
                             <td colspan="2">Gesamt</td>
                             <td style="text-align:right">${Utils.formatCurrency(beitrag.gesamt)}</td>

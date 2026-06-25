@@ -78,11 +78,11 @@ const App = {
     },
 
     _bootAfterLicense() {
-        // Supabase-First: AuthUI prüft Session, pullt Cloud-Daten, dann _continueAfterAuth()
+        // Whop-Auth: AuthUI prüft Membership, dann _continueAfterAuth()
         if (typeof AuthUI !== 'undefined' && AuthUI.boot) {
             AuthUI.boot();
         } else {
-            // Fallback (kein Supabase geladen)
+            // Fallback (kein AuthUI geladen)
             this._continueInit();
         }
     },
@@ -183,29 +183,6 @@ const App = {
             // ?openBackup=1 → Backup-Modal direkt öffnen (von Lager-Sidebar)
             if (params.get('openBackup') === '1') {
                 setTimeout(() => this.showBackupModal && this.showBackupModal(), 300);
-            }
-            // ?upgrade=success → Erfolgsmeldung nach Paddle-Checkout
-            if (params.get('upgrade') === 'success') {
-                setTimeout(() => {
-                    // URL bereinigen ohne Reload
-                    history.replaceState(null, '', location.pathname);
-                    // Notyf-Toast wenn verfügbar, sonst einfacher Alert
-                    if (typeof Notyf !== 'undefined') {
-                        new Notyf({ duration: 6000, position: { x: 'center', y: 'top' } })
-                            .success('🎉 Willkommen im Pro-Plan! Alle Features sind jetzt freigeschaltet.');
-                    } else {
-                        alert('🎉 Upgrade erfolgreich! Willkommen im Pro-Plan.');
-                    }
-                    // Plan neu laden damit Badge + Gates sofort aktualisiert werden
-                    if (typeof UserPlan !== 'undefined' && typeof SupabaseDB !== 'undefined') {
-                        const client = SupabaseDB.getClient();
-                        if (client) {
-                            client.auth.getUser().then(({ data }) => {
-                                if (data && data.user) UserPlan.load(data.user.id);
-                            }).catch(() => {});
-                        }
-                    }
-                }, 800);
             }
             // Backup-Hinweis-Banner (verzögert damit Seite erst gerendert ist)
             setTimeout(() => this._showBackupBanner(), 2000);
@@ -829,7 +806,7 @@ const App = {
                 <p>Die Software ersetzt <strong>keinen professionellen Steuerberater</strong> und stellt keine steuerliche oder rechtliche Beratung dar. Alle durch die Software erzeugten Auswertungen (insbesondere EÜR, Gewinnberechnungen) sind <strong>unverbindliche Hilfsmittel</strong> und müssen vor Abgabe an Finanzbehörden durch einen qualifizierten Steuerberater oder Buchhalter geprüft werden.</p>
 
                 <h3>§ 4 Datenspeicherung</h3>
-                <p>Daten werden <strong>lokal im Browser</strong> gespeichert (IndexedDB / localStorage). Bei aktiviertem Cloud-Sync werden Daten zusätzlich verschlüsselt auf EU-Servern (Supabase, Frankfurt) gespeichert. Der Nutzer ist selbst für regelmäßige Backups verantwortlich. Der Entwickler übernimmt keine Haftung für Datenverlust.</p>
+                <p>Daten werden <strong>ausschließlich lokal im Browser</strong> gespeichert (IndexedDB / localStorage) und nicht an Server des Anbieters oder Dritter übertragen. Der Nutzer ist selbst für regelmäßige Backups verantwortlich. Der Entwickler übernimmt keine Haftung für Datenverlust.</p>
 
                 <h3>§ 5 GoBD-Konformität</h3>
                 <p>Die Software enthält Funktionen zur Unterstützung der GoBD-Konformität (Protokollierung, Stornierung, Prüfsummen). Der Entwickler übernimmt jedoch <strong>keine Garantie</strong>, dass die Software den jeweils geltenden steuerrechtlichen Anforderungen vollständig entspricht. Die Prüfung der steuerrechtlichen Anforderungen obliegt dem Nutzer.</p>
@@ -1013,67 +990,93 @@ const App = {
     _checkUstThreshold() {
         const settings = Store.getSettings();
         if ((settings.ustMode || 'klein') !== 'klein') return; // nur für Kleinunternehmer
-        const year     = new Date().getFullYear();
-        const GRENZE   = 25000;
-        const umsatz   = this._calcJahresumsatz(year);
-        const warnKey  = 'ust_threshold_warned_' + year;
+        const year       = new Date().getFullYear();
+        const GRENZE_VJ  = 25000;    // Vorjahresgrenze (§19 UStG ab 2025) → entscheidet Folgejahr
+        const GRENZE_LFD = 100000;   // obere Grenze lfd. Jahr → SOFORTIGER Wegfall der Kleinunternehmer-Eigenschaft
+        const umsatz     = this._calcJahresumsatz(year);
+        const hardKey    = 'ust_threshold_hard_' + year;    // 100k Sofort-Modal
+        const warnKey    = 'ust_threshold_warned_' + year;  // 25k Folgejahr-Modal
         const preWarnKey = 'ust_prewarn_' + year;
 
-        if (umsatz >= GRENZE) {
-            // Grenze überschritten → Pflicht-Modal
-            if (!localStorage.getItem(warnKey)) {
-                // Kurze Verzögerung damit die Seite zuerst gerendert wird
-                setTimeout(() => this._showUstThresholdModal(umsatz, year, warnKey), 400);
+        // 1) Obere Grenze: 100.000 € im laufenden Jahr → Status entfällt SOFORT ab überschreitendem Umsatz
+        if (umsatz >= GRENZE_LFD) {
+            if (!localStorage.getItem(hardKey)) {
+                setTimeout(() => this._showUstThresholdModal(umsatz, year, hardKey, 'sofort'), 400);
             }
-        } else if (umsatz >= GRENZE * 0.9) {
+            return;
+        }
+
+        // 2) Vorjahresgrenze 25.000 € im lfd. Jahr überschritten → ab Folgejahr regelbesteuert
+        if (umsatz >= GRENZE_VJ) {
+            if (!localStorage.getItem(warnKey)) {
+                setTimeout(() => this._showUstThresholdModal(umsatz, year, warnKey, 'folgejahr'), 400);
+            }
+        } else if (umsatz >= GRENZE_VJ * 0.9) {
             // 90 % Vorwarnung (ab 22.500 €) — einmalige Toast-Meldung
             if (!localStorage.getItem(preWarnKey) && !localStorage.getItem(warnKey)) {
                 localStorage.setItem(preWarnKey, '1');
                 const rest = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
-                    .format(GRENZE - umsatz);
+                    .format(GRENZE_VJ - umsatz);
                 setTimeout(() => Utils.showToast(
                     `⚠️ Kleinunternehmer: Noch ${rest} bis zur 25.000 €-Grenze`, 'warning'), 800);
             }
         }
     },
 
-    _showUstThresholdModal(umsatz, year, warnKey) {
-        const fmt  = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+    _showUstThresholdModal(umsatz, year, warnKey, mode) {
+        const fmt    = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+        const sofort = mode === 'sofort';
+        const erklaerung = sofort
+            ? `Die obere Umsatzgrenze von <strong>100.000&nbsp;€</strong> wurde im laufenden Jahr überschritten.
+               Die Kleinunternehmerregelung (§&nbsp;19 UStG) entfällt damit <strong>sofort</strong> — ab dem Umsatz,
+               der die Grenze überschreitet, ist Umsatzsteuer auszuweisen.`
+            : `Dein Umsatz übersteigt ${year} die Grenze von <strong>25.000&nbsp;€</strong>.
+               Du bleibst <strong>dieses Jahr</strong> Kleinunternehmer, wirst aber <strong>ab ${year + 1}</strong>
+               regelbesteuert (sofern der Umsatz nicht zusätzlich 100.000&nbsp;€ überschreitet — dann gilt der Wechsel sofort).`;
+        const todos = sofort
+            ? `<li>Ab sofort <strong>19&nbsp;% Umsatzsteuer</strong> auf neuen Rechnungen ausweisen</li>
+               <li>Das <strong>Finanzamt informieren</strong> (oder Steuerberater beauftragen)</li>
+               <li>Ab Folgemonat gilt die <strong>Pflicht zur USt-Voranmeldung</strong></li>`
+            : `<li><strong>Ab ${year + 1}</strong> Umsatzsteuer (19&nbsp;%) auf Rechnungen ausweisen</li>
+               <li><strong>Finanzamt/Steuerberater</strong> über den anstehenden Wechsel informieren</li>
+               <li>Dieses Jahr bleibt unverändert — keine Rückwirkung auf bereits gestellte Rechnungen</li>`;
         const body = `
             <div style="background:var(--warning-bg);border:1px solid var(--warning);border-radius:8px;
                         padding:16px 18px;margin-bottom:20px;">
                 <div style="font-size:24px;margin-bottom:6px;">⚠️</div>
                 <strong style="font-size:15px;">Jahresumsatz ${year}: ${fmt.format(umsatz)}</strong>
                 <div style="font-size:13px;color:var(--text-secondary);margin-top:6px;">
-                    Die Umsatzgrenze der Kleinunternehmerregelung (§&nbsp;19 UStG)
-                    von <strong>25.000&nbsp;€</strong> wurde überschritten.
+                    ${erklaerung}
                 </div>
             </div>
             <h4 style="margin-bottom:10px;color:var(--text-primary);">Was jetzt zu tun ist:</h4>
             <ul style="padding-left:20px;font-size:13px;line-height:1.9;
                        color:var(--text-secondary);margin-bottom:20px;">
-                <li>Ab sofort <strong>19&nbsp;% Umsatzsteuer</strong> auf neuen Rechnungen ausweisen</li>
-                <li>Das <strong>Finanzamt informieren</strong> (oder Steuerberater beauftragen)</li>
-                <li>Bereits gestellte Rechnungen im lfd. Jahr ggf. berichtigen</li>
-                <li>Ab Folgemonat gilt die <strong>Pflicht zur USt-Voranmeldung</strong></li>
+                ${todos}
             </ul>
             <div style="font-size:11px;color:var(--text-muted);background:var(--bg-secondary);
                         padding:8px 12px;border-radius:6px;">
                 ⚖️ Keine Steuerberatung – bitte einen Steuerberater konsultieren.
             </div>
         `;
-        const footer = `
-            <button class="btn btn-primary"
-                style="background:var(--warning);border-color:var(--warning);flex:1;min-width:180px;"
-                onclick="App._ustSwitchToRegel('${warnKey}')">
-                ✅ Jetzt auf Regelbesteuerung umstellen
-            </button>
-            <button class="btn btn-secondary" style="flex:1;min-width:160px;"
-                onclick="App._ustDismissThreshold('${warnKey}')">
-                📋 Ich kümmere mich selbst
-            </button>
-        `;
-        this.showModal('Kleinunternehmer-Grenze überschritten', body, footer);
+        const footer = sofort
+            ? `<button class="btn btn-primary"
+                    style="background:var(--warning);border-color:var(--warning);flex:1;min-width:180px;"
+                    onclick="App._ustSwitchToRegel('${warnKey}')">
+                    ✅ Jetzt auf Regelbesteuerung umstellen
+                </button>
+                <button class="btn btn-secondary" style="flex:1;min-width:160px;"
+                    onclick="App._ustDismissThreshold('${warnKey}')">
+                    📋 Ich kümmere mich selbst
+                </button>`
+            : `<button class="btn btn-primary" style="flex:1;min-width:160px;"
+                    onclick="App._ustDismissThreshold('${warnKey}')">
+                    ✅ Verstanden
+                </button>`;
+        const title = sofort
+            ? 'Kleinunternehmer-Grenze (100.000 €) überschritten'
+            : 'Kleinunternehmer: 25.000-€-Grenze überschritten';
+        this.showModal(title, body, footer);
     },
 
     _ustSwitchToRegel(warnKey) {

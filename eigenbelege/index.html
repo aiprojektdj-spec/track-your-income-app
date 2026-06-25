@@ -3,22 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://csfvzmlihkrxokbbjyhf.supabase.co wss://csfvzmlihkrxokbbjyhf.supabase.co https://api.whop.com; frame-src 'none';">
+    <!-- Robust gegen Aufruf ohne Trailing-Slash (/eigenbelege): relative Pfade gegen Unterordner auflösen -->
+    <base href="/eigenbelege/">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com; frame-src 'none';">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
     <title>Stackr — Eigenbelege</title>
     <link rel="preload" href="../fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="../fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="../css/style.css">
     <script src="../js/i18n.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/tabler-icons.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/themes/dark.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.44.0/dist/tabler-icons.min.css" integrity="sha384-ccZHbezhtZWmNy0cg8odL0D/jFU5k5HIls9y78Qd6lWor7rpvFIZtK0fTFG4z456" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.css" integrity="sha384-snpJ3knpH6avB6cP1vPkNdmRzCYaCpom/3TNOyvo189BiogXYXQfXkyYpZ2/xADs" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/themes/dark.css" integrity="sha384-heUUtXw0Djj2DElfLOVPlASSWFKNL3JDY6s3FEqQD03GYyWOeophY5DsfEG40sYX" crossorigin="anonymous">
     <script src="../js/vendor/chart.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4/dist/l10n/de.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js" integrity="sha384-KNaFJ+EK516RuHsoycvreec5pD7BkTKJEkjMrVSQWu9KGTl7En4dhIDv7t1DFJ+g" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.js" integrity="sha384-uuNfwJfjOG2ukYi4eAB11/t3lP4Zjf75a3UhgkLzEpiX8JpJfacpG7Ye+0tiVMxT" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/de.js" integrity="sha384-yD6dlpesNBZIZV0gfeLiuO80i+vOIxc912ljzvZhRljuVNYEaCoKHCFzbOX0ALBT" crossorigin="anonymous"></script>
     <style>
         /* ── Eigenbeleg-spezifische Ergänzungen ── */
         .form-control {
@@ -1479,10 +1481,30 @@ function editBeleg(id) {
 }
 
 function deleteBeleg(id) {
-    if (!confirm(`Eigenbeleg ${id} wirklich löschen?\nDieser Vorgang kann nicht rückgängig gemacht werden.`)) return;
-    EB.saveBelege(EB.getBelege().filter(b=>b.id!==id));
-    toast('Eigenbeleg gelöscht','success');
+    if (!confirm(`Eigenbeleg ${id} wirklich löschen?\nDer Beleg wird in ALLEN Unternehmen entfernt (inkl. EÜR & Rechnungs-Auswahl).\nDieser Vorgang kann nicht rückgängig gemacht werden.`)) return;
+    const n = purgeEigenbelegEverywhere(id);
+    toast(n > 1 ? `Eigenbeleg in ${n} Unternehmen gelöscht` : 'Eigenbeleg gelöscht', 'success');
     applyFilter();
+}
+
+// Entfernt einen Eigenbeleg (per id) aus ALLEN firmen-präfixierten Keys + dem
+// globalen Alt-Key. Behebt Altlasten, bei denen derselbe Beleg in mehreren
+// Unternehmen lag. Gibt die Anzahl bereinigter Keys zurück.
+function purgeEigenbelegEverywhere(id) {
+    let count = 0;
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k === 'eigenbelege_belege' || k.endsWith('__eigenbelege_belege'))) keys.push(k);
+    }
+    keys.forEach(k => {
+        let arr = [];
+        try { arr = JSON.parse(localStorage.getItem(k) || '[]'); } catch(e) { return; }
+        if (!Array.isArray(arr)) return;
+        const kept = arr.filter(b => b && b.id !== id);
+        if (kept.length !== arr.length) { localStorage.setItem(k, JSON.stringify(kept)); count++; }
+    });
+    return count;
 }
 
 function printBeleg(id) {

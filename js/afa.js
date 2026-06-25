@@ -18,9 +18,15 @@ const Afa = {
         if (year > kaufJahr + nd) return 0; // vollständig abgeschrieben (inkl. anteiliges Abschlussjahr)
 
         if (asset.methode === 'degressiv') {
-            // Degressive AfA: 2,5× linear, max 25% (§7 Abs. 2 EStG – bis 2007)
+            // Degressiver AfA-Satz hängt gesetzlich vom Anschaffungsjahr ab (§7 Abs. 2 EStG):
+            //  2020–2022: 2,5×/max 25%  ·  2024: 2,0×/max 20% (Wachstumschancengesetz)
+            //  2025–2027: 3,0×/max 30%  ·  sonst degressiv nicht zulässig → konservativ 2,0×/20%
             const linRate = 1 / nd;
-            const degRate = Math.min(linRate * 2.5, 0.25);
+            let degFactor = 2.0, degCap = 0.20;
+            if (kaufJahr >= 2020 && kaufJahr <= 2022)      { degFactor = 2.5; degCap = 0.25; }
+            else if (kaufJahr === 2024)                    { degFactor = 2.0; degCap = 0.20; }
+            else if (kaufJahr >= 2025 && kaufJahr <= 2027) { degFactor = 3.0; degCap = 0.30; }
+            const degRate = Math.min(linRate * degFactor, degCap);
             let bw = ak;
             for (let y = kaufJahr; y < year; y++) {
                 const afa = y === kaufJahr

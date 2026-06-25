@@ -621,12 +621,15 @@ ${detailRows.filter(r=>r[1]<0).map(r=>`<tr><td style="padding-left:20px;color:#5
         let vorsteuer = 0;
         purchases.forEach(p => {
             const brutto = (parseFloat(p.einkaufspreis)||0)*(parseInt(p.anzahl)||1);
-            const rate = _chRate(p.steuersatz || 8.1) / 100;
+            // Explizite 0 (steuerfrei) NICHT auf 8,1% defaulten — nur leer/null nutzt Default
+            const rate = _chRate(p.steuersatz != null && p.steuersatz !== '' ? p.steuersatz : 8.1) / 100;
             vorsteuer += brutto - brutto/(1+rate);
         });
         expenses.forEach(e => {
             const brutto = parseFloat(e.betrag)||0;
-            const rate = _chRate(e.ustSatz||e.steuersatz||8.1) / 100;
+            const _eSatz = (e.ustSatz != null && e.ustSatz !== '') ? e.ustSatz
+                         : (e.steuersatz != null && e.steuersatz !== '') ? e.steuersatz : 8.1;
+            const rate = _chRate(_eSatz) / 100;
             if (rate > 0) vorsteuer += brutto - brutto/(1+rate);
         });
 
@@ -933,38 +936,39 @@ ${detailRows.filter(r=>r[1]<0).map(r=>`<tr><td style="padding-left:20px;color:#5
 
     // ── Steuerrechner: Einkommenssteuer-Schätzung ──────────────────────────
     _calcDBst(einkommen, verheiratet) {
-        // Direkte Bundessteuer 2024 — vereinfachte Stufenberechnung
-        // Tarif für ledige natürliche Personen (Tarif A)
-        // Stufen: (untere Grenze, Satz auf den Überschuss)
+        // Direkte Bundessteuer 2026 (ESTV Form. 58c, gültig ab 2026) — Stufentarif Art. 36 DBG
+        // Tarif für ledige natürliche Personen (Grundtarif / Tarif A)
+        // Stufen: (untere Grenze CHF, Grenzsteuersatz % auf den Überschuss)
         const tariA = [
-            [      0,   0 ],
-            [  17800,   0.77 ],
-            [  31600,   0.88 ],
-            [  41400,   2.64 ],
-            [  55200,   2.97 ],
-            [  72500,   5.94 ],
-            [  78100,   6.60 ],
-            [ 103600,   8.80 ],
-            [ 134600,  11.00 ],
-            [ 176000,  13.20 ],
-            [ 755200,  11.50 ],
+            [      0,   0    ],
+            [  15200,   0.77 ],
+            [  33200,   0.88 ],
+            [  43500,   2.64 ],
+            [  58000,   2.97 ],
+            [  76200,   5.94 ],
+            [  82100,   6.60 ],
+            [ 108900,   8.80 ],
+            [ 141500,  11.00 ],
+            [ 185100,  13.20 ],
+            [ 793900,  11.50 ],
         ];
-        // Tarif B (Verheiratete/Einelternfamilien) — höhere Freibeträge
+        // Tarif B (Verheiratete/Einelternfamilien) — Verheiratetentarif Art. 36 Abs. 2 DBG
         const tariB = [
-            [      0,   0 ],
-            [  28300,   1.00 ],
-            [  50900,   2.00 ],
-            [  58400,   3.00 ],
-            [  75300,   4.00 ],
-            [  90300,   5.00 ],
-            [ 103400,   6.00 ],
-            [ 114700,   7.00 ],
-            [ 124200,   8.00 ],
-            [ 131800,   9.00 ],
-            [ 137300,  10.00 ],
-            [ 141200,  11.00 ],
-            [ 143100,  12.00 ],
-            [ 895900,  11.50 ],
+            [      0,   0    ],
+            [  29700,   1.00 ],
+            [  53400,   2.00 ],
+            [  61300,   3.00 ],
+            [  79100,   4.00 ],
+            [  94900,   5.00 ],
+            [ 108700,   6.00 ],
+            [ 120600,   7.00 ],
+            [ 130500,   8.00 ],
+            [ 138400,   9.00 ],
+            [ 144300,  10.00 ],
+            [ 148300,  11.00 ],
+            [ 150400,  12.00 ],
+            [ 152400,  13.00 ],
+            [ 941300,  11.50 ],
         ];
 
         const stufen = verheiratet ? tariB : tariA;

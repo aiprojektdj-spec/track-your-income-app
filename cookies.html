@@ -178,6 +178,12 @@ footer a:hover { color:var(--subtle); }
                     <td>Sitzungsbasiert / synchronisiert</td>
                     <td><span class="badge badge-required">Notwendig</span></td>
                 </tr>
+                <tr>
+                    <td>oyi_sync_enabled / oyi_sync_key_… / oyi_device_id</td>
+                    <td>Nur bei aktiviertem optionalen Cloud-Sync: Status, dein geheimer Verschlüsselungsschlüssel (bleibt ausschließlich auf dem Gerät) und eine geräteinterne Kennung zur Zusammenführung</td>
+                    <td>Bis zur Deaktivierung des Cloud-Sync</td>
+                    <td><span class="badge badge-required">Notwendig (opt-in)</span></td>
+                </tr>
             </tbody>
         </table>
 
@@ -186,9 +192,11 @@ footer a:hover { color:var(--subtle); }
             Für größere Datenmengen (z. B. umfangreiche Buchungshistorie) nutzt Stackr die
             <strong style="color:var(--text);">IndexedDB</strong> des Browsers — eine strukturierte
             lokale Datenbank, die ausschließlich auf deinem Gerät gespeichert wird und das Gerät
-            nicht verlässt.
+            nicht verlässt — sofern du nicht den optionalen, Ende-zu-Ende-verschlüsselten Cloud-Sync
+            aktivierst. In diesem Fall wird ausschließlich unlesbares Chiffrat bei Upstash (Frankfurt, EU)
+            abgelegt; Details in der <a href="datenschutz.html">Datenschutzerklärung</a> (Ziffer 4).
         </p>
-        <p>Rechtsgrundlage für alle o. g. Technologien: § 25 Abs. 2 TTDSG (technisch notwendig).</p>
+        <p>Rechtsgrundlage für alle o. g. Technologien: § 25 Abs. 2 TDDDG (technisch notwendig).</p>
     </div>
 
     <div class="section">
@@ -205,7 +213,7 @@ footer a:hover { color:var(--subtle); }
         </ul>
         <p>
             Da Stackr ausschließlich technisch notwendige Cookies und lokale Speicherung verwendet,
-            ist nach § 25 Abs. 2 TTDSG kein Cookie-Einwilligungsbanner erforderlich.
+            ist nach § 25 Abs. 2 TDDDG kein Cookie-Einwilligungsbanner erforderlich.
         </p>
     </div>
 
@@ -222,7 +230,8 @@ footer a:hover { color:var(--subtle); }
             die Zahlungsabwicklung nutzen wir <strong style="color:var(--text);">Whop</strong>
             (Whop Inc., USA). Die Anmelde-Session wird im localStorage deines Browsers gespeichert
             (kein klassischer Cookie). Beim Bezahlvorgang kann Whop eigene Cookies setzen.
-            Die Übermittlung in die USA stützt sich auf die EU-Standardvertragsklauseln.
+            Whop ist insoweit eigenständig Verantwortlicher; für den Transfermechanismus der
+            Übermittlung in die USA ist Whop zuständig (Näheres in der Datenschutzerklärung von Whop).
             Datenschutzerklärung: <a href="https://whop.com/privacy/" target="_blank" rel="noopener">whop.com/privacy</a>
         </p>
 

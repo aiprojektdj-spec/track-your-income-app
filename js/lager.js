@@ -500,7 +500,8 @@ const Lager = {
             // Eigenbeleg lookup
             const ebMap = {};
             try {
-                const belege = JSON.parse(localStorage.getItem('eigenbelege_belege') || '[]');
+                const _ebCo = localStorage.getItem('oyi_active_company') || '';
+                const belege = JSON.parse(localStorage.getItem((_ebCo?_ebCo+'__':'')+'eigenbelege_belege') || '[]');
                 belege.forEach(b => {
                     (b.warenPositionen || []).forEach(wp => {
                         if (wp.lagerArtikelId) {

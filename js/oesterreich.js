@@ -89,7 +89,7 @@ const Oesterreich = {
         const y = year || this._year;
         const sales     = (Store.get('sales')     || []).filter(s => new Date(s.datum).getFullYear() === y);
         const purchases = (Store.get('purchases') || []).filter(p => new Date(p.datum).getFullYear() === y);
-        const expenses  = (Store.get('expenses')  || []).filter(e => new Date(e.datum).getFullYear() === y);
+        const expenses  = (Store.getAllExpensesRaw ? Store.getAllExpensesRaw() : (Store.get('ausgaben') || [])).filter(e => new Date(e.datum).getFullYear() === y);
 
         let einnahmen = 0, ausgaben = 0;
         sales.forEach(s     => einnahmen += parseFloat(s.netto || s.betrag) || 0);
@@ -168,7 +168,7 @@ const Oesterreich = {
         });
 
         const purchases = (Store.get('purchases') || []).filter(p => new Date(p.datum).getFullYear() === y);
-        const expenses  = (Store.get('expenses')  || []).filter(e => new Date(e.datum).getFullYear() === y);
+        const expenses  = (Store.getAllExpensesRaw ? Store.getAllExpensesRaw() : (Store.get('ausgaben') || [])).filter(e => new Date(e.datum).getFullYear() === y);
 
         let vorsteuer = 0;
         purchases.forEach(p => vorsteuer += (parseFloat(p.vorsteuer || 0)) || (parseFloat(p.netto||p.betrag)||0) * 0.20);

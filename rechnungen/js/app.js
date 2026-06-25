@@ -9,6 +9,7 @@ var RechApp = (function() {
         'angebot-neu':       Rechnung,
         'rechnung-edit':     Rechnung,
         'dokumente':         Dokumente,
+        'erechnung-empfang': ERechnungImport,
         'kunden':            Kunden,
         'produkte':          Produkte,
         'mahnungen':         Mahnungen,

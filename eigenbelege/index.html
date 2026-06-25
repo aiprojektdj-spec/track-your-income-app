@@ -286,17 +286,12 @@ const EB = {
 
     getEinstellungen() {
         const def  = { firmenname:'', inhaberName:'', adresse:'', prefix:'EB', jahresReset:true, mwstModus:'kleinunternehmer', standardErlaeuterung:'' };
-        const shared = JSON.parse(localStorage.getItem('app_einstellungen') || '{}');
-        const own    = JSON.parse(localStorage.getItem(_ebPrefix()+'eigenbelege_einstellungen') || '{}');
-        return { ...def, ...shared, ...own };
+        const own  = JSON.parse(localStorage.getItem(_ebPrefix()+'eigenbelege_einstellungen') || '{}');
+        return { ...def, ...own };   // firmen-spezifisch — kein globales app_einstellungen mehr (kein firmenübergreifendes Leck)
     },
     saveEinstellungen(e) {
         localStorage.setItem(_ebPrefix()+'eigenbelege_einstellungen', JSON.stringify(e));
-        const shared = JSON.parse(localStorage.getItem('app_einstellungen') || '{}');
-        if (e.firmenname)  shared.firmenname  = e.firmenname;
-        if (e.inhaberName) shared.inhaberName = e.inhaberName;
-        if (e.adresse)     shared.adresse     = e.adresse;
-        localStorage.setItem('app_einstellungen', JSON.stringify(shared));
+        // kein globales app_einstellungen mehr schreiben → Firmendaten bleiben pro Unternehmen getrennt
     },
 
     getNextNum() {

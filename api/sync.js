@@ -45,10 +45,14 @@ var CAS_LUA = [
 ].join('\n');
 
 function redisCmd(cmd) {
+    // ponytail: timeout = lazy circuit breaker. Hung Redis fast-fails instead of
+    // holding the function until platform kill. Full breaker is pointless on a
+    // stateless serverless fn — trip state dies with each cold start.
     return fetch(REDIS_URL, {
         method:  'POST',
         headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' },
-        body:    JSON.stringify(cmd)
+        body:    JSON.stringify(cmd),
+        signal:  AbortSignal.timeout(8000)
     }).then(function (r) { return r.json(); })
       .then(function (j) {
           if (j && j.error) throw new Error('Redis: ' + j.error);
@@ -78,7 +82,8 @@ module.exports = async function handler(req, res) {
     var userId, username;
     try {
         var meRes = await fetch('https://api.whop.com/v5/me', {
-            headers: { 'Authorization': 'Bearer ' + token }
+            headers: { 'Authorization': 'Bearer ' + token },
+            signal:  AbortSignal.timeout(8000)
         });
         if (!meRes.ok) return res.status(401).json({ error: 'invalid_token' });
         var me   = await meRes.json();
@@ -95,7 +100,8 @@ module.exports = async function handler(req, res) {
     if (!isOwner) {
         try {
             var accRes  = await fetch('https://api.whop.com/v5/me/has-access/' + WHOP_APP_ID, {
-                headers: { 'Authorization': 'Bearer ' + token }
+                headers: { 'Authorization': 'Bearer ' + token },
+                signal:  AbortSignal.timeout(8000)
             });
             var accData = accRes.ok ? await accRes.json() : {};
             if (accData.has_access !== true) return res.status(403).json({ error: 'pro_required' });

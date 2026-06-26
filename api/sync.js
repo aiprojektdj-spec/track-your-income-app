@@ -77,7 +77,9 @@ module.exports = async function handler(req, res) {
     // ── 2. Token gegen Whop validieren → UserID server-seitig ableiten ────────
     var userId, username;
     try {
-        var meRes = await fetch('https://api.whop.com/v5/me', {
+        // OIDC userinfo — identischer Endpoint wie der Client (js/whop-auth.js).
+        // /v5/me lehnt OAuth-User-Tokens mit 401 ab → hier /oauth/userinfo nutzen.
+        var meRes = await fetch('https://api.whop.com/oauth/userinfo', {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         if (!meRes.ok) return res.status(401).json({ error: 'invalid_token' });

@@ -1797,6 +1797,14 @@ const App = {
                 </div>
             </div>
             <div class="section" style="border:2px solid var(--accent);border-radius:8px;padding:14px;background:rgba(124,58,237,0.04);">
+                <div class="section-title" style="color:var(--accent);"><i class="ti ti-shield-lock"></i> Komplett-Backup (alle Firmen, verschlüsselt)</div>
+                <p style="color:var(--text-secondary);font-size:12px;margin-bottom:10px;">
+                    Sichert <strong>alle Firmen</strong> in eine passphrase-verschlüsselte Datei für Gerätewechsel — kein Server, keine laufenden Kosten.
+                    Import führt die Daten zusammen (neuere Einträge gewinnen). <strong>Passphrase verloren = Backup unwiederbringlich.</strong>
+                </p>
+                <button class="btn btn-primary" onclick="BackupCrypto.openModal()"><i class="ti ti-shield-lock"></i> Komplett-Backup öffnen</button>
+            </div>
+            <div class="section" style="border:2px solid var(--accent);border-radius:8px;padding:14px;background:rgba(124,58,237,0.04);">
                 <div class="section-title" style="color:var(--accent);"><i class="ti ti-brush"></i> Speicher aufräumen</div>
                 <p style="color:var(--text-secondary);font-size:12px;margin-bottom:10px;">
                     Speicherplatz freigeben durch Komprimierung und Foto-Bereinigung. <strong>Daten bleiben GoBD-konform erhalten.</strong>

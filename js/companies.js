@@ -258,6 +258,53 @@ const CompanyManager = {
         return globalBelege.length;
     },
 
+    // ── Firmen-Stammdaten-Migration (app_einstellungen) ──────────────────────
+    // Früher lagen die Eigenbeleg-Firmenstammdaten (Firmenname, Inhaber, Adresse)
+    // zusätzlich in einem globalen, firmenübergreifenden Key 'app_einstellungen'.
+    // Diese Migration ordnet den vorhandenen Globalwert der AKTIVEN Firma zu (nur
+    // fehlende Felder, ohne eigene Werte zu überschreiben — das ist genau der Wert,
+    // den die aktive Firma bisher als Fallback angezeigt bekam) und entfernt danach
+    // den globalen Key. Läuft genau einmal (synchron, nur localStorage).
+    SETTINGS_MIGRATION_FLAG: 'oyi_settings_migrated_v1',
+
+    // Gibt 1 zurück, wenn ein globaler Wert verarbeitet wurde (Aufrufer kann dann die
+    // offene Seite neu laden), sonst 0.
+    migrateAppEinstellungenToCompanies() {
+        const FLAG = this.SETTINGS_MIGRATION_FLAG;
+        if (localStorage.getItem(FLAG)) return 0;
+
+        const companies = this.getAll();
+        if (!companies.length) return 0;   // noch keine Firma → Onboarding übernimmt
+
+        const raw = localStorage.getItem('app_einstellungen');
+        if (raw == null) {                 // nichts Globales vorhanden → nur Flag setzen
+            localStorage.setItem(FLAG, new Date().toISOString());
+            return 0;
+        }
+
+        let global = {};
+        try { global = JSON.parse(raw || '{}'); } catch(e) { global = {}; }
+        if (!global || typeof global !== 'object') global = {};
+
+        const activeId = this.getActiveId() || companies[0].id;
+        const key = activeId + '__eigenbelege_einstellungen';
+        let own = {};
+        try { own = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) { own = {}; }
+        if (!own || typeof own !== 'object') own = {};
+
+        let changed = false;
+        ['firmenname', 'inhaberName', 'adresse'].forEach(f => {
+            if (global[f] && !own[f]) { own[f] = global[f]; changed = true; }
+        });
+        if (changed) localStorage.setItem(key, JSON.stringify(own));
+
+        // Globalen Key entfernen → kein firmenübergreifendes Leck mehr
+        localStorage.removeItem('app_einstellungen');
+        localStorage.setItem(FLAG, new Date().toISOString());
+        console.log(`[CompanyManager] Stammdaten-Migration: app_einstellungen → ${activeId}`);
+        return 1;
+    },
+
     // ── UI ──────────────────────────────────────────────────────────────────
 
     // Rendert den Company-Switcher-Button (oben rechts im tool-switcher)
@@ -777,6 +824,7 @@ const CompanyManager = {
 
         await this.migrateExistingData(co.id);
         await this.migrateEigenbelegeToCompanies();   // ggf. vorhandene globale Eigenbelege dieser ersten Firma zuordnen
+        this.migrateAppEinstellungenToCompanies();    // ggf. vorhandene globale Firmen-Stammdaten dieser ersten Firma zuordnen
 
         Store._companyId = co.id;
 
@@ -793,16 +841,18 @@ const CompanyManager = {
 };
 window.CompanyManager = CompanyManager;
 
-// Einmalige Eigenbeleg-Migration: globale (firmenübergreifende) Eigenbelege auf
-// Firmen verteilen. Läuft auf jeder Seite (alle laden companies.js), aber nur
-// einmal (Flag). Reload nur, wenn tatsächlich Belege verschoben wurden — damit
-// die gerade offene Seite die jetzt firmen-getrennten Daten zeigt.
+// Einmalige Migrationen: globale (firmenübergreifende) Eigenbelege bzw. Firmen-
+// Stammdaten (app_einstellungen) auf Firmen verteilen. Läuft auf jeder Seite (alle
+// laden companies.js), aber jeweils nur einmal (Flags). Reload nur, wenn tatsächlich
+// etwas verschoben wurde — damit die offene Seite die firmen-getrennten Daten zeigt.
 (function _runEbMigration() {
     const go = () => {
         try {
+            let settingsMoved = 0;
+            try { settingsMoved = CompanyManager.migrateAppEinstellungenToCompanies(); } catch(e) {}
             CompanyManager.migrateEigenbelegeToCompanies()
-                .then(moved => { if (moved > 0) location.reload(); })
-                .catch(() => {});
+                .then(moved => { if (moved > 0 || settingsMoved > 0) location.reload(); })
+                .catch(() => { if (settingsMoved > 0) location.reload(); });
         } catch(e) {}
     };
     if (document.readyState === 'loading') {

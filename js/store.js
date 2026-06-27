@@ -2021,8 +2021,10 @@ const Store = {
         'eigenbelege_belege', 'eigenbelege_kategorien',
         'eigenbelege_einstellungen', 'eigenbelege_naechste_nummer', 'eigenbelege_produkte'
     ],
-    // App-Einstellungen die im Backup mitgesichert werden
-    _APP_SETTING_KEYS: ['app_theme', 'theme', 'app_einstellungen'],
+    // App-Einstellungen die im Backup mitgesichert werden (global, NICHT firmenspezifisch).
+    // app_einstellungen wurde entfernt: Firmen-Stammdaten liegen jetzt firmen-präfixiert
+    // in eigenbelege_einstellungen (siehe _EIGENBELEG_KEYS) und werden dort gesichert.
+    _APP_SETTING_KEYS: ['app_theme', 'theme'],
     // Firmen-Registry (global, nicht company-namespaced)
     _COMPANY_KEYS: ['oyi_companies', 'oyi_active_company'],
 
@@ -2169,6 +2171,9 @@ const Store = {
             try {
                 const apData = JSON.parse(data._appSettings);
                 Object.entries(apData).forEach(([k, v]) => {
+                    // Veraltete/firmenübergreifende Keys (z.B. app_einstellungen aus Alt-Backups)
+                    // nicht wiederherstellen → kein Datenleck reintroduzieren.
+                    if (!this._APP_SETTING_KEYS.includes(k)) return;
                     if (!localStorage.getItem(k)) localStorage.setItem(k, v);
                 });
             } catch(e) {}

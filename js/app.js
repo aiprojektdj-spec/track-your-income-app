@@ -59,11 +59,8 @@ const App = {
             }
         });
 
-        // ── Lizenzprüfung (vor allem anderen) ──
-        License.init((licData) => {
-            this._licenseData = licData;
-            this._bootAfterLicense();
-        });
+        // Whop validiert Membership vor App-Start (kein Offline-Lizenz-Check mehr)
+        this._bootAfterLicense();
     },
 
     // Aktualisiert den Backup-Status-Indikator in der Sidebar (falls vorhanden)
@@ -1454,24 +1451,8 @@ const App = {
     // ---- Settings Modal ----
     showSettingsModal() {
         const s = Store.getSettings();
-        // Lizenz-Info Block aufbauen
-        const ld = License.getData();
-        const licBlock = License.isDevMode()
-            ? `<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px;color:var(--warning);"><i class="ti ti-tool"></i> <strong>Entwicklermodus</strong> – Lizenzprüfung deaktiviert (kein Public Key konfiguriert)</div>`
-            : ld
-                ? (() => {
-                    const days = License.daysUntilExpiry();
-                    const expColor = days < 0 ? '#ef4444' : days <= 30 ? '#f59e0b' : 'var(--success)';
-                    return `<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px;">
-                        <div style="font-weight:600;color:var(--success);margin-bottom:4px;"><i class="ti ti-circle-check"></i> Lizenz aktiv</div>
-                        <div style="color:var(--text-secondary);">Lizenziert für: <strong>${Utils.escapeHtml(ld.name)}</strong></div>
-                        <div style="color:var(--text-secondary);">Typ: <strong>${Utils.escapeHtml(ld.tier || 'standard')}</strong></div>
-                        <div style="color:${expColor};">Gültig bis: <strong>${Utils.escapeHtml(ld.expires)}</strong>${days !== null ? ` (${days >= 0 ? 'noch ' + days + ' Tage' : 'seit ' + Math.abs(days) + ' Tagen abgelaufen'})` : ''}</div>
-                    </div>`;
-                  })()
-                : `<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px;color:#ef4444;"><i class="ti ti-alert-triangle"></i> Keine gültige Lizenz gefunden</div>`;
 
-        const body = `${licBlock}
+        const body = `
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="set_firmenname">Firmenname</label>

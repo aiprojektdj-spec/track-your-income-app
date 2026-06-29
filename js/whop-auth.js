@@ -16,7 +16,15 @@ var AuthUI = (function () {
     var WHOP_CLIENT_ID    = 'app_dc3OND8eGv2Iim';
     var WHOP_REDIRECT_URI = 'https://track-your-income-app.vercel.app/app.html';
     var WHOP_SCOPE        = 'openid profile email';
-    var WHOP_PURCHASE_URL = 'https://whop.com/stackr-3244/';
+    var WHOP_PURCHASE_URL = 'https://whop.com/stackr-3244/';        // Fallback / Produktseite
+    // Direkt-Checkout-Links pro Abo-Intervall — echte Whop-Plan-Links hier eintragen:
+    var WHOP_URL_MONTHLY  = 'https://whop.com/stackr-3244/';        // Produktseite (Plan-Wahl auf Whop). Conversion-Upgrade: Direkt-Checkout des Monatsplans eintragen.
+    var WHOP_URL_YEARLY   = 'https://whop.com/stackr-3244/';        // Produktseite (Plan-Wahl auf Whop). Conversion-Upgrade: Direkt-Checkout des Jahresplans eintragen.
+    // Referral/Affiliate-Basislink — {ref} wird durch den Whop-Username ersetzt:
+    var WHOP_REFERRAL_BASE = 'https://whop.com/stackr-3244/?a={ref}'; // Whop-Affiliate: ?a=<username> (bestätigt, docs.whop.com/developer/guides/affiliates)
+    // Preise (nur für die Ersparnis-Anzeige):
+    var PRICE_MONTHLY = 15;   // €/Monat
+    var PRICE_YEARLY  = 135;  // €/Jahr
     var PKCE_KEY          = 'whop_oauth_pkce';
 
     // Whop company owners can't self-subscribe — grant them permanent access
@@ -249,28 +257,48 @@ var AuthUI = (function () {
         document.body.appendChild(overlay);
     }
 
-    // ── Kein-Abo Screen ───────────────────────────────────────
+    // ── Kein-Abo / Winback-Screen (Neukauf + abgelaufenes Abo) ─
     function _showNoMembershipScreen(user) {
         var name = user ? (user.username || (user.email || '').split('@')[0] || 'User') : 'User';
         var existing = document.getElementById('whopNoMemberOverlay');
         if (existing) existing.remove();
 
+        var save         = (PRICE_MONTHLY * 12) - PRICE_YEARLY;              // 45
+        var monthsFree   = Math.round(save / PRICE_MONTHLY);                 // 3
+        var perMonthYear = (PRICE_YEARLY / 12).toFixed(2).replace('.', ','); // 11,25
+
         var overlay = document.createElement('div');
         overlay.id = 'whopNoMemberOverlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px;';
         overlay.innerHTML = [
-            '<div style="background:var(--surface,#1e1e2e);border:1px solid rgba(99,102,241,.4);border-radius:16px;padding:36px 32px;max-width:420px;width:100%;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,.8);">',
-            '<div style="font-size:44px;margin-bottom:14px;">🔒</div>',
-            '<h2 style="color:var(--text-primary,#fff);font-size:20px;margin:0 0 10px;font-weight:800;">Kein aktives Abo</h2>',
-            '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 24px;line-height:1.6;">',
-            'Hallo <strong style="color:var(--text-secondary,#ccc);">' + _esc(name) + '</strong>,<br>',
-            'du hast kein aktives <strong style="color:var(--text-secondary,#ccc);">Stackr Pro</strong> Abo.',
+            '<div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e2e42);border-radius:16px;padding:32px 28px;max-width:440px;width:100%;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,.8);">',
+            '<div style="font-size:40px;color:var(--accent,#10b981);margin-bottom:12px;line-height:1;">◆</div>',
+            '<h2 style="color:var(--text-primary,#fff);font-size:21px;margin:0 0 8px;font-weight:800;">Stackr Pro aktivieren</h2>',
+            '<p style="color:var(--text-muted,#888);font-size:13.5px;margin:0 0 6px;line-height:1.6;">',
+            'Hallo <strong style="color:var(--text-secondary,#ccc);">' + _esc(name) + '</strong>, du hast aktuell kein aktives Abo.',
             '</p>',
-            '<a href="' + WHOP_PURCHASE_URL + '" target="_blank" rel="noopener" ',
-            'style="display:block;width:100%;padding:13px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:8px;cursor:pointer;font-size:15px;font-weight:700;text-decoration:none;margin-bottom:10px;box-sizing:border-box;">',
-            'Stackr Pro kaufen — 15 €/Monat →',
+            '<p style="color:var(--text-muted,#777);font-size:12px;margin:0 0 22px;line-height:1.6;">Deine Daten bleiben lokal gespeichert — nach der Aktivierung ist alles sofort wieder da.</p>',
+
+            // Jahresabo (hervorgehoben)
+            '<a href="' + WHOP_URL_YEARLY + '" target="_blank" rel="noopener" style="display:block;text-align:left;position:relative;padding:14px 16px;margin-bottom:10px;background:linear-gradient(135deg,rgba(16,185,129,.14),rgba(5,150,105,.08));border:1.5px solid var(--accent,#10b981);border-radius:12px;text-decoration:none;box-sizing:border-box;">',
+            '<span style="position:absolute;top:-9px;right:14px;background:var(--accent,#10b981);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;letter-spacing:.3px;">SPAR ' + save + ' €</span>',
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;">',
+            '<span style="color:var(--text-primary,#fff);font-size:15px;font-weight:700;">Jahresabo</span>',
+            '<span style="color:var(--text-primary,#fff);font-size:15px;font-weight:800;">' + PRICE_YEARLY + ' €<span style="font-size:11px;color:var(--text-muted,#888);font-weight:500;">/Jahr</span></span>',
+            '</div>',
+            '<div style="color:var(--accent,#10b981);font-size:11.5px;margin-top:3px;">entspricht ' + perMonthYear + ' €/Monat · ' + monthsFree + ' Monate gratis</div>',
             '</a>',
-            '<button onclick="AuthUI._logout()" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:13px;width:100%;padding:8px 0;">',
+
+            // Monatsabo
+            '<a href="' + WHOP_URL_MONTHLY + '" target="_blank" rel="noopener" style="display:block;text-align:left;padding:14px 16px;margin-bottom:18px;background:var(--surface-2,rgba(255,255,255,.04));border:1px solid var(--border,#2e2e42);border-radius:12px;text-decoration:none;box-sizing:border-box;">',
+            '<div style="display:flex;justify-content:space-between;align-items:baseline;">',
+            '<span style="color:var(--text-primary,#fff);font-size:15px;font-weight:700;">Monatlich</span>',
+            '<span style="color:var(--text-primary,#fff);font-size:15px;font-weight:800;">' + PRICE_MONTHLY + ' €<span style="font-size:11px;color:var(--text-muted,#888);font-weight:500;">/Monat</span></span>',
+            '</div>',
+            '<div style="color:var(--text-muted,#888);font-size:11.5px;margin-top:3px;">jederzeit kündbar</div>',
+            '</a>',
+
+            '<button onclick="AuthUI._logout()" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:13px;width:100%;padding:6px 0;">',
             'Mit anderem Konto anmelden',
             '</button>',
             '</div>'
@@ -322,6 +350,7 @@ var AuthUI = (function () {
             _esc(user.email || user.username || 'Whop User') + '</div>' +
             '<div style="font-size:10px;color:var(--accent,#10b981);padding:0 12px 8px;">◆ Stackr Pro aktiv</div>' +
             '<hr style="border:none;border-top:1px solid var(--border,#2e2e42);margin:2px 0;">' +
+            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" onclick="AuthUI.openReferral()">📣 Stackr empfehlen</button>' +
             '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:#ef4444;cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" onclick="AuthUI._logout()">🚪 Abmelden</button>';
 
         document.body.appendChild(menu);
@@ -335,6 +364,53 @@ var AuthUI = (function () {
                 }
             });
         }, 100);
+    }
+
+    // ── Referral: „Stackr empfehlen" ──────────────────────────
+    // LEGAL: „Kunden werben Kunden"/Prämien haben in DE steuer-/AGB-Implikationen.
+    // Der Teilnahmebedingungen-Link ist ein Platzhalter (#) — der Bedingungstext
+    // muss von legal-reviewer/agb-writer geliefert und hier verlinkt werden.
+    function openReferral() {
+        var menu = document.getElementById('authUserMenu');
+        if (menu) menu.remove();
+
+        var existing = document.getElementById('referralOverlay');
+        if (existing) { existing.remove(); return; }
+
+        var user = {};
+        try { user = JSON.parse(localStorage.getItem(LS_USER) || '{}'); } catch (e) {}
+        var ref  = encodeURIComponent(user.username || user.id || user.sub || '');
+        var link = WHOP_REFERRAL_BASE.replace('{ref}', ref);
+
+        var shareText = encodeURIComponent('Ich verwalte meine Buchhaltung mit Stackr — schau es dir an: ' + link);
+        var mailHref  = 'mailto:?subject=' + encodeURIComponent('Schau dir Stackr an') + '&body=' + shareText;
+        var waHref    = 'https://wa.me/?text=' + shareText;
+
+        var overlay = document.createElement('div');
+        overlay.id = 'referralOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px;';
+        overlay.innerHTML = [
+            '<div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e2e42);border-radius:16px;padding:28px 26px;max-width:420px;width:100%;box-shadow:0 32px 80px rgba(0,0,0,.8);position:relative;">',
+            '<button onclick="document.getElementById(\'referralOverlay\').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--text-muted,#888);font-size:20px;cursor:pointer;line-height:1;">×</button>',
+            '<div style="font-size:32px;margin-bottom:10px;">📣</div>',
+            '<h2 style="color:var(--text-primary,#fff);font-size:19px;margin:0 0 8px;font-weight:800;">Stackr empfehlen</h2>',
+            '<p style="color:var(--text-muted,#888);font-size:13px;margin:0 0 18px;line-height:1.6;">Teile Stackr mit anderen Selbstständigen. Für jede erfolgreiche Empfehlung erhältst du eine Prämie über Whop.</p>',
+
+            '<div style="display:flex;gap:8px;margin-bottom:14px;">',
+            '<input id="refLinkInput" readonly value="' + _esc(link) + '" style="flex:1;min-width:0;background:var(--bg,#08080f);border:1px solid var(--border,#2e2e42);border-radius:8px;color:var(--text-secondary,#ccc);font-size:12px;padding:10px 12px;box-sizing:border-box;">',
+            '<button id="refCopyBtn" onclick="navigator.clipboard.writeText(document.getElementById(\'refLinkInput\').value).then(function(){var b=document.getElementById(\'refCopyBtn\');b.textContent=\'Kopiert ✓\';setTimeout(function(){b.textContent=\'Kopieren\';},1800);})" style="background:var(--accent,#10b981);border:none;color:#fff;font-size:13px;font-weight:700;padding:0 14px;border-radius:8px;cursor:pointer;white-space:nowrap;">Kopieren</button>',
+            '</div>',
+
+            '<div style="display:flex;gap:8px;margin-bottom:16px;">',
+            '<a href="' + mailHref + '" style="flex:1;text-align:center;padding:10px;background:var(--surface-2,rgba(255,255,255,.04));border:1px solid var(--border,#2e2e42);border-radius:8px;color:var(--text-primary,#fff);font-size:13px;text-decoration:none;">✉ E-Mail</a>',
+            '<a href="' + waHref + '" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:10px;background:var(--surface-2,rgba(255,255,255,.04));border:1px solid var(--border,#2e2e42);border-radius:8px;color:var(--text-primary,#fff);font-size:13px;text-decoration:none;">WhatsApp</a>',
+            '</div>',
+
+            '<p style="color:var(--text-muted,#666);font-size:11px;margin:0;line-height:1.6;">Prämien werden über Whop abgewickelt. Es gelten die <a href="agb.html#empfehlungsprogramm" target="_blank" rel="noopener" style="color:var(--accent,#10b981);text-decoration:none;">Teilnahmebedingungen</a>.</p>',
+            '</div>'
+        ].join('');
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
     }
 
     // ── Lade-Overlay ──────────────────────────────────────────
@@ -376,5 +452,5 @@ var AuthUI = (function () {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    return { boot, openUserMenu, _logout, _loginWithWhop };
+    return { boot, openUserMenu, openReferral, _logout, _loginWithWhop };
 })();

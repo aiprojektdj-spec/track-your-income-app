@@ -306,8 +306,11 @@ const Fahrtenbuch = {
                     <td style="font-size:12px;color:var(--text-muted);">${Utils.escapeHtml(f.fahrzeug || 'PKW')}</td>
                     <td style="text-align:right;font-weight:600;color:var(--success);">${isSt ? '–' : Utils.formatCurrency(f.kosten)}</td>
                     <td class="table-actions">
-                        ${isSt ? '' : `<button class="btn btn-small" data-edit-fahrt="${f.id}" title="Bearbeiten">✏️</button>`}
-                        ${isSt ? '' : `<button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Stornieren">🗑️</button>`}
+                        ${isSt ? '' : (Store.isPeriodLocked(f.datum)
+                            ? `<span title="Periode festgeschrieben — nur Storno möglich" style="font-size:11px;opacity:.7;">🔒</span>
+                               <button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Stornieren">🗑️</button>`
+                            : `<button class="btn btn-small" data-edit-fahrt="${f.id}" title="Bearbeiten">✏️</button>
+                               <button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Stornieren">🗑️</button>`)}
                     </td>
                 </tr>`;
             }).join('');

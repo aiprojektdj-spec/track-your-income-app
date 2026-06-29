@@ -18,8 +18,8 @@ var AuthUI = (function () {
     var WHOP_SCOPE        = 'openid profile email';
     var WHOP_PURCHASE_URL = 'https://whop.com/stackr-3244/';        // Fallback / Produktseite
     // Direkt-Checkout-Links pro Abo-Intervall — echte Whop-Plan-Links hier eintragen:
-    var WHOP_URL_MONTHLY  = 'https://whop.com/stackr-3244/';        // Produktseite (Plan-Wahl auf Whop). Conversion-Upgrade: Direkt-Checkout des Monatsplans eintragen.
-    var WHOP_URL_YEARLY   = 'https://whop.com/stackr-3244/';        // Produktseite (Plan-Wahl auf Whop). Conversion-Upgrade: Direkt-Checkout des Jahresplans eintragen.
+    var WHOP_URL_MONTHLY  = 'https://whop.com/checkout/plan_iR6YIKLcychSZ'; // Stackr Pro monatlich (15 €) — Whop-Plan plan_iR6YIKLcychSZ
+    var WHOP_URL_YEARLY   = 'https://whop.com/stackr-3244/';        // FALLBACK: kein Jahres-Tarif in Whop angelegt; hier Direkt-Checkout eintragen, sobald 135 €/Jahr-Plan existiert.
     // Referral/Affiliate-Basislink — {ref} wird durch den Whop-Username ersetzt:
     var WHOP_REFERRAL_BASE = 'https://whop.com/stackr-3244/?a={ref}'; // Whop-Affiliate: ?a=<username> (bestätigt, docs.whop.com/developer/guides/affiliates)
     // Preise (nur für die Ersparnis-Anzeige):

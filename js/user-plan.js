@@ -9,8 +9,8 @@ var UserPlan = (function () {
     'use strict';
 
     var WHOP_PURCHASE_URL = 'https://whop.com/stackr-3244/';        // Fallback / Produktseite
-    var WHOP_URL_MONTHLY  = 'https://whop.com/stackr-3244/';        // Produktseite (Plan-Wahl auf Whop). Conversion-Upgrade: Direkt-Checkout des Monatsplans eintragen.
-    var WHOP_URL_YEARLY   = 'https://whop.com/stackr-3244/';        // Produktseite (Plan-Wahl auf Whop). Conversion-Upgrade: Direkt-Checkout des Jahresplans eintragen.
+    var WHOP_URL_MONTHLY  = 'https://whop.com/checkout/plan_iR6YIKLcychSZ'; // Stackr Pro monatlich (15 €) — Whop-Plan plan_iR6YIKLcychSZ
+    var WHOP_URL_YEARLY   = 'https://whop.com/stackr-3244/';        // FALLBACK: kein Jahres-Tarif in Whop angelegt; hier Direkt-Checkout eintragen, sobald 135 €/Jahr-Plan existiert.
 
     var _plan   = 'pro';
     var _loaded = false;

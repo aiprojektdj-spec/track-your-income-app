@@ -901,6 +901,7 @@ const Buchungen = {
                     plattform: s.verkaufsplattform || '', einkaufsquelle: '',
                     storniert: s.storniert || false,
                     _stornoGrund: s.stornoGrund || '',
+                    _invoiceId: s._invoiceId || '',
                     _isPurchase: false,
                     _isMulti: isMulti,
                     _purchaseCount: isMulti ? s.purchaseIds.length : 0
@@ -943,7 +944,7 @@ const Buchungen = {
                 const multiPaketBadge = i._isMulti
                     ? `<span class="badge badge-info" style="margin-left:4px;font-size:10px;">${i._purchaseCount} Artikel</span>`
                     : '';
-                const actionButtons = this._recordActions(i.id, i._source, i.datum, i.storniert, i._stornoGrund);
+                const actionButtons = this._recordActions(i.id, i._source, i.datum, i.storniert, i._stornoGrund, !!i._invoiceId);
                 return `
                 <tr class="${i.storniert ? 'row-storniert' : ''}">
                     <td>${Utils.formatDate(i.datum)}</td>
@@ -1116,9 +1117,12 @@ const Buchungen = {
     },
 
     // Aktions-Buttons je Datensatz — GoBD-bewusst (offen vs. festgeschrieben).
-    _recordActions(id, source, datum, storniert, stornoGrund) {
+    _recordActions(id, source, datum, storniert, stornoGrund, isInvoice) {
         if (storniert) {
             return `<span class="badge badge-neutral" title="${Utils.escapeHtml(stornoGrund || 'Storniert')}">Storniert</span>`;
+        }
+        if (isInvoice) {
+            return `<span class="badge badge-info" title="Stammt aus einer Rechnung — Änderungen bitte im Rechnungen-Modul (Rechnung stornieren)">🧾 aus Rechnung</span>`;
         }
         if (Store.isPeriodLocked(datum)) {
             return `<span class="badge badge-warning" title="Periode festgeschrieben — nur Storno möglich" style="margin-right:4px;">🔒</span>
@@ -1146,7 +1150,7 @@ const Buchungen = {
                     <td>${Utils.escapeHtml(artikel)} ${Utils.escapeHtml(s.beschreibung || '')}</td>
                     <td style="text-align:right">${Utils.formatCurrency(s.verkaufspreis)}</td>
                     <td>${platBadge}</td>
-                    <td class="table-actions">${this._recordActions(s.id, 'sale', s.datum, s.storniert, s.stornoGrund)}</td>
+                    <td class="table-actions">${this._recordActions(s.id, 'sale', s.datum, s.storniert, s.stornoGrund, !!s._invoiceId)}</td>
                 </tr>`;
             }).join('');
         }

@@ -1107,6 +1107,7 @@ const Buchungen = {
                 if (!confirm('Eintrag löschen? In einer offenen Periode wird er entfernt und im Änderungsprotokoll dokumentiert.')) return;
                 const id = btn.dataset.delete;
                 const res = btn.dataset.source === 'purchase' ? Store.deletePurchase(id) : Store.deleteSale(id);
+                if (res && res.blocked) { Utils.showToast(res.reason === 'invoice' ? 'Verkauf stammt aus einer Rechnung — bitte die Rechnung stornieren' : 'Artikel ist verkauft — bitte zuerst den verknüpften Verkauf stornieren/löschen', 'warning'); return; }
                 if (res && res.storno) Utils.showToast('Periode ist abgeschlossen — storniert statt gelöscht', 'warning');
                 else Utils.showToast('Gelöscht', 'success');
                 this._renderTab();

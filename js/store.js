@@ -1310,6 +1310,10 @@ const Store = {
             if (!p.storniert) this.stornoPurchase(id, 'Storno statt Löschung — Periode abgeschlossen');
             return { storno: true };
         }
+        // Nicht löschen, wenn ein aktiver Verkauf darauf verweist (würde den Verkauf verwaisen)
+        const linkedSale = this.getAllSalesRaw().find(s => !s.storniert &&
+            (s.purchaseId === id || (Array.isArray(s.purchaseIds) && s.purchaseIds.includes(id))));
+        if (linkedSale) return { blocked: true, reason: 'sale' };
         this._addAuditEntry('loeschung', 'einkauf', id, p, null, 'Einkauf gelöscht (offene Periode)');
         const purchases = this.getAllPurchasesRaw();
         const idx = purchases.findIndex(x => x.id === id);
@@ -1444,6 +1448,7 @@ const Store = {
     deleteSale(id) {
         const s = this.getAllSalesRaw().find(x => x.id === id);
         if (!s) return { ok: false };
+        if (s._invoiceId) return { blocked: true, reason: 'invoice' }; // stammt aus Rechnung → über die Rechnung stornieren
         if (this.isLocked(s)) {
             if (!s.storniert) this.stornoSale(id, 'Storno statt Löschung — Periode abgeschlossen');
             return { storno: true };

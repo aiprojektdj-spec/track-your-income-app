@@ -448,7 +448,8 @@ const Lager = {
             b += `<button class="action-btn" data-status-modal="${p.id}" title="Status ändern"><i class="ti ti-bolt"></i></button>`;
             b += `<button class="action-btn action-btn-accent" data-edit-lager="${p.id}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>`;
             b += `<button class="action-btn action-btn-danger" data-storno-lager="${p.id}" title="Stornieren"><i class="ti ti-ban"></i></button>`;
-            b += `<button class="action-btn action-btn-danger" data-delete-lager="${p.id}" title="Löschen (offene Periode)"><i class="ti ti-trash"></i></button>`;
+            // Löschen nur, wenn KEIN aktiver Verkauf darauf verweist (sonst Verkauf zuerst behandeln)
+            if (!saleId) b += `<button class="action-btn action-btn-danger" data-delete-lager="${p.id}" title="Löschen (offene Periode)"><i class="ti ti-trash"></i></button>`;
         }
         return b;
     },
@@ -2393,6 +2394,7 @@ const Lager = {
                 btn.addEventListener('click', () => {
                     if (!confirm('Artikel löschen? In einer offenen Periode wird er entfernt und im Änderungsprotokoll dokumentiert.')) return;
                     const res = Store.deletePurchase(btn.dataset.deleteLager);
+                    if (res && res.blocked) { Utils.showToast('Artikel ist verkauft — bitte zuerst den Verkauf bearbeiten/stornieren', 'warning'); return; }
                     if (res && res.storno) Utils.showToast('Periode ist abgeschlossen — storniert statt gelöscht', 'warning');
                     else Utils.showToast('Artikel gelöscht', 'success');
                     const contentEl = document.getElementById('content');

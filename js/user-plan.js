@@ -10,7 +10,7 @@ var UserPlan = (function () {
 
     var WHOP_PURCHASE_URL = 'https://whop.com/stackr-3244/';        // Fallback / Produktseite
     var WHOP_URL_MONTHLY  = 'https://whop.com/checkout/plan_iR6YIKLcychSZ'; // Stackr Pro monatlich (15 €) — Whop-Plan plan_iR6YIKLcychSZ
-    var WHOP_URL_YEARLY   = 'https://whop.com/stackr-3244/';        // FALLBACK: kein Jahres-Tarif in Whop angelegt; hier Direkt-Checkout eintragen, sobald 135 €/Jahr-Plan existiert.
+    var WHOP_URL_YEARLY   = 'https://whop.com/checkout/plan_b5IBQ1lecggOT'; // Stackr Pro jährlich (135 €) — Whop-Plan plan_b5IBQ1lecggOT (Produkt "Stackr App Access", gewährt dieselbe App)
 
     var _plan   = 'pro';
     var _loaded = false;

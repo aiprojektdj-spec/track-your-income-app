@@ -1863,6 +1863,16 @@ const Store = {
         return all;
     },
 
+    // GoBD §14 UStG: eine gestellte Rechnung (versendet/bezahlt/storniert oder in
+    // festgeschriebener Periode) darf INHALTLICH nicht mehr geändert werden — nur
+    // Status-Übergänge (offen→versendet→bezahlt) + Storno bleiben erlaubt.
+    _isRechInvoiceLocked(inv) {
+        if (!inv) return false;
+        if (inv.status === 'versendet' || inv.status === 'bezahlt' || inv.status === 'storniert') return true;
+        if (this.isPeriodLocked(inv.datum)) return true;
+        return false;
+    },
+
     saveRechInvoice(invoice) {
         const invoices = this._rechGet('dokumente') || [];
         if (invoice.id) {
@@ -1870,6 +1880,7 @@ const Store = {
             if (idx >= 0) {
                 const old = Object.assign({}, invoices[idx]);
                 const action = invoice.status !== old.status ? 'status_geaendert' : 'bearbeitet';
+                if (action === 'bearbeitet' && this._isRechInvoiceLocked(old)) return invoice; // GoBD §14: gestellte Rechnung nicht mehr inhaltlich änderbar
                 this._addAuditEntry(action, 'dokument', invoice.id, old, invoice,
                     action === 'status_geaendert' ? `Status: ${old.status} -> ${invoice.status}` : 'Dokument bearbeitet');
                 invoices[idx] = this._stampRecord(invoice);

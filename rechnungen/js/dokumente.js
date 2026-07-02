@@ -142,8 +142,10 @@ var Dokumente = (function() {
         html += '<td class="table-actions" style="white-space:nowrap;">';
         html += '<button class="action-btn doc-view" data-id="' + inv.id + '" title="Vorschau"><i class="ti ti-eye"></i></button> ';
 
-        if (inv.typ !== 'stornorechnung') {
+        if (inv.typ !== 'stornorechnung' && !Store._isRechInvoiceLocked(inv)) {
             html += '<button class="action-btn action-btn-accent doc-edit" data-id="' + inv.id + '" title="Bearbeiten"><i class="ti ti-pencil"></i></button> ';
+        } else if (inv.typ !== 'stornorechnung' && inv.status !== 'storniert') {
+            html += '<span class="action-btn" title="Gestellte Rechnung — nur per Storno korrigierbar (§14 UStG)" style="opacity:.5;cursor:not-allowed;"><i class="ti ti-lock"></i></span> ';
         }
         if (inv.status === 'offen' || inv.status === 'ueberfaellig' || inv.status === 'versendet') {
             html += '<button class="action-btn action-btn-success doc-paid" data-id="' + inv.id + '" title="Als bezahlt markieren"><i class="ti ti-check"></i></button> ';

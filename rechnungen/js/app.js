@@ -19,6 +19,53 @@ var RechApp = (function() {
         'wiederkehrend':     Wiederkehrend,
     };
 
+    // Embedded-Modus (in app.html eingebettet als Finanzen-Sub-Tab):
+    // RechApp-Nav wird zweite Sub-Nav-Zeile (#rechSubnav) statt eigener Sidebar.
+    var NAV_PAGES = [
+        { page:'rech-dashboard',    icon:'ti-layout-dashboard', label:'Dashboard' },
+        { page:'rechnung-neu',      icon:'ti-plus',             label:'Neue Rechnung' },
+        { page:'angebot-neu',       icon:'ti-file-text',        label:'Neues Angebot' },
+        { page:'dokumente',         icon:'ti-folder',           label:'Dokumente' },
+        { page:'erechnung-empfang', icon:'ti-file-download',    label:'E-Rechnung' },
+        { page:'kunden',            icon:'ti-users',            label:'Kunden' },
+        { page:'produkte',          icon:'ti-package',          label:'Produkte' },
+        { page:'mahnungen',         icon:'ti-alert-triangle',   label:'Mahnungen' },
+        { page:'wiederkehrend',     icon:'ti-repeat',           label:'Wiederkehrend' },
+        { page:'protokoll',         icon:'ti-notebook',         label:'Protokoll' },
+        { page:'unternehmensdaten', icon:'ti-building',         label:'Unternehmensdaten' },
+    ];
+
+    function renderSubnav() {
+        var el = document.getElementById('rechSubnav');
+        if (!el) return;
+        el.innerHTML =
+            '<div class="module-subnav-inner">' +
+                '<div class="module-subnav-title"><i class="ti ti-file-invoice"></i> Rechnungen</div>' +
+                '<div class="module-subnav-tabs">' +
+                NAV_PAGES.map(function (p) {
+                    return '<button class="msub-tab' + (p.page === currentPage ? ' active' : '') + '" type="button" ' +
+                        'data-rech-page="' + p.page + '" onclick="RechApp.navigate(\'' + p.page + '\')">' +
+                        '<i class="ti ' + p.icon + '"></i><span>' + p.label + '</span></button>';
+                }).join('') +
+                '</div>' +
+            '</div>';
+    }
+
+    // Einstieg aus der Haupt-App (statt boot()): Daten-Setup ohne Standalone-Sidebar.
+    function mount() {
+        if (typeof CompanyManager !== 'undefined') {
+            var activeId = CompanyManager.getActiveId();
+            if (activeId) Store.setCompany(activeId);
+        }
+        if (Store.autoSyncInvoices) Store.autoSyncInvoices();
+        checkOverdueInvoices();
+        if (typeof Wiederkehrend !== 'undefined') {
+            setTimeout(function () { Wiederkehrend.processDueRules(); }, 500);
+        }
+        renderSubnav();
+        navigate('rech-dashboard');
+    }
+
     function navigate(page, params) {
         params = params || {};
         currentPage = page;
@@ -58,6 +105,12 @@ var RechApp = (function() {
             if (page === 'rechnung-edit' && linkPage === 'dokumente') {
                 link.classList.add('active');
             }
+        });
+
+        // Embedded-Strip Active-State (#rechSubnav) — nur im eingebetteten Modus vorhanden
+        document.querySelectorAll('#rechSubnav [data-rech-page]').forEach(function (b) {
+            var p = b.getAttribute('data-rech-page');
+            b.classList.toggle('active', p === page || (page === 'rechnung-edit' && p === 'dokumente'));
         });
 
         // Close mobile menu
@@ -275,15 +328,21 @@ var RechApp = (function() {
         });
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', boot);
-    } else {
-        boot();
+    // Eingebettet in Haupt-App (app.html hat #moduleSubnav) → NICHT auto-booten;
+    // Haupt-App ruft RechApp.mount(). Standalone-Seite → boot() wie gehabt.
+    var EMBEDDED = !!document.getElementById('moduleSubnav');
+    if (!EMBEDDED) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', boot);
+        } else {
+            boot();
+        }
     }
 
     return {
         navigate: navigate,
         showModal: showModal,
-        closeModal: closeModal
+        closeModal: closeModal,
+        mount: mount
     };
 })();

@@ -5,6 +5,10 @@ const App = {
     currentPage: 'dashboard',
     APP_VERSION: '1.7',  // ← bei jedem Update hier UND in index.html anpassen
 
+    // Finanzen-Modul: alle transaktionalen Seiten, die sich die Sub-Nav teilen.
+    // Reihenfolge = Reihenfolge der Sub-Tabs.
+    FINANZ_PAGES: ['rechnungen', 'eigenbelege', 'buchungen', 'ausgaben', 'bankimport', 'fahrtenbuch', 'afa'],
+
     pages: {
         dashboard: Dashboard,
         buchungen: Buchungen,
@@ -34,6 +38,16 @@ const App = {
         gewerbesteuer: Gewerbesteuer,
         schweiz: Schweiz,
         oesterreich: Oesterreich,
+        // Eingebettete Rechnungen-Sub-App — bootet via RechApp.mount() in #content
+        rechnungen: {
+            render() { return '<div id="rechMount"></div>'; },
+            init() { if (typeof RechApp !== 'undefined' && RechApp.mount) RechApp.mount(); }
+        },
+        // Eingebettete Eigenbelege-Sub-App — bootet via EBApp.mount() in #content
+        eigenbelege: {
+            render() { return '<div id="ebMount"></div>'; },
+            init() { if (typeof EBApp !== 'undefined' && EBApp.mount) EBApp.mount(); }
+        },
     },
 
     init() {
@@ -605,8 +619,15 @@ const App = {
         if (euerSection) euerSection.style.display  = (onEuer && !onGbr) ? '' : 'none';
         if (euerItems)   euerItems.style.display    = (onEuer && !onGbr) ? '' : 'none';
 
+        // Finanzen-Modul: transaktionale Seiten teilen sich eine persistente Sub-Nav
+        const onFinanzen = App.FINANZ_PAGES.includes(page);
+        this._renderModuleSubnav(page);
+        const finanzTab = document.getElementById('toolTabFinanzen');
+        if (finanzTab) finanzTab.classList.toggle('active', onFinanzen);
+
         // Steuer & Soziales Sektion ein-/ausblenden
-        const onSteuer = ['afa', 'privatbuchungen', 'ustvoranmeldung', 'ksk', 'vorsteuer', 'koerperschaftsteuer', 'bilanz', 'rechtsform', 'lohnsteuer', 'gewerbesteuer', 'steuerberater', 'bankimport'].includes(page);
+        // (afa + bankimport sind ins Finanzen-Modul gewandert → hier raus)
+        const onSteuer = ['privatbuchungen', 'ustvoranmeldung', 'ksk', 'vorsteuer', 'koerperschaftsteuer', 'bilanz', 'rechtsform', 'lohnsteuer', 'gewerbesteuer', 'steuerberater'].includes(page);
         const steuerSection = document.getElementById('steuerSidebarSection');
         const steuerItems   = document.getElementById('steuerSidebarItems');
         if (steuerSection) steuerSection.style.display = (onSteuer && !onGbr) ? '' : 'none';
@@ -655,6 +676,43 @@ const App = {
             // Nur falls das rAF-Setup selbst fehlschlägt (sehr selten)
             console.error('[navigate] Setup-Fehler', page, err);
         }
+    },
+
+    // Persistente Sub-Nav des Finanzen-Moduls. Liegt außerhalb von #content,
+    // überlebt daher die _refresh()-Aufrufe der einzelnen Module.
+    // Leert sich auf Nicht-Finanzen-Seiten (CSS :empty → display:none).
+    _renderModuleSubnav(page) {
+        const el = document.getElementById('moduleSubnav');
+        if (!el) return;
+
+        // 2. Sub-Nav-Ebene (eingebettete Sub-Apps: Rechnungen/Eigenbelege) leeren,
+        // sobald wir nicht mehr auf deren Seite sind.
+        const rs = document.getElementById('rechSubnav');
+        if (rs && page !== 'rechnungen' && page !== 'eigenbelege') rs.innerHTML = '';
+
+        const SUBTABS = [
+            { page: 'rechnungen',  icon: 'ti-file-invoice',    label: 'Rechnungen'   },
+            { page: 'eigenbelege', icon: 'ti-receipt',         label: 'Eigenbelege'  },
+            { page: 'buchungen',   icon: 'ti-arrows-exchange', label: 'Buchungen'    },
+            { page: 'ausgaben',    icon: 'ti-cash',            label: 'Ausgaben'     },
+            { page: 'bankimport',  icon: 'ti-building-bank',   label: 'Bank-Import'  },
+            { page: 'fahrtenbuch', icon: 'ti-car',             label: 'Fahrtenbuch'  },
+            { page: 'afa',         icon: 'ti-trending-down',   label: 'AfA'          },
+        ];
+
+        if (!App.FINANZ_PAGES.includes(page)) { el.innerHTML = ''; return; }
+
+        const tabs = SUBTABS.map(t =>
+            `<button class="msub-tab${t.page === page ? ' active' : ''}" type="button" ` +
+            `onclick="App.navigate('${t.page}')">` +
+            `<i class="ti ${t.icon}"></i><span>${t.label}</span></button>`
+        ).join('');
+
+        el.innerHTML =
+            `<div class="module-subnav-inner">` +
+                `<div class="module-subnav-title"><i class="ti ti-wallet"></i> Finanzen</div>` +
+                `<div class="module-subnav-tabs">${tabs}</div>` +
+            `</div>`;
     },
 
     // Erzeugt ein Skeleton-Platzhalter-Layout je nach Seite

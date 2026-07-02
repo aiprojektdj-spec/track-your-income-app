@@ -1723,42 +1723,10 @@ const Store = {
         this.set('products', this.getProducts().filter(p => p.id !== id));
     },
 
-    // ---- Reselling Invoices ----
-    getInvoices() {
-        return this.get('invoices') || [];
-    },
-
-    saveInvoice(invoice) {
-        const invoices = this.getInvoices();
-        if (invoice.id) {
-            const idx = invoices.findIndex(i => i.id === invoice.id);
-            if (idx >= 0) invoices[idx] = invoice;
-            else invoices.push(invoice);
-        } else {
-            invoice.id = this.generateId();
-            invoice.createdAt = new Date().toISOString();
-            invoices.push(invoice);
-        }
-        this.set('invoices', invoices);
-        return invoice;
-    },
-
-    deleteInvoice(id) {
-        this.set('invoices', this.getInvoices().filter(i => i.id !== id));
-    },
-
-    getInvoiceCounter() {
-        return this.get('invoice_counter') || { RE: 0, AN: 0, GU: 0 };
-    },
-
-    nextInvoiceNumber(typ) {
-        const counter = this.getInvoiceCounter();
-        const prefix = typ === 'rechnung' ? 'RE' : typ === 'angebot' ? 'AN' : 'GU';
-        const year = new Date().getFullYear();
-        counter[prefix] = (counter[prefix] || 0) + 1;
-        this.set('invoice_counter', counter);
-        return `${prefix}-${year}-${String(counter[prefix]).padStart(3, '0')}`;
-    },
+    // ---- Reselling Invoices (Legacy 2026-07-02 entfernt) ----
+    // Alt-System (Keys 'invoices'/'invoice_counter', getInvoices/saveInvoice/
+    // deleteInvoice/getInvoiceCounter/nextInvoiceNumber) war ungenutzt und ohne
+    // Audit. Aktives Rechnungswesen laeuft ueber saveRechInvoice + _rechGet/_rechSet.
 
     // ============================================
     // Rechnungsbuch Data (separate localStorage keys)

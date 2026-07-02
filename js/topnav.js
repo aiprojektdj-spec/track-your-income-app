@@ -46,8 +46,7 @@
     function _html(prefix, active) {
         var t = [
             { key:'dashboard',   href:'app.html',                  icon:'ti-layout-dashboard', label:'Dashboard',   title:'Dashboard',                       i18n:'nav.dashboard' },
-            { key:'rechnungen',  href:'rechnungen/index.html',     icon:'ti-file-invoice',     label:'Rechnungen',  title:'Rechnungen / Invoices',           i18n:'nav.invoices' },
-            { key:'eigenbelege', href:'eigenbelege/index.html',    icon:'ti-receipt',          label:'Eigenbelege', title:'Eigenbelege / Receipts',          i18n:'nav.receipts' },
+            { key:'finanzen',    href:'app.html?page=buchungen',   icon:'ti-wallet',           label:'Finanzen',    title:'Finanzen — Rechnungen, Eigenbelege, Buchungen, Ausgaben, Bank, Fahrten, AfA', id:'toolTabFinanzen', i18n:'nav.finance' },
             { key:'lager',       href:'lager/index.html',          icon:'ti-package',          label:'Lager',       title:'Lager / Inventory',  id:'toolTabLager',    i18n:'nav.inventory' },
             { key:'euer',        href:'app.html?page=euer',        icon:'ti-chart-bar',        label:'EÜR',         title:'EÜR / P&L',          id:'toolTabEuer',     i18n:'nav.euer' },
             { key:'akademie',    href:'app.html?page=akademie',    icon:'ti-school',           label:'Akademie',    title:'Akademie / Academy', id:'toolTabAkademie', i18n:'nav.academy' },

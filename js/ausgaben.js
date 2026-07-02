@@ -65,11 +65,12 @@ const Ausgaben = {
                     <td>${Utils.escapeHtml(e.belegNr || '')}</td>
                     <td class="table-actions">
                         ${e.storniert
-                            ? `<span class="badge badge-neutral">Storniert</span>
-                               <button class="btn btn-small btn-danger" data-phys-delete-expense="${e.id}" title="Endgültig löschen">🗑️</button>`
-                            : `<button class="btn btn-small" data-edit-expense="${e.id}">Bearbeiten</button>
-                               <button class="btn btn-small btn-danger" data-storno-expense="${e.id}">Stornieren</button>
-                               <button class="btn btn-small btn-danger" data-phys-delete-expense="${e.id}" title="Endgültig löschen">🗑️</button>`
+                            ? `<span class="badge badge-neutral" title="${Utils.escapeHtml(e.stornoGrund || 'Storniert')}">Storniert</span>`
+                            : Store.isPeriodLocked(e.datum)
+                                ? `<span class="badge badge-warning" title="Periode festgeschrieben — nur Storno möglich" style="margin-right:4px;">🔒</span>
+                                   <button class="btn btn-small btn-danger" data-storno-expense="${e.id}">Stornieren</button>`
+                                : `<button class="btn btn-small" data-edit-expense="${e.id}">Bearbeiten</button>
+                                   <button class="btn btn-small btn-danger" data-delete-expense="${e.id}" title="In offener Periode löschen (wird protokolliert)">Löschen</button>`
                         }
                     </td>
                 </tr>
@@ -338,12 +339,13 @@ const Ausgaben = {
             });
         });
 
-        // Physical delete
-        document.querySelectorAll('[data-phys-delete-expense]').forEach(btn => {
+        // Löschen — offene Periode: echtes Löschen mit Protokoll; festgeschrieben: Storno
+        document.querySelectorAll('[data-delete-expense]').forEach(btn => {
             btn.addEventListener('click', () => {
-                if (!confirm('Ausgabe endgültig löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
-                Store.physicalDeleteExpense(btn.dataset.physDeleteExpense);
-                Utils.showToast('Ausgabe gelöscht', 'success');
+                if (!confirm('Ausgabe löschen? In einer offenen Periode wird sie entfernt und im Änderungsprotokoll dokumentiert.')) return;
+                const res = Store.deleteExpense(btn.dataset.deleteExpense);
+                if (res && res.storno) Utils.showToast('Periode ist abgeschlossen — storniert statt gelöscht', 'warning');
+                else Utils.showToast('Ausgabe gelöscht', 'success');
                 this._refresh();
             });
         });

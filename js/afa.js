@@ -113,8 +113,11 @@ const Afa = {
                 </td>
                 <td style="text-align:center;font-size:11px;color:var(--text-muted)">${fertigJahr}</td>
                 <td>
-                    <button class="btn btn-sm" onclick="Afa._editAnlage('${a.id}')">✏️</button>
-                    <button class="btn btn-sm btn-danger" onclick="Afa._stornoAnlage('${a.id}')">🗑️</button>
+                    ${Store.isPeriodLocked(a.anschaffungsdatum)
+                        ? `<span title="Jahr festgeschrieben — nur Storno möglich" style="font-size:11px;opacity:.7;">🔒</span>
+                           <button class="btn btn-sm btn-danger" onclick="Afa._stornoAnlage('${a.id}')">🗑️</button>`
+                        : `<button class="btn btn-sm" onclick="Afa._editAnlage('${a.id}')">✏️</button>
+                           <button class="btn btn-sm btn-danger" onclick="Afa._stornoAnlage('${a.id}')">🗑️</button>`}
                 </td>
             </tr>`;
         }).join('');

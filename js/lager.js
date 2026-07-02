@@ -429,6 +429,103 @@ const Lager = {
         reader.readAsDataURL(file);
     },
 
+    // Aktions-Buttons je Zeile — GoBD-bewusst (offen vs. festgeschrieben).
+    // Annahme: NICHT-stornierte Artikel (storniert behandelt der Aufrufer via _stornoHint).
+    _rowActions(p) {
+        const locked = Store.isPeriodLocked(p.datum);
+        const saleId = (this._saleByPid || {})[p.id];
+        let b = '';
+        if (p.status === 'verfuegbar') {
+            b += `<button class="btn btn-small btn-success" data-sell="${p.id}" style="padding:3px 8px;font-size:11px;">Verkaufen</button>`;
+        }
+        if (saleId) {
+            b += `<button class="action-btn action-btn-accent" data-edit-sale="${saleId}" title="Verkauf bearbeiten / stornieren"><i class="ti ti-receipt"></i></button>`;
+        }
+        if (locked) {
+            b += `<span title="${Utils.escapeHtml(Store.lockReason(p) || 'Festgeschrieben')} — nicht mehr bearbeitbar" style="font-size:12px;opacity:.7;">🔒</span>`;
+            b += `<button class="action-btn action-btn-danger" data-storno-lager="${p.id}" title="Stornieren"><i class="ti ti-ban"></i></button>`;
+        } else {
+            b += `<button class="action-btn" data-status-modal="${p.id}" title="Status ändern"><i class="ti ti-bolt"></i></button>`;
+            b += `<button class="action-btn action-btn-accent" data-edit-lager="${p.id}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>`;
+            b += `<button class="action-btn action-btn-danger" data-storno-lager="${p.id}" title="Stornieren"><i class="ti ti-ban"></i></button>`;
+            // Löschen nur, wenn KEIN aktiver Verkauf darauf verweist (sonst Verkauf zuerst behandeln)
+            if (!saleId) b += `<button class="action-btn action-btn-danger" data-delete-lager="${p.id}" title="Löschen (offene Periode)"><i class="ti ti-trash"></i></button>`;
+        }
+        return b;
+    },
+
+    // Kompakter Storno-Hinweis für stornierte Artikel (statt leerer Aktionszelle)
+    _stornoHint(p) {
+        const g = p.stornoGrund ? ' – ' + Utils.escapeHtml(p.stornoGrund) : '';
+        return `<span style="font-size:10px;color:var(--text-muted);" title="${Utils.escapeHtml(p.stornoGrund || 'Storniert')}">🚫 storniert${g}</span>`;
+    },
+
+    // Verkauf direkt am Artikel bearbeiten / stornieren
+    openSaleEditModal(saleId) {
+        const s = Store.getSales(true).find(x => x.id === saleId);
+        if (!s) { Utils.showToast('Verkauf nicht gefunden', 'warning'); return; }
+        const locked = Store.isLocked(s);
+        const platforms = [...new Set([s.verkaufsplattform, ...Store.getPlatforms()].filter(Boolean))];
+        const platOpts = platforms.filter(p => p !== 'Sonstiges')
+            .map(p => `<option value="${Utils.escapeHtml(p)}" ${s.verkaufsplattform === p ? 'selected' : ''}>${Utils.escapeHtml(p)}</option>`).join('');
+        const dis = locked ? 'disabled' : '';
+        const body = `
+            ${locked ? `<div style="background:rgba(245,158,11,.12);border:1px solid var(--warning,#f59e0b);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;">🔒 ${Utils.escapeHtml(Store.lockReason(s) || 'Festgeschrieben')} — nur Storno möglich.</div>` : ''}
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Datum</label><input type="date" class="form-input" id="se_datum" value="${s.datum || ''}" ${dis}></div>
+                <div class="form-group"><label class="form-label">Plattform</label><select class="form-select" id="se_plattform" ${dis}>${platOpts}<option value="Sonstiges">Sonstiges …</option></select></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Verkaufspreis (€)</label><input type="number" step="0.01" class="form-input" id="se_preis" value="${s.verkaufspreis || 0}" ${dis}></div>
+                <div class="form-group"><label class="form-label">Versand Käufer (€)</label><input type="number" step="0.01" class="form-input" id="se_versandK" value="${s.versandkostenKaeufer || 0}" ${dis}></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Gebühr (%)</label><input type="number" step="0.01" class="form-input" id="se_gebuehr" value="${s.plattformgebuehrProzent || 0}" ${dis}></div>
+                <div class="form-group"><label class="form-label">Versand Verkäufer (€)</label><input type="number" step="0.01" class="form-input" id="se_versandV" value="${s.versandkostenVerkaufer || 0}" ${dis}></div>
+            </div>
+            <div class="form-group"><label class="form-label">Käufer</label><input type="text" class="form-input" id="se_kaeufer" value="${Utils.escapeHtml(s.kaeufer || '')}" ${dis}></div>
+            <div class="form-group"><label class="form-label">Notizen</label><textarea class="form-textarea" id="se_notizen" ${dis}>${Utils.escapeHtml(s.notizen || '')}</textarea></div>
+        `;
+        const footer = `
+            <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+            ${s.storniert ? '' : `<button class="btn btn-danger" id="se_storno">Stornieren</button>`}
+            ${locked ? '' : `<button class="btn btn-primary" id="se_save">Speichern</button>`}
+        `;
+        App.showModal('Verkauf bearbeiten', body, footer);
+
+        const refresh = () => { const c = document.getElementById('content'); if (c) { c.innerHTML = this.render(); this.init(); } };
+
+        const stornoBtn = document.getElementById('se_storno');
+        if (stornoBtn) stornoBtn.addEventListener('click', () => {
+            const grund = prompt('Stornogrund angeben (Pflicht für Revisionssicherheit):');
+            if (!grund) return;
+            Store.stornoSale(s.id, grund);
+            App.closeModal();
+            Utils.showToast('Verkauf storniert', 'success');
+            refresh();
+        });
+
+        const saveBtn = document.getElementById('se_save');
+        if (saveBtn) saveBtn.addEventListener('click', () => {
+            let plat = (document.getElementById('se_plattform') || {}).value || s.verkaufsplattform;
+            if (plat && plat !== 'Sonstiges') Store.addPlatform(plat);
+            Store.saveSale({
+                ...s,
+                datum: Utils.getDateInputValue('se_datum'),
+                verkaufsplattform: plat,
+                verkaufspreis: parseFloat(document.getElementById('se_preis').value) || 0,
+                versandkostenKaeufer: parseFloat(document.getElementById('se_versandK').value) || 0,
+                plattformgebuehrProzent: parseFloat(document.getElementById('se_gebuehr').value) || 0,
+                versandkostenVerkaufer: parseFloat(document.getElementById('se_versandV').value) || 0,
+                kaeufer: document.getElementById('se_kaeufer').value.trim(),
+                notizen: document.getElementById('se_notizen').value.trim()
+            });
+            App.closeModal();
+            Utils.showToast('Verkauf aktualisiert', 'success');
+            refresh();
+        });
+    },
+
     render() {
         try {
             this._loadPrefs();
@@ -510,6 +607,17 @@ const Lager = {
                     });
                 });
             } catch(e) {}
+
+            // Aktive (nicht stornierte) Verkäufe je Einkauf-ID → "Verkauf bearbeiten" am Artikel
+            const saleByPid = {};
+            try {
+                Store.getSales(true).forEach(s => {
+                    if (s.storniert) return;
+                    const pids = s.purchaseIds ? s.purchaseIds : (s.purchaseId ? [s.purchaseId] : []);
+                    pids.forEach(pid => { if (!saleByPid[pid]) saleByPid[pid] = s.id; });
+                });
+            } catch(e) {}
+            this._saleByPid = saleByPid;
 
             const selectedCount = this._selected.size;
 
@@ -803,12 +911,7 @@ const Lager = {
                     </td>
                     <td style="padding:3px 6px;">${this._statusBadge(p.status, p.storniert)}</td>
                     <td class="table-actions" style="padding:3px;white-space:nowrap;">
-                        ${p.storniert ? '' : `
-                        ${p.status === 'verfuegbar' ? `<button class="btn btn-small btn-success" data-sell="${p.id}" style="padding:3px 8px;font-size:11px;">Verkaufen</button>` : ''}
-                        <button class="action-btn" data-status-modal="${p.id}" title="Status ändern"><i class="ti ti-bolt"></i></button>
-                        <button class="action-btn action-btn-accent" data-edit-lager="${p.id}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
-                        <button class="action-btn action-btn-danger" data-storno-lager="${p.id}" title="Stornieren"><i class="ti ti-ban"></i></button>
-                        `}
+                        ${p.storniert ? this._stornoHint(p) : this._rowActions(p)}
                     </td>
                 </tr>`;
             }).join('');
@@ -872,18 +975,15 @@ const Lager = {
                         <span style="font-weight:700;font-size:15px;">${Utils.formatCurrency(p.einkaufspreis)}</span>
                         <span style="font-size:10px;color:var(--text-muted);">${Utils.formatDate(p.datum)}</span>
                     </div>
-                    ${p.storniert ? '' : `
-                    <div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;align-items:center;">
-                        ${p.status === 'verfuegbar' ? `<button class="btn btn-small btn-success" data-sell="${p.id}" style="flex:1;">Verkaufen</button>` : ''}
-                        <button class="action-btn" data-status-modal="${p.id}" title="Status ändern"><i class="ti ti-bolt"></i></button>
-                        <button class="action-btn action-btn-accent" data-edit-lager="${p.id}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
-                        ${p.foto
-                            ? `<button class="action-btn" data-photo-preview="${p.id}" title="Foto ansehen"><i class="ti ti-photo"></i></button>`
-                            : `<button class="action-btn" data-upload-photo="${p.id}" title="Foto hinzufügen"><i class="ti ti-camera"></i></button>`
-                        }
-                        <button class="action-btn action-btn-danger" data-storno-lager="${p.id}" title="Stornieren"><i class="ti ti-ban"></i></button>
-                    </div>
-                    `}
+                    ${p.storniert
+                        ? `<div style="margin-top:9px;">${this._stornoHint(p)}</div>`
+                        : `<div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;align-items:center;">
+                            ${this._rowActions(p)}
+                            ${p.foto
+                                ? `<button class="action-btn" data-photo-preview="${p.id}" title="Foto ansehen"><i class="ti ti-photo"></i></button>`
+                                : `<button class="action-btn" data-upload-photo="${p.id}" title="Foto hinzufügen"><i class="ti ti-camera"></i></button>`
+                            }
+                        </div>`}
                 </div>
             </div>`;
         }).join('');
@@ -2278,6 +2378,25 @@ const Lager = {
                     if (!grund) return;
                     Store.stornoPurchase(btn.dataset.stornoLager, grund);
                     Utils.showToast('Artikel storniert', 'success');
+                    const contentEl = document.getElementById('content');
+                    contentEl.innerHTML = this.render();
+                    this.init();
+                });
+            });
+
+            // Verkauf direkt am Artikel bearbeiten / stornieren
+            document.querySelectorAll('[data-edit-sale]').forEach(btn => {
+                btn.addEventListener('click', () => this.openSaleEditModal(btn.dataset.editSale));
+            });
+
+            // Löschen — offene Periode: echtes Löschen mit Protokoll; festgeschrieben: Storno
+            document.querySelectorAll('[data-delete-lager]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (!confirm('Artikel löschen? In einer offenen Periode wird er entfernt und im Änderungsprotokoll dokumentiert.')) return;
+                    const res = Store.deletePurchase(btn.dataset.deleteLager);
+                    if (res && res.blocked) { Utils.showToast('Artikel ist verkauft — bitte zuerst den Verkauf bearbeiten/stornieren', 'warning'); return; }
+                    if (res && res.storno) Utils.showToast('Periode ist abgeschlossen — storniert statt gelöscht', 'warning');
+                    else Utils.showToast('Artikel gelöscht', 'success');
                     const contentEl = document.getElementById('content');
                     contentEl.innerHTML = this.render();
                     this.init();

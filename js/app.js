@@ -5,6 +5,10 @@ const App = {
     currentPage: 'dashboard',
     APP_VERSION: '1.7',  // ← bei jedem Update hier UND in index.html anpassen
 
+    // Finanzen-Modul: alle transaktionalen Seiten, die sich die Sub-Nav teilen.
+    // Reihenfolge = Reihenfolge der Sub-Tabs.
+    FINANZ_PAGES: ['rechnungen', 'eigenbelege', 'buchungen', 'ausgaben', 'bankimport', 'fahrtenbuch', 'afa'],
+
     pages: {
         dashboard: Dashboard,
         buchungen: Buchungen,
@@ -34,6 +38,16 @@ const App = {
         gewerbesteuer: Gewerbesteuer,
         schweiz: Schweiz,
         oesterreich: Oesterreich,
+        // Eingebettete Rechnungen-Sub-App — bootet via RechApp.mount() in #content
+        rechnungen: {
+            render() { return '<div id="rechMount"></div>'; },
+            init() { if (typeof RechApp !== 'undefined' && RechApp.mount) RechApp.mount(); }
+        },
+        // Eingebettete Eigenbelege-Sub-App — bootet via EBApp.mount() in #content
+        eigenbelege: {
+            render() { return '<div id="ebMount"></div>'; },
+            init() { if (typeof EBApp !== 'undefined' && EBApp.mount) EBApp.mount(); }
+        },
     },
 
     init() {
@@ -59,11 +73,8 @@ const App = {
             }
         });
 
-        // ── Lizenzprüfung (vor allem anderen) ──
-        License.init((licData) => {
-            this._licenseData = licData;
-            this._bootAfterLicense();
-        });
+        // Whop validiert Membership vor App-Start (kein Offline-Lizenz-Check mehr)
+        this._bootAfterLicense();
     },
 
     // Aktualisiert den Backup-Status-Indikator in der Sidebar (falls vorhanden)
@@ -608,8 +619,15 @@ const App = {
         if (euerSection) euerSection.style.display  = (onEuer && !onGbr) ? '' : 'none';
         if (euerItems)   euerItems.style.display    = (onEuer && !onGbr) ? '' : 'none';
 
+        // Finanzen-Modul: transaktionale Seiten teilen sich eine persistente Sub-Nav
+        const onFinanzen = App.FINANZ_PAGES.includes(page);
+        this._renderModuleSubnav(page);
+        const finanzTab = document.getElementById('toolTabFinanzen');
+        if (finanzTab) finanzTab.classList.toggle('active', onFinanzen);
+
         // Steuer & Soziales Sektion ein-/ausblenden
-        const onSteuer = ['afa', 'privatbuchungen', 'ustvoranmeldung', 'ksk', 'vorsteuer', 'koerperschaftsteuer', 'bilanz', 'rechtsform', 'lohnsteuer', 'gewerbesteuer', 'steuerberater', 'bankimport'].includes(page);
+        // (afa + bankimport sind ins Finanzen-Modul gewandert → hier raus)
+        const onSteuer = ['privatbuchungen', 'ustvoranmeldung', 'ksk', 'vorsteuer', 'koerperschaftsteuer', 'bilanz', 'rechtsform', 'lohnsteuer', 'gewerbesteuer', 'steuerberater'].includes(page);
         const steuerSection = document.getElementById('steuerSidebarSection');
         const steuerItems   = document.getElementById('steuerSidebarItems');
         if (steuerSection) steuerSection.style.display = (onSteuer && !onGbr) ? '' : 'none';
@@ -658,6 +676,43 @@ const App = {
             // Nur falls das rAF-Setup selbst fehlschlägt (sehr selten)
             console.error('[navigate] Setup-Fehler', page, err);
         }
+    },
+
+    // Persistente Sub-Nav des Finanzen-Moduls. Liegt außerhalb von #content,
+    // überlebt daher die _refresh()-Aufrufe der einzelnen Module.
+    // Leert sich auf Nicht-Finanzen-Seiten (CSS :empty → display:none).
+    _renderModuleSubnav(page) {
+        const el = document.getElementById('moduleSubnav');
+        if (!el) return;
+
+        // 2. Sub-Nav-Ebene (eingebettete Sub-Apps: Rechnungen/Eigenbelege) leeren,
+        // sobald wir nicht mehr auf deren Seite sind.
+        const rs = document.getElementById('rechSubnav');
+        if (rs && page !== 'rechnungen' && page !== 'eigenbelege') rs.innerHTML = '';
+
+        const SUBTABS = [
+            { page: 'rechnungen',  icon: 'ti-file-invoice',    label: 'Rechnungen'   },
+            { page: 'eigenbelege', icon: 'ti-receipt',         label: 'Eigenbelege'  },
+            { page: 'buchungen',   icon: 'ti-arrows-exchange', label: 'Buchungen'    },
+            { page: 'ausgaben',    icon: 'ti-cash',            label: 'Ausgaben'     },
+            { page: 'bankimport',  icon: 'ti-building-bank',   label: 'Bank-Import'  },
+            { page: 'fahrtenbuch', icon: 'ti-car',             label: 'Fahrtenbuch'  },
+            { page: 'afa',         icon: 'ti-trending-down',   label: 'AfA'          },
+        ];
+
+        if (!App.FINANZ_PAGES.includes(page)) { el.innerHTML = ''; return; }
+
+        const tabs = SUBTABS.map(t =>
+            `<button class="msub-tab${t.page === page ? ' active' : ''}" type="button" ` +
+            `onclick="App.navigate('${t.page}')">` +
+            `<i class="ti ${t.icon}"></i><span>${t.label}</span></button>`
+        ).join('');
+
+        el.innerHTML =
+            `<div class="module-subnav-inner">` +
+                `<div class="module-subnav-title"><i class="ti ti-wallet"></i> Finanzen</div>` +
+                `<div class="module-subnav-tabs">${tabs}</div>` +
+            `</div>`;
     },
 
     // Erzeugt ein Skeleton-Platzhalter-Layout je nach Seite
@@ -1454,24 +1509,8 @@ const App = {
     // ---- Settings Modal ----
     showSettingsModal() {
         const s = Store.getSettings();
-        // Lizenz-Info Block aufbauen
-        const ld = License.getData();
-        const licBlock = License.isDevMode()
-            ? `<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px;color:var(--warning);"><i class="ti ti-tool"></i> <strong>Entwicklermodus</strong> – Lizenzprüfung deaktiviert (kein Public Key konfiguriert)</div>`
-            : ld
-                ? (() => {
-                    const days = License.daysUntilExpiry();
-                    const expColor = days < 0 ? '#ef4444' : days <= 30 ? '#f59e0b' : 'var(--success)';
-                    return `<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px;">
-                        <div style="font-weight:600;color:var(--success);margin-bottom:4px;"><i class="ti ti-circle-check"></i> Lizenz aktiv</div>
-                        <div style="color:var(--text-secondary);">Lizenziert für: <strong>${Utils.escapeHtml(ld.name)}</strong></div>
-                        <div style="color:var(--text-secondary);">Typ: <strong>${Utils.escapeHtml(ld.tier || 'standard')}</strong></div>
-                        <div style="color:${expColor};">Gültig bis: <strong>${Utils.escapeHtml(ld.expires)}</strong>${days !== null ? ` (${days >= 0 ? 'noch ' + days + ' Tage' : 'seit ' + Math.abs(days) + ' Tagen abgelaufen'})` : ''}</div>
-                    </div>`;
-                  })()
-                : `<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:12px;color:#ef4444;"><i class="ti ti-alert-triangle"></i> Keine gültige Lizenz gefunden</div>`;
 
-        const body = `${licBlock}
+        const body = `
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="set_firmenname">Firmenname</label>

@@ -11,6 +11,15 @@ const Protokoll = {
         const log = Store.getAuditLog();
         const f = this;
 
+        // Periodenabschluss / Festschreibung
+        const closedYears = Store.getClosedYears();
+        const allDates = [
+            ...Store.getAllPurchasesRaw(),
+            ...Store.getAllSalesRaw(),
+            ...Store.getAllExpensesRaw()
+        ].map(r => String(r.datum || '').slice(0, 4)).filter(y => /^\d{4}$/.test(y));
+        const years = [...new Set([...allDates, String(new Date().getFullYear())])].sort().reverse();
+
         let filtered = [...log];
         if (f._filterAction) filtered = filtered.filter(e => e.action === f._filterAction);
         if (f._filterEntity) filtered = filtered.filter(e => e.entityType === f._filterEntity);
@@ -71,6 +80,32 @@ const Protokoll = {
                     <strong>GoBD-Hinweis:</strong> Dieses Aenderungsprotokoll dokumentiert alle Erstellungen, Bearbeitungen und Stornierungen.
                     Eintraege koennen nicht geloescht oder veraendert werden. Jeder Eintrag besitzt eine Pruefsumme zur Integritaetssicherung.
                     <br><strong>Eintraege gesamt:</strong> ${log.length} | <strong>Gefiltert:</strong> ${filtered.length}
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header"><div class="card-title">🔒 Periodenabschluss (Festschreibung)</div></div>
+                <div style="padding:1rem;">
+                    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
+                        Ein abgeschlossenes Jahr ist festgeschrieben: Buchungen darin können nur noch <strong>storniert</strong>, nicht mehr bearbeitet oder geloescht werden (GoBD-Unveraenderbarkeit). Eingereichte USt-Voranmeldungen sperren ihr Quartal automatisch.
+                    </p>
+                    <div class="table-container" style="border:none;">
+                        <table class="data-table">
+                            <thead><tr><th>Jahr</th><th>Status</th><th style="text-align:right">Aktion</th></tr></thead>
+                            <tbody>
+                                ${years.map(y => {
+                                    const closed = closedYears.includes(parseInt(y, 10));
+                                    return `<tr>
+                                        <td><strong>${y}</strong></td>
+                                        <td>${closed ? '<span class="badge badge-danger">🔒 Abgeschlossen</span>' : '<span class="badge badge-success">Offen</span>'}</td>
+                                        <td style="text-align:right">${closed
+                                            ? `<button class="btn btn-small" data-reopen-year="${y}">Wieder oeffnen</button>`
+                                            : `<button class="btn btn-small btn-danger" data-close-year="${y}">Jahr abschliessen</button>`}</td>
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -205,5 +240,30 @@ const Protokoll = {
                 }
             });
         }
+
+        // Periodenabschluss: Jahr abschließen
+        document.querySelectorAll('[data-close-year]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const y = btn.dataset.closeYear;
+                if (!confirm(`Jahr ${y} abschließen? Buchungen aus ${y} können danach nur noch storniert (nicht mehr bearbeitet/gelöscht) werden.`)) return;
+                Store.closeYear(y);
+                Utils.showToast(`Jahr ${y} abgeschlossen`, 'success');
+                document.getElementById('content').innerHTML = this.render();
+                this.init();
+            });
+        });
+
+        // Periodenabschluss: Jahr wieder öffnen (mit Begründung → protokolliert)
+        document.querySelectorAll('[data-reopen-year]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const y = btn.dataset.reopenYear;
+                const grund = prompt(`Jahr ${y} wieder öffnen — Grund (wird protokolliert):`);
+                if (!grund) return;
+                Store.reopenYear(y, grund);
+                Utils.showToast(`Jahr ${y} wieder geöffnet`, 'success');
+                document.getElementById('content').innerHTML = this.render();
+                this.init();
+            });
+        });
     }
 };

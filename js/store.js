@@ -1129,12 +1129,74 @@ const Store = {
         else entries.forEach(function (e) { this._idbPut(e.k, e.v); }, this);
     },
 
-    // Check if a record is locked (nicht mehr bearbeitbar)
+    // ── GoBD: Sperre / Festschreibung ───────────────────────────────────────
+    // Ein Datensatz ist gesperrt (nur noch per Storno korrigierbar), wenn er
+    // storniert/manuell gesperrt ist ODER in einer festgeschriebenen Periode liegt.
     isLocked(record) {
         if (!record) return false;
         if (record.storniert) return true;
         if (record.gesperrt) return true;
+        if (this.isPeriodLocked(record.datum || record.anschaffungsdatum)) return true;
         return false;
+    },
+
+    // Frei bearbeitbar? (offen, nicht storniert, nicht festgeschrieben)
+    canEdit(record)   { return !!record && !this.isLocked(record); },
+    // Echt löschbar? = wie canEdit (festgeschriebene/stornierte → nur Storno)
+    canDelete(record) { return this.canEdit(record); },
+
+    // Liegt das Datum (YYYY-MM-DD) in einer festgeschriebenen Periode?
+    //  • USt-Voranmeldungs-Quartal als eingereicht markiert, ODER
+    //  • Jahr manuell abgeschlossen.
+    isPeriodLocked(dateStr) {
+        if (!dateStr) return false;
+        const ds = String(dateStr);
+        const year = parseInt(ds.slice(0, 4), 10);
+        if (!year) return false;
+        if (this.getClosedYears().includes(year)) return true;
+        const month = parseInt(ds.slice(5, 7), 10) || 1;
+        const quartal = Math.floor((month - 1) / 3); // 0–3
+        return this.getUstPerioden().some(p => p.year === year && p.quartal === quartal && p.eingereichtAm);
+    },
+
+    // Warum ist der Datensatz gesperrt? (für UI-Tooltips)
+    lockReason(record) {
+        if (!record) return '';
+        if (record.storniert) return 'Bereits storniert';
+        if (record.gesperrt)  return 'Manuell festgeschrieben';
+        const d = record.datum || record.anschaffungsdatum;
+        if (this.isPeriodLocked(d)) {
+            const year = parseInt(String(d).slice(0, 4), 10);
+            if (this.getClosedYears().includes(year)) return 'Jahr ' + year + ' ist abgeschlossen';
+            return 'USt-Voranmeldung dieser Periode wurde eingereicht';
+        }
+        return '';
+    },
+
+    // Manuell abgeschlossene Jahre (Festschreibung)
+    getClosedYears() {
+        try { return JSON.parse(this._cache[this._prefix + 'closed_years'] || '[]'); } catch(e) { return []; }
+    },
+    closeYear(year) {
+        year = parseInt(year, 10);
+        if (!year) return;
+        const list = this.getClosedYears();
+        if (!list.includes(year)) {
+            list.push(year);
+            this.set('closed_years', list);
+            this._addAuditEntry('status_geaendert', 'system', 'jahr_' + year, null, { year, geschlossen: true },
+                'Jahr ' + year + ' abgeschlossen (festgeschrieben)');
+        }
+    },
+    reopenYear(year, grund) {
+        year = parseInt(year, 10);
+        let list = this.getClosedYears();
+        if (list.includes(year)) {
+            list = list.filter(y => y !== year);
+            this.set('closed_years', list);
+            this._addAuditEntry('status_geaendert', 'system', 'jahr_' + year, null, { year, geschlossen: false },
+                'Jahr ' + year + ' wieder geöffnet' + (grund ? ': ' + grund : ''));
+        }
     },
 
     // ---- Theme (shared, no prefix) ----
@@ -1192,7 +1254,7 @@ const Store = {
             const idx = purchases.findIndex(p => p.id === purchase.id);
             if (idx >= 0) {
                 const old = Object.assign({}, purchases[idx]);
-                if (old.storniert) return purchase; // stornierte Eintraege nicht bearbeitbar
+                if (this.isLocked(old)) return purchase; // GoBD: festgeschriebene/stornierte Einträge nicht bearbeitbar
                 this._addAuditEntry('bearbeitet', 'einkauf', purchase.id, old, purchase, 'Einkauf bearbeitet');
                 purchases[idx] = this._stampRecord(purchase);
             } else {
@@ -1238,18 +1300,29 @@ const Store = {
         this._addAuditEntry('storniert', 'einkauf', id, old, p, grund || 'Einkauf storniert');
     },
 
+    // GoBD-konformes Löschen:
+    //  • offene Periode  → echtes Löschen MIT Protokolleintrag (rekonstruierbar)
+    //  • festgeschrieben → kein Löschen, automatisch Storno (Spur bleibt erhalten)
     deletePurchase(id) {
-        // GoBD: Physisches Loeschen nicht erlaubt - stattdessen stornieren
-        this.stornoPurchase(id, 'Storniert (ehemals geloescht)');
-    },
-
-    physicalDeletePurchase(id) {
+        const p = this.getAllPurchasesRaw().find(x => x.id === id);
+        if (!p) return { ok: false };
+        if (this.isLocked(p)) {
+            if (!p.storniert) this.stornoPurchase(id, 'Storno statt Löschung — Periode abgeschlossen');
+            return { storno: true };
+        }
+        // Nicht löschen, wenn ein aktiver Verkauf darauf verweist (würde den Verkauf verwaisen)
+        const linkedSale = this.getAllSalesRaw().find(s => !s.storniert &&
+            (s.purchaseId === id || (Array.isArray(s.purchaseIds) && s.purchaseIds.includes(id))));
+        if (linkedSale) return { blocked: true, reason: 'sale' };
+        this._addAuditEntry('loeschung', 'einkauf', id, p, null, 'Einkauf gelöscht (offene Periode)');
         const purchases = this.getAllPurchasesRaw();
         const idx = purchases.findIndex(x => x.id === id);
-        if (idx < 0) return;
-        purchases.splice(idx, 1);
-        this.set('purchases', purchases);
+        if (idx >= 0) { purchases.splice(idx, 1); this.set('purchases', purchases); }
+        return { deleted: true };
     },
+
+    // Veralteter Name — jetzt Alias auf das lock-aware, protokollierte Löschen.
+    physicalDeletePurchase(id) { return this.deletePurchase(id); },
 
     // ---- Sales ----
     getSales(includeStorniert) {
@@ -1267,7 +1340,7 @@ const Store = {
             const idx = sales.findIndex(s => s.id === sale.id);
             if (idx >= 0) {
                 const old = Object.assign({}, sales[idx]);
-                if (old.storniert) return sale;
+                if (this.isLocked(old)) return sale; // GoBD: festgeschriebene/stornierte Verkäufe nicht bearbeitbar
                 this._addAuditEntry('bearbeitet', 'verkauf', sale.id, old, sale, 'Verkauf bearbeitet');
                 sales[idx] = this._stampRecord(sale);
             } else {
@@ -1373,28 +1446,32 @@ const Store = {
     },
 
     deleteSale(id) {
-        this.stornoSale(id, 'Storniert (ehemals geloescht)');
-    },
-
-    physicalDeleteSale(id) {
-        const sales = this.getAllSalesRaw();
-        const idx = sales.findIndex(x => x.id === id);
-        if (idx < 0) return;
-        // Also reset linked purchase status back to verfuegbar
-        const sale = sales[idx];
-        const pids = sale.purchaseIds ? sale.purchaseIds : (sale.purchaseId ? [sale.purchaseId] : []);
+        const s = this.getAllSalesRaw().find(x => x.id === id);
+        if (!s) return { ok: false };
+        if (s._invoiceId) return { blocked: true, reason: 'invoice' }; // stammt aus Rechnung → über die Rechnung stornieren
+        if (this.isLocked(s)) {
+            if (!s.storniert) this.stornoSale(id, 'Storno statt Löschung — Periode abgeschlossen');
+            return { storno: true };
+        }
+        this._addAuditEntry('loeschung', 'verkauf', id, s, null, 'Verkauf gelöscht (offene Periode)');
+        // verknüpfte Einkäufe wieder freigeben
+        const pids = s.purchaseIds ? s.purchaseIds : (s.purchaseId ? [s.purchaseId] : []);
         if (pids.length > 0) {
             const purchases = this.getAllPurchasesRaw();
             let changed = false;
             pids.forEach(pid => {
                 const p = purchases.find(x => x.id === pid);
-                if (p && !p.storniert) { p.status = 'verfuegbar'; changed = true; }
+                if (p && !p.storniert && p.status === 'verkauft') { p.status = 'verfuegbar'; this._stampRecord(p); changed = true; }
             });
             if (changed) this.set('purchases', purchases);
         }
-        sales.splice(idx, 1);
-        this.set('sales', sales);
+        const sales = this.getAllSalesRaw();
+        const idx = sales.findIndex(x => x.id === id);
+        if (idx >= 0) { sales.splice(idx, 1); this.set('sales', sales); }
+        return { deleted: true };
     },
+
+    physicalDeleteSale(id) { return this.deleteSale(id); },
 
     // ---- Expenses ----
     getExpenses(includeStorniert) {
@@ -1412,7 +1489,7 @@ const Store = {
             const idx = expenses.findIndex(e => e.id === expense.id);
             if (idx >= 0) {
                 const old = Object.assign({}, expenses[idx]);
-                if (old.storniert) return expense;
+                if (this.isLocked(old)) return expense; // GoBD: festgeschriebene/stornierte Ausgaben nicht bearbeitbar
                 this._addAuditEntry('bearbeitet', 'ausgabe', expense.id, old, expense, 'Ausgabe bearbeitet');
                 expenses[idx] = this._stampRecord(expense);
             } else {
@@ -1448,16 +1525,20 @@ const Store = {
     },
 
     deleteExpense(id) {
-        this.stornoExpense(id, 'Storniert (ehemals geloescht)');
-    },
-
-    physicalDeleteExpense(id) {
+        const e = this.getAllExpensesRaw().find(x => x.id === id);
+        if (!e) return { ok: false };
+        if (this.isLocked(e)) {
+            if (!e.storniert) this.stornoExpense(id, 'Storno statt Löschung — Periode abgeschlossen');
+            return { storno: true };
+        }
+        this._addAuditEntry('loeschung', 'ausgabe', id, e, null, 'Ausgabe gelöscht (offene Periode)');
         const expenses = this.getAllExpensesRaw();
         const idx = expenses.findIndex(x => x.id === id);
-        if (idx < 0) return;
-        expenses.splice(idx, 1);
-        this.set('expenses', expenses);
+        if (idx >= 0) { expenses.splice(idx, 1); this.set('expenses', expenses); }
+        return { deleted: true };
     },
+
+    physicalDeleteExpense(id) { return this.deleteExpense(id); },
 
     // ============================================
     // AfA / Abschreibungen
@@ -1471,6 +1552,7 @@ const Store = {
             const idx = list.findIndex(x => x.id === item.id);
             if (idx >= 0) {
                 const old = Object.assign({}, list[idx]);
+                if (this.isLocked(old)) return item; // GoBD: festgeschriebene/stornierte AfA-Anlage nicht bearbeitbar
                 list[idx] = this._stampRecord(item);
                 this._addAuditEntry('bearbeitet', 'afa', item.id, old, item, 'AfA-Anlage bearbeitet');
             } else { list.push(this._stampRecord(item)); }
@@ -2276,6 +2358,7 @@ const Store = {
         if (isNew) { f.id = this.generateId(); f.createdAt = new Date().toISOString(); }
         const idx = all.findIndex(x => x.id === f.id);
         const old = idx >= 0 ? Object.assign({}, all[idx]) : null;
+        if (old && this.isLocked(old)) return f; // GoBD: festgeschriebene/stornierte Fahrt nicht bearbeitbar
         if (idx >= 0) all[idx] = f; else all.push(f);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'fahrtenbuch'] = str;
@@ -2312,6 +2395,7 @@ const Store = {
         const all = this.getKassenbuch();
         if (!e.id) { e.id = this.generateId(); e.createdAt = new Date().toISOString(); }
         const idx = all.findIndex(x => x.id === e.id);
+        if (idx >= 0 && this.isLocked(all[idx])) return e; // GoBD: festgeschriebener/stornierter Kasseneintrag nicht bearbeitbar
         if (idx >= 0) all[idx] = e; else all.push(e);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'kassenbuch'] = str;

@@ -24,6 +24,7 @@ var I18n = (function () {
 
             // ── Navigation / Topnav ──
             'nav.dashboard':      'Dashboard',
+            'nav.finance':        'Finanzen',
             'nav.invoices':       'Rechnungen',
             'nav.receipts':       'Eigenbelege',
             'nav.inventory':      'Lager',
@@ -454,6 +455,7 @@ var I18n = (function () {
 
             // ── Navigation / Topnav ──
             'nav.dashboard':      'Dashboard',
+            'nav.finance':        'Finance',
             'nav.invoices':       'Invoices',
             'nav.receipts':       'Receipts',
             'nav.inventory':      'Inventory',

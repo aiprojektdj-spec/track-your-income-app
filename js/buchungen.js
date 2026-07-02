@@ -609,6 +609,8 @@ const Buchungen = {
                     <button type="button" class="btn btn-success" id="saveVerkaufBtn">Verkauf speichern</button>
                 </div>
             </div>
+
+            ${this._renderSaleList()}
         `;
     },
 
@@ -825,6 +827,9 @@ const Buchungen = {
                 this._renderTab();
             });
         }
+
+        // Verkäufe-Liste: Bearbeiten / Stornieren / Löschen
+        this._bindBuchungActions();
     },
 
     _refreshVerkaufSummary() {
@@ -880,6 +885,7 @@ const Buchungen = {
                 betrag: -(parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1),
                 plattform: p.einkaufsquelle || '', einkaufsquelle: p.einkaufsquelle || '',
                 storniert: p.storniert || false,
+                _stornoGrund: p.stornoGrund || '',
                 _isPurchase: true
             })),
             ...sales.map(s => {
@@ -894,6 +900,8 @@ const Buchungen = {
                     betrag: parseFloat(s.verkaufspreis) || 0,
                     plattform: s.verkaufsplattform || '', einkaufsquelle: '',
                     storniert: s.storniert || false,
+                    _stornoGrund: s.stornoGrund || '',
+                    _invoiceId: s._invoiceId || '',
                     _isPurchase: false,
                     _isMulti: isMulti,
                     _purchaseCount: isMulti ? s.purchaseIds.length : 0
@@ -936,12 +944,7 @@ const Buchungen = {
                 const multiPaketBadge = i._isMulti
                     ? `<span class="badge badge-info" style="margin-left:4px;font-size:10px;">${i._purchaseCount} Artikel</span>`
                     : '';
-                const actionButtons = i.storniert
-                    ? `<span class="badge badge-neutral">Storniert</span>
-                       <button class="btn btn-small btn-danger" data-phys-delete="${i.id}" data-source="${i._source}" title="Endgültig löschen">🗑️</button>`
-                    : `<button class="btn btn-small" data-edit="${i.id}" data-source="${i._source}">Bearbeiten</button>
-                        <button class="btn btn-small btn-danger" data-storno="${i.id}" data-source="${i._source}">Stornieren</button>
-                        <button class="btn btn-small btn-danger" data-phys-delete="${i.id}" data-source="${i._source}" title="Endgültig löschen">🗑️</button>`;
+                const actionButtons = this._recordActions(i.id, i._source, i.datum, i.storniert, i._stornoGrund, !!i._invoiceId);
                 return `
                 <tr class="${i.storniert ? 'row-storniert' : ''}">
                     <td>${Utils.formatDate(i.datum)}</td>
@@ -1061,41 +1064,8 @@ const Buchungen = {
             });
         });
 
-        // Edit buttons
-        document.querySelectorAll('[data-edit]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.dataset.edit;
-                const source = btn.dataset.source;
-                this._showEditModal(id, source);
-            });
-        });
-
-        // Storno buttons
-        document.querySelectorAll('[data-storno]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const grund = prompt('Stornogrund angeben (Pflicht fuer Revisionssicherheit):');
-                if (!grund) return;
-                const id = btn.dataset.storno;
-                const source = btn.dataset.source;
-                if (source === 'purchase') Store.stornoPurchase(id, grund);
-                else Store.stornoSale(id, grund);
-                Utils.showToast('Storniert', 'success');
-                this._renderTab();
-            });
-        });
-
-        // Physical delete buttons
-        document.querySelectorAll('[data-phys-delete]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (!confirm('Eintrag endgültig löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
-                const id = btn.dataset.physDelete;
-                const source = btn.dataset.source;
-                if (source === 'purchase') Store.physicalDeletePurchase(id);
-                else Store.physicalDeleteSale(id);
-                Utils.showToast('Gelöscht', 'success');
-                this._renderTab();
-            });
-        });
+        // Bearbeiten / Stornieren / Löschen (gemeinsam für Alle-Buchungen + Verkäufe-Liste)
+        this._bindBuchungActions();
 
         // CSV Export
         const exportBtn = document.getElementById('exportCSVBtn');
@@ -1110,6 +1080,103 @@ const Buchungen = {
                 Utils.showToast('CSV exportiert', 'success');
             });
         }
+    },
+
+    // Gemeinsame Aktions-Handler (Bearbeiten / Stornieren / Löschen) für
+    // die Tabellen in "Alle Buchungen" UND der Verkäufe-Liste.
+    _bindBuchungActions() {
+        document.querySelectorAll('[data-edit]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this._showEditModal(btn.dataset.edit, btn.dataset.source);
+            });
+        });
+
+        document.querySelectorAll('[data-storno]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const grund = prompt('Stornogrund angeben (Pflicht für Revisionssicherheit):');
+                if (!grund) return;
+                const id = btn.dataset.storno;
+                if (btn.dataset.source === 'purchase') Store.stornoPurchase(id, grund);
+                else Store.stornoSale(id, grund);
+                Utils.showToast('Storniert', 'success');
+                this._renderTab();
+            });
+        });
+
+        document.querySelectorAll('[data-delete]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (!confirm('Eintrag löschen? In einer offenen Periode wird er entfernt und im Änderungsprotokoll dokumentiert.')) return;
+                const id = btn.dataset.delete;
+                const res = btn.dataset.source === 'purchase' ? Store.deletePurchase(id) : Store.deleteSale(id);
+                if (res && res.blocked) { Utils.showToast(res.reason === 'invoice' ? 'Verkauf stammt aus einer Rechnung — bitte die Rechnung stornieren' : 'Artikel ist verkauft — bitte zuerst den verknüpften Verkauf stornieren/löschen', 'warning'); return; }
+                if (res && res.storno) Utils.showToast('Periode ist abgeschlossen — storniert statt gelöscht', 'warning');
+                else Utils.showToast('Gelöscht', 'success');
+                this._renderTab();
+            });
+        });
+    },
+
+    // Aktions-Buttons je Datensatz — GoBD-bewusst (offen vs. festgeschrieben).
+    _recordActions(id, source, datum, storniert, stornoGrund, isInvoice) {
+        if (storniert) {
+            return `<span class="badge badge-neutral" title="${Utils.escapeHtml(stornoGrund || 'Storniert')}">Storniert</span>`;
+        }
+        if (isInvoice) {
+            return `<span class="badge badge-info" title="Stammt aus einer Rechnung — Änderungen bitte im Rechnungen-Modul (Rechnung stornieren)">🧾 aus Rechnung</span>`;
+        }
+        if (Store.isPeriodLocked(datum)) {
+            return `<span class="badge badge-warning" title="Periode festgeschrieben — nur Storno möglich" style="margin-right:4px;">🔒</span>
+                <button class="btn btn-small btn-danger" data-storno="${id}" data-source="${source}">Stornieren</button>`;
+        }
+        return `<button class="btn btn-small" data-edit="${id}" data-source="${source}">Bearbeiten</button>
+            <button class="btn btn-small btn-danger" data-delete="${id}" data-source="${source}" title="In offener Periode löschen (wird protokolliert)">Löschen</button>`;
+    },
+
+    // ======== VERKÄUFE-LISTE (eigene Liste im Verkauf-Tab) ========
+    _renderSaleList() {
+        const sales = Store.getSales(true).slice().sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
+        let rows = '';
+        if (sales.length === 0) {
+            rows = '<tr><td colspan="6" class="table-empty">Noch keine Verkäufe erfasst</td></tr>';
+        } else {
+            rows = sales.map(s => {
+                const isMulti = s.purchaseIds && s.purchaseIds.length > 0;
+                const artikel = isMulti ? `${s.purchaseIds.length} Artikel (Paket)` : (s.artikeltyp || '');
+                const platBadge = s.verkaufsplattform ? `<span class="platform-badge">${Utils.escapeHtml(s.verkaufsplattform)}</span>` : '';
+                return `
+                <tr class="${s.storniert ? 'row-storniert' : ''}">
+                    <td>${Utils.formatDate(s.datum)}</td>
+                    <td>${Utils.escapeHtml(s.marke || '')}</td>
+                    <td>${Utils.escapeHtml(artikel)} ${Utils.escapeHtml(s.beschreibung || '')}</td>
+                    <td style="text-align:right">${Utils.formatCurrency(s.verkaufspreis)}</td>
+                    <td>${platBadge}</td>
+                    <td class="table-actions">${this._recordActions(s.id, 'sale', s.datum, s.storniert, s.stornoGrund, !!s._invoiceId)}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        return `
+            <div class="card" style="margin-bottom:16px;">
+                <div class="card-header">
+                    <div class="card-title">Verkäufe (${sales.filter(s => !s.storniert).length})</div>
+                </div>
+                <div class="table-container" style="margin-bottom:0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Datum</th>
+                                <th>Marke</th>
+                                <th>Artikel</th>
+                                <th style="text-align:right">Verkaufspreis</th>
+                                <th>Plattform</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
     },
 
     // ======== EDIT MODAL ========

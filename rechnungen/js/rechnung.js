@@ -129,6 +129,9 @@ var Rechnung = (function() {
         html += '<option value="__new__">+ Neuen Kunden anlegen</option>';
         html += '</select></div>';
         html += '</div>';
+        html += '<div id="reverseChargeHint" style="display:none;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);">';
+        html += 'ℹ️ <strong>§13b UStG – Reverse Charge:</strong> EU-Geschäftskunde mit USt-IdNr. erkannt. Steuerschuldnerschaft geht auf den Empfänger über, USt-Sätze wurden auf 0% gesetzt.';
+        html += '</div>';
 
         // Inline new customer fields (hidden by default)
         html += '<div id="newCustomerFields" style="display:none; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">';
@@ -467,6 +470,23 @@ var Rechnung = (function() {
             this.dataset.userEdited = 'true';
         });
 
+        // §13b UStG – bei EU-B2B-Kunde (Ausland + USt-IdNr.) automatisch Reverse Charge: USt auf 0%
+        function applyReverseChargeCheck() {
+            var hint = document.getElementById('reverseChargeHint');
+            var kundeId = document.getElementById('invKunde').value;
+            var customers = Store.getRechCustomers();
+            var kunde = customers.find(function(c) { return c.id === kundeId; });
+            var euLaender = (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : [];
+            var isEuB2B = kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && euLaender.indexOf(kunde.land) !== -1;
+            if (hint) hint.style.display = isEuB2B ? 'block' : 'none';
+            if (isEuB2B) {
+                document.querySelectorAll('.pos-mwst').forEach(function(sel) {
+                    sel.value = '0';
+                });
+                updateSummen();
+            }
+        }
+
         document.getElementById('invKunde').addEventListener('change', function() {
             var ncf = document.getElementById('newCustomerFields');
             if (this.value === '__new__') {
@@ -474,7 +494,9 @@ var Rechnung = (function() {
             } else {
                 ncf.style.display = 'none';
             }
+            applyReverseChargeCheck();
         });
+        applyReverseChargeCheck();
 
         function applyDatumsOption(val) {
             var faelligkeitGroup = document.getElementById('invFaelligkeitGroup');
@@ -964,6 +986,12 @@ var Rechnung = (function() {
             html += isCH
                 ? '<div class="inv-klein">Nicht MWST-pflichtig gem. Art. 10 Abs. 2 MWSTG.</div>'
                 : '<div class="inv-klein">Gem\u00E4\u00DF \u00A719 UStG wird keine Umsatzsteuer berechnet.</div>';
+        }
+
+        // \u00A713b UStG Reverse Charge notice
+        var _rcEuLaender = (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : [];
+        if (!isCH && !isKlein && kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && _rcEuLaender.indexOf(kunde.land) !== -1) {
+            html += '<div class="inv-klein">Steuerschuldnerschaft des Leistungsempf\u00E4ngers gem\u00E4\u00DF \u00A713b UStG (Reverse Charge). USt-IdNr. Leistungsempf\u00E4nger: ' + Utils.escapeHtml(kunde.ustIdNr) + '</div>';
         }
 
         // Payment terms & notes

@@ -59,7 +59,7 @@ const Ausgaben = {
             rows = filtered.map(e => `
                 <tr${e.storniert ? ' class="row-storniert"' : ''}>
                     <td>${Utils.formatDate(e.datum)}</td>
-                    <td><span class="badge badge-info">${Utils.escapeHtml(e.kategorie || '')}</span></td>
+                    <td><span class="badge badge-info">${Utils.escapeHtml(e.kategorie || '')}</span> <span class="badge badge-neutral" title="SKR03-Konto (DATEV)" style="font-family:monospace;">${typeof DatevExport !== 'undefined' ? DatevExport.kontoForKategorie(e.kategorie, 'SKR03') : ''}</span></td>
                     <td>${Utils.escapeHtml(e.beschreibung || '')}</td>
                     <td style="text-align:right">${Utils.formatCurrency(e.betrag)}</td>
                     <td>${Utils.escapeHtml(e.belegNr || '')}</td>

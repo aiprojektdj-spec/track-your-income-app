@@ -384,6 +384,11 @@ var Dokumente = (function() {
 
         document.getElementById('confirmSendStatus').addEventListener('click', function() {
             if (document.getElementById('sendConfirmCheck').checked && !alreadySent) {
+                var s14 = Store.getRechUnternehmen ? Store.getRechUnternehmen() : {};
+                if (inv.typ === 'rechnung' && settings.land !== 'CH' && !s14.steuernummer && !s14.ustId) {
+                    Utils.showToast('⛔ Steuernummer/USt-IdNr. fehlt – §14 UStG Pflichtangabe. Bitte in Einstellungen ergänzen.', 'error');
+                    return;
+                }
                 Store.setVersandStatus(id);
                 Utils.showToast('Als versendet markiert.', 'success');
             }

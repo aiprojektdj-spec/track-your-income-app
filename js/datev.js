@@ -47,6 +47,18 @@ var DatevExport = (function () {
         kasse:          '1000',
     };
 
+    // ── Kategorie → SKR-Konto (auch für Finanzen-Modul-Anzeige nutzbar) ──
+    function kontoForKategorie(kategorie, skr) {
+        var accounts = skr === 'SKR04' ? SKR04 : SKR03;
+        var cat = (kategorie || '').toLowerCase();
+        if (cat.indexOf('versand') > -1 || cat.indexOf('porto') > -1) return accounts.versand;
+        if (cat.indexOf('plattform') > -1 || cat.indexOf('provision') > -1) return accounts.plattform;
+        if (cat.indexOf('fahrt') > -1 || cat.indexOf('reise') > -1) return accounts.fahrt;
+        if (cat.indexOf('material') > -1 || cat.indexOf('büro') > -1) return accounts.material;
+        if (cat.indexOf('afa') > -1 || cat.indexOf('abschreibung') > -1) return accounts.afa;
+        return accounts.sonstige;
+    }
+
     // ── CSV helpers ─────────────────────────────────────────────────────
     // DATEV uses semicolons, fields with special chars in double-quotes
     function csvField(v) {
@@ -89,6 +101,7 @@ var DatevExport = (function () {
         var accounts  = skr === 'SKR04' ? SKR04 : SKR03;
         var settings  = Store.getSettings ? Store.getSettings() : {};
         var isKlein   = settings.ustMode === 'klein';
+        var isSoll    = (settings.ustVersteuerungsart || 'soll') !== 'ist';
 
         var vonDate = year + '-01-01';
         var bisDate = year + '-12-31';
@@ -103,11 +116,15 @@ var DatevExport = (function () {
         var expenses = (Store.getAllExpensesRaw ? Store.getAllExpensesRaw() : Store.getExpenses ? Store.getExpenses() : [])
             .filter(function (e) { return !e.storniert && e.datum >= vonDate && e.datum <= bisDate; });
 
+        // Buchungsdatum: bei Soll-Versteuerung Rechnungsdatum (unabhängig von Zahlung),
+        // bei Ist-Versteuerung Zahlungsdatum (nur bezahlte Rechnungen) — muss zu UVA passen
+        var invKeyDate = function (i) { return isSoll ? i.datum : (i.bezahltAm || i.datum); };
         var invoices = (Store.getRechInvoices ? Store.getRechInvoices() : [])
             .filter(function (i) {
-                return i.typ === 'rechnung'
-                    && i.status === 'bezahlt'
-                    && (i.datum || '') >= vonDate && (i.datum || '') <= bisDate;
+                if (i.typ !== 'rechnung') return false;
+                if (isSoll ? (i.status !== 'versendet' && i.status !== 'bezahlt') : i.status !== 'bezahlt') return false;
+                var d = invKeyDate(i);
+                return (d || '') >= vonDate && (d || '') <= bisDate;
             });
 
         // ── Buchungszeilen ───────────────────────────────────────────────
@@ -144,7 +161,7 @@ var DatevExport = (function () {
                 sh:           'H',             // Haben = Einnahme
                 konto:        erloesKonto,
                 gegenkonto:   accounts.bank,
-                datum:        inv.bezahltAm || inv.datum,
+                datum:        invKeyDate(inv),
                 belegfeld1:   inv.nummer || '',
                 buchungstext: ('Rechnung ' + (inv.nummer || '') + (kundeName ? ' ' + kundeName : '')).slice(0, 60),
                 buSchluessel: isKlein ? '' : (primaryRate === 19 ? '' : primaryRate === 7 ? '2' : '40'),
@@ -194,14 +211,7 @@ var DatevExport = (function () {
         expenses.forEach(function (e) {
             var betrag = parseFloat(e.betrag || 0);
             if (betrag <= 0) return;
-            var cat = (e.kategorie || '').toLowerCase();
-            var konto;
-            if (cat.indexOf('versand') > -1 || cat.indexOf('porto') > -1) konto = accounts.versand;
-            else if (cat.indexOf('plattform') > -1 || cat.indexOf('provision') > -1) konto = accounts.plattform;
-            else if (cat.indexOf('fahrt') > -1 || cat.indexOf('reise') > -1) konto = accounts.fahrt;
-            else if (cat.indexOf('material') > -1 || cat.indexOf('büro') > -1) konto = accounts.material;
-            else if (cat.indexOf('afa') > -1 || cat.indexOf('abschreibung') > -1) konto = accounts.afa;
-            else konto = accounts.sonstige;
+            var konto = kontoForKategorie(e.kategorie, skr);
             rows.push({
                 umsatz:       betrag,
                 sh:           'S',
@@ -398,5 +408,5 @@ var DatevExport = (function () {
         });
     }
 
-    return { buildCSV: buildCSV, renderCard: renderCard, initCard: initCard };
+    return { buildCSV: buildCSV, renderCard: renderCard, initCard: initCard, kontoForKategorie: kontoForKategorie };
 })();

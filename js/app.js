@@ -31,6 +31,7 @@ const App = {
         bankimport: BankImport,
         steuerberater: Steuerberater,
         vorsteuer: Vorsteuer,
+        oss: OSS,
         koerperschaftsteuer: Koerperschaftsteuer,
         bilanz: Bilanz,
         rechtsform: Rechtsform,
@@ -627,7 +628,7 @@ const App = {
 
         // Steuer & Soziales Sektion ein-/ausblenden
         // (afa + bankimport sind ins Finanzen-Modul gewandert → hier raus)
-        const onSteuer = ['privatbuchungen', 'ustvoranmeldung', 'ksk', 'vorsteuer', 'koerperschaftsteuer', 'bilanz', 'rechtsform', 'lohnsteuer', 'gewerbesteuer', 'steuerberater'].includes(page);
+        const onSteuer = ['privatbuchungen', 'ustvoranmeldung', 'ksk', 'vorsteuer', 'oss', 'koerperschaftsteuer', 'bilanz', 'rechtsform', 'lohnsteuer', 'gewerbesteuer', 'steuerberater'].includes(page);
         const steuerSection = document.getElementById('steuerSidebarSection');
         const steuerItems   = document.getElementById('steuerSidebarItems');
         if (steuerSection) steuerSection.style.display = (onSteuer && !onGbr) ? '' : 'none';
@@ -1032,6 +1033,8 @@ const App = {
                 card.classList.toggle('selected', card.dataset.value === value);
             });
         }
+        const versteuerungsartGroup = document.getElementById(prefix + '_versteuerungsart_group');
+        if (versteuerungsartGroup) versteuerungsartGroup.style.display = value === 'regel' ? '' : 'none';
     },
 
     // ── §19 UStG Jahresumsatz-Grenzprüfung ───────────────────────
@@ -1581,6 +1584,13 @@ const App = {
                     </div>
                 </div>
             </div>
+            <div class="form-group" id="set_versteuerungsart_group" style="${s.ustMode === 'regel' ? '' : 'display:none'}">
+                <label class="form-label" for="set_ustVersteuerungsart">Versteuerungsart (UVA + DATEV)</label>
+                <select class="form-select" id="set_ustVersteuerungsart">
+                    <option value="soll" ${(s.ustVersteuerungsart || 'soll') === 'soll' ? 'selected' : ''}>Soll-Versteuerung (nach Rechnungsdatum) – Regelfall</option>
+                    <option value="ist" ${s.ustVersteuerungsart === 'ist' ? 'selected' : ''}>Ist-Versteuerung (nach Zahlungseingang) – nur bis 800.000 € Vorjahresumsatz oder Freiberufler</option>
+                </select>
+            </div>
             <hr style="border-color:var(--border);margin:16px 0;">
             <div class="section-title" style="margin-bottom:12px;display:flex;align-items:center;gap:6px;">
                 <i class="ti ti-world"></i> Land / Region
@@ -1697,6 +1707,7 @@ const App = {
                 steuernummer: document.getElementById('set_steuernummer').value.trim(),
                 ustId: document.getElementById('set_ustId').value.trim(),
                 ustMode: document.getElementById('set_ustMode').value,
+                ustVersteuerungsart: (document.getElementById('set_ustVersteuerungsart') || {}).value || 'soll',
                 land: (document.getElementById('set_land') || {}).value || 'DE',
                 chKanton: (document.getElementById('set_chKanton') || {}).value || s.chKanton || 'ZH',
                 chMwstNr: ((document.getElementById('set_chMwstNr') || {}).value || '').trim(),

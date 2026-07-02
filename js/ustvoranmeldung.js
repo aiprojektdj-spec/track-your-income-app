@@ -10,9 +10,14 @@ const UstVoranmeldung = {
         return (Store.getSettings().ustMode || 'klein') === 'regel';
     },
 
+    // Soll-Versteuerung (§13 UStG, Regelfall) = Rechnungsdatum zählt, egal ob bezahlt.
+    // Ist-Versteuerung (§20 UStG, nur bis 800k€ Vorjahresumsatz/Freiberufler) = Zahlungsdatum zählt.
+    _isSoll() {
+        return (Store.getSettings().ustVersteuerungsart || 'soll') !== 'ist';
+    },
+
     // Berechnet Kennzahlen für einen Zeitraum
     _calcPeriode(startDate, endDate) {
-        const sales     = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
         const purchases = Store.getPurchases().filter(p => Utils.isInPeriod(p.datum, startDate, endDate));
         const expenses  = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
         const retouren  = Store.getRetouren().filter(r => Utils.isInPeriod(r.datum, startDate, endDate));
@@ -21,19 +26,39 @@ const UstVoranmeldung = {
         const _rate = item => (parseFloat(item.steuersatz) || 19);
         const _brutto = item => (parseFloat(item.verkaufspreis) || 0) + (parseFloat(item.versandkostenKaeufer) || 0);
 
-        const bruttoUmsatz7  = sales.filter(v => _rate(v) === 7)
-            .reduce((s, v) => s + _brutto(v), 0);
-        const bruttoUmsatz19 = sales.filter(v => _rate(v) !== 7)
-            .reduce((s, v) => s + _brutto(v), 0)
-            - retouren.filter(r => (_rate(r) || 19) !== 7).reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
-        // 7%-Retouren separat vom 7%-Umsatz abziehen (§17 UStG)
+        let bruttoUmsatz19 = 0, bruttoUmsatz7 = 0;
+
+        if (this._isSoll() && typeof Store.getRechInvoices === 'function') {
+            // Soll: alle ausgestellten Rechnungen zum Rechnungsdatum, unabhängig vom Zahlungseingang
+            Store.getRechInvoices()
+                .filter(i => i.typ === 'rechnung' && (i.status === 'versendet' || i.status === 'bezahlt') && Utils.isInPeriod(i.datum, startDate, endDate))
+                .forEach(i => {
+                    (i.positionen || []).forEach(pos => {
+                        const netto = parseFloat(pos.menge || 1) * parseFloat(pos.einzelpreis || 0);
+                        const rate  = parseInt(pos.mwstSatz) || 0;
+                        if (rate === 7) bruttoUmsatz7 += netto * 1.07; else bruttoUmsatz19 += netto * 1.19;
+                    });
+                });
+            // Direktverkäufe ohne zugehörige Rechnung (Marktplatz) weiterhin über Verkaufsdatum
+            Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate))
+                .forEach(s => { if (_rate(s) === 7) bruttoUmsatz7 += _brutto(s); else bruttoUmsatz19 += _brutto(s); });
+        } else {
+            // Ist: nur bezahlte Rechnungen, bereits zum Zahlungsdatum in Store.getSales() gebucht
+            const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
+            bruttoUmsatz7  = sales.filter(v => _rate(v) === 7).reduce((s, v) => s + _brutto(v), 0);
+            bruttoUmsatz19 = sales.filter(v => _rate(v) !== 7).reduce((s, v) => s + _brutto(v), 0);
+        }
+
+        // 7%-/19%-Retouren abziehen (§17 UStG)
         const bruttoUmsatz7adj = bruttoUmsatz7
             - retouren.filter(r => _rate(r) === 7).reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
+        const bruttoUmsatz19adj = bruttoUmsatz19
+            - retouren.filter(r => _rate(r) !== 7).reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
 
-        const bruttoUmsatz = bruttoUmsatz19 + bruttoUmsatz7adj;
+        const bruttoUmsatz = bruttoUmsatz19adj + bruttoUmsatz7adj;
 
         // Kz. 81 + Kz. 83: Netto-Umsätze 19%
-        const nettoUmsatz19 = bruttoUmsatz19 / 1.19;
+        const nettoUmsatz19 = bruttoUmsatz19adj / 1.19;
         const ust19         = nettoUmsatz19 * 0.19;
 
         // Kz. 86 + Kz. 35: Netto-Umsätze 7%

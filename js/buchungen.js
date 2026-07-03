@@ -1122,10 +1122,10 @@ const Buchungen = {
             return `<span class="badge badge-neutral" title="${Utils.escapeHtml(stornoGrund || 'Storniert')}">Storniert</span>`;
         }
         if (isInvoice) {
-            return `<span class="badge badge-info" title="Stammt aus einer Rechnung — Änderungen bitte im Rechnungen-Modul (Rechnung stornieren)">🧾 aus Rechnung</span>`;
+            return `<span class="badge badge-info" title="Stammt aus einer Rechnung — Änderungen bitte im Rechnungen-Modul (Rechnung stornieren)"><i class="ti ti-file-invoice"></i> aus Rechnung</span>`;
         }
         if (Store.isPeriodLocked(datum)) {
-            return `<span class="badge badge-warning" title="Periode festgeschrieben — nur Storno möglich" style="margin-right:4px;">🔒</span>
+            return `<span class="badge badge-warning" title="Periode festgeschrieben — nur Storno möglich" style="margin-right:4px;"><i class="ti ti-lock"></i></span>
                 <button class="btn btn-small btn-danger" data-storno="${id}" data-source="${source}">Stornieren</button>`;
         }
         return `<button class="btn btn-small" data-edit="${id}" data-source="${source}">Bearbeiten</button>

@@ -232,6 +232,11 @@ const Utils = {
     },
 
     showToast(message, type = 'success') {
+        // Emoji-Präfixe/-Suffixe strippen — der Toast-Typ (Farbe) trägt die Semantik bereits
+        message = String(message)
+            .replace(/^[\s️\p{Extended_Pictographic}]+/u, '')
+            .replace(/[\s️\p{Extended_Pictographic}]+$/u, '');
+
         // Announce to screen readers
         this._ensureAriaLive();
         this._ariaLive.textContent = '';

@@ -69,11 +69,11 @@ const Fahrtenbuch = {
 
         return `
             <div class="page-header">
-                <h2>🚗 Fahrtenbuch</h2>
+                <h2>Fahrtenbuch</h2>
                 <div class="page-header-actions no-print">
                     <button class="btn btn-primary" id="fbNeuBtn">+ Neue Fahrt</button>
-                    <button class="btn" id="fbExportCSV">📥 CSV Export</button>
-                    <button class="btn" id="fbDruckBtn">🖨️ Drucken</button>
+                    <button class="btn" id="fbExportCSV"><i class="ti ti-download"></i> CSV Export</button>
+                    <button class="btn" id="fbDruckBtn"><i class="ti ti-printer"></i> Drucken</button>
                 </div>
             </div>
 
@@ -146,7 +146,7 @@ const Fahrtenbuch = {
         return `
             <div class="card" style="margin-bottom:16px;" id="fbFormCard">
                 <div class="card-header">
-                    <div class="card-title">${editId ? '✏️ Fahrt bearbeiten' : '+ Neue Fahrt erfassen'}</div>
+                    <div class="card-title">${editId ? 'Fahrt bearbeiten' : '+ Neue Fahrt erfassen'}</div>
                     <button class="btn btn-secondary btn-small" id="fbFormClose">✕ Schließen</button>
                 </div>
                 ${orteDatalist}
@@ -275,7 +275,7 @@ const Fahrtenbuch = {
                     </div>
 
                     <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">${editId ? '💾 Aktualisieren' : '💾 Fahrt speichern'}</button>
+                        <button type="submit" class="btn btn-primary">${editId ? 'Aktualisieren' : 'Fahrt speichern'}</button>
                         <button type="button" class="btn btn-secondary" id="fbFormClose2">Abbrechen</button>
                     </div>
                 </form>
@@ -307,10 +307,10 @@ const Fahrtenbuch = {
                     <td style="text-align:right;font-weight:600;color:var(--success);">${isSt ? '–' : Utils.formatCurrency(f.kosten)}</td>
                     <td class="table-actions">
                         ${isSt ? '' : (Store.isPeriodLocked(f.datum)
-                            ? `<span title="Periode festgeschrieben — nur Storno möglich" style="font-size:11px;opacity:.7;">🔒</span>
-                               <button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Stornieren">🗑️</button>`
-                            : `<button class="btn btn-small" data-edit-fahrt="${f.id}" title="Bearbeiten">✏️</button>
-                               <button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Stornieren">🗑️</button>`)}
+                            ? `<span title="Periode festgeschrieben — nur Storno möglich" style="font-size:11px;opacity:.7;"><i class="ti ti-lock"></i></span>
+                               <button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Stornieren"><i class="ti ti-trash"></i></button>`
+                            : `<button class="btn btn-small" data-edit-fahrt="${f.id}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
+                               <button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Stornieren"><i class="ti ti-trash"></i></button>`)}
                     </td>
                 </tr>`;
             }).join('');

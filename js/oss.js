@@ -7,7 +7,8 @@ const OSS = {
 
     SCHWELLE: 10000,
 
-    // Referenz-Regelsätze (Stand 2026) – bei ermäßigt besteuerten Waren/Leistungen im Zielland manuell prüfen
+    // Referenz-Regelsätze – bei ermäßigt besteuerten Waren/Leistungen im Zielland manuell prüfen
+    RATES_STAND: '2026-01-01',
     EU_VAT_RATES: {
         AT: 20, BE: 21, BG: 20, HR: 25, CY: 19, CZ: 21, DK: 25, EE: 22, FI: 25.5, FR: 20, GR: 24,
         HU: 27, IE: 23, IT: 22, LV: 21, LT: 21, LU: 17, MT: 18, NL: 21, PL: 23, PT: 23, RO: 19,
@@ -58,7 +59,7 @@ const OSS = {
 
         if (!this._isRegel()) {
             return `
-            <div class="page-header"><h2>🌍 OSS (EU-Fernverkauf)</h2></div>
+            <div class="page-header"><h2>OSS (EU-Fernverkauf)</h2></div>
             <div class="card">
                 <div style="padding:32px;text-align:center;">
                     <div style="font-size:48px;margin-bottom:16px;">📋</div>
@@ -80,7 +81,7 @@ const OSS = {
 
         return `
         <div class="page-header">
-            <h2>🌍 OSS (EU-Fernverkauf)</h2>
+            <h2>OSS (EU-Fernverkauf)</h2>
             <div class="page-header-actions no-print">
                 <select class="form-select" id="ossYear" style="width:90px;">${yearOptions}</select>
                 <button class="btn" onclick="OSS._exportCSV()">CSV Export</button>
@@ -109,7 +110,7 @@ const OSS = {
             <div class="card-header"><div class="card-title">Aufteilung nach Bestimmungsland ${year}</div></div>
             <div class="table-container" style="border:none;">
                 <table class="data-table">
-                    <thead><tr><th>Land</th><th style="text-align:right">Nettoumsatz</th><th style="text-align:right">Regelsteuersatz (Referenz)</th><th style="text-align:right">USt-Betrag (geschätzt)</th></tr></thead>
+                    <thead><tr><th>Land</th><th style="text-align:right">Nettoumsatz</th><th style="text-align:right">Regelsteuersatz (Referenz, Stand ${Utils.formatDate(this.RATES_STAND)})</th><th style="text-align:right">USt-Betrag (geschätzt)</th></tr></thead>
                     <tbody>
                         ${laender.length === 0 ? `<tr><td colspan="4" class="table-empty">Keine EU-Fernverkäufe an Privatkunden in ${year}</td></tr>` : ''}
                         ${laender.map(land => {
@@ -128,7 +129,7 @@ const OSS = {
                 <strong>Wer ist betroffen:</strong> Verkäufe von Waren/digitalen Leistungen an <strong>Privatpersonen</strong> in anderen EU-Ländern (erkannt an: Kundenland ≠ DE, EU-Mitglied, keine USt-IdNr. hinterlegt).<br>
                 <strong>Unter 10.000 €/Jahr</strong> (EU-weit kumuliert, nicht pro Land): weiterhin deutsche USt zulässig (Ursprungslandprinzip).<br>
                 <strong>Ab 10.000 €/Jahr:</strong> USt des Ziellandes fällig, Meldung quartalsweise über das <a href="https://www.bzst.de" target="_blank" rel="noopener">BZSt-Portal (One-Stop-Shop)</a> statt Einzelregistrierung in jedem Land.<br>
-                <strong>Regelsteuersätze</strong> sind Referenzwerte – bei ermäßigt besteuerten Waren/Leistungen im Zielland weichen sie ab, bitte prüfen.<br>
+                <strong>Regelsteuersätze</strong> sind Referenzwerte (Stand ${Utils.formatDate(this.RATES_STAND)}) – bei ermäßigt besteuerten Waren/Leistungen im Zielland weichen sie ab, und EU-Länder ändern Sätze gelegentlich. Bei Zweifel offizielle Quelle (z.B. <a href="https://ec.europa.eu/taxation_customs/tedb/" target="_blank" rel="noopener">EU-Steuersatzdatenbank</a>) prüfen.<br>
                 <strong>⚠️ Unverbindlich</strong> – ersetzt keine Steuerberatung. Die eigentliche Meldung erfolgt manuell im BZSt-Portal, ein Direktversand ist hier nicht implementiert.
             </div>
         </div>
@@ -152,6 +153,7 @@ const OSS = {
         const rows = [
             ['OSS-Meldung Referenzdaten', '', '', ''],
             [`Jahr: ${year}`, '', '', ''],
+            [`Steuersätze Stand: ${Utils.formatDate(this.RATES_STAND)} — vor Meldung gegenprüfen`, '', '', ''],
             ['', '', '', ''],
             ['Land', 'Nettoumsatz EUR', 'Regelsteuersatz % (Referenz)', 'USt EUR (geschätzt)'],
             ...laender.map(land => {

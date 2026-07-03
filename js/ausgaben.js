@@ -67,7 +67,7 @@ const Ausgaben = {
                         ${e.storniert
                             ? `<span class="badge badge-neutral" title="${Utils.escapeHtml(e.stornoGrund || 'Storniert')}">Storniert</span>`
                             : Store.isPeriodLocked(e.datum)
-                                ? `<span class="badge badge-warning" title="Periode festgeschrieben — nur Storno möglich" style="margin-right:4px;">🔒</span>
+                                ? `<span class="badge badge-warning" title="Periode festgeschrieben — nur Storno möglich" style="margin-right:4px;"><i class="ti ti-lock"></i></span>
                                    <button class="btn btn-small btn-danger" data-storno-expense="${e.id}">Stornieren</button>`
                                 : `<button class="btn btn-small" data-edit-expense="${e.id}">Bearbeiten</button>
                                    <button class="btn btn-small btn-danger" data-delete-expense="${e.id}" title="In offener Periode löschen (wird protokolliert)">Löschen</button>`

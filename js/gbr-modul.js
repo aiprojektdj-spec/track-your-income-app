@@ -49,7 +49,7 @@ const GbrModul = {
             <!-- Header -->
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
                 <div>
-                    <h2 style="margin:0;">🤝 GbR-Verwaltung</h2>
+                    <h2 style="margin:0;">GbR-Verwaltung</h2>
                     <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">
                         ${Utils.escapeHtml(einst.gbr_name || 'GbR')} · ${Utils.escapeHtml(einst.firmenform || 'GbR')}
                         ${einst.steuernummer ? `· StNr: <span style="font-family:monospace;">${Utils.escapeHtml(einst.steuernummer)}</span>` : ''}

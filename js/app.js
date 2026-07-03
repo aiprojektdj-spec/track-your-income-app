@@ -476,7 +476,7 @@ const App = {
         banner.id = '_backupBanner';
         banner.className = '_backup-banner';
         banner.innerHTML = `
-            <span style="font-size:16px;">💾</span>
+            <i class="ti ti-device-floppy" style="font-size:16px;"></i>
             <span><strong>Kein automatisches Backup aktiv.</strong>
             Richte einen Backup-Ordner ein, damit deine Daten nicht verloren gehen.</span>
             <button class="btn btn-sm btn-primary" style="white-space:nowrap;"
@@ -663,7 +663,7 @@ const App = {
                     console.error('[navigate] Fehler auf Seite', page, err);
                     contentEl.innerHTML = `
                         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;text-align:center;padding:40px;">
-                            <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+                            <div style="font-size:48px;margin-bottom:16px;color:var(--warning);"><i class="ti ti-alert-triangle"></i></div>
                             <h2 style="color:var(--text-primary);margin-bottom:12px;">Seite konnte nicht geladen werden</h2>
                             <p style="color:var(--text-secondary);max-width:400px;margin-bottom:20px;">Fehler: <code style="background:var(--bg-card);padding:4px 8px;border-radius:4px;">${err.message || err}</code></p>
                             <button class="btn btn-primary" onclick="App.navigate('dashboard')">→ Zum Dashboard</button>
@@ -781,13 +781,13 @@ const App = {
 
         modal.innerHTML = `
             <div class="agb-modal-header">
-                <div style="font-size:28px;margin-bottom:8px;">🔒</div>
+                <div style="font-size:28px;margin-bottom:8px;color:var(--accent);"><i class="ti ti-lock"></i></div>
                 <h2 style="margin:0 0 4px 0;font-size:20px;">Datenschutzhinweis</h2>
                 <p style="margin:0;color:var(--text-secondary);font-size:13px;">Gemäß Art. 13 DSGVO – einmalige Information zur Datenverarbeitung</p>
             </div>
             <div class="agb-scroll-box">
                 <h3>Wer ist verantwortlich?</h3>
-                <p>Diese Software wird von Ihnen lokal betrieben. Verantwortlich für die Datenverarbeitung sind <strong>Sie als Nutzer</strong>. Die Software selbst überträgt keine Daten an Dritte oder externe Server.</p>
+                <p>Diese Software wird von Ihnen lokal betrieben. Verantwortlich für die Datenverarbeitung sind <strong>Sie als Nutzer</strong>. Ihre Buchhaltungsdaten werden standardmäßig ausschließlich lokal gespeichert und nicht übertragen — außer Sie aktivieren ausdrücklich den optionalen, Ende-zu-Ende-verschlüsselten Cloud-Sync (siehe Datenschutzerklärung, Ziffer 4). Für Login/Zahlung wird der Drittanbieter Whop genutzt.</p>
 
                 <h3>Welche Daten werden gespeichert?</h3>
                 <ul>
@@ -798,7 +798,7 @@ const App = {
                 </ul>
 
                 <h3>Wo werden die Daten gespeichert?</h3>
-                <p>Alle Daten werden <strong>ausschließlich lokal auf Ihrem Gerät</strong> gespeichert – in <code>IndexedDB</code> und <code>localStorage</code> Ihres Browsers. <strong>Es findet keine Übertragung an externe Server statt.</strong></p>
+                <p>Alle Daten werden <strong>standardmäßig ausschließlich lokal auf Ihrem Gerät</strong> gespeichert – in <code>IndexedDB</code> und <code>localStorage</code> Ihres Browsers. Es findet keine Übertragung an externe Server statt, <strong>es sei denn</strong>, Sie aktivieren den optionalen Cloud-Sync (Ende-zu-Ende-verschlüsselt, EU-Server) — Details in der Datenschutzerklärung.</p>
 
                 <h3>Wie lange werden Daten gespeichert?</h3>
                 <p>Daten bleiben bis zur aktiven Löschung durch Sie erhalten. Steuerrelevante Unterlagen (GoBD) müssen gemäß <strong>§ 147 AO 10 Jahre</strong> aufbewahrt werden – das Audit-Log ist daher aus rechtlichen Gründen nicht löschbar.</p>
@@ -807,7 +807,7 @@ const App = {
                 <ul>
                     <li><strong>Auskunft</strong> (Art. 15): Alle Daten sind über „Backup & Daten → Backup herunterladen" einsehbar</li>
                     <li><strong>Berichtigung</strong> (Art. 16): Daten können direkt in der App bearbeitet werden</li>
-                    <li><strong>Löschung</strong> (Art. 17): Über „Backup & Daten → Geschäftsdaten löschen" möglich (außer GoBD-Protokoll)</li>
+                    <li><strong>Löschung</strong> (Art. 17): Über „Backup & Daten → Geschäftsdaten löschen" möglich (außer GoBD-Protokoll); löscht bei aktivem Cloud-Sync auch den verschlüsselten Cloud-Stand</li>
                     <li><strong>Datenportabilität</strong> (Art. 20): Export als JSON oder CSV jederzeit verfügbar</li>
                 </ul>
 
@@ -840,7 +840,7 @@ const App = {
 
         modal.innerHTML = `
             <div class="agb-modal-header">
-                <div style="font-size:28px;margin-bottom:8px;">📋</div>
+                <div style="font-size:28px;margin-bottom:8px;color:var(--accent);"><i class="ti ti-clipboard-text"></i></div>
                 <h2 style="margin:0 0 4px 0;font-size:20px;">Nutzungsbedingungen</h2>
                 <p style="margin:0;color:var(--text-secondary);font-size:13px;">Bitte lesen und akzeptieren Sie vor der ersten Nutzung</p>
             </div>
@@ -960,6 +960,17 @@ const App = {
             iv: toB64(iv),
             data: toB64(ct)
         };
+    },
+
+    // Anzeige-Text "welche Firma bekommt den Excel-Import" — verhindert versehentlichen Import in falsche Firma (z.B. DE statt CH)
+    _importTargetLabel() {
+        const flags = { DE: '🇩🇪 Deutschland', AT: '🇦🇹 Österreich', CH: '🇨🇭 Schweiz' };
+        if (typeof CompanyManager !== 'undefined') {
+            const co = CompanyManager.getActive();
+            if (co) return `${co.name} (${flags[co.land] || co.land})`;
+        }
+        const land = Store.getSettings().land || 'DE';
+        return flags[land] || land;
     },
 
     async _decryptBackup(encObj, password) {
@@ -1101,7 +1112,7 @@ const App = {
         const body = `
             <div style="background:var(--warning-bg);border:1px solid var(--warning);border-radius:8px;
                         padding:16px 18px;margin-bottom:20px;">
-                <div style="font-size:24px;margin-bottom:6px;">⚠️</div>
+                <div style="font-size:24px;margin-bottom:6px;color:var(--warning);"><i class="ti ti-alert-triangle"></i></div>
                 <strong style="font-size:15px;">Jahresumsatz ${year}: ${fmt.format(umsatz)}</strong>
                 <div style="font-size:13px;color:var(--text-secondary);margin-top:6px;">
                     ${erklaerung}
@@ -1590,6 +1601,7 @@ const App = {
                     <option value="soll" ${(s.ustVersteuerungsart || 'soll') === 'soll' ? 'selected' : ''}>Soll-Versteuerung (nach Rechnungsdatum) – Regelfall</option>
                     <option value="ist" ${s.ustVersteuerungsart === 'ist' ? 'selected' : ''}>Ist-Versteuerung (nach Zahlungseingang) – nur bis 800.000 € Vorjahresumsatz oder Freiberufler</option>
                 </select>
+                <div style="font-size:11px;color:var(--warning);margin-top:6px;"><i class="ti ti-alert-triangle"></i> Ein Wechsel wirkt nur auf zukünftige Voranmeldungen. Bereits gemeldete Zeiträume werden nicht rückwirkend neu berechnet — bei Wechsel während des Jahres bitte mit dem Steuerberater abstimmen, damit keine Umsätze doppelt oder gar nicht erfasst werden.</div>
             </div>
             <hr style="border-color:var(--border);margin:16px 0;">
             <div class="section-title" style="margin-bottom:12px;display:flex;align-items:center;gap:6px;">
@@ -1771,6 +1783,9 @@ const App = {
 
         // Backup-Modal rendern, dann async Speicher-Status nachladen
         const body = `
+            <div style="padding:10px 14px;border-radius:8px;background:rgba(59,130,246,0.08);border:1px solid var(--info);font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px;">
+                <i class="ti ti-info-circle"></i> <strong>Gesetzliche Aufbewahrungspflicht: 10 Jahre</strong> (§147 AO / GoBD). Deine Buchhaltungsdaten liegen ausschließlich lokal auf diesem Gerät — es gibt kein automatisches Server-Backup. Richte unten einen Datei-Backup-Ordner ein und bewahre Backups über die gesamte Frist auf.
+            </div>
             <div id="persistStorageBlock" style="margin-bottom:4px;">
                 <div style="padding:12px 14px;border-radius:8px;background:rgba(251,191,36,0.12);border:1px solid var(--warning);font-size:13px;display:flex;align-items:center;gap:10px;">
                     <span style="font-size:20px;color:var(--warning);"><i class="ti ti-loader"></i></span>
@@ -1870,8 +1885,13 @@ const App = {
                 <div class="section-title" style="color:var(--info);"><i class="ti ti-file-spreadsheet"></i> Excel-Import — Daten wiedereingeben</div>
                 <p style="color:var(--text-secondary);font-size:12px;margin-bottom:10px;">
                     Daten über eine Excel-Vorlage importieren. Ideal wenn Daten manuell neu erfasst werden müssen.<br>
-                    <strong>Sheets:</strong> Einkäufe · Verkäufe · Ausgaben
+                    <strong>Sheets:</strong> Einkäufe · Verkäufe · Ausgaben<br>
+                    Eigene Tabellen mit Spalten <strong>Kaufdatum / Einkauf / Verkauf / Verkaufsdatum</strong> (z.B. private Reselling-Listen mit einer Zeile pro Artikel) werden automatisch erkannt.
                 </p>
+                <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:10px;border-radius:6px;background:var(--bg-secondary);border:1px solid var(--border);font-size:12px;">
+                    <i class="ti ti-building"></i>
+                    <span>Import erfolgt in Firma: <strong>${Utils.escapeHtml(this._importTargetLabel())}</strong></span>
+                </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
                     <button class="btn btn-small" id="xlsxTemplateBtn"><i class="ti ti-download"></i> Excel-Vorlage herunterladen</button>
                     <button class="btn btn-small btn-primary" id="xlsxImportOpenBtn"><i class="ti ti-folder-open"></i> Excel-Datei importieren</button>
@@ -2378,6 +2398,11 @@ const App = {
             if (!file) return;
             if (typeof XLSX === 'undefined') { Utils.showToast('XLSX-Bibliothek nicht geladen', 'error'); return; }
 
+            if (!confirm(`"${file.name}" wird importiert in Firma: ${this._importTargetLabel()}.\n\nIst das die richtige Firma?`)) {
+                e.target.value = '';
+                return;
+            }
+
             const statusEl = document.getElementById('xlsxImportStatus');
             if (statusEl) statusEl.textContent = '⏳ Lese Datei…';
 
@@ -2479,6 +2504,80 @@ const App = {
                         });
                     }
 
+                    // -- Fallback: einzelne Tabelle mit Kaufdatum/Einkauf/Verkauf/Verkaufsdatum-Spalten --
+                    // (z.B. private Reselling-Listen mit einer Zeile pro Artikel statt den 3 Vorlagen-Sheets)
+                    if (!wsE && !wsV && !wsA) {
+                        const normHeader = h => String(h || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                        wb.SheetNames.forEach(sheetName => {
+                            const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: '' });
+
+                            let col = null;
+                            for (let i = 0; i < Math.min(rows.length, 30); i++) {
+                                const cand = {};
+                                let woSeen = 0;
+                                rows[i].forEach((h, ci) => {
+                                    const n = normHeader(h);
+                                    if (n === 'kaufdatum') cand.kaufdatum = ci;
+                                    else if (n === 'verkaufsdatum') cand.verkaufsdatum = ci;
+                                    else if (n === 'was' || n.includes('artikel') || n.includes('produkt')) cand.beschreibung = ci;
+                                    else if (n === 'einkauf') cand.einkauf = ci;
+                                    else if (n === 'verkauf') cand.verkauf = ci;
+                                    else if (/^wo\d*$/.test(n)) { woSeen++; if (woSeen === 1) cand.quelle = ci; else cand.plattform = ci; }
+                                });
+                                if (cand.kaufdatum !== undefined && cand.einkauf !== undefined && cand.verkauf !== undefined) { col = cand; rows.splice(0, i + 1); break; }
+                            }
+                            if (!col) return;
+
+                            rows.forEach(r => {
+                                const kaufdatumRaw = r[col.kaufdatum];
+                                if (!kaufdatumRaw) return; // Summen-/Leerzeilen überspringen
+                                const beschreibung = col.beschreibung !== undefined ? String(r[col.beschreibung] || '').trim() : '';
+                                const quelle = col.quelle !== undefined ? String(r[col.quelle] || '').trim() : '';
+                                const einkaufspreis = parseNum(r[col.einkauf]);
+                                if (!beschreibung && !einkaufspreis) { skipped++; return; }
+
+                                const purchase = {
+                                    datum: parseDate(kaufdatumRaw),
+                                    marke: '',
+                                    artikeltyp: 'Sonstiges',
+                                    groesse: '',
+                                    beschreibung,
+                                    einkaufspreis,
+                                    anzahl: 1,
+                                    einkaufsquelle: quelle || 'Sonstiges',
+                                    notizen: '',
+                                    status: 'verfuegbar'
+                                };
+                                if (purchase.einkaufsquelle) Store.addEinkaufsquelle(purchase.einkaufsquelle);
+                                const saved = Store.savePurchase(purchase);
+                                importedEinkauf++;
+
+                                const verkaufsdatumRaw = col.verkaufsdatum !== undefined ? r[col.verkaufsdatum] : null;
+                                if (verkaufsdatumRaw) {
+                                    const plattform = col.plattform !== undefined ? String(r[col.plattform] || '').trim() : '';
+                                    const sale = {
+                                        datum: parseDate(verkaufsdatumRaw),
+                                        marke: '',
+                                        artikeltyp: 'Sonstiges',
+                                        groesse: '',
+                                        beschreibung,
+                                        verkaufspreis: parseNum(r[col.verkauf]),
+                                        versandkostenKaeufer: 0,
+                                        plattformgebuehrProzent: 0,
+                                        versandkostenVerkaufer: 0,
+                                        verkaufsplattform: plattform,
+                                        kaeufer: '',
+                                        notizen: '',
+                                        purchaseId: saved.id
+                                    };
+                                    if (sale.verkaufsplattform) Store.addPlatform(sale.verkaufsplattform);
+                                    Store.saveSale(sale);
+                                    importedVerkauf++;
+                                }
+                            });
+                        });
+                    }
+
                     const msg = [
                         importedEinkauf > 0 ? `${importedEinkauf} Einkäufe` : '',
                         importedVerkauf > 0 ? `${importedVerkauf} Verkäufe` : '',
@@ -2577,8 +2676,13 @@ const App = {
                         <li>Eigenbelege &amp; Eigenbeleg-Stammdaten</li>
                         <li>Akademie-Fortschritt &amp; Achievements</li>
                     </ul>
-                    <p style="color:var(--text-secondary);font-size:12px;margin:0;">
+                    <p style="color:var(--text-secondary);font-size:12px;margin:0 0 8px;">
                         ✅ <strong>Erhalten bleiben:</strong> Audit-Log (GoBD), App-Einstellungen, Theme, Backup-Konfiguration, Passwort.
+                    </p>
+                    <p style="color:var(--text-secondary);font-size:12px;margin:0;">
+                        ${(typeof CloudSync !== 'undefined' && document.getElementById('cloudSyncDot') && localStorage.getItem('oyi_sync_enabled') === '1')
+                            ? '☁ Bei aktivem Cloud-Sync wird auch der verschlüsselte Cloud-Stand dieser Firma gelöscht.'
+                            : ''}
                     </p>
                 </div>
                 <div class="form-group">
@@ -2601,7 +2705,9 @@ const App = {
                 if (input.value !== 'LÖSCHEN') return;
                 // Sofortiges Backup vor dem Löschen (falls Ordner konfiguriert)
                 const doDelete = () => {
+                    const scope = typeof CompanyManager !== 'undefined' ? CompanyManager.getActiveId() : '';
                     Store.clearAll();
+                    if (scope && typeof CloudSync !== 'undefined') CloudSync.deleteRemote(scope);
                     Utils.showToast('Alle Daten gelöscht', 'warning');
                     this.closeModal();
                     location.reload();
@@ -2775,7 +2881,7 @@ const App = {
         const ts  = recovered.ts ? new Date(recovered.ts).toLocaleString('de-DE') : 'unbekannt';
         const body = `
             <div style="text-align:center;padding:8px 0 16px;">
-                <div style="font-size:48px;margin-bottom:12px;">🛡️</div>
+                <div style="font-size:48px;margin-bottom:12px;color:var(--success);"><i class="ti ti-shield-check"></i></div>
                 <h3 style="color:var(--success);margin-bottom:8px;">Daten automatisch gerettet!</h3>
                 <p style="color:var(--text-secondary);font-size:14px;margin-bottom:16px;">
                     Das System hat beim Start einen Datenverlust erkannt und die Daten

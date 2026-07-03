@@ -161,6 +161,12 @@ module.exports = async function handler(req, res) {
             return res.status(409).json({ error: 'version_conflict', blob: result ? JSON.parse(result) : null });
         }
 
+        if (action === 'delete') {
+            // Art. 17 DSGVO — löscht den verschlüsselten Snapshot dieses Scopes unwiderruflich.
+            await redisCmd(['DEL', key]);
+            return res.status(200).json({ ok: true });
+        }
+
         return res.status(400).json({ error: 'bad_action' });
     } catch (e) {
         console.error('[sync] storage error:', e);

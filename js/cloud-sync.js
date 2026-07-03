@@ -322,13 +322,13 @@ var CloudSync = (function () {
         el.style.cursor = 'pointer';
         el.onclick = openPanel;
         var map = {
-            off:  ['☁', '#888',                          'Cloud-Sync aus — klicken zum Aktivieren'],
-            sync: ['☁', 'var(--accent,#10b981)',         'Synchronisiere…'],
-            ok:   ['☁', 'var(--accent,#10b981)',         'Cloud-Sync aktiv'],
-            err:  ['⚠', '#f59e0b',                        'Cloud-Sync-Fehler — klicken für Details']
+            off:  ['<i class="ti ti-cloud"></i>', 'var(--text-muted,#888)',    'Cloud-Sync aus — klicken zum Aktivieren'],
+            sync: ['<i class="ti ti-cloud"></i>', 'var(--accent,#10b981)',     'Synchronisiere…'],
+            ok:   ['<i class="ti ti-cloud"></i>', 'var(--accent,#10b981)',     'Cloud-Sync aktiv'],
+            err:  ['<i class="ti ti-cloud-exclamation"></i>', '#f59e0b',       'Cloud-Sync-Fehler — klicken für Details']
         };
         var s = map[state] || map.off;
-        el.textContent = s[0]; el.style.color = s[1]; el.title = s[2];
+        el.innerHTML = s[0]; el.style.color = s[1]; el.title = s[2];
     }
 
     // ── onLocalChange: debounced Push nach Änderung ───────────────────────────
@@ -519,6 +519,20 @@ var CloudSync = (function () {
 
     function syncNow() { App.closeModal(); _syncAll(false); }
 
+    // ── Art. 17 DSGVO: verschlüsselten Cloud-Snapshot eines Scopes löschen ────
+    // Wird von "Geschäftsdaten löschen" aufgerufen, damit gelöschte Daten nicht
+    // beim nächsten Sync aus der Cloud zurückgeholt werden (sonst LWW-Merge-Falle).
+    async function deleteRemote(scope) {
+        if (!_enabled() || !_hasKey() || !_token()) return;
+        try {
+            await _api({ action: 'delete', scope: scope });
+            // lokale Sync-Metadaten für diesen Scope ebenfalls verwerfen
+            localStorage.removeItem(LS_META(scope));
+        } catch (e) {
+            console.warn('[CloudSync] deleteRemote error:', e && e.message);
+        }
+    }
+
     function disableFlow() {
         var body =
           '<div style="display:flex;flex-direction:column;gap:14px;">' +
@@ -553,6 +567,7 @@ var CloudSync = (function () {
         disableFlow: disableFlow,
         showCode: function () { showCode(false); },
         syncNow: syncNow,
+        deleteRemote: deleteRemote,
         _finishEnable: _finishEnable,
         _finishConnect: _finishConnect,
         _finishDisable: _finishDisable,

@@ -56,7 +56,7 @@ const Privatbuchungen = {
 
         return `
         <div class="page-header">
-            <h2>💼 Privatentnahmen & Privateinlagen</h2>
+            <h2>Privatentnahmen & Privateinlagen</h2>
             <div class="page-header-actions no-print">
                 <select class="form-select" id="privYear" style="width:100px;">${yearOptions}</select>
                 <button class="btn btn-primary" onclick="Privatbuchungen._openForm()">+ Buchung</button>
@@ -175,7 +175,7 @@ const Privatbuchungen = {
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
                 <button class="btn" onclick="App.closeModal()">Abbrechen</button>
-                <button class="btn btn-primary" onclick="Privatbuchungen._saveForm()">💾 Speichern</button>
+                <button class="btn btn-primary" onclick="Privatbuchungen._saveForm()">Speichern</button>
             </div>
         `);
     },

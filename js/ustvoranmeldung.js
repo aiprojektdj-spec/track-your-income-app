@@ -91,6 +91,14 @@ const UstVoranmeldung = {
         return { bruttoUmsatz, bruttoUmsatz19, bruttoUmsatz7, nettoUmsatz19, nettoUmsatz7, ust19, ust7, vorsteuer, zahllast };
     },
 
+    // Für bereits eingereichte Perioden: gespeicherten Stand zum Meldezeitpunkt nutzen statt live neu zu berechnen
+    // (verhindert abweichende Zahlen, wenn z.B. die Versteuerungsart nachträglich gewechselt wird)
+    _calcPeriodeLocked(year, quartal, startDate, endDate) {
+        const gesperrt = Store.getUstPerioden().find(p => p.year === year && p.quartal === quartal && p.eingereichtAm);
+        if (gesperrt && gesperrt.snapshot) return { calc: gesperrt.snapshot, gesperrt };
+        return { calc: this._calcPeriode(startDate, endDate), gesperrt };
+    },
+
     // Startdatum eines Quartals
     _qStart(year, q) {
         return `${year}-${String(q * 3 + 1).padStart(2, '0')}-01`;
@@ -114,7 +122,7 @@ const UstVoranmeldung = {
 
         if (!this._isRegel()) {
             return `
-            <div class="page-header"><h2>🧾 USt-Voranmeldung</h2></div>
+            <div class="page-header"><h2>USt-Voranmeldung</h2></div>
             <div class="card">
                 <div style="padding:32px;text-align:center;">
                     <div style="font-size:48px;margin-bottom:16px;">📋</div>
@@ -132,14 +140,13 @@ const UstVoranmeldung = {
         const q    = this._quartal;
         const start = this._qStart(year, q);
         const end   = this._qEnd(year, q);
-        const calc  = this._calcPeriode(start, end);
+        const { calc } = this._calcPeriodeLocked(year, q, start, end);
 
         // Alle 4 Quartale für Jahresübersicht
         const jahresUebersicht = [0, 1, 2, 3].map(qi => {
             const qs = this._qStart(year, qi);
             const qe = this._qEnd(year, qi);
-            const c  = this._calcPeriode(qs, qe);
-            const gesperrt = Store.getUstPerioden().find(p => p.year === year && p.quartal === qi);
+            const { calc: c, gesperrt } = this._calcPeriodeLocked(year, qi, qs, qe);
             return { qi, c, gesperrt };
         });
 
@@ -156,7 +163,7 @@ const UstVoranmeldung = {
 
         return `
         <div class="page-header">
-            <h2>🧾 USt-Voranmeldung</h2>
+            <h2>USt-Voranmeldung</h2>
             <div class="page-header-actions no-print">
                 <select class="form-select" id="uvYear" style="width:90px;">${yearOptions}</select>
                 <select class="form-select" id="uvQuartal">${qOptions}</select>
@@ -283,11 +290,15 @@ const UstVoranmeldung = {
     },
 
     _markEingereicht() {
+        const start = this._qStart(this._year, this._quartal);
+        const end   = this._qEnd(this._year, this._quartal);
         Store.saveUstPeriode({
             year: this._year,
             quartal: this._quartal,
             monat: null,
-            eingereichtAm: Utils.todayISO()
+            eingereichtAm: Utils.todayISO(),
+            versteuerungsartBeiMeldung: Store.getSettings().ustVersteuerungsart || 'soll',
+            snapshot: this._calcPeriode(start, end)
         });
         Utils.showToast(`Q${this._quartal + 1}/${this._year} als eingereicht markiert`, 'success');
         this._refresh();
@@ -298,7 +309,7 @@ const UstVoranmeldung = {
         const q     = this._quartal;
         const start = this._qStart(year, q);
         const end   = this._qEnd(year, q);
-        const c     = this._calcPeriode(start, end);
+        const { calc: c } = this._calcPeriodeLocked(year, q, start, end);
         const rows  = [
             ['USt-Voranmeldung ELSTER Export', '', ''],
             [`Zeitraum: Q${q+1}/${year}`, start + ' bis ' + end, ''],

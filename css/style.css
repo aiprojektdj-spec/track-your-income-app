@@ -434,11 +434,14 @@ a:hover { color: var(--accent-light); }
 }
 .msub-tab.active i { opacity: 1; }
 
+/* Sub-Nav überläuft mit Text-Labels ab ~1000px → früher auf Icons-only wechseln */
+@media (max-width: 1024px) {
+    .msub-tab span { display: none; }   /* nur Icons */
+    .msub-tab { padding: 0 11px; }
+}
 @media (max-width: 640px) {
     .module-subnav-inner { padding: 0 14px; gap: 12px; }
     .module-subnav-title { padding-right: 12px; }
-    .msub-tab span { display: none; }   /* mobil: nur Icons */
-    .msub-tab { padding: 0 11px; }
 }
 
 /* ============================================
@@ -802,9 +805,10 @@ a:hover { color: var(--accent-light); }
 /* Linker Akzentstreifen — schmal und ruhig */
 .stat-card { border-left: 2px solid var(--border-light); }
 .stat-card.success { border-left-color: var(--success); }
-.stat-card.warning { border-left-color: var(--warning); }
+/* Nur Grün/Rot als Signalfarben — warning/info bleiben neutral (Farbberuhigung) */
+.stat-card.warning { border-left-color: var(--border-light); }
 .stat-card.danger  { border-left-color: var(--danger);  }
-.stat-card.info    { border-left-color: var(--info);    }
+.stat-card.info    { border-left-color: var(--border-light); }
 
 .card-label {
     font-size: 11px;
@@ -1989,11 +1993,14 @@ tbody tr:last-child td {
 /* ============================================
    Responsive
    ============================================ */
-@media (max-width: 768px) {
-    /* Topnav: hide text labels on small screens */
+/* Topnav überläuft mit Text-Labels ab ~900px → früher auf Icons-only wechseln */
+@media (max-width: 960px) {
     .topnav-apps .tool-tab .tab-icon + * { display: none; }
     .topnav-controls .theme-toggle { padding: 5px 6px; font-size: 0; }
     .topnav-controls .theme-toggle::first-line { font-size: 14px; }
+}
+
+@media (max-width: 768px) {
 
     .main-content {
         padding: 16px;

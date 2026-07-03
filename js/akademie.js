@@ -2058,22 +2058,22 @@ const Akademie = {
         // ── KPI cards ────────────────────────────────────────────────────
         const kpiCards = `
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;">
-            <div class="card stat-card info" style="border-left:3px solid #3b82f6;">
+            <div class="card stat-card info">
                 <div class="card-label"><i class="ti ti-book" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Lern-Fortschritt</div>
                 <div class="card-value">${readPercent}%</div>
                 <div class="card-subtitle">${progress.completedLessons.length} / ${totalLessons} Lektionen</div>
             </div>
-            <div class="card stat-card success" style="border-left:3px solid var(--success);">
+            <div class="card stat-card success">
                 <div class="card-label"><i class="ti ti-trophy" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Achievements</div>
                 <div class="card-value">${unlockedCount} / ${totalAchievements}</div>
                 <div class="card-subtitle">${totalAchievements > 0 ? Math.round(unlockedCount/totalAchievements*100) : 0}% freigeschaltet</div>
             </div>
-            <div class="card stat-card" style="border-left:3px solid var(--accent);">
+            <div class="card stat-card">
                 <div class="card-label"><i class="ti ti-package" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Aktiver Lagerbestand</div>
                 <div class="card-value">${data.activeStock ?? 0}</div>
                 <div class="card-subtitle">verfügbare Artikel</div>
             </div>
-            <div class="card stat-card warning" style="border-left:3px solid #f59e0b;">
+            <div class="card stat-card warning">
                 <div class="card-label"><i class="ti ti-cash" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Gesamt-Umsatz</div>
                 <div class="card-value">${Utils.formatCurrency(data.totalRevenue)}</div>
                 <div class="card-subtitle">${(data.sales || []).length} Verkäufe</div>

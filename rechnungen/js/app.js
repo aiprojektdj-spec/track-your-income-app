@@ -44,7 +44,7 @@ var RechApp = (function() {
                 '<div class="module-subnav-tabs">' +
                 NAV_PAGES.map(function (p) {
                     return '<button class="msub-tab' + (p.page === currentPage ? ' active' : '') + '" type="button" ' +
-                        'data-rech-page="' + p.page + '" onclick="RechApp.navigate(\'' + p.page + '\')">' +
+                        'data-rech-page="' + p.page + '" data-action="rech-navigate">' +
                         '<i class="ti ' + p.icon + '"></i><span>' + p.label + '</span></button>';
                 }).join('') +
                 '</div>' +
@@ -221,7 +221,7 @@ var RechApp = (function() {
                     <div style="font-size:48px;margin-bottom:16px;">🚫</div>
                     <h2>Nutzung nicht möglich</h2>
                     <p style="color:var(--text-secondary);">Die Nutzung ist nur nach Akzeptanz der Nutzungsbedingungen möglich.</p>
-                    <button class="btn btn-primary" style="margin-top:24px;" onclick="location.reload()">Seite neu laden</button>
+                    <button class="btn btn-primary" style="margin-top:24px;" data-action="reload">Seite neu laden</button>
                 </div>`;
         });
     }
@@ -351,3 +351,19 @@ var RechApp = (function() {
         mount: mount
     };
 })();
+
+// ── Delegierte Handler: data-action/data-uppercase statt Inline-Attribute (CSP) ──
+// Dokument-weit, überlebt innerHTML-Rerenders der Modals/Subnav.
+document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-action]');
+    if (!el) return;
+    switch (el.dataset.action) {
+        case 'rech-close-modal': RechApp.closeModal(); break;
+        case 'rech-navigate':    RechApp.navigate(el.getAttribute('data-rech-page')); break;
+        case 'reload':           location.reload(); break;
+    }
+});
+document.addEventListener('input', function (e) {
+    var el = e.target;
+    if (el.matches && el.matches('input[data-uppercase]')) el.value = el.value.toUpperCase();
+});

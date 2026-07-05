@@ -308,7 +308,7 @@ var Wiederkehrend = (function () {
         body += '<i class="ti ti-info-circle"></i> Die Rechnung wird automatisch erstellt sobald das Datum erreicht ist (beim nächsten App-Aufruf). Du erhältst eine Benachrichtigung.';
         body += '</div>';
 
-        var footer = '<button class="btn btn-primary" id="wkSaveRule">Regel speichern</button> <button class="btn" onclick="RechApp.closeModal()">Abbrechen</button>';
+        var footer = '<button class="btn btn-primary" id="wkSaveRule">Regel speichern</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
         RechApp.showModal('Wiederkehrende Rechnung einrichten', body, footer);
 
         document.getElementById('wkSaveRule').addEventListener('click', function () {

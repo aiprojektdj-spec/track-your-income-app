@@ -379,10 +379,26 @@
     }
 
     // Alle CTAs leiten direkt zur App — Login/Registrierung läuft dort über Whop
-    window.openAuth = function () {
+    window.openAuth = function (mode) {
         showLoader('Weiter zur Anmeldung...');
         window.location.href = APP_URL;
     };
 
     checkExistingSession();
+})();
+
+// ── Delegierte Klick-Handler: data-action statt onclick= (CSP script-src-attr) ──
+(function () {
+    'use strict';
+    document.addEventListener('click', function (e) {
+        var el = e.target.closest('[data-action]');
+        if (!el) return;
+        switch (el.dataset.action) {
+            case 'auth':        window.openAuth(el.dataset.mode); break;
+            case 'faq':         window.toggleFaq(el); break;
+            case 'billing':     window.setBilling(el.dataset.plan); break;
+            case 'demo-add':    window.demoAdd(el.dataset.label, parseFloat(el.dataset.amount), el.dataset.type, el.dataset.cat); break;
+            case 'demo-custom': window.demoAddCustom(); break;
+        }
+    });
 })();

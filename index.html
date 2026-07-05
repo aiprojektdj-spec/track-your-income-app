@@ -58,8 +58,8 @@
         <a href="#faq" class="nav-link">FAQ</a>
     </div>
     <div class="nav-actions">
-        <button class="btn-ghost" onclick="openAuth('login')">Anmelden</button>
-        <button class="btn-primary" onclick="openAuth('register')">14 Tage testen →</button>
+        <button class="btn-ghost" data-action="auth" data-mode="login">Anmelden</button>
+        <button class="btn-primary" data-action="auth" data-mode="register">14 Tage testen →</button>
     </div>
 </nav>
 
@@ -79,7 +79,7 @@
     </p>
 
     <div class="hero-actions">
-        <button class="btn-hero" onclick="openAuth('register')">14 Tage kostenlos testen →</button>
+        <button class="btn-hero" data-action="auth" data-mode="register">14 Tage kostenlos testen →</button>
         <a href="#demo" class="btn-hero-ghost">Live-Demo ausprobieren ↓</a>
     </div>
     <div class="hero-micro">Keine Kreditkarte nötig · danach 15 €/Monat · jederzeit kündbar</div>
@@ -257,13 +257,13 @@
             <p>Klick auf eine Buchung und schau dann ins Dashboard, in die EÜR oder ins GoBD-Protokoll: Alles aktualisiert sich sofort.</p>
 
             <div class="demo-presets">
-                <button class="demo-preset" type="button" onclick="demoAdd('Sneaker-Verkauf · Vinted', 89, 'in', 'Verkauf')">
+                <button class="demo-preset" type="button" data-action="demo-add" data-label="Sneaker-Verkauf · Vinted" data-amount="89" data-type="in" data-cat="Verkauf">
                     <span>+ Verkauf · Sneaker (Vinted)</span><span class="amt in">+ 89,00 €</span>
                 </button>
-                <button class="demo-preset" type="button" onclick="demoAdd('Rechnung RE-2026-043 bezahlt', 450, 'in', 'Dienstleistung')">
+                <button class="demo-preset" type="button" data-action="demo-add" data-label="Rechnung RE-2026-043 bezahlt" data-amount="450" data-type="in" data-cat="Dienstleistung">
                     <span>+ Rechnung bezahlt · Kunde</span><span class="amt in">+ 450,00 €</span>
                 </button>
-                <button class="demo-preset" type="button" onclick="demoAdd('Wareneinkauf · Secondhand-Laden', 34, 'out', 'Wareneinkauf')">
+                <button class="demo-preset" type="button" data-action="demo-add" data-label="Wareneinkauf · Secondhand-Laden" data-amount="34" data-type="out" data-cat="Wareneinkauf">
                     <span>− Wareneinkauf · bar (Eigenbeleg)</span><span class="amt out">− 34,00 €</span>
                 </button>
             </div>
@@ -276,13 +276,13 @@
                         <option value="in">Einnahme</option>
                         <option value="out">Ausgabe</option>
                     </select>
-                    <button class="demo-book-btn" type="button" onclick="demoAddCustom()">Buchen</button>
+                    <button class="demo-book-btn" type="button" data-action="demo-custom">Buchen</button>
                 </div>
             </div>
 
             <p class="demo-hint">Das hier sind <strong>4 von 12 Modulen</strong>. In der echten App kommen Rechnungen, Lager, Fahrtenbuch, GbR, AfA, KSK, Statistiken und die Akademie dazu.</p>
 
-            <button class="btn-hero" onclick="openAuth('register')">Eigenes Konto starten →</button>
+            <button class="btn-hero" data-action="auth" data-mode="register">Eigenes Konto starten →</button>
         </aside>
     </div>
 </section>
@@ -415,7 +415,7 @@
                 <li>EÜR &amp; USt-Voranmeldung vorbereitet</li>
                 <li>Akademie: Krankenversicherung &amp; Steuern erklärt</li>
             </ul>
-            <button class="persona-cta" onclick="openAuth('register')">Als Freelancer starten →</button>
+            <button class="persona-cta" data-action="auth" data-mode="register">Als Freelancer starten →</button>
         </div>
         <div class="persona-card dly-1" data-reveal>
             <div class="persona-icon"><svg class="ic"><use href="#i-users"/></svg></div>
@@ -428,7 +428,7 @@
                 <li>Separate EÜR für jeden Partner</li>
                 <li>Gewerbesteuer &amp; Feststellung im Blick</li>
             </ul>
-            <button class="persona-cta" onclick="openAuth('register')">Als GbR starten →</button>
+            <button class="persona-cta" data-action="auth" data-mode="register">Als GbR starten →</button>
         </div>
         <div class="persona-card dly-2" data-reveal>
             <div class="persona-icon"><svg class="ic"><use href="#i-tag"/></svg></div>
@@ -441,7 +441,7 @@
                 <li>Eigenbelege für Barkäufe ohne Quittung</li>
                 <li>Plattform-Statistiken: eBay, Vinted &amp; Co.</li>
             </ul>
-            <button class="persona-cta" onclick="openAuth('register')">Als Reseller starten →</button>
+            <button class="persona-cta" data-action="auth" data-mode="register">Als Reseller starten →</button>
         </div>
     </div>
 </section>
@@ -603,8 +603,8 @@
 
         <!-- Billing toggle -->
         <div class="billing-toggle" role="group" aria-label="Abrechnungszeitraum wählen">
-            <button class="billing-btn billing-btn-active" id="billingMonthly" onclick="setBilling('monthly')" aria-pressed="true">Monatlich</button>
-            <button class="billing-btn" id="billingYearly" onclick="setBilling('yearly')" aria-pressed="false">Jährlich <span class="billing-save-badge">25% günstiger</span></button>
+            <button class="billing-btn billing-btn-active" id="billingMonthly" data-action="billing" data-plan="monthly" aria-pressed="true">Monatlich</button>
+            <button class="billing-btn" id="billingYearly" data-action="billing" data-plan="yearly" aria-pressed="false">Jährlich <span class="billing-save-badge">25% günstiger</span></button>
         </div>
     </div>
 
@@ -623,7 +623,7 @@
                 <li><span class="check">✓</span> PDF &amp; Excel Export</li>
                 <li style="color:var(--muted);font-size:12px;padding-top:4px;">Nach 14 Tagen: Upgrade erforderlich</li>
             </ul>
-            <button class="btn-plan btn-plan-free" onclick="openAuth('register')">Jetzt 14 Tage testen →</button>
+            <button class="btn-plan btn-plan-free" data-action="auth" data-mode="register">Jetzt 14 Tage testen →</button>
         </div>
 
         <!-- PRO -->
@@ -642,7 +642,7 @@
                 <li><span class="check">✓</span> PDF &amp; Excel Export</li>
                 <li><span class="check">✓</span> Prioritäts-Support</li>
             </ul>
-            <button class="btn-plan btn-plan-pro" id="proCtaBtn" onclick="openAuth('register')">Jetzt Pro starten →</button>
+            <button class="btn-plan btn-plan-pro" id="proCtaBtn" data-action="auth" data-mode="register">Jetzt Pro starten →</button>
         </div>
     </div>
 
@@ -666,84 +666,84 @@
     <h2 class="section-title">Häufige Fragen</h2>
     <div class="faq-list">
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Kann ich die App kostenlos testen?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Ja! Du erhältst 14 Tage vollen Zugriff auf alle Features — komplett kostenlos und ohne Kreditkarte. Nach der Testphase kannst du für 15 €/Monat (inkl. MwSt.) oder 135 €/Jahr upgraden.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Wie kann ich kündigen?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Jederzeit mit einem Klick — keine Mindestlaufzeit, kein Kleingedrucktes. Nach der Kündigung behältst du den Pro-Zugang bis zum Ende des bezahlten Zeitraums.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Wo werden meine Daten gespeichert?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Deine Buchhaltungsdaten werden standardmäßig ausschließlich lokal auf deinem Gerät gespeichert (im Browser-Speicher) und verlassen es nicht. Optional kannst du als Pro-Nutzer einen Ende-zu-Ende-verschlüsselten Cloud-Sync aktivieren — dann werden nur für uns und den Anbieter unlesbare, verschlüsselte Daten bei einem EU-Anbieter (Frankfurt) abgelegt. Alle Datenschutzanforderungen der DSGVO werden eingehalten, und du kannst deine Daten jederzeit komplett exportieren.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Kann ich auf mehreren Geräten arbeiten?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Ja. Standardmäßig liegen deine Daten lokal auf dem jeweiligen Gerät. Als Pro-Nutzer kannst du zusätzlich den optionalen, Ende-zu-Ende-verschlüsselten Cloud-Sync aktivieren, der deine Daten automatisch zwischen deinen Geräten abgleicht — der Schlüssel bleibt dabei allein bei dir. Ohne Sync überträgst du Daten wie gewohnt per Export/Import.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Was passiert mit meinen lokalen Daten wenn ich mich anmelde?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Nichts geht verloren — deine lokalen Daten bleiben unverändert auf deinem Gerät. Der Login über Whop dient nur der Freischaltung; es werden keine Buchhaltungsdaten hochgeladen. Die App funktioniert vollständig offline.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Gibt es eine Desktop-App?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Stackr ist eine moderne Web-App, die in jedem aktuellen Browser (Chrome, Firefox, Edge, Safari) läuft — kein Download, keine Installation.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Ist Stackr GoBD-konform?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Ja. Stackr führt ein lückenloses GoBD-konformes Protokoll: Buchungen werden mit Zeitstempel, Vorher-/Nachher-Wert und Checksumme lückenlos protokolliert. Das Protokoll ist jederzeit exportierbar. Hinweis: Stackr ist ein Werkzeug — kein Ersatz für einen Steuerberater.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Brauche ich noch einen Steuerberater?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Stackr ersetzt keine Steuerberatung, macht sie aber günstiger. EÜR, USt-Voranmeldung und GoBD-Protokoll sind exportbereit — dein Steuerberater braucht weniger Zeit (= weniger Kosten). Viele Stackr-Nutzer übergeben ihrem Steuerberater einfach den XLSX-Export.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Funktioniert Stackr für meine GbR?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Ja — Stackr ist eines der wenigen Tools mit echter GbR-Unterstützung: Gesellschafter-Verrechnungskonten, automatische Gewinnverteilung und GoBD-konforme Jahresabrechnung für alle Partner. Ideal für Zweimannbetriebe und kleine Agenturen.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Was passiert mit meinen Daten wenn ich kündige?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Deine Daten gehören dir. Vor der Kündigung kannst du alles als XLSX, CSV oder ZIP exportieren. Nach Ablauf des Abonnements wird der Zugang zur App gesperrt, deine Daten bleiben aber erhalten und können nach einer Reaktivierung wieder genutzt werden.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Funktioniert Stackr als Kleinunternehmer (§19 UStG)?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Ja. Stackr unterstützt die Kleinunternehmerregelung (§19 UStG) vollständig. Rechnungen werden ohne Mehrwertsteuerausweis mit dem korrekten gesetzlichen Hinweis erstellt, und die EÜR funktioniert identisch. Du kannst den Modus jederzeit in den Einstellungen aktivieren oder deaktivieren.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Kann ich Daten aus Excel oder einer anderen Software importieren?
                 <span class="arrow">+</span>
             </button>
@@ -757,7 +757,7 @@
 <div class="cta-banner" data-reveal>
     <h2>Dein nächster Steuer-Abend<br>dauert 20 Minuten.</h2>
     <p>Starte jetzt — in 2 Minuten ist dein Konto eingerichtet, deine erste Buchung dauert 10 Sekunden.</p>
-    <button class="btn-hero" onclick="openAuth('register')">Jetzt 14 Tage kostenlos testen →</button>
+    <button class="btn-hero" data-action="auth" data-mode="register">Jetzt 14 Tage kostenlos testen →</button>
     <div class="hero-micro">Keine Kreditkarte · danach 15 €/Monat · jederzeit kündbar</div>
 </div>
 </div>
@@ -772,7 +772,7 @@
 <!-- ═══════════════════ STICKY MOBILE CTA ═══════════════════ -->
 <div id="stickyCta" aria-hidden="true">
     <div class="sc-price"><strong>14 Tage kostenlos</strong>danach 15 €/Monat</div>
-    <button class="btn-hero" onclick="openAuth('register')">Jetzt testen →</button>
+    <button class="btn-hero" data-action="auth" data-mode="register">Jetzt testen →</button>
 </div>
 
 <!-- Auth-Modal entfernt: Anmeldung, Registrierung & Zahlung laufen vollständig über Whop in der App -->

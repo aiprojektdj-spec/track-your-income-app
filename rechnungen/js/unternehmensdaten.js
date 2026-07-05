@@ -119,7 +119,7 @@ var Unternehmensdaten = (function() {
         html += '</div>';
         html += '<div class="form-group">';
         html += '<label class="form-label">USt-IdNr. <span style="color:var(--danger);">*</span></label>';
-        html += '<input class="form-input" id="ud_ustId" value="' + Utils.escapeHtml(d.ustId) + '" placeholder="z.B. DE123456789" oninput="this.value=this.value.toUpperCase()">';
+        html += '<input class="form-input" id="ud_ustId" value="' + Utils.escapeHtml(d.ustId) + '" placeholder="z.B. DE123456789" data-uppercase>';
         html += '</div>';
         html += '</div>';
 
@@ -165,11 +165,11 @@ var Unternehmensdaten = (function() {
         html += '</div>';
         html += '<div class="form-group" style="flex:2;">';
         html += '<label class="form-label">IBAN <span style="color:var(--danger);">*</span></label>';
-        html += '<input class="form-input" id="ud_iban" value="' + Utils.escapeHtml(d.iban) + '" placeholder="DE00 0000 0000 0000 0000 00" oninput="this.value=this.value.toUpperCase()">';
+        html += '<input class="form-input" id="ud_iban" value="' + Utils.escapeHtml(d.iban) + '" placeholder="DE00 0000 0000 0000 0000 00" data-uppercase>';
         html += '</div>';
         html += '<div class="form-group">';
         html += '<label class="form-label">BIC</label>';
-        html += '<input class="form-input" id="ud_bic" value="' + Utils.escapeHtml(d.bic) + '" placeholder="z.B. SSKMDEMMXXX" oninput="this.value=this.value.toUpperCase()">';
+        html += '<input class="form-input" id="ud_bic" value="' + Utils.escapeHtml(d.bic) + '" placeholder="z.B. SSKMDEMMXXX" data-uppercase>';
         html += '</div>';
         html += '</div>';
 

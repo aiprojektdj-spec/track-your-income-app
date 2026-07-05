@@ -325,7 +325,7 @@ var Rechnung = (function() {
         var body = '<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary);">Wähle einen verfügbaren Lagerartikel für diese Position aus. Beim Bezahlen der Rechnung wird der Artikel automatisch als <em>Verkauft</em> markiert.</div>';
         body += '<div style="overflow-x:auto;"><table style="width:100%;font-size:12px;"><thead><tr><th>Art.-Nr.</th><th>Artikel</th><th>Beschreibung</th><th>Größe</th><th>EK-Preis</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
 
-        var footer = clearBtn + ' <button class="btn" onclick="RechApp.closeModal()">Schließen</button>';
+        var footer = clearBtn + ' <button class="btn" data-action="rech-close-modal">Schließen</button>';
         RechApp.showModal('Lagerartikel verknüpfen', body, footer);
 
         // Events binden
@@ -604,7 +604,7 @@ var Rechnung = (function() {
                 modalBody += '<div class="form-group"><label class="form-label">' + (_npIsCH ? 'MWST-Satz' : 'MwSt-Satz') + '</label><select class="form-select" id="npMwst">' + (_npIsCH ? '<option value="8.1">8.1%</option><option value="2.6">2.6%</option><option value="3.8">3.8%</option><option value="0">0%</option>' : '<option value="19">19%</option><option value="7">7%</option><option value="0">0%</option>') + '</select></div>';
                 modalBody += '</div>';
 
-                var modalFooter = '<button class="btn btn-primary" id="npSave">Speichern</button> <button class="btn" onclick="RechApp.closeModal()">Abbrechen</button>';
+                var modalFooter = '<button class="btn btn-primary" id="npSave">Speichern</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
                 RechApp.showModal('Neues Produkt anlegen', modalBody, modalFooter);
 
                 document.getElementById('npSave').addEventListener('click', function() {

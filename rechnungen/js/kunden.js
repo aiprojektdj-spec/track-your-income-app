@@ -183,7 +183,7 @@ var Kunden = (function() {
         body += '<div class="form-group"><label class="form-label">USt-IdNr. (B2B Ausland)</label><input class="form-input" id="cfUstIdNr" placeholder="z.B. FR12345678901" value="' + Utils.escapeHtml(customer ? customer.ustIdNr || '' : '') + '"></div>';
         body += '</div>';
 
-        var footer = '<button class="btn btn-primary" id="cfSave">Speichern</button> <button class="btn" onclick="RechApp.closeModal()">Abbrechen</button>';
+        var footer = '<button class="btn btn-primary" id="cfSave">Speichern</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
         RechApp.showModal(isEdit ? 'Kunde bearbeiten' : 'Neuer Kunde', body, footer);
 
         document.getElementById('cfSave').addEventListener('click', function() {

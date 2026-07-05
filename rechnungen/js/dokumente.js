@@ -268,7 +268,7 @@ var Dokumente = (function() {
         body += '\u26A0\uFE0F Diese Aktion kann nicht r\u00FCckg\u00E4ngig gemacht werden (GoBD-Konformit\u00E4t).';
         body += '</div>';
 
-        var footer = '<button class="btn btn-danger" id="confirmStorno">Stornorechnung erstellen</button> <button class="btn" onclick="RechApp.closeModal()">Abbrechen</button>';
+        var footer = '<button class="btn btn-danger" id="confirmStorno">Stornorechnung erstellen</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
 
         RechApp.showModal('Rechnung stornieren', body, footer);
 
@@ -365,7 +365,7 @@ var Dokumente = (function() {
         body += '</label>';
         body += '</div>';
 
-        var footer = '<button class="btn btn-success" id="confirmSendStatus">Speichern &amp; Schlie\u00DFen</button> <button class="btn" onclick="RechApp.closeModal()">Abbrechen</button>';
+        var footer = '<button class="btn btn-success" id="confirmSendStatus">Speichern &amp; Schlie\u00DFen</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
 
         RechApp.showModal('Rechnung versenden', body, footer);
 
@@ -453,7 +453,7 @@ var Dokumente = (function() {
         body += '<div class="form-group" id="bezahltManualGroup" style="display:none;"><label class="form-label">Einkaufspreis (\u20AC)</label>';
         body += '<input type="number" step="0.01" min="0" class="form-input" id="bezahltManualEK" placeholder="0,00"></div>';
 
-        var footer = '<button class="btn btn-success" id="confirmBezahlt">Bezahlt markieren &amp; Verkauf eintragen</button> <button class="btn" onclick="RechApp.closeModal()">Abbrechen</button>';
+        var footer = '<button class="btn btn-success" id="confirmBezahlt">Bezahlt markieren &amp; Verkauf eintragen</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
 
         RechApp.showModal('Als bezahlt markieren', body, footer);
 

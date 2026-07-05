@@ -310,7 +310,7 @@ function renderDashboard() {
                         <td style="white-space:nowrap">${datum(b.belegDatum)}</td>
                         <td>${esc(vName)}</td>
                         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.zweck||'—')}</td>
-                        <td><span class="badge" style="background:${k.farbe}22;color:${k.farbe}">${k.name}</span></td>
+                        <td><span class="badge" style="background:${k.farbe}22;color:${k.farbe}">${esc(k.name)}</span></td>
                         <td style="text-align:right;font-weight:600">${euro(b.betragBrutto)}</td>
                         <td style="white-space:nowrap">
                             <button class="action-btn" onclick="viewBeleg('${b.id}')" title="Ansehen"><i class="ti ti-eye"></i></button>
@@ -595,7 +595,7 @@ function renderNeu(editId=null) {
                     <label class="form-label">Kategorie *</label>
                     <select class="form-control" id="eb-kat" required>
                         <option value="" disabled ${!b?.kategorie?'selected':''}>Wählen…</option>
-                        ${kat.map(k=>`<option value="${k.id}" ${b?.kategorie===k.id?'selected':''}>${k.name}</option>`).join('')}
+                        ${kat.map(k=>`<option value="${k.id}" ${b?.kategorie===k.id?'selected':''}>${esc(k.name)}</option>`).join('')}
                     </select>
                 </div>
             </div>
@@ -984,7 +984,7 @@ function renderAlle() {
                     <label class="form-label">Kategorie</label>
                     <select class="form-control" id="f-kat" onchange="applyFilter()">
                         <option value="">Alle</option>
-                        ${kat.map(k=>`<option value="${k.id}">${k.name}</option>`).join('')}
+                        ${kat.map(k=>`<option value="${k.id}">${esc(k.name)}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group" style="margin:0">
@@ -1061,8 +1061,8 @@ function applyFilter() {
                     <td style="white-space:nowrap">${datum(x.belegDatum)}</td>
                     <td>${esc(vName)}</td>
                     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.zweck||'')}">${esc(x.zweck||'—')}</td>
-                    <td><span class="badge" style="background:${kObj.farbe}22;color:${kObj.farbe}">${kObj.name}</span></td>
-                    <td style="white-space:nowrap">${zObj.icon} ${x.zahlungsweg==='sonstiges'?(x.zahlungswegSonstig||'Sonstiges'):zObj.name}</td>
+                    <td><span class="badge" style="background:${kObj.farbe}22;color:${kObj.farbe}">${esc(kObj.name)}</span></td>
+                    <td style="white-space:nowrap">${zObj.icon} ${esc(x.zahlungsweg==='sonstiges'?(x.zahlungswegSonstig||'Sonstiges'):zObj.name)}</td>
                     <td style="text-align:right;font-weight:600;white-space:nowrap">${euro(x.betragBrutto)}</td>
                     <td style="white-space:nowrap">
                         <button class="action-btn" onclick="viewBeleg('${x.id}')"   title="Ansehen"><i class="ti ti-eye"></i></button>
@@ -1141,7 +1141,7 @@ function viewBeleg(id) {
                 <div>
                     <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:.8">Eigenbeleg</div>
                     <div style="font-size:22px;font-weight:700;margin-top:2px">${b.id}</div>
-                    <div style="font-size:12px;opacity:.8;margin-top:4px">${s.firmenname||s.inhaberName||''}</div>
+                    <div style="font-size:12px;opacity:.8;margin-top:4px">${esc(s.firmenname||s.inhaberName||'')}</div>
                 </div>
                 <div style="text-align:right;font-size:12px;opacity:.9;line-height:1.7">
                     <div>Datum: <strong>${datum(b.belegDatum)}</strong></div>
@@ -1160,7 +1160,7 @@ function viewBeleg(id) {
                         <strong>${datum(b.zahlungsDatum)}</strong>
                     </div>
                     <div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Zahlungsweg</div><strong>${zObj.icon} ${b.zahlungsweg==='sonstiges'?b.zahlungswegSonstig:zObj.name}</strong></div>
-                    <div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Kategorie</div><span class="badge" style="background:${kObj.farbe}22;color:${kObj.farbe}">${kObj.name}</span></div>
+                    <div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Kategorie</div><span class="badge" style="background:${kObj.farbe}22;color:${kObj.farbe}">${esc(kObj.name)}</span></div>
                 </div>
                 <div style="background:var(--bg-card);border-radius:var(--radius);padding:12px;margin-bottom:14px">
                     <div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px">Betriebliche Veranlassung</div>
@@ -1264,9 +1264,9 @@ function printBeleg(id) {
                 const g=(parseFloat(p.menge)||0)*(parseFloat(p.einzelpreis)||0);
                 return `<tr>
                     <td>${i+1}</td>
-                    <td><strong>${p.artikel||'—'}</strong></td>
-                    <td>${p.marke||'—'}</td>
-                    <td>${p.zustand||'—'}</td>
+                    <td><strong>${esc(p.artikel||'—')}</strong></td>
+                    <td>${esc(p.marke||'—')}</td>
+                    <td>${esc(p.zustand||'—')}</td>
                     <td style="text-align:right">${p.menge}</td>
                     <td style="text-align:right">${euro(p.einzelpreis)}</td>
                     <td style="text-align:right;font-weight:600">${euro(g)}</td>
@@ -1365,7 +1365,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:24px;max-
 <div class="section">
     <h3>Verkäufer / Lieferant</h3>
     <div class="seller-block">
-        <div class="name">${vName}</div>
+        <div class="name">${esc(vName)}</div>
         <div class="addr">${vk.adresseUnbekannt
             ? '<em style="color:#b45309">Adresse: nicht ermittelbar (§160 AO – Bitte nachträglich ergänzen)</em>'
             : [esc(vk.strasse), esc(vk.plzOrt), vk.land && vk.land!=='Deutschland' ? esc(vk.land) : ''].filter(Boolean).join('<br>') || '<em style="color:#999">Keine Adresse angegeben</em>'
@@ -1407,7 +1407,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:24px;max-
 <!-- 8. KATEGORIE (EÜR) -->
 <div class="section">
     <h3>Kategorie (EÜR-Zuordnung)</h3>
-    <span class="badge">${kObj.name}</span>
+    <span class="badge">${esc(kObj.name)}</span>
     <div style="margin-top:8px">
         <div class="zweck">
             <label>Betriebliche Veranlassung</label>
@@ -1481,7 +1481,7 @@ function renderKategorien() {
                     const summ = belege.filter(b=>b.kategorie===k.id).reduce((a,b)=>a+(b.betragBrutto||0),0);
                     return `<tr>
                         <td><div style="width:18px;height:18px;border-radius:4px;background:${k.farbe};display:inline-block"></div></td>
-                        <td><strong>${k.name}</strong></td>
+                        <td><strong>${esc(k.name)}</strong></td>
                         <td><span class="badge" style="${k.std?'background:var(--bg-card);color:var(--text-muted)':'background:var(--accent-glow);color:var(--accent-light)'}">${k.std?'Standard':'Eigene'}</span></td>
                         <td>${cnt}</td>
                         <td>${euro(summ)}</td>
@@ -1599,7 +1599,7 @@ function saveEinstellungen() {
     s.firmenname          = document.getElementById('s-firm').value;
     s.inhaberName         = document.getElementById('s-name').value;
     s.adresse             = document.getElementById('s-adresse').value;
-    s.prefix              = document.getElementById('s-prefix').value || 'EB';
+    s.prefix              = (document.getElementById('s-prefix').value || 'EB').replace(/[^A-Za-z0-9\-]/g,'').slice(0,12) || 'EB';
     s.jahresReset         = document.getElementById('s-reset').checked;
     s.mwstModus           = document.getElementById('s-mwst').value;
     s.standardErlaeuterung= document.getElementById('s-erkl').value;
@@ -1735,24 +1735,35 @@ window.EBApp = { mount: ebMount, navigate: navigate };
 // #moduleSubnav) NICHT, dann ruft die Haupt-App EBApp.mount().
 // ═══════════════════════════════════════════════════════════════════
 if (!document.getElementById('moduleSubnav')) {
-    navigate('dashboard');
+    function _ebStandaloneBoot() {
+        navigate('dashboard');
 
-    // Sidebar collapse (nur Standalone)
-    (function() {
-        const collapseBtn = document.getElementById('sidebarCollapseBtn');
-        const sidebar = document.getElementById('sidebar');
-        if (collapseBtn && sidebar) {
-            if (localStorage.getItem('eb_sidebar_collapsed') === '1') {
-                sidebar.classList.add('collapsed');
-                collapseBtn.textContent = '›';
-                collapseBtn.title = 'Sidebar aufklappen';
+        // Sidebar collapse (nur Standalone)
+        (function() {
+            const collapseBtn = document.getElementById('sidebarCollapseBtn');
+            const sidebar = document.getElementById('sidebar');
+            if (collapseBtn && sidebar) {
+                if (localStorage.getItem('eb_sidebar_collapsed') === '1') {
+                    sidebar.classList.add('collapsed');
+                    collapseBtn.textContent = '›';
+                    collapseBtn.title = 'Sidebar aufklappen';
+                }
+                collapseBtn.addEventListener('click', () => {
+                    const isCollapsed = sidebar.classList.toggle('collapsed');
+                    collapseBtn.textContent = isCollapsed ? '›' : '‹';
+                    collapseBtn.title = isCollapsed ? 'Sidebar aufklappen' : 'Sidebar einklappen';
+                    localStorage.setItem('eb_sidebar_collapsed', isCollapsed ? '1' : '0');
+                });
             }
-            collapseBtn.addEventListener('click', () => {
-                const isCollapsed = sidebar.classList.toggle('collapsed');
-                collapseBtn.textContent = isCollapsed ? '›' : '‹';
-                collapseBtn.title = isCollapsed ? 'Sidebar aufklappen' : 'Sidebar einklappen';
-                localStorage.setItem('eb_sidebar_collapsed', isCollapsed ? '1' : '0');
-            });
-        }
-    })();
+        })();
+    }
+
+    // Whop-Gate: erst nach gültiger Membership booten (standalone-Seite hatte bisher keinen Check)
+    if (typeof AuthUI !== 'undefined' && AuthUI.boot) {
+        window.App = window.App || {};
+        App._continueAfterAuth = _ebStandaloneBoot;
+        AuthUI.boot();
+    } else {
+        _ebStandaloneBoot();
+    }
 }

@@ -332,7 +332,12 @@ var RechApp = (function() {
     // Haupt-App ruft RechApp.mount(). Standalone-Seite → boot() wie gehabt.
     var EMBEDDED = !!document.getElementById('moduleSubnav');
     if (!EMBEDDED) {
-        if (document.readyState === 'loading') {
+        // Whop-Gate: erst nach gültiger Membership booten (standalone-Seite hatte bisher keinen Check)
+        if (typeof AuthUI !== 'undefined' && AuthUI.boot) {
+            window.App = window.App || {};
+            App._continueAfterAuth = boot;
+            AuthUI.boot();
+        } else if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', boot);
         } else {
             boot();

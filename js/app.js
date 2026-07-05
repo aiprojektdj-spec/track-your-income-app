@@ -1743,9 +1743,14 @@ const App = {
                 this.navigate(this.currentPage);
             };
             if (logoInput && logoInput.files[0]) {
+                const file = logoInput.files[0];
+                if (file.size > 500 * 1024) {
+                    Utils.showToast('Logo zu groß (max. 500 KB)', 'warning');
+                    return;
+                }
                 const reader = new FileReader();
                 reader.onload = (ev) => saveAndClose(ev.target.result);
-                reader.readAsDataURL(logoInput.files[0]);
+                reader.readAsDataURL(file);
                 return;
             }
             saveAndClose(s.logoBase64 || '');

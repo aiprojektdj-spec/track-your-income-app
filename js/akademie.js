@@ -1777,7 +1777,7 @@ const Akademie = {
         { id: 'sammler_500',     icon: '🏬', title: 'Lager-Profi (500)',       desc: 'Beachtlich! 500 Artikel im aktiven Lagerbestand.',       tier: 'gold',   check: d => d.activeStock >= 500 },
         { id: 'umsatz_1k',       icon: '💵', title: '1.000 € Umsatz',          desc: 'Der erste Vier-Stellige-Umsatz ist da.',                  tier: 'silver', check: d => d.totalRevenue >= 1000 },
         { id: 'umsatz_5k',       icon: '💸', title: '5.000 € Umsatz',          desc: 'Du machst ernst. 5.000 € Umsatz erreicht.',              tier: 'gold',   check: d => d.totalRevenue >= 5000 },
-        { id: 'umsatz_22k',      icon: '👑', title: 'Kleinunternehmer-Limit',  desc: 'Achtung: Du kratzt an der 22k-Grenze (§19 UStG).',       tier: 'gold',   check: d => d.totalRevenue >= 22000 },
+        { id: 'umsatz_22k',      icon: '👑', title: 'Kleinunternehmer-Limit',  desc: 'Achtung: Du kratzt an der 25.000-€-Grenze (§19 UStG).', tier: 'gold',   check: d => d.totalRevenue >= 22000 },
         { id: 'invoice_first',   icon: '🧾', title: 'Erste Rechnung',          desc: 'Du hast eine Rechnung im Rechnungsbuch erstellt.',       tier: 'bronze', check: d => d.invoices >= 1 },
         { id: 'eur_export',      icon: '📋', title: 'Steuer-Bewusst',          desc: 'Du hast deine erste EÜR exportiert / gedruckt.',         tier: 'silver', check: d => d.flags.eurExported },
         { id: 'backup_hero',     icon: '💾', title: 'Backup-Held',             desc: 'Dein erstes Backup ist gespeichert. Schlauer Move!',     tier: 'bronze', check: d => d.flags.hasBackup },

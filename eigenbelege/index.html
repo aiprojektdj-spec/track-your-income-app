@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Robust gegen Aufruf ohne Trailing-Slash (/eigenbelege): relative Pfade gegen Unterordner auflösen -->
     <base href="/eigenbelege/">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com; frame-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com; frame-src 'none';">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
     <title>Stackr — Eigenbelege</title>
     <link rel="preload" href="../fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -88,24 +88,10 @@
         <div class="modal" id="modal"></div>
     </div>
 
-    <script>
-        (function() {
-            var btn = document.getElementById('sidebarToggleBtn');
-            var sidebar = document.getElementById('sidebar');
-            var overlay = document.getElementById('mobileOverlay');
-            function close() { sidebar.classList.remove('sidebar-open'); btn.classList.remove('sidebar-open'); btn.textContent = '›'; overlay.classList.remove('active'); }
-            btn.addEventListener('click', function() {
-                var open = sidebar.classList.toggle('sidebar-open');
-                btn.classList.toggle('sidebar-open', open);
-                btn.textContent = open ? '‹' : '›';
-                overlay.classList.toggle('active', open);
-            });
-            overlay.addEventListener('click', close);
-            sidebar.querySelectorAll('.sidebar-link').forEach(function(l) { l.addEventListener('click', function() { setTimeout(close, 150); }); });
-        })();
-    </script>
+    <script src="../js/page-shell.js"></script>
 
 <script src="../js/companies.js"></script>
+<script src="../js/whop-auth.js"></script>
 <script src="../js/user-plan.js"></script>
 <!-- GbR-/CH-/AT-Tab-Sichtbarkeit wird jetzt zentral in js/topnav.js gesteuert -->
     <script src="js/app.js"></script>

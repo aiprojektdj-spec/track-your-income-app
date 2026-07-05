@@ -2616,3 +2616,54 @@ tbody tr:last-child td {
         .adresse-disabled input, .adresse-disabled select {
             opacity: 0.45; pointer-events: none; background: var(--bg-input);
         }
+
+/* ── Loading-Skeleton (ehem. inline in app.html) ── */
+@keyframes skeletonPulse {
+    0%,100% { opacity:.5; }
+    50%      { opacity:1; }
+}
+
+/* ── Lager: Sidebar-Badge, Buchungszeilen, Bulk-Tabelle (ehem. inline) ── */
+.sidebar-link-badge {
+    margin-left: auto;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    flex-shrink: 0;
+}
+.sidebar-link-badge:empty {
+    display: none;
+}
+
+/* Buchungen: ausgewählte Zeile */
+.buch-artikel-row {
+    border-bottom: 1px solid var(--border);
+    transition: background .1s;
+}
+.buch-artikel-row:hover {
+    background: var(--bg-secondary);
+}
+.buch-row-selected {
+    background: rgba(16,185,129,.08) !important;
+}
+
+/* Mobile: Bulk-Tabelle kompakter */
+@media (max-width: 768px) {
+    .bulk-table { min-width: 460px !important; font-size: 12px; }
+    .bulk-table input.form-input,
+    .bulk-table select.form-select { padding: 4px 6px !important; font-size: 12px !important; }
+}
+
+/* Lager-Pagination: hover-freundliche Buttons */
+.lager-pagination .btn-small:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}

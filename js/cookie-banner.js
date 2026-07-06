@@ -103,7 +103,7 @@
         banner.id = 'cookieBanner';
         banner.innerHTML =
             '<div class="cb-text">' +
-                '<strong>🍪 Hinweis</strong><br>' +
+                '<strong>Cookie-Hinweis</strong><br>' +
                 'Diese App verwendet ausschließlich technisch notwendige Cookies für Anmeldung und Session-Verwaltung. ' +
                 'Keine Tracking- oder Werbe-Cookies. ' +
                 'Mehr in unserer <a href="datenschutz.html">Datenschutzerklärung</a>.' +

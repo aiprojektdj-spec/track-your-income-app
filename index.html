@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none';">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
 <title>Stackr — Buchhaltung für Freelancer, GbR &amp; Reseller | EÜR &amp; GoBD</title>
 <meta name="description" content="Buchhaltung für Freelancer, GbR &amp; Reseller — EÜR, GoBD, Rechnungen, Lager, KSK. Live-Demo direkt im Browser. 14 Tage kostenlos testen, danach ab 11,25 €/Monat. DSGVO-konform — Daten standardmäßig lokal, optionaler Ende-zu-Ende-verschlüsselter Cloud-Sync.">
@@ -21,1014 +21,7 @@
 <meta name="twitter:image"      content="https://stackr.app/og-image.png">
 <link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
-<style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-/* ── Fonts: self-hosted (DSGVO) ── */
-@font-face {
-    font-family: 'Inter';
-    font-style: normal;
-    font-weight: 100 900;
-    font-display: swap;
-    src: url('fonts/inter-var-latin.woff2') format('woff2');
-}
-@font-face {
-    font-family: 'Fraunces';
-    font-style: normal;
-    font-weight: 100 900;
-    font-display: swap;
-    src: url('fonts/fraunces-var-latin.woff2') format('woff2');
-}
-
-:root {
-    /* ── Core palette — Ruhige Souveränität (warm dark) ── */
-    --bg:        #0a0c0b;
-    --surface:   #101312;
-    --card:      #161a18;
-    --border:    rgba(255,255,255,.06);
-    --border-hi: rgba(16,185,129,.28);
-    --accent:    #10b981;
-    --accent2:   #0da271;
-    --text:      #eef2f0;
-    --muted:     #71807a; /* WCAG AA on --bg */
-    --subtle:    #9ba8a1;
-    --green:     #22c55e;
-    --red:       #ef5350;
-    --amber:     #f5a623;
-
-    --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
-    --ease: cubic-bezier(.35,.7,.25,1);
-
-    /* ── App-token aliases (keeps shared components compatible) ── */
-    --bg-primary:   var(--bg);
-    --bg-secondary: var(--surface);
-    --bg-card:      var(--card);
-    --text-primary:   var(--text);
-    --text-secondary: var(--subtle);
-    --text-muted:     var(--muted);
-    --accent-subtle:  rgba(16,185,129,.07);
-    --accent-glow:    rgba(16,185,129,.12);
-}
-
-html { scroll-behavior: smooth; }
-body { background: var(--bg); color: var(--text); font-family: var(--font-sans); line-height: 1.6; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
-::selection { background: rgba(16,185,129,.25); }
-
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: #2a332e; border-radius: 4px; }
-
-/* ── Scroll-Reveal ── */
-[data-reveal] { opacity: 0; transform: translateY(26px); transition: opacity .75s var(--ease), transform .75s var(--ease); }
-[data-reveal].vis { opacity: 1; transform: none; }
-.dly-1 { transition-delay: .08s; }
-.dly-2 { transition-delay: .16s; }
-.dly-3 { transition-delay: .24s; }
-.dly-4 { transition-delay: .32s; }
-@media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-    [data-reveal] { opacity: 1; transform: none; transition: none; }
-    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
-}
-
-/* ════════════════════════════════════════
-   NAV
-   ════════════════════════════════════════ */
-nav {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: rgba(10,12,11,.82);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--border);
-    padding: 0 24px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    transition: box-shadow .3s var(--ease);
-}
-nav.scrolled { box-shadow: 0 12px 32px -16px rgba(0,0,0,.7); }
-.nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-.nav-brand-icon { font-size: 22px; color: var(--accent); }
-.nav-brand-text { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -.2px; }
-.nav-links { display: flex; gap: 4px; }
-.nav-link {
-    color: var(--subtle);
-    text-decoration: none;
-    font-size: 14px;
-    padding: 6px 12px;
-    border-radius: 6px;
-    transition: color .15s;
-    white-space: nowrap;
-}
-.nav-link:hover { color: var(--text); }
-.nav-actions { display: flex; align-items: center; gap: 8px; }
-.btn-ghost {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--subtle);
-    padding: 7px 16px;
-    border-radius: 7px;
-    cursor: pointer;
-    font-size: 13px;
-    font-family: var(--font-sans);
-    transition: .15s;
-}
-.btn-ghost:hover { border-color: rgba(255,255,255,.15); color: var(--text); }
-.btn-primary {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    color: #fff;
-    border: none;
-    padding: 8px 18px;
-    border-radius: 7px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-    font-family: var(--font-sans);
-    transition: opacity .15s;
-    white-space: nowrap;
-}
-.btn-primary:hover { opacity: .88; }
-
-/* ════════════════════════════════════════
-   HERO
-   ════════════════════════════════════════ */
-.hero {
-    position: relative;
-    padding: 96px 24px 80px;
-    text-align: center;
-    overflow: hidden;
-}
-.hero-glow {
-    position: absolute;
-    top: -140px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 760px;
-    height: 440px;
-    background: radial-gradient(ellipse at center, rgba(16,185,129,.16) 0%, transparent 70%);
-    pointer-events: none;
-    will-change: transform;
-}
-.hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(16,185,129,.1);
-    border: 1px solid var(--border-hi);
-    color: #34d399;
-    font-size: 12px;
-    padding: 5px 14px;
-    border-radius: 999px;
-    margin-bottom: 26px;
-}
-.hero h1 {
-    font-family: var(--font-display);
-    font-size: clamp(36px, 6.4vw, 68px);
-    font-weight: 580;
-    font-variation-settings: 'opsz' 110;
-    line-height: 1.06;
-    letter-spacing: -0.015em;
-    margin-bottom: 22px;
-    max-width: 860px;
-    margin-left: auto;
-    margin-right: auto;
-}
-.hero h1 .grad {
-    background: linear-gradient(135deg, #34d399, #10b981, #059669);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-.hero-sub {
-    font-size: clamp(15px, 2.5vw, 18px);
-    color: var(--subtle);
-    max-width: 620px;
-    margin: 0 auto 34px;
-    line-height: 1.65;
-}
-.hero-sub strong { color: var(--text); font-weight: 600; }
-.hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 14px; }
-.btn-hero {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    color: #fff;
-    border: none;
-    padding: 14px 30px;
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 15px;
-    font-weight: 600;
-    font-family: var(--font-sans);
-    transition: opacity .2s, transform .2s var(--ease);
-    box-shadow: 0 8px 32px -8px rgba(16,185,129,.45), inset 0 1px 0 rgba(255,255,255,.18);
-}
-.btn-hero:hover { opacity: .92; transform: translateY(-1px); }
-.btn-hero-ghost {
-    background: rgba(255,255,255,.04);
-    color: var(--text);
-    border: 1px solid var(--border);
-    padding: 14px 30px;
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 15px;
-    font-family: var(--font-sans);
-    transition: background .15s;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-.btn-hero-ghost:hover { background: rgba(255,255,255,.08); }
-.hero-micro { font-size: 12.5px; color: var(--muted); margin-bottom: 52px; }
-
-/* App-Mockup */
-.hero-mockup-wrap { position: relative; max-width: 840px; margin: 0 auto; }
-.hero-mockup {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 16px;
-    box-shadow: 0 40px 96px -24px rgba(0,0,0,.65), 0 0 0 1px rgba(255,255,255,.04), inset 0 1px 0 rgba(255,255,255,.05);
-}
-.mockup-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 14px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-}
-.mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
-.mockup-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
-.mockup-stat {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px;
-    text-align: left;
-}
-.mockup-stat-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .4px; }
-.mockup-stat-val { font-size: 19px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-.mockup-stat-sub { font-size: 10px; color: var(--green); margin-top: 2px; }
-.mockup-chart {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    height: 110px;
-    display: flex;
-    align-items: flex-end;
-    gap: 6px;
-    padding: 14px;
-}
-.hbar {
-    flex: 1;
-    background: linear-gradient(to top, rgba(16,185,129,.55), rgba(52,211,153,.85));
-    border-radius: 3px 3px 0 0;
-    height: var(--h);
-    transform-origin: bottom;
-    animation: barGrow .9s var(--ease) both;
-}
-@keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-.mockup-chip {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    background: rgba(16,20,18,.92);
-    border: 1px solid var(--border-hi);
-    border-radius: 10px;
-    padding: 9px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text);
-    box-shadow: 0 16px 40px -8px rgba(0,0,0,.6);
-    backdrop-filter: blur(8px);
-    animation: chipFloat 5s ease-in-out infinite;
-}
-.mockup-chip svg { width: 16px; height: 16px; color: var(--accent); flex-shrink: 0; }
-.chip-gobd { top: 18px; right: -26px; }
-.chip-euer { bottom: 26px; left: -30px; animation-delay: 2.5s; }
-@keyframes chipFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
-
-/* Trust row */
-.hero-stats {
-    display: flex;
-    gap: 36px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-top: 52px;
-    padding-top: 40px;
-    border-top: 1px solid var(--border);
-}
-.hero-stat { text-align: center; }
-.hero-stat-num { font-family: var(--font-display); font-size: 26px; font-weight: 580; font-variation-settings: 'opsz' 48; color: var(--text); }
-.hero-stat-lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
-
-/* ════════════════════════════════════════
-   SECTIONS — global
-   ════════════════════════════════════════ */
-section { padding: 88px 24px; max-width: 1100px; margin: 0 auto; }
-.section-head { text-align: center; margin-bottom: 52px; }
-.section-tag {
-    display: inline-block;
-    background: rgba(16,185,129,.1);
-    border: 1px solid var(--border-hi);
-    color: #34d399;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 4px 12px;
-    border-radius: 999px;
-    letter-spacing: .5px;
-    text-transform: uppercase;
-    margin-bottom: 14px;
-}
-.section-title {
-    font-family: var(--font-display);
-    font-size: clamp(26px, 4.2vw, 40px);
-    font-weight: 580;
-    font-variation-settings: 'opsz' 72;
-    letter-spacing: -0.01em;
-    line-height: 1.15;
-    margin-bottom: 12px;
-}
-.section-sub { font-size: 16px; color: var(--subtle); max-width: 640px; margin: 0 auto; }
-.ic { width: 22px; height: 22px; stroke-width: 1.75; }
-
-/* ════════════════════════════════════════
-   PAIN — Storytelling Akt 1
-   ════════════════════════════════════════ */
-#pain { padding-top: 40px; }
-.pain-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-.pain-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 28px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
-}
-.pain-num {
-    font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 580;
-    color: var(--muted);
-    margin-bottom: 14px;
-    letter-spacing: 1px;
-}
-.pain-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; line-height: 1.4; }
-.pain-desc { font-size: 13.5px; color: var(--subtle); line-height: 1.65; }
-.pain-bridge {
-    text-align: center;
-    margin-top: 56px;
-    font-family: var(--font-display);
-    font-size: clamp(20px, 3vw, 28px);
-    font-weight: 580;
-    font-variation-settings: 'opsz' 60;
-    color: var(--text);
-}
-.pain-bridge .down { display: block; color: var(--accent); font-size: 22px; margin-top: 14px; animation: nudge 2.2s ease-in-out infinite; }
-@keyframes nudge { 0%,100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
-
-/* ════════════════════════════════════════
-   LIVE-DEMO
-   ════════════════════════════════════════ */
-#demo { max-width: 1140px; }
-.demo-shell { display: grid; grid-template-columns: 1.25fr .75fr; gap: 28px; align-items: start; }
-.demo-window {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    overflow: hidden;
-    box-shadow: 0 36px 88px -24px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05);
-    position: relative;
-}
-.demo-titlebar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border);
-}
-.demo-titlebar .mockup-dot { width: 9px; height: 9px; }
-.demo-title-label { font-size: 12px; color: var(--muted); margin-left: 6px; }
-.demo-data-chip {
-    margin-left: auto;
-    font-size: 10.5px;
-    color: var(--muted);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 3px 10px;
-    white-space: nowrap;
-}
-.demo-tabs { display: flex; gap: 6px; padding: 12px 16px 0; flex-wrap: wrap; }
-.demo-tab {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--subtle);
-    padding: 7px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 12.5px;
-    font-weight: 500;
-    font-family: var(--font-sans);
-    transition: .15s;
-}
-.demo-tab:hover { color: var(--text); border-color: rgba(16,185,129,.3); }
-.demo-tab[aria-selected="true"] { background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.4); color: var(--accent); font-weight: 600; }
-.demo-body { padding: 16px; min-height: 320px; }
-.demo-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
-.demo-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
-.demo-stat-lbl { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
-.demo-stat-val { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.demo-stat-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
-.demo-chart {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    height: 130px;
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    padding: 14px 14px 8px;
-}
-.demo-bar-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; gap: 5px; }
-.demo-bar { background: linear-gradient(to top, rgba(16,185,129,.5), rgba(52,211,153,.85)); border-radius: 3px 3px 0 0; transition: height .6s var(--ease); }
-.demo-bar-lbl { font-size: 9px; color: var(--muted); text-align: center; }
-.demo-rows { display: flex; flex-direction: column; gap: 6px; }
-.demo-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 12px;
-    background: var(--surface);
-    border-radius: 7px;
-    font-size: 12.5px;
-}
-.demo-row.new { animation: rowIn .45s var(--ease); }
-@keyframes rowIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
-.demo-row .dr-date { color: var(--muted); font-size: 11px; flex-shrink: 0; width: 44px; }
-.demo-row .dr-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.demo-row .dr-amt { font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0; }
-.demo-row .dr-amt.in { color: var(--accent); }
-.demo-row .dr-amt.out { color: var(--red); font-weight: 500; }
-.demo-euer-note, .demo-gobd-note {
-    margin-top: 12px; padding: 10px 12px;
-    background: rgba(16,185,129,.06);
-    border: 1px solid rgba(16,185,129,.2);
-    border-radius: 8px;
-    font-size: 11.5px; color: var(--subtle);
-}
-.demo-log-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 12px; background: var(--surface); border-radius: 7px;
-    font-size: 11.5px;
-}
-.demo-log-row.new { animation: rowIn .45s var(--ease); }
-.demo-log-time { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 10px; color: var(--muted); flex-shrink: 0; }
-.demo-log-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.demo-log-op { font-size: 9.5px; font-weight: 700; letter-spacing: .5px; flex-shrink: 0; }
-.demo-log-op.create { color: var(--green); }
-.demo-log-op.update { color: var(--accent); }
-.demo-log-op.storno { color: var(--red); }
-.demo-toast {
-    position: absolute;
-    bottom: 16px;
-    left: 50%;
-    transform: translate(-50%, 14px);
-    background: rgba(16,20,18,.95);
-    border: 1px solid var(--border-hi);
-    color: var(--text);
-    font-size: 12.5px;
-    font-weight: 600;
-    border-radius: 10px;
-    padding: 9px 16px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .3s var(--ease), transform .3s var(--ease);
-    white-space: nowrap;
-    box-shadow: 0 16px 40px -8px rgba(0,0,0,.6);
-}
-.demo-toast.show { opacity: 1; transform: translate(-50%, 0); }
-.demo-toast .ok { color: var(--accent); }
-
-/* Demo side panel */
-.demo-side h3 {
-    font-family: var(--font-display);
-    font-size: 22px;
-    font-weight: 580;
-    font-variation-settings: 'opsz' 40;
-    margin-bottom: 10px;
-}
-.demo-side > p { font-size: 14px; color: var(--subtle); line-height: 1.65; margin-bottom: 20px; }
-.demo-presets { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
-.demo-preset {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 11px 14px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 13px;
-    font-family: var(--font-sans);
-    text-align: left;
-    transition: border-color .2s var(--ease), transform .2s var(--ease);
-}
-.demo-preset:hover { border-color: var(--border-hi); transform: translateY(-1px); }
-.demo-preset .amt { font-weight: 700; font-variant-numeric: tabular-nums; }
-.demo-preset .amt.in { color: var(--accent); }
-.demo-preset .amt.out { color: var(--red); }
-.demo-custom { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 18px; }
-.demo-custom-lbl { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
-.demo-custom-row { display: flex; gap: 8px; }
-.demo-inp {
-    flex: 1;
-    min-width: 0;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 8px;
-    padding: 9px 10px;
-    font-size: 13px;
-    font-family: var(--font-sans);
-    outline: none;
-    transition: border-color .15s;
-}
-.demo-inp:focus { border-color: var(--accent); }
-select.demo-inp { flex: 0 0 auto; width: auto; }
-.demo-book-btn {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 9px 16px;
-    font-size: 13px;
-    font-weight: 600;
-    font-family: var(--font-sans);
-    cursor: pointer;
-    transition: opacity .15s;
-    flex-shrink: 0;
-}
-.demo-book-btn:hover { opacity: .9; }
-.demo-hint { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 22px; }
-.demo-hint strong { color: var(--subtle); }
-
-/* ════════════════════════════════════════
-   FLOW — 3 Schritte
-   ════════════════════════════════════════ */
-.flow-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; position: relative; }
-.flow-step { position: relative; padding: 30px 26px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
-.flow-num {
-    font-family: var(--font-display);
-    font-size: 42px;
-    font-weight: 580;
-    font-variation-settings: 'opsz' 72;
-    line-height: 1;
-    background: linear-gradient(135deg, #34d399, #059669);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 16px;
-}
-.flow-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-.flow-desc { font-size: 13.5px; color: var(--subtle); line-height: 1.65; }
-
-/* ════════════════════════════════════════
-   FEATURES — Bento
-   ════════════════════════════════════════ */
-.bento { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.bento-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 24px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-    transition: border-color .25s var(--ease), transform .25s var(--ease);
-}
-.bento-card:hover { border-color: var(--border-hi); transform: translateY(-2px); }
-.bento-card.wide { grid-column: span 2; }
-.bento-icon {
-    width: 38px; height: 38px;
-    border-radius: 10px;
-    background: rgba(16,185,129,.1);
-    border: 1px solid rgba(16,185,129,.2);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--accent);
-    margin-bottom: 14px;
-}
-.bento-title { font-size: 14.5px; font-weight: 700; margin-bottom: 6px; }
-.bento-desc { font-size: 12.5px; color: var(--subtle); line-height: 1.6; }
-.pro-chip {
-    display: inline-block;
-    background: linear-gradient(135deg, rgba(16,185,129,.2), rgba(5,150,105,.2));
-    border: 1px solid rgba(16,185,129,.3);
-    color: #34d399;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 999px;
-    margin-left: 6px;
-    letter-spacing: .3px;
-    vertical-align: middle;
-}
-.bento-mini { margin-top: 16px; display: flex; flex-direction: column; gap: 5px; }
-.bento-mini-row { display: flex; justify-content: space-between; gap: 8px; background: var(--surface); border-radius: 6px; padding: 7px 10px; font-size: 11.5px; color: var(--subtle); }
-.bento-mini-row strong { color: var(--text); font-variant-numeric: tabular-nums; }
-.bento-split { margin-top: 16px; }
-.bento-split-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 8px; }
-.bento-split-bar .a { background: var(--accent); width: 60%; }
-.bento-split-bar .b { background: #8b93f8; width: 40%; }
-.bento-split-leg { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
-
-/* ════════════════════════════════════════
-   PERSONAS
-   ════════════════════════════════════════ */
-.persona-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
-.persona-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 30px 28px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-    display: flex;
-    flex-direction: column;
-    transition: border-color .25s var(--ease), transform .25s var(--ease);
-}
-.persona-card:hover { border-color: var(--border-hi); transform: translateY(-2px); }
-.persona-icon {
-    width: 42px; height: 42px;
-    border-radius: 11px;
-    background: rgba(16,185,129,.1);
-    border: 1px solid rgba(16,185,129,.2);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--accent);
-    margin-bottom: 16px;
-}
-.persona-kicker { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 4px; }
-.persona-title { font-family: var(--font-display); font-size: 21px; font-weight: 580; font-variation-settings: 'opsz' 40; margin-bottom: 10px; }
-.persona-lead { font-size: 13.5px; color: var(--subtle); line-height: 1.65; margin-bottom: 18px; }
-.persona-list { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 22px; flex: 1; }
-.persona-list li { font-size: 13px; color: var(--subtle); display: flex; gap: 9px; line-height: 1.5; }
-.persona-list li::before { content: "✓"; color: var(--accent); font-weight: 700; flex-shrink: 0; }
-.persona-cta {
-    background: none; border: none; padding: 0; cursor: pointer;
-    color: var(--accent); font-size: 13.5px; font-weight: 600; font-family: var(--font-sans);
-    text-align: left; transition: opacity .15s;
-}
-.persona-cta:hover { opacity: .8; }
-
-/* ════════════════════════════════════════
-   VERGLEICH
-   ════════════════════════════════════════ */
-#vergleich { max-width: 1140px; }
-.cmp-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 16px; background: var(--card); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
-.cmp-table { width: 100%; border-collapse: collapse; min-width: 680px; font-size: 13.5px; }
-.cmp-table th, .cmp-table td { padding: 14px 18px; text-align: center; border-bottom: 1px solid var(--border); }
-.cmp-table tr:last-child th, .cmp-table tr:last-child td { border-bottom: none; }
-.cmp-table th:first-child, .cmp-table td:first-child { text-align: left; color: var(--subtle); font-weight: 500; max-width: 280px; }
-.cmp-table thead th { font-size: 13px; font-weight: 700; color: var(--text); padding-top: 20px; padding-bottom: 16px; }
-.cmp-table thead th:first-child { color: var(--muted); font-weight: 500; font-size: 12px; }
-.cmp-table .c-us { background: rgba(16,185,129,.06); color: var(--text); font-weight: 600; }
-.cmp-table thead .c-us { color: var(--accent); font-size: 14px; }
-.cmp-yes { color: var(--accent); font-weight: 700; }
-.cmp-no { color: var(--muted); }
-.cmp-half { color: var(--amber); }
-.cmp-note { font-size: 11.5px; color: var(--muted); margin-top: 14px; line-height: 1.6; }
-.cmp-legend { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 16px; }
-
-/* ════════════════════════════════════════
-   TESTIMONIALS
-   ════════════════════════════════════════ */
-.testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-.testimonial-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 24px 26px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
-    display: flex;
-    flex-direction: column;
-}
-.testimonial-stars { color: var(--amber); font-size: 13px; margin-bottom: 12px; letter-spacing: 1.5px; }
-.testimonial-text { font-size: 14px; color: var(--subtle); line-height: 1.7; margin-bottom: 18px; flex: 1; }
-.testimonial-author { display: flex; align-items: center; gap: 11px; }
-.testimonial-avatar {
-    width: 36px; height: 36px; border-radius: 50%;
-    background: var(--accent-subtle);
-    border: 1px solid rgba(16,185,129,.2);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; color: var(--accent);
-    flex-shrink: 0;
-}
-.testimonial-name { font-size: 13px; font-weight: 600; color: var(--text); }
-.testimonial-role { font-size: 11px; color: var(--muted); margin-top: 1px; }
-
-/* ════════════════════════════════════════
-   PRICING
-   ════════════════════════════════════════ */
-#preise { background: linear-gradient(to bottom, var(--bg), var(--surface)); padding: 88px 24px; max-width: none; }
-#preise > div { max-width: 1100px; margin: 0 auto; }
-.billing-toggle {
-    display: inline-flex;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-top: 16px;
-}
-.billing-btn {
-    padding: 8px 20px;
-    border: none;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-    font-family: var(--font-sans);
-    transition: background .15s, color .15s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.billing-btn-active { background: var(--accent); color: #fff; }
-.billing-save-badge {
-    background: rgba(245,158,11,.2);
-    color: var(--amber);
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
-    letter-spacing: .3px;
-}
-.billing-btn-active .billing-save-badge { background: rgba(255,255,255,.2); color: #fff; }
-.pricing-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-    max-width: 700px;
-    margin: 0 auto;
-}
-.pricing-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 34px;
-    position: relative;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-}
-.pricing-card.popular {
-    border-color: var(--border-hi);
-    background: linear-gradient(135deg, rgba(16,185,129,.06) 0%, rgba(5,150,105,.04) 100%);
-    box-shadow: 0 0 0 1px rgba(16,185,129,.15), 0 20px 48px rgba(0,0,0,.4);
-}
-.popular-badge {
-    position: absolute;
-    top: -12px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 4px 16px;
-    border-radius: 999px;
-    white-space: nowrap;
-    letter-spacing: .3px;
-}
-.plan-name { font-size: 13px; font-weight: 600; color: var(--subtle); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-.plan-price { font-family: var(--font-display); font-size: 44px; font-weight: 580; font-variation-settings: 'opsz' 72; color: var(--text); line-height: 1; font-variant-numeric: tabular-nums; }
-.plan-price span { font-family: var(--font-sans); font-size: 16px; font-weight: 400; color: var(--muted); }
-.plan-desc { font-size: 13px; color: var(--muted); margin: 8px 0 24px; }
-.plan-features { list-style: none; margin-bottom: 28px; }
-.plan-features li { font-size: 13px; color: var(--subtle); padding: 6px 0; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
-.plan-features li:last-child { border-bottom: none; }
-.plan-features li .check { color: var(--green); font-size: 14px; flex-shrink: 0; }
-.btn-plan {
-    width: 100%;
-    padding: 12px;
-    border-radius: 9px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    font-family: var(--font-sans);
-    transition: .15s;
-}
-.btn-plan-free { background: rgba(255,255,255,.05); border: 1px solid var(--border); color: var(--text); }
-.btn-plan-free:hover { background: rgba(255,255,255,.09); }
-.btn-plan-pro { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; color: #fff; box-shadow: 0 4px 20px rgba(16,185,129,.35); }
-.btn-plan-pro:hover { opacity: .9; }
-.price-anchor {
-    max-width: 700px;
-    margin: 36px auto 0;
-    text-align: center;
-    font-size: 14px;
-    color: var(--subtle);
-    line-height: 1.7;
-}
-.price-anchor strong { color: var(--text); }
-.price-guarantees { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
-.price-guarantee {
-    display: inline-flex; align-items: center; gap: 7px;
-    font-size: 12.5px; color: var(--subtle);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 6px 14px;
-}
-.price-guarantee svg { width: 14px; height: 14px; color: var(--accent); }
-
-/* ════════════════════════════════════════
-   FAQ
-   ════════════════════════════════════════ */
-.faq-list { max-width: 680px; }
-.faq-item { border-bottom: 1px solid var(--border); }
-.faq-q {
-    width: 100%;
-    background: none;
-    border: none;
-    color: var(--text);
-    text-align: left;
-    padding: 18px 0;
-    font-size: 15px;
-    font-weight: 600;
-    font-family: var(--font-sans);
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-}
-.faq-q .arrow { color: var(--muted); font-size: 18px; transition: transform .2s; flex-shrink: 0; }
-.faq-item.open .faq-q .arrow { transform: rotate(45deg); }
-.faq-a { display: none; padding-bottom: 16px; font-size: 14px; color: var(--subtle); line-height: 1.65; }
-.faq-item.open .faq-a { display: block; }
-
-/* ════════════════════════════════════════
-   CTA BANNER
-   ════════════════════════════════════════ */
-.cta-banner {
-    position: relative;
-    background: linear-gradient(150deg, rgba(16,185,129,.1), rgba(13,162,113,.05));
-    border: 1px solid var(--border-hi);
-    border-radius: 24px;
-    padding: 60px 32px;
-    text-align: center;
-    max-width: 760px;
-    margin: 0 auto 88px;
-    overflow: hidden;
-}
-.cta-banner::before {
-    content: "";
-    position: absolute;
-    top: -80px; left: 50%;
-    transform: translateX(-50%);
-    width: 420px; height: 220px;
-    background: radial-gradient(ellipse at center, rgba(16,185,129,.14) 0%, transparent 70%);
-    pointer-events: none;
-}
-.cta-banner h2 { font-family: var(--font-display); font-size: clamp(24px, 4vw, 36px); font-weight: 580; font-variation-settings: 'opsz' 72; letter-spacing: -0.01em; margin-bottom: 12px; position: relative; }
-.cta-banner p { font-size: 15px; color: var(--subtle); margin-bottom: 28px; position: relative; }
-.cta-banner .hero-micro { margin-top: 14px; margin-bottom: 0; position: relative; }
-
-/* ════════════════════════════════════════
-   FOOTER
-   ════════════════════════════════════════ */
-footer {
-    border-top: 1px solid var(--border);
-    padding: 36px 24px;
-    text-align: center;
-    font-size: 13px;
-    color: var(--muted);
-}
-footer a { color: var(--muted); text-decoration: none; transition: color .15s; }
-footer a:hover { color: var(--subtle); }
-.footer-claim { font-size: 12px; color: var(--muted); margin-top: 10px; }
-
-/* ════════════════════════════════════════
-   STICKY MOBILE CTA
-   ════════════════════════════════════════ */
-#stickyCta {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    z-index: 90;
-    display: none;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
-    background: rgba(10,12,11,.94);
-    backdrop-filter: blur(14px);
-    border-top: 1px solid var(--border);
-    transform: translateY(100%);
-    transition: transform .35s var(--ease);
-}
-#stickyCta.show { transform: translateY(0); }
-#stickyCta .sc-price { font-size: 12px; color: var(--subtle); line-height: 1.4; flex: 1; }
-#stickyCta .sc-price strong { color: var(--text); font-size: 13px; display: block; }
-#stickyCta .btn-hero { padding: 11px 20px; font-size: 14px; border-radius: 10px; }
-@media (min-width: 681px) { #stickyCta { display: none !important; } }
-@media (max-width: 680px) { #stickyCta { display: flex; } }
-
-/* ════════════════════════════════════════
-   AUTH MODAL
-   ════════════════════════════════════════ */
-#authOverlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,.7);
-    backdrop-filter: blur(4px);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-}
-#authOverlay.open { display: flex; }
-#authBox {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 32px;
-    width: 100%;
-    max-width: 400px;
-    box-shadow: 0 32px 80px rgba(0,0,0,.7);
-    animation: fadeUp .2s ease;
-}
-@keyframes fadeUp { from { opacity:0; transform: translateY(16px); } to { opacity:1; transform: translateY(0); } }
-.auth-header { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
-.auth-header h2 { flex:1; font-size: 17px; font-weight: 700; }
-.auth-x { background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; padding:0; line-height:1; }
-.auth-tabs { display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:22px; }
-.auth-tab { flex:1; padding:8px; border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:13px; font-family:var(--font-sans); transition:.15s; }
-.auth-tab.active { background:var(--accent); color:#fff; font-weight:600; }
-.auth-lbl { display:block; font-size:11px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px; }
-.auth-inp {
-    width:100%; padding:10px 12px; border-radius:8px;
-    border:1px solid var(--border); background: var(--surface);
-    color:var(--text); font-size:14px; font-family:var(--font-sans); margin-bottom:12px; outline:none;
-    transition:border-color .15s;
-}
-.auth-inp:focus { border-color: var(--accent); }
-.auth-err { display:none; background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3); color:#f87171; border-radius:6px; padding:8px 12px; font-size:12px; margin-bottom:12px; }
-.auth-ok  { display:none; background:rgba(34,197,94,.1);  border:1px solid rgba(34,197,94,.3);  color:#4ade80; border-radius:6px; padding:8px 12px; font-size:12px; margin-bottom:12px; }
-.auth-sub {
-    width:100%; padding:11px; background:linear-gradient(135deg,var(--accent),var(--accent2));
-    color:#fff; border:none; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; font-family:var(--font-sans);
-    margin-bottom:12px; transition:opacity .15s;
-}
-.auth-sub:hover { opacity:.88; }
-.auth-sub:disabled { opacity:.5; cursor:default; }
-.auth-skip { background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; font-family:var(--font-sans); display:block; margin:0 auto; }
-.auth-skip:hover { color:var(--subtle); }
-.auth-note { text-align:center; font-size:11px; color:var(--muted); margin-top:14px; }
-
-/* ════════════════════════════════════════
-   LOADER
-   ════════════════════════════════════════ */
-#pageLoader {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: var(--bg);
-    z-index: 9999;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 16px;
-}
-#pageLoader.show { display: flex; }
-.loader-spin {
-    width: 40px; height: 40px;
-    border: 3px solid rgba(16,185,129,.25);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.loader-text { font-size: 14px; color: var(--muted); }
-
-/* ════════════════════════════════════════
-   RESPONSIVE
-   ════════════════════════════════════════ */
-@media (max-width: 980px) {
-    .bento { grid-template-columns: repeat(2, 1fr); }
-    .demo-shell { grid-template-columns: 1fr; }
-    .flow-grid { grid-template-columns: 1fr; }
-}
-@media (max-width: 640px) {
-    .nav-links { display: none; }
-    .mockup-stats { grid-template-columns: repeat(2,1fr); }
-    .hero-stats { gap: 22px; }
-    .mockup-chip { display: none; }
-    .bento { grid-template-columns: 1fr; }
-    .bento-card.wide { grid-column: span 1; }
-    .demo-stats { grid-template-columns: 1fr 1fr; }
-    section { padding: 64px 20px; }
-}
-</style>
+<link rel="stylesheet" href="css/landing.css">
 </head>
 <body>
 
@@ -1065,8 +58,8 @@ footer a:hover { color: var(--subtle); }
         <a href="#faq" class="nav-link">FAQ</a>
     </div>
     <div class="nav-actions">
-        <button class="btn-ghost" onclick="openAuth('login')">Anmelden</button>
-        <button class="btn-primary" onclick="openAuth('register')">14 Tage testen →</button>
+        <button class="btn-ghost" data-action="auth" data-mode="login">Anmelden</button>
+        <button class="btn-primary" data-action="auth" data-mode="register">14 Tage testen →</button>
     </div>
 </nav>
 
@@ -1086,7 +79,7 @@ footer a:hover { color: var(--subtle); }
     </p>
 
     <div class="hero-actions">
-        <button class="btn-hero" onclick="openAuth('register')">14 Tage kostenlos testen →</button>
+        <button class="btn-hero" data-action="auth" data-mode="register">14 Tage kostenlos testen →</button>
         <a href="#demo" class="btn-hero-ghost">Live-Demo ausprobieren ↓</a>
     </div>
     <div class="hero-micro">Keine Kreditkarte nötig · danach 15 €/Monat · jederzeit kündbar</div>
@@ -1264,13 +257,13 @@ footer a:hover { color: var(--subtle); }
             <p>Klick auf eine Buchung und schau dann ins Dashboard, in die EÜR oder ins GoBD-Protokoll: Alles aktualisiert sich sofort.</p>
 
             <div class="demo-presets">
-                <button class="demo-preset" type="button" onclick="demoAdd('Sneaker-Verkauf · Vinted', 89, 'in', 'Verkauf')">
+                <button class="demo-preset" type="button" data-action="demo-add" data-label="Sneaker-Verkauf · Vinted" data-amount="89" data-type="in" data-cat="Verkauf">
                     <span>+ Verkauf · Sneaker (Vinted)</span><span class="amt in">+ 89,00 €</span>
                 </button>
-                <button class="demo-preset" type="button" onclick="demoAdd('Rechnung RE-2026-043 bezahlt', 450, 'in', 'Dienstleistung')">
+                <button class="demo-preset" type="button" data-action="demo-add" data-label="Rechnung RE-2026-043 bezahlt" data-amount="450" data-type="in" data-cat="Dienstleistung">
                     <span>+ Rechnung bezahlt · Kunde</span><span class="amt in">+ 450,00 €</span>
                 </button>
-                <button class="demo-preset" type="button" onclick="demoAdd('Wareneinkauf · Secondhand-Laden', 34, 'out', 'Wareneinkauf')">
+                <button class="demo-preset" type="button" data-action="demo-add" data-label="Wareneinkauf · Secondhand-Laden" data-amount="34" data-type="out" data-cat="Wareneinkauf">
                     <span>− Wareneinkauf · bar (Eigenbeleg)</span><span class="amt out">− 34,00 €</span>
                 </button>
             </div>
@@ -1283,13 +276,13 @@ footer a:hover { color: var(--subtle); }
                         <option value="in">Einnahme</option>
                         <option value="out">Ausgabe</option>
                     </select>
-                    <button class="demo-book-btn" type="button" onclick="demoAddCustom()">Buchen</button>
+                    <button class="demo-book-btn" type="button" data-action="demo-custom">Buchen</button>
                 </div>
             </div>
 
             <p class="demo-hint">Das hier sind <strong>4 von 12 Modulen</strong>. In der echten App kommen Rechnungen, Lager, Fahrtenbuch, GbR, AfA, KSK, Statistiken und die Akademie dazu.</p>
 
-            <button class="btn-hero" onclick="openAuth('register')">Eigenes Konto starten →</button>
+            <button class="btn-hero" data-action="auth" data-mode="register">Eigenes Konto starten →</button>
         </aside>
     </div>
 </section>
@@ -1422,7 +415,7 @@ footer a:hover { color: var(--subtle); }
                 <li>EÜR &amp; USt-Voranmeldung vorbereitet</li>
                 <li>Akademie: Krankenversicherung &amp; Steuern erklärt</li>
             </ul>
-            <button class="persona-cta" onclick="openAuth('register')">Als Freelancer starten →</button>
+            <button class="persona-cta" data-action="auth" data-mode="register">Als Freelancer starten →</button>
         </div>
         <div class="persona-card dly-1" data-reveal>
             <div class="persona-icon"><svg class="ic"><use href="#i-users"/></svg></div>
@@ -1435,7 +428,7 @@ footer a:hover { color: var(--subtle); }
                 <li>Separate EÜR für jeden Partner</li>
                 <li>Gewerbesteuer &amp; Feststellung im Blick</li>
             </ul>
-            <button class="persona-cta" onclick="openAuth('register')">Als GbR starten →</button>
+            <button class="persona-cta" data-action="auth" data-mode="register">Als GbR starten →</button>
         </div>
         <div class="persona-card dly-2" data-reveal>
             <div class="persona-icon"><svg class="ic"><use href="#i-tag"/></svg></div>
@@ -1448,7 +441,7 @@ footer a:hover { color: var(--subtle); }
                 <li>Eigenbelege für Barkäufe ohne Quittung</li>
                 <li>Plattform-Statistiken: eBay, Vinted &amp; Co.</li>
             </ul>
-            <button class="persona-cta" onclick="openAuth('register')">Als Reseller starten →</button>
+            <button class="persona-cta" data-action="auth" data-mode="register">Als Reseller starten →</button>
         </div>
     </div>
 </section>
@@ -1610,8 +603,8 @@ footer a:hover { color: var(--subtle); }
 
         <!-- Billing toggle -->
         <div class="billing-toggle" role="group" aria-label="Abrechnungszeitraum wählen">
-            <button class="billing-btn billing-btn-active" id="billingMonthly" onclick="setBilling('monthly')" aria-pressed="true">Monatlich</button>
-            <button class="billing-btn" id="billingYearly" onclick="setBilling('yearly')" aria-pressed="false">Jährlich <span class="billing-save-badge">25% günstiger</span></button>
+            <button class="billing-btn billing-btn-active" id="billingMonthly" data-action="billing" data-plan="monthly" aria-pressed="true">Monatlich</button>
+            <button class="billing-btn" id="billingYearly" data-action="billing" data-plan="yearly" aria-pressed="false">Jährlich <span class="billing-save-badge">25% günstiger</span></button>
         </div>
     </div>
 
@@ -1630,7 +623,7 @@ footer a:hover { color: var(--subtle); }
                 <li><span class="check">✓</span> PDF &amp; Excel Export</li>
                 <li style="color:var(--muted);font-size:12px;padding-top:4px;">Nach 14 Tagen: Upgrade erforderlich</li>
             </ul>
-            <button class="btn-plan btn-plan-free" onclick="openAuth('register')">Jetzt 14 Tage testen →</button>
+            <button class="btn-plan btn-plan-free" data-action="auth" data-mode="register">Jetzt 14 Tage testen →</button>
         </div>
 
         <!-- PRO -->
@@ -1649,7 +642,7 @@ footer a:hover { color: var(--subtle); }
                 <li><span class="check">✓</span> PDF &amp; Excel Export</li>
                 <li><span class="check">✓</span> Prioritäts-Support</li>
             </ul>
-            <button class="btn-plan btn-plan-pro" id="proCtaBtn" onclick="openAuth('register')">Jetzt Pro starten →</button>
+            <button class="btn-plan btn-plan-pro" id="proCtaBtn" data-action="auth" data-mode="register">Jetzt Pro starten →</button>
         </div>
     </div>
 
@@ -1673,84 +666,84 @@ footer a:hover { color: var(--subtle); }
     <h2 class="section-title">Häufige Fragen</h2>
     <div class="faq-list">
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Kann ich die App kostenlos testen?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Ja! Du erhältst 14 Tage vollen Zugriff auf alle Features — komplett kostenlos und ohne Kreditkarte. Nach der Testphase kannst du für 15 €/Monat (inkl. MwSt.) oder 135 €/Jahr upgraden.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Wie kann ich kündigen?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Jederzeit mit einem Klick — keine Mindestlaufzeit, kein Kleingedrucktes. Nach der Kündigung behältst du den Pro-Zugang bis zum Ende des bezahlten Zeitraums.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Wo werden meine Daten gespeichert?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Deine Buchhaltungsdaten werden standardmäßig ausschließlich lokal auf deinem Gerät gespeichert (im Browser-Speicher) und verlassen es nicht. Optional kannst du als Pro-Nutzer einen Ende-zu-Ende-verschlüsselten Cloud-Sync aktivieren — dann werden nur für uns und den Anbieter unlesbare, verschlüsselte Daten bei einem EU-Anbieter (Frankfurt) abgelegt. Alle Datenschutzanforderungen der DSGVO werden eingehalten, und du kannst deine Daten jederzeit komplett exportieren.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Kann ich auf mehreren Geräten arbeiten?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Ja. Standardmäßig liegen deine Daten lokal auf dem jeweiligen Gerät. Als Pro-Nutzer kannst du zusätzlich den optionalen, Ende-zu-Ende-verschlüsselten Cloud-Sync aktivieren, der deine Daten automatisch zwischen deinen Geräten abgleicht — der Schlüssel bleibt dabei allein bei dir. Ohne Sync überträgst du Daten wie gewohnt per Export/Import.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Was passiert mit meinen lokalen Daten wenn ich mich anmelde?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Nichts geht verloren — deine lokalen Daten bleiben unverändert auf deinem Gerät. Der Login über Whop dient nur der Freischaltung; es werden keine Buchhaltungsdaten hochgeladen. Die App funktioniert vollständig offline.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Gibt es eine Desktop-App?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Stackr ist eine moderne Web-App, die in jedem aktuellen Browser (Chrome, Firefox, Edge, Safari) läuft — kein Download, keine Installation.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Ist Stackr GoBD-konform?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Ja. Stackr führt ein lückenloses GoBD-konformes Protokoll: Buchungen werden mit Zeitstempel, Vorher-/Nachher-Wert und Checksumme lückenlos protokolliert. Das Protokoll ist jederzeit exportierbar. Hinweis: Stackr ist ein Werkzeug — kein Ersatz für einen Steuerberater.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Brauche ich noch einen Steuerberater?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Stackr ersetzt keine Steuerberatung, macht sie aber günstiger. EÜR, USt-Voranmeldung und GoBD-Protokoll sind exportbereit — dein Steuerberater braucht weniger Zeit (= weniger Kosten). Viele Stackr-Nutzer übergeben ihrem Steuerberater einfach den XLSX-Export.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Funktioniert Stackr für meine GbR?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Ja — Stackr ist eines der wenigen Tools mit echter GbR-Unterstützung: Gesellschafter-Verrechnungskonten, automatische Gewinnverteilung und GoBD-konforme Jahresabrechnung für alle Partner. Ideal für Zweimannbetriebe und kleine Agenturen.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Was passiert mit meinen Daten wenn ich kündige?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Deine Daten gehören dir. Vor der Kündigung kannst du alles als XLSX, CSV oder ZIP exportieren. Nach Ablauf des Abonnements wird der Zugang zur App gesperrt, deine Daten bleiben aber erhalten und können nach einer Reaktivierung wieder genutzt werden.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Funktioniert Stackr als Kleinunternehmer (§19 UStG)?
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Ja. Stackr unterstützt die Kleinunternehmerregelung (§19 UStG) vollständig. Rechnungen werden ohne Mehrwertsteuerausweis mit dem korrekten gesetzlichen Hinweis erstellt, und die EÜR funktioniert identisch. Du kannst den Modus jederzeit in den Einstellungen aktivieren oder deaktivieren.</div>
         </div>
         <div class="faq-item">
-            <button class="faq-q" onclick="toggleFaq(this)">
+            <button class="faq-q" data-action="faq">
                 Kann ich Daten aus Excel oder einer anderen Software importieren?
                 <span class="arrow">+</span>
             </button>
@@ -1764,7 +757,7 @@ footer a:hover { color: var(--subtle); }
 <div class="cta-banner" data-reveal>
     <h2>Dein nächster Steuer-Abend<br>dauert 20 Minuten.</h2>
     <p>Starte jetzt — in 2 Minuten ist dein Konto eingerichtet, deine erste Buchung dauert 10 Sekunden.</p>
-    <button class="btn-hero" onclick="openAuth('register')">Jetzt 14 Tage kostenlos testen →</button>
+    <button class="btn-hero" data-action="auth" data-mode="register">Jetzt 14 Tage kostenlos testen →</button>
     <div class="hero-micro">Keine Kreditkarte · danach 15 €/Monat · jederzeit kündbar</div>
 </div>
 </div>
@@ -1779,7 +772,7 @@ footer a:hover { color: var(--subtle); }
 <!-- ═══════════════════ STICKY MOBILE CTA ═══════════════════ -->
 <div id="stickyCta" aria-hidden="true">
     <div class="sc-price"><strong>14 Tage kostenlos</strong>danach 15 €/Monat</div>
-    <button class="btn-hero" onclick="openAuth('register')">Jetzt testen →</button>
+    <button class="btn-hero" data-action="auth" data-mode="register">Jetzt testen →</button>
 </div>
 
 <!-- Auth-Modal entfernt: Anmeldung, Registrierung & Zahlung laufen vollständig über Whop in der App -->
@@ -1847,397 +840,8 @@ footer a:hover { color: var(--subtle); }
 <script src="js/cookie-banner.js"></script>
 
 <!-- ── Landing UI: Reveal, Counter, Demo, Pricing ── -->
-<script>
-(function () {
-    'use strict';
-
-    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    // ── Zahlformat (de-DE) ────────────────────
-    function fmtEur(n) {
-        return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-    }
-    function fmtInt(n) {
-        return Math.round(n).toLocaleString('de-DE');
-    }
-
-    // ── Scroll-Reveal ─────────────────────────
-    var revealEls = document.querySelectorAll('[data-reveal]');
-    if ('IntersectionObserver' in window && !reduceMotion) {
-        var ro = new IntersectionObserver(function (entries) {
-            entries.forEach(function (en) {
-                if (en.isIntersecting) {
-                    en.target.classList.add('vis');
-                    ro.unobserve(en.target);
-                }
-            });
-        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-        revealEls.forEach(function (el) { ro.observe(el); });
-    } else {
-        revealEls.forEach(function (el) { el.classList.add('vis'); });
-    }
-
-    // ── Hero-Counter ──────────────────────────
-    // setTimeout-Fallback garantiert den Endwert auch in Hintergrund-Tabs,
-    // wo requestAnimationFrame pausiert.
-    function countUp(el) {
-        var target = parseFloat(el.getAttribute('data-cnt'));
-        if (!isFinite(target)) { el.textContent = '0'; return; }
-        if (reduceMotion || document.hidden) { el.textContent = fmtInt(target); return; }
-        var start = null, dur = 1100, done = false;
-        function finish() { if (!done) { done = true; el.textContent = fmtInt(target); } }
-        function step(ts) {
-            if (done) return;
-            if (!start) start = ts;
-            var p = Math.min((ts - start) / dur, 1);
-            var eased = 1 - Math.pow(1 - p, 3);
-            if (p < 1) { el.textContent = fmtInt(target * eased); requestAnimationFrame(step); }
-            else finish();
-        }
-        requestAnimationFrame(step);
-        setTimeout(finish, dur + 200);
-    }
-    document.querySelectorAll('[data-cnt]').forEach(countUp);
-
-    // ── Hero-Glow Parallax (dezent) ───────────
-    var glow = document.getElementById('heroGlow');
-    if (glow && !reduceMotion) {
-        var ticking = false;
-        window.addEventListener('scroll', function () {
-            if (ticking) return;
-            ticking = true;
-            requestAnimationFrame(function () {
-                glow.style.transform = 'translateX(-50%) translateY(' + (window.scrollY * 0.18) + 'px)';
-                ticking = false;
-            });
-        }, { passive: true });
-    }
-
-    // ── Nav-Schatten beim Scrollen ────────────
-    var nav = document.getElementById('topnav');
-    window.addEventListener('scroll', function () {
-        nav.classList.toggle('scrolled', window.scrollY > 8);
-    }, { passive: true });
-
-    // ── Sticky Mobile CTA (nach dem Hero) ─────
-    var stickyCta = document.getElementById('stickyCta');
-    var heroEl = document.querySelector('.hero');
-    if (stickyCta && heroEl && 'IntersectionObserver' in window) {
-        var so = new IntersectionObserver(function (entries) {
-            stickyCta.classList.toggle('show', !entries[0].isIntersecting);
-            stickyCta.setAttribute('aria-hidden', String(entries[0].isIntersecting));
-        }, { threshold: 0 });
-        so.observe(heroEl);
-    }
-
-    /* ════════════════════════════════════════
-       LIVE-DEMO
-       ════════════════════════════════════════ */
-    var demo = {
-        nextId: 90,
-        // Basiswerte 2026 (vor den sichtbaren Buchungen unten)
-        baseIn: 11731.00,
-        baseWare: 3106.00,
-        baseKost: 1077.50,
-        bookings: [
-            { d: '03.06.', label: 'Nike Air Max 90 · Vinted',        amt: 89.00,  type: 'in',  cat: 'Verkauf' },
-            { d: '02.06.', label: 'Versandmaterial DHL',             amt: 12.50,  type: 'out', cat: 'Porto' },
-            { d: '01.06.', label: 'Logo-Design · RE-2026-041',       amt: 450.00, type: 'in',  cat: 'Dienstleistung' },
-            { d: '31.05.', label: 'Einkauf Secondhand-Laden',        amt: 34.00,  type: 'out', cat: 'Wareneinkauf' },
-            { d: '30.05.', label: 'Jordan 1 Mid · eBay',             amt: 210.00, type: 'in',  cat: 'Verkauf' }
-        ],
-        log: [
-            { t: '03.06. 14:22', text: 'Buchung B-2026-089 erstellt', op: 'create' },
-            { t: '02.06. 09:05', text: 'Rechnung RE-2026-041 als bezahlt markiert', op: 'update' },
-            { t: '31.05. 18:40', text: 'Buchung B-2026-087 storniert (Storno statt Löschen)', op: 'storno' }
-        ],
-        months: { lbls: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun'], vals: [1800, 2100, 1950, 2400, 2150, 2080] }
-    };
-
-    function demoTotals() {
-        var ein = demo.baseIn, ware = demo.baseWare, kost = demo.baseKost;
-        demo.bookings.forEach(function (b) {
-            if (b.type === 'in') ein += b.amt;
-            else if (b.cat === 'Wareneinkauf') ware += b.amt;
-            else kost += b.amt;
-        });
-        return { ein: ein, ware: ware, kost: kost, aus: ware + kost, win: ein - ware - kost };
-    }
-
-    function animateVal(el, from, to, fmt) {
-        if (reduceMotion || document.hidden || Math.abs(to - from) < 0.005) { el.textContent = fmt(to); return; }
-        var start = null, dur = 550, done = false;
-        function finish() { if (!done) { done = true; el.textContent = fmt(to); } }
-        function step(ts) {
-            if (done) return;
-            if (!start) start = ts;
-            var p = Math.min((ts - start) / dur, 1);
-            var eased = 1 - Math.pow(1 - p, 3);
-            if (p < 1) { el.textContent = fmt(from + (to - from) * eased); requestAnimationFrame(step); }
-            else finish();
-        }
-        requestAnimationFrame(step);
-        setTimeout(finish, dur + 150);
-    }
-
-    var demoPrev = { ein: 0, aus: 0, win: 0, ware: 0, kost: 0 };
-
-    function renderDemoStats(animate) {
-        var t = demoTotals();
-        var map = [
-            ['dsIn',   t.ein,  demoPrev.ein],
-            ['dsOut',  t.aus,  demoPrev.aus],
-            ['dsWin',  t.win,  demoPrev.win],
-            ['euIn',   t.ein,  demoPrev.ein],
-            ['euWare', t.ware, demoPrev.ware],
-            ['euKost', t.kost, demoPrev.kost],
-            ['euWin',  t.win,  demoPrev.win]
-        ];
-        map.forEach(function (m) {
-            var el = document.getElementById(m[0]);
-            if (!el) return;
-            var fmt = fmtEur;
-            if (m[0] === 'euWare' || m[0] === 'euKost') fmt = function (n) { return '− ' + fmtEur(n); };
-            if (animate) animateVal(el, m[2], m[1], fmt); else el.textContent = fmt(m[1]);
-        });
-        var marge = document.getElementById('dsMarge');
-        if (marge) marge.textContent = Math.round(t.win / t.ein * 100) + ' % Marge';
-        demoPrev = { ein: t.ein, aus: t.aus, win: t.win, ware: t.ware, kost: t.kost };
-    }
-
-    function renderDemoChart() {
-        var wrap = document.getElementById('demoChart');
-        if (!wrap) return;
-        wrap.innerHTML = '';
-        var max = Math.max.apply(null, demo.months.vals);
-        demo.months.lbls.forEach(function (lbl, i) {
-            var col = document.createElement('div');
-            col.className = 'demo-bar-col';
-            var bar = document.createElement('div');
-            bar.className = 'demo-bar';
-            bar.style.height = Math.max(8, Math.round(demo.months.vals[i] / max * 82)) + '%';
-            var l = document.createElement('div');
-            l.className = 'demo-bar-lbl';
-            l.textContent = lbl;
-            col.appendChild(bar);
-            col.appendChild(l);
-            wrap.appendChild(col);
-        });
-    }
-
-    function bookingRow(b, isNew) {
-        var row = document.createElement('div');
-        row.className = 'demo-row' + (isNew ? ' new' : '');
-        var date = document.createElement('span');
-        date.className = 'dr-date';
-        date.textContent = b.d;
-        var label = document.createElement('span');
-        label.className = 'dr-label';
-        label.textContent = b.label;
-        var amt = document.createElement('span');
-        amt.className = 'dr-amt ' + b.type;
-        amt.textContent = (b.type === 'in' ? '+ ' : '− ') + fmtEur(b.amt);
-        row.appendChild(date);
-        row.appendChild(label);
-        row.appendChild(amt);
-        return row;
-    }
-
-    function renderDemoList() {
-        var list = document.getElementById('demoList');
-        if (!list) return;
-        list.innerHTML = '';
-        demo.bookings.slice(0, 8).forEach(function (b) { list.appendChild(bookingRow(b, false)); });
-    }
-
-    function logRow(e, isNew) {
-        var row = document.createElement('div');
-        row.className = 'demo-log-row' + (isNew ? ' new' : '');
-        var t = document.createElement('span');
-        t.className = 'demo-log-time';
-        t.textContent = e.t;
-        var txt = document.createElement('span');
-        txt.className = 'demo-log-text';
-        txt.textContent = e.text;
-        var op = document.createElement('span');
-        op.className = 'demo-log-op ' + e.op;
-        op.textContent = e.op.toUpperCase();
-        row.appendChild(t);
-        row.appendChild(txt);
-        row.appendChild(op);
-        return row;
-    }
-
-    function renderDemoLog() {
-        var list = document.getElementById('demoLog');
-        if (!list) return;
-        list.innerHTML = '';
-        demo.log.slice(0, 7).forEach(function (e) { list.appendChild(logRow(e, false)); });
-    }
-
-    var toastTimer = null;
-    function demoToast(html) {
-        var t = document.getElementById('demoToast');
-        if (!t) return;
-        t.innerHTML = html;
-        t.classList.add('show');
-        if (toastTimer) clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2000);
-    }
-
-    function pad2(n) { return n < 10 ? '0' + n : '' + n; }
-
-    window.demoAdd = function (label, amt, type, cat) {
-        var now = new Date();
-        var b = {
-            d: pad2(now.getDate()) + '.' + pad2(now.getMonth() + 1) + '.',
-            label: label, amt: amt, type: type, cat: cat
-        };
-        demo.bookings.unshift(b);
-
-        // Chart: letzter Monat wächst bei Einnahmen
-        if (type === 'in') demo.months.vals[demo.months.vals.length - 1] += amt;
-
-        // GoBD-Log
-        var id = 'B-2026-' + pad2(demo.nextId++);
-        demo.log.unshift({
-            t: pad2(now.getDate()) + '.' + pad2(now.getMonth() + 1) + '. ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()),
-            text: 'Buchung ' + id + ' erstellt (' + cat + ')',
-            op: 'create'
-        });
-
-        renderDemoStats(true);
-        renderDemoChart();
-
-        var list = document.getElementById('demoList');
-        if (list) {
-            list.insertBefore(bookingRow(b, true), list.firstChild);
-            while (list.children.length > 8) list.removeChild(list.lastChild);
-        }
-        var logList = document.getElementById('demoLog');
-        if (logList) {
-            logList.insertBefore(logRow(demo.log[0], true), logList.firstChild);
-            while (logList.children.length > 7) logList.removeChild(logList.lastChild);
-        }
-
-        demoToast('<span class="ok">✓</span> ' + id + ' erfasst — GoBD-protokolliert');
-    };
-
-    window.demoAddCustom = function () {
-        var amtInp = document.getElementById('demoAmt');
-        var typeSel = document.getElementById('demoType');
-        var amt = parseFloat((amtInp.value || '').replace(',', '.'));
-        if (!isFinite(amt) || amt <= 0) {
-            amtInp.focus();
-            demoToast('Bitte gib einen Betrag größer 0 ein.');
-            return;
-        }
-        amt = Math.round(amt * 100) / 100;
-        var type = typeSel.value === 'out' ? 'out' : 'in';
-        window.demoAdd(type === 'in' ? 'Eigene Einnahme' : 'Eigene Ausgabe', amt, type, type === 'in' ? 'Verkauf' : 'Betriebsausgabe');
-        amtInp.value = '';
-    };
-
-    // Demo-Tabs
-    document.querySelectorAll('.demo-tab').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            document.querySelectorAll('.demo-tab').forEach(function (b) { b.setAttribute('aria-selected', 'false'); });
-            btn.setAttribute('aria-selected', 'true');
-            document.querySelectorAll('.demo-view').forEach(function (v) { v.hidden = true; });
-            var view = document.getElementById('dv-' + btn.dataset.view);
-            if (view) view.hidden = false;
-        });
-    });
-
-    // Demo: Enter im Betragsfeld bucht
-    var demoAmtInp = document.getElementById('demoAmt');
-    if (demoAmtInp) {
-        demoAmtInp.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') window.demoAddCustom();
-        });
-    }
-
-    // Demo initial rendern
-    renderDemoStats(false);
-    renderDemoChart();
-    renderDemoList();
-    renderDemoLog();
-
-    /* ════════════════════════════════════════
-       PRICING TOGGLE
-       ════════════════════════════════════════ */
-    window.setBilling = function (mode) {
-        var isYearly = mode === 'yearly';
-        document.getElementById('billingMonthly').classList.toggle('billing-btn-active', !isYearly);
-        document.getElementById('billingMonthly').setAttribute('aria-pressed', String(!isYearly));
-        document.getElementById('billingYearly').classList.toggle('billing-btn-active', isYearly);
-        document.getElementById('billingYearly').setAttribute('aria-pressed', String(isYearly));
-
-        var priceEl  = document.getElementById('proPrice');
-        var periodEl = document.getElementById('proPricePeriod');
-        var descEl   = document.getElementById('proDesc');
-        var ctaBtn   = document.getElementById('proCtaBtn');
-
-        if (isYearly) {
-            priceEl.childNodes[0].textContent = '11,25 € ';
-            periodEl.textContent = '/ Monat';
-            descEl.textContent   = 'Abgerechnet jährlich (135 €) · Du sparst 45 € · inkl. MwSt.';
-            ctaBtn.textContent   = 'Jetzt Pro (jährlich) starten →';
-        } else {
-            priceEl.childNodes[0].textContent = '15,00 € ';
-            periodEl.textContent = '/ Monat';
-            descEl.textContent   = 'inkl. MwSt. · Jederzeit kündbar';
-            ctaBtn.textContent   = 'Jetzt Pro starten →';
-        }
-    };
-
-    /* ════════════════════════════════════════
-       FAQ
-       ════════════════════════════════════════ */
-    window.toggleFaq = function (btn) {
-        var item = btn.closest('.faq-item');
-        var isOpen = item.classList.contains('open');
-        document.querySelectorAll('.faq-item.open').forEach(function (i) { i.classList.remove('open'); });
-        if (!isOpen) item.classList.add('open');
-    };
-})();
-</script>
 
 <!-- ── Auth / Whop ── -->
-<script>
-(function () {
-    'use strict';
-
-    var APP_URL = 'app.html';   // Haupt-App; Anmeldung, Registrierung & Zahlung laufen dort über Whop (OAuth)
-
-    function showLoader(msg) {
-        document.getElementById('loaderText').textContent = msg || 'Wird geladen...';
-        document.getElementById('pageLoader').classList.add('show');
-    }
-
-    // ── Bereits über Whop angemeldet? → CTAs auf "Zur App" umstellen ──
-    function checkExistingSession() {
-        try {
-            if (!localStorage.getItem('whop_access_token')) return;
-        } catch (e) { return; }
-        var btns = document.querySelectorAll('.btn-hero, .btn-plan-free, .btn-plan-pro');
-        btns.forEach(function(btn) {
-            btn.textContent = 'Zur App →';
-            btn.onclick = function() {
-                showLoader('App wird geöffnet...');
-                window.location.href = APP_URL;
-            };
-        });
-    }
-
-    // Alle CTAs leiten direkt zur App — Login/Registrierung läuft dort über Whop
-    window.openAuth = function () {
-        showLoader('Weiter zur Anmeldung...');
-        window.location.href = APP_URL;
-    };
-
-    checkExistingSession();
-})();
-</script>
+<script defer src="js/landing.js"></script>
 </body>
 </html>

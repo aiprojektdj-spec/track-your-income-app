@@ -114,10 +114,10 @@ const Afa = {
                 <td style="text-align:center;font-size:11px;color:var(--text-muted)">${fertigJahr}</td>
                 <td>
                     ${Store.isPeriodLocked(a.anschaffungsdatum)
-                        ? `<span title="Jahr festgeschrieben — nur Storno möglich" style="font-size:11px;opacity:.7;">🔒</span>
-                           <button class="btn btn-sm btn-danger" onclick="Afa._stornoAnlage('${a.id}')">🗑️</button>`
-                        : `<button class="btn btn-sm" onclick="Afa._editAnlage('${a.id}')">✏️</button>
-                           <button class="btn btn-sm btn-danger" onclick="Afa._stornoAnlage('${a.id}')">🗑️</button>`}
+                        ? `<span title="Jahr festgeschrieben — nur Storno möglich" style="font-size:11px;opacity:.7;"><i class="ti ti-lock"></i></span>
+                           <button class="btn btn-sm btn-danger" onclick="Afa._stornoAnlage('${a.id}')" title="Stornieren"><i class="ti ti-trash"></i></button>`
+                        : `<button class="btn btn-sm" onclick="Afa._editAnlage('${a.id}')" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
+                           <button class="btn btn-sm btn-danger" onclick="Afa._stornoAnlage('${a.id}')" title="Stornieren"><i class="ti ti-trash"></i></button>`}
                 </td>
             </tr>`;
         }).join('');
@@ -132,7 +132,7 @@ const Afa = {
 
         return `
         <div class="page-header">
-            <h2>📉 AfA – Abschreibungen</h2>
+            <h2>AfA – Abschreibungen</h2>
             <div class="page-header-actions no-print">
                 <select class="form-select" id="afaYear" style="width:100px;">${yearOptions}</select>
                 <button class="btn" onclick="Afa._exportCSV()">CSV Export</button>
@@ -228,7 +228,7 @@ const Afa = {
         const today = Utils.todayISO();
 
         App.showModal(`
-            <h3 style="margin:0 0 16px;">${isEdit ? '✏️ Anlage bearbeiten' : '➕ Neue Anlage erfassen'}</h3>
+            <h3 style="margin:0 0 16px;">${isEdit ? 'Anlage bearbeiten' : '+ Neue Anlage erfassen'}</h3>
             <div class="form-group">
                 <label class="form-label">Bezeichnung *</label>
                 <input type="text" class="form-input" id="afa_bez" value="${Utils.escapeHtml(existing.bezeichnung || '')}" placeholder="z.B. Laptop, Kamera, PKW ...">
@@ -263,7 +263,7 @@ const Afa = {
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
                 <button class="btn" onclick="App.closeModal()">Abbrechen</button>
-                <button class="btn btn-primary" onclick="Afa._saveForm('${existing.id || ''}')">💾 Speichern</button>
+                <button class="btn btn-primary" onclick="Afa._saveForm('${existing.id || ''}')">Speichern</button>
             </div>
         `);
     },

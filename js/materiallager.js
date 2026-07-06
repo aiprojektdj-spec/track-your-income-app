@@ -36,7 +36,7 @@ const Materiallager = {
 
         return `
             <div class="page-header">
-                <h2>📦 Materiallager</h2>
+                <h2>Materiallager</h2>
                 <div class="page-header-actions no-print">
                     <button class="btn" id="mlExportCSV">📥 CSV Export</button>
                 </div>

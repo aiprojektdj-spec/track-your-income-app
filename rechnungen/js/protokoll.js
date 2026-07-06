@@ -126,7 +126,7 @@ var RechProtokoll = (function() {
                     body += '<pre class="audit-json">' + Utils.escapeHtml(JSON.stringify(entry.newValues, null, 2)) + '</pre></div>';
                 }
                 body += '</div>';
-                RechApp.showModal('Protokoll-Detail', body, '<button class="btn" onclick="RechApp.closeModal()">Schliessen</button>');
+                RechApp.showModal('Protokoll-Detail', body, '<button class="btn" data-action="rech-close-modal">Schliessen</button>');
             });
         });
 

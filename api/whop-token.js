@@ -2,13 +2,39 @@
 // Client secret stays server-side; never exposed to the browser.
 // Env var required: WHOP_CLIENT_SECRET
 
+var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
+var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
+var RATE_MAX    = 8; // Requests pro Minute pro IP — Login passiert nicht öfter als 1-2x/min, 8 lässt Retry-Spielraum, bremst Flood/Scan-Versuche stärker
+
+function redisCmd(cmd) {
+    return fetch(REDIS_URL, {
+        method:  'POST',
+        headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' },
+        body:    JSON.stringify(cmd),
+        signal:  AbortSignal.timeout(8000)
+    }).then(function (r) { return r.json(); }).then(function (j) { return j ? j.result : null; });
+}
+
 module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', 'https://track-your-income-app.vercel.app');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Cache-Control', 'no-store');
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST')    return res.status(405).json({ error: 'Method not allowed' });
+
+    if (REDIS_URL && REDIS_TOKEN) {
+        try {
+            var ip    = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
+            var rlKey = 'whoptoken:rl:' + ip;
+            var count = await redisCmd(['INCR', rlKey]);
+            if (count === 1) await redisCmd(['EXPIRE', rlKey, '60']);
+            if (count > RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
+        } catch (e) {
+            console.error('[whop-token] rate-limit error:', e); // nicht blockierend
+        }
+    }
 
     var code         = req.body && req.body.code;
     var codeVerifier = req.body && req.body.code_verifier;
@@ -43,10 +69,7 @@ module.exports = async function handler(req, res) {
 
         if (!tokenRes.ok) {
             console.error('[whop-token] Token exchange failed:', JSON.stringify(data));
-            return res.status(400).json({
-                error:             data.error || 'Token exchange failed',
-                error_description: data.error_description || null,
-            });
+            return res.status(400).json({ error: 'invalid_grant' });
         }
 
         return res.status(200).json({ access_token: data.access_token });

@@ -28,7 +28,7 @@ var WHOP_APP_ID  = process.env.WHOP_APP_ID || 'app_dc3OND8eGv2Iim';
 var OWNERS       = (process.env.SYNC_OWNER_USERNAMES || 'secondlifevintage41')
                        .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 
-var RATE_MAX     = 120;            // Requests pro Minute pro Nutzer
+var RATE_MAX     = 40;             // Requests pro Minute pro Nutzer (Push ist 6s-debounced, 40 deckt Firmenwechsel+Retries komfortabel)
 var MAX_CIPHER   = 8 * 1024 * 1024; // 8 MB base64-Chiffrat pro Scope
 var SCOPE_RE     = /^(__account|co_[a-z0-9_]+)$/;
 
@@ -64,6 +64,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', 'https://track-your-income-app.vercel.app');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Cache-Control', 'no-store');
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST')    return res.status(405).json({ error: 'method_not_allowed' });
@@ -159,6 +160,12 @@ module.exports = async function handler(req, res) {
             }
             // Konflikt: aktueller Server-Stand zurück → Client merged & retried
             return res.status(409).json({ error: 'version_conflict', blob: result ? JSON.parse(result) : null });
+        }
+
+        if (action === 'delete') {
+            // Art. 17 DSGVO — löscht den verschlüsselten Snapshot dieses Scopes unwiderruflich.
+            await redisCmd(['DEL', key]);
+            return res.status(200).json({ ok: true });
         }
 
         return res.status(400).json({ error: 'bad_action' });

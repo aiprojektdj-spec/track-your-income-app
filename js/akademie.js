@@ -1777,7 +1777,7 @@ const Akademie = {
         { id: 'sammler_500',     icon: '🏬', title: 'Lager-Profi (500)',       desc: 'Beachtlich! 500 Artikel im aktiven Lagerbestand.',       tier: 'gold',   check: d => d.activeStock >= 500 },
         { id: 'umsatz_1k',       icon: '💵', title: '1.000 € Umsatz',          desc: 'Der erste Vier-Stellige-Umsatz ist da.',                  tier: 'silver', check: d => d.totalRevenue >= 1000 },
         { id: 'umsatz_5k',       icon: '💸', title: '5.000 € Umsatz',          desc: 'Du machst ernst. 5.000 € Umsatz erreicht.',              tier: 'gold',   check: d => d.totalRevenue >= 5000 },
-        { id: 'umsatz_22k',      icon: '👑', title: 'Kleinunternehmer-Limit',  desc: 'Achtung: Du kratzt an der 22k-Grenze (§19 UStG).',       tier: 'gold',   check: d => d.totalRevenue >= 22000 },
+        { id: 'umsatz_22k',      icon: '👑', title: 'Kleinunternehmer-Limit',  desc: 'Achtung: Du kratzt an der 25.000-€-Grenze (§19 UStG).', tier: 'gold',   check: d => d.totalRevenue >= 22000 },
         { id: 'invoice_first',   icon: '🧾', title: 'Erste Rechnung',          desc: 'Du hast eine Rechnung im Rechnungsbuch erstellt.',       tier: 'bronze', check: d => d.invoices >= 1 },
         { id: 'eur_export',      icon: '📋', title: 'Steuer-Bewusst',          desc: 'Du hast deine erste EÜR exportiert / gedruckt.',         tier: 'silver', check: d => d.flags.eurExported },
         { id: 'backup_hero',     icon: '💾', title: 'Backup-Held',             desc: 'Dein erstes Backup ist gespeichert. Schlauer Move!',     tier: 'bronze', check: d => d.flags.hasBackup },
@@ -2058,22 +2058,22 @@ const Akademie = {
         // ── KPI cards ────────────────────────────────────────────────────
         const kpiCards = `
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;">
-            <div class="card stat-card info" style="border-left:3px solid #3b82f6;">
+            <div class="card stat-card info">
                 <div class="card-label"><i class="ti ti-book" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Lern-Fortschritt</div>
                 <div class="card-value">${readPercent}%</div>
                 <div class="card-subtitle">${progress.completedLessons.length} / ${totalLessons} Lektionen</div>
             </div>
-            <div class="card stat-card success" style="border-left:3px solid var(--success);">
+            <div class="card stat-card success">
                 <div class="card-label"><i class="ti ti-trophy" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Achievements</div>
                 <div class="card-value">${unlockedCount} / ${totalAchievements}</div>
                 <div class="card-subtitle">${totalAchievements > 0 ? Math.round(unlockedCount/totalAchievements*100) : 0}% freigeschaltet</div>
             </div>
-            <div class="card stat-card" style="border-left:3px solid var(--accent);">
+            <div class="card stat-card">
                 <div class="card-label"><i class="ti ti-package" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Aktiver Lagerbestand</div>
                 <div class="card-value">${data.activeStock ?? 0}</div>
                 <div class="card-subtitle">verfügbare Artikel</div>
             </div>
-            <div class="card stat-card warning" style="border-left:3px solid #f59e0b;">
+            <div class="card stat-card warning">
                 <div class="card-label"><i class="ti ti-cash" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Gesamt-Umsatz</div>
                 <div class="card-value">${Utils.formatCurrency(data.totalRevenue)}</div>
                 <div class="card-subtitle">${(data.sales || []).length} Verkäufe</div>

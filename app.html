@@ -5,15 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Gate: Whop OAuth callback (?code=) oder gespeichertes Token → durch -->
     <!-- WhopAuth.boot() übernimmt Login-Logik nach Script-Load -->
-    <script>
-    (function(){
-        // OAuth-Callback immer durchlassen
-        if (new URLSearchParams(location.search).get('code')) return;
-        // Gespeichertes Whop-Token → App normal laden, WhopAuth.boot() validiert
-        // Kein Token → WhopAuth.boot() zeigt Login-Screen (kein Redirect nötig)
-    })();
-    </script>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com; frame-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com; frame-src 'none';">
 
     <!-- ── Resource Hints: faster CDN connections ── -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -185,6 +177,9 @@
                 <div class="sidebar-link" data-page="vorsteuer">
                     <span class="icon"><i class="ti ti-receipt-tax"></i></span><span class="sidebar-link-label"> Vorsteuer</span>
                 </div>
+                <div class="sidebar-link" data-page="oss">
+                    <span class="icon"><i class="ti ti-world"></i></span><span class="sidebar-link-label"> OSS (EU-Fernverkauf)</span>
+                </div>
                 <div class="sidebar-link" data-page="koerperschaftsteuer" id="kstSidebarLink" style="display:none;">
                     <span class="icon"><i class="ti ti-building-bank"></i></span><span class="sidebar-link-label"> Körperschaftsteuer</span>
                 </div>
@@ -260,12 +255,6 @@
                     </div>
                     <div style="height:240px;background:var(--surface,#101312);border-radius:12px;animation:skeletonPulse 1.4s ease-in-out infinite .4s;"></div>
                 </div>
-                <style>
-                @keyframes skeletonPulse {
-                    0%,100% { opacity:.5; }
-                    50%      { opacity:1; }
-                }
-                </style>
             </div>
         </main>
     </div>
@@ -321,6 +310,7 @@
     <script defer src="js/ksk.js"></script>
     <script defer src="js/rechtsform.js"></script>
     <script defer src="js/vorsteuer.js"></script>
+    <script defer src="js/oss.js"></script>
     <script defer src="js/koerperschaftsteuer.js"></script>
     <script defer src="js/bilanz.js"></script>
     <script defer src="js/gewerbesteuer.js"></script>
@@ -356,71 +346,7 @@
     <script defer src="js/app.js?v=2"></script>
     <script defer src="js/cloud-sync.js"></script>
 
-    <script>
-        // ── Mark active tool tab based on ?page= param ──
-        (function() {
-            const page = new URLSearchParams(location.search).get('page');
-            const tabIds = {
-                euer: 'toolTabEuer', akademie: 'toolTabAkademie', gbr: 'toolTabGbr',
-                schweiz: 'toolTabSchweiz', oesterreich: 'toolTabOesterreich',
-                // Finanzen-Modul: alle transaktionalen Seiten teilen sich einen Tab
-                rechnungen: 'toolTabFinanzen', eigenbelege: 'toolTabFinanzen',
-                buchungen: 'toolTabFinanzen', ausgaben: 'toolTabFinanzen', bankimport: 'toolTabFinanzen',
-                fahrtenbuch: 'toolTabFinanzen', afa: 'toolTabFinanzen'
-            };
-            const tabId = tabIds[page];
-            if (tabId) {
-                document.querySelector('.topnav-apps .tool-tab.active')?.classList.remove('active');
-                document.getElementById(tabId)?.classList.add('active');
-            }
-        })();
-
-        // ── Sidebar toggle button ──
-        (function() {
-            const btn     = document.getElementById('sidebarToggleBtn');
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobileOverlay');
-
-            function openSidebar() {
-                sidebar.classList.add('sidebar-open');
-                btn.classList.add('sidebar-open');
-                btn.textContent = '‹';
-                btn.title = 'Navigation schließen';
-                btn.setAttribute('aria-expanded', 'true');
-                btn.setAttribute('aria-label', 'Navigation schließen');
-                overlay.classList.add('active');
-            }
-
-            function closeSidebar() {
-                sidebar.classList.remove('sidebar-open');
-                btn.classList.remove('sidebar-open');
-                btn.textContent = '›';
-                btn.title = 'Navigation öffnen';
-                btn.setAttribute('aria-expanded', 'false');
-                btn.setAttribute('aria-label', 'Navigation öffnen');
-                overlay.classList.remove('active');
-            }
-
-            btn.addEventListener('click', function() {
-                if (sidebar.classList.contains('sidebar-open')) {
-                    closeSidebar();
-                } else {
-                    openSidebar();
-                }
-            });
-
-            // Click overlay → close sidebar
-            overlay.addEventListener('click', closeSidebar);
-
-            // Click a sidebar link → close sidebar (optional, nice UX)
-            sidebar.querySelectorAll('.sidebar-link').forEach(function(link) {
-                link.addEventListener('click', function() {
-                    // Small delay so the page transition feels smoother
-                    setTimeout(closeSidebar, 150);
-                });
-            });
-        })();
-    </script>
+    <script src="js/page-shell.js"></script>
 
 </body>
 </html>

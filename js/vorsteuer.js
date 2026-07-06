@@ -5,6 +5,8 @@
 // ============================================
 const Vorsteuer = {
 
+    EU_LAENDER: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'],
+
     _year:  new Date().getFullYear(),
     _month: null,  // null = Jahresübersicht
     _tab:   'uebersicht',
@@ -615,7 +617,7 @@ const Vorsteuer = {
 
     _openIgModal() {
         const today = new Date().toISOString().slice(0, 10);
-        const euLaender = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'];
+        const euLaender = Vorsteuer.EU_LAENDER;
 
         App.showModal('Innergemeinschaftlichen Erwerb erfassen', `
             <div style="display:flex;flex-direction:column;gap:14px;">

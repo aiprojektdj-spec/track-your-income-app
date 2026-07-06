@@ -117,7 +117,7 @@ var Mahnungen = (function() {
         body += '<div class="form-group"><label class="form-label">Mahngeb\u00FChr (\u20AC)</label>';
         body += '<input class="form-input" type="number" step="0.01" min="0" id="mahnGebuehr" value="' + (nextLevel === 1 ? '0' : nextLevel === 2 ? '5' : '10') + '"></div>';
 
-        var footer = '<button class="btn btn-warning" id="mahnSave">Mahnung erstellen</button> <button class="btn" onclick="RechApp.closeModal()">Abbrechen</button>';
+        var footer = '<button class="btn btn-warning" id="mahnSave">Mahnung erstellen</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
         RechApp.showModal('Mahnung erstellen', body, footer);
 
         document.getElementById('mahnSave').addEventListener('click', function() {

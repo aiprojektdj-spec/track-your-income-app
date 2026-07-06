@@ -235,7 +235,7 @@ function renderDashboard() {
     document.getElementById('content').innerHTML = `
         <div class="page-header">
             <h2><i class="ti ti-layout-dashboard" style="margin-right:6px;opacity:.8"></i>Dashboard</h2>
-            <button class="btn btn-primary" onclick="navigate('neu')"><i class="ti ti-plus"></i> Neuer Eigenbeleg</button>
+            <button class="btn btn-primary" data-action="eb-navigate" data-page="neu"><i class="ti ti-plus"></i> Neuer Eigenbeleg</button>
         </div>
 
         <div class="eb-warning-box" style="margin-bottom:20px">
@@ -293,7 +293,7 @@ function renderDashboard() {
         <div class="card" style="padding:18px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
                 <div class="card-section-title" style="margin:0;border:none;padding:0">Letzte Eigenbelege</div>
-                <button class="btn btn-secondary btn-sm" onclick="navigate('alle')">Alle anzeigen →</button>
+                <button class="btn btn-secondary btn-sm" data-action="eb-navigate" data-page="alle">Alle anzeigen →</button>
             </div>
             ${letzte.length ? `
             <div style="overflow-x:auto">
@@ -310,11 +310,11 @@ function renderDashboard() {
                         <td style="white-space:nowrap">${datum(b.belegDatum)}</td>
                         <td>${esc(vName)}</td>
                         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.zweck||'—')}</td>
-                        <td><span class="badge" style="background:${k.farbe}22;color:${k.farbe}">${k.name}</span></td>
+                        <td><span class="badge" style="background:${k.farbe}22;color:${k.farbe}">${esc(k.name)}</span></td>
                         <td style="text-align:right;font-weight:600">${euro(b.betragBrutto)}</td>
                         <td style="white-space:nowrap">
-                            <button class="action-btn" onclick="viewBeleg('${b.id}')" title="Ansehen"><i class="ti ti-eye"></i></button>
-                            <button class="action-btn action-btn-accent" onclick="editBeleg('${b.id}')" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
+                            <button class="action-btn" data-action="eb-view" data-id="${b.id}" title="Ansehen"><i class="ti ti-eye"></i></button>
+                            <button class="action-btn action-btn-accent" data-action="eb-edit" data-id="${b.id}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
                         </td>
                     </tr>`;
                 }).join('')}
@@ -324,7 +324,7 @@ function renderDashboard() {
             <div style="text-align:center;padding:32px;color:var(--text-muted)">
                 <div style="margin-bottom:10px"><i class="ti ti-receipt" style="font-size:40px;opacity:.35;"></i></div>
                 Noch keine Eigenbelege vorhanden.<br><br>
-                <button class="btn btn-primary" onclick="navigate('neu')">Ersten Eigenbeleg erstellen</button>
+                <button class="btn btn-primary" data-action="eb-navigate" data-page="neu">Ersten Eigenbeleg erstellen</button>
             </div>`}
         </div>`;
 
@@ -389,9 +389,9 @@ function renderWarenPosTable() {
     const chipHtml = produkte.length ? `
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">
             <span style="font-size:11px;font-weight:600;color:var(--text-muted)">Vorlage:</span>
-            ${produkte.map(p=>`
+            ${produkte.map((p,pi)=>`
                 <button type="button" class="btn btn-small" style="border-color:var(--accent);color:var(--accent-light);"
-                    onclick="applyProduktVorlage(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+                    data-action="eb-apply-vorlage" data-idx="${pi}">
                     ${esc(p.name)}${p.standardPreis ? ' · '+euro(p.standardPreis) : ''}
                 </button>`).join('')}
         </div>` : '';
@@ -399,15 +399,15 @@ function renderWarenPosTable() {
     const rows = _warenPos.map((p, i) => {
         const gesamt = (parseFloat(p.menge)||0) * (parseFloat(p.einzelpreis)||0);
         const lagerBadge = p.lagerArtikelId
-            ? `<span style="font-size:10px;font-family:monospace;color:var(--info);font-weight:700;cursor:pointer" onclick="clearLagerLink(${i})" title="Verknüpfung aufheben: Klicken zum Entfernen">🔗 ${esc(p.artikelNr||'Lager')} ✕</span>`
-            : `<button type="button" class="btn btn-small" onclick="showLagerAuswahl(${i})" style="font-size:11px;padding:2px 7px;" title="Bestehenden Lagerartikel verknüpfen">🔗 Lager</button>`;
+            ? `<span style="font-size:10px;font-family:monospace;color:var(--info);font-weight:700;cursor:pointer" data-action="eb-clear-lager" data-idx="${i}" title="Verknüpfung aufheben: Klicken zum Entfernen">🔗 ${esc(p.artikelNr||'Lager')} ✕</span>`
+            : `<button type="button" class="btn btn-small" data-action="eb-show-lager" data-idx="${i}" style="font-size:11px;padding:2px 7px;" title="Bestehenden Lagerartikel verknüpfen">🔗 Lager</button>`;
         return `<tr data-idx="${i}">
             <td><input class="form-control wp-artikel" data-idx="${i}" value="${esc(p.artikel)}" placeholder="Artikelbezeichnung"></td>
             <td style="width:70px"><input class="form-control wp-menge" type="number" min="0.01" step="0.01" data-idx="${i}" value="${p.menge||1}"></td>
             <td style="width:110px"><input class="form-control wp-preis" type="number" step="0.01" min="0" data-idx="${i}" value="${p.einzelpreis||''}" placeholder="0,00"></td>
             <td style="width:90px;text-align:right;font-weight:600;color:var(--accent-light)">${gesamt > 0 ? euro(gesamt) : '—'}</td>
             <td style="width:120px">${lagerBadge}</td>
-            <td style="width:36px;text-align:center">${_warenPos.length > 1 ? `<button type="button" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;line-height:1" onclick="removeWarenPos(${i})">✕</button>` : ''}</td>
+            <td style="width:36px;text-align:center">${_warenPos.length > 1 ? `<button type="button" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;line-height:1" data-action="eb-remove-pos" data-idx="${i}">✕</button>` : ''}</td>
         </tr>`;
     }).join('');
 
@@ -489,7 +489,7 @@ async function showLagerAuswahl(idx) {
         return;
     }
     const rows = artikel.map(a => `
-        <tr style="cursor:pointer" onclick="selectLagerArtikel(${idx},'${a.id}');closeModal()">
+        <tr style="cursor:pointer" data-action="eb-select-lager" data-idx="${idx}" data-id="${a.id}">
             <td><span style="font-family:monospace;font-size:11px;font-weight:700;color:var(--info)">${esc(a.artikelNr||'—')}</span></td>
             <td><strong>${esc(a.marke||'')}</strong> ${esc(a.artikeltyp||'')}</td>
             <td>${esc(a.groesse||'—')}</td>
@@ -498,7 +498,7 @@ async function showLagerAuswahl(idx) {
             <td><span style="font-size:11px;color:var(--success)">${a.status==='verfuegbar'?'● Verfügbar':'◐ Reserviert'}</span></td>
         </tr>`).join('');
     document.getElementById('modal').innerHTML = `
-        <div class="modal-header"><h3><i class="ti ti-link"></i> Lager-Artikel verknüpfen</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+        <div class="modal-header"><h3><i class="ti ti-link"></i> Lager-Artikel verknüpfen</h3><button class="modal-close" data-action="eb-close">✕</button></div>
         <div class="modal-body" style="padding:0">
             <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-muted)">
                 Klicke auf einen Artikel um ihn mit Position ${idx+1} zu verknüpfen.
@@ -521,7 +521,7 @@ async function showLagerAuswahl(idx) {
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn" onclick="closeModal()">Abbrechen</button>
+            <button class="btn" data-action="eb-close">Abbrechen</button>
         </div>`;
     openModal();
 }
@@ -571,7 +571,7 @@ function renderNeu(editId=null) {
             <div style="font-size:13px;color:var(--text-muted)">Nr.: <strong style="font-family:monospace">${esc(previewId)}</strong></div>
         </div>
 
-        <form id="ebForm" onsubmit="saveBeleg(event,'${editId||''}')">
+        <form id="ebForm" data-action="eb-save-beleg" data-edit-id="${editId||''}">
 
         <!-- Grunddaten -->
         <div class="card" style="padding:18px;margin-bottom:14px">
@@ -595,7 +595,7 @@ function renderNeu(editId=null) {
                     <label class="form-label">Kategorie *</label>
                     <select class="form-control" id="eb-kat" required>
                         <option value="" disabled ${!b?.kategorie?'selected':''}>Wählen…</option>
-                        ${kat.map(k=>`<option value="${k.id}" ${b?.kategorie===k.id?'selected':''}>${k.name}</option>`).join('')}
+                        ${kat.map(k=>`<option value="${k.id}" ${b?.kategorie===k.id?'selected':''}>${esc(k.name)}</option>`).join('')}
                     </select>
                 </div>
             </div>
@@ -606,7 +606,7 @@ function renderNeu(editId=null) {
             <div class="card-section-title"><i class="ti ti-package"></i> Positionen <span style="font-weight:400;color:var(--text-muted);font-size:12px">– mind. eine Artikelbezeichnung</span></div>
             <div id="warenPosContainer">${renderWarenPosTable()}</div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="addWarenPos()"><i class="ti ti-plus"></i> Position hinzufügen</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-action="eb-add-pos"><i class="ti ti-plus"></i> Position hinzufügen</button>
                 <div style="font-size:13px">Gesamt: <strong id="warenGesamt" style="color:var(--accent-light);font-size:15px">—</strong></div>
             </div>
         </div>
@@ -618,11 +618,11 @@ function renderNeu(editId=null) {
                 <div class="form-group">
                     <label class="form-label">Bruttobetrag * (€)</label>
                     <input class="form-control" type="number" step="0.01" min="0" id="eb-brutto"
-                        value="${b?.betragBrutto||''}" placeholder="0,00" oninput="recalcBetrag()" required>
+                        value="${b?.betragBrutto||''}" placeholder="0,00" data-action="eb-recalc" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">MwSt-Satz</label>
-                    <select class="form-control" id="eb-mwst" onchange="recalcBetrag()">
+                    <select class="form-control" id="eb-mwst" data-action="eb-recalc">
                         <option value="0"  ${defMwst===0 ?'selected':''}>0 % (Kleinunternehmer §19)</option>
                         <option value="7"  ${defMwst===7 ?'selected':''}>7 %</option>
                         <option value="19" ${defMwst===19?'selected':''}>19 %</option>
@@ -656,7 +656,7 @@ function renderNeu(editId=null) {
         </div>
 
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-bottom:32px">
-            <button type="button" class="btn btn-secondary" onclick="navigate('alle')">Abbrechen</button>
+            <button type="button" class="btn btn-secondary" data-action="eb-navigate" data-page="alle">Abbrechen</button>
             <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy"></i> Eigenbeleg speichern</button>
         </div>
         </form>`;
@@ -689,6 +689,10 @@ async function saveBeleg(e, editId) {
     const { netto, mwst } = calcMwst(brutto, mwstSatz);
     const id  = editId || EB.genId();
     const old = editId ? EB.getBelege().find(b=>b.id===editId) : null;
+    if (editId && isBelegGesperrt(old)) {
+        toast('Dieser Eigenbeleg liegt in einer GoBD-festgeschriebenen Periode und kann nicht mehr bearbeitet werden.', 'warning');
+        return;
+    }
     const belegDatum = document.getElementById('eb-datum').value;
     const vkName     = document.getElementById('eb-vk-name').value.trim();
     const s = EB.getEinstellungen();
@@ -845,8 +849,8 @@ function renderProdukte() {
             <td style="text-align:right">${p.standardPreis ? euro(p.standardPreis) : '—'}</td>
             <td>${esc(p.kategorie||'—')}</td>
             <td class="table-actions" style="white-space:nowrap">
-                <button class="action-btn action-btn-accent" onclick="editProdukt(${i})" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
-                <button class="action-btn action-btn-danger" onclick="deleteProdukt(${i})" title="Löschen"><i class="ti ti-trash"></i></button>
+                <button class="action-btn action-btn-accent" data-action="eb-edit-produkt" data-idx="${i}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
+                <button class="action-btn action-btn-danger" data-action="eb-delete-produkt" data-idx="${i}" title="Löschen"><i class="ti ti-trash"></i></button>
             </td>
         </tr>`).join('')
     : '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted)">Noch keine Vorlagen erstellt</td></tr>';
@@ -854,7 +858,7 @@ function renderProdukte() {
     document.getElementById('content').innerHTML = `
         <div class="page-header">
             <h2><i class="ti ti-package" style="margin-right:6px;opacity:.8"></i>Produktvorlagen</h2>
-            <button class="btn btn-primary" onclick="showProduktForm()"><i class="ti ti-plus"></i> Neue Vorlage</button>
+            <button class="btn btn-primary" data-action="eb-produkt-form"><i class="ti ti-plus"></i> Neue Vorlage</button>
         </div>
 
         <div style="background:var(--info-bg);border:1px solid var(--info);border-radius:var(--radius);padding:12px 16px;margin-bottom:18px;font-size:13px;color:var(--text-secondary)">
@@ -884,7 +888,7 @@ function showProduktForm(editIdx = null) {
     document.getElementById('modal').innerHTML = `
         <div class="modal-header">
             <h3>${editIdx !== null ? '<i class="ti ti-pencil"></i> Vorlage bearbeiten' : '<i class="ti ti-plus"></i> Neue Produktvorlage'}</h3>
-            <button class="modal-close" onclick="closeModal()">✕</button>
+            <button class="modal-close" data-action="eb-close">✕</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
@@ -919,8 +923,8 @@ function showProduktForm(editIdx = null) {
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn" onclick="closeModal()">Abbrechen</button>
-            <button class="btn btn-primary" onclick="saveProdukt(${editIdx})"><i class="ti ti-device-floppy"></i> Speichern</button>
+            <button class="btn" data-action="eb-close">Abbrechen</button>
+            <button class="btn btn-primary" data-action="eb-save-produkt" data-idx="${editIdx}"><i class="ti ti-device-floppy"></i> Speichern</button>
         </div>`;
     openModal();
 }
@@ -968,9 +972,9 @@ function renderAlle() {
         <div class="page-header">
             <h2><i class="ti ti-folder" style="margin-right:6px;opacity:.8"></i>Alle Eigenbelege</h2>
             <div style="display:flex;gap:8px">
-                <button class="btn btn-secondary" onclick="exportCSV()"><i class="ti ti-table-export"></i> CSV</button>
-                <button class="btn btn-secondary" onclick="exportJSON()"><i class="ti ti-database-export"></i> Backup</button>
-                <button class="btn btn-primary"   onclick="navigate('neu')"><i class="ti ti-plus"></i> Neuer Eigenbeleg</button>
+                <button class="btn btn-secondary" data-action="eb-export-csv"><i class="ti ti-table-export"></i> CSV</button>
+                <button class="btn btn-secondary" data-action="eb-export-json"><i class="ti ti-database-export"></i> Backup</button>
+                <button class="btn btn-primary"   data-action="eb-navigate" data-page="neu"><i class="ti ti-plus"></i> Neuer Eigenbeleg</button>
             </div>
         </div>
 
@@ -978,32 +982,32 @@ function renderAlle() {
             <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:flex-end">
                 <div class="form-group" style="margin:0">
                     <label class="form-label">Suche</label>
-                    <input class="form-control" id="f-suche" placeholder="Zweck, Verkäufer …" oninput="applyFilter()">
+                    <input class="form-control" id="f-suche" placeholder="Zweck, Verkäufer …" data-action="eb-filter">
                 </div>
                 <div class="form-group" style="margin:0">
                     <label class="form-label">Kategorie</label>
-                    <select class="form-control" id="f-kat" onchange="applyFilter()">
+                    <select class="form-control" id="f-kat" data-action="eb-filter">
                         <option value="">Alle</option>
-                        ${kat.map(k=>`<option value="${k.id}">${k.name}</option>`).join('')}
+                        ${kat.map(k=>`<option value="${k.id}">${esc(k.name)}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group" style="margin:0">
                     <label class="form-label">Zahlungsweg</label>
-                    <select class="form-control" id="f-zw" onchange="applyFilter()">
+                    <select class="form-control" id="f-zw" data-action="eb-filter">
                         <option value="">Alle</option>
                         ${ZAHLUNGSWEGE.map(z=>`<option value="${z.id}">${z.name}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group" style="margin:0">
                     <label class="form-label">Von</label>
-                    <input class="form-control" type="date" id="f-von" onchange="applyFilter()">
+                    <input class="form-control" type="date" id="f-von" data-action="eb-filter">
                 </div>
                 <div class="form-group" style="margin:0">
                     <label class="form-label">Bis</label>
-                    <input class="form-control" type="date" id="f-bis" onchange="applyFilter()">
+                    <input class="form-control" type="date" id="f-bis" data-action="eb-filter">
                 </div>
                 <div style="padding-bottom:1px">
-                    <button class="btn btn-secondary btn-sm" onclick="resetFilter()" title="Filter zurücksetzen"><i class="ti ti-filter-off"></i></button>
+                    <button class="btn btn-secondary btn-sm" data-action="eb-reset-filter" title="Filter zurücksetzen"><i class="ti ti-filter-off"></i></button>
                 </div>
             </div>
         </div>
@@ -1061,14 +1065,14 @@ function applyFilter() {
                     <td style="white-space:nowrap">${datum(x.belegDatum)}</td>
                     <td>${esc(vName)}</td>
                     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.zweck||'')}">${esc(x.zweck||'—')}</td>
-                    <td><span class="badge" style="background:${kObj.farbe}22;color:${kObj.farbe}">${kObj.name}</span></td>
-                    <td style="white-space:nowrap">${zObj.icon} ${x.zahlungsweg==='sonstiges'?(x.zahlungswegSonstig||'Sonstiges'):zObj.name}</td>
+                    <td><span class="badge" style="background:${kObj.farbe}22;color:${kObj.farbe}">${esc(kObj.name)}</span></td>
+                    <td style="white-space:nowrap">${zObj.icon} ${esc(x.zahlungsweg==='sonstiges'?(x.zahlungswegSonstig||'Sonstiges'):zObj.name)}</td>
                     <td style="text-align:right;font-weight:600;white-space:nowrap">${euro(x.betragBrutto)}</td>
                     <td style="white-space:nowrap">
-                        <button class="action-btn" onclick="viewBeleg('${x.id}')"   title="Ansehen"><i class="ti ti-eye"></i></button>
-                        <button class="action-btn action-btn-accent" onclick="editBeleg('${x.id}')"   title="Bearbeiten"><i class="ti ti-pencil"></i></button>
-                        <button class="action-btn" onclick="printBeleg('${x.id}')"  title="PDF / Drucken"><i class="ti ti-file-download"></i></button>
-                        <button class="action-btn action-btn-danger" onclick="deleteBeleg('${x.id}')" title="Löschen"><i class="ti ti-trash"></i></button>
+                        <button class="action-btn" data-action="eb-view" data-id="${x.id}"   title="Ansehen"><i class="ti ti-eye"></i></button>
+                        <button class="action-btn action-btn-accent" data-action="eb-edit" data-id="${x.id}"   title="Bearbeiten"><i class="ti ti-pencil"></i></button>
+                        <button class="action-btn" data-action="eb-print" data-id="${x.id}"  title="PDF / Drucken"><i class="ti ti-file-download"></i></button>
+                        <button class="action-btn action-btn-danger" data-action="eb-delete" data-id="${x.id}" title="Löschen"><i class="ti ti-trash"></i></button>
                     </td>
                 </tr>`;
             }).join('')}
@@ -1141,7 +1145,7 @@ function viewBeleg(id) {
                 <div>
                     <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:.8">Eigenbeleg</div>
                     <div style="font-size:22px;font-weight:700;margin-top:2px">${b.id}</div>
-                    <div style="font-size:12px;opacity:.8;margin-top:4px">${s.firmenname||s.inhaberName||''}</div>
+                    <div style="font-size:12px;opacity:.8;margin-top:4px">${esc(s.firmenname||s.inhaberName||'')}</div>
                 </div>
                 <div style="text-align:right;font-size:12px;opacity:.9;line-height:1.7">
                     <div>Datum: <strong>${datum(b.belegDatum)}</strong></div>
@@ -1160,7 +1164,7 @@ function viewBeleg(id) {
                         <strong>${datum(b.zahlungsDatum)}</strong>
                     </div>
                     <div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Zahlungsweg</div><strong>${zObj.icon} ${b.zahlungsweg==='sonstiges'?b.zahlungswegSonstig:zObj.name}</strong></div>
-                    <div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Kategorie</div><span class="badge" style="background:${kObj.farbe}22;color:${kObj.farbe}">${kObj.name}</span></div>
+                    <div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Kategorie</div><span class="badge" style="background:${kObj.farbe}22;color:${kObj.farbe}">${esc(kObj.name)}</span></div>
                 </div>
                 <div style="background:var(--bg-card);border-radius:var(--radius);padding:12px;margin-bottom:14px">
                     <div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px">Betriebliche Veranlassung</div>
@@ -1186,25 +1190,37 @@ function viewBeleg(id) {
                     <i class="ti ti-check" style="color:var(--success,#22c55e)"></i> Ausgestellt von: <strong>${esc(b.aussteller||'—')}</strong>
                 </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
-                    <button class="btn btn-secondary" onclick="closeModal()">Schließen</button>
-                    <button class="btn btn-secondary" onclick="closeModal();editBeleg('${b.id}')"><i class="ti ti-pencil"></i> Bearbeiten</button>
-                    <button class="btn btn-primary"   onclick="printBeleg('${b.id}')"><i class="ti ti-printer"></i> Drucken / PDF</button>
+                    <button class="btn btn-secondary" data-action="eb-close">Schließen</button>
+                    <button class="btn btn-secondary" data-action="eb-close-edit" data-id="${b.id}"><i class="ti ti-pencil"></i> Bearbeiten</button>
+                    <button class="btn btn-primary"   data-action="eb-print" data-id="${b.id}"><i class="ti ti-printer"></i> Drucken / PDF</button>
                 </div>
             </div>
         </div>`;
     openModal();
 }
 
+// GoBD-Sperre wie im Rest der App: Periode (USt-Quartal eingereicht / Jahr abgeschlossen) gesperrt?
+function isBelegGesperrt(b) {
+    if (!b) return false;
+    if (typeof Store === 'undefined' || typeof Store.isPeriodLocked !== 'function') return false;
+    return Store.isPeriodLocked(b.belegDatum);
+}
+
 function editBeleg(id) {
     const b = EB.getBelege().find(x=>x.id===id);
-    if (b && b.gobd_gesperrt) {
-        toast('Dieser Eigenbeleg ist GoBD-gesperrt und kann nicht mehr bearbeitet werden. Legen Sie ggf. einen neuen Beleg an.', 'warning');
+    if (isBelegGesperrt(b)) {
+        toast('Dieser Eigenbeleg liegt in einer GoBD-festgeschriebenen Periode und kann nicht mehr bearbeitet werden. Legen Sie ggf. einen neuen Beleg an.', 'warning');
         return;
     }
     renderNeu(id);
 }
 
 function deleteBeleg(id) {
+    const b = EB.getBelege().find(x=>x.id===id);
+    if (isBelegGesperrt(b)) {
+        toast('Dieser Eigenbeleg liegt in einer GoBD-festgeschriebenen Periode und kann nicht mehr gelöscht werden (GoBD-Unveränderbarkeit).', 'warning');
+        return;
+    }
     if (!confirm(`Eigenbeleg ${id} wirklich löschen?\nDer Beleg wird in ALLEN Unternehmen entfernt (inkl. EÜR & Rechnungs-Auswahl).\nDieser Vorgang kann nicht rückgängig gemacht werden.`)) return;
     const n = purgeEigenbelegEverywhere(id);
     toast(n > 1 ? `Eigenbeleg in ${n} Unternehmen gelöscht` : 'Eigenbeleg gelöscht', 'success');
@@ -1264,9 +1280,9 @@ function printBeleg(id) {
                 const g=(parseFloat(p.menge)||0)*(parseFloat(p.einzelpreis)||0);
                 return `<tr>
                     <td>${i+1}</td>
-                    <td><strong>${p.artikel||'—'}</strong></td>
-                    <td>${p.marke||'—'}</td>
-                    <td>${p.zustand||'—'}</td>
+                    <td><strong>${esc(p.artikel||'—')}</strong></td>
+                    <td>${esc(p.marke||'—')}</td>
+                    <td>${esc(p.zustand||'—')}</td>
                     <td style="text-align:right">${p.menge}</td>
                     <td style="text-align:right">${euro(p.einzelpreis)}</td>
                     <td style="text-align:right;font-weight:600">${euro(g)}</td>
@@ -1335,8 +1351,8 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:24px;max-
 
 <div class="no-print">
     <strong>Druckvorschau: ${b.id}</strong>
-    <button class="btn-print" onclick="window.print()">Drucken / Als PDF speichern</button>
-    <button class="btn-close" onclick="window.close()">Schließen</button>
+    <button class="btn-print" id="pwPrintBtn">Drucken / Als PDF speichern</button>
+    <button class="btn-close" id="pwCloseBtn">Schließen</button>
 </div>
 
 <!-- 1. HEADER -->
@@ -1365,7 +1381,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:24px;max-
 <div class="section">
     <h3>Verkäufer / Lieferant</h3>
     <div class="seller-block">
-        <div class="name">${vName}</div>
+        <div class="name">${esc(vName)}</div>
         <div class="addr">${vk.adresseUnbekannt
             ? '<em style="color:#b45309">Adresse: nicht ermittelbar (§160 AO – Bitte nachträglich ergänzen)</em>'
             : [esc(vk.strasse), esc(vk.plzOrt), vk.land && vk.land!=='Deutschland' ? esc(vk.land) : ''].filter(Boolean).join('<br>') || '<em style="color:#999">Keine Adresse angegeben</em>'
@@ -1407,7 +1423,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:24px;max-
 <!-- 8. KATEGORIE (EÜR) -->
 <div class="section">
     <h3>Kategorie (EÜR-Zuordnung)</h3>
-    <span class="badge">${kObj.name}</span>
+    <span class="badge">${esc(kObj.name)}</span>
     <div style="margin-top:8px">
         <div class="zweck">
             <label>Betriebliche Veranlassung</label>
@@ -1442,6 +1458,9 @@ ${b.foto&&!b.foto.startsWith('data:application')?`
 <div class="footer">Eigenbeleg gemäß GoBD – Aufbewahrungspflicht 10 Jahre | Erstellt: ${datum(b.erstelltAm)} | ${esc(s.firmenname||'')}</div>
 </body></html>`);
     pw.document.close();
+    // Popup-Buttons ohne Inline-Handler verdrahten (CSP wird an about:blank vererbt)
+    pw.document.getElementById('pwPrintBtn').addEventListener('click', function(){ pw.print(); });
+    pw.document.getElementById('pwCloseBtn').addEventListener('click', function(){ pw.close(); });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1466,7 +1485,7 @@ function renderKategorien() {
                     <input type="color" id="kat-farbe" value="#0f8a64"
                         style="width:42px;height:38px;border:1px solid var(--border);border-radius:var(--radius-sm);background:none;cursor:pointer;padding:2px">
                 </div>
-                <button class="btn btn-primary" onclick="addKategorie()"><i class="ti ti-plus"></i> Hinzufügen</button>
+                <button class="btn btn-primary" data-action="eb-add-kategorie"><i class="ti ti-plus"></i> Hinzufügen</button>
             </div>
         </div>
 
@@ -1481,11 +1500,11 @@ function renderKategorien() {
                     const summ = belege.filter(b=>b.kategorie===k.id).reduce((a,b)=>a+(b.betragBrutto||0),0);
                     return `<tr>
                         <td><div style="width:18px;height:18px;border-radius:4px;background:${k.farbe};display:inline-block"></div></td>
-                        <td><strong>${k.name}</strong></td>
+                        <td><strong>${esc(k.name)}</strong></td>
                         <td><span class="badge" style="${k.std?'background:var(--bg-card);color:var(--text-muted)':'background:var(--accent-glow);color:var(--accent-light)'}">${k.std?'Standard':'Eigene'}</span></td>
                         <td>${cnt}</td>
                         <td>${euro(summ)}</td>
-                        <td>${!k.std?`<button class="action-btn action-btn-danger" onclick="deleteKategorie('${k.id}')" title="Löschen"><i class="ti ti-trash"></i></button>`:'—'}</td>
+                        <td>${!k.std?`<button class="action-btn action-btn-danger" data-action="eb-delete-kategorie" data-id="${k.id}" title="Löschen"><i class="ti ti-trash"></i></button>`:'—'}</td>
                     </tr>`;
                 }).join('')}
                 </tbody>
@@ -1574,14 +1593,14 @@ function renderEinstellungen() {
             <div class="card" style="padding:18px">
                 <div class="card-section-title"><i class="ti ti-database"></i> Backup &amp; Daten</div>
                 <div style="display:flex;flex-direction:column;gap:8px">
-                    <button class="btn btn-secondary" onclick="exportJSON()"><i class="ti ti-upload"></i> JSON-Backup exportieren</button>
+                    <button class="btn btn-secondary" data-action="eb-export-json"><i class="ti ti-upload"></i> JSON-Backup exportieren</button>
                     <label class="btn btn-secondary" style="cursor:pointer;justify-content:center">
                         <i class="ti ti-download"></i> JSON-Backup importieren
-                        <input type="file" accept=".json" style="display:none" onchange="importJSON(this)">
+                        <input type="file" accept=".json" style="display:none" data-action="eb-import-json">
                     </label>
                     <div style="border-top:1px solid var(--border);padding-top:8px">
                         <button class="btn" style="background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger)"
-                            onclick="alleLoeschen()"><i class="ti ti-trash"></i> Alle Eigenbelege löschen</button>
+                            data-action="eb-alle-loeschen"><i class="ti ti-trash"></i> Alle Eigenbelege löschen</button>
                     </div>
                 </div>
             </div>
@@ -1590,7 +1609,7 @@ function renderEinstellungen() {
         </div>
 
         <div style="display:flex;justify-content:flex-end;margin-top:18px">
-            <button class="btn btn-primary" onclick="saveEinstellungen()"><i class="ti ti-device-floppy"></i> Einstellungen speichern</button>
+            <button class="btn btn-primary" data-action="eb-save-einstellungen"><i class="ti ti-device-floppy"></i> Einstellungen speichern</button>
         </div>`;
 }
 
@@ -1599,7 +1618,7 @@ function saveEinstellungen() {
     s.firmenname          = document.getElementById('s-firm').value;
     s.inhaberName         = document.getElementById('s-name').value;
     s.adresse             = document.getElementById('s-adresse').value;
-    s.prefix              = document.getElementById('s-prefix').value || 'EB';
+    s.prefix              = (document.getElementById('s-prefix').value || 'EB').replace(/[^A-Za-z0-9\-]/g,'').slice(0,12) || 'EB';
     s.jahresReset         = document.getElementById('s-reset').checked;
     s.mwstModus           = document.getElementById('s-mwst').value;
     s.standardErlaeuterung= document.getElementById('s-erkl').value;
@@ -1715,7 +1734,7 @@ function renderEbSubnav() {
         '<div class="module-subnav-tabs">' +
         EB_NAV.map(function (p) {
             return '<button class="msub-tab' + (p.page === 'dashboard' ? ' active' : '') + '" type="button" ' +
-                'data-eb-page="' + p.page + '" onclick="navigate(\'' + p.page + '\')">' +
+                'data-eb-page="' + p.page + '" data-action="eb-navigate" data-page="' + p.page + '">' +
                 '<i class="ti ' + p.icon + '"></i><span>' + p.label + '</span></button>';
         }).join('') +
         '</div></div>';
@@ -1735,24 +1754,87 @@ window.EBApp = { mount: ebMount, navigate: navigate };
 // #moduleSubnav) NICHT, dann ruft die Haupt-App EBApp.mount().
 // ═══════════════════════════════════════════════════════════════════
 if (!document.getElementById('moduleSubnav')) {
-    navigate('dashboard');
+    function _ebStandaloneBoot() {
+        navigate('dashboard');
 
-    // Sidebar collapse (nur Standalone)
-    (function() {
-        const collapseBtn = document.getElementById('sidebarCollapseBtn');
-        const sidebar = document.getElementById('sidebar');
-        if (collapseBtn && sidebar) {
-            if (localStorage.getItem('eb_sidebar_collapsed') === '1') {
-                sidebar.classList.add('collapsed');
-                collapseBtn.textContent = '›';
-                collapseBtn.title = 'Sidebar aufklappen';
+        // Sidebar collapse (nur Standalone)
+        (function() {
+            const collapseBtn = document.getElementById('sidebarCollapseBtn');
+            const sidebar = document.getElementById('sidebar');
+            if (collapseBtn && sidebar) {
+                if (localStorage.getItem('eb_sidebar_collapsed') === '1') {
+                    sidebar.classList.add('collapsed');
+                    collapseBtn.textContent = '›';
+                    collapseBtn.title = 'Sidebar aufklappen';
+                }
+                collapseBtn.addEventListener('click', () => {
+                    const isCollapsed = sidebar.classList.toggle('collapsed');
+                    collapseBtn.textContent = isCollapsed ? '›' : '‹';
+                    collapseBtn.title = isCollapsed ? 'Sidebar aufklappen' : 'Sidebar einklappen';
+                    localStorage.setItem('eb_sidebar_collapsed', isCollapsed ? '1' : '0');
+                });
             }
-            collapseBtn.addEventListener('click', () => {
-                const isCollapsed = sidebar.classList.toggle('collapsed');
-                collapseBtn.textContent = isCollapsed ? '›' : '‹';
-                collapseBtn.title = isCollapsed ? 'Sidebar aufklappen' : 'Sidebar einklappen';
-                localStorage.setItem('eb_sidebar_collapsed', isCollapsed ? '1' : '0');
-            });
-        }
-    })();
+        })();
+    }
+
+    // Whop-Gate: erst nach gültiger Membership booten (standalone-Seite hatte bisher keinen Check)
+    if (typeof AuthUI !== 'undefined' && AuthUI.boot) {
+        window.App = window.App || {};
+        App._continueAfterAuth = _ebStandaloneBoot;
+        AuthUI.boot();
+    } else {
+        _ebStandaloneBoot();
+    }
 }
+
+// ── Delegierte Handler: data-action="eb-*" statt Inline-Attribute (CSP) ──
+// Dokument-weit registriert, überlebt innerHTML-Rerenders; Namespace eb-
+// kollidiert nicht mit rech-*-Listenern (beide Module laufen in app.html).
+document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-action]');
+    if (!el || String(el.dataset.action).indexOf('eb-') !== 0) return;
+    var d = el.dataset;
+    switch (d.action) {
+        case 'eb-navigate':           navigate(d.page); break;
+        case 'eb-view':               viewBeleg(d.id); break;
+        case 'eb-edit':               editBeleg(d.id); break;
+        case 'eb-print':              printBeleg(d.id); break;
+        case 'eb-delete':             deleteBeleg(d.id); break;
+        case 'eb-close':              closeModal(); break;
+        case 'eb-close-edit':         closeModal(); editBeleg(d.id); break;
+        case 'eb-select-lager':       selectLagerArtikel(Number(d.idx), d.id); closeModal(); break;
+        case 'eb-apply-vorlage':      applyProduktVorlage(EB.getProdukte()[Number(d.idx)]); break;
+        case 'eb-clear-lager':        clearLagerLink(Number(d.idx)); break;
+        case 'eb-show-lager':         showLagerAuswahl(Number(d.idx)); break;
+        case 'eb-remove-pos':         removeWarenPos(Number(d.idx)); break;
+        case 'eb-add-pos':            addWarenPos(); break;
+        case 'eb-edit-produkt':       editProdukt(Number(d.idx)); break;
+        case 'eb-delete-produkt':     deleteProdukt(Number(d.idx)); break;
+        case 'eb-produkt-form':       showProduktForm(); break;
+        case 'eb-save-produkt':       saveProdukt(d.idx === 'null' || d.idx === '' ? null : Number(d.idx)); break;
+        case 'eb-export-csv':         exportCSV(); break;
+        case 'eb-export-json':        exportJSON(); break;
+        case 'eb-reset-filter':       resetFilter(); break;
+        case 'eb-add-kategorie':      addKategorie(); break;
+        case 'eb-delete-kategorie':   deleteKategorie(d.id); break;
+        case 'eb-alle-loeschen':      alleLoeschen(); break;
+        case 'eb-save-einstellungen': saveEinstellungen(); break;
+    }
+});
+document.addEventListener('submit', function (e) {
+    var f = e.target;
+    if (f.matches && f.matches('form[data-action="eb-save-beleg"]')) {
+        saveBeleg(e, f.dataset.editId || '');
+    }
+});
+function _ebInputDispatch(e) {
+    var a = e.target && e.target.dataset ? e.target.dataset.action : '';
+    if (a === 'eb-recalc') recalcBetrag();
+    else if (a === 'eb-filter') applyFilter();
+}
+document.addEventListener('input', _ebInputDispatch);
+document.addEventListener('change', function (e) {
+    _ebInputDispatch(e);
+    var el = e.target;
+    if (el.matches && el.matches('input[data-action="eb-import-json"]')) importJSON(el);
+});

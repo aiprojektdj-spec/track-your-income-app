@@ -62,7 +62,7 @@ var Produkte = (function() {
         body += '</select></div>';
         body += '</div>';
 
-        var footer = '<button class="btn btn-primary" id="pfSave">Speichern</button> <button class="btn" onclick="RechApp.closeModal()">Abbrechen</button>';
+        var footer = '<button class="btn btn-primary" id="pfSave">Speichern</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
         RechApp.showModal(isEdit ? 'Produkt bearbeiten' : 'Neues Produkt', body, footer);
 
         document.getElementById('pfSave').addEventListener('click', function() {

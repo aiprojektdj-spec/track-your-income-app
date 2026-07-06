@@ -178,8 +178,12 @@ var Kunden = (function() {
         body += '<div class="form-group"><label class="form-label">E-Mail</label><input class="form-input" id="cfEmail" type="email" value="' + Utils.escapeHtml(customer ? customer.email || '' : '') + '"></div>';
         body += '<div class="form-group"><label class="form-label">Telefon</label><input class="form-input" id="cfTelefon" value="' + Utils.escapeHtml(customer ? customer.telefon || '' : '') + '"></div>';
         body += '</div>';
+        body += '<div class="form-row">';
+        body += '<div class="form-group"><label class="form-label">Land</label><input class="form-input" id="cfLand" maxlength="2" placeholder="DE" style="text-transform:uppercase;" value="' + Utils.escapeHtml(customer ? customer.land || 'DE' : 'DE') + '"></div>';
+        body += '<div class="form-group"><label class="form-label">USt-IdNr. (B2B Ausland)</label><input class="form-input" id="cfUstIdNr" placeholder="z.B. FR12345678901" value="' + Utils.escapeHtml(customer ? customer.ustIdNr || '' : '') + '"></div>';
+        body += '</div>';
 
-        var footer = '<button class="btn btn-primary" id="cfSave">Speichern</button> <button class="btn" onclick="RechApp.closeModal()">Abbrechen</button>';
+        var footer = '<button class="btn btn-primary" id="cfSave">Speichern</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
         RechApp.showModal(isEdit ? 'Kunde bearbeiten' : 'Neuer Kunde', body, footer);
 
         document.getElementById('cfSave').addEventListener('click', function() {
@@ -198,6 +202,8 @@ var Kunden = (function() {
                 ort: document.getElementById('cfOrt').value.trim(),
                 email: document.getElementById('cfEmail').value.trim(),
                 telefon: document.getElementById('cfTelefon').value.trim(),
+                land: (document.getElementById('cfLand').value.trim() || 'DE').toUpperCase(),
+                ustIdNr: document.getElementById('cfUstIdNr').value.trim(),
                 kundennummer: document.getElementById('cfKnr').value.trim(),
                 createdAt: customer ? customer.createdAt : new Date().toISOString()
             };

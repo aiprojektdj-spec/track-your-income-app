@@ -162,7 +162,7 @@ const Dashboard = {
                 const totalLessons = Akademie.MODULES.reduce((s, m) => s + m.lessons.length, 0);
                 const lessonPct = totalLessons > 0 ? Math.round(prog.completedLessons.length / totalLessons * 100) : 0;
                 const L = (typeof I18n !== 'undefined') ? I18n : { t: function(k,v) { return k; } };
-                return `<div class="card stat-card" id="dashAkademieWidget" style="cursor:pointer;border-left-color:var(--accent);">
+                return `<div class="card stat-card" id="dashAkademieWidget" style="cursor:pointer;">
                     <div class="card-label"><i class="ti ti-school"></i> ${L.t('dash.academy')}</div>
                     <div class="card-value">${prog.unlockedAchievements.length} / ${totalAch}</div>
                     <div class="card-subtitle">${L.t('dash.pct.learned', {n: lessonPct})}</div>
@@ -205,7 +205,7 @@ const Dashboard = {
                     <div class="card-value">${Utils.formatCurrency(monthProfit)}</div>
                     <div class="card-subtitle">${Utils.getMonthName(curMonth)} ${year}</div>
                 </div>
-                <div class="card stat-card ${yearProfit >= 0 ? 'success' : 'warning'}">
+                <div class="card stat-card ${yearProfit >= 0 ? 'success' : 'danger'}">
                     <div class="card-label"><i class="ti ti-chart-bar"></i> ${L.t('dash.profit.year', {y: year})}</div>
                     <div class="card-value">${Utils.formatCurrency(yearProfit)}</div>
                     <div class="card-subtitle">${L.t('dash.annual.profit')}</div>

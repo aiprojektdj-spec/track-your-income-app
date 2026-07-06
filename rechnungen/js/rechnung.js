@@ -129,6 +129,9 @@ var Rechnung = (function() {
         html += '<option value="__new__">+ Neuen Kunden anlegen</option>';
         html += '</select></div>';
         html += '</div>';
+        html += '<div id="reverseChargeHint" style="display:none;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);">';
+        html += 'ℹ️ <strong>§13b UStG – Reverse Charge:</strong> EU-Geschäftskunde mit USt-IdNr. erkannt. Steuerschuldnerschaft geht auf den Empfänger über, USt-Sätze wurden auf 0% gesetzt.';
+        html += '</div>';
 
         // Inline new customer fields (hidden by default)
         html += '<div id="newCustomerFields" style="display:none; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">';
@@ -322,7 +325,7 @@ var Rechnung = (function() {
         var body = '<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary);">Wähle einen verfügbaren Lagerartikel für diese Position aus. Beim Bezahlen der Rechnung wird der Artikel automatisch als <em>Verkauft</em> markiert.</div>';
         body += '<div style="overflow-x:auto;"><table style="width:100%;font-size:12px;"><thead><tr><th>Art.-Nr.</th><th>Artikel</th><th>Beschreibung</th><th>Größe</th><th>EK-Preis</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
 
-        var footer = clearBtn + ' <button class="btn" onclick="RechApp.closeModal()">Schließen</button>';
+        var footer = clearBtn + ' <button class="btn" data-action="rech-close-modal">Schließen</button>';
         RechApp.showModal('Lagerartikel verknüpfen', body, footer);
 
         // Events binden
@@ -467,6 +470,28 @@ var Rechnung = (function() {
             this.dataset.userEdited = 'true';
         });
 
+        // §13b UStG – bei EU-B2B-Kunde (Ausland + USt-IdNr.) automatisch Reverse Charge: USt auf 0%
+        // forceApply nur bei aktivem Kundenwechsel true — beim initialen Laden (auch beim Bearbeiten
+        // einer bestehenden Rechnung) werden bereits gespeicherte MwSt-Sätze nicht überschrieben.
+        function applyReverseChargeCheck(forceApply) {
+            var hint = document.getElementById('reverseChargeHint');
+            var kundeId = document.getElementById('invKunde').value;
+            var customers = Store.getRechCustomers();
+            var kunde = customers.find(function(c) { return c.id === kundeId; });
+            var euLaender = (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : [];
+            var settings = mergeRechSettings();
+            var isCH = settings.land === 'CH';
+            var isKlein = isCH ? ((settings.chMwstMode || 'klein') === 'klein') : (settings.ustMode === 'klein');
+            var isEuB2B = !isCH && !isKlein && kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && euLaender.indexOf(kunde.land) !== -1;
+            if (hint) hint.style.display = isEuB2B ? 'block' : 'none';
+            if (isEuB2B && forceApply) {
+                document.querySelectorAll('.pos-mwst').forEach(function(sel) {
+                    sel.value = '0';
+                });
+                updateSummen();
+            }
+        }
+
         document.getElementById('invKunde').addEventListener('change', function() {
             var ncf = document.getElementById('newCustomerFields');
             if (this.value === '__new__') {
@@ -474,7 +499,9 @@ var Rechnung = (function() {
             } else {
                 ncf.style.display = 'none';
             }
+            applyReverseChargeCheck(true);
         });
+        applyReverseChargeCheck(false);
 
         function applyDatumsOption(val) {
             var faelligkeitGroup = document.getElementById('invFaelligkeitGroup');
@@ -582,7 +609,7 @@ var Rechnung = (function() {
                 modalBody += '<div class="form-group"><label class="form-label">' + (_npIsCH ? 'MWST-Satz' : 'MwSt-Satz') + '</label><select class="form-select" id="npMwst">' + (_npIsCH ? '<option value="8.1">8.1%</option><option value="2.6">2.6%</option><option value="3.8">3.8%</option><option value="0">0%</option>' : '<option value="19">19%</option><option value="7">7%</option><option value="0">0%</option>') + '</select></div>';
                 modalBody += '</div>';
 
-                var modalFooter = '<button class="btn btn-primary" id="npSave">Speichern</button> <button class="btn" onclick="RechApp.closeModal()">Abbrechen</button>';
+                var modalFooter = '<button class="btn btn-primary" id="npSave">Speichern</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
                 RechApp.showModal('Neues Produkt anlegen', modalBody, modalFooter);
 
                 document.getElementById('npSave').addEventListener('click', function() {
@@ -964,6 +991,12 @@ var Rechnung = (function() {
             html += isCH
                 ? '<div class="inv-klein">Nicht MWST-pflichtig gem. Art. 10 Abs. 2 MWSTG.</div>'
                 : '<div class="inv-klein">Gem\u00E4\u00DF \u00A719 UStG wird keine Umsatzsteuer berechnet.</div>';
+        }
+
+        // \u00A713b UStG Reverse Charge notice
+        var _rcEuLaender = (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : [];
+        if (!isCH && !isKlein && kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && _rcEuLaender.indexOf(kunde.land) !== -1) {
+            html += '<div class="inv-klein">Steuerschuldnerschaft des Leistungsempf\u00E4ngers gem\u00E4\u00DF \u00A713b UStG (Reverse Charge). USt-IdNr. Leistungsempf\u00E4nger: ' + Utils.escapeHtml(kunde.ustIdNr) + '</div>';
         }
 
         // Payment terms & notes

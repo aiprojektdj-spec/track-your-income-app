@@ -1306,23 +1306,22 @@ const Store = {
     deletePurchase(id) {
         const p = this.getAllPurchasesRaw().find(x => x.id === id);
         if (!p) return { ok: false };
+        // Nicht löschen/stornieren, wenn ein aktiver Verkauf darauf verweist (würde den Verkauf verwaisen) —
+        // Prüfung muss vor dem Storno-Fallback laufen, sonst wird ein verkaufsverknüpfter Einkauf beim
+        // Löschversuch in einer festgeschriebenen Periode trotzdem stillschweigend storniert.
+        const linkedSale = this.getAllSalesRaw().find(s => !s.storniert &&
+            (s.purchaseId === id || (Array.isArray(s.purchaseIds) && s.purchaseIds.includes(id))));
+        if (linkedSale) return { blocked: true, reason: 'sale' };
         if (this.isLocked(p)) {
             if (!p.storniert) this.stornoPurchase(id, 'Storno statt Löschung — Periode abgeschlossen');
             return { storno: true };
         }
-        // Nicht löschen, wenn ein aktiver Verkauf darauf verweist (würde den Verkauf verwaisen)
-        const linkedSale = this.getAllSalesRaw().find(s => !s.storniert &&
-            (s.purchaseId === id || (Array.isArray(s.purchaseIds) && s.purchaseIds.includes(id))));
-        if (linkedSale) return { blocked: true, reason: 'sale' };
         this._addAuditEntry('loeschung', 'einkauf', id, p, null, 'Einkauf gelöscht (offene Periode)');
         const purchases = this.getAllPurchasesRaw();
         const idx = purchases.findIndex(x => x.id === id);
         if (idx >= 0) { purchases.splice(idx, 1); this.set('purchases', purchases); }
         return { deleted: true };
     },
-
-    // Veralteter Name — jetzt Alias auf das lock-aware, protokollierte Löschen.
-    physicalDeletePurchase(id) { return this.deletePurchase(id); },
 
     // ---- Sales ----
     getSales(includeStorniert) {
@@ -1419,10 +1418,15 @@ const Store = {
         return sale;
     },
 
-    stornoSale(id, grund) {
+    // _allowInvoiceLinked: nur von der internen Rechnung-Stornieren-Kaskade (siehe stornoInvoice) gesetzt.
+    // Direkte/externe Aufrufe (z.B. Storno-Button in Buchungen) dürfen einen rechnungsverknüpften
+    // Verkauf nicht isoliert stornieren — das muss über die Rechnung laufen, sonst zeigt die Rechnung
+    // weiter "bezahlt"/"versendet" während der zugehörige Verkauf storniert ist.
+    stornoSale(id, grund, _allowInvoiceLinked) {
         const sales = this.getAllSalesRaw();
         const s = sales.find(x => x.id === id);
-        if (!s || s.storniert) return;
+        if (!s || s.storniert) return { ok: false };
+        if (s._invoiceId && !_allowInvoiceLinked) return { blocked: true, reason: 'invoice' };
         const old = Object.assign({}, s);
         s.storniert = true;
         s.storniertAm = new Date().toISOString();
@@ -1430,19 +1434,21 @@ const Store = {
         this._stampRecord(s);
         this.set('sales', sales);
         this._addAuditEntry('storniert', 'verkauf', id, old, s, grund || 'Verkauf storniert');
-        // Einkauf(e) wieder freigeben - unterstützt einzelne (purchaseId) und mehrere (purchaseIds)
+        // Einkauf(e) wieder freigeben - unterstützt einzelne (purchaseId) und mehrere (purchaseIds).
+        // Gesperrte (festgeschriebene) Einkäufe bleiben unangetastet — sonst GoBD-Unveränderbarkeit umgangen.
         const purchases = this.getAllPurchasesRaw();
         const idsToFree = s.purchaseIds ? s.purchaseIds : (s.purchaseId ? [s.purchaseId] : []);
         let purchasesChanged = false;
         idsToFree.forEach(pid => {
             const p = purchases.find(x => x.id === pid);
-            if (p && !p.storniert) {
+            if (p && !p.storniert && !this.isLocked(p)) {
                 p.status = 'verfuegbar';
                 this._stampRecord(p);
                 purchasesChanged = true;
             }
         });
         if (purchasesChanged) this.set('purchases', purchases);
+        return { storniert: true };
     },
 
     deleteSale(id) {
@@ -1454,14 +1460,14 @@ const Store = {
             return { storno: true };
         }
         this._addAuditEntry('loeschung', 'verkauf', id, s, null, 'Verkauf gelöscht (offene Periode)');
-        // verknüpfte Einkäufe wieder freigeben
+        // verknüpfte Einkäufe wieder freigeben — gesperrte (festgeschriebene) Einkäufe bleiben unangetastet
         const pids = s.purchaseIds ? s.purchaseIds : (s.purchaseId ? [s.purchaseId] : []);
         if (pids.length > 0) {
             const purchases = this.getAllPurchasesRaw();
             let changed = false;
             pids.forEach(pid => {
                 const p = purchases.find(x => x.id === pid);
-                if (p && !p.storniert && p.status === 'verkauft') { p.status = 'verfuegbar'; this._stampRecord(p); changed = true; }
+                if (p && !p.storniert && p.status === 'verkauft' && !this.isLocked(p)) { p.status = 'verfuegbar'; this._stampRecord(p); changed = true; }
             });
             if (changed) this.set('purchases', purchases);
         }
@@ -1470,8 +1476,6 @@ const Store = {
         if (idx >= 0) { sales.splice(idx, 1); this.set('sales', sales); }
         return { deleted: true };
     },
-
-    physicalDeleteSale(id) { return this.deleteSale(id); },
 
     // ---- Expenses ----
     getExpenses(includeStorniert) {
@@ -1537,8 +1541,6 @@ const Store = {
         if (idx >= 0) { expenses.splice(idx, 1); this.set('expenses', expenses); }
         return { deleted: true };
     },
-
-    physicalDeleteExpense(id) { return this.deleteExpense(id); },
 
     // ============================================
     // AfA / Abschreibungen
@@ -1863,6 +1865,16 @@ const Store = {
         return all;
     },
 
+    // GoBD §14 UStG: eine gestellte Rechnung (versendet/bezahlt/storniert oder in
+    // festgeschriebener Periode) darf INHALTLICH nicht mehr geändert werden — nur
+    // Status-Übergänge (offen→versendet→bezahlt) + Storno bleiben erlaubt.
+    _isRechInvoiceLocked(inv) {
+        if (!inv) return false;
+        if (inv.status === 'versendet' || inv.status === 'bezahlt' || inv.status === 'storniert') return true;
+        if (this.isPeriodLocked(inv.datum)) return true;
+        return false;
+    },
+
     saveRechInvoice(invoice) {
         const invoices = this._rechGet('dokumente') || [];
         if (invoice.id) {
@@ -1870,6 +1882,7 @@ const Store = {
             if (idx >= 0) {
                 const old = Object.assign({}, invoices[idx]);
                 const action = invoice.status !== old.status ? 'status_geaendert' : 'bearbeitet';
+                if (action === 'bearbeitet' && this._isRechInvoiceLocked(old)) return invoice; // GoBD §14: gestellte Rechnung nicht mehr inhaltlich änderbar
                 this._addAuditEntry(action, 'dokument', invoice.id, old, invoice,
                     action === 'status_geaendert' ? `Status: ${old.status} -> ${invoice.status}` : 'Dokument bearbeitet');
                 invoices[idx] = this._stampRecord(invoice);
@@ -1902,7 +1915,7 @@ const Store = {
         // Cascade: storniere verknüpften Verkauf falls bereits synchronisiert
         const linkedSale = this.getAllSalesRaw().find(s => s._invoiceId === id && !s.storniert);
         if (linkedSale) {
-            this.stornoSale(linkedSale.id, 'Automatisch: Rechnung ' + (inv.nummer || id) + ' storniert');
+            this.stornoSale(linkedSale.id, 'Automatisch: Rechnung ' + (inv.nummer || id) + ' storniert', true);
         }
     },
 

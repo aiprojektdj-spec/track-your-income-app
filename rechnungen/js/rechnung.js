@@ -471,15 +471,20 @@ var Rechnung = (function() {
         });
 
         // §13b UStG – bei EU-B2B-Kunde (Ausland + USt-IdNr.) automatisch Reverse Charge: USt auf 0%
-        function applyReverseChargeCheck() {
+        // forceApply nur bei aktivem Kundenwechsel true — beim initialen Laden (auch beim Bearbeiten
+        // einer bestehenden Rechnung) werden bereits gespeicherte MwSt-Sätze nicht überschrieben.
+        function applyReverseChargeCheck(forceApply) {
             var hint = document.getElementById('reverseChargeHint');
             var kundeId = document.getElementById('invKunde').value;
             var customers = Store.getRechCustomers();
             var kunde = customers.find(function(c) { return c.id === kundeId; });
             var euLaender = (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : [];
-            var isEuB2B = kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && euLaender.indexOf(kunde.land) !== -1;
+            var settings = mergeRechSettings();
+            var isCH = settings.land === 'CH';
+            var isKlein = isCH ? ((settings.chMwstMode || 'klein') === 'klein') : (settings.ustMode === 'klein');
+            var isEuB2B = !isCH && !isKlein && kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && euLaender.indexOf(kunde.land) !== -1;
             if (hint) hint.style.display = isEuB2B ? 'block' : 'none';
-            if (isEuB2B) {
+            if (isEuB2B && forceApply) {
                 document.querySelectorAll('.pos-mwst').forEach(function(sel) {
                     sel.value = '0';
                 });
@@ -494,9 +499,9 @@ var Rechnung = (function() {
             } else {
                 ncf.style.display = 'none';
             }
-            applyReverseChargeCheck();
+            applyReverseChargeCheck(true);
         });
-        applyReverseChargeCheck();
+        applyReverseChargeCheck(false);
 
         function applyDatumsOption(val) {
             var faelligkeitGroup = document.getElementById('invFaelligkeitGroup');

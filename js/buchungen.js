@@ -1096,8 +1096,15 @@ const Buchungen = {
                 const grund = prompt('Stornogrund angeben (Pflicht für Revisionssicherheit):');
                 if (!grund) return;
                 const id = btn.dataset.storno;
-                if (btn.dataset.source === 'purchase') Store.stornoPurchase(id, grund);
-                else Store.stornoSale(id, grund);
+                if (btn.dataset.source === 'purchase') {
+                    Store.stornoPurchase(id, grund);
+                } else {
+                    const result = Store.stornoSale(id, grund);
+                    if (result && result.blocked && result.reason === 'invoice') {
+                        Utils.showToast('Dieser Verkauf stammt aus einer Rechnung — bitte über die Rechnung stornieren.', 'error');
+                        return;
+                    }
+                }
                 Utils.showToast('Storniert', 'success');
                 this._renderTab();
             });

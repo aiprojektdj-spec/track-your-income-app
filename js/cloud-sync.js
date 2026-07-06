@@ -523,13 +523,15 @@ var CloudSync = (function () {
     // Wird von "Geschäftsdaten löschen" aufgerufen, damit gelöschte Daten nicht
     // beim nächsten Sync aus der Cloud zurückgeholt werden (sonst LWW-Merge-Falle).
     async function deleteRemote(scope) {
-        if (!_enabled() || !_hasKey() || !_token()) return;
+        if (!_enabled() || !_hasKey() || !_token()) return true; // Cloud-Sync nicht aktiv → nichts zu löschen
         try {
             await _api({ action: 'delete', scope: scope });
             // lokale Sync-Metadaten für diesen Scope ebenfalls verwerfen
             localStorage.removeItem(LS_META(scope));
+            return true;
         } catch (e) {
             console.warn('[CloudSync] deleteRemote error:', e && e.message);
+            return false;
         }
     }
 

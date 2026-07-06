@@ -115,9 +115,12 @@ const OSS = {
                         ${laender.length === 0 ? `<tr><td colspan="4" class="table-empty">Keine EU-Fernverkäufe an Privatkunden in ${year}</td></tr>` : ''}
                         ${laender.map(land => {
                             const netto = byLand[land];
-                            const rate = this.EU_VAT_RATES[land] || 0;
+                            const known = Object.prototype.hasOwnProperty.call(this.EU_VAT_RATES, land);
+                            const rate = known ? this.EU_VAT_RATES[land] : 0;
                             const ust = netto * rate / 100;
-                            return `<tr><td>${land}</td><td style="text-align:right">${Utils.formatCurrency(netto)}</td><td style="text-align:right">${rate}%</td><td style="text-align:right">${Utils.formatCurrency(ust)}</td></tr>`;
+                            const rateCell = known ? `${rate}%` : '<span style="color:var(--danger)">⚠️ unbekannt</span>';
+                            const ustCell  = known ? Utils.formatCurrency(ust) : '<span style="color:var(--danger)">⚠️ manuell prüfen</span>';
+                            return `<tr><td>${land}</td><td style="text-align:right">${Utils.formatCurrency(netto)}</td><td style="text-align:right">${rateCell}</td><td style="text-align:right">${ustCell}</td></tr>`;
                         }).join('')}
                     </tbody>
                 </table>
@@ -158,8 +161,9 @@ const OSS = {
             ['Land', 'Nettoumsatz EUR', 'Regelsteuersatz % (Referenz)', 'USt EUR (geschätzt)'],
             ...laender.map(land => {
                 const netto = byLand[land];
-                const rate = this.EU_VAT_RATES[land] || 0;
-                return [land, netto.toFixed(2), rate, (netto * rate / 100).toFixed(2)];
+                const known = Object.prototype.hasOwnProperty.call(this.EU_VAT_RATES, land);
+                const rate = known ? this.EU_VAT_RATES[land] : 0;
+                return [land, netto.toFixed(2), known ? rate : 'unbekannt — manuell prüfen', known ? (netto * rate / 100).toFixed(2) : ''];
             }),
         ];
         Utils.downloadCSV(rows, `oss_${year}.csv`);

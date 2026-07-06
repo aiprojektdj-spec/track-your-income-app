@@ -689,6 +689,10 @@ async function saveBeleg(e, editId) {
     const { netto, mwst } = calcMwst(brutto, mwstSatz);
     const id  = editId || EB.genId();
     const old = editId ? EB.getBelege().find(b=>b.id===editId) : null;
+    if (editId && isBelegGesperrt(old)) {
+        toast('Dieser Eigenbeleg liegt in einer GoBD-festgeschriebenen Periode und kann nicht mehr bearbeitet werden.', 'warning');
+        return;
+    }
     const belegDatum = document.getElementById('eb-datum').value;
     const vkName     = document.getElementById('eb-vk-name').value.trim();
     const s = EB.getEinstellungen();
@@ -1195,16 +1199,28 @@ function viewBeleg(id) {
     openModal();
 }
 
+// GoBD-Sperre wie im Rest der App: Periode (USt-Quartal eingereicht / Jahr abgeschlossen) gesperrt?
+function isBelegGesperrt(b) {
+    if (!b) return false;
+    if (typeof Store === 'undefined' || typeof Store.isPeriodLocked !== 'function') return false;
+    return Store.isPeriodLocked(b.belegDatum);
+}
+
 function editBeleg(id) {
     const b = EB.getBelege().find(x=>x.id===id);
-    if (b && b.gobd_gesperrt) {
-        toast('Dieser Eigenbeleg ist GoBD-gesperrt und kann nicht mehr bearbeitet werden. Legen Sie ggf. einen neuen Beleg an.', 'warning');
+    if (isBelegGesperrt(b)) {
+        toast('Dieser Eigenbeleg liegt in einer GoBD-festgeschriebenen Periode und kann nicht mehr bearbeitet werden. Legen Sie ggf. einen neuen Beleg an.', 'warning');
         return;
     }
     renderNeu(id);
 }
 
 function deleteBeleg(id) {
+    const b = EB.getBelege().find(x=>x.id===id);
+    if (isBelegGesperrt(b)) {
+        toast('Dieser Eigenbeleg liegt in einer GoBD-festgeschriebenen Periode und kann nicht mehr gelöscht werden (GoBD-Unveränderbarkeit).', 'warning');
+        return;
+    }
     if (!confirm(`Eigenbeleg ${id} wirklich löschen?\nDer Beleg wird in ALLEN Unternehmen entfernt (inkl. EÜR & Rechnungs-Auswahl).\nDieser Vorgang kann nicht rückgängig gemacht werden.`)) return;
     const n = purgeEigenbelegEverywhere(id);
     toast(n > 1 ? `Eigenbeleg in ${n} Unternehmen gelöscht` : 'Eigenbeleg gelöscht', 'success');

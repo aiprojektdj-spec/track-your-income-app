@@ -22,31 +22,54 @@ const UstVoranmeldung = {
         const expenses  = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
         const retouren  = Store.getRetouren().filter(r => Utils.isInPeriod(r.datum, startDate, endDate));
 
-        // Brutto-Umsätze nach Steuersatz aufteilen (Feld: steuersatz, Default: 19)
-        const _rate = item => (parseFloat(item.steuersatz) || 19);
+        // Brutto-Umsätze nach Steuersatz aufteilen (Feld: steuersatz, Default: 19 nur wenn nicht gesetzt)
+        const _rate = item => {
+            const r = parseFloat(item.steuersatz);
+            return isNaN(r) ? 19 : r;
+        };
         const _brutto = item => (parseFloat(item.verkaufspreis) || 0) + (parseFloat(item.versandkostenKaeufer) || 0);
 
         let bruttoUmsatz19 = 0, bruttoUmsatz7 = 0;
 
         if (this._isSoll() && typeof Store.getRechInvoices === 'function') {
+            // OSS (§3c UStG): sobald die EU-weite 10.000€-Jahresschwelle überschritten ist, ist für
+            // EU-B2C-Fernverkäufe die USt des Ziellandes fällig statt deutscher USt — diese Rechnungen
+            // dürfen dann nicht zusätzlich in die deutsche UVA einfließen (sonst Doppelbesteuerung).
+            const customers  = (typeof Store.getRechCustomers === 'function') ? Store.getRechCustomers() : [];
+            const euLaender  = (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : [];
+            const periodYear = parseInt(String(startDate).slice(0, 4), 10);
+            const ossActive  = (typeof OSS !== 'undefined') && OSS._jahresumsatz(periodYear) >= OSS.SCHWELLE;
+
             // Soll: alle ausgestellten Rechnungen zum Rechnungsdatum, unabhängig vom Zahlungseingang
             Store.getRechInvoices()
                 .filter(i => i.typ === 'rechnung' && (i.status === 'versendet' || i.status === 'bezahlt') && Utils.isInPeriod(i.datum, startDate, endDate))
                 .forEach(i => {
+                    if (ossActive) {
+                        const kunde = customers.find(c => c.id === i.kundeId);
+                        const isEuB2C = kunde && kunde.land && kunde.land !== 'DE' && euLaender.indexOf(kunde.land) !== -1 && !kunde.ustIdNr;
+                        if (isEuB2C) return; // OSS-pflichtig — läuft über das BZSt-Portal, nicht über diese UVA
+                    }
                     (i.positionen || []).forEach(pos => {
                         const netto = parseFloat(pos.menge || 1) * parseFloat(pos.einzelpreis || 0);
-                        const rate  = parseInt(pos.mwstSatz) || 0;
-                        if (rate === 7) bruttoUmsatz7 += netto * 1.07; else bruttoUmsatz19 += netto * 1.19;
+                        const rate  = parseInt(pos.mwstSatz);
+                        if (rate === 7) bruttoUmsatz7 += netto * 1.07;
+                        else if (rate === 19 || isNaN(rate)) bruttoUmsatz19 += netto * 1.19;
+                        // rate === 0 (Reverse-Charge/steuerfrei/OSS) bewusst ausgeschlossen — gehört nicht zu Kz.81/86
                     });
                 });
             // Direktverkäufe ohne zugehörige Rechnung (Marktplatz) weiterhin über Verkaufsdatum
             Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate))
-                .forEach(s => { if (_rate(s) === 7) bruttoUmsatz7 += _brutto(s); else bruttoUmsatz19 += _brutto(s); });
+                .forEach(s => {
+                    const rate = _rate(s);
+                    if (rate === 7) bruttoUmsatz7 += _brutto(s);
+                    else if (rate !== 0) bruttoUmsatz19 += _brutto(s);
+                });
         } else {
             // Ist: nur bezahlte Rechnungen, bereits zum Zahlungsdatum in Store.getSales() gebucht
-            const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
+            // Rechnungs-verknüpfte Verkäufe ausschließen (bereits über die Rechnung erfasst — sonst Doppelzählung)
+            const sales = Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate));
             bruttoUmsatz7  = sales.filter(v => _rate(v) === 7).reduce((s, v) => s + _brutto(v), 0);
-            bruttoUmsatz19 = sales.filter(v => _rate(v) !== 7).reduce((s, v) => s + _brutto(v), 0);
+            bruttoUmsatz19 = sales.filter(v => { const r = _rate(v); return r !== 7 && r !== 0; }).reduce((s, v) => s + _brutto(v), 0);
         }
 
         // 7%-/19%-Retouren abziehen (§17 UStG)

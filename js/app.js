@@ -705,7 +705,7 @@ const App = {
 
         const tabs = SUBTABS.map(t =>
             `<button class="msub-tab${t.page === page ? ' active' : ''}" type="button" ` +
-            `onclick="App.navigate('${t.page}')">` +
+            `onclick="App.navigate('${t.page}')" title="${t.label}" aria-label="${t.label}">` +
             `<i class="ti ${t.icon}"></i><span>${t.label}</span></button>`
         ).join('');
 
@@ -2709,11 +2709,18 @@ const App = {
             confirmBtn.addEventListener('click', () => {
                 if (input.value !== 'LÖSCHEN') return;
                 // Sofortiges Backup vor dem Löschen (falls Ordner konfiguriert)
-                const doDelete = () => {
+                const doDelete = async () => {
                     const scope = typeof CompanyManager !== 'undefined' ? CompanyManager.getActiveId() : '';
                     Store.clearAll();
-                    if (scope && typeof CloudSync !== 'undefined') CloudSync.deleteRemote(scope);
-                    Utils.showToast('Alle Daten gelöscht', 'warning');
+                    // Art. 17 DSGVO: Cloud-Löschung abwarten, sonst holt der nächste Sync die
+                    // gelöschten Daten aus der Cloud zurück, bevor der Server-Snapshot entfernt ist.
+                    let cloudOk = true;
+                    if (scope && typeof CloudSync !== 'undefined') cloudOk = await CloudSync.deleteRemote(scope);
+                    if (cloudOk) {
+                        Utils.showToast('Alle Daten gelöscht', 'warning');
+                    } else {
+                        Utils.showToast('Lokale Daten gelöscht — Cloud-Löschung fehlgeschlagen. Bitte Internetverbindung prüfen; beim nächsten Sync-Versuch wird erneut versucht.', 'error');
+                    }
                     this.closeModal();
                     location.reload();
                 };

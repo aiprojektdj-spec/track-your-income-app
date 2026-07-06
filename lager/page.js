@@ -1988,7 +1988,7 @@ const SalesImport = {
         const purchases = Store.getPurchases ? Store.getPurchases(true) : [];
         const artNrMap = {};
         purchases.forEach(p => { if (p.artikelNr) artNrMap[p.artikelNr] = p; });
-        const artNrRegex = /ART-\d{4}-\d{4,}/i;
+        const artNrRegex = /\b\d{4}-\d{3,}\b/;
 
         const get = (row, field) => {
             const col = this._mapping[field];
@@ -2082,7 +2082,7 @@ const SalesImport = {
         const purchases = Store.getPurchases(true);
         const artNrMap = {};
         purchases.forEach(p => { if (p.artikelNr && !p.storniert) artNrMap[p.artikelNr.toUpperCase()] = p; });
-        const artNrRegex = /ART-\d{4}-\d{4,}/i;
+        const artNrRegex = /\b\d{4}-\d{3,}\b/;
 
         // Verkäufe vorbereiten
         const newSales = [];

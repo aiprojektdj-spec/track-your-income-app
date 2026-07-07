@@ -20,11 +20,6 @@ const Utils = {
         return parseFloat(num || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     },
 
-    parseCurrency(str) {
-        if (typeof str === 'number') return str;
-        return parseFloat(String(str).replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '')) || 0;
-    },
-
     formatDate(dateStr) {
         if (!dateStr) return '';
         const d = new Date(dateStr);

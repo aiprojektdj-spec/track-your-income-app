@@ -418,7 +418,7 @@ var Rechnung = (function() {
 
         var totalMwst = 0;
         var mwstHtml = '';
-        Object.keys(mwstMap).sort().forEach(function(satz) {
+        Object.keys(mwstMap).sort(function(a, b) { return a - b; }).forEach(function(satz) {
             totalMwst += mwstMap[satz];
             mwstHtml += '<div>' + satz + '% ' + (isCH ? 'MWST' : 'MwSt') + ': ' + Utils.formatCurrency(mwstMap[satz]) + '</div>';
         });
@@ -978,7 +978,7 @@ var Rechnung = (function() {
         if (isKlein) {
             html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
         } else {
-            Object.keys(mwstMap).sort().forEach(function(satz) {
+            Object.keys(mwstMap).sort(function(a, b) { return a - b; }).forEach(function(satz) {
                 totalMwst += mwstMap[satz];
                 html += '<div class="inv-tr"><span>' + (isCH ? 'MWST ' : 'MwSt. ') + satz + '%</span><span>' + Utils.formatCurrency(mwstMap[satz]) + '</span></div>';
             });

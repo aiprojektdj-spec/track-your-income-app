@@ -145,9 +145,6 @@ const Dashboard = {
             .map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('');
         const yearBtns = `<select class="year-select" id="yearSelect">${yearOptions}</select>`;
 
-        // Backup-Reminder wird separat über das Backup-Banner gehandhabt
-        const backupReminder = '';
-
         // Derived metrics
         const monthsElapsed    = isCurrentYear ? (curMonth + 1) : 12;
         const avgMonthlyProfit = monthsElapsed > 0 ? yearProfit / monthsElapsed : 0;
@@ -176,8 +173,6 @@ const Dashboard = {
             <div class="page-header">
                 <h2>Dashboard</h2>
             </div>
-
-            ${backupReminder}
 
             <div class="year-switcher">
                 ${yearBtns}
@@ -311,20 +306,6 @@ const Dashboard = {
         // Akademie-Widget Klick → Akademie öffnen
         const akadWidget = document.getElementById('dashAkademieWidget');
         if (akadWidget) akadWidget.addEventListener('click', () => App.navigate('akademie'));
-
-        // Backup-Reminder Buttons
-        const remNow = document.getElementById('backupReminderNow');
-        if (remNow) remNow.addEventListener('click', () => {
-            if (typeof App !== 'undefined' && App.showBackupModal) App.showBackupModal();
-        });
-        const remLater = document.getElementById('backupReminderLater');
-        if (remLater) remLater.addEventListener('click', () => {
-            const sevenDays = 7 * 86400000;
-            localStorage.setItem('_backup_reminder_dismissed_until', String(Date.now() + sevenDays));
-            const banner = document.getElementById('backupReminder');
-            if (banner) banner.style.display = 'none';
-            Utils.showToast('Erinnerung pausiert für 7 Tage', 'info');
-        });
 
         const yearSelect = document.getElementById('yearSelect');
         if (yearSelect) yearSelect.addEventListener('change', () => {

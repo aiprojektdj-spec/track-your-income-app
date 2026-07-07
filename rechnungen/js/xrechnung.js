@@ -254,7 +254,7 @@ var XRechnung = (function () {
 
         // Tax breakdown per rate
         var hasTax = false;
-        Object.keys(t.mwstMap).sort().forEach(function (rate) {
+        Object.keys(t.mwstMap).sort(function (a, b) { return a - b; }).forEach(function (rate) {
             hasTax = true;
             var mwstAmt = t.mwstMap[rate];
             var taxBase = t.lineItems

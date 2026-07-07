@@ -18,7 +18,7 @@ const Euer = {
                 <div style="font-size:48px;margin-bottom:12px;">🇨🇭</div>
                 <div style="font-weight:700;font-size:16px;margin-bottom:8px;">EÜR nicht verfügbar im Schweiz-Modus</div>
                 <div style="color:var(--text-muted);margin-bottom:16px;">In der Schweiz wird die Einnahmen-Ausgaben-Rechnung (EAR) verwendet.<br>Nutze das Schweiz-Modul für deine Auswertung.</div>
-                <button class="btn btn-primary" onclick="App.navigate('schweiz')">→ Schweiz EAR öffnen</button>
+                <button class="btn btn-primary" data-action="navigate" data-args=\'["schweiz"]\'>→ Schweiz EAR öffnen</button>
             </div>`;
         }
 
@@ -29,7 +29,7 @@ const Euer = {
                 <div style="font-size:48px;margin-bottom:12px;">📊</div>
                 <div style="font-weight:700;font-size:16px;margin-bottom:8px;">EÜR nicht verfügbar</div>
                 <div style="color:var(--text-muted);margin-bottom:16px;">Als ${Rechtsform.get()} bist du bilanzpflichtig.<br>Nutze stattdessen die Bilanz / GuV.</div>
-                <button class="btn btn-primary" onclick="App.navigate('bilanz')">→ Bilanz / GuV öffnen</button>
+                <button class="btn btn-primary" data-action="navigate" data-args=\'["bilanz"]\'>→ Bilanz / GuV öffnen</button>
             </div>`;
         }
 
@@ -419,7 +419,7 @@ const Euer = {
                             </tr>` : ''}
                             ${afaKosten > 0 ? `<tr>
                                 <td>Abschreibungen AfA <span style="font-size:11px;color:var(--text-muted);">(§7 EStG – ${afaAnlagen.length} Anlage(n)${this._period !== 'jahr' ? ', zeitanteilig' : ''})</span>
-                                    <a href="#" onclick="event.preventDefault();App.navigate('afa')" style="font-size:11px;margin-left:6px;">→ Anlagenverzeichnis</a>
+                                    <a href="#" data-action="navigate" data-args=\'["afa"]\' style="font-size:11px;margin-left:6px;">→ Anlagenverzeichnis</a>
                                 </td>
                                 <td style="text-align:right">${Utils.formatCurrency(afaKosten)}</td>
                             </tr>` : afaAnlagen.length > 0 ? `<tr style="opacity:0.6;">
@@ -508,7 +508,7 @@ const Euer = {
                                 Hebesatz der Gemeinde
                                 <input type="number" id="gewstHebesatz" value="${hebesatz}" min="200" max="900" step="50"
                                     style="width:70px;margin-left:8px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);"
-                                    oninput="Euer._updateHebesatz(this.value)">
+                                    data-action-input="euer-hebesatz">
                                 %
                                 <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">(Ø Deutschland: 400%)</span>
                             </td>
@@ -956,3 +956,8 @@ const Euer = {
         this.init();
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'euer-hebesatz': function (e, el) { Euer._updateHebesatz(el.value); }
+});

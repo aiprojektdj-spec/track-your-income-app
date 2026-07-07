@@ -91,7 +91,7 @@ const Ausgaben = {
                 <strong style="color:var(--info);">💡 Betriebsausgaben vs. Wareneinkauf</strong><br>
                 Hier erfasst du <strong>Betriebsausgaben</strong> (z.B. Versandmaterial, Software, Büro, Fahrtkosten).
                 <strong>Wareneinkauf</strong> (Artikel, die du weiterverkaufst) wird unter
-                <a href="#" onclick="App.navigate('buchungen'); return false;" style="color:var(--info);">Buchungen → Einkauf</a> erfasst
+                <a href="#" data-action="navigate" data-args=\'["buchungen"]\' style="color:var(--info);">Buchungen → Einkauf</a> erfasst
                 und fließt automatisch in die EÜR ein.
             </div>
 
@@ -307,7 +307,7 @@ const Ausgaben = {
                     </div>
                 `;
                 const footer = `
-                    <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+                    <button class="btn" data-action="close-modal">Abbrechen</button>
                     <button class="btn btn-primary" id="saveExpenseEdit">Speichern</button>
                 `;
                 App.showModal('Ausgabe bearbeiten', body, footer);

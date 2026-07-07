@@ -109,7 +109,7 @@
                 'Mehr in unserer <a href="datenschutz.html">Datenschutzerklärung</a>.' +
             '</div>' +
             '<div class="cb-actions">' +
-                '<button class="cb-btn-all" onclick="CookieBanner.acceptNecessary()">Verstanden ✓</button>' +
+                '<button class="cb-btn-all" data-action="cb-accept">Verstanden ✓</button>' +
             '</div>';
 
         // Nach kurzem Delay anzeigen (Seitenaufbau abwarten)
@@ -131,3 +131,8 @@
         reset:           function () { localStorage.removeItem(STORAGE_KEY); location.reload(); }
     };
 })();
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'cb-accept': function () { CookieBanner.acceptNecessary(); }
+});

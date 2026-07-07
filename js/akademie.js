@@ -2043,7 +2043,7 @@ const Akademie = {
             if (nextLesson) break;
         }
         const continueBanner = nextLesson ? `
-        <div id="akademieContinueBanner" class="card" style="display:flex;align-items:center;gap:16px;padding:14px 18px;margin-bottom:18px;border-left:3px solid var(--accent);cursor:pointer;transition:opacity .15s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        <div id="akademieContinueBanner" class="card hover-dim" style="display:flex;align-items:center;gap:16px;padding:14px 18px;margin-bottom:18px;border-left:3px solid var(--accent);cursor:pointer;transition:opacity .15s;">
             <div style="width:38px;height:38px;border-radius:10px;background:rgba(16,185,129,.13);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <i class="ti ti-player-play-filled" style="color:var(--accent);font-size:18px;"></i>
             </div>

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Gate: Whop OAuth callback (?code=) oder gespeichertes Token → durch -->
     <!-- WhopAuth.boot() übernimmt Login-Logik nach Script-Load -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com; frame-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com; frame-src 'none';">
 
     <!-- ── Resource Hints: faster CDN connections ── -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -16,6 +16,7 @@
     <title>Stackr</title>
 
     <!-- ── Critical: i18n (sync, tiny ~8KB) ── -->
+    <script src="js/actions.js"></script>
     <script src="js/i18n.js"></script>
 
     <!-- ── Fonts: self-hosted (DSGVO) — preload verhindert FOUT ── -->
@@ -103,16 +104,16 @@
             <!-- ── Österreich-Sektion (nur sichtbar wenn AT-Modus aktiv) ── -->
             <div class="sidebar-section" id="atSidebarSection" style="display:none;">Österreich</div>
             <div class="sidebar-section-items" id="atSidebarItems" style="display:none;">
-                <div class="sidebar-link" onclick="Oesterreich._tab='ear';App.navigate('oesterreich')">
+                <div class="sidebar-link" data-action="at-nav" data-args='["ear"]' >
                     <span class="icon"><i class="ti ti-clipboard-list"></i></span><span class="sidebar-link-label"> EAR</span>
                 </div>
-                <div class="sidebar-link" onclick="Oesterreich._tab='ust';App.navigate('oesterreich')">
+                <div class="sidebar-link" data-action="at-nav" data-args='["ust"]' >
                     <span class="icon"><i class="ti ti-receipt-tax"></i></span><span class="sidebar-link-label"> USt</span>
                 </div>
-                <div class="sidebar-link" onclick="Oesterreich._tab='gsvg';App.navigate('oesterreich')">
+                <div class="sidebar-link" data-action="at-nav" data-args='["gsvg"]' >
                     <span class="icon"><i class="ti ti-shield-heart"></i></span><span class="sidebar-link-label"> GSVG / SV</span>
                 </div>
-                <div class="sidebar-link" onclick="Oesterreich._tab='est';App.navigate('oesterreich')">
+                <div class="sidebar-link" data-action="at-nav" data-args='["est"]' >
                     <span class="icon"><i class="ti ti-calculator"></i></span><span class="sidebar-link-label"> Einkommensteuer</span>
                 </div>
             </div>

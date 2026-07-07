@@ -1947,7 +1947,7 @@ const Store = {
         const stornoNum = this.nextStornoNumber();
         // Negative Positionen
         const stornoPos = (orig.positionen || []).map(p => Object.assign({}, p, { einzelpreis: -Math.abs(p.einzelpreis) }));
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('sv-SE');
         const stornoDoc = {
             id: this.generateId(),
             typ: 'stornorechnung',
@@ -1991,7 +1991,7 @@ const Store = {
         const invoices = this._rechGet('dokumente') || [];
         const inv = invoices.find(x => x.id === invoiceId);
         if (!inv) return;
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('sv-SE');
         inv.versendet = true;
         inv.versandDatum = today;
         if (inv.status === 'offen') inv.status = 'versendet';
@@ -2598,7 +2598,7 @@ const Store = {
             mat.bestand = Math.max(0, (parseInt(mat.bestand) || 0) - menge);
             this.saveMaterialBestandItem(mat);
             ergebnis.push(this.saveMaterialVerbrauchEintrag({
-                datum: datum || new Date().toISOString().split('T')[0],
+                datum: datum || new Date().toLocaleDateString('sv-SE'),
                 materialId, materialName: mat.name, einheit: mat.einheit || 'Stück',
                 menge, kostenProEinheit: parseFloat(mat.kostenProEinheit) || 0, kosten,
                 grund: grund || 'manuell', referenzId: referenzId || null,

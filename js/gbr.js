@@ -67,7 +67,7 @@ const GbR = {
             name:       name.trim(),
             adresse:    adresse || '',
             anteil:     parseFloat(anteil) || 0,
-            eingetreten: eingetreten || new Date().toISOString().split('T')[0],
+            eingetreten: eingetreten || new Date().toLocaleDateString('sv-SE'),
             rolle:      rolle || 'gesellschafter', // gesellschafter | komplementaer | kommanditist | geschaeftsfuehrer
         });
         this.saveGesellschafter(list);
@@ -158,21 +158,21 @@ const GbR = {
                 <div class="card-title"><i class="ti ti-users"></i> Gewinnverteilung GbR</div>
                 <span style="font-size:12px;color:var(--text-muted);">${einst.firmenform}</span>
                 <div style="display:flex;gap:6px;margin-left:auto;">
-                    <button class="btn btn-small no-print" onclick="GbR.openAuszahlungenModal(${new Date().getFullYear()})" style="font-size:11px;"><i class="ti ti-calendar-dollar"></i> Auszahlungen</button>
-                    <button class="btn btn-small btn-outline no-print" onclick="GbR.openSettingsModal()" style="font-size:11px;"><i class="ti ti-settings"></i> Gesellschafter</button>
+                    <button class="btn btn-small no-print" data-action="gbr-open-ausz" style="font-size:11px;"><i class="ti ti-calendar-dollar"></i> Auszahlungen</button>
+                    <button class="btn btn-small btn-outline no-print" data-action="gbr-open-settings" style="font-size:11px;"><i class="ti ti-settings"></i> Gesellschafter</button>
                 </div>
             </div>
 
             ${pctWarning ? `
             <div style="margin-bottom:12px;padding:8px 12px;background:rgba(239,68,68,.1);border:1px solid var(--danger);border-radius:6px;font-size:12px;color:var(--danger);">
                 <i class="ti ti-alert-triangle"></i> Anteile summieren sich auf ${sumPct.toFixed(1)} % statt 100 % — bitte korrigieren.
-                <button class="btn btn-small" onclick="GbR.openSettingsModal()" style="margin-left:8px;font-size:11px;">Jetzt korrigieren</button>
+                <button class="btn btn-small" data-action="gbr-open-settings" style="margin-left:8px;font-size:11px;">Jetzt korrigieren</button>
             </div>` : ''}
 
             ${gesellsch.length === 0 ? `
             <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">
                 Noch keine Gesellschafter angelegt.
-                <button class="btn btn-small btn-outline" onclick="GbR.openSettingsModal()" style="margin-left:10px;">Jetzt anlegen</button>
+                <button class="btn btn-small btn-outline" data-action="gbr-open-settings" style="margin-left:10px;">Jetzt anlegen</button>
             </div>` : `
             <div class="table-container" style="border:none;margin-bottom:0;">
                 <table>
@@ -245,7 +245,7 @@ const GbR = {
                 <td style="padding:6px 8px;width:90px;">
                     <div style="display:flex;align-items:center;gap:4px;">
                         <input type="number" class="form-input" id="gs_anteil_${g.id}" value="${g.anteil}"
-                               min="0" max="100" step="0.1" style="font-size:13px;padding:5px 8px;" oninput="GbR._updateAnteilSum()">
+                               min="0" max="100" step="0.1" style="font-size:13px;padding:5px 8px;" data-action-input="gbr-anteil-sum">
                         <span style="font-size:12px;color:var(--text-muted);">%</span>
                     </div>
                 </td>
@@ -254,7 +254,7 @@ const GbR = {
                            style="font-size:12px;padding:5px 6px;">
                 </td>
                 <td style="padding:6px 8px;width:40px;text-align:center;">
-                    <button onclick="GbR._removeGsRow('${g.id}')" title="Entfernen"
+                    <button data-action="gbr-remove-gs" data-args='["${g.id}"]' title="Entfernen"
                             class="action-btn action-btn-danger" style="width:26px;height:26px;font-size:13px;"><i class="ti ti-trash"></i></button>
                 </td>
             </tr>`).join('');
@@ -268,7 +268,7 @@ const GbR = {
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:6px;">
                     ${(typeof Rechtsform !== 'undefined' ? Object.keys(Rechtsform.FORMEN) : ['Einzelunternehmen','Freiberufler','GbR','eGbR','OHG','KG','GmbH','UG','GmbH & Co. KG']).map(f => {
                         const icons = {'Einzelunternehmen':'👤','Freiberufler':'💼','GbR':'🤝','eGbR':'🏛','OHG':'🏪','KG':'🏭','GmbH':'🏢','UG':'🏠','GmbH & Co. KG':'🏗'};
-                        return `<div onclick="GbR._selectForm('${f}')" id="gbr_form_${f.replace(/[^a-z0-9]/gi,'')}" style="
+                        return `<div data-action="gbr-select-form" data-args='["${f}"]' id="gbr_form_${f.replace(/[^a-z0-9]/gi,'')}" style="
                         border:2px solid ${einst.firmenform===f ? 'var(--accent)' : 'var(--border)'};
                         background:${einst.firmenform===f ? 'rgba(99,102,241,.1)' : 'var(--bg-secondary)'};
                         border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .15s;">
@@ -367,7 +367,7 @@ const GbR = {
                               color:${Math.abs(sumPct-100)<0.01?'var(--success)':'var(--danger)'};">
                             Σ ${sumPct.toFixed(1)} %
                         </span>
-                        <button class="btn btn-small btn-outline" onclick="GbR._addGsRow()"><i class="ti ti-plus"></i> Hinzufügen</button>
+                        <button class="btn btn-small btn-outline" data-action="gbr-add-gs"><i class="ti ti-plus"></i> Hinzufügen</button>
                     </div>
                 </div>
 
@@ -393,8 +393,8 @@ const GbR = {
         </div>`;
 
         const footer = `
-            <button class="btn" onclick="App.closeModal()">Abbrechen</button>
-            <button class="btn btn-primary" onclick="GbR._saveSettingsModal()"><i class="ti ti-device-floppy"></i> Speichern</button>
+            <button class="btn" data-action="close-modal">Abbrechen</button>
+            <button class="btn btn-primary" data-action="gbr-save-settings"><i class="ti ti-device-floppy"></i> Speichern</button>
         `;
         App.showModal('⚙ GbR / Unternehmensform', body, footer);
     },
@@ -433,7 +433,7 @@ const GbR = {
         const tbody = document.getElementById('gbr_gs_tbody');
         if (!tbody) return;
         const tempId = 'new_' + Date.now();
-        const today  = new Date().toISOString().split('T')[0];
+        const today  = new Date().toLocaleDateString('sv-SE');
         const tr = document.createElement('tr');
         tr.id = 'gs_row_' + tempId;
         tr.innerHTML = `
@@ -446,7 +446,7 @@ const GbR = {
             <td style="padding:6px 8px;width:90px;">
                 <div style="display:flex;align-items:center;gap:4px;">
                     <input type="number" class="form-input" id="gs_anteil_${tempId}" value="0" min="0" max="100" step="0.1"
-                           style="font-size:13px;padding:5px 8px;" oninput="GbR._updateAnteilSum()">
+                           style="font-size:13px;padding:5px 8px;" data-action-input="gbr-anteil-sum">
                     <span style="font-size:12px;color:var(--text-muted);">%</span>
                 </div>
             </td>
@@ -454,7 +454,7 @@ const GbR = {
                 <input type="date" class="form-input" id="gs_eintritt_${tempId}" value="${today}" style="font-size:12px;padding:5px 6px;">
             </td>
             <td style="padding:6px 8px;width:40px;text-align:center;">
-                <button onclick="GbR._removeGsRow('${tempId}')" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;">🗑</button>
+                <button data-action="gbr-remove-gs" data-args='["${tempId}"]' style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;">🗑</button>
             </td>`;
         tbody.appendChild(tr);
         document.getElementById('gs_name_' + tempId)?.focus();
@@ -568,7 +568,7 @@ const GbR = {
                         : ''}
                 </div>
             </div>
-            <button class="btn btn-small btn-outline" onclick="App.closeModal();setTimeout(()=>GbR.openSettingsModal(),100);"
+            <button class="btn btn-small btn-outline" data-action="gbr-close-then-settings"
                     style="white-space:nowrap;">⚙ Bearbeiten</button>
         </div>
         ${!pctOk ? `
@@ -777,18 +777,18 @@ const GbR = {
         const body   = GbR._buildModalBody(year, GbR._auszTab);
         const footer = `
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;">
-                <button class="btn btn-outline btn-small" onclick="GbR._auszYear--;GbR._refreshAuszModal();">◀ ${year - 1}</button>
+                <button class="btn btn-outline btn-small" data-action="gbr-ausz-prev">◀ ${year - 1}</button>
                 <span style="font-weight:700;font-size:15px;" id="auszYearLabel">${year}</span>
-                <button class="btn btn-outline btn-small" onclick="GbR._auszYear++;GbR._refreshAuszModal();">▶ ${year + 1}</button>
+                <button class="btn btn-outline btn-small" data-action="gbr-ausz-next">▶ ${year + 1}</button>
                 <span style="flex:1;"></span>
-                <button class="btn" onclick="App.closeModal();">Schließen</button>
+                <button class="btn" data-action="close-modal">Schließen</button>
             </div>`;
         App.showModal('🤝 GbR — Auswertung & Auszahlungen', body, footer);
     },
 
     _buildModalBody(year, tab) {
         const tabNav = this._TABS.map(t => `
-            <button id="gbr_tab_${t.key}" onclick="GbR._switchAuszTab('${t.key}')"
+            <button id="gbr_tab_${t.key}" data-action="gbr-ausz-tab" data-args='["${t.key}"]' 
                     style="padding:8px 16px;border:none;border-bottom:3px solid ${t.key===tab?'var(--accent)':'transparent'};
                            background:none;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;
                            color:${t.key===tab?'var(--accent)':'var(--text-secondary)'};">
@@ -848,7 +848,7 @@ const GbR = {
             return `<div style="padding:20px;text-align:center;color:var(--text-muted);">Nur für GbR / eGbR verfügbar. Bitte Firmenform in den Einstellungen ändern.</div>`;
         }
         if (gesellsch.length === 0) {
-            return `<div style="padding:20px;text-align:center;color:var(--text-muted);">Noch keine Gesellschafter angelegt. <button class="btn btn-small btn-outline" onclick="App.closeModal();setTimeout(()=>GbR.openSettingsModal(),150);">Jetzt anlegen</button></div>`;
+            return `<div style="padding:20px;text-align:center;color:var(--text-muted);">Noch keine Gesellschafter angelegt. <button class="btn btn-small btn-outline" data-action="gbr-close-then-settings">Jetzt anlegen</button></div>`;
         }
 
         // ── Jahres-Summen berechnen ──
@@ -888,7 +888,7 @@ const GbR = {
                     ${ausgez > 0 ? `<div style="font-size:10px;color:var(--text-muted);">${fmt(ausgez)} bez.</div>` : ''}
                     <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:3px;">
                         ${pill}
-                        <button title="Auszahlung hinzufügen" onclick="GbR.openAddAuszahlungModal(${year},${mIdx},'${g.id}')"
+                        <button title="Auszahlung hinzufügen" data-action="gbr-add-ausz" data-args='[${year},${mIdx},"${g.id}"]' 
                             style="background:var(--accent);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;">+</button>
                     </div>
                 </td>`;
@@ -961,7 +961,7 @@ const GbR = {
         const ausgez     = this.getTotalAusgezahlt(monthKey, gsId);
         const offen      = anspruch - ausgez;
         const fmt        = v => Utils.formatCurrency(v);
-        const today      = new Date().toISOString().split('T')[0];
+        const today      = new Date().toLocaleDateString('sv-SE');
 
         const body = `
         <div style="margin-bottom:14px;padding:12px;background:var(--bg-secondary);border-radius:8px;font-size:13px;">
@@ -998,8 +998,8 @@ const GbR = {
         </div>`;
 
         const footer = `
-            <button class="btn" onclick="App.closeModal();setTimeout(()=>GbR.openAuszahlungenModal(${year},'auszahlungen'),100);">Abbrechen</button>
-            <button class="btn btn-primary" onclick="GbR._saveNewAuszahlung(${year},${month},'${gsId}');"><i class="ti ti-device-floppy"></i> Buchen</button>`;
+            <button class="btn" data-action="gbr-cancel-ausz" data-args='[${year}]' >Abbrechen</button>
+            <button class="btn btn-primary" data-action="gbr-save-ausz" data-args='[${year},${month},"${gsId}"]' ><i class="ti ti-device-floppy"></i> Buchen</button>`;
         App.showModal(`💸 Auszahlung buchen – ${Utils.escapeHtml(g.name)}`, body, footer);
     },
 
@@ -1057,7 +1057,7 @@ const GbR = {
                         <td style="padding:5px 8px;font-weight:700;text-align:right;color:var(--success);">${fmt(e.betrag)}</td>
                         <td style="padding:5px 8px;font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(e.notiz || '')}</td>
                         <td style="padding:5px 8px;text-align:center;">
-                            <button onclick="GbR._deleteAusz('${monthKey}','${g.id}','${e.id}',${year})"
+                            <button data-action="gbr-del-ausz" data-args='["${monthKey}","${g.id}","${e.id}",${year}]' 
                                     class="action-btn action-btn-danger" style="width:24px;height:24px;font-size:12px;" title="Löschen"><i class="ti ti-trash"></i></button>
                         </td>
                     </tr>`);
@@ -1080,7 +1080,7 @@ const GbR = {
                         <span>Ausgezahlt: <strong>${fmt(jahresAusgez)}</strong> (${pct}%)</span>
                         <span>Saldo: <strong style="color:${saldoColor};">${fmt(saldo)}</strong></span>
                     </div>
-                    <button class="btn btn-small btn-primary" onclick="GbR.openAddAuszahlungModal(${year},${now.getMonth()},'${g.id}')">+ Auszahlung</button>
+                    <button class="btn btn-small btn-primary" data-action="gbr-add-ausz" data-args='[${year},${now.getMonth()},"${g.id}"]' >+ Auszahlung</button>
                 </div>
                 ${monatsRows.length === 0
                     ? `<div style="padding:14px;text-align:center;color:var(--text-muted);font-size:13px;">Noch keine Auszahlungen in ${year} gebucht.</div>`
@@ -1304,12 +1304,12 @@ const GbR = {
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
                 ${verteilung.map(v => `
-                <div class="card stat-card" style="cursor:pointer;" onclick="App.navigate('euer')">
+                <div class="card stat-card" style="cursor:pointer;" data-action="navigate" data-args=\'["euer"]\'>
                     <div class="card-label">👤 ${Utils.escapeHtml(v.name)} · ${v.anteil.toFixed(0)} %</div>
                     <div class="card-value" style="color:${v.gewinnanteil>=0?'var(--success)':'var(--danger)'};">${fmt(v.gewinnanteil)}</div>
                     <div class="card-subtitle">Gewinnanteil · GewSt: ${fmt(v.gewStAnteil)}</div>
                 </div>`).join('')}
-                <div class="card stat-card" style="cursor:pointer;border-style:dashed;" onclick="GbR.openAuszahlungenModal(${new Date().getFullYear()})">
+                <div class="card stat-card" style="cursor:pointer;border-style:dashed;" data-action="gbr-open-ausz">
                     <div class="card-label">📅 Auszahlungen</div>
                     <div class="card-value" style="font-size:20px;">buchen</div>
                     <div class="card-subtitle">Monatliche EÜR öffnen</div>
@@ -1319,3 +1319,22 @@ const GbR = {
     },
 };
 window.GbR = GbR;
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'gbr-open-ausz':           function (year) { GbR.openAuszahlungenModal(typeof year === 'number' ? year : new Date().getFullYear()); },
+    'gbr-open-settings':       function () { GbR.openSettingsModal(); },
+    'gbr-anteil-sum':          function () { GbR._updateAnteilSum(); },
+    'gbr-remove-gs':           function (id) { GbR._removeGsRow(id); },
+    'gbr-select-form':         function (f) { GbR._selectForm(f); },
+    'gbr-add-gs':              function () { GbR._addGsRow(); },
+    'gbr-save-settings':       function () { GbR._saveSettingsModal(); },
+    'gbr-close-then-settings': function () { App.closeModal(); setTimeout(function () { GbR.openSettingsModal(); }, 100); },
+    'gbr-ausz-prev':           function () { GbR._auszYear--; GbR._refreshAuszModal(); },
+    'gbr-ausz-next':           function () { GbR._auszYear++; GbR._refreshAuszModal(); },
+    'gbr-ausz-tab':            function (key) { GbR._switchAuszTab(key); },
+    'gbr-add-ausz':            function (year, mIdx, gsId) { GbR.openAddAuszahlungModal(year, mIdx, gsId); },
+    'gbr-cancel-ausz':         function (year) { App.closeModal(); setTimeout(function () { GbR.openAuszahlungenModal(year, 'auszahlungen'); }, 100); },
+    'gbr-save-ausz':           function (year, month, gsId) { GbR._saveNewAuszahlung(year, month, gsId); },
+    'gbr-del-ausz':            function (monthKey, gId, eId, year) { GbR._deleteAusz(monthKey, gId, eId, year); }
+});

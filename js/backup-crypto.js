@@ -210,7 +210,7 @@ var BackupCrypto = (function () {
               '<div class="section-title" style="margin:0;"><i class="ti ti-lock"></i> Verschlüsseltes Backup exportieren</div>' +
               '<input type="password" id="bkpExpPass"  class="form-input" placeholder="Passphrase (mind. 8 Zeichen)" autocomplete="new-password">' +
               '<input type="password" id="bkpExpPass2" class="form-input" placeholder="Passphrase wiederholen"        autocomplete="new-password">' +
-              '<button class="btn btn-primary" onclick="BackupCrypto.doExport()" style="width:100%;"><i class="ti ti-package-export"></i> Verschlüsseltes Backup exportieren</button>' +
+              '<button class="btn btn-primary" data-action="bc-export" style="width:100%;"><i class="ti ti-package-export"></i> Verschlüsseltes Backup exportieren</button>' +
             '</div>' +
 
             // Import
@@ -219,7 +219,7 @@ var BackupCrypto = (function () {
               '<input type="file" id="bkpImpFile" accept=".stackrbak,application/json" class="form-input">' +
               '<input type="password" id="bkpImpPass" class="form-input" placeholder="Passphrase" autocomplete="off">' +
               '<div style="font-size:12px;color:var(--text-muted);">Daten werden mit den vorhandenen <strong>zusammengeführt</strong> (neuere Einträge gewinnen). Anschließend lädt die Seite neu.</div>' +
-              '<button class="btn" onclick="BackupCrypto.doImport()" style="width:100%;"><i class="ti ti-upload"></i> Backup importieren</button>' +
+              '<button class="btn" data-action="bc-import" style="width:100%;"><i class="ti ti-upload"></i> Backup importieren</button>' +
             '</div>' +
           '</div>';
         App.showModal('Komplett-Backup (alle Firmen, verschlüsselt)', body, '');
@@ -232,7 +232,7 @@ var BackupCrypto = (function () {
         if (p1 !== p2)     { _toast('Passphrasen stimmen nicht überein.', 'error'); return; }
         try {
             var file = await _export(p1);
-            var name = 'stackr-backup-' + new Date().toISOString().slice(0, 10) + '.stackrbak';
+            var name = 'stackr-backup-' + new Date().toLocaleDateString('sv-SE') + '.stackrbak';
             var a = document.createElement('a');
             a.href = URL.createObjectURL(new Blob([JSON.stringify(file)], { type: 'application/json' }));
             a.download = name;
@@ -299,3 +299,10 @@ var BackupCrypto = (function () {
 })();
 if (typeof window !== 'undefined') window.BackupCrypto = BackupCrypto;
 if (typeof module !== 'undefined' && module.exports) module.exports = BackupCrypto;
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'bc-open-modal': function () { BackupCrypto.openModal(); },
+    'bc-export':     function () { BackupCrypto.doExport(); },
+    'bc-import':     function () { BackupCrypto.doImport(); }
+});

@@ -81,7 +81,7 @@ const Ksk = {
             <h2>Künstlersozialkasse (KSK)</h2>
             <div class="page-header-actions no-print">
                 <select class="form-select" id="kskYear" style="width:100px;">${yearOptions}</select>
-                <button class="btn btn-primary" onclick="Ksk._openConfig()">⚙️ KSK-Konfiguration</button>
+                <button class="btn btn-primary" data-action="ksk-config">⚙️ KSK-Konfiguration</button>
             </div>
         </div>
 
@@ -94,7 +94,7 @@ const Ksk = {
                     Die KSK bietet Künstlern und Publizisten Zugang zur gesetzlichen Kranken-, Pflege- und
                     Rentenversicherung. Du zahlst nur den Arbeitnehmeranteil (~50%), die KSK übernimmt den Rest.
                 </p>
-                <button class="btn btn-primary" onclick="Ksk._openConfig()">KSK-Mitgliedschaft einrichten</button>
+                <button class="btn btn-primary" data-action="ksk-config">KSK-Mitgliedschaft einrichten</button>
             </div>
         </div>` : ''}
 
@@ -129,7 +129,7 @@ const Ksk = {
                     <div class="form-group">
                         <label class="form-label">Jahreseinkommen (Basis für Beitrag) €</label>
                         <input type="number" class="form-input" id="kskCalcEin" step="100" value="${grundlage.toFixed(0)}"
-                            oninput="Ksk._updateCalc()">
+                            data-action-input="ksk-calc">
                         <div class="form-hint">EÜR-Gewinn für ${year}: ${Utils.formatCurrency(gewinnEuer)}</div>
                     </div>
                     <div class="form-group">
@@ -139,7 +139,7 @@ const Ksk = {
                         </div>
                     </div>
                     <div class="form-group">
-                        <button class="btn btn-primary" onclick="Ksk._saveGemeldetes()">💾 Als gemeldetes EK speichern</button>
+                        <button class="btn btn-primary" data-action="ksk-save-gemeldet">💾 Als gemeldetes EK speichern</button>
                     </div>
                 </div>
 
@@ -162,7 +162,7 @@ const Ksk = {
         <div class="card" style="margin-bottom:16px;">
             <div class="card-header">
                 <div class="card-title">Meldungshistorie ${year}</div>
-                ${istMitglied ? `<button class="btn btn-sm btn-primary" onclick="Ksk._openMeldung()">+ Meldung</button>` : ''}
+                ${istMitglied ? `<button class="btn btn-sm btn-primary" data-action="ksk-meldung">+ Meldung</button>` : ''}
             </div>
             ${meldungen.length > 0 ? `
             <div class="table-container" style="border:none;">
@@ -218,8 +218,7 @@ const Ksk = {
 
     _openConfig() {
         const cfg = Store.getKskConfig();
-        App.showModal(`
-            <h3 style="margin:0 0 16px;">⚙️ KSK-Konfiguration</h3>
+        App.showModal('⚙️ KSK-Konfiguration', `
             <div class="form-group">
                 <label class="form-label">KSK-Mitglied?</label>
                 <select class="form-select" id="ksk_mitglied">
@@ -246,8 +245,8 @@ const Ksk = {
                 <div class="form-hint">Das bei der KSK gemeldete voraussichtliche Arbeitseinkommen</div>
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
-                <button class="btn" onclick="App.closeModal()">Abbrechen</button>
-                <button class="btn btn-primary" onclick="Ksk._saveConfig()">💾 Speichern</button>
+                <button class="btn" data-action="close-modal">Abbrechen</button>
+                <button class="btn btn-primary" data-action="ksk-save-config">💾 Speichern</button>
             </div>
         `);
     },
@@ -267,8 +266,7 @@ const Ksk = {
 
     _openMeldung() {
         const today = Utils.todayISO();
-        App.showModal(`
-            <h3 style="margin:0 0 16px;">➕ KSK-Meldung erfassen</h3>
+        App.showModal('➕ KSK-Meldung erfassen', `
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Datum *</label>
@@ -293,8 +291,8 @@ const Ksk = {
                 <input type="text" class="form-input" id="ksk_notiz" placeholder="z.B. Einkommensmeldung für 2026 ...">
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
-                <button class="btn" onclick="App.closeModal()">Abbrechen</button>
-                <button class="btn btn-primary" onclick="Ksk._saveMeldung()">💾 Speichern</button>
+                <button class="btn" data-action="close-modal">Abbrechen</button>
+                <button class="btn btn-primary" data-action="ksk-save-meldung">💾 Speichern</button>
             </div>
         `);
     },
@@ -316,3 +314,13 @@ const Ksk = {
         this._refresh();
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'ksk-config':        function () { Ksk._openConfig(); },
+    'ksk-calc':          function () { Ksk._updateCalc(); },
+    'ksk-save-gemeldet': function () { Ksk._saveGemeldetes(); },
+    'ksk-meldung':       function () { Ksk._openMeldung(); },
+    'ksk-save-config':   function () { Ksk._saveConfig(); },
+    'ksk-save-meldung':  function () { Ksk._saveMeldung(); }
+});

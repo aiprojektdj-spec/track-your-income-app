@@ -45,7 +45,7 @@ const Privatbuchungen = {
                 </td>
                 <td>${Utils.escapeHtml(b.beschreibung || '')}</td>
                 <td>
-                    <button class="btn btn-sm btn-danger" onclick="Privatbuchungen._storno('${b.id}')">🗑️</button>
+                    <button class="btn btn-sm btn-danger" data-action="pb-storno" data-args='["${b.id}"]' >🗑️</button>
                 </td>
             </tr>
         `).join('');
@@ -59,7 +59,7 @@ const Privatbuchungen = {
             <h2>Privatentnahmen & Privateinlagen</h2>
             <div class="page-header-actions no-print">
                 <select class="form-select" id="privYear" style="width:100px;">${yearOptions}</select>
-                <button class="btn btn-primary" onclick="Privatbuchungen._openForm()">+ Buchung</button>
+                <button class="btn btn-primary" data-action="pb-form">+ Buchung</button>
             </div>
         </div>
 
@@ -150,8 +150,7 @@ const Privatbuchungen = {
 
     _openForm() {
         const today = Utils.todayISO();
-        App.showModal(`
-            <h3 style="margin:0 0 16px;">➕ Privatbuchung erfassen</h3>
+        App.showModal('➕ Privatbuchung erfassen', `
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Datum *</label>
@@ -174,8 +173,8 @@ const Privatbuchungen = {
                 <input type="text" class="form-input" id="priv_desc" placeholder="z.B. Miete, Lebensmittel, Kapitalzuführung ...">
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
-                <button class="btn" onclick="App.closeModal()">Abbrechen</button>
-                <button class="btn btn-primary" onclick="Privatbuchungen._saveForm()">Speichern</button>
+                <button class="btn" data-action="close-modal">Abbrechen</button>
+                <button class="btn btn-primary" data-action="pb-save">Speichern</button>
             </div>
         `);
     },
@@ -204,3 +203,10 @@ const Privatbuchungen = {
         this._refresh();
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'pb-storno': function (id) { Privatbuchungen._storno(id); },
+    'pb-form':   function () { Privatbuchungen._openForm(); },
+    'pb-save':   function () { Privatbuchungen._saveForm(); }
+});

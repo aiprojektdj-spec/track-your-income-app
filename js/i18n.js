@@ -907,6 +907,7 @@ var I18n = (function () {
 
     // Apply translations to static HTML elements
     function applyAll() {
+        document.documentElement.lang = _lang; // WCAG 3.1.1
         document.querySelectorAll('[data-i18n]').forEach(function (el) {
             el.textContent = t(el.getAttribute('data-i18n'));
         });
@@ -927,12 +928,17 @@ var I18n = (function () {
         var de = _lang === 'de' ? ' style="font-weight:700;color:var(--accent,#10b981);"' : '';
         var en = _lang === 'en' ? ' style="font-weight:700;color:var(--accent,#10b981);"' : '';
         return '<div style="display:flex;gap:6px;align-items:center;">' +
-            '<button class="' + cls + '" onclick="I18n.setLang(\'de\')"' + de + '>🇩🇪 DE</button>' +
+            '<button class="' + cls + '" data-action="i18n-set-lang" data-args=\'["de"]\' ' + de + '>🇩🇪 DE</button>' +
             '<span style="color:var(--text-muted,#888);font-size:11px;">|</span>' +
-            '<button class="' + cls + '" onclick="I18n.setLang(\'en\')"' + en + '>🇬🇧 EN</button>' +
+            '<button class="' + cls + '" data-action="i18n-set-lang" data-args=\'["en"]\' ' + en + '>🇬🇧 EN</button>' +
         '</div>';
     }
 
     return { t, setLang, getLang, isEN, isDE, applyAll, renderToggle };
 
 })();
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'i18n-set-lang': function (lang) { I18n.setLang(lang); }
+});

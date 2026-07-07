@@ -136,7 +136,7 @@ const Lager = {
         }
 
         const isMulti   = selected.length > 1;
-        const today     = new Date().toISOString().slice(0, 10);
+        const today     = new Date().toLocaleDateString('sv-SE');
         const platforms = Store.getPlatforms();
         const lastPlat  = localStorage.getItem('lager_last_platform') || 'Vinted';
         const platOpts  = platforms.filter(p => p !== 'Sonstiges')
@@ -206,7 +206,7 @@ const Lager = {
                         <label class="form-label" style="font-size:11px;">Verkaufspreis (€) *</label>
                         <input type="number" step="0.01" min="0" class="form-input" id="vk_preis"
                                placeholder="0,00" style="font-size:22px;font-weight:700;padding:8px 12px;"
-                               oninput="Lager._calcVkNetto()">
+                               data-action-input="lg-calc-vk">
                     </div>
 
                     <!-- Versand Käufer + Gebühr -->
@@ -214,12 +214,12 @@ const Lager = {
                         <div>
                             <label class="form-label" style="font-size:11px;">Versand Käufer (€)</label>
                             <input type="number" step="0.01" min="0" class="form-input" id="vk_versandKaeufer"
-                                   value="0" style="padding:6px 10px;font-size:13px;" oninput="Lager._calcVkNetto()">
+                                   value="0" style="padding:6px 10px;font-size:13px;" data-action-input="lg-calc-vk">
                         </div>
                         <div>
                             <label class="form-label" style="font-size:11px;">Gebühr (%)</label>
                             <input type="number" step="0.1" min="0" max="100" class="form-input" id="vk_gebuehr"
-                                   value="0" style="padding:6px 10px;font-size:13px;" oninput="Lager._calcVkNetto()">
+                                   value="0" style="padding:6px 10px;font-size:13px;" data-action-input="lg-calc-vk">
                         </div>
                     </div>
 
@@ -227,7 +227,7 @@ const Lager = {
                     <div>
                         <label class="form-label" style="font-size:11px;">Versand Verkäufer (€)</label>
                         <input type="number" step="0.01" min="0" class="form-input" id="vk_versandVk"
-                               value="0" style="padding:6px 10px;font-size:13px;" oninput="Lager._calcVkNetto()">
+                               value="0" style="padding:6px 10px;font-size:13px;" data-action-input="lg-calc-vk">
                     </div>
 
                     <!-- Käufer + Notizen klappbar -->
@@ -268,7 +268,7 @@ const Lager = {
         `;
 
         const footer = `
-            <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+            <button class="btn" data-action="close-modal">Abbrechen</button>
             <button class="btn btn-primary" id="saveVerkauf" style="min-width:140px;">💰 Verkauf speichern</button>
         `;
 
@@ -487,7 +487,7 @@ const Lager = {
             <div class="form-group"><label class="form-label">Notizen</label><textarea class="form-textarea" id="se_notizen" ${dis}>${Utils.escapeHtml(s.notizen || '')}</textarea></div>
         `;
         const footer = `
-            <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+            <button class="btn" data-action="close-modal">Abbrechen</button>
             ${s.storniert ? '' : `<button class="btn btn-danger" id="se_storno">Stornieren</button>`}
             ${locked ? '' : `<button class="btn btn-primary" id="se_save">Speichern</button>`}
         `;
@@ -1005,7 +1005,7 @@ const Lager = {
                 `).join('')}
             </div>
         `;
-        App.showModal('Status ändern', body, '<button class="btn" onclick="App.closeModal()">Schließen</button>');
+        App.showModal('Status ändern', body, '<button class="btn" data-action="close-modal">Schließen</button>');
 
         document.querySelectorAll('[data-set-status]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1063,7 +1063,7 @@ const Lager = {
         </p>
         <div style="display:flex;flex-direction:column;gap:10px;">
             <button class="btn btn-primary" style="padding:12px 20px;font-size:14px;justify-content:flex-start;gap:12px;"
-                    onclick="App.closeModal();Lager.exportXLSX();">
+                    data-action="lg-export-xlsx">
                 <span style="font-size:20px;">📊</span>
                 <div style="text-align:left;">
                     <div style="font-weight:700;">Excel exportieren (.xlsx)</div>
@@ -1071,7 +1071,7 @@ const Lager = {
                 </div>
             </button>
             <button class="btn btn-outline" style="padding:12px 20px;font-size:14px;justify-content:flex-start;gap:12px;"
-                    onclick="App.closeModal();Lager.exportCSV();">
+                    data-action="lg-export-csv">
                 <span style="font-size:20px;">📄</span>
                 <div style="text-align:left;">
                     <div style="font-weight:700;">CSV exportieren (.csv)</div>
@@ -1114,7 +1114,7 @@ const Lager = {
         ];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Lager');
-        XLSX.writeFile(wb, `Lager_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
+        XLSX.writeFile(wb, `Lager_Export_${new Date().toLocaleDateString('sv-SE')}.xlsx`);
         Utils.showToast('📥 Excel exportiert', 'success');
     },
 
@@ -1144,7 +1144,7 @@ const Lager = {
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href     = url;
-        a.download = `Lager_Export_${new Date().toISOString().slice(0,10)}.csv`;
+        a.download = `Lager_Export_${new Date().toLocaleDateString('sv-SE')}.csv`;
         a.click();
         URL.revokeObjectURL(url);
         Utils.showToast('📥 CSV exportiert', 'success');
@@ -1298,9 +1298,7 @@ const Lager = {
                 position:relative;
                 padding:0 0 7px 0;
                 cursor:pointer;
-            " ${cardAttr}
-            onmouseover="this.querySelector('.zf').style.transform='translateY(-3px) translateX(-1px)';this.querySelector('.zf').style.boxShadow='0 8px 24px rgba(0,0,0,0.5)'"
-            onmouseout="this.querySelector('.zf').style.transform='';this.querySelector('.zf').style.boxShadow=''">
+            " class="lg-zone3d" ${cardAttr}>
                 <!-- 3D depth layers (back → front) -->
                 <div style="position:absolute;inset:7px 0 0 7px;background:${darkColor};border-radius:9px;opacity:.9;pointer-events:none;"></div>
                 <div style="position:absolute;inset:4px 3px 3px 4px;background:${midColor};border-radius:10px;opacity:.7;pointer-events:none;"></div>
@@ -1350,9 +1348,7 @@ const Lager = {
                             display:flex;align-items:center;justify-content:center;
                             min-height:70px;cursor:pointer;color:rgba(255,255,255,0.2);
                             font-size:24px;transition:all .15s;
-                        " data-cell-add="${c},${r}"
-                        onmouseover="this.style.borderColor='rgba(124,58,237,0.8)';this.style.background='rgba(124,58,237,0.12)';this.style.color='rgba(124,58,237,0.9)'"
-                        onmouseout="this.style.borderColor='rgba(255,255,255,0.12)';this.style.background='';this.style.color='rgba(255,255,255,0.2)'">+</div>`;
+                        " class="lg-cell-add" data-cell-add="${c},${r}">+</div>`;
                     }
                 }
             }
@@ -1404,10 +1400,7 @@ const Lager = {
         };
 
         const swatches = this.ZONE_COLORS.map(c =>
-            `<div data-swatch="${c}" onclick="
-                document.querySelectorAll('[data-swatch]').forEach(s=>{s.style.outline='none';});
-                this.style.outline='3px solid ${c}';this.style.outlineOffset='2px';
-                document.getElementById('zm_color').value='${c}';"
+            `<div data-swatch="${c}" data-action="lg-pick-swatch"
             style="width:22px;height:22px;border-radius:50%;background:${c};cursor:pointer;flex-shrink:0;
                    outline:${z.color===c?'3px solid '+c:'none'};outline-offset:${z.color===c?'2px':'0'};">
             </div>`
@@ -1452,7 +1445,7 @@ const Lager = {
 
         const footer = `
             ${isEdit ? `<button class="btn btn-danger" id="zmDelete" style="margin-right:auto;">🗑 Löschen</button>` : ''}
-            <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+            <button class="btn" data-action="close-modal">Abbrechen</button>
             <button class="btn btn-primary" id="zmSave">${isEdit ? 'Speichern' : '+ Hinzufügen'}</button>
         `;
         App.showModal(isEdit ? `Zone: ${Utils.escapeHtml(z.name||'?')}` : '+ Zone hinzufügen', body, footer);
@@ -1512,8 +1505,8 @@ const Lager = {
                     <div style="font-size:36px;margin-bottom:10px;">⚙️</div>
                     <div>Kein Bereich-Code gesetzt — bearbeite die Zone um Artikel zuzuordnen.</div>
                 </div>`,
-                `<button class="btn btn-primary" onclick="App.closeModal();Lager._openZoneModal(Lager._getLayout().zones.find(z=>z.id==='${zone.id}'))">✏️ Zone bearbeiten</button>
-                 <button class="btn" onclick="App.closeModal()">Schließen</button>`
+                `<button class="btn btn-primary" data-action="lg-zone-edit" data-args='["${zone.id}"]'>✏️ Zone bearbeiten</button>
+                 <button class="btn" data-action="close-modal">Schließen</button>`
             );
             return;
         }
@@ -1550,7 +1543,7 @@ const Lager = {
         App.showModal(`${icon} ${Utils.escapeHtml(zone.name)}`, body,
             `<button class="btn" id="zoneEditBtn" style="margin-right:auto;">✏️ Zone bearbeiten</button>
              <button class="btn btn-primary" id="zoneAssignBtn">📦 Artikel zuordnen</button>
-             <button class="btn" onclick="App.closeModal()">Schließen</button>`
+             <button class="btn" data-action="close-modal">Schließen</button>`
         );
 
         const editZoneBtn = document.getElementById('zoneEditBtn');
@@ -1583,7 +1576,7 @@ const Lager = {
                     <div style="font-size:32px;margin-bottom:10px;">✅</div>
                     <div>Alle verfügbaren Artikel sind bereits einer Zone zugeordnet.</div>
                 </div>`,
-                `<button class="btn" onclick="App.closeModal()">Schließen</button>`
+                `<button class="btn" data-action="close-modal">Schließen</button>`
             );
             return;
         }
@@ -1614,7 +1607,7 @@ const Lager = {
             </div>`;
 
         App.showModal(`${icon} Artikel zuordnen → ${Utils.escapeHtml(zone.name)}`, body,
-            `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+            `<button class="btn" data-action="close-modal">Abbrechen</button>
              <button class="btn btn-primary" id="confirmZoneAssign">✓ Zuordnen</button>`
         );
 
@@ -1652,8 +1645,8 @@ const Lager = {
                     <div style="font-size:36px;margin-bottom:10px;">🗺️</div>
                     <div>Noch keine Zonen definiert. Erstelle zuerst ein Lager-Layout.</div>
                 </div>`,
-                `<button class="btn btn-primary" onclick="App.closeModal();Lager._activeTab='virtual';document.getElementById('content').innerHTML=Lager.render();Lager.init();">Zum Layout</button>
-                 <button class="btn" onclick="App.closeModal()">Abbrechen</button>`
+                `<button class="btn btn-primary" data-action="lg-goto-virtual">Zum Layout</button>
+                 <button class="btn" data-action="close-modal">Abbrechen</button>`
             );
             return;
         }
@@ -1666,15 +1659,14 @@ const Lager = {
             const icon    = ICONS[z.type] || '📍';
             const isActive = z.bereich && z.bereich === curBereich;
             return `
-            <div data-pick-zone="${z.bereich||''}" data-pick-zone-id="${z.id}" style="
+            <div class="lg-pickzone" data-pick-zone="${z.bereich||''}" data-pick-zone-id="${z.id}" style="
+                --zc:${z.color};--zcbg:${z.color}18;
                 padding:12px 14px;border-radius:10px;cursor:pointer;
                 border:2px solid ${isActive ? z.color : 'var(--border)'};
                 background:${isActive ? z.color+'18' : 'var(--bg-secondary)'};
                 display:flex;align-items:center;gap:10px;
                 transition:border-color .1s,background .1s;
-            "
-            onmouseover="this.style.borderColor='${z.color}';this.style.background='${z.color}18'"
-            onmouseout="this.style.borderColor='${isActive ? z.color : 'var(--border)'}';this.style.background='${isActive ? z.color+'18' : 'var(--bg-secondary)'}'">
+            ">
                 <span style="font-size:22px;">${icon}</span>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:700;font-size:13px;color:var(--text-primary);">${Utils.escapeHtml(z.name)}</div>
@@ -1692,19 +1684,17 @@ const Lager = {
             <div style="display:flex;flex-direction:column;gap:8px;">
                 ${zoneCards}
                 ${curBereich ? `
-                <div data-pick-zone="" style="
+                <div class="lg-pickzone-remove" data-pick-zone="" style="
                     padding:10px 14px;border-radius:8px;cursor:pointer;
                     border:1px dashed var(--border);background:transparent;
                     display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:12px;
-                "
-                onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'"
-                onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">
+                ">
                     <span>✕</span> Zone-Zuordnung entfernen
                 </div>` : ''}
             </div>`;
 
         App.showModal(`📍 Zone zuordnen`, body,
-            `<button class="btn" onclick="App.closeModal()">Abbrechen</button>`
+            `<button class="btn" data-action="close-modal">Abbrechen</button>`
         );
 
         document.querySelectorAll('[data-pick-zone]').forEach(card => {
@@ -1793,18 +1783,18 @@ const Lager = {
                         <div class="form-group">
                             <label class="form-label">Spalten (1–12)</label>
                             <input type="range" min="1" max="12" id="lgCols" value="${layout.gridCols}" style="width:100%;"
-                                   oninput="document.getElementById('lgColsVal').textContent=this.value">
+                                   data-action-input="lg-cols-val">
                             <div style="text-align:center;font-size:22px;font-weight:700;margin-top:4px;" id="lgColsVal">${layout.gridCols}</div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Reihen (1–8)</label>
                             <input type="range" min="1" max="8" id="lgRows" value="${layout.gridRows}" style="width:100%;"
-                                   oninput="document.getElementById('lgRowsVal').textContent=this.value">
+                                   data-action-input="lg-rows-val">
                             <div style="text-align:center;font-size:22px;font-weight:700;margin-top:4px;" id="lgRowsVal">${layout.gridRows}</div>
                         </div>
                     </div>`;
                 App.showModal('⚙️ Gitter konfigurieren', body, `
-                    <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+                    <button class="btn" data-action="close-modal">Abbrechen</button>
                     <button class="btn btn-primary" id="saveGridCfg">Übernehmen</button>`);
                 document.getElementById('saveGridCfg').addEventListener('click', () => {
                     layout.gridCols = parseInt(document.getElementById('lgCols').value) || 6;
@@ -1857,7 +1847,7 @@ const Lager = {
                         <table><thead><tr><th>Art.-Nr.</th><th>Artikel</th><th>Größe</th><th style="text-align:right">EK</th></tr></thead>
                         <tbody>${rows || '<tr><td colspan="4" class="table-empty">Alle zugeordnet ✅</td></tr>'}</tbody></table>
                     </div>`,
-                    '<button class="btn" onclick="App.closeModal()">Schließen</button>'
+                    '<button class="btn" data-action="close-modal">Schließen</button>'
                 );
             });
 
@@ -2010,7 +2000,7 @@ const Lager = {
                         `).join('')}
                     </div>
                 `;
-                App.showModal('Bulk-Status ändern', body, '<button class="btn" onclick="App.closeModal()">Abbrechen</button>');
+                App.showModal('Bulk-Status ändern', body, '<button class="btn" data-action="close-modal">Abbrechen</button>');
                 document.querySelectorAll('[data-bulk-set-status]').forEach(b => {
                     b.addEventListener('click', () => {
                         App.closeModal();
@@ -2060,7 +2050,7 @@ const Lager = {
                             <button class="btn btn-small btn-danger" id="deletePhoto_${id}">🗑 Foto löschen</button>
                         </div>
                     `;
-                    App.showModal(Utils.escapeHtml(p.marke || 'Foto'), body, '<button class="btn" onclick="App.closeModal()">Schließen</button>');
+                    App.showModal(Utils.escapeHtml(p.marke || 'Foto'), body, '<button class="btn" data-action="close-modal">Schließen</button>');
 
                     const changeBtn = document.getElementById('changePhoto_' + id);
                     if (changeBtn) changeBtn.addEventListener('click', () => {
@@ -2282,7 +2272,7 @@ const Lager = {
                         </div>
                     `;
                     const footer = `
-                        <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+                        <button class="btn" data-action="close-modal">Abbrechen</button>
                         <button class="btn btn-primary" id="saveLagerEdit">Speichern</button>
                     `;
                     App.showModal('Artikel bearbeiten', body, footer);
@@ -2407,3 +2397,28 @@ const Lager = {
         }
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'lg-calc-vk':      function () { Lager._calcVkNetto(); },
+    'lg-export-xlsx':  function () { App.closeModal(); Lager.exportXLSX(); },
+    'lg-export-csv':   function () { App.closeModal(); Lager.exportCSV(); },
+    'lg-pick-swatch':  function (e, el) {
+        document.querySelectorAll('[data-swatch]').forEach(function (s) { s.style.outline = 'none'; });
+        el.style.outline = '3px solid ' + el.dataset.swatch;
+        el.style.outlineOffset = '2px';
+        document.getElementById('zm_color').value = el.dataset.swatch;
+    },
+    'lg-zone-edit':    function (id) {
+        App.closeModal();
+        Lager._openZoneModal(Lager._getLayout().zones.find(function (z) { return z.id === id; }));
+    },
+    'lg-goto-virtual': function () {
+        App.closeModal();
+        Lager._activeTab = 'virtual';
+        document.getElementById('content').innerHTML = Lager.render();
+        Lager.init();
+    },
+    'lg-cols-val':     function (e, el) { document.getElementById('lgColsVal').textContent = el.value; },
+    'lg-rows-val':     function (e, el) { document.getElementById('lgRowsVal').textContent = el.value; }
+});

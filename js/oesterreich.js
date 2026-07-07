@@ -51,7 +51,7 @@ const Oesterreich = {
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;">
             ${tabs.map(t => `
             <button class="btn${this._tab === t.id ? ' btn-primary' : ''}"
-                onclick="Oesterreich._tab='${t.id}';Oesterreich._rerender()">
+                data-action="at-tab" data-args='["${t.id}"]' >
                 <i class="ti ${t.icon}"></i> ${t.label}
             </button>`).join('')}
         </div>`;
@@ -66,7 +66,7 @@ const Oesterreich = {
         <div class="page-header">
             <h2><i class="ti ti-flag-3" style="margin-right:6px;"></i> Österreich ${this._year}</h2>
             <div class="page-header-actions no-print">
-                <select class="form-select" style="width:100px;" onchange="Oesterreich._year=parseInt(this.value);Oesterreich._rerender()">
+                <select class="form-select" style="width:100px;" data-action-change="at-year">
                     ${[-2,-1,0,1].map(d=>this._year+d).map(y=>`<option value="${y}" ${y===this._year?'selected':''}>${y}</option>`).join('')}
                 </select>
             </div>
@@ -461,3 +461,10 @@ const Oesterreich = {
         </div>`;
     },
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'at-tab':  function (tab) { Oesterreich._tab = tab; Oesterreich._rerender(); },
+    'at-nav':  function (tab) { Oesterreich._tab = tab; App.navigate('oesterreich'); },
+    'at-year': function (e, el) { Oesterreich._year = parseInt(el.value); Oesterreich._rerender(); }
+});

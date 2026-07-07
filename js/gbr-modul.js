@@ -59,8 +59,8 @@ const GbrModul = {
                     <select class="form-select" id="gbrYearSel" style="padding:6px 10px;font-size:13px;width:auto;">
                         ${[year-2,year-1,year,year+1].map(y=>`<option value="${y}"${y===year?' selected':''}>${y}</option>`).join('')}
                     </select>
-                    <button class="btn btn-small" onclick="GbR.openSettingsModal()">👥 Gesellschafter</button>
-                    <button class="btn btn-small btn-primary" onclick="GbR.openAuszahlungenModal(${year})">📅 Auszahlungen</button>
+                    <button class="btn btn-small" data-action="gbr-open-settings">👥 Gesellschafter</button>
+                    <button class="btn btn-small btn-primary" data-action="gbr-open-ausz" data-args='[${year}]' >📅 Auszahlungen</button>
                 </div>
             </div>
 
@@ -118,7 +118,7 @@ const GbrModul = {
         <!-- Gewinnverteilung -->
         <div class="card" style="padding:20px;margin-bottom:16px;">
             <div style="font-weight:700;font-size:15px;margin-bottom:16px;">Gewinnverteilung ${year}</div>
-            ${gs.length === 0 ? `<div style="text-align:center;padding:24px;color:var(--text-muted);">Noch keine Gesellschafter angelegt — <button class="btn btn-small" onclick="GbR.openSettingsModal()">Jetzt anlegen</button></div>` : `
+            ${gs.length === 0 ? `<div style="text-align:center;padding:24px;color:var(--text-muted);">Noch keine Gesellschafter angelegt — <button class="btn btn-small" data-action="gbr-open-settings">Jetzt anlegen</button></div>` : `
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
                 ${gs.map(g => {
                     const v = verteilung.find(x=>x.id===g.id) || {};
@@ -151,7 +151,7 @@ const GbrModul = {
                             <span style="text-align:right;font-weight:700;color:${offen>0.01?'var(--danger)':'var(--success)'};">${Utils.formatCurrency(Math.max(0,offen))}</span>
                         </div>
                         <button class="btn btn-small btn-primary" style="width:100%;margin-top:12px;"
-                            onclick="GbrModul._tab='verrechnung';GbrModul._refresh();">💸 Auszahlung buchen</button>
+                            data-action="gm-tab-verrechnung">💸 Auszahlung buchen</button>
                     </div>`;
                 }).join('')}
             </div>`}
@@ -217,7 +217,7 @@ const GbrModul = {
                                 </td>
                                 <td style="padding:7px 12px;font-size:12px;color:var(--text-secondary);">${Utils.escapeHtml(b.beschreibung||'—')}</td>
                                 <td style="padding:7px 12px;font-size:12px;font-weight:700;text-align:right;white-space:nowrap;color:${isPos(b.typ)?'var(--success)':'var(--danger)'};">${isPos(b.typ)?'+':'−'} ${Utils.formatCurrency(Math.abs(parseFloat(b.betrag)||0))}</td>
-                                <td style="padding:7px 8px;text-align:center;"><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;" onclick="GbrModul._deleteVerr('${b.id}')">🗑</button></td>
+                                <td style="padding:7px 8px;text-align:center;"><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;" data-action="gm-del-verr" data-args='["${b.id}"]' >🗑</button></td>
                             </tr>`).join('')}
                         </tbody>
                     </table>
@@ -228,7 +228,7 @@ const GbrModul = {
 
     _openAddVerrModal() {
         const gs    = GbR.getGesellschafter();
-        const today = new Date().toISOString().slice(0,10);
+        const today = new Date().toLocaleDateString('sv-SE');
         App.showModal('Verrechnungsbuchung erfassen', `
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div class="form-row">
@@ -264,7 +264,7 @@ const GbrModul = {
                     <input type="text" class="form-input" id="verr_beschr" placeholder="z.B. Monatliche Entnahme Mai ${this._year}">
                 </div>
             </div>`,
-        `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveVerrBtn">💾 Speichern</button>`);
 
         document.getElementById('saveVerrBtn').addEventListener('click', () => {
@@ -377,7 +377,7 @@ const GbrModul = {
                         <td style="padding:7px 8px;font-size:12px;">Q${v.quartal}</td>
                         <td style="padding:7px 8px;font-size:12px;color:var(--text-secondary);">${Utils.escapeHtml(v.notizen||'')}</td>
                         <td style="padding:7px 8px;font-size:12px;font-weight:700;text-align:right;">${Utils.formatCurrency(v.betrag)}</td>
-                        <td style="padding:7px 8px;text-align:center;"><button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text-muted);" onclick="GbrModul._deleteGewStVz(${year},'${v.id}')">🗑</button></td>
+                        <td style="padding:7px 8px;text-align:center;"><button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text-muted);" data-action="gm-del-gewstvz" data-args='[${year},"${v.id}"]' >🗑</button></td>
                     </tr>`).join('')}
                 </tbody>
             </table>
@@ -385,7 +385,7 @@ const GbrModul = {
     },
 
     _openAddGewStVzModal(year) {
-        const today = new Date().toISOString().slice(0,10);
+        const today = new Date().toLocaleDateString('sv-SE');
         const m = new Date().getMonth();
         const defQ = m < 3 ? 1 : m < 6 ? 2 : m < 9 ? 3 : 4;
         App.showModal('Gewerbesteuer-Vorauszahlung', `
@@ -411,7 +411,7 @@ const GbrModul = {
                     <input type="text" class="form-input" id="vz_notizen" placeholder="Optional">
                 </div>
             </div>`,
-        `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveVzBtn">💾 Speichern</button>`);
 
         document.getElementById('saveVzBtn').addEventListener('click', () => {
@@ -502,7 +502,7 @@ const GbrModul = {
             </div>
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
                 <button class="btn btn-primary" id="exportFestBtn">📥 CSV exportieren</button>
-                <button class="btn" onclick="window.print()">🖨 Drucken / PDF</button>
+                <button class="btn" data-action="print-page">🖨 Drucken / PDF</button>
             </div>
         </div>
 
@@ -660,7 +660,7 @@ const GbrModul = {
                 Dieses Modul ist für <strong>Personengesellschaften</strong> verfügbar (GbR, eGbR, OHG, KG, GmbH & Co. KG).
                 Rechtsform in den Einstellungen ändern.
             </p>
-            <button class="btn btn-primary" style="min-width:180px;" onclick="App.navigate('rechtsform')">Rechtsform wählen</button>
+            <button class="btn btn-primary" style="min-width:180px;" data-action="navigate" data-args=\'["rechtsform"]\'>Rechtsform wählen</button>
         </div>`;
     },
 
@@ -700,3 +700,10 @@ const GbrModul = {
         if (exportBtn) exportBtn.addEventListener('click', () => this._exportFeststellung(this._year));
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'gm-tab-verrechnung': function () { GbrModul._tab = 'verrechnung'; GbrModul._refresh(); },
+    'gm-del-verr':        function (id) { GbrModul._deleteVerr(id); },
+    'gm-del-gewstvz':     function (year, id) { GbrModul._deleteGewStVz(year, id); }
+});

@@ -25,7 +25,7 @@ var Rechnung = (function() {
     function getDefaultFaelligkeit() {
         var d = new Date();
         d.setDate(d.getDate() + 14);
-        return d.toISOString().split('T')[0];
+        return d.toLocaleDateString('sv-SE');
     }
 
     function calcBrutto(invoice) {
@@ -418,7 +418,7 @@ var Rechnung = (function() {
 
         var totalMwst = 0;
         var mwstHtml = '';
-        Object.keys(mwstMap).sort().forEach(function(satz) {
+        Object.keys(mwstMap).sort(function(a, b) { return a - b; }).forEach(function(satz) {
             totalMwst += mwstMap[satz];
             mwstHtml += '<div>' + satz + '% ' + (isCH ? 'MWST' : 'MwSt') + ': ' + Utils.formatCurrency(mwstMap[satz]) + '</div>';
         });
@@ -978,7 +978,7 @@ var Rechnung = (function() {
         if (isKlein) {
             html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
         } else {
-            Object.keys(mwstMap).sort().forEach(function(satz) {
+            Object.keys(mwstMap).sort(function(a, b) { return a - b; }).forEach(function(satz) {
                 totalMwst += mwstMap[satz];
                 html += '<div class="inv-tr"><span>' + (isCH ? 'MWST ' : 'MwSt. ') + satz + '%</span><span>' + Utils.formatCurrency(mwstMap[satz]) + '</span></div>';
             });
@@ -1292,8 +1292,8 @@ var TestRechnung = (function() {
             id: '__TEST__',
             typ: 'rechnung',
             nummer: 'TEST-' + year + '-0001',
-            datum: today.toISOString().split('T')[0],
-            faelligkeit: faellig.toISOString().split('T')[0],
+            datum: today.toLocaleDateString('sv-SE'),
+            faelligkeit: faellig.toLocaleDateString('sv-SE'),
             datumsOption: 'faelligkeit',
             kundeId: kundeId,
             positionen: positionen,

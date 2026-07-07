@@ -417,18 +417,8 @@ const Materiallager = {
                             <input type="number" step="0.001" min="0" class="form-input" id="me_kosten" value="${m.kostenProEinheit || 0}"></div>
                     </div>`;
                 App.showModal('✏️ ' + m.name + ' bearbeiten', body,
-                    `<button class="btn btn-primary" onclick="(function(){
-                        const m = Store.getMaterialBestand().find(x=>x.id==='${m.id}');
-                        if(!m) return;
-                        m.bestand = parseInt(document.getElementById('me_bestand').value)||0;
-                        m.mindestbestand = parseInt(document.getElementById('me_mindest').value)||0;
-                        m.kostenProEinheit = parseFloat(document.getElementById('me_kosten').value)||0;
-                        Store.saveMaterialBestandItem(m);
-                        App.closeModal();
-                        Materiallager._refresh();
-                        Utils.showToast('${Utils.escapeHtml(m.name)} aktualisiert','success');
-                    })()">Speichern</button>
-                    <button class="btn btn-secondary" onclick="App.closeModal()">Abbrechen</button>`
+                    `<button class="btn btn-primary" data-action="ml-save-edit" data-args='["${m.id}"]' >Speichern</button>
+                    <button class="btn btn-secondary" data-action="close-modal">Abbrechen</button>`
                 );
             });
         });
@@ -559,3 +549,18 @@ const Materiallager = {
         this.init();
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'ml-save-edit': function (id) {
+        const m = Store.getMaterialBestand().find(x => x.id === id);
+        if (!m) return;
+        m.bestand = parseInt(document.getElementById('me_bestand').value) || 0;
+        m.mindestbestand = parseInt(document.getElementById('me_mindest').value) || 0;
+        m.kostenProEinheit = parseFloat(document.getElementById('me_kosten').value) || 0;
+        Store.saveMaterialBestandItem(m);
+        App.closeModal();
+        Materiallager._refresh();
+        Utils.showToast(Utils.escapeHtml(m.name) + ' aktualisiert', 'success');
+    }
+});

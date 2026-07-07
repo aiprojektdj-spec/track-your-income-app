@@ -20,11 +20,6 @@ const Utils = {
         return parseFloat(num || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     },
 
-    parseCurrency(str) {
-        if (typeof str === 'number') return str;
-        return parseFloat(String(str).replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '')) || 0;
-    },
-
     formatDate(dateStr) {
         if (!dateStr) return '';
         const d = new Date(dateStr);
@@ -35,7 +30,8 @@ const Utils = {
     toISODate(date) {
         if (!date) return '';
         const d = date instanceof Date ? date : new Date(date);
-        return d.toISOString().split('T')[0];
+        // Lokalzeit statt UTC: toISOString() lieferte vor 1/2 Uhr nachts das Vortagsdatum
+        return d.toLocaleDateString('sv-SE');
     },
 
     todayISO() {
@@ -86,8 +82,8 @@ const Utils = {
                     autocomplete="off"
                     inputmode="numeric"
                     style="${extraStyle || ''}"
-                    oninput="Utils._autoFormatDate(this)"
-                    onblur="Utils._finishDate(this)">`;
+                    data-action-input="u-date-fmt"
+                    data-action-blur="u-date-finish">`;
     },
 
     // Auto-Format während Tippen: fügt Punkte nach Tag und Monat ein
@@ -368,3 +364,9 @@ const Utils = {
         this.initSmartDates(document);
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'u-date-fmt':    function (e, el) { Utils._autoFormatDate(el); },
+    'u-date-finish': function (e, el) { Utils._finishDate(el); }
+});

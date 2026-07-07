@@ -246,7 +246,7 @@ var AuthUI = (function () {
             '<h1 style="color:var(--text-primary,#fff);font-size:26px;font-weight:800;margin:0 0 8px;letter-spacing:-.5px;">Stackr</h1>',
             '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 32px;line-height:1.6;">Dein Buchhaltungs-Tool für Selbstständige</p>',
             errorMsg ? '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:13px;color:#f87171;text-align:left;">' + _esc(errorMsg) + '</div>' : '',
-            '<button id="whopLoginBtn" onclick="AuthUI._loginWithWhop()" style="width:100%;padding:14px;background:var(--accent,#10b981);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:15px;font-weight:700;letter-spacing:-.2px;margin-bottom:12px;">',
+            '<button id="whopLoginBtn" data-action="wa-login" style="width:100%;padding:14px;background:var(--accent,#10b981);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:15px;font-weight:700;letter-spacing:-.2px;margin-bottom:12px;">',
             'Mit Whop anmelden →',
             '</button>',
             '<p style="color:var(--text-muted,#666);font-size:12px;margin:0;line-height:1.6;">',
@@ -298,7 +298,7 @@ var AuthUI = (function () {
             '<div style="color:var(--text-muted,#888);font-size:11.5px;margin-top:3px;">jederzeit kündbar</div>',
             '</a>',
 
-            '<button onclick="AuthUI._logout()" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:13px;width:100%;padding:6px 0;">',
+            '<button data-action="wa-logout" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:13px;width:100%;padding:6px 0;">',
             'Mit anderem Konto anmelden',
             '</button>',
             '</div>'
@@ -325,11 +325,11 @@ var AuthUI = (function () {
             var name = user.username || (user.email || '').split('@')[0] || 'Whop';
             w.innerHTML =
                 '<span id="cloudSyncDot" style="font-size:14px;color:var(--accent,#10b981);" title="Whop Pro aktiv">◆</span>' +
-                '<button class="auth-user-btn" onclick="AuthUI.openUserMenu(this)" title="' + _esc(user.email || user.username || '') + '">' +
+                '<button class="auth-user-btn" data-action="wa-user-menu" title="' + _esc(user.email || user.username || '') + '">' +
                 '<i class="ti ti-user" style="font-size:13px;"></i> ' + _esc(name.substring(0, 14)) +
                 '</button>';
         } else {
-            w.innerHTML = '<button class="auth-login-btn" onclick="AuthUI._loginWithWhop()">Anmelden</button>';
+            w.innerHTML = '<button class="auth-login-btn" data-action="wa-login">Anmelden</button>';
         }
     }
 
@@ -350,8 +350,8 @@ var AuthUI = (function () {
             _esc(user.email || user.username || 'Whop User') + '</div>' +
             '<div style="font-size:10px;color:var(--accent,#10b981);padding:0 12px 8px;">◆ Stackr Pro aktiv</div>' +
             '<hr style="border:none;border-top:1px solid var(--border,#2e2e42);margin:2px 0;">' +
-            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" onclick="AuthUI.openReferral()">📣 Stackr empfehlen</button>' +
-            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:#ef4444;cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" onclick="AuthUI._logout()">🚪 Abmelden</button>';
+            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-referral">📣 Stackr empfehlen</button>' +
+            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:#ef4444;cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-logout">🚪 Abmelden</button>';
 
         document.body.appendChild(menu);
 
@@ -391,14 +391,14 @@ var AuthUI = (function () {
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px;';
         overlay.innerHTML = [
             '<div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e2e42);border-radius:16px;padding:28px 26px;max-width:420px;width:100%;box-shadow:0 32px 80px rgba(0,0,0,.8);position:relative;">',
-            '<button onclick="document.getElementById(\'referralOverlay\').remove()" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--text-muted,#888);font-size:20px;cursor:pointer;line-height:1;">×</button>',
+            '<button data-action="wa-close-referral" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--text-muted,#888);font-size:20px;cursor:pointer;line-height:1;">×</button>',
             '<div style="font-size:32px;margin-bottom:10px;">📣</div>',
             '<h2 style="color:var(--text-primary,#fff);font-size:19px;margin:0 0 8px;font-weight:800;">Stackr empfehlen</h2>',
             '<p style="color:var(--text-muted,#888);font-size:13px;margin:0 0 18px;line-height:1.6;">Teile Stackr mit anderen Selbstständigen. Für jede erfolgreiche Empfehlung erhältst du eine Prämie über Whop.</p>',
 
             '<div style="display:flex;gap:8px;margin-bottom:14px;">',
             '<input id="refLinkInput" readonly value="' + _esc(link) + '" style="flex:1;min-width:0;background:var(--bg,#08080f);border:1px solid var(--border,#2e2e42);border-radius:8px;color:var(--text-secondary,#ccc);font-size:12px;padding:10px 12px;box-sizing:border-box;">',
-            '<button id="refCopyBtn" onclick="navigator.clipboard.writeText(document.getElementById(\'refLinkInput\').value).then(function(){var b=document.getElementById(\'refCopyBtn\');b.textContent=\'Kopiert ✓\';setTimeout(function(){b.textContent=\'Kopieren\';},1800);})" style="background:var(--accent,#10b981);border:none;color:#fff;font-size:13px;font-weight:700;padding:0 14px;border-radius:8px;cursor:pointer;white-space:nowrap;">Kopieren</button>',
+            '<button id="refCopyBtn" data-action="wa-copy-ref" style="background:var(--accent,#10b981);border:none;color:#fff;font-size:13px;font-weight:700;padding:0 14px;border-radius:8px;cursor:pointer;white-space:nowrap;">Kopieren</button>',
             '</div>',
 
             '<div style="display:flex;gap:8px;margin-bottom:16px;">',
@@ -454,3 +454,19 @@ var AuthUI = (function () {
 
     return { boot, openUserMenu, openReferral, _logout, _loginWithWhop };
 })();
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'wa-login':          function () { AuthUI._loginWithWhop(); },
+    'wa-logout':         function () { AuthUI._logout(); },
+    'wa-user-menu':      function (e, el) { AuthUI.openUserMenu(el); },
+    'wa-referral':       function () { AuthUI.openReferral(); },
+    'wa-close-referral': function () { var o = document.getElementById('referralOverlay'); if (o) o.remove(); },
+    'wa-copy-ref':       function () {
+        navigator.clipboard.writeText(document.getElementById('refLinkInput').value).then(function () {
+            var b = document.getElementById('refCopyBtn');
+            b.textContent = 'Kopiert ✓';
+            setTimeout(function () { b.textContent = 'Kopieren'; }, 1800);
+        });
+    }
+});

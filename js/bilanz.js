@@ -135,7 +135,7 @@ const Bilanz = {
             <h2><i class="ti ti-report-analytics" style="margin-right:6px;"></i> Bilanz / GuV</h2>
             <div class="page-header-actions no-print">
                 <select class="form-select" id="bilanzYear" style="width:90px;">${yearOpts}</select>
-                <button class="btn" onclick="Bilanz._exportCSV()">CSV Export</button>
+                <button class="btn" data-action="bil-export">CSV Export</button>
             </div>
         </div>
 
@@ -379,7 +379,7 @@ const Bilanz = {
                     <input type="number" step="0.01" class="form-input" id="gk_betrag" placeholder="Positiv = Ertrag, Negativ = Aufwand">
                 </div>
             </div>`,
-        `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveGkBtn">Speichern</button>`);
 
         document.getElementById('saveGkBtn').addEventListener('click', () => {
@@ -413,7 +413,7 @@ const Bilanz = {
                     <input type="number" step="0.01" class="form-input" id="ek_gv" value="${p.gewinnvortrag || ''}">
                 </div>
             </div>`,
-        `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveEkBtn">Speichern</button>`);
 
         document.getElementById('saveEkBtn').addEventListener('click', () => {
@@ -437,7 +437,7 @@ const Bilanz = {
                 <label class="form-label">Kasse + Bank Saldo (€)</label>
                 <input type="number" step="0.01" class="form-input" id="kb_val" value="${a.kasseBank || ''}" placeholder="Gesamtsaldo">
             </div>`,
-        `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveKbBtn">Speichern</button>`);
 
         document.getElementById('saveKbBtn').addEventListener('click', () => {
@@ -462,7 +462,7 @@ const Bilanz = {
                     <input type="number" step="0.01" min="0" class="form-input" id="ap_betrag">
                 </div>
             </div>`,
-        `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveApBtn">Speichern</button>`);
 
         document.getElementById('saveApBtn').addEventListener('click', () => {
@@ -491,7 +491,7 @@ const Bilanz = {
                     <input type="number" step="0.01" min="0" class="form-input" id="vb_betrag">
                 </div>
             </div>`,
-        `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveVbBtn">Speichern</button>`);
 
         document.getElementById('saveVbBtn').addEventListener('click', () => {
@@ -555,3 +555,8 @@ const Bilanz = {
         if (vbBtn) vbBtn.addEventListener('click', () => this._openAddVerbindlichkeit());
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'bil-export': function () { Bilanz._exportCSV(); }
+});

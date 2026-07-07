@@ -212,13 +212,18 @@ var BankImport = (function () {
                 if (cells.length <= iAmt) continue;
 
                 var dateRaw = (cells[iDate] || '').trim().replace(/^"+|"+$/g, '');
-                var amtRaw  = (cells[iAmt]  || '').trim().replace(/^"+|"+$/g, '').replace(/\./g, '').replace(',', '.');
+                var amtRaw  = (cells[iAmt]  || '').trim().replace(/^"+|"+$/g, '');
                 var descr   = iDescr >= 0 ? (cells[iDescr] || '').trim().replace(/^"+|"+$/g, '') : '';
-                var sh      = iCredDeb >= 0 ? (cells[iCredDeb] || '').trim() : '';
+                var sh      = iCredDeb >= 0 ? (cells[iCredDeb] || '').trim().toUpperCase() : '';
 
-                var amount = parseFloat(amtRaw);
+                var amount = parseAmount(amtRaw);
                 if (isNaN(amount)) continue;
-                var isCredit = amount > 0 || sh.toUpperCase().includes('H') || sh.toUpperCase().includes('HABEN');
+                // S/H-Marker hat Vorrang (viele Banken exportieren vorzeichenlose Beträge),
+                // Vorzeichen nur als Fallback ohne Marker
+                var isCredit;
+                if (sh.indexOf('S') === 0 || sh.indexOf('SOLL') !== -1)       isCredit = false;
+                else if (sh.indexOf('H') === 0 || sh.indexOf('HABEN') !== -1) isCredit = true;
+                else isCredit = amount > 0;
                 if (amount < 0) { amount = Math.abs(amount); isCredit = false; }
 
                 var date = normalizeDate(dateRaw);
@@ -239,6 +244,18 @@ var BankImport = (function () {
             return { error: e.message, transactions: [] };
         }
         return { transactions: transactions };
+    }
+
+    // Betrag DE ("1.234,56") und EN ("1,234.56" / "1234.56") korrekt parsen.
+    // Vorher wurden alle Punkte gestrichen → englische Dezimalbeträge x100 verfälscht.
+    function parseAmount(s) {
+        s = String(s || '').replace(/[^\d.,-]/g, '');
+        if (!s) return NaN;
+        if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) return parseFloat(s.replace(/\./g, '')); // "1.234" = DE-Tausender
+        var lastComma = s.lastIndexOf(','), lastDot = s.lastIndexOf('.');
+        if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');  // DE: Komma ist Dezimal
+        else                     s = s.replace(/,/g, '');                     // EN: Punkt ist Dezimal
+        return parseFloat(s);
     }
 
     function splitCsvRow(row, sep) {

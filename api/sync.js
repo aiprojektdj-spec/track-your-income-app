@@ -118,7 +118,9 @@ module.exports = async function handler(req, res) {
     try {
         var rlKey = 'sync:rl:' + userId;
         var count = await redisCmd(['INCR', rlKey]);
-        if (count === 1) await redisCmd(['EXPIRE', rlKey, '60']);
+        // NX: setzt TTL nur wenn keiner existiert — heilt Keys, deren EXPIRE nach dem
+        // ersten INCR fehlschlug (sonst permanenter 429 für den Nutzer)
+        await redisCmd(['EXPIRE', rlKey, '60', 'NX']);
         if (count > RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
     } catch (e) {
         console.error('[sync] rate-limit error:', e);

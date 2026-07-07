@@ -29,7 +29,8 @@ module.exports = async function handler(req, res) {
             var ip    = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
             var rlKey = 'whoptoken:rl:' + ip;
             var count = await redisCmd(['INCR', rlKey]);
-            if (count === 1) await redisCmd(['EXPIRE', rlKey, '60']);
+            // NX: TTL nachziehen falls beim ersten INCR verloren — sonst permanente IP-Sperre
+            await redisCmd(['EXPIRE', rlKey, '60', 'NX']);
             if (count > RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
         } catch (e) {
             console.error('[whop-token] rate-limit error:', e); // nicht blockierend

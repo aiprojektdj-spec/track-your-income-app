@@ -55,14 +55,17 @@ const EB = {
         // Fallback: liest aus dem localStorage-Mirror (falls IDB nicht erreichbar)
         try {
             const mirror = localStorage.getItem('_oyi_lsmirror');
+            const hasCompany = !!localStorage.getItem('oyi_active_company');
             if (mirror) {
                 const data = JSON.parse(mirror);
                 const key = _oyi_purchases_key();
-                const purchases = JSON.parse(data[key] || data['reselling_purchases'] || '[]');
+                // ungeprefixte Legacy-Keys nur ohne aktive Firma — sonst firmenfremdes Datenleck
+                const purchases = JSON.parse(data[key] || (hasCompany ? '[]' : (data['reselling_purchases'] || '[]')));
                 if (purchases.length) return purchases.filter(p => !p.storniert && p.status !== 'verkauft');
             }
         } catch(e) {}
-        // Legacy-Fallback
+        // Legacy-Fallback — nur ohne aktive Firma
+        if (localStorage.getItem('oyi_active_company')) return [];
         return JSON.parse(localStorage.getItem('purchases') || '[]')
             .filter(p => !p.storniert && p.status !== 'verkauft');
     },

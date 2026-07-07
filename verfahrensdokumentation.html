@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none';">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
+<title>Verfahrensdokumentation (GoBD) — Stackr</title>
+<link rel="stylesheet" href="css/legal.css">
+</head>
+<body>
+
+<nav>
+    <a href="index.html" class="nav-brand">
+        <span class="nav-brand-icon">◆</span>
+        <span class="nav-brand-text">Stackr</span>
+    </a>
+    <a href="index.html" class="nav-back">← Zurück</a>
+</nav>
+
+<div class="page-wrap">
+
+    <h1>Verfahrensdokumentation</h1>
+    <p class="subtitle">Technische Beschreibung der GoBD-relevanten Verfahren in Stackr (BMF-Schreiben vom 28.11.2019)</p>
+    <p class="update-date">Stand: Juli 2026</p>
+
+    <div class="highlight-box">
+        <strong>Zweck dieses Dokuments:</strong> Es beschreibt, wie Stackr Buchungen erfasst, unveränderbar
+        macht, protokolliert und aufbewahrt — als Nachweis für dich gegenüber Finanzamt/Betriebsprüfung,
+        dass die eingesetzte Software GoBD-konformes Arbeiten ermöglicht. Es ersetzt keine Steuerberatung
+        und ist kein Prüfsiegel — die Verantwortung für die ordnungsgemäße Buchführung liegt beim Nutzer
+        als Buchführungspflichtigem (Stackr ist Werkzeug, nicht Steuerberater).
+    </div>
+
+    <div class="section">
+        <h2>1. Systemüberblick</h2>
+        <p>
+            Stackr ist eine browserbasierte, <strong>Local-First</strong>-Anwendung für Einnahmen-Überschuss-Rechnung
+            (EÜR), Rechnungsstellung, Lagerverwaltung, Eigenbelege und Fahrtenbuch. Es gibt keine zentrale
+            Anbieter-Datenbank: alle Buchungsdaten liegen im Browser-Speicher (localStorage/IndexedDB) auf dem
+            Gerät des Nutzers, company-präfixiert bei Mehrfirmen-Nutzung. Ein serverseitiger Cloud-Sync ist
+            optional (Opt-in) und überträgt ausschließlich Ende-zu-Ende-verschlüsseltes Chiffrat — der Server
+            (Vercel Serverless + Upstash Redis, EU/Frankfurt) kann die Buchungsdaten zu keinem Zeitpunkt einsehen.
+        </p>
+        <p>
+            Erfasste Belegarten: Einkäufe, Verkäufe/Rechnungen (inkl. XRechnung/ZUGFeRD-Import und -Export),
+            Betriebsausgaben, Eigenbelege, AfA-Anlagegüter, Fahrtenbuch, Kassenbuch, Privatentnahmen/-einlagen.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>2. Erfassung (GoBD Rz. 45 ff. — Zeitgerechtigkeit)</h2>
+        <p>
+            Jede Buchung wird beim Speichern mit einer eindeutigen ID, Erstellungszeitstempel (<code>createdAt</code>)
+            und einer Prüfsumme versehen. Pflichtangaben (Datum, Betrag, Belegart, Kategorie) werden vor dem
+            Speichern client-seitig validiert. Es liegt in der Verantwortung des Nutzers, Geschäftsvorfälle
+            zeitnah zu erfassen (Grundsatz: Bareinnahmen/-ausgaben täglich, sonstige Vorgänge i.d.R. innerhalb
+            von 10 Tagen).
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>3. Unveränderbarkeit (GoBD Rz. 58 ff.)</h2>
+        <p>
+            Eine gespeicherte Buchung ist entweder <strong>offen</strong> (frei bearbeitbar/löschbar) oder
+            <strong>festgeschrieben</strong> (nur noch per Storno korrigierbar). Ein Datensatz gilt als
+            festgeschrieben, sobald eine der folgenden Bedingungen zutrifft:
+        </p>
+        <ul>
+            <li>Das zugehörige USt-Voranmeldungs-Quartal wurde als „eingereicht“ markiert, oder</li>
+            <li>Das Geschäftsjahr wurde manuell abgeschlossen (Jahresabschluss/Festschreibung), oder</li>
+            <li>Der Datensatz ist bereits storniert oder manuell gesperrt.</li>
+        </ul>
+        <p>
+            In festgeschriebenen Perioden ersetzt die Software jeden Lösch- oder Bearbeitungsversuch automatisch
+            durch eine <strong>Stornierung</strong> (der Original-Datensatz bleibt vollständig erhalten, ein
+            neuer Eintrag mit Stornogrund und Zeitstempel wird protokolliert). Ein physisches Löschen ist in
+            diesem Zustand softwareseitig ausgeschlossen. In offenen Perioden ist ein echtes Löschen möglich,
+            wird aber ebenfalls protokolliert (siehe Ziffer 4) und ist damit rekonstruierbar.
+        </p>
+        <p>
+            Bereits gestellte Rechnungen (Status „versendet“/„bezahlt“) sind zusätzlich inhaltlich gesperrt
+            (§14 UStG — eine ausgestellte Rechnung darf nachträglich nicht mehr verändert werden); Korrekturen
+            erfolgen ausschließlich per Storno-/Gutschrift-Dokument.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>4. Nachvollziehbarkeit — Änderungsprotokoll (GoBD Rz. 47, 130 ff.)</h2>
+        <p>
+            Jede Erstellung, Bearbeitung, Stornierung und Löschung wird als Eintrag in einem
+            <strong>Audit-Log</strong> (Änderungsprotokoll, einsehbar im Modul „Protokoll“) gespeichert:
+            Zeitstempel, Aktion, betroffener Datensatztyp und -ID, alter und neuer Wert sowie ein
+            Klartext-Hinweis.
+        </p>
+        <p>
+            Die Einträge sind über eine <strong>Hash-Kette</strong> gegen nachträgliche Manipulation
+            gesichert: jeder Eintrag enthält eine Prüfsumme über seinen eigenen Inhalt sowie eine Referenz
+            (<code>prevHash</code>) auf die Prüfsumme des vorherigen Eintrags — beginnend bei einem
+            definierten Startwert („GENESIS“). Wird ein Eintrag nachträglich verändert, ändert sich seine
+            Prüfsumme, wodurch die Verkettung zu allen nachfolgenden Einträgen bricht. Diese Kette lässt
+            sich jederzeit mit einer internen Prüffunktion verifizieren; ein Bruch wird im Protokoll-Modul
+            angezeigt.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>5. Datenspeicherung &amp; -sicherheit (GoBD Rz. 103 ff.)</h2>
+        <p>
+            Primärspeicher ist der Browser des Nutzers (localStorage/IndexedDB), company-präfixiert bei
+            mehreren Firmen. Es gibt standardmäßig keine Übertragung an Server des Anbieters. Aktiviert der
+            Nutzer den optionalen Cloud-Sync, wird ein lokal erzeugter, nie übertragener AES-256-GCM-Schlüssel
+            zur Ende-zu-Ende-Verschlüsselung verwendet; der Sync-Server (EU) speichert ausschließlich Chiffrat.
+        </p>
+        <p>
+            <strong>Backup-Verantwortung liegt beim Nutzer.</strong> Die Software bietet manuellen und
+            optionalen automatischen Dateisystem-Export (JSON, verschlüsselt möglich über
+            <code>js/backup-crypto.js</code>) sowie CSV/XLSX-Export je Modul. Beim Löschen der Browserdaten
+            ohne vorheriges Backup gehen lokal gespeicherte Daten verloren — hierauf wird in der App und in
+            den AGB (§7) hingewiesen.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>6. Aufbewahrung (§147 AO)</h2>
+        <p>
+            Buchungs- und belegrelevante Daten unterliegen der gesetzlichen 10-Jahres-Aufbewahrungsfrist.
+            Die Software löscht keine Daten automatisch nach Fristablauf — Aufbewahrung und Archivierung
+            liegen in der Verantwortung des Nutzers (lokale Speicherung bzw. eigenes Backup-Regime).
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>7. Maschinelle Auswertbarkeit &amp; Export (GoBD Rz. 138 ff.)</h2>
+        <p>Für die Übergabe an Finanzverwaltung/Steuerberater/DATEV stehen folgende Exporte zur Verfügung:</p>
+        <ul>
+            <li><strong>ELSTER-CSV</strong> — Kennzahlen der USt-Voranmeldung je Quartal (Modul „USt-Voranmeldung“)</li>
+            <li><strong>DATEV-Export</strong> — Buchungssätze inkl. Erlöskonten-Zuordnung nach Steuersatz (Modul „DATEV“)</li>
+            <li><strong>CSV/XLSX-Export</strong> — je Modul (Einkäufe, Verkäufe, Ausgaben, EÜR, Fahrtenbuch etc.)</li>
+            <li><strong>XRechnung/ZUGFeRD</strong> — strukturierter E-Rechnungs-Import und -Export (Modul „Rechnungen“, §14 UStG i.V.m. Wachstumschancengesetz)</li>
+            <li><strong>Verschlüsseltes Voll-Backup</strong> (JSON) — vollständiger Datenexport inkl. Audit-Log, zur Übergabe an Betriebsprüfung oder Steuerberater</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>8. Verantwortlichkeiten</h2>
+        <p>
+            Stackr (Softwarehersteller) stellt die technischen Mechanismen zur GoBD-konformen Erfassung,
+            Festschreibung, Protokollierung und zum Export bereit. Die inhaltliche Richtigkeit der Buchungen,
+            die zeitgerechte Erfassung, die Einhaltung der Belegpflicht sowie die Aufbewahrung der Daten und
+            Originalbelege liegen — wie bei jeder Buchhaltungssoftware — in der Verantwortung des Nutzers als
+            Buchführungspflichtigem. Details siehe <a href="agb.html">AGB</a> §2 und §8.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>9. Änderungshistorie dieses Dokuments</h2>
+        <ul>
+            <li>Juli 2026 — Ersterstellung</li>
+        </ul>
+    </div>
+
+</div>
+
+<footer>
+    <div style="margin-bottom:8px;">◆ <strong style="color:#94a3b8;">Stackr</strong></div>
+    <div>
+        <a href="index.html">Startseite</a> ·
+        <a href="impressum.html">Impressum</a> ·
+        <a href="datenschutz.html">Datenschutz</a> ·
+        <a href="agb.html">AGB</a> ·
+        <a href="refund.html">Widerruf</a> ·
+        <a href="cookies.html">Cookies</a> ·
+        <a href="verfahrensdokumentation.html">Verfahrensdoku</a>
+    </div>
+</footer>
+
+</body>
+</html>

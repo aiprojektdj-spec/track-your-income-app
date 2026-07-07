@@ -259,7 +259,7 @@ const Koerperschaftsteuer = {
 
     // ── Modals ──
     _openVzModal() {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = new Date().toLocaleDateString('sv-SE');
         const defQ = Math.floor(new Date().getMonth() / 3) + 1;
         App.showModal('KSt-Vorauszahlung erfassen', `
             <div style="display:flex;flex-direction:column;gap:14px;">

@@ -228,7 +228,7 @@ const GbrModul = {
 
     _openAddVerrModal() {
         const gs    = GbR.getGesellschafter();
-        const today = new Date().toISOString().slice(0,10);
+        const today = new Date().toLocaleDateString('sv-SE');
         App.showModal('Verrechnungsbuchung erfassen', `
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div class="form-row">
@@ -385,7 +385,7 @@ const GbrModul = {
     },
 
     _openAddGewStVzModal(year) {
-        const today = new Date().toISOString().slice(0,10);
+        const today = new Date().toLocaleDateString('sv-SE');
         const m = new Date().getMonth();
         const defQ = m < 3 ? 1 : m < 6 ? 2 : m < 9 ? 3 : 4;
         App.showModal('Gewerbesteuer-Vorauszahlung', `

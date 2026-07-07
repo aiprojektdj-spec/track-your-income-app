@@ -282,7 +282,7 @@ const Lohnsteuer = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Eintrittsdatum</label>
-                    <input type="date" class="form-input" id="emp_eintritt" value="${new Date().toISOString().slice(0,10)}">
+                    <input type="date" class="form-input" id="emp_eintritt" value="${new Date().toLocaleDateString('sv-SE')}">
                 </div>
             </div>`,
         `<button class="btn" onclick="App.closeModal()">Abbrechen</button>

@@ -25,7 +25,7 @@ var Rechnung = (function() {
     function getDefaultFaelligkeit() {
         var d = new Date();
         d.setDate(d.getDate() + 14);
-        return d.toISOString().split('T')[0];
+        return d.toLocaleDateString('sv-SE');
     }
 
     function calcBrutto(invoice) {
@@ -1292,8 +1292,8 @@ var TestRechnung = (function() {
             id: '__TEST__',
             typ: 'rechnung',
             nummer: 'TEST-' + year + '-0001',
-            datum: today.toISOString().split('T')[0],
-            faelligkeit: faellig.toISOString().split('T')[0],
+            datum: today.toLocaleDateString('sv-SE'),
+            faelligkeit: faellig.toLocaleDateString('sv-SE'),
             datumsOption: 'faelligkeit',
             kundeId: kundeId,
             positionen: positionen,

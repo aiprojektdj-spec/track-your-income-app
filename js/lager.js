@@ -136,7 +136,7 @@ const Lager = {
         }
 
         const isMulti   = selected.length > 1;
-        const today     = new Date().toISOString().slice(0, 10);
+        const today     = new Date().toLocaleDateString('sv-SE');
         const platforms = Store.getPlatforms();
         const lastPlat  = localStorage.getItem('lager_last_platform') || 'Vinted';
         const platOpts  = platforms.filter(p => p !== 'Sonstiges')
@@ -1114,7 +1114,7 @@ const Lager = {
         ];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Lager');
-        XLSX.writeFile(wb, `Lager_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
+        XLSX.writeFile(wb, `Lager_Export_${new Date().toLocaleDateString('sv-SE')}.xlsx`);
         Utils.showToast('📥 Excel exportiert', 'success');
     },
 
@@ -1144,7 +1144,7 @@ const Lager = {
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
         a.href     = url;
-        a.download = `Lager_Export_${new Date().toISOString().slice(0,10)}.csv`;
+        a.download = `Lager_Export_${new Date().toLocaleDateString('sv-SE')}.csv`;
         a.click();
         URL.revokeObjectURL(url);
         Utils.showToast('📥 CSV exportiert', 'success');

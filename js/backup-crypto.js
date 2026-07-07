@@ -232,7 +232,7 @@ var BackupCrypto = (function () {
         if (p1 !== p2)     { _toast('Passphrasen stimmen nicht überein.', 'error'); return; }
         try {
             var file = await _export(p1);
-            var name = 'stackr-backup-' + new Date().toISOString().slice(0, 10) + '.stackrbak';
+            var name = 'stackr-backup-' + new Date().toLocaleDateString('sv-SE') + '.stackrbak';
             var a = document.createElement('a');
             a.href = URL.createObjectURL(new Blob([JSON.stringify(file)], { type: 'application/json' }));
             a.download = name;

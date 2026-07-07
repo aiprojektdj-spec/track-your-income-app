@@ -72,7 +72,7 @@ const SVS = {
         return [1, 2, 3, 4].map(q => {
             const existing = stored.find(v => v.quartal === q && v.typ !== 'nachbemessung');
             const faellig  = this.getFaelligkeitsdatum(year, q);
-            const today    = new Date().toISOString().split('T')[0];
+            const today    = new Date().toLocaleDateString('sv-SE');
             const istUeberfaellig = faellig < today && !existing?.bezahltAm;
 
             return {
@@ -241,7 +241,7 @@ const SVS = {
             <div class="form-group">
                 <label class="form-label">Bezahlt am</label>
                 <input type="date" class="form-input" id="svs_bezahlt_am"
-                       value="${q.bezahltAm || ''}" max="${new Date().toISOString().split('T')[0]}">
+                       value="${q.bezahltAm || ''}" max="${new Date().toLocaleDateString('sv-SE')}">
                 <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Leer lassen = noch nicht bezahlt</div>
             </div>
 

@@ -35,7 +35,8 @@ const Utils = {
     toISODate(date) {
         if (!date) return '';
         const d = date instanceof Date ? date : new Date(date);
-        return d.toISOString().split('T')[0];
+        // Lokalzeit statt UTC: toISOString() lieferte vor 1/2 Uhr nachts das Vortagsdatum
+        return d.toLocaleDateString('sv-SE');
     },
 
     todayISO() {

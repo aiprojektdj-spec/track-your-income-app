@@ -543,7 +543,7 @@ const Vorsteuer = {
 
     // ── Modals ──
     _openRcModal() {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = new Date().toLocaleDateString('sv-SE');
         App.showModal('§13b Reverse Charge erfassen', `
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div class="form-row">
@@ -616,7 +616,7 @@ const Vorsteuer = {
     },
 
     _openIgModal() {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = new Date().toLocaleDateString('sv-SE');
         const euLaender = Vorsteuer.EU_LAENDER;
 
         App.showModal('Innergemeinschaftlichen Erwerb erfassen', `
@@ -694,7 +694,7 @@ const Vorsteuer = {
     },
 
     _openManualModal() {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = new Date().toLocaleDateString('sv-SE');
         App.showModal('Vorsteuer-Eintrag manuell erfassen', `
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div class="form-row">

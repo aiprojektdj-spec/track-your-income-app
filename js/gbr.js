@@ -67,7 +67,7 @@ const GbR = {
             name:       name.trim(),
             adresse:    adresse || '',
             anteil:     parseFloat(anteil) || 0,
-            eingetreten: eingetreten || new Date().toISOString().split('T')[0],
+            eingetreten: eingetreten || new Date().toLocaleDateString('sv-SE'),
             rolle:      rolle || 'gesellschafter', // gesellschafter | komplementaer | kommanditist | geschaeftsfuehrer
         });
         this.saveGesellschafter(list);
@@ -433,7 +433,7 @@ const GbR = {
         const tbody = document.getElementById('gbr_gs_tbody');
         if (!tbody) return;
         const tempId = 'new_' + Date.now();
-        const today  = new Date().toISOString().split('T')[0];
+        const today  = new Date().toLocaleDateString('sv-SE');
         const tr = document.createElement('tr');
         tr.id = 'gs_row_' + tempId;
         tr.innerHTML = `
@@ -961,7 +961,7 @@ const GbR = {
         const ausgez     = this.getTotalAusgezahlt(monthKey, gsId);
         const offen      = anspruch - ausgez;
         const fmt        = v => Utils.formatCurrency(v);
-        const today      = new Date().toISOString().split('T')[0];
+        const today      = new Date().toLocaleDateString('sv-SE');
 
         const body = `
         <div style="margin-bottom:14px;padding:12px;background:var(--bg-secondary);border-radius:8px;font-size:13px;">

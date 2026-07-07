@@ -2423,7 +2423,7 @@ const App = {
                     };
                     const parseDate = v => {
                         if (!v) return Utils.todayISO();
-                        if (v instanceof Date) return v.toISOString().split('T')[0];
+                        if (v instanceof Date) return v.toLocaleDateString('sv-SE');
                         const s = String(v).trim();
                         // JJJJ-MM-TT oder TT.MM.JJJJ
                         if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;

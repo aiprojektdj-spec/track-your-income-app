@@ -17,14 +17,14 @@ var Wiederkehrend = (function () {
             case 'jaehrlich':   d.setFullYear(d.getFullYear() + 1); break;
             default: d.setMonth(d.getMonth() + 1);
         }
-        return d.toISOString().split('T')[0];
+        return d.toLocaleDateString('sv-SE');
     }
 
     function addFaelligkeit(dateStr, interval) {
         var d = new Date(dateStr);
         if (isNaN(d.getTime())) return dateStr;
         d.setDate(d.getDate() + 14); // default 14 days
-        return d.toISOString().split('T')[0];
+        return d.toLocaleDateString('sv-SE');
     }
 
     function intervalLabel(interval) {

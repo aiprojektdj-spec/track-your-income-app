@@ -185,7 +185,7 @@ const ZUSTANDE = [
 // ═══════════════════════════════════════════════════════════════════
 const euro  = n => (n||0).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
 const datum = s => { if(!s) return ''; const [y,m,d]=s.split('-'); return `${d}.${m}.${y}`; };
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => new Date().toLocaleDateString('sv-SE');
 const esc   = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 function getAllKat()     { return [...STD_KAT, ...EB.getKategorien()]; }

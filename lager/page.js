@@ -102,7 +102,7 @@ const LagerPage = {
               )
             : available;
 
-        const today     = new Date().toISOString().slice(0,10);
+        const today     = new Date().toLocaleDateString('sv-SE');
         const platforms = Store.getPlatforms();
         const lastPlat  = localStorage.getItem('lager_last_platform') || 'Vinted';
         const platOpts  = platforms.filter(p => p !== 'Sonstiges')
@@ -599,7 +599,7 @@ document.querySelectorAll('[data-quick-filter]').forEach(el => {
 
 // ── "Neuer Artikel"-Modal ─────────────────────────────────────────────────
 function openNeuArtikelModal() {
-    const today      = new Date().toISOString().slice(0, 10);
+    const today      = new Date().toLocaleDateString('sv-SE');
     const brands     = Store.getBrands();
     const brandOpts  = brands.map(b => `<option value="${Utils.escapeHtml(b)}">`).join('');
     const quellen    = Store.getEinkaufsquellen();
@@ -830,7 +830,7 @@ function openBulkArtikelModal() {
     _bulkRows   = [_bulkNewRow()];
     _bulkPhotos = {};
 
-    const today      = new Date().toISOString().slice(0, 10);
+    const today      = new Date().toLocaleDateString('sv-SE');
     const quellen    = Store.getEinkaufsquellen();
     const lastQuelle = localStorage.getItem('lager_last_quelle') || '';
     const brands     = Store.getBrands();
@@ -1455,7 +1455,7 @@ const ExcelImport = {
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Datum *</label>
-                            <input type="date" class="form-input" id="excelDatum" value="${new Date().toISOString().slice(0,10)}">
+                            <input type="date" class="form-input" id="excelDatum" value="${new Date().toLocaleDateString('sv-SE')}">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Einkaufsquelle</label>
@@ -1779,7 +1779,7 @@ const SalesImport = {
         }
         // Fallback: native Date
         const d = new Date(s);
-        if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+        if (!isNaN(d.getTime())) return d.toLocaleDateString('sv-SE');
         return null;
     },
 

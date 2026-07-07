@@ -575,7 +575,7 @@ const Buchungen = {
                 ${(() => {
                     const mat = Store.getMaterialBestand();
                     if (!mat.length) return `<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">
-                        📦 <a href="#" onclick="App.navigate('materiallager');return false;" style="color:var(--info);">Materiallager einrichten</a>
+                        📦 <a href="#" data-action="navigate" data-args=\'["materiallager"]\' style="color:var(--info);">Materiallager einrichten</a>
                         um Verpackungskosten pro Verkauf zu tracken.
                     </div>`;
                     const matRows = mat.map(m => `
@@ -1260,7 +1260,7 @@ const Buchungen = {
                 </form>
             `;
             const footer = `
-                <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+                <button class="btn" data-action="close-modal">Abbrechen</button>
                 <button class="btn btn-primary" id="savePurchaseEdit">Speichern</button>
             `;
             App.showModal('Einkauf bearbeiten', body, footer);
@@ -1380,7 +1380,7 @@ const Buchungen = {
                 </form>
             `;
             const footer = `
-                <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+                <button class="btn" data-action="close-modal">Abbrechen</button>
                 <button class="btn btn-primary" id="saveSaleEdit">Speichern</button>
             `;
             App.showModal('Verkauf bearbeiten', body, footer);

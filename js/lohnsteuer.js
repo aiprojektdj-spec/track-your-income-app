@@ -183,8 +183,8 @@ const Lohnsteuer = {
                                     <td style="text-align:right;color:var(--success)">${Utils.formatCurrency(c.netto)}</td>
                                     <td><span class="badge ${e.aktiv ? 'badge-success' : ''}">${e.aktiv ? 'Aktiv' : 'Inaktiv'}</span></td>
                                     <td style="display:flex;gap:4px;">
-                                        <button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" onclick="Lohnsteuer._toggleEmployee('${e.id}')">${e.aktiv ? '⏸' : '▶'}</button>
-                                        <button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" onclick="Lohnsteuer._deleteEmployee('${e.id}')">🗑</button>
+                                        <button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="lst-toggle" data-args='["${e.id}"]' >${e.aktiv ? '⏸' : '▶'}</button>
+                                        <button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="lst-del" data-args='["${e.id}"]' >🗑</button>
                                     </td>
                                 </tr>`;
                             }).join('')}
@@ -285,7 +285,7 @@ const Lohnsteuer = {
                     <input type="date" class="form-input" id="emp_eintritt" value="${new Date().toLocaleDateString('sv-SE')}">
                 </div>
             </div>`,
-        `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveEmpBtn">Speichern</button>`);
 
         document.getElementById('saveEmpBtn').addEventListener('click', () => {
@@ -346,3 +346,9 @@ const Lohnsteuer = {
         });
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'lst-toggle': function (id) { Lohnsteuer._toggleEmployee(id); },
+    'lst-del':    function (id) { Lohnsteuer._deleteEmployee(id); }
+});

@@ -275,7 +275,7 @@ const App = {
 
         const footer = `
             ${hasData ? `<button class="btn" id="updateBackupNow">💾 Backup jetzt herunterladen</button>` : ''}
-            <button class="btn btn-primary" onclick="App.closeModal()">Verstanden</button>
+            <button class="btn btn-primary" data-action="close-modal">Verstanden</button>
         `;
 
         this.showModal(`✨ Willkommen in v${newV}`, body, footer);
@@ -397,9 +397,22 @@ const App = {
 
         // ── F: ESC schließt Modal, dann Sidebar ────────────────────────────
         document.addEventListener('keydown', (e) => {
-            if (e.key !== 'Escape') return;
             const overlay = document.getElementById('modalOverlay');
-            if (overlay && overlay.classList.contains('active')) {
+            const modalOpen = overlay && overlay.classList.contains('active');
+
+            // Focus-Trap: Tab bleibt im Modal (WCAG 2.4.3)
+            if (modalOpen && e.key === 'Tab') {
+                const modal = document.getElementById('modal');
+                const focusables = modal.querySelectorAll('button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])');
+                if (!focusables.length) return;
+                const first = focusables[0], last = focusables[focusables.length - 1];
+                if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+                return;
+            }
+
+            if (e.key !== 'Escape') return;
+            if (modalOpen) {
                 this.closeModal();
                 return;
             }
@@ -480,12 +493,11 @@ const App = {
             <span><strong>Kein automatisches Backup aktiv.</strong>
             Richte einen Backup-Ordner ein, damit deine Daten nicht verloren gehen.</span>
             <button class="btn btn-sm btn-primary" style="white-space:nowrap;"
-                    onclick="App.showBackupModal()">Backup einrichten</button>
+                    data-action="app-backup-modal">Backup einrichten</button>
             <button style="background:none;border:none;cursor:pointer;color:var(--text-muted);
                            font-size:18px;padding:0 4px;line-height:1;"
                     title="Hinweis schließen"
-                    onclick="document.getElementById('_backupBanner').remove();
-                             localStorage.setItem('backup_banner_dismissed','1');">&times;</button>`;
+                    data-action="app-dismiss-backup-banner">&times;</button>`;
         // Nach Topnav einfügen
         const topnav = document.querySelector('.topnav');
         if (topnav) topnav.insertAdjacentElement('afterend', banner);
@@ -666,7 +678,7 @@ const App = {
                             <div style="font-size:48px;margin-bottom:16px;color:var(--warning);"><i class="ti ti-alert-triangle"></i></div>
                             <h2 style="color:var(--text-primary);margin-bottom:12px;">Seite konnte nicht geladen werden</h2>
                             <p style="color:var(--text-secondary);max-width:400px;margin-bottom:20px;">Fehler: <code style="background:var(--bg-card);padding:4px 8px;border-radius:4px;">${err.message || err}</code></p>
-                            <button class="btn btn-primary" onclick="App.navigate('dashboard')">→ Zum Dashboard</button>
+                            <button class="btn btn-primary" data-action="navigate" data-args=\'["dashboard"]\'>→ Zum Dashboard</button>
                         </div>
                     `;
                 }
@@ -705,7 +717,7 @@ const App = {
 
         const tabs = SUBTABS.map(t =>
             `<button class="msub-tab${t.page === page ? ' active' : ''}" type="button" ` +
-            `onclick="App.navigate('${t.page}')" title="${t.label}" aria-label="${t.label}">` +
+            `data-action="navigate" data-args='["${t.page}"]' title="${t.label}" aria-label="${t.label}">` +
             `<i class="ti ${t.icon}"></i><span>${t.label}</span></button>`
         ).join('');
 
@@ -748,18 +760,34 @@ const App = {
             </div>`;
     },
 
+    // Emoji-Titel-Präfixe → Tabler-Icons (Konsistenz mit Rest der App, kein Font-abhängiges Emoji-Rendering)
+    _MODAL_ICON_MAP: {
+        '⚙️': 'ti-settings', '⚙': 'ti-settings', '🤝': 'ti-handshake', '💸': 'ti-cash-banknote',
+        '✨': 'ti-sparkles', '📋': 'ti-clipboard-list', '🚨': 'ti-alert-triangle', '🧹': 'ti-eraser',
+        '⚠️': 'ti-alert-triangle', '⚠': 'ti-alert-triangle', '📦': 'ti-package', '📊': 'ti-chart-bar',
+        '📥': 'ti-download', '📍': 'ti-map-pin', '✏️': 'ti-pencil', '✏': 'ti-pencil',
+    },
+
     showModal(title, bodyHtml, footerHtml) {
         const modal = document.getElementById('modal');
-        const safeTitle = String(title).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        let titleText = String(title);
+        let iconClass = null;
+        const emojiMatch = titleText.match(/^(\p{Emoji_Presentation}️?|\p{Extended_Pictographic}️?)\s*/u);
+        if (emojiMatch && this._MODAL_ICON_MAP[emojiMatch[1]]) {
+            iconClass = this._MODAL_ICON_MAP[emojiMatch[1]];
+            titleText = titleText.slice(emojiMatch[0].length);
+        }
+        const safeTitle = (iconClass ? `<i class="ti ${iconClass}" style="color:var(--accent-text);margin-right:6px;" aria-hidden="true"></i>` : '')
+            + titleText.replace(/</g, '&lt;').replace(/>/g, '&gt;');
         modal.innerHTML = `
             <div class="modal-header">
                 <h3 id="modalTitle">${safeTitle}</h3>
-                <button class="modal-close" onclick="App.closeModal()" aria-label="Schließen">&times;</button>
+                <button class="modal-close" data-action="close-modal" aria-label="Schließen">&times;</button>
             </div>
             <div class="modal-body">${bodyHtml}</div>
             ${footerHtml ? `<div class="modal-footer">${footerHtml}</div>` : ''}
         `;
-        modal.setAttribute('aria-label', safeTitle);
+        modal.setAttribute('aria-label', titleText);
         document.getElementById('modalOverlay').classList.add('active');
         // Focus first focusable element (WCAG 2.1.2)
         const focusable = modal.querySelector('button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])');
@@ -922,7 +950,7 @@ const App = {
                     <div style="font-size:48px;margin-bottom:16px;">🚫</div>
                     <h2 style="color:var(--text-primary);margin-bottom:12px;">Nutzung nicht möglich</h2>
                     <p style="color:var(--text-secondary);max-width:400px;">Die Nutzung dieser Software ist nur nach Akzeptanz der Nutzungsbedingungen möglich.<br><br>Bitte laden Sie die Seite neu, um die Bedingungen erneut anzuzeigen.</p>
-                    <button class="btn btn-primary" style="margin-top:24px;" onclick="location.reload()">Seite neu laden</button>
+                    <button class="btn btn-primary" style="margin-top:24px;" data-action="reload">Seite neu laden</button>
                 </div>
             `;
             overlay.classList.remove('active');
@@ -1131,15 +1159,15 @@ const App = {
         const footer = sofort
             ? `<button class="btn btn-primary"
                     style="background:var(--warning);border-color:var(--warning);flex:1;min-width:180px;"
-                    onclick="App._ustSwitchToRegel('${warnKey}')">
+                    data-action="app-ust-switch-regel" data-args='["${warnKey}"]'>
                     ✅ Jetzt auf Regelbesteuerung umstellen
                 </button>
                 <button class="btn btn-secondary" style="flex:1;min-width:160px;"
-                    onclick="App._ustDismissThreshold('${warnKey}')">
+                    data-action="app-ust-dismiss" data-args='["${warnKey}"]'>
                     📋 Ich kümmere mich selbst
                 </button>`
             : `<button class="btn btn-primary" style="flex:1;min-width:160px;"
-                    onclick="App._ustDismissThreshold('${warnKey}')">
+                    data-action="app-ust-dismiss" data-args='["${warnKey}"]'>
                     ✅ Verstanden
                 </button>`;
         const title = sofort
@@ -1307,7 +1335,7 @@ const App = {
                     <label class="form-label">MWST-Modus</label>
                     <input type="hidden" id="ob_ch_ustMode" value="${d.chMwstMode || 'klein'}">
                     <div class="ust-picker" id="ob_ch_ust_picker">
-                        <div class="ust-card ${(d.chMwstMode || 'klein') === 'klein' ? 'selected' : ''}" data-value="klein" onclick="App._pickUst('ob_ch','klein')">
+                        <div class="ust-card ${(d.chMwstMode || 'klein') === 'klein' ? 'selected' : ''}" data-value="klein" data-action="app-pick-ust" data-args='["ob_ch","klein"]'>
                             <div class="ust-card-icon" style="color:var(--success);"><i class="ti ti-shield-check"></i></div>
                             <div class="ust-card-title">Nicht pflichtig</div>
                             <div class="ust-card-law">Art. 10 Abs. 2 MWSTG</div>
@@ -1319,7 +1347,7 @@ const App = {
                             </ul>
                             <div class="ust-card-hint">Ideal für Einsteiger &amp; Kleinbetriebe</div>
                         </div>
-                        <div class="ust-card ${d.chMwstMode === 'effektiv' ? 'selected' : ''}" data-value="effektiv" onclick="App._pickUst('ob_ch','effektiv')">
+                        <div class="ust-card ${d.chMwstMode === 'effektiv' ? 'selected' : ''}" data-value="effektiv" data-action="app-pick-ust" data-args='["ob_ch","effektiv"]'>
                             <div class="ust-card-icon" style="color:var(--info);"><i class="ti ti-trending-up"></i></div>
                             <div class="ust-card-title">Effektive Methode</div>
                             <div class="ust-card-law">8.1% Normalsatz</div>
@@ -1348,7 +1376,7 @@ const App = {
                     <label class="form-label">${L.t('field.ustmode')}</label>
                     <input type="hidden" id="ob_ustMode" value="${d.ustMode || 'klein'}">
                     <div class="ust-picker" id="ob_ust_picker">
-                        <div class="ust-card ${(d.ustMode || 'klein') === 'klein' ? 'selected' : ''}" data-value="klein" onclick="App._pickUst('ob','klein')">
+                        <div class="ust-card ${(d.ustMode || 'klein') === 'klein' ? 'selected' : ''}" data-value="klein" data-action="app-pick-ust" data-args='["ob","klein"]'>
                             <div class="ust-card-icon" style="color:var(--success);"><i class="ti ti-shield-check"></i></div>
                             <div class="ust-card-title">${L.t('ust.klein.title')}</div>
                             <div class="ust-card-law">${L.t('ust.klein.law')}</div>
@@ -1360,7 +1388,7 @@ const App = {
                             </ul>
                             <div class="ust-card-hint">${L.t('ust.klein.hint')}</div>
                         </div>
-                        <div class="ust-card ${d.ustMode === 'regel' ? 'selected' : ''}" data-value="regel" onclick="App._pickUst('ob','regel')">
+                        <div class="ust-card ${d.ustMode === 'regel' ? 'selected' : ''}" data-value="regel" data-action="app-pick-ust" data-args='["ob","regel"]'>
                             <div class="ust-card-icon" style="color:var(--info);"><i class="ti ti-trending-up"></i></div>
                             <div class="ust-card-title">${L.t('ust.regel.title')}</div>
                             <div class="ust-card-law">${L.t('ust.regel.law')}</div>
@@ -1390,7 +1418,7 @@ const App = {
             fieldsHtml = `
                 <div class="form-group">
                     <label class="form-label" for="ob_chKanton">Kanton</label>
-                    <select class="form-input" id="ob_chKanton" onchange="App._obRefreshGemeinde(this.value)">${kantonOpts}</select>
+                    <select class="form-input" id="ob_chKanton" data-action-change="app-ob-gemeinde">${kantonOpts}</select>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="ob_chGemeinde">Gemeinde <span style="font-size:10px;color:var(--text-muted);">(optional)</span></label>
@@ -1573,7 +1601,7 @@ const App = {
                 <label class="form-label">USt-Modus</label>
                 <input type="hidden" id="set_ustMode" value="${s.ustMode || 'klein'}">
                 <div class="ust-picker ust-picker--compact" id="set_ust_picker">
-                    <div class="ust-card ${(s.ustMode || 'klein') === 'klein' ? 'selected' : ''}" data-value="klein" onclick="App._pickUst('set','klein')">
+                    <div class="ust-card ${(s.ustMode || 'klein') === 'klein' ? 'selected' : ''}" data-value="klein" data-action="app-pick-ust" data-args='["set","klein"]'>
                         <div class="ust-card-icon" style="color:var(--success);"><i class="ti ti-shield-check"></i></div>
                         <div class="ust-card-title">Kleinunternehmer</div>
                         <div class="ust-card-law">§ 19 UStG</div>
@@ -1583,7 +1611,7 @@ const App = {
                             <li>Grenze: 25.000 € / Jahr</li>
                         </ul>
                     </div>
-                    <div class="ust-card ${s.ustMode === 'regel' ? 'selected' : ''}" data-value="regel" onclick="App._pickUst('set','regel')">
+                    <div class="ust-card ${s.ustMode === 'regel' ? 'selected' : ''}" data-value="regel" data-action="app-pick-ust" data-args='["set","regel"]'>
                         <div class="ust-card-icon" style="color:var(--info);"><i class="ti ti-trending-up"></i></div>
                         <div class="ust-card-title">Regelbesteuerung</div>
                         <div class="ust-card-law">19 % USt</div>
@@ -1610,7 +1638,7 @@ const App = {
             <div class="form-row" style="align-items:flex-end;">
                 <div class="form-group">
                     <label class="form-label" for="set_land">Land</label>
-                    <select class="form-select" id="set_land" onchange="App._onLandChange(this.value)">
+                    <select class="form-select" id="set_land" data-action-change="app-land-change">
                         <option value="DE" ${(s.land || 'DE') === 'DE' ? 'selected' : ''}>🇩🇪 Deutschland (EÜR, USt, ELSTER)</option>
                         <option value="CH" ${s.land === 'CH' ? 'selected' : ''}>🇨🇭 Schweiz (EAR, MWST, ESTV)</option>
                         <option value="AT" ${s.land === 'AT' ? 'selected' : ''}>🇦🇹 Österreich (EAR, USt, GSVG, ESt)</option>
@@ -1681,8 +1709,8 @@ const App = {
             <div class="form-group">
                 <label class="form-label">🌐 Sprache / Language</label>
                 <div style="display:flex;gap:10px;margin-top:6px;">
-                    <button class="btn${(typeof I18n !== 'undefined' && I18n.isDE()) ? ' btn-primary' : ''}" onclick="I18n.setLang('de')" style="flex:1;">🇩🇪 Deutsch</button>
-                    <button class="btn${(typeof I18n !== 'undefined' && I18n.isEN()) ? ' btn-primary' : ''}" onclick="I18n.setLang('en')" style="flex:1;">🇬🇧 English</button>
+                    <button class="btn${(typeof I18n !== 'undefined' && I18n.isDE()) ? ' btn-primary' : ''}" data-action="i18n-set-lang" data-args='["de"]' style="flex:1;">🇩🇪 Deutsch</button>
+                    <button class="btn${(typeof I18n !== 'undefined' && I18n.isEN()) ? ' btn-primary' : ''}" data-action="i18n-set-lang" data-args='["en"]' style="flex:1;">🇬🇧 English</button>
                 </div>
             </div>
             <hr style="border-color:var(--border);margin:16px 0;">
@@ -1695,7 +1723,7 @@ const App = {
         `;
         const footer = `
             <button class="btn" id="dsgvoReopenBtn" style="margin-right:auto;">🔒 Datenschutzhinweis</button>
-            <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+            <button class="btn" data-action="close-modal">Abbrechen</button>
             <button class="btn btn-primary" id="saveSettingsBtn">Speichern</button>
         `;
         this.showModal('Einstellungen', body, footer);
@@ -1872,7 +1900,7 @@ const App = {
                     Sichert <strong>alle Firmen</strong> in eine passphrase-verschlüsselte Datei für Gerätewechsel — kein Server, keine laufenden Kosten.
                     Import führt die Daten zusammen (neuere Einträge gewinnen). <strong>Passphrase verloren = Backup unwiederbringlich.</strong>
                 </p>
-                <button class="btn btn-primary" onclick="BackupCrypto.openModal()"><i class="ti ti-shield-lock"></i> Komplett-Backup öffnen</button>
+                <button class="btn btn-primary" data-action="bc-open-modal"><i class="ti ti-shield-lock"></i> Komplett-Backup öffnen</button>
             </div>
             <div class="section" style="border:2px solid var(--accent);border-radius:8px;padding:14px;background:rgba(124,58,237,0.04);">
                 <div class="section-title" style="color:var(--accent);"><i class="ti ti-brush"></i> Speicher aufräumen</div>
@@ -2617,7 +2645,7 @@ const App = {
                 const opts = results.map((r, i) => `
                     <div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px;cursor:pointer;transition:background .15s;"
                          class="recovery-option" data-idx="${i}"
-                         onmouseover="this.style.background='var(--bg-main)'" onmouseout="this.style.background=''">
+                         class="hover-bg-main">
                         <div style="font-weight:600;font-size:13px;">📦 ${Utils.escapeHtml(r.label)}</div>
                         <div style="font-size:11px;color:var(--text-muted);">Quelle: ${Utils.escapeHtml(r.source)}</div>
                     </div>
@@ -2696,7 +2724,7 @@ const App = {
                 </div>
             `;
             const footer = `
-                <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+                <button class="btn" data-action="close-modal">Abbrechen</button>
                 <button class="btn btn-danger" id="confirmDeleteBtn" disabled>Endgültig löschen</button>
             `;
             this.showModal('Alle Daten löschen', body, footer);
@@ -2803,7 +2831,7 @@ const App = {
             </div>
         `;
 
-        this.showModal('🧹 Speicher aufräumen', body, '<button class="btn" onclick="App.closeModal()">Schließen</button>');
+        this.showModal('🧹 Speicher aufräumen', body, '<button class="btn" data-action="close-modal">Schließen</button>');
 
         // Aktion: Fotos verkaufter Artikel entfernen
         const removePhotos = (filterFn, label) => {
@@ -2915,7 +2943,7 @@ const App = {
                 damit zukünftige Backups als echte Dateien auf deinem PC gespeichert werden.
             </div>
         `;
-        this.showModal('Daten wiederhergestellt', body, '<button class="btn btn-primary" onclick="App.closeModal()">Verstanden</button>');
+        this.showModal('Daten wiederhergestellt', body, '<button class="btn btn-primary" data-action="close-modal">Verstanden</button>');
     },
 
     _showDataLossModal() {
@@ -2942,8 +2970,8 @@ const App = {
             </div>
         `;
         const footer = `
-            <button class="btn" onclick="App.closeModal()">Schließen</button>
-            <button class="btn btn-primary" onclick="App.closeModal();App.showBackupModal();">Backup & Daten öffnen</button>
+            <button class="btn" data-action="close-modal">Schließen</button>
+            <button class="btn btn-primary" data-action="app-close-and-backup">Backup & Daten öffnen</button>
         `;
         this.showModal('⚠️ Datenverlust erkannt', body, footer);
     },
@@ -2959,6 +2987,22 @@ const App = {
         }, INTERVAL_MS);
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'app-backup-modal':          function () { App.showBackupModal(); },
+    'app-close-and-backup':      function () { App.closeModal(); App.showBackupModal(); },
+    'app-dismiss-backup-banner': function () {
+        const b = document.getElementById('_backupBanner');
+        if (b) b.remove();
+        localStorage.setItem('backup_banner_dismissed', '1');
+    },
+    'app-ust-switch-regel': function (key) { App._ustSwitchToRegel(key); },
+    'app-ust-dismiss':      function (key) { App._ustDismissThreshold(key); },
+    'app-pick-ust':         function (ctx, mode) { App._pickUst(ctx, mode); },
+    'app-ob-gemeinde':      function (e, el) { App._obRefreshGemeinde(el.value); },
+    'app-land-change':      function (e, el) { App._onLandChange(el.value); }
+});
 
 // Start the app — vollständiger Start mit Integritätsprüfung und Auto-Recovery
 document.addEventListener('DOMContentLoaded', () => {

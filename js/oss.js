@@ -65,7 +65,7 @@ const OSS = {
                     <div style="font-size:48px;margin-bottom:16px;">📋</div>
                     <h3>Nur für Regelbesteuerer</h3>
                     <p style="color:var(--text-muted);margin:8px 0 20px;">Als Kleinunternehmer (§19 UStG) weist du generell keine USt aus – das OSS-Verfahren betrifft nur Regelbesteuerer.</p>
-                    <button class="btn btn-primary" onclick="App.navigate('euer')">Zur EÜR → USt-Modus ändern</button>
+                    <button class="btn btn-primary" data-action="navigate" data-args=\'["euer"]\'>Zur EÜR → USt-Modus ändern</button>
                 </div>
             </div>`;
         }
@@ -84,7 +84,7 @@ const OSS = {
             <h2>OSS (EU-Fernverkauf)</h2>
             <div class="page-header-actions no-print">
                 <select class="form-select" id="ossYear" style="width:90px;">${yearOptions}</select>
-                <button class="btn" onclick="OSS._exportCSV()">CSV Export</button>
+                <button class="btn" data-action="oss-export">CSV Export</button>
             </div>
         </div>
 
@@ -170,3 +170,8 @@ const OSS = {
         Utils.showToast('OSS-Referenzdaten exportiert', 'success');
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'oss-export': function () { OSS._exportCSV(); }
+});

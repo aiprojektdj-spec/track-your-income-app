@@ -13,7 +13,7 @@ const App = {
         modal.innerHTML = `
             <div class="modal-header">
                 <h3>${title}</h3>
-                <button class="modal-close" onclick="App.closeModal()">&times;</button>
+                <button class="modal-close" data-action="close-modal">&times;</button>
             </div>
             <div class="modal-body">${bodyHtml}</div>
             ${footerHtml ? `<div class="modal-footer">${footerHtml}</div>` : ''}
@@ -130,7 +130,7 @@ const LagerPage = {
                 <td style="width:32px;text-align:center;padding:6px 8px;">
                     <input type="checkbox" class="buch-cb" data-id="${p.id}" ${checked ? 'checked' : ''}
                            style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);"
-                           onclick="event.stopPropagation();">
+                           data-action="stop">
                 </td>
                 ${p.foto ? `<td style="width:40px;padding:4px;"><img src="${p.foto}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;"></td>`
                           : `<td style="width:40px;text-align:center;color:var(--text-muted);font-size:18px;">📦</td>`}
@@ -226,7 +226,7 @@ const LagerPage = {
                             </div>
                             <div>
                                 <label class="form-label" style="font-size:11px;">Plattform *</label>
-                                <select class="form-select" id="buch_plattform" style="padding:5px 8px;font-size:12px;" onchange="LagerPage._onPlattformChange()">
+                                <select class="form-select" id="buch_plattform" style="padding:5px 8px;font-size:12px;" data-action-change="lgp-plattform">
                                     ${platOpts}
                                     <option value="Sonstiges">Sonstiges</option>
                                 </select>
@@ -244,7 +244,7 @@ const LagerPage = {
                             <label class="form-label" style="font-size:11px;">Verkaufspreis (€) *</label>
                             <input type="number" step="0.01" min="0" class="form-input" id="buch_preis"
                                    placeholder="0,00" style="font-size:20px;font-weight:700;padding:7px 10px;"
-                                   oninput="LagerPage._calcNetto()">
+                                   data-action-input="lgp-calc-netto">
                         </div>
 
                         <!-- Versand Käufer + Gebühr -->
@@ -252,12 +252,12 @@ const LagerPage = {
                             <div>
                                 <label class="form-label" style="font-size:11px;">Versand Käufer (€)</label>
                                 <input type="number" step="0.01" min="0" class="form-input" id="buch_versandKaeufer"
-                                       value="0" style="padding:5px 8px;font-size:12px;" oninput="LagerPage._calcNetto()">
+                                       value="0" style="padding:5px 8px;font-size:12px;" data-action-input="lgp-calc-netto">
                             </div>
                             <div>
                                 <label class="form-label" style="font-size:11px;">Gebühr (%)</label>
                                 <input type="number" step="0.1" min="0" max="100" class="form-input" id="buch_gebuehr"
-                                       value="0" style="padding:5px 8px;font-size:12px;" oninput="LagerPage._calcNetto()">
+                                       value="0" style="padding:5px 8px;font-size:12px;" data-action-input="lgp-calc-netto">
                             </div>
                         </div>
 
@@ -265,7 +265,7 @@ const LagerPage = {
                         <div>
                             <label class="form-label" style="font-size:11px;">Versand Verkäufer (€)</label>
                             <input type="number" step="0.01" min="0" class="form-input" id="buch_versandVk"
-                                   value="0" style="padding:5px 8px;font-size:12px;" oninput="LagerPage._calcNetto()">
+                                   value="0" style="padding:5px 8px;font-size:12px;" data-action-input="lgp-calc-netto">
                         </div>
 
                         <!-- Käufer + Notizen (klappbar) -->
@@ -612,9 +612,9 @@ function openNeuArtikelModal() {
             <div style="display:flex;align-items:center;gap:12px;">
                 <div id="neuFotoPreviewWrap"
                      style="width:52px;height:52px;background:var(--bg-secondary);border-radius:8px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;cursor:pointer;"
-                     onclick="document.getElementById('neuFotoInput').click();">📷</div>
+                     data-action="lgp-foto">📷</div>
                 <div>
-                    <button class="btn btn-small" type="button" onclick="document.getElementById('neuFotoInput').click();">📷 Foto wählen</button>
+                    <button class="btn btn-small" type="button" data-action="lgp-foto">📷 Foto wählen</button>
                     <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">JPG / PNG · optional</div>
                 </div>
                 <input type="file" id="neuFotoInput" accept="image/*" style="display:none;">
@@ -704,7 +704,7 @@ function openNeuArtikelModal() {
     `;
 
     const footer = `
-        <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        <button class="btn" data-action="close-modal">Abbrechen</button>
         <button class="btn btn-primary" id="saveNeuArtikel" style="min-width:130px;">💾 Speichern</button>
     `;
 
@@ -883,7 +883,7 @@ function openBulkArtikelModal() {
                 <div>
                     <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">Versandkosten gesamt (€)</label>
                     <input type="number" step="0.01" min="0" class="form-input" id="bulk_versand" value="0"
-                           style="width:130px;font-size:14px;" oninput="_updateBulkSummary()">
+                           style="width:130px;font-size:14px;" data-action-input="lgp-bulk-summary">
                 </div>
 
                 <!-- MwSt -->
@@ -891,16 +891,16 @@ function openBulkArtikelModal() {
                     <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">Mehrwertsteuer</label>
                     <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
                         <button type="button" class="btn btn-small" id="bmwst_0"
-                                onclick="_setBulkMwst(0)"
+                                data-action="lgp-bulk-mwst" data-args='[0]' 
                                 style="background:var(--accent);color:#fff;border-color:var(--accent);">0%</button>
                         <button type="button" class="btn btn-small" id="bmwst_7"
-                                onclick="_setBulkMwst(7)">7%</button>
+                                data-action="lgp-bulk-mwst" data-args='[7]' >7%</button>
                         <button type="button" class="btn btn-small" id="bmwst_19"
-                                onclick="_setBulkMwst(19)">19%</button>
+                                data-action="lgp-bulk-mwst" data-args='[19]' >19%</button>
                         <input type="number" step="0.1" min="0" max="100" class="form-input"
                                id="bulk_mwst_custom" placeholder="eigener %"
                                style="width:90px;font-size:13px;"
-                               oninput="_onBulkMwstCustom()">
+                               data-action-input="lgp-bulk-mwst-custom">
                     </div>
                     <input type="hidden" id="bulk_mwst_value" value="0">
                 </div>
@@ -969,7 +969,7 @@ function openBulkArtikelModal() {
     `;
 
     const footer = `
-        <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        <button class="btn" data-action="close-modal">Abbrechen</button>
         <button class="btn btn-primary" id="bulkSaveBtn" style="min-width:180px;">💾 Alle anlegen</button>
     `;
 
@@ -1063,20 +1063,20 @@ function _renderBulkRows() {
                 <input type="number" step="0.01" min="0" class="form-input" id="bulk_preis_${row.id}"
                        value="${row.einkaufspreis}" placeholder="0,00"
                        style="font-size:14px;font-weight:700;padding:5px 8px;width:86px;text-align:right;"
-                       oninput="_updateBulkSummary()">
+                       data-action-input="lgp-bulk-summary">
             </td>
             <td style="padding:5px 6px;text-align:center;">
                 <input type="number" min="1" max="9999" class="form-input" id="bulk_anzahl_${row.id}"
                        value="${row.anzahl}"
                        style="font-size:14px;font-weight:700;padding:5px 8px;width:68px;text-align:center;"
-                       oninput="_updateBulkSummary()">
+                       data-action-input="lgp-bulk-summary">
             </td>
             <td style="padding:5px 6px;">
                 <div style="display:flex;gap:3px;">
                     <button class="btn btn-small" title="Zeile duplizieren"
-                            onclick="_bulkDuplicateRow(${row.id})">↻</button>
+                            data-action="lgp-bulk-dup" data-args='[${row.id}]' >↻</button>
                     <button class="btn btn-small btn-danger" title="Zeile löschen"
-                            onclick="_bulkDeleteRow(${row.id})" ${onlyOne ? 'disabled' : ''}>🗑</button>
+                            data-action="lgp-bulk-del" data-args='[${row.id}]'  ${onlyOne ? 'disabled' : ''}>🗑</button>
                 </div>
             </td>
         </tr>`;
@@ -1469,7 +1469,7 @@ const ExcelImport = {
         `;
 
         const footer = `
-            <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+            <button class="btn" data-action="close-modal">Abbrechen</button>
             <button class="btn btn-primary" id="excelImportBtn" disabled style="min-width:200px;">📥 Importieren</button>
         `;
 
@@ -1894,7 +1894,7 @@ const SalesImport = {
         `;
 
         const footer = `
-            <button class="btn" onclick="App.closeModal()">Abbrechen</button>
+            <button class="btn" data-action="close-modal">Abbrechen</button>
             <button class="btn btn-primary" id="salesImportBtn" disabled style="min-width:200px;">📥 Importieren</button>
         `;
 
@@ -2232,3 +2232,16 @@ if (typeof AuthUI !== 'undefined' && AuthUI.boot) {
     lagerBoot();
 }
 
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'lgp-tab':              function (tab) { LagerPage.switchTab(tab); },
+    'lgp-plattform':        function () { LagerPage._onPlattformChange(); },
+    'lgp-calc-netto':       function () { LagerPage._calcNetto(); },
+    'lgp-foto':             function () { document.getElementById('neuFotoInput').click(); },
+    'lgp-bulk-summary':     function () { _updateBulkSummary(); },
+    'lgp-bulk-mwst':        function (satz) { _setBulkMwst(satz); },
+    'lgp-bulk-mwst-custom': function () { _onBulkMwstCustom(); },
+    'lgp-bulk-dup':         function (id) { _bulkDuplicateRow(id); },
+    'lgp-bulk-del':         function (id) { _bulkDeleteRow(id); }
+});

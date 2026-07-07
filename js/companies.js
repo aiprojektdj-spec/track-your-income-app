@@ -314,7 +314,7 @@ const CompanyManager = {
         const name  = co ? co.name  : '—';
 
         return `
-        <div id="companySwitcherBtn" onclick="CompanyManager.toggleDropdown(event)" title="Firma wechseln" style="
+        <div id="companySwitcherBtn" data-action="co-toggle-dropdown" title="Firma wechseln" style="
             position:relative;
             display:flex;align-items:center;gap:7px;
             padding:5px 12px;
@@ -368,10 +368,10 @@ const CompanyManager = {
                 </div>
                 ${isActive
                     ? `<span style="font-size:11px;padding:2px 8px;background:rgba(99,102,241,.2);color:#818cf8;border-radius:10px;font-weight:600;white-space:nowrap;">✓ Aktiv</span>`
-                    : `<button class="btn btn-small" onclick="CompanyManager._closeDropdown();CompanyManager.switchTo('${co.id}');"
+                    : `<button class="btn btn-small" data-action="co-switch" data-args='["${co.id}"]' 
                                style="font-size:11px;white-space:nowrap;">Wechseln</button>`
                 }
-                <button onclick="event.stopPropagation();CompanyManager._closeDropdown();CompanyManager._openManageModal('${co.id}');"
+                <button data-action="co-manage" data-args='["${co.id}"]' 
                         title="Bearbeiten"
                         style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;padding:2px 4px;flex-shrink:0;">⚙</button>
             </div>`;
@@ -405,7 +405,7 @@ const CompanyManager = {
                     <div style="font-weight:700;font-size:13px;">🏢 Unternehmen</div>
                     <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">${companies.length} von ${this.MAX_COMPANIES} angelegt</div>
                 </div>
-                <button onclick="CompanyManager._closeDropdown()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;line-height:1;padding:0 2px;">×</button>
+                <button data-action="co-close-dropdown" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;line-height:1;padding:0 2px;">×</button>
             </div>
 
             <!-- Firmen-Liste -->
@@ -416,7 +416,7 @@ const CompanyManager = {
             <!-- Footer -->
             <div style="padding:10px 14px;border-top:1px solid var(--border);">
                 ${!maxed
-                    ? `<button class="btn btn-outline" onclick="CompanyManager._closeDropdown();CompanyManager._openCreateModal();"
+                    ? `<button class="btn btn-outline" data-action="co-create"
                                style="width:100%;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;">
                            <span style="font-size:16px;">＋</span> Neues Unternehmen anlegen
                        </button>`
@@ -471,7 +471,7 @@ const CompanyManager = {
                 <input type="radio" name="firma_farbe" value="${f.hex}" ${i===0?'checked':''} style="display:none;">
                 <span class="farb-dot" style="width:28px;height:28px;border-radius:50%;background:${f.hex};
                       display:block;border:3px solid transparent;transition:border .15s;"
-                      onclick="document.querySelectorAll('.farb-dot').forEach(d=>d.style.borderColor='transparent');this.style.borderColor='white';">
+                      data-action="co-pick-color" data-args='[".farb-dot"]' >
                 </span>
                 <span style="font-size:10px;color:var(--text-muted);">${f.name}</span>
             </label>`).join('');
@@ -486,7 +486,7 @@ const CompanyManager = {
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:4px;">
                         <label style="cursor:pointer;">
                             <input type="radio" name="new_firma_land" value="DE" checked style="display:none;">
-                            <div onclick="CompanyManager._selectLandBtn('new','DE')" id="new_land_de" style="
+                            <div data-action="co-land-btn" data-args='["new","DE"]'  id="new_land_de" style="
                                 border:2px solid var(--accent);border-radius:8px;padding:8px;text-align:center;
                                 background:rgba(99,102,241,.1);cursor:pointer;">
                                 <span style="font-size:20px;">🇩🇪</span>
@@ -495,7 +495,7 @@ const CompanyManager = {
                         </label>
                         <label style="cursor:pointer;">
                             <input type="radio" name="new_firma_land" value="AT" style="display:none;">
-                            <div onclick="CompanyManager._selectLandBtn('new','AT')" id="new_land_at" style="
+                            <div data-action="co-land-btn" data-args='["new","AT"]'  id="new_land_at" style="
                                 border:2px solid var(--border);border-radius:8px;padding:8px;text-align:center;
                                 background:var(--bg-secondary);cursor:pointer;">
                                 <span style="font-size:20px;">🇦🇹</span>
@@ -504,7 +504,7 @@ const CompanyManager = {
                         </label>
                         <label style="cursor:pointer;">
                             <input type="radio" name="new_firma_land" value="CH" style="display:none;">
-                            <div onclick="CompanyManager._selectLandBtn('new','CH')" id="new_land_ch" style="
+                            <div data-action="co-land-btn" data-args='["new","CH"]'  id="new_land_ch" style="
                                 border:2px solid var(--border);border-radius:8px;padding:8px;text-align:center;
                                 background:var(--bg-secondary);cursor:pointer;">
                                 <span style="font-size:20px;">🇨🇭</span>
@@ -527,7 +527,7 @@ const CompanyManager = {
                     <label class="form-label">Farbe (zur Unterscheidung)</label>
                     <div style="display:flex;gap:16px;margin-top:6px;">${farbenHtml}</div>
                 </div>
-                <button class="btn btn-primary" onclick="CompanyManager._createFromModal()" style="width:100%;padding:12px;font-size:15px;">
+                <button class="btn btn-primary" data-action="co-create-modal" style="width:100%;padding:12px;font-size:15px;">
                     ✅ Firma anlegen
                 </button>
             </div>`;
@@ -566,7 +566,7 @@ const CompanyManager = {
                 <input type="radio" name="edit_farbe" value="${f.hex}" ${co.farbe===f.hex?'checked':''} style="display:none;">
                 <span class="farb-dot-edit" style="width:26px;height:26px;border-radius:50%;background:${f.hex};
                       display:block;border:3px solid ${co.farbe===f.hex?'white':'transparent'};transition:border .15s;"
-                      onclick="document.querySelectorAll('.farb-dot-edit').forEach(d=>d.style.borderColor='transparent');this.style.borderColor='white';">
+                      data-action="co-pick-color" data-args='[".farb-dot-edit"]' >
                 </span>
             </label>`).join('');
 
@@ -580,12 +580,12 @@ const CompanyManager = {
                     <label class="form-label">Farbe</label>
                     <div style="display:flex;gap:14px;margin-top:6px;">${farbenHtml}</div>
                 </div>
-                <button class="btn btn-primary" onclick="CompanyManager._saveManageModal('${id}')" style="width:100%;">
+                <button class="btn btn-primary" data-action="co-save-manage" data-args='["${id}"]'  style="width:100%;">
                     💾 Speichern
                 </button>
                 ${!isActive ? `
                 <hr style="border-color:var(--border);margin:4px 0;">
-                <button class="btn" onclick="CompanyManager._confirmDelete('${id}')"
+                <button class="btn" data-action="co-confirm-del" data-args='["${id}"]' 
                         style="width:100%;background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.3);">
                     🗑 Firma löschen (alle Daten unwiderruflich löschen)
                 </button>` : `
@@ -626,8 +626,8 @@ const CompanyManager = {
                     Stelle sicher, dass du vorher ein Backup erstellt hast.
                 </div>
                 <div style="display:flex;gap:10px;">
-                    <button class="btn btn-outline" onclick="App.closeModal()" style="flex:1;">Abbrechen</button>
-                    <button class="btn" onclick="CompanyManager._executeDelete('${id}')"
+                    <button class="btn btn-outline" data-action="close-modal" style="flex:1;">Abbrechen</button>
+                    <button class="btn" data-action="co-exec-del" data-args='["${id}"]' 
                             style="flex:1;background:var(--danger);color:white;border-color:var(--danger);">
                         Ja, Firma löschen
                     </button>
@@ -655,7 +655,7 @@ const CompanyManager = {
                 <span class="onb-farb-dot" style="
                     width:36px;height:36px;border-radius:50%;background:${f.hex};display:block;
                     border:3px solid ${i===0?'white':'transparent'};transition:all .15s;box-shadow:0 2px 8px rgba(0,0,0,.3);"
-                    onclick="document.querySelectorAll('.onb-farb-dot').forEach(d=>d.style.borderColor='transparent');this.style.borderColor='white';">
+                    data-action="co-pick-color" data-args='[".onb-farb-dot"]' >
                 </span>
                 <span style="font-size:11px;color:var(--text-muted);">${f.name}</span>
             </label>`).join('');
@@ -699,7 +699,7 @@ const CompanyManager = {
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px;">
                         <label id="onb_land_de_lbl" style="cursor:pointer;">
                             <input type="radio" name="onb_land" value="DE" checked style="display:none;">
-                            <div class="onb-land-btn" id="onb_land_de_btn" onclick="CompanyManager._selectLand('DE')" style="
+                            <div class="onb-land-btn" id="onb_land_de_btn" data-action="co-select-land" data-args='["DE"]'  style="
                                 border:2px solid var(--accent);border-radius:10px;padding:12px;text-align:center;
                                 background:rgba(99,102,241,.1);transition:all .15s;">
                                 <div style="font-size:26px;">🇩🇪</div>
@@ -709,7 +709,7 @@ const CompanyManager = {
                         </label>
                         <label id="onb_land_at_lbl" style="cursor:pointer;">
                             <input type="radio" name="onb_land" value="AT" style="display:none;">
-                            <div class="onb-land-btn" id="onb_land_at_btn" onclick="CompanyManager._selectLand('AT')" style="
+                            <div class="onb-land-btn" id="onb_land_at_btn" data-action="co-select-land" data-args='["AT"]'  style="
                                 border:2px solid var(--border);border-radius:10px;padding:12px;text-align:center;
                                 background:var(--bg-secondary);transition:all .15s;">
                                 <div style="font-size:26px;">🇦🇹</div>
@@ -719,7 +719,7 @@ const CompanyManager = {
                         </label>
                         <label id="onb_land_ch_lbl" style="cursor:pointer;">
                             <input type="radio" name="onb_land" value="CH" style="display:none;">
-                            <div class="onb-land-btn" id="onb_land_ch_btn" onclick="CompanyManager._selectLand('CH')" style="
+                            <div class="onb-land-btn" id="onb_land_ch_btn" data-action="co-select-land" data-args='["CH"]'  style="
                                 border:2px solid var(--border);border-radius:10px;padding:12px;text-align:center;
                                 background:var(--bg-secondary);transition:all .15s;">
                                 <div style="font-size:26px;">🇨🇭</div>
@@ -735,7 +735,7 @@ const CompanyManager = {
                     <input type="text" class="form-input" id="onb_name"
                            placeholder="z.B. Mein Business, Max Mustermann"
                            maxlength="40" style="font-size:16px;"
-                           onkeydown="if(event.key==='Enter') CompanyManager._submitOnboarding()">
+                           data-action-key="co-onboard-enter">
                 </div>
 
                 <div class="form-group">
@@ -748,7 +748,7 @@ const CompanyManager = {
                     <div style="display:flex;gap:16px;margin-top:8px;justify-content:center;">${farbenHtml}</div>
                 </div>
 
-                <button class="btn btn-primary" onclick="CompanyManager._submitOnboarding()"
+                <button class="btn btn-primary" data-action="co-submit-onboarding"
                         style="width:100%;padding:14px;font-size:16px;font-weight:700;margin-top:4px;border-radius:10px;">
                     🚀 Starten
                 </button>
@@ -861,3 +861,24 @@ window.CompanyManager = CompanyManager;
         go();
     }
 })();
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'co-toggle-dropdown':   function (e) { CompanyManager.toggleDropdown(e); },
+    'co-switch':            function (id) { CompanyManager._closeDropdown(); CompanyManager.switchTo(id); },
+    'co-manage':            function (id, e) { e.stopPropagation(); CompanyManager._closeDropdown(); CompanyManager._openManageModal(id); },
+    'co-close-dropdown':    function () { CompanyManager._closeDropdown(); },
+    'co-create':            function () { CompanyManager._closeDropdown(); CompanyManager._openCreateModal(); },
+    'co-pick-color':        function (sel, e, el) {
+        document.querySelectorAll(sel).forEach(function (d) { d.style.borderColor = 'transparent'; });
+        el.style.borderColor = 'white';
+    },
+    'co-land-btn':          function (ctx, land) { CompanyManager._selectLandBtn(ctx, land); },
+    'co-create-modal':      function () { CompanyManager._createFromModal(); },
+    'co-save-manage':       function (id) { CompanyManager._saveManageModal(id); },
+    'co-confirm-del':       function (id) { CompanyManager._confirmDelete(id); },
+    'co-exec-del':          function (id) { CompanyManager._executeDelete(id); },
+    'co-select-land':       function (land) { CompanyManager._selectLand(land); },
+    'co-onboard-enter':     function (e) { if (e.key === 'Enter') CompanyManager._submitOnboarding(); },
+    'co-submit-onboarding': function () { CompanyManager._submitOnboarding(); }
+});

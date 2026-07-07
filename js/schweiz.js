@@ -212,7 +212,7 @@ const Schweiz = {
 
         const tabBar = tabs.map(t => `
             <button class="btn${this._tab === t.id ? ' btn-primary' : ''}"
-                    onclick="Schweiz._setTab('${t.id}')"
+                    data-action="ch-set-tab" data-args='["${t.id}"]' 
                     style="display:flex;align-items:center;gap:6px;font-size:13px;">
                 <i class="ti ${t.icon}"></i>${t.label}
             </button>
@@ -281,7 +281,7 @@ const Schweiz = {
                 <div class="form-row" style="align-items:flex-end;">
                     <div class="form-group">
                         <label class="form-label">Zeitraum</label>
-                        <select class="form-select" id="chPeriod" onchange="Schweiz._onPeriodChange(this.value)">
+                        <select class="form-select" id="chPeriod" data-action-change="ch-period">
                             <option value="monat"   ${this._period==='monat'   ? 'selected' : ''}>Monat</option>
                             <option value="quartal" ${this._period==='quartal' ? 'selected' : ''}>Quartal</option>
                             <option value="jahr"    ${this._period==='jahr'    ? 'selected' : ''}>Jahr</option>
@@ -289,7 +289,7 @@ const Schweiz = {
                     </div>
                     <div class="form-group">
                         <label class="form-label">Jahr</label>
-                        <select class="form-select" id="chYear" onchange="Schweiz._year=+this.value;Schweiz._rerender()">
+                        <select class="form-select" id="chYear" data-action-change="ch-year">
                             ${Array.from({length:8},(_,i)=>2020+i).map(yr =>
                                 `<option value="${yr}" ${yr===y ? 'selected' : ''}>${yr}</option>`
                             ).join('')}
@@ -297,7 +297,7 @@ const Schweiz = {
                     </div>
                     <div class="form-group" id="chMonthGroup" style="${this._period==='monat' ? '' : 'display:none'}">
                         <label class="form-label">Monat</label>
-                        <select class="form-select" id="chMonth" onchange="Schweiz._month=+this.value;Schweiz._rerender()">
+                        <select class="form-select" id="chMonth" data-action-change="ch-month">
                             ${Array.from({length:12},(_,i)=>i).map(mo =>
                                 `<option value="${mo}" ${mo===m ? 'selected' : ''}>${Utils.getMonthName(mo)}</option>`
                             ).join('')}
@@ -305,7 +305,7 @@ const Schweiz = {
                     </div>
                     <div class="form-group" id="chQuarterGroup" style="${this._period==='quartal' ? '' : 'display:none'}">
                         <label class="form-label">Quartal</label>
-                        <select class="form-select" id="chQuarter" onchange="Schweiz._month=+this.value*3;Schweiz._rerender()">
+                        <select class="form-select" id="chQuarter" data-action-change="ch-quarter">
                             ${[0,1,2,3].map(q =>
                                 `<option value="${q}" ${Math.floor(m/3)===q ? 'selected' : ''}>Q${q+1}</option>`
                             ).join('')}
@@ -438,7 +438,7 @@ const Schweiz = {
             </div>
 
             ${mwstPflichtig
-                ? `<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--warning);display:flex;align-items:center;gap:8px;"><i class="ti ti-alert-triangle"></i> Jahresumsatz überschreitet CHF 100'000 — Sie sind voraussichtlich MWST-pflichtig. <button class="btn" onclick="Schweiz._setTab('mwst')" style="margin-left:auto;font-size:12px;padding:4px 10px;">→ MWST prüfen</button></div>`
+                ? `<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--warning);display:flex;align-items:center;gap:8px;"><i class="ti ti-alert-triangle"></i> Jahresumsatz überschreitet CHF 100'000 — Sie sind voraussichtlich MWST-pflichtig. <button class="btn" data-action="ch-set-tab" data-args='["mwst"]'  style="margin-left:auto;font-size:12px;padding:4px 10px;">→ MWST prüfen</button></div>`
                 : `<div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--success);display:flex;align-items:center;gap:8px;"><i class="ti ti-shield-check"></i> Jahresumsatz unter CHF 100'000 — Sie können von der MWST-Pflicht befreit sein (Art. 10 Abs. 2 MWSTG).</div>`
             }
 
@@ -474,10 +474,10 @@ const Schweiz = {
                     <tr style="border-top:2px solid var(--border);background:rgba(16,185,129,.04);"><td style="padding:10px 12px;font-weight:700;font-size:15px;">Reingewinn</td><td style="padding:10px 12px;text-align:right;font-weight:700;font-size:15px;color:${reingewinn>=0?'var(--success)':'var(--danger)'};">${fmt(reingewinn)}</td></tr>
                 </table>
                 <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-                    <button class="btn" onclick="Schweiz._setTab('ahv')" style="font-size:12px;"><i class="ti ti-shield-check"></i> AHV berechnen</button>
-                    <button class="btn" onclick="Schweiz._setTab('steuer')" style="font-size:12px;"><i class="ti ti-calculator"></i> Steuer schätzen</button>
-                    <button class="btn" onclick="Schweiz._exportEAR_PDF()" style="font-size:12px;"><i class="ti ti-printer"></i> PDF drucken</button>
-                    <button class="btn" onclick="Schweiz._exportEAR_CSV()" style="font-size:12px;"><i class="ti ti-table-export"></i> Excel / CSV</button>
+                    <button class="btn" data-action="ch-set-tab" data-args='["ahv"]'  style="font-size:12px;"><i class="ti ti-shield-check"></i> AHV berechnen</button>
+                    <button class="btn" data-action="ch-set-tab" data-args='["steuer"]'  style="font-size:12px;"><i class="ti ti-calculator"></i> Steuer schätzen</button>
+                    <button class="btn" data-action="ch-export-pdf" style="font-size:12px;"><i class="ti ti-printer"></i> PDF drucken</button>
+                    <button class="btn" data-action="ch-export-csv" style="font-size:12px;"><i class="ti ti-table-export"></i> Excel / CSV</button>
                 </div>
             </div>
 
@@ -649,10 +649,10 @@ ${detailRows.filter(r=>r[1]<0).map(r=>`<tr><td style="padding-left:20px;color:#5
         // Methoden-Toggle
         const methodeToggle = `
             <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-                <button class="btn${this._mwstMethode==='effektiv'?' btn-primary':''}" onclick="Schweiz._mwstMethode='effektiv';Schweiz._rerender()">
+                <button class="btn${this._mwstMethode==='effektiv'?' btn-primary':''}" data-action="ch-mwst-methode" data-args='["effektiv"]' >
                     <i class="ti ti-file-check"></i> Effektive Methode
                 </button>
-                <button class="btn${this._mwstMethode==='saldo'?' btn-primary':''}" onclick="Schweiz._mwstMethode='saldo';Schweiz._rerender()">
+                <button class="btn${this._mwstMethode==='saldo'?' btn-primary':''}" data-action="ch-mwst-methode" data-args='["saldo"]' >
                     <i class="ti ti-receipt"></i> Saldosteuersatz
                 </button>
             </div>`;
@@ -773,7 +773,7 @@ ${detailRows.filter(r=>r[1]<0).map(r=>`<tr><td style="padding-left:20px;color:#5
                 <div style="font-weight:600;margin-bottom:14px;font-size:14px;"><i class="ti ti-sliders" style="margin-right:6px;"></i>Parameter</div>
                 <div class="form-group">
                     <label class="form-label">Branche</label>
-                    <select class="form-select" onchange="Schweiz._saldoBranche=this.value;Schweiz._rerender()">
+                    <select class="form-select" data-action-change="ch-saldo-branche">
                         ${brancheOpts}
                     </select>
                 </div>
@@ -781,7 +781,7 @@ ${detailRows.filter(r=>r[1]<0).map(r=>`<tr><td style="padding-left:20px;color:#5
                 <div class="form-group">
                     <label class="form-label">Saldosteuersatz (%)</label>
                     <input type="number" class="form-input" value="${this._saldoSatzManuell}" min="0" max="10" step="0.1"
-                        onchange="Schweiz._saldoSatzManuell=parseFloat(this.value)||0;Schweiz._rerender()">
+                        data-action-change="ch-saldo-satz">
                     <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Den genauen Satz findest du in der ESTV-Liste (www.estv.admin.ch → MWST → Saldosteuersatzmethode).</div>
                 </div>` : ''}
             </div>
@@ -1033,19 +1033,19 @@ ${detailRows.filter(r=>r[1]<0).map(r=>`<tr><td style="padding-left:20px;color:#5
                 <div class="form-row" style="align-items:flex-end;flex-wrap:wrap;">
                     <div class="form-group">
                         <label class="form-label">Kanton</label>
-                        <select class="form-select" id="chKanton" onchange="Schweiz._kanton=this.value;Schweiz._gemeinde='';Schweiz._rerender()">
+                        <select class="form-select" id="chKanton" data-action-change="ch-kanton">
                             ${kantonOptionen}
                         </select>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Gemeinde</label>
-                        <select class="form-select" id="chGemeinde" onchange="Schweiz._gemeinde=this.value;Schweiz._rerender()">
+                        <select class="form-select" id="chGemeinde" data-action-change="ch-gemeinde">
                             ${gemeindeOptionen}
                         </select>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Zivilstand</label>
-                        <select class="form-select" id="chZivilstand" onchange="Schweiz._zivilstand=this.value;Schweiz._rerender()">
+                        <select class="form-select" id="chZivilstand" data-action-change="ch-zivilstand">
                             <option value="ledig" ${this._zivilstand==='ledig'?'selected':''}>Ledig / Alleinstehend</option>
                             <option value="verheiratet" ${this._zivilstand==='verheiratet'?'selected':''}>Verheiratet / Eingetragene Partnerschaft</option>
                         </select>
@@ -1133,15 +1133,15 @@ ${detailRows.filter(r=>r[1]<0).map(r=>`<tr><td style="padding-left:20px;color:#5
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">EUR-Betrag</label>
-                        <input type="number" class="form-input" id="convEur" placeholder="0.00" oninput="Schweiz._onConvEur(this.value, ${rate})">
+                        <input type="number" class="form-input" id="convEur" placeholder="0.00" data-action-input="ch-conv-eur" data-args='[${rate}]' >
                     </div>
                     <div class="form-group">
                         <label class="form-label">CHF-Betrag</label>
-                        <input type="number" class="form-input" id="convChf" placeholder="0.00" oninput="Schweiz._onConvChf(this.value, ${rate})">
+                        <input type="number" class="form-input" id="convChf" placeholder="0.00" data-action-input="ch-conv-chf" data-args='[${rate}]' >
                     </div>
                     <div class="form-group">
                         <label class="form-label">Kurs (CHF/EUR)</label>
-                        <input type="number" class="form-input" id="convRate" value="${rate}" step="0.001" oninput="Schweiz._onConvRate(this.value)">
+                        <input type="number" class="form-input" id="convRate" value="${rate}" step="0.001" data-action-input="ch-conv-rate">
                     </div>
                 </div>
                 <div style="font-size:11px;color:var(--text-muted);">Kurs in Einstellungen ändern um Standard zu setzen.</div>
@@ -1163,3 +1163,23 @@ ${detailRows.filter(r=>r[1]<0).map(r=>`<tr><td style="padding-left:20px;color:#5
         if (el) el.value = (eur * (parseFloat(rate)||1)).toFixed(2);
     },
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'ch-set-tab':       function (tab) { Schweiz._setTab(tab); },
+    'ch-period':        function (e, el) { Schweiz._onPeriodChange(el.value); },
+    'ch-year':          function (e, el) { Schweiz._year = +el.value; Schweiz._rerender(); },
+    'ch-month':         function (e, el) { Schweiz._month = +el.value; Schweiz._rerender(); },
+    'ch-quarter':       function (e, el) { Schweiz._month = +el.value * 3; Schweiz._rerender(); },
+    'ch-export-pdf':    function () { Schweiz._exportEAR_PDF(); },
+    'ch-export-csv':    function () { Schweiz._exportEAR_CSV(); },
+    'ch-mwst-methode':  function (m) { Schweiz._mwstMethode = m; Schweiz._rerender(); },
+    'ch-saldo-branche': function (e, el) { Schweiz._saldoBranche = el.value; Schweiz._rerender(); },
+    'ch-saldo-satz':    function (e, el) { Schweiz._saldoSatzManuell = parseFloat(el.value) || 0; Schweiz._rerender(); },
+    'ch-kanton':        function (e, el) { Schweiz._kanton = el.value; Schweiz._gemeinde = ''; Schweiz._rerender(); },
+    'ch-gemeinde':      function (e, el) { Schweiz._gemeinde = el.value; Schweiz._rerender(); },
+    'ch-zivilstand':    function (e, el) { Schweiz._zivilstand = el.value; Schweiz._rerender(); },
+    'ch-conv-eur':      function (rate, e, el) { Schweiz._onConvEur(el.value, rate); },
+    'ch-conv-chf':      function (rate, e, el) { Schweiz._onConvChf(el.value, rate); },
+    'ch-conv-rate':     function (e, el) { Schweiz._onConvRate(el.value); }
+});

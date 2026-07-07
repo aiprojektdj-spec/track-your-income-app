@@ -23,3 +23,6 @@ backup_*.json
 
 # Interne Compliance-Entwürfe (VVT/TIA/GoBD) — NICHT in den öffentlichen Repo
 compliance/
+
+# graphify Knowledge-Graph-Artefakte (lokal generiert)
+graphify-out/

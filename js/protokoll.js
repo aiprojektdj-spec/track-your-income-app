@@ -189,7 +189,7 @@ const Protokoll = {
                     body += '<pre class="audit-json">' + Utils.escapeHtml(JSON.stringify(entry.newValues, null, 2)) + '</pre></div>';
                 }
                 body += '</div>';
-                App.showModal('Protokoll-Detail', body, '<button class="btn" onclick="App.closeModal()">Schliessen</button>');
+                App.showModal('Protokoll-Detail', body, '<button class="btn" data-action="close-modal">Schliessen</button>');
             });
         });
 

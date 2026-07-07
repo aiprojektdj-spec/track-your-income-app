@@ -368,9 +368,9 @@ var CloudSync = (function () {
                 '<div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:12px;font-size:13px;">' +
                   '☁ <strong>Cloud-Sync ist aktiv.</strong> Deine Daten werden Ende-zu-Ende-verschlüsselt zwischen deinen Geräten synchronisiert. Der Server kann sie nicht lesen.' +
                 '</div>' +
-                '<button class="btn btn-outline" onclick="CloudSync.showCode()" style="width:100%;">🔑 Wiederherstellungscode anzeigen</button>' +
-                '<button class="btn btn-outline" onclick="CloudSync.syncNow()" style="width:100%;">🔄 Jetzt synchronisieren</button>' +
-                '<button class="btn" onclick="CloudSync.disableFlow()" style="width:100%;background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.3);">Cloud-Sync deaktivieren</button>' +
+                '<button class="btn btn-outline" data-action="cs-show-code" style="width:100%;">🔑 Wiederherstellungscode anzeigen</button>' +
+                '<button class="btn btn-outline" data-action="cs-sync-now" style="width:100%;">🔄 Jetzt synchronisieren</button>' +
+                '<button class="btn" data-action="cs-disable" style="width:100%;background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.3);">Cloud-Sync deaktivieren</button>' +
               '</div>';
         } else {
             body =
@@ -384,8 +384,8 @@ var CloudSync = (function () {
                   '⚠️ Du erhältst einen <strong>Wiederherstellungscode</strong>. Er ist der EINZIGE Weg, die Cloud-Daten zu entschlüsseln. ' +
                   'Geht er samt aller Geräte verloren, sind die Cloud-Daten <strong>unwiederbringlich</strong>. Wir können ihn nicht zurücksetzen.' +
                 '</div>' +
-                '<button class="btn btn-primary" onclick="CloudSync.enableFlow()" style="width:100%;">☁ Cloud-Sync aktivieren</button>' +
-                '<button class="btn btn-outline" onclick="CloudSync.connectFlow()" style="width:100%;">📲 Mit bestehendem Sync verbinden</button>' +
+                '<button class="btn btn-primary" data-action="cs-enable" style="width:100%;">☁ Cloud-Sync aktivieren</button>' +
+                '<button class="btn btn-outline" data-action="cs-connect" style="width:100%;">📲 Mit bestehendem Sync verbinden</button>' +
               '</div>';
         }
         App.showModal('Cloud-Sync', body, '');
@@ -417,8 +417,8 @@ var CloudSync = (function () {
                 '<span>Ich habe den Code sicher gespeichert (Passwort-Manager, Ausdruck o.ä.).</span></label>' +
              '<div style="font-size:12px;color:var(--text-muted);">Bestätige durch Eingabe der <strong>letzten zwei Gruppen</strong> (' + _esc(lastTwo) + '):</div>' +
              '<input type="text" id="syncCodeConfirm" class="form-input" placeholder="' + _esc(lastTwo) + '" autocomplete="off" style="font-family:monospace;letter-spacing:1px;">' +
-             '<button class="btn btn-primary" id="syncCodeNext" onclick="CloudSync._finishEnable()" style="width:100%;">Aktivieren &amp; synchronisieren</button>')
-          : '<button class="btn btn-primary" onclick="App.closeModal()" style="width:100%;">Schließen</button>';
+             '<button class="btn btn-primary" id="syncCodeNext" data-action="cs-finish-enable" style="width:100%;">Aktivieren &amp; synchronisieren</button>')
+          : '<button class="btn btn-primary" data-action="close-modal" style="width:100%;">Schließen</button>';
 
         var body =
           '<div style="display:flex;flex-direction:column;gap:14px;">' +
@@ -430,8 +430,8 @@ var CloudSync = (function () {
               _esc(grouped) +
             '</div>' +
             '<div style="display:flex;gap:10px;">' +
-              '<button class="btn btn-outline" onclick="CloudSync._copyCode()" style="flex:1;">📋 Kopieren</button>' +
-              '<button class="btn btn-outline" onclick="CloudSync._downloadCode()" style="flex:1;">💾 Als .txt</button>' +
+              '<button class="btn btn-outline" data-action="cs-copy-code" style="flex:1;">📋 Kopieren</button>' +
+              '<button class="btn btn-outline" data-action="cs-download-code" style="flex:1;">💾 Als .txt</button>' +
             '</div>' +
             '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px;font-size:12px;">' +
               '💡 Tipp: Behalte zusätzlich ein <strong>unverschlüsseltes lokales Backup</strong> (Backup &amp; Daten) als letzten Rückfall.' +
@@ -477,7 +477,7 @@ var CloudSync = (function () {
               'Gib den <strong>Wiederherstellungscode</strong> deines anderen Geräts ein. Er wird per Test-Entschlüsselung geprüft, lokal gespeichert und deine Daten werden zusammengeführt.' +
             '</div>' +
             '<textarea id="syncConnectCode" class="form-input" rows="3" placeholder="z.B. ABCDE FGHIJ KLMNO …" autocomplete="off" style="font-family:monospace;letter-spacing:1px;"></textarea>' +
-            '<button class="btn btn-primary" id="syncConnectBtn" onclick="CloudSync._finishConnect()" style="width:100%;">Verbinden &amp; synchronisieren</button>' +
+            '<button class="btn btn-primary" id="syncConnectBtn" data-action="cs-finish-connect" style="width:100%;">Verbinden &amp; synchronisieren</button>' +
           '</div>';
         App.showModal('Mit bestehendem Sync verbinden', body, '');
     }
@@ -545,7 +545,7 @@ var CloudSync = (function () {
             '<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer;">' +
               '<input type="checkbox" id="syncWipeKey" style="margin-top:3px;"> ' +
               '<span>Schlüssel ebenfalls von diesem Gerät löschen. <strong>Achtung:</strong> ohne Wiederherstellungscode danach kein Cloud-Zugriff mehr.</span></label>' +
-            '<button class="btn" onclick="CloudSync._finishDisable()" style="width:100%;background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.3);">Deaktivieren</button>' +
+            '<button class="btn" data-action="cs-finish-disable" style="width:100%;background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.3);">Deaktivieren</button>' +
           '</div>';
         App.showModal('Cloud-Sync deaktivieren', body, '');
     }
@@ -588,3 +588,17 @@ if (document.readyState === 'loading') {
 } else {
     setTimeout(function () { CloudSync.init(); }, 1500);
 }
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'cs-show-code':      function () { CloudSync.showCode(); },
+    'cs-sync-now':       function () { CloudSync.syncNow(); },
+    'cs-disable':        function () { CloudSync.disableFlow(); },
+    'cs-enable':         function () { CloudSync.enableFlow(); },
+    'cs-connect':        function () { CloudSync.connectFlow(); },
+    'cs-finish-enable':  function () { CloudSync._finishEnable(); },
+    'cs-copy-code':      function () { CloudSync._copyCode(); },
+    'cs-download-code':  function () { CloudSync._downloadCode(); },
+    'cs-finish-connect': function () { CloudSync._finishConnect(); },
+    'cs-finish-disable': function () { CloudSync._finishDisable(); }
+});

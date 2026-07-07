@@ -134,7 +134,7 @@ const Vorsteuer = {
                     Als <strong>Kleinunternehmer (§19 UStG)</strong> hast du keinen Vorsteuerabzug.<br>
                     Wechsle in den Einstellungen zur Regelbesteuerung.
                 </p>
-                <button class="btn btn-primary" onclick="App.navigate('euer')">USt-Modus ändern</button>
+                <button class="btn btn-primary" data-action="navigate" data-args=\'["euer"]\'>USt-Modus ändern</button>
             </div>`;
         }
 
@@ -255,7 +255,7 @@ const Vorsteuer = {
                         </tr></thead>
                         <tbody>
                             ${months.map(({ i, c }) => `
-                            <tr style="cursor:pointer;" onclick="Vorsteuer._selectMonth(${i})">
+                            <tr style="cursor:pointer;" data-action="vst-month" data-args='[${i}]' >
                                 <td>${new Date(2000, i).toLocaleDateString('de-DE', { month: 'long' })}</td>
                                 <td style="text-align:right">${Utils.formatCurrency(c.purch.vst19 + c.purch.vst7)}</td>
                                 <td style="text-align:right">${Utils.formatCurrency(c.exp.vst19 + c.exp.vst7)}</td>
@@ -443,7 +443,7 @@ const Vorsteuer = {
                                 <td style="text-align:right">${Utils.formatCurrency(parseFloat(e.nettoBetrag) || 0)}</td>
                                 <td style="text-align:right">${e.ustSatz || 19}%</td>
                                 <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(parseFloat(e.vorsteuerBetrag) || 0)}</td>
-                                <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" onclick="Vorsteuer._deleteEntry('${e.id}')">🗑</button></td>
+                                <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="vst-del" data-args='["${e.id}"]' >🗑</button></td>
                             </tr>`).join('')}
                         </tbody>
                     </table>
@@ -487,7 +487,7 @@ const Vorsteuer = {
                                 <td style="text-align:right">${Utils.formatCurrency(parseFloat(e.nettoBetrag) || 0)}</td>
                                 <td style="text-align:right;color:var(--danger)">${Utils.formatCurrency(parseFloat(e.erwerbsteuer) || 0)}</td>
                                 <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(parseFloat(e.vorsteuerBetrag) || 0)}</td>
-                                <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" onclick="Vorsteuer._deleteEntry('${e.id}')">🗑</button></td>
+                                <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="vst-del" data-args='["${e.id}"]' >🗑</button></td>
                             </tr>`).join('')}
                         </tbody>
                     </table>
@@ -532,7 +532,7 @@ const Vorsteuer = {
                                     <td>${Utils.escapeHtml(e.lieferant || '—')}</td>
                                     <td style="text-align:right">${Utils.formatCurrency(parseFloat(e.nettoBetrag) || 0)}</td>
                                     <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(parseFloat(e.vorsteuerBetrag) || 0)}</td>
-                                    <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" onclick="Vorsteuer._deleteEntry('${e.id}')">🗑</button></td>
+                                    <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="vst-del" data-args='["${e.id}"]' >🗑</button></td>
                                 </tr>`;
                             }).join('')}
                         </tbody>
@@ -585,7 +585,7 @@ const Vorsteuer = {
                     <input type="text" class="form-input" id="rc_beschr" placeholder="z.B. Bauleistung Dachsanierung">
                 </div>
             </div>`,
-        `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveRcBtn">Speichern</button>`);
 
         document.getElementById('saveRcBtn').addEventListener('click', () => {
@@ -661,7 +661,7 @@ const Vorsteuer = {
                     <input type="text" class="form-input" id="ig_beschr" placeholder="z.B. Ware aus Österreich">
                 </div>
             </div>`,
-        `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveIgBtn">Speichern</button>`);
 
         document.getElementById('saveIgBtn').addEventListener('click', () => {
@@ -730,7 +730,7 @@ const Vorsteuer = {
                     <input type="text" class="form-input" id="mv_beschr">
                 </div>
             </div>`,
-        `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveMvBtn">Speichern</button>`);
 
         document.getElementById('saveMvBtn').addEventListener('click', () => {
@@ -804,3 +804,9 @@ const Vorsteuer = {
         if (mvBtn) mvBtn.addEventListener('click', () => this._openManualModal());
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'vst-month': function (i) { Vorsteuer._selectMonth(i); },
+    'vst-del':   function (id) { Vorsteuer._deleteEntry(id); }
+});

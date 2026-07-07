@@ -611,9 +611,11 @@ const Fahrtenbuch = {
                 <td style="text-align:right">${totalKosten.toFixed(2).replace('.', ',')} €</td>
             </tr></tfoot>
         </table>
-        <script>window.onload=()=>{window.print();}<\/script>
+        
         </body></html>`);
         pw.document.close();
+        // CSP: Popup erbt Opener-CSP, Inline-Script waere blockiert - Print vom Opener binden
+        pw.onload = () => pw.print();
     },
 
     _refresh() {

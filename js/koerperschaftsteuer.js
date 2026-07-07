@@ -88,7 +88,7 @@ const Koerperschaftsteuer = {
                     KSt betrifft nur <strong>GmbH</strong> und <strong>UG (haftungsbeschränkt)</strong>.<br>
                     Aktuelle Rechtsform: <strong>${rf}</strong>
                 </p>
-                <button class="btn btn-primary" onclick="App.navigate('rechtsform')">Rechtsform ändern</button>
+                <button class="btn btn-primary" data-action="navigate" data-args=\'["rechtsform"]\'>Rechtsform ändern</button>
             </div>`;
         }
 
@@ -114,7 +114,7 @@ const Koerperschaftsteuer = {
             <h2><i class="ti ti-building-bank" style="margin-right:6px;"></i> Körperschaftsteuer</h2>
             <div class="page-header-actions no-print">
                 <select class="form-select" id="kstYear" style="width:90px;">${yearOpts}</select>
-                <button class="btn" onclick="Koerperschaftsteuer._exportCSV()">CSV Export</button>
+                <button class="btn" data-action="kst-export">CSV Export</button>
             </div>
         </div>
 
@@ -232,7 +232,7 @@ const Koerperschaftsteuer = {
                         <td style="padding:7px 8px;font-size:12px;">Q${v.quartal}</td>
                         <td style="padding:7px 8px;font-size:12px;color:var(--text-secondary);">${Utils.escapeHtml(v.notiz || '')}</td>
                         <td style="padding:7px 8px;font-size:12px;font-weight:700;text-align:right;">${Utils.formatCurrency(v.betrag)}</td>
-                        <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" onclick="Koerperschaftsteuer._deleteVz('${v.id}')">🗑</button></td>
+                        <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="kst-del-vz" data-args='["${v.id}"]' >🗑</button></td>
                     </tr>`).join('')}
                 </tbody>
                 ${vz.length > 0 ? `<tfoot><tr style="font-weight:700;">
@@ -284,7 +284,7 @@ const Koerperschaftsteuer = {
                     <input type="text" class="form-input" id="kvz_notiz">
                 </div>
             </div>`,
-        `<button class="btn" onclick="App.closeModal()">Abbrechen</button>
+        `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveKvzBtn">Speichern</button>`);
 
         document.getElementById('saveKvzBtn').addEventListener('click', () => {
@@ -376,3 +376,9 @@ const Koerperschaftsteuer = {
         if (verlBtn) verlBtn.addEventListener('click', () => this._saveVerlustvortrag());
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'kst-export': function () { Koerperschaftsteuer._exportCSV(); },
+    'kst-del-vz': function (id) { Koerperschaftsteuer._deleteVz(id); }
+});

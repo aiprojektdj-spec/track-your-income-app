@@ -523,7 +523,7 @@ const Dashboard = {
         <div class="card">
             <div class="card-header">
                 <div class="card-title" style="display:flex;align-items:center;gap:7px;"><i class="ti ti-trophy" style="color:var(--warning);font-size:16px;"></i> Top Marken ${year}</div>
-                <a href="#" onclick="App.navigate('statistiken');return false;" style="font-size:12px;color:var(--accent);">Analyse →</a>
+                <a href="#" data-action="navigate" data-args=\'["statistiken"]\' style="font-size:12px;color:var(--accent);">Analyse →</a>
             </div>
             <div style="display:flex;flex-direction:column;">
                 ${rows}

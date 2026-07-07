@@ -82,8 +82,8 @@ const Utils = {
                     autocomplete="off"
                     inputmode="numeric"
                     style="${extraStyle || ''}"
-                    oninput="Utils._autoFormatDate(this)"
-                    onblur="Utils._finishDate(this)">`;
+                    data-action-input="u-date-fmt"
+                    data-action-blur="u-date-finish">`;
     },
 
     // Auto-Format während Tippen: fügt Punkte nach Tag und Monat ein
@@ -364,3 +364,9 @@ const Utils = {
         this.initSmartDates(document);
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'u-date-fmt':    function (e, el) { Utils._autoFormatDate(el); },
+    'u-date-finish': function (e, el) { Utils._finishDate(el); }
+});

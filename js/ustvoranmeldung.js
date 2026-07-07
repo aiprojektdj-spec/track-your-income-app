@@ -139,7 +139,7 @@ const UstVoranmeldung = {
                 <div style="font-size:48px;margin-bottom:12px;">🇨🇭</div>
                 <div style="font-weight:700;font-size:16px;margin-bottom:8px;">Nicht verfügbar im Schweiz-Modus</div>
                 <div style="color:var(--text-muted);margin-bottom:16px;">Die deutsche USt-Voranmeldung (§18 UStG) gilt nicht in der Schweiz.<br>Für die MWST-Abrechnung nach MWSTG nutze das Schweiz-Modul.</div>
-                <button class="btn btn-primary" onclick="App.navigate('schweiz')">→ Schweiz MWST-Abrechnung</button>
+                <button class="btn btn-primary" data-action="navigate" data-args=\'["schweiz"]\'>→ Schweiz MWST-Abrechnung</button>
             </div>`;
         }
 
@@ -154,7 +154,7 @@ const UstVoranmeldung = {
                         Du bist aktuell als <strong>Kleinunternehmer (§19 UStG)</strong> eingestellt.<br>
                         Die USt-Voranmeldung ist nur für Regelbesteuerer relevant.
                     </p>
-                    <button class="btn btn-primary" onclick="App.navigate('euer')">Zur EÜR → USt-Modus ändern</button>
+                    <button class="btn btn-primary" data-action="navigate" data-args=\'["euer"]\'>Zur EÜR → USt-Modus ändern</button>
                 </div>
             </div>`;
         }
@@ -190,7 +190,7 @@ const UstVoranmeldung = {
             <div class="page-header-actions no-print">
                 <select class="form-select" id="uvYear" style="width:90px;">${yearOptions}</select>
                 <select class="form-select" id="uvQuartal">${qOptions}</select>
-                <button class="btn" onclick="UstVoranmeldung._exportCSV()">ELSTER CSV</button>
+                <button class="btn" data-action="uva-export">ELSTER CSV</button>
             </div>
         </div>
 
@@ -244,7 +244,7 @@ const UstVoranmeldung = {
                 </table>
             </div>
             <div style="padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                ${!gesperrt ? `<button class="btn btn-primary" onclick="UstVoranmeldung._markEingereicht()">✅ Als eingereicht markieren</button>` : ''}
+                ${!gesperrt ? `<button class="btn btn-primary" data-action="uva-mark">✅ Als eingereicht markieren</button>` : ''}
                 ${gesperrt ? `<div style="color:var(--text-muted);font-size:12px;">Eingereicht am ${Utils.formatDate(gesperrt.eingereichtAm)}</div>` : ''}
                 <div style="font-size:12px;color:var(--text-muted);">Abgabefrist: 10. des Folgemonats nach Quartalsende</div>
             </div>
@@ -257,7 +257,7 @@ const UstVoranmeldung = {
                     <thead><tr><th>Quartal</th><th style="text-align:right">Netto-Umsatz</th><th style="text-align:right">USt</th><th style="text-align:right">Vorsteuer</th><th style="text-align:right">Zahllast</th><th>Status</th></tr></thead>
                     <tbody>
                         ${jahresUebersicht.map(({ qi, c, gesperrt: g }) => `
-                        <tr style="cursor:pointer;" onclick="UstVoranmeldung._selectQuartal(${qi})">
+                        <tr style="cursor:pointer;" data-action="uva-quartal" data-args='[${qi}]' >
                             <td><strong>Q${qi + 1}/${year}</strong><br><span style="font-size:11px;color:var(--text-muted)">${this._qStart(year,qi).slice(0,7)} – ${this._qEnd(year,qi).slice(0,7)}</span></td>
                             <td style="text-align:right">${Utils.formatCurrency(c.nettoUmsatz19)}</td>
                             <td style="text-align:right">${Utils.formatCurrency(c.ust19)}</td>
@@ -351,3 +351,10 @@ const UstVoranmeldung = {
         Utils.showToast('ELSTER CSV exportiert', 'success');
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'uva-export':  function () { UstVoranmeldung._exportCSV(); },
+    'uva-mark':    function () { UstVoranmeldung._markEingereicht(); },
+    'uva-quartal': function (qi) { UstVoranmeldung._selectQuartal(qi); }
+});

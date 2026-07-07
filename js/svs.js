@@ -167,7 +167,7 @@ const SVS = {
                 </div>
                 <div style="font-size:16px;font-weight:700;margin-bottom:10px;">${betragAnzeige}</div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                    <button class="btn btn-small btn-outline" onclick="SVS.openEditModal(${year}, ${q.quartal})" style="font-size:11px;">
+                    <button class="btn btn-small btn-outline" data-action="svs-edit" data-args='[${year},${q.quartal}]'  style="font-size:11px;">
                         ${q.bezahlt ? '✏ Bearbeiten' : '💳 Als bezahlt markieren'}
                     </button>
                 </div>
@@ -181,7 +181,7 @@ const SVS = {
             <div class="card-header" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                 <div class="card-title">🇦🇹 SVS-Vorauszahlungen ${year}</div>
                 <span style="font-size:12px;color:var(--text-muted);">Beitragssatz: ~${(this.GESAMT_SATZ*100).toFixed(1)}% · Mindestbeitrag: ${Utils.formatCurrency(mindest)}/Quartal</span>
-                <button class="btn btn-small btn-outline" onclick="SVS.openNachbemessungModal(${year})" style="margin-left:auto;font-size:11px;">
+                <button class="btn btn-small btn-outline" data-action="svs-nach" data-args='[${year}]'  style="margin-left:auto;font-size:11px;">
                     📄 Nachbemessung ${year - 1}
                 </button>
             </div>
@@ -207,7 +207,7 @@ const SVS = {
                 📄 Nachbemessung ${year-1}: <strong>${Utils.formatCurrency(nb.betrag)}</strong>
                 ${nb.bezahltAm ? ` · bezahlt am ${Utils.formatDate(nb.bezahltAm)}` : ' · <span style="color:var(--warning);">noch offen</span>'}
                 ${nb.notizen ? ` · ${Utils.escapeHtml(nb.notizen)}` : ''}
-                <button class="btn btn-small" onclick="SVS.openNachbemessungModal(${year-1})" style="margin-left:8px;font-size:11px;">✏</button>
+                <button class="btn btn-small" data-action="svs-nach" data-args='[${year-1}]'  style="margin-left:8px;font-size:11px;">✏</button>
             </div>` : ''}
         </div>`;
     },
@@ -252,8 +252,8 @@ const SVS = {
             </div>
 
             <div style="display:flex;gap:10px;">
-                <button class="btn btn-outline" onclick="App.closeModal()" style="flex:1;">Abbrechen</button>
-                <button class="btn btn-primary" onclick="SVS._saveEditModal(${year}, ${quartal})" style="flex:1;">
+                <button class="btn btn-outline" data-action="close-modal" style="flex:1;">Abbrechen</button>
+                <button class="btn btn-primary" data-action="svs-save-edit" data-args='[${year},${quartal}]'  style="flex:1;">
                     💾 Speichern
                 </button>
             </div>
@@ -310,8 +310,8 @@ const SVS = {
                        value="${Utils.escapeHtml(nb?.notizen || '')}" placeholder="z.B. Referenznummer">
             </div>
             <div style="display:flex;gap:10px;">
-                <button class="btn btn-outline" onclick="App.closeModal()" style="flex:1;">Abbrechen</button>
-                <button class="btn btn-primary" onclick="SVS._saveNachbemessungModal(${year})" style="flex:1;">
+                <button class="btn btn-outline" data-action="close-modal" style="flex:1;">Abbrechen</button>
+                <button class="btn btn-primary" data-action="svs-save-nach" data-args='[${year}]'  style="flex:1;">
                     💾 Speichern
                 </button>
             </div>
@@ -350,7 +350,7 @@ const SVS = {
 
         return `
         <div class="card stat-card" style="cursor:pointer;border-left:4px solid var(--${status});"
-             onclick="App.navigate('steuertermine')">
+             data-action="navigate" data-args=\'["steuertermine"]\'>
             <div class="card-label">🇦🇹 SVS Vorauszahlungen ${year}</div>
             <div class="card-value" style="font-size:16px;color:var(--${status});">${statusText}</div>
             ${naechstes ? `<div class="card-subtitle">Nächste: Q${naechstes.quartal} · ${Utils.formatDate(naechstes.faelligAm)}</div>` : ''}
@@ -358,3 +358,11 @@ const SVS = {
     }
 };
 window.SVS = SVS;
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+if (window.Actions) Actions.register({
+    'svs-edit':      function (year, quartal) { SVS.openEditModal(year, quartal); },
+    'svs-nach':      function (year) { SVS.openNachbemessungModal(year); },
+    'svs-save-edit': function (year, quartal) { SVS._saveEditModal(year, quartal); },
+    'svs-save-nach': function (year) { SVS._saveNachbemessungModal(year); }
+});

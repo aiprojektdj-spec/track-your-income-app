@@ -246,7 +246,7 @@ const Statistiken = {
             <div class="card" style="margin-bottom:16px;">
                 <div class="card-header">
                     <div class="card-title">📦 Verpackungskosten-Analyse</div>
-                    <a href="#" onclick="App.navigate('materiallager');return false;"
+                    <a href="#" data-action="navigate" data-args=\'["materiallager"]\'
                         style="font-size:12px;color:var(--info);">Materiallager →</a>
                 </div>
                 <div class="stats-grid" style="margin:0 0 12px;">
@@ -297,7 +297,7 @@ const Statistiken = {
                         Trage Einkäufe und Verkäufe ein – danach erscheinen hier Auswertungen nach Marke,
                         Plattform, Gewinn und mehr.
                     </p>
-                    <button class="btn btn-primary" onclick="App.navigate('buchungen')">
+                    <button class="btn btn-primary" data-action="navigate" data-args=\'["buchungen"]\'>
                         → Erste Buchung erfassen
                     </button>
                 </div>`;

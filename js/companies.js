@@ -307,14 +307,26 @@ const CompanyManager = {
 
     // ── UI ──────────────────────────────────────────────────────────────────
 
+    // CSP: kein Inline-Handler → Hover per CSS, einmalig global injiziert
+    _injectStyles() {
+        if (document.getElementById('companySwitcherStyles')) return;
+        const s = document.createElement('style');
+        s.id = 'companySwitcherStyles';
+        s.textContent =
+            '.company-switcher-btn:hover{background:rgba(255,255,255,.13) !important;}' +
+            '.co-dropdown-row:not(.active):hover{background:var(--bg-secondary) !important;}';
+        document.head.appendChild(s);
+    },
+
     // Rendert den Company-Switcher-Button (oben rechts im tool-switcher)
     renderSwitcherBtn() {
+        this._injectStyles();
         const co    = this.getActive();
         const color = co ? co.farbe : '#10b981';
         const name  = co ? co.name  : '—';
 
         return `
-        <div id="companySwitcherBtn" data-action="co-toggle-dropdown" title="Firma wechseln" style="
+        <div id="companySwitcherBtn" class="company-switcher-btn" data-action="co-toggle-dropdown" title="Firma wechseln" style="
             position:relative;
             display:flex;align-items:center;gap:7px;
             padding:5px 12px;
@@ -326,8 +338,7 @@ const CompanyManager = {
             white-space:nowrap;
             transition:background .15s;
             user-select:none;
-        " onmouseenter="this.style.background='rgba(255,255,255,.13)'"
-           onmouseleave="this.style.background='rgba(255,255,255,.07)'">
+        ">
             <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
             <span style="max-width:140px;overflow:hidden;text-overflow:ellipsis;">${Utils.escapeHtml(name)}</span>
             <span id="companySwitcherChevron" style="font-size:10px;opacity:.6;transition:transform .2s;">▾</span>
@@ -351,14 +362,13 @@ const CompanyManager = {
         const rows = companies.map(co => {
             const isActive = co.id === activeId;
             return `
-            <div style="
+            <div class="co-dropdown-row${isActive ? ' active' : ''}" style="
                 display:flex;align-items:center;gap:10px;
                 padding:10px 14px;
                 border-bottom:1px solid var(--border);
                 background:${isActive ? 'rgba(99,102,241,.10)' : 'transparent'};
                 transition:background .12s;
-            " onmouseenter="if(!${isActive})this.style.background='var(--bg-secondary)'"
-               onmouseleave="this.style.background='${isActive ? 'rgba(99,102,241,.10)' : 'transparent'}'">
+            ">
                 <span style="width:12px;height:12px;border-radius:50%;background:${/^#[0-9a-fA-F]{6}$/.test(co.farbe) ? co.farbe : '#10b981'};flex-shrink:0;"></span>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">

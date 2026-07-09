@@ -194,7 +194,7 @@ const Materiallager = {
         const einkauefe = Store.getMaterialEinkauefe().sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
 
         const matOpts = bestand.length > 0
-            ? bestand.map(m => `<option value="${m.id}">${Utils.escapeHtml(m.name)} (Bestand: ${parseInt(m.bestand) || 0} ${m.einheit || 'Stück'})</option>`).join('')
+            ? bestand.map(m => `<option value="${m.id}">${Utils.escapeHtml(m.name)} (Bestand: ${parseInt(m.bestand) || 0} ${Utils.escapeHtml(m.einheit || 'Stück')})</option>`).join('')
             : '<option value="">Erst Materialarten unter "Bestand" anlegen</option>';
 
         const rows = einkauefe.length === 0
@@ -324,7 +324,7 @@ const Materiallager = {
                             <select class="form-select" id="mlv_material" required>
                                 <option value="">Bitte wählen…</option>
                                 ${Store.getMaterialBestand().map(m =>
-                                    `<option value="${m.id}">${Utils.escapeHtml(m.name)} (${parseInt(m.bestand) || 0} ${m.einheit || 'Stück'})</option>`
+                                    `<option value="${m.id}">${Utils.escapeHtml(m.name)} (${parseInt(m.bestand) || 0} ${Utils.escapeHtml(m.einheit || 'Stück')})</option>`
                                 ).join('')}
                             </select>
                         </div>

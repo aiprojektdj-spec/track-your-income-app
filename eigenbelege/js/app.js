@@ -189,7 +189,7 @@ const ZUSTANDE = [
 const euro  = n => (n||0).toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' €';
 const datum = s => { if(!s) return ''; const [y,m,d]=s.split('-'); return `${d}.${m}.${y}`; };
 const today = () => new Date().toLocaleDateString('sv-SE');
-const esc   = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const esc   = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 function getAllKat()     { return [...STD_KAT, ...EB.getKategorien()]; }
 function getKat(id)      { return getAllKat().find(k=>k.id===id) || {name:id, farbe:'#94a3b8'}; }

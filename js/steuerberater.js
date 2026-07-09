@@ -284,6 +284,7 @@ var Steuerberater = (function () {
                 + '<input type="password" id="pinInput" placeholder="PIN eingeben" style="width:100%;padding:10px 14px;border:2px solid #e5e7eb;border-radius:8px;font-size:16px;text-align:center;box-sizing:border-box;margin-bottom:12px;" autofocus>'
                 + '<button onclick="checkPin()" style="width:100%;padding:10px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Öffnen</button>'
                 + '<div id="pinError" style="color:#dc2626;font-size:12px;margin-top:8px;display:none;">Falscher PIN. Bitte erneut versuchen.</div>'
+                + '<div style="font-size:10.5px;color:#9ca3af;margin-top:14px;line-height:1.4;">Hinweis: Die PIN ist ein Sichtschutz gegen zufälliges Öffnen, keine Verschlüsselung. Diese Datei nur über einen vertrauenswürdigen Kanal teilen.</div>'
                 + '</div></div>';
 
             pinScript = '<script>'

@@ -29,6 +29,7 @@ var OWNERS       = (process.env.SYNC_OWNER_USERNAMES || 'secondlifevintage41')
                        .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 
 var RATE_MAX     = 40;             // Requests pro Minute pro Nutzer (Push ist 6s-debounced, 40 deckt Firmenwechsel+Retries komfortabel)
+var IP_RATE_MAX  = 60;             // Requests pro Minute pro IP, VOR dem teuren Whop-Call — bremst Kosten-Flood mit Müll-Tokens
 var MAX_CIPHER   = 8 * 1024 * 1024; // 8 MB base64-Chiffrat pro Scope
 var SCOPE_RE     = /^(__account|co_[a-z0-9_]+)$/;
 
@@ -78,6 +79,20 @@ module.exports = async function handler(req, res) {
     var auth  = req.headers['authorization'] || '';
     var token = auth.indexOf('Bearer ') === 0 ? auth.slice(7) : '';
     if (!token || token.length > 4096) return res.status(401).json({ error: 'no_token' });
+
+    // ── 1b. IP-Rate-Limit VOR dem Whop-Call ──────────────────────────────────
+    // Verhindert Kosten-/Quota-Amplification: Müll-Tokens dürfen nicht unbegrenzt
+    // teure Whop-API-Calls auslösen, bevor die (userId-basierte) Prüfung in Schritt 4 greift.
+    try {
+        var ip      = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
+        var ipRlKey = 'sync:iprl:' + ip;
+        var ipCount = await redisCmd(['INCR', ipRlKey]);
+        await redisCmd(['EXPIRE', ipRlKey, '60', 'NX']);
+        if (ipCount > IP_RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
+    } catch (e) {
+        console.error('[sync] ip-rate-limit error:', e);
+        // nicht blockierend — weiter
+    }
 
     // ── 2. Token gegen Whop validieren → UserID server-seitig ableiten ────────
     var userId, username;

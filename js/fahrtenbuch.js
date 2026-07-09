@@ -592,14 +592,14 @@ const Fahrtenbuch = {
             </tr></thead>
             <tbody>
             ${fahrten.map(f => `<tr>
-                <td style="font-family:monospace;font-size:10px;">${f.nummer || ''}</td>
+                <td style="font-family:monospace;font-size:10px;">${Utils.escapeHtml(f.nummer || '')}</td>
                 <td style="white-space:nowrap">${new Date(f.datum + 'T12:00:00').toLocaleDateString('de-DE')}</td>
                 <td>${this.getWochentag(f.datum).substring(0, 2)}.</td>
-                <td>${f.von || ''}</td>
-                <td>${f.nach || ''}${f.hinUndRueck ? ' (H+R)' : ''}</td>
+                <td>${Utils.escapeHtml(f.von || '')}</td>
+                <td>${Utils.escapeHtml(f.nach || '')}${f.hinUndRueck ? ' (H+R)' : ''}</td>
                 <td style="text-align:right">${(parseFloat(f.gesamtKm || f.km) || 0).toFixed(1)}</td>
-                <td>${this.ZWECKE.find(z => z.id === f.zweck)?.label.split('(')[0].trim() || f.zweck || ''}</td>
-                <td>${f.fahrzeug || 'PKW'}</td>
+                <td>${Utils.escapeHtml(this.ZWECKE.find(z => z.id === f.zweck)?.label.split('(')[0].trim() || f.zweck || '')}</td>
+                <td>${Utils.escapeHtml(f.fahrzeug || 'PKW')}</td>
                 <td style="font-size:10px;">${this.BERECHNUNGSARTEN.find(a => a.id === f.berechnungsart)?.label.split('(')[0].trim() || ''}</td>
                 <td style="text-align:right">${(parseFloat(f.kosten) || 0).toFixed(2).replace('.', ',')} €</td>
             </tr>`).join('')}

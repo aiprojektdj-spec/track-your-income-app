@@ -920,7 +920,7 @@ var Rechnung = (function() {
             if (inv.originalDatum) html += ' vom ' + Utils.formatDate(inv.originalDatum);
             if (inv.stornierungsGrund) {
                 var grundLabels = { fehler: 'Falsche Angaben / Tippfehler', doppelt: 'Doppelt ausgestellt', auftrag: 'Auftrag storniert', ware_zurueck: 'Ware zur\u00FCckgegeben', einigung: 'Einigung mit Kunde', sonstiges: 'Sonstiges' };
-                html += '<br><strong>Grund:</strong> ' + (grundLabels[inv.stornierungsGrund] || inv.stornierungsGrund);
+                html += '<br><strong>Grund:</strong> ' + Utils.escapeHtml(grundLabels[inv.stornierungsGrund] || inv.stornierungsGrund);
                 if (inv.stornierungsGrundText) html += ': ' + Utils.escapeHtml(inv.stornierungsGrundText);
             }
             html += '</div>';

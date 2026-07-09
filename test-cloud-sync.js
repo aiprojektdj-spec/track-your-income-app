@@ -78,4 +78,23 @@ let pass = 0;
     pass++; console.log('✓ audit union + deterministic re-chain (verifyAuditChain valid)');
 })();
 
-console.log('\n' + pass + '/4 Tests bestanden ✅');
+// 5) Konflikt-Erkennung: beide Seiten seit Base geändert → conflicts; sequentiell/ohne Base → keine
+(() => {
+    const base = { r: 100 };
+    // beide > base, unterschiedlich → echte Kollision, beide Fassungen erhalten (LWW: 200 gewinnt in val)
+    let r = T.mergeRecords([{ id: 'r', v: 'A', updatedAt: 150 }], [{ id: 'r', v: 'B', updatedAt: 200 }], base);
+    assert.strictEqual(r.conflicts.length, 1, 'parallel edit flagged');
+    assert.strictEqual(r.conflicts[0].id, 'r', 'conflict id');
+    assert.strictEqual(r.conflicts[0].mine.v, 'A', 'keeps my version');
+    assert.strictEqual(r.conflicts[0].theirs.v, 'B', 'keeps their version');
+    assert.strictEqual(r.val[0].updatedAt, 200, 'newer still wins in merged val');
+    // nur remote bewegt (lokal == base) → sequentiell, kein Konflikt
+    r = T.mergeRecords([{ id: 'r', updatedAt: 100 }], [{ id: 'r', updatedAt: 200 }], base);
+    assert.strictEqual(r.conflicts.length, 0, 'sequential update = no conflict');
+    // ohne Base (Erststart) → nie Falsch-Positiv
+    r = T.mergeRecords([{ id: 'r', updatedAt: 150 }], [{ id: 'r', updatedAt: 200 }]);
+    assert.strictEqual(r.conflicts.length, 0, 'no base = no false positive');
+    pass++; console.log('✓ parallel-edit conflict detection (keep-both)');
+})();
+
+console.log('\n' + pass + '/5 Tests bestanden ✅');

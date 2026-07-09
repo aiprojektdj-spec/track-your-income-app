@@ -30,6 +30,8 @@ var CloudSync = (function () {
     var LS_ENABLED = 'oyi_sync_enabled';
     var LS_KEY     = function (uid) { return 'oyi_sync_key_' + uid; };
     var LS_META    = function (scope) { return 'oyi_sync_keymeta_' + scope; };
+    var LS_BASE    = function (scope) { return 'oyi_sync_base_' + scope; };   // zuletzt synchronisierter updatedAt je Record (Konflikt-Basis)
+    var LS_CONFLICTS = 'oyi_sync_conflicts';                                  // offene Parallel-Konflikte (beide Fassungen), überlebt Reload
 
     var _cryptoKeyCache = null;   // importierter CryptoKey (für aktuellen User)
     var _cryptoKeyUid   = null;
@@ -141,6 +143,33 @@ var CloudSync = (function () {
         var m = _getMeta(scope); m[key] = { h: _hash(serialized), u: u }; _saveMeta(scope, m);
     }
 
+    // ── Konflikt-Basis: updatedAt je Record zum Zeitpunkt des letzten Syncs ────
+    function _getBase(scope) { try { return JSON.parse(localStorage.getItem(LS_BASE(scope)) || '{}'); } catch (e) { return {}; } }
+    function _saveBase(scope, b) { try { localStorage.setItem(LS_BASE(scope), JSON.stringify(b)); } catch (e) {} }
+    // ── Offene Konflikte persistieren (überleben Reload, dedupe scope+key+id) ──
+    function _loadConflicts() { try { return JSON.parse(localStorage.getItem(LS_CONFLICTS) || '[]'); } catch (e) { return []; } }
+    function _clearConflicts() { try { localStorage.removeItem(LS_CONFLICTS); } catch (e) {} }
+    function _persistConflicts(fresh) {
+        var all = _loadConflicts(), seen = {};
+        all.concat(fresh).forEach(function (c) { seen[c.scope + '|' + c.key + '|' + c.id] = c; });
+        var list = Object.keys(seen).map(function (k) { return seen[k]; });
+        try { localStorage.setItem(LS_CONFLICTS, JSON.stringify(list)); } catch (e) {}
+        return list;
+    }
+
+    // Nach erfolgreichem Sync: neuen gemeinsamen Stand als Basis für die nächste Kollisionsprüfung merken
+    function _updateBase(scope, merged) {
+        var base = {};
+        Object.keys(merged.keys).forEach(function (k) {
+            var v = merged.keys[k];
+            if (Array.isArray(v) && !/__audit_log$/.test(k)) {
+                var m = {}; v.forEach(function (r) { if (r && r.id != null) m[r.id] = r.updatedAt || 0; });
+                base[k] = m;
+            }
+        });
+        _saveBase(scope, base);
+    }
+
     // ── Welche Keys gehören zu einem Scope ────────────────────────────────────
     function _scopeKeys(scope) {
         if (scope === '__account') return ['oyi_companies'];
@@ -164,9 +193,11 @@ var CloudSync = (function () {
         return probe.every(function (x) { return x && typeof x === 'object' && ('id' in x); });
     }
 
-    // LWW nach updatedAt; Tombstones (storniert/gesperrt) sind reguläre Felder → gewinnen via neuerem updatedAt
-    function _mergeRecords(localArr, remoteArr) {
-        var byId = {}, localDirty = false, remoteDirty = false, remoteIds = {};
+    // LWW nach updatedAt; Tombstones (storniert/gesperrt) sind reguläre Felder → gewinnen via neuerem updatedAt.
+    // base (optional): updatedAt je Record beim letzten Sync → echte Parallel-Konflikte erkennen
+    //   (nur wenn BEIDE Seiten seit base geändert → conflicts). Sequentielle Updates sind kein Konflikt.
+    function _mergeRecords(localArr, remoteArr, base) {
+        var byId = {}, localDirty = false, remoteDirty = false, remoteIds = {}, conflicts = [];
         (localArr || []).forEach(function (r) { if (r && r.id != null) byId[r.id] = r; });
         var localIds = Object.keys(byId);
         (remoteArr || []).forEach(function (r) {
@@ -176,12 +207,16 @@ var CloudSync = (function () {
             if (!ex) { byId[r.id] = r; localDirty = true; }
             else {
                 var ru = r.updatedAt || 0, lu = ex.updatedAt || 0;
+                if (base && ru !== lu) {
+                    var b = base[r.id];
+                    if (b != null && ru > b && lu > b) conflicts.push({ id: r.id, mine: ex, theirs: r });   // beide seit Base bewegt → echte Kollision, beide Fassungen behalten
+                }
                 if (ru > lu) { byId[r.id] = r; localDirty = true; }
                 else if (lu > ru) { remoteDirty = true; }
             }
         });
         localIds.forEach(function (id) { if (!remoteIds[id]) remoteDirty = true; });
-        return { val: Object.keys(byId).map(function (id) { return byId[id]; }), localDirty: localDirty, remoteDirty: remoteDirty };
+        return { val: Object.keys(byId).map(function (id) { return byId[id]; }), localDirty: localDirty, remoteDirty: remoteDirty, conflicts: conflicts };
     }
 
     // Audit-Log: append-only Union + deterministisches Re-Chaining (GoBD)
@@ -207,7 +242,8 @@ var CloudSync = (function () {
 
     // Vollständiger Scope-Merge → { keys, meta, localDirty, remoteDirty }
     function _merge(scope, local, remote) {
-        var mergedKeys = {}, mergedMeta = {}, localDirty = false, remoteDirty = false;
+        var mergedKeys = {}, mergedMeta = {}, localDirty = false, remoteDirty = false, conflicts = [];
+        var base = _getBase(scope);
         var all = {};
         Object.keys(local.keys).forEach(function (k) { all[k] = 1; });
         if (remote) Object.keys(remote.keys).forEach(function (k) { all[k] = 1; });
@@ -219,8 +255,9 @@ var CloudSync = (function () {
                 var ra = _mergeAudit(lv, rv);
                 mergedKeys[k] = ra.val; if (ra.localDirty) localDirty = true; if (ra.remoteDirty) remoteDirty = true;
             } else if (_isRecArr(lv, rv)) {
-                var rr = _mergeRecords(lv, rv);
+                var rr = _mergeRecords(lv, rv, base[k]);
                 mergedKeys[k] = rr.val; if (rr.localDirty) localDirty = true; if (rr.remoteDirty) remoteDirty = true;
+                if (rr.conflicts.length) rr.conflicts.forEach(function (c) { conflicts.push({ key: k, id: c.id, mine: c.mine, theirs: c.theirs }); });
             } else {
                 // Whole-Value-LWW über Key-Meta
                 var lu = (local.meta[k] != null) ? local.meta[k] : (lv != null ? 0 : -1);
@@ -231,7 +268,7 @@ var CloudSync = (function () {
                 else                        { mergedKeys[k] = lv; mergedMeta[k] = lu; if (JSON.stringify(lv) !== JSON.stringify(rv)) remoteDirty = true; }
             }
         });
-        return { keys: mergedKeys, meta: mergedMeta, localDirty: localDirty, remoteDirty: remoteDirty };
+        return { keys: mergedKeys, meta: mergedMeta, localDirty: localDirty, remoteDirty: remoteDirty, conflicts: conflicts };
     }
 
     // ── Lokalen Snapshot bauen ────────────────────────────────────────────────
@@ -287,15 +324,21 @@ var CloudSync = (function () {
             if (push.status === 403) throw new Error('pro_required');
             if (push.status !== 200) throw new Error('push_' + push.status);
         }
+        // Nur auf dem final erfolgreichen Pass: Konflikte melden + Basis fortschreiben
+        if (merged.conflicts.length) merged.conflicts.forEach(function (c) {
+            _conflicts.push({ scope: scope, key: c.key, id: c.id, mine: c.mine, theirs: c.theirs });
+        });
+        _updateBase(scope, merged);
     }
 
     var _needReload    = false;
     var _changedActive = false;
+    var _conflicts     = [];
 
     // ── Alle Scopes synchronisieren ───────────────────────────────────────────
     async function _syncAll(isStartup) {
         if (_running || !_enabled() || !_hasKey() || !_token() || !_isPro()) return;
-        _running = true; _needReload = false; _changedActive = false;
+        _running = true; _needReload = false; _changedActive = false; _conflicts = [];
         _setDot('sync');
         try {
             await _syncScope('__account', isStartup);   // zuerst Registry → Firmen-IDs angleichen
@@ -304,6 +347,13 @@ var CloudSync = (function () {
                 if (companies[i] && companies[i].id) await _syncScope(companies[i].id, isStartup);
             }
             _setDot('ok');
+            if (_conflicts.length) {
+                console.warn('[CloudSync] Parallel-Konflikte erkannt (beide Fassungen gesichert):', _conflicts);
+                var pending = _persistConflicts(_conflicts);
+                // Reload hat Vorrang (Dialog erscheint danach via init); sonst direkt öffnen
+                if (!_needReload) openConflicts();
+                else _setDot('warn');
+            }
             if (_needReload)      { Utils.showToast('☁ Cloud-Daten übernommen — lade neu…', 'info', 1800); setTimeout(function () { location.reload(); }, 1300); }
             else if (_changedActive) Utils.showToast('☁ Daten aus der Cloud zusammengeführt', 'info', 3000);
         } catch (e) {
@@ -320,11 +370,12 @@ var CloudSync = (function () {
         var el = document.getElementById('cloudSyncDot');
         if (!el) return;
         el.style.cursor = 'pointer';
-        el.onclick = openPanel;
+        el.onclick = (state === 'warn') ? openConflicts : openPanel;
         var map = {
             off:  ['<i class="ti ti-cloud"></i>', 'var(--text-muted,#888)',    'Cloud-Sync aus — klicken zum Aktivieren'],
             sync: ['<i class="ti ti-cloud"></i>', 'var(--accent,#10b981)',     'Synchronisiere…'],
             ok:   ['<i class="ti ti-cloud"></i>', 'var(--accent,#10b981)',     'Cloud-Sync aktiv'],
+            warn: ['<i class="ti ti-cloud-exclamation"></i>', '#f59e0b',       'Sync-Konflikte offen — klicken zum Lösen'],
             err:  ['<i class="ti ti-cloud-exclamation"></i>', '#f59e0b',       'Cloud-Sync-Fehler — klicken für Details']
         };
         var s = map[state] || map.off;
@@ -340,7 +391,7 @@ var CloudSync = (function () {
 
     // ── Init: Dot setzen, beim Start Pull (sobald Store bereit) ───────────────
     function init() {
-        _setDot(_enabled() && _hasKey() ? 'ok' : 'off');   // immer aktualisieren (auch bei Re-Init nach Auth)
+        _setDot(_loadConflicts().length ? 'warn' : (_enabled() && _hasKey() ? 'ok' : 'off'));   // offene Konflikte nach Reload sichtbar halten
         if (_inited) return; _inited = true;
         if (!_enabled() || !_hasKey() || !_token()) return;
         var tries = 0;
@@ -519,6 +570,68 @@ var CloudSync = (function () {
 
     function syncNow() { App.closeModal(); _syncAll(false); }
 
+    // ── Keep-Both-Konflikt-Dialog: pro Eintrag Fassung wählen ─────────────────
+    function _recLabel(c) {
+        var k = c.key, t = 'Eintrag';
+        if (/reselling_purchases/.test(k)) t = 'Einkauf';
+        else if (/reselling_sales/.test(k)) t = 'Verkauf';
+        else if (/rechnungsbuch/.test(k)) t = 'Rechnung';
+        else if (/eigenbelege/.test(k)) t = 'Eigenbeleg';
+        return t + ' · ' + c.id;
+    }
+    function _recWhen(r) {
+        var u = r && r.updatedAt; if (!u) return '(ohne Zeitstempel)';
+        try { return '(' + new Date(u).toLocaleString('de-DE') + ')'; } catch (e) { return ''; }
+    }
+    function openConflicts() {
+        var list = _loadConflicts();
+        if (!list.length) { Utils.showToast('Keine offenen Sync-Konflikte.', 'info'); _setDot(_enabled() && _hasKey() ? 'ok' : 'off'); return; }
+        var rows = list.map(function (c, i) {
+            var mineNew = (c.mine.updatedAt || 0) >= (c.theirs.updatedAt || 0);
+            return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px;">' +
+                '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">' + _esc(_recLabel(c)) + '</div>' +
+                '<label style="display:block;font-size:13px;margin-bottom:4px;cursor:pointer;"><input type="radio" name="cf_' + i + '" value="mine" ' + (mineNew ? 'checked' : '') + '> Dieses Gerät ' + _esc(_recWhen(c.mine)) + '</label>' +
+                '<label style="display:block;font-size:13px;cursor:pointer;"><input type="radio" name="cf_' + i + '" value="theirs" ' + (!mineNew ? 'checked' : '') + '> Anderes Gerät ' + _esc(_recWhen(c.theirs)) + '</label>' +
+                '</div>';
+        }).join('');
+        var body =
+          '<div style="display:flex;flex-direction:column;gap:8px;">' +
+            '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
+              'Diese Einträge wurden auf zwei Geräten <strong>gleichzeitig</strong> geändert. Wähle je Eintrag die Fassung, die behalten werden soll — <strong>beide</strong> sind bis dahin gesichert, es geht nichts verloren.' +
+            '</div>' +
+            rows +
+            '<button class="btn btn-primary" data-action="cs-resolve-conflicts" style="width:100%;">Auswahl übernehmen</button>' +
+          '</div>';
+        App.showModal('Sync-Konflikte lösen (' + list.length + ')', body, '');
+    }
+    // Eine gewählte Fassung in den Store-Array schreiben (updatedAt=jetzt → gewinnt nächsten Sync)
+    function _applyRecordChoice(key, rec) {
+        var arr = Store._syncReadRaw(key);
+        if (!Array.isArray(arr)) return;
+        var stamped = Object.assign({}, rec, { updatedAt: Date.now() }), found = false;
+        var out = arr.map(function (x) { if (x && x.id === rec.id) { found = true; return stamped; } return x; });
+        if (!found) out.push(stamped);
+        var ser = JSON.stringify(out);
+        var isCacheKey = (key.indexOf('__reselling_') !== -1 || key.indexOf('__rechnungsbuch_') !== -1 || /__audit_log$/.test(key));
+        if (isCacheKey && typeof Store !== 'undefined') { var o = {}; o[key] = ser; Store.syncApplyKeys(o); }
+        else { try { localStorage.setItem(key, ser); } catch (e) {} }
+    }
+    function _resolveConflicts() {
+        var list = _loadConflicts();
+        list.forEach(function (c, i) {
+            var sel = document.querySelector('input[name="cf_' + i + '"]:checked');
+            var picked  = (sel && sel.value === 'theirs') ? c.theirs : c.mine;
+            var current = (c.mine.updatedAt || 0) >= (c.theirs.updatedAt || 0) ? c.mine : c.theirs;
+            // Nur schreiben, wenn die Wahl vom aktuell gespeicherten LWW-Gewinner abweicht
+            if (JSON.stringify(picked) !== JSON.stringify(current)) _applyRecordChoice(c.key, picked);
+        });
+        _clearConflicts();
+        App.closeModal();
+        _setDot('sync');
+        Utils.showToast('✅ Konflikte gelöst — synchronisiere…', 'success');
+        _syncAll(false);
+    }
+
     // ── Art. 17 DSGVO: verschlüsselten Cloud-Snapshot eines Scopes löschen ────
     // Wird von "Geschäftsdaten löschen" aufgerufen, damit gelöschte Daten nicht
     // beim nächsten Sync aus der Cloud zurückgeholt werden (sonst LWW-Merge-Falle).
@@ -526,8 +639,9 @@ var CloudSync = (function () {
         if (!_enabled() || !_hasKey() || !_token()) return true; // Cloud-Sync nicht aktiv → nichts zu löschen
         try {
             await _api({ action: 'delete', scope: scope });
-            // lokale Sync-Metadaten für diesen Scope ebenfalls verwerfen
+            // lokale Sync-Metadaten + Konflikt-Basis für diesen Scope ebenfalls verwerfen
             localStorage.removeItem(LS_META(scope));
+            localStorage.removeItem(LS_BASE(scope));
             return true;
         } catch (e) {
             console.warn('[CloudSync] deleteRemote error:', e && e.message);
@@ -569,10 +683,12 @@ var CloudSync = (function () {
         disableFlow: disableFlow,
         showCode: function () { showCode(false); },
         syncNow: syncNow,
+        openConflicts: openConflicts,
         deleteRemote: deleteRemote,
         _finishEnable: _finishEnable,
         _finishConnect: _finishConnect,
         _finishDisable: _finishDisable,
+        _resolveConflicts: _resolveConflicts,
         _copyCode: _copyCode,
         _downloadCode: _downloadCode,
         // Test-Oberfläche für reine Merge-/Code-Logik (siehe test-cloud-sync.js)
@@ -600,5 +716,6 @@ if (window.Actions) Actions.register({
     'cs-copy-code':      function () { CloudSync._copyCode(); },
     'cs-download-code':  function () { CloudSync._downloadCode(); },
     'cs-finish-connect': function () { CloudSync._finishConnect(); },
-    'cs-finish-disable': function () { CloudSync._finishDisable(); }
+    'cs-finish-disable': function () { CloudSync._finishDisable(); },
+    'cs-resolve-conflicts': function () { CloudSync._resolveConflicts(); }
 });

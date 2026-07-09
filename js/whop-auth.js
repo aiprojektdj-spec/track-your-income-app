@@ -32,8 +32,36 @@ var AuthUI = (function () {
 
     var LS_TOKEN = 'whop_access_token';
     var LS_USER  = 'whop_user';
+    var LS_GRACE = 'whop_grace_until';           // Offline-Grace: Access-Ablauf (ms-Epoch)
+    var GRACE_MS = 4 * 60 * 60 * 1000;           // 4 h ohne erneuten Whop-Server-Check
 
     var _bootDone = false;
+
+    // ── Offline-Grace ─────────────────────────────────────────
+    // Einmal online autorisiert → Access-Flag 4 h lokal gültig, kein Server-Roundtrip.
+    // ICE-Szenario: wiederholtes Netzflackern blockiert die App nicht.
+    function _stampGrace() { try { localStorage.setItem(LS_GRACE, String(Date.now() + GRACE_MS)); } catch (e) {} }
+    function _clearGrace() { try { localStorage.removeItem(LS_GRACE); } catch (e) {} }
+    function _graceFresh() { return parseInt(localStorage.getItem(LS_GRACE) || '0', 10) > Date.now(); }
+    function _cachedUser() { try { return JSON.parse(localStorage.getItem(LS_USER) || 'null'); } catch (e) { return null; } }
+
+    // Whop nicht erreichbar (offline/flaky) → innerhalb der Frist weiterarbeiten,
+    // sonst klare Re-Login-Aufforderung. Local-first → keine Daten gehen verloren.
+    async function _graceFallback() {
+        var user = _cachedUser();
+        if (_graceFresh() && user) {
+            console.warn('[WhopAuth] Whop nicht erreichbar — Offline-Grace aktiv bis ' +
+                new Date(parseInt(localStorage.getItem(LS_GRACE) || '0', 10)).toLocaleTimeString());
+            await _onAuthorized(user);
+            return true;
+        }
+        _clearGrace();
+        _hideLoader();
+        _showLoginScreen(navigator.onLine
+            ? 'Verbindung zu Whop fehlgeschlagen. Bitte erneut anmelden.'
+            : 'Offline und die 4-Stunden-Frist ist abgelaufen. Deine Daten bleiben lokal gespeichert — bitte neu anmelden, sobald du wieder online bist.');
+        return false;
+    }
 
     // ── PKCE Helpers ──────────────────────────────────────────
     function _base64url(bytes) {
@@ -76,6 +104,13 @@ var AuthUI = (function () {
 
         var token = localStorage.getItem(LS_TOKEN);
         if (token) {
+            // Offline-Grace: frische Frist → sofort aus Cache starten, kein Server-Roundtrip.
+            // ponytail: keine Hintergrund-Revalidierung — bei Ablauf revalidiert der nächste
+            //   Load ohnehin voll (gebundene Staleness ≤ 4 h, gewollter Grace-Tradeoff).
+            if (_graceFresh() && _cachedUser()) {
+                await _onAuthorized(_cachedUser());
+                return;
+            }
             var ok = await _validateAndContinue(token);
             if (ok) return;
         }
@@ -157,10 +192,16 @@ var AuthUI = (function () {
             var meRes = await fetch('https://api.whop.com/oauth/userinfo', {
                 headers: { 'Authorization': 'Bearer ' + token }
             });
-            if (!meRes.ok) {
+            if (meRes.status === 401 || meRes.status === 403) {
+                // echter Auth-Fehler → Token ist ungültig, Grace ebenfalls verwerfen
                 localStorage.removeItem(LS_TOKEN);
                 localStorage.removeItem(LS_USER);
+                _clearGrace();
                 return false;
+            }
+            if (!meRes.ok) {
+                // Server-/Netzproblem (5xx o.ä.) → Grace statt Logout
+                return _graceFallback();
             }
             var me = await meRes.json();
             // OIDC-Felder normalisieren
@@ -170,6 +211,7 @@ var AuthUI = (function () {
 
             // Owner bypass: Whop company owners can't self-subscribe
             if (OWNER_USERNAMES.indexOf(me.username) !== -1) {
+                _stampGrace();
                 await _onAuthorized(me);
                 return true;
             }
@@ -182,6 +224,7 @@ var AuthUI = (function () {
             var hasAccess  = accessData.has_access === true;
 
             if (hasAccess) {
+                _stampGrace();
                 await _onAuthorized(me);
                 return true;
             } else {
@@ -190,9 +233,9 @@ var AuthUI = (function () {
                 return false;
             }
         } catch (err) {
-            console.error('[WhopAuth] Validierungsfehler:', err);
-            localStorage.removeItem(LS_TOKEN);
-            return false;
+            // Netzwerkfehler (offline) → Grace-Fallback statt Logout (Token NICHT löschen)
+            console.warn('[WhopAuth] Validierung fehlgeschlagen (offline?):', err && err.message);
+            return _graceFallback();
         }
     }
 
@@ -229,6 +272,7 @@ var AuthUI = (function () {
         if (m) m.remove();
         localStorage.removeItem(LS_TOKEN);
         localStorage.removeItem(LS_USER);
+        _clearGrace();
         location.replace('app.html');
     }
 

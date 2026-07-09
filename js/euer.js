@@ -890,6 +890,10 @@ const Euer = {
                 });
                 const sExp = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, sDate, eDate));
                 const sFahrt = Store.getFahrten().filter(f => Utils.isInPeriod(f.datum, sDate, eDate));
+                // Regelbesteuerer: Anlage EÜR verlangt Netto-Beträge (USt ist Durchlaufposten, kein Ertrag/Aufwand).
+                // Kleinunternehmer (§19 UStG): keine USt ausgewiesen, brutto = netto.
+                const isRegel = (Store.getSettings().ustMode || 'klein') === 'regel';
+                const _netto19 = brutto => isRegel ? brutto / 1.19 : brutto;
                 const z11brutto = sSales.reduce((s, x) => s + (parseFloat(x.verkaufspreis)||0) + (parseFloat(x.versandkostenKaeufer)||0), 0);
                 // Retouren abziehen (§11 EStG)
                 // Nur Retouren ohne verknüpften stornierten Verkauf — verhindert Doppelabzug
@@ -897,9 +901,11 @@ const Euer = {
                 const sRetouren = Store.getRetouren()
                     .filter(r => Utils.isInPeriod(r.datum, sDate, eDate) && !(r.saleId && _storniertSaleIds.has(r.saleId)))
                     .reduce((s,r)=>s+(parseFloat(r.erstattungBetrag)||0),0);
-                const z11 = z11brutto - sRetouren;
-                const z22 = sPurch.filter(p => !_elsterStorniertePurchaseIds.has(p.id)).reduce((s, p) => s + (parseFloat(p.einkaufspreis)||0) * (parseInt(p.anzahl)||1), 0);
-                const z50 = sFahrt.reduce((s, f) => s + (parseFloat(f.kosten)||0), 0);
+                const z11 = _netto19(z11brutto - sRetouren);
+                const z22brutto = sPurch.filter(p => !_elsterStorniertePurchaseIds.has(p.id)).reduce((s, p) => s + (parseFloat(p.einkaufspreis)||0) * (parseInt(p.anzahl)||1), 0);
+                const z22 = _netto19(z22brutto);
+                const z50brutto = sFahrt.reduce((s, f) => s + (parseFloat(f.kosten)||0), 0);
+                const z50 = _netto19(z50brutto);
                 const sonstAusg = sExp.reduce((s, e) => s + (parseFloat(e.betrag)||0), 0);
                 const platGeb = sSales.reduce((s, x) => { const vk=parseFloat(x.verkaufspreis)||0; const vkK=parseFloat(x.versandkostenKaeufer)||0; const pct=parseFloat(x.plattformgebuehrProzent)||0; return s+(vk+vkK)*pct/100; }, 0);
                 const versand = sSales.reduce((s, x) => s + (parseFloat(x.versandkostenVerkaufer)||0), 0);
@@ -907,24 +913,27 @@ const Euer = {
                 const sEB = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; return JSON.parse(localStorage.getItem((_ebCo?_ebCo+'__':'')+'eigenbelege_belege')||'[]'); } catch{return[];} })()
                     .filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, sDate, eDate))
                     .reduce((s,b)=>s+(parseFloat(b.betragNetto)||parseFloat(b.betragBrutto)||0),0);
-                const z64 = sonstAusg + platGeb + versand + sMat + sEB;
-                // Z46: AfA aus dem Anlagenverzeichnis
+                const z64brutto = sonstAusg + platGeb + versand + sMat + sEB;
+                const z64 = _netto19(z64brutto);
+                // Z46: AfA aus dem Anlagenverzeichnis (bereits vorsteuerfreie Netto-Abschreibung, keine Umrechnung)
                 const z46 = (() => {
                     if (typeof Store.getAfaAnlagen !== 'function' || typeof Afa === 'undefined') return 0;
                     return Store.getAfaAnlagen().filter(a => !a.storniert)
                         .reduce((s, a) => s + (Afa._calcJahresAfa ? Afa._calcJahresAfa(a, y) : 0), 0);
                 })();
                 const z91 = z11 - z22 - z46 - z50 - z64;
+                const nettoHinweis = isRegel ? ' (netto, USt herausgerechnet /1,19)' : '';
                 const rows = [
                     ['ELSTER Anlage EÜR Export', '', '', ''],
                     ['Zeitraum:', sDate + ' bis ' + eDate, '', ''],
+                    ['USt-Modus:', isRegel ? 'Regelbesteuerung' : 'Kleinunternehmer (§19 UStG)', '', ''],
                     ['', '', '', ''],
                     ['Zeile', 'Bezeichnung', 'Betrag (€)', 'Hinweis'],
-                    ['Z11', 'Betriebseinnahmen (Kleinunternehmer)', z11.toFixed(2), 'Bruttoerlöse inkl. Käufer-Versand, abzgl. Retouren' + (sRetouren > 0 ? ` (−${sRetouren.toFixed(2)} € Retouren)` : '')],
-                    ['Z22', 'Wareneinkauf', z22.toFixed(2), 'Einkäufe im Zeitraum'],
+                    ['Z11', 'Betriebseinnahmen' + nettoHinweis, z11.toFixed(2), 'Erlöse inkl. Käufer-Versand, abzgl. Retouren' + (sRetouren > 0 ? ` (−${sRetouren.toFixed(2)} € Retouren)` : '')],
+                    ['Z22', 'Wareneinkauf' + nettoHinweis, z22.toFixed(2), 'Einkäufe im Zeitraum'],
                     ['Z46', 'Absetzung für Abnutzung (AfA)', z46.toFixed(2), 'Aus Anlagenverzeichnis §7 EStG'],
-                    ['Z50', 'Fahrtkosten', z50.toFixed(2), 'Fahrtenbuch-Einträge'],
-                    ['Z64', 'Sonstige Betriebsausgaben', z64.toFixed(2), 'Plattformgeb. + Versand + Ausgaben'],
+                    ['Z50', 'Fahrtkosten' + nettoHinweis, z50.toFixed(2), 'Fahrtenbuch-Einträge'],
+                    ['Z64', 'Sonstige Betriebsausgaben' + nettoHinweis, z64.toFixed(2), 'Plattformgeb. + Versand + Ausgaben'],
                     ['Z91', 'Gewinn (Überschuss)', z91.toFixed(2), 'Z11 - Z22 - Z46 - Z50 - Z64'],
                 ];
                 Utils.downloadCSV(rows, `elster_euer_${y}.csv`);

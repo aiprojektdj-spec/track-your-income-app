@@ -27,6 +27,7 @@ const EB = {
         const raw = localStorage.getItem(_ebPrefix()+'eigenbelege_naechste_nummer');
         if (!raw) return 1;
         const d = JSON.parse(raw);
+        if (this.getEinstellungen().jahresReset === false) return d.num || 1;
         return d.year === new Date().getFullYear() ? (d.num || 1) : 1;
     },
     bumpNum() {

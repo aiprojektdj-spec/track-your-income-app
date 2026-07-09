@@ -1156,7 +1156,8 @@ const Store = {
         if (this.getClosedYears().includes(year)) return true;
         const month = parseInt(ds.slice(5, 7), 10) || 1;
         const quartal = Math.floor((month - 1) / 3); // 0–3
-        return this.getUstPerioden().some(p => p.year === year && p.quartal === quartal && p.eingereichtAm);
+        return this.getUstPerioden().some(p => p.year === year && p.eingereichtAm &&
+            (p.monat ? p.monat === month : p.quartal === quartal));
     },
 
     // Warum ist der Datensatz gesperrt? (für UI-Tooltips)
@@ -1753,10 +1754,21 @@ const Store = {
         return this.get('invoice_counter') || { RE: 0, AN: 0, GU: 0 };
     },
 
+    // Zählt pro Jahr neu ab 1 hoch (Nummernformat enthält das Jahr, z.B. RE-2026-001) —
+    // ohne Reset würde die erste Rechnung eines neuen Jahres z.B. RE-2026-048 statt RE-2026-001 heißen.
+    _resetCounterIfNewYear(counter, year) {
+        if (counter._year !== year) {
+            Object.keys(counter).forEach(k => { if (k !== '_year') counter[k] = 0; });
+            counter._year = year;
+        }
+        return counter;
+    },
+
     nextInvoiceNumber(typ) {
         const counter = this.getInvoiceCounter();
         const prefix = typ === 'rechnung' ? 'RE' : typ === 'angebot' ? 'AN' : 'GU';
         const year = new Date().getFullYear();
+        this._resetCounterIfNewYear(counter, year);
         counter[prefix] = (counter[prefix] || 0) + 1;
         this.set('invoice_counter', counter);
         return `${prefix}-${year}-${String(counter[prefix]).padStart(3, '0')}`;
@@ -1927,13 +1939,14 @@ const Store = {
     peekStornoNumber() {
         const counter = this.getRechInvoiceCounter();
         const year = new Date().getFullYear();
-        const n = (counter['SR'] || 0) + 1;
+        const n = (counter._year === year ? (counter['SR'] || 0) : 0) + 1;
         return `SR-${year}-${String(n).padStart(4, '0')}`;
     },
 
     nextStornoNumber() {
         const counter = this.getRechInvoiceCounter();
         const year = new Date().getFullYear();
+        this._resetCounterIfNewYear(counter, year);
         counter['SR'] = (counter['SR'] || 0) + 1;
         this._rechSet('invoice_counter', counter);
         return `SR-${year}-${String(counter['SR']).padStart(4, '0')}`;
@@ -2027,6 +2040,7 @@ const Store = {
         const counter = this.getRechInvoiceCounter();
         const prefix = typ === 'rechnung' ? 'RE' : typ === 'angebot' ? 'AN' : 'GU';
         const year = new Date().getFullYear();
+        this._resetCounterIfNewYear(counter, year);
         // Existierende Nummern laden, um Duplikate zu vermeiden (Schutz vor Counter-Desync)
         const existingNrs = new Set((this._rechGet('dokumente') || []).map(i => i.nummer || ''));
         let candidate;

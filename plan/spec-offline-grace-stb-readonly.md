@@ -107,12 +107,24 @@ ist nur noch UX, keine Sicherheitsgrenze.
     autorisiert). `push`/`delete` mit `owner` → **immer 403 readonly** (vor dem Pro-Gate).
   - **Zero-Cost bestätigt:** kein Zweit-Abo für den StB (Grant autorisiert), nur winzige Redis-Keys,
     keine neue Function/Fremdleistung. Eigener Scope ohne Pro bleibt `pro_required` (Gate intakt).
-- **Phase 3 — UI, offen.** Owner: „Steuerberater einladen"-Dialog (StB-Code eingeben → get_pubkey →
-  wrapKey(lokaler Datenschlüssel) → grant); Liste + Entzug. StB: Freigabe-Code (= userId) anzeigen,
-  beim Login `list_grants` → unwrap → Mandanten-Umschalter (nur wenn >1) → Scopes read-only pullen.
-  **Read-Only-Modus:** zentrale Sperre (Flag `oyi_stb_readonly`), alle `data-action`-Schreibpfade +
-  Buttons ausblenden — Coverage-Aufwand wie die CSP-Handler-Runde ([[csp-haertung-fortschritt]]),
-  über app.html + rechnungen + eigenbelege + lager.
+- **Phase 3 — UI GEBAUT (Live-App read-only, User-Wahl) — Browser-E2E ausstehend.**
+  - `js/stb-share.js` (erweitert): Client-Flows — eigenes ECDH-Keypair lokal (`oyi_stb_privkey/pubkey`),
+    `registerPubkey()` beim Login, `showCode()` (Freigabe-Code = Whop-userId), `inviteFlow/_doInvite`
+    (Owner: get_pubkey→wrapKey(CloudSync.keyBytes)→grant), `clientsFlow/enterClient/exitClient`,
+    `isReadonly()`/`blocks()`, `initReadonlyBanner()`.
+  - `js/cloud-sync.js`: `keyBytes()`, `foreignLoad(ownerId, kb)` (Mandanten-Firmen pullen+entschlüsseln,
+    lokal als `_readonly`-Client-Firmen ablegen), `foreignUnload()`. Sync überspringt `_readonly`-Firmen,
+    `onLocalChange` gesperrt im Read-Only → Mandantendaten werden NIE hochgeladen.
+  - `js/actions.js`: zentraler Read-Only-Guard am Dispatch (blockt Schreib-Verben via Regex; nur
+    click/submit) — EIN Chokepoint statt 155 Buttons. + Banner-CSS blendet Primär-Schreib-Buttons aus.
+  - `js/whop-auth.js`: Menü-Einträge (einladen / Mandanten / Mein Code) + registerPubkey + Banner-Init.
+  - `app.html`: lädt `js/stb-share.js`.
+  - **Architektur:** Mandanten erscheinen als zusätzliche READ-ONLY-Firmen in der bestehenden
+    Multi-Company-Registry → volle App zeigt sie via CompanyManager, kein separater Renderpfad.
+  - **Offen/Rest:** (a) Browser-E2E mit 2 echten Whop-Accounts (Whop-Gate, nicht automatisierbar).
+    (b) Standalone-Seiten rechnungen/lager/eigenbelege laden stb-share.js/cloud-sync.js noch NICHT
+    (Parallel-Chat editierte deren HTML — Kollision vermieden) → dort greift der UI-Read-Only-Guard
+    noch nicht (Server-Schutz gilt trotzdem). (c) unwahrscheinliche co_id-Kollision Client↔eigene Firma.
 
 **Rest-Risiko/Hinweis:** StB hat lesenden Vollzugriff (gewollt). „Read-only" schützt Owner-Daten vor
 Schreibzugriff (server-seitig), nicht vor Lesen/Export durch den StB — das ist der Zweck.

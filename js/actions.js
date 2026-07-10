@@ -16,8 +16,18 @@
         if (!t || !t.closest) return;
         var el = t.closest('[' + attr + ']');
         if (!el) return;
-        var fn = _map[el.getAttribute(attr)];
+        var name = el.getAttribute(attr);
+        var fn = _map[name];
         if (!fn) return;
+        // Steuerberater-Read-Only: Schreib-Aktionen am zentralen Chokepoint blocken
+        // (Server erzwingt read-only hart; das hier ist die UX-Sperre). Nur echte
+        // Mutations-Events (click/submit), damit Ansicht/Filter frei bleiben.
+        if ((attr === 'data-action' || attr === 'data-action-submit') &&
+            typeof window.StbShare !== 'undefined' && StbShare.blocks && StbShare.blocks(name)) {
+            if (e.preventDefault) e.preventDefault();
+            if (typeof Utils !== 'undefined' && Utils.showToast) Utils.showToast('Nur-Lese-Ansicht — Änderungen sind hier deaktiviert.', 'warning');
+            return;
+        }
         var args = [];
         var raw = el.getAttribute('data-args');
         if (raw) {

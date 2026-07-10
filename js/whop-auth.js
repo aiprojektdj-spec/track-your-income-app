@@ -251,6 +251,11 @@ var AuthUI = (function () {
         // Cloud-Sync-Status-Punkt aktualisieren (opt-in; tut ohne Aktivierung nichts)
         if (typeof CloudSync !== 'undefined') { try { CloudSync.init(); } catch (e) {} }
 
+        // Steuerberater-Freigabe: eigenen Public-Key registrieren + ggf. Read-Only-Banner
+        if (typeof StbShare !== 'undefined') {
+            try { StbShare.registerPubkey(); StbShare.initReadonlyBanner(); } catch (e) {}
+        }
+
         _hideLoader();
 
         if (!_bootDone) {
@@ -395,6 +400,9 @@ var AuthUI = (function () {
             '<div style="font-size:10px;color:var(--accent,#10b981);padding:0 12px 8px;">◆ Stackr Pro aktiv</div>' +
             '<hr style="border:none;border-top:1px solid var(--border,#2e2e42);margin:2px 0;">' +
             '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-referral">📣 Stackr empfehlen</button>' +
+            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-invite">👥 Steuerberater einladen</button>' +
+            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-clients">📂 Mandanten (als Steuerberater)</button>' +
+            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-my-code">🔑 Mein Freigabe-Code</button>' +
             '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:#ef4444;cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-logout">🚪 Abmelden</button>';
 
         document.body.appendChild(menu);

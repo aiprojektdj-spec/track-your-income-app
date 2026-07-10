@@ -337,6 +337,9 @@ var CloudSync = (function () {
 
     // ── Alle Scopes synchronisieren ───────────────────────────────────────────
     async function _syncAll(isStartup) {
+        // Steuerberater-Read-Only-Sitzung: weder eigene Registry (enthält Client-Firmen)
+        // noch Mandantendaten synchronisieren — StB betrachtet nur, Sync ruht bis Exit.
+        if (typeof StbShare !== 'undefined' && StbShare.isReadonly && StbShare.isReadonly()) return;
         if (_running || !_enabled() || !_hasKey() || !_token() || !_isPro()) return;
         _running = true; _needReload = false; _changedActive = false; _conflicts = [];
         _setDot('sync');
@@ -344,7 +347,8 @@ var CloudSync = (function () {
             await _syncScope('__account', isStartup);   // zuerst Registry → Firmen-IDs angleichen
             var companies = (typeof CompanyManager !== 'undefined') ? CompanyManager.getAll() : [];
             for (var i = 0; i < companies.length; i++) {
-                if (companies[i] && companies[i].id) await _syncScope(companies[i].id, isStartup);
+                // Read-only-Mandanten (Steuerberater-Ansicht) NIE hochladen
+                if (companies[i] && companies[i].id && !companies[i]._readonly) await _syncScope(companies[i].id, isStartup);
             }
             _setDot('ok');
             if (_conflicts.length) {
@@ -384,6 +388,8 @@ var CloudSync = (function () {
 
     // ── onLocalChange: debounced Push nach Änderung ───────────────────────────
     function onLocalChange() {
+        // Im Steuerberater-Read-Only-Modus nichts pushen (fremde Mandantendaten)
+        if (typeof StbShare !== 'undefined' && StbShare.isReadonly && StbShare.isReadonly()) return;
         if (!_enabled() || !_hasKey() || _running) return;
         clearTimeout(_pushTimer);
         _pushTimer = setTimeout(function () { _syncAll(false); }, PUSH_DEBOUNCE);
@@ -649,6 +655,59 @@ var CloudSync = (function () {
         }
     }
 
+    // ── Steuerberater: fremde (Mandanten-)Daten read-only laden ───────────────
+    // Rohschlüssel des aktuellen Nutzers (zum Verpacken für einen StB). Nur wenn Sync aktiv.
+    function keyBytes() { return _keyBytes(); }
+
+    // Mit dem entpackten Envelope-Schlüssel die Firmen eines Mandanten pullen,
+    // entschlüsseln und lokal als READ-ONLY-Client-Firmen ablegen (Registry-Merge).
+    // Wird NIE zurückgepusht (siehe _readonly-Skip in _syncAll + onLocalChange).
+    async function foreignLoad(ownerId, kb) {
+        var reg = await _api({ action: 'pull', scope: '__account', owner: ownerId });
+        if (reg.status === 403) throw new Error('no_grant');
+        if (reg.status !== 200) throw new Error('pull_' + reg.status);
+        var regObj = reg.json.blob ? await _decrypt(reg.json.blob, kb) : null;
+        var ownerCos = (regObj && regObj.keys && regObj.keys.oyi_companies) ? regObj.keys.oyi_companies : [];
+        var clientCos = [];
+        for (var i = 0; i < ownerCos.length; i++) {
+            var co = ownerCos[i]; if (!co || !co.id) continue;
+            var p = await _api({ action: 'pull', scope: co.id, owner: ownerId });
+            if (p.status !== 200 || !p.json.blob) continue;
+            var data = await _decrypt(p.json.blob, kb);   // { keys, meta }
+            var toCache = {};
+            Object.keys(data.keys || {}).forEach(function (k) {
+                var ser = JSON.stringify(data.keys[k]);
+                var isCacheKey = (k.indexOf('__reselling_') !== -1 || k.indexOf('__rechnungsbuch_') !== -1 || /__audit_log$/.test(k));
+                if (isCacheKey) toCache[k] = ser; else { try { localStorage.setItem(k, ser); } catch (e) {} }
+            });
+            if (Object.keys(toCache).length && typeof Store !== 'undefined') Store.syncApplyKeys(toCache);
+            clientCos.push(Object.assign({}, co, { _readonly: true, _clientOf: ownerId }));
+        }
+        // Registry mergen — eigene Firmen NICHT überschreiben (Client-IDs sind eigenständig)
+        var mine = []; try { mine = JSON.parse(localStorage.getItem('oyi_companies') || '[]'); } catch (e) {}
+        var byId = {}; mine.forEach(function (c) { if (c && c.id) byId[c.id] = c; });
+        clientCos.forEach(function (c) { byId[c.id] = c; });
+        localStorage.setItem('oyi_companies', JSON.stringify(Object.keys(byId).map(function (id) { return byId[id]; })));
+        return clientCos;
+    }
+
+    // Read-only-Client-Firmen + deren Scope-Keys wieder entfernen (Privacy beim Verlassen)
+    function foreignUnload() {
+        var mine = []; try { mine = JSON.parse(localStorage.getItem('oyi_companies') || '[]'); } catch (e) {}
+        var keep = [], drop = [];
+        mine.forEach(function (c) { if (c && c._readonly) drop.push(c.id); else keep.push(c); });
+        drop.forEach(function (id) {
+            _scopeKeys(id).forEach(function (k) {
+                try { localStorage.removeItem(k); } catch (e) {}
+                if (typeof Store !== 'undefined' && Store._cache) delete Store._cache[k];
+                if (typeof Store !== 'undefined' && Store._idbDelete) { try { Store._idbDelete(k); } catch (e) {} }
+            });
+            try { localStorage.removeItem(LS_BASE(id)); localStorage.removeItem(LS_META(id)); } catch (e) {}
+        });
+        localStorage.setItem('oyi_companies', JSON.stringify(keep));
+        return drop.length;
+    }
+
     function disableFlow() {
         var body =
           '<div style="display:flex;flex-direction:column;gap:14px;">' +
@@ -684,6 +743,9 @@ var CloudSync = (function () {
         showCode: function () { showCode(false); },
         syncNow: syncNow,
         openConflicts: openConflicts,
+        keyBytes: keyBytes,
+        foreignLoad: foreignLoad,
+        foreignUnload: foreignUnload,
         deleteRemote: deleteRemote,
         _finishEnable: _finishEnable,
         _finishConnect: _finishConnect,

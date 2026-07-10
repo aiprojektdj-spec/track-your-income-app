@@ -4,7 +4,8 @@
 // ============================================
 const UstVoranmeldung = {
     _year:    new Date().getFullYear(),
-    _quartal: Math.floor(new Date().getMonth() / 3), // 0-3
+    _quartal: Math.floor(new Date().getMonth() / 3), // 0-3, nur im Quartal-Modus genutzt
+    _monat:   new Date().getMonth(),                 // 0-11, nur im Monat-Modus genutzt
 
     _isRegel() {
         return (Store.getSettings().ustMode || 'klein') === 'regel';
@@ -14,6 +15,16 @@ const UstVoranmeldung = {
     // Ist-Versteuerung (§20 UStG, nur bis 800k€ Vorjahresumsatz/Freiberufler) = Zahlungsdatum zählt.
     _isSoll() {
         return (Store.getSettings().ustVersteuerungsart || 'soll') !== 'ist';
+    },
+
+    // monatlich oder vierteljährlich — Pflicht monatlich bei Vorjahres-Zahllast > 7.500€ (§18 Abs. 2 UStG)
+    // oder im Gründungsjahr/Folgejahr; das muss der Nutzer selbst in den Einstellungen umstellen.
+    _typ() {
+        return (Store.getSettings().ustVaPeriodenTyp || 'quartal') === 'monat' ? 'monat' : 'quartal';
+    },
+
+    _idx() {
+        return this._typ() === 'monat' ? this._monat : this._quartal;
     },
 
     // Berechnet Kennzahlen für einen Zeitraum
@@ -30,6 +41,7 @@ const UstVoranmeldung = {
         const _brutto = item => (parseFloat(item.verkaufspreis) || 0) + (parseFloat(item.versandkostenKaeufer) || 0);
 
         let bruttoUmsatz19 = 0, bruttoUmsatz7 = 0;
+        let nettoIgLieferung = 0, nettoAusfuhr = 0;
 
         if (this._isSoll() && typeof Store.getRechInvoices === 'function') {
             // OSS (§3c UStG): sobald die EU-weite 10.000€-Jahresschwelle überschritten ist, ist für
@@ -44,9 +56,15 @@ const UstVoranmeldung = {
             Store.getRechInvoices()
                 .filter(i => i.typ === 'rechnung' && (i.status === 'versendet' || i.status === 'bezahlt') && Utils.isInPeriod(i.datum, startDate, endDate))
                 .forEach(i => {
+                    const kunde = customers.find(c => c.id === i.kundeId);
+                    const kundeLand = kunde && kunde.land;
+                    // ig. Lieferung (§4 Nr.1b + §6a UStG): B2B-Kunde in der EU mit gültiger USt-IdNr
+                    const istIgLieferung = !!(kundeLand && kundeLand !== 'DE' && euLaender.indexOf(kundeLand) !== -1 && kunde.ustIdNr);
+                    // Ausfuhrlieferung (§4 Nr.1a + §6 UStG): Kunde außerhalb EU (Drittland)
+                    const istAusfuhr = !!(kundeLand && kundeLand !== 'DE' && euLaender.indexOf(kundeLand) === -1);
+
                     if (ossActive) {
-                        const kunde = customers.find(c => c.id === i.kundeId);
-                        const isEuB2C = kunde && kunde.land && kunde.land !== 'DE' && euLaender.indexOf(kunde.land) !== -1 && !kunde.ustIdNr;
+                        const isEuB2C = kundeLand && kundeLand !== 'DE' && euLaender.indexOf(kundeLand) !== -1 && !kunde.ustIdNr;
                         if (isEuB2C) return; // OSS-pflichtig — läuft über das BZSt-Portal, nicht über diese UVA
                     }
                     (i.positionen || []).forEach(pos => {
@@ -54,7 +72,12 @@ const UstVoranmeldung = {
                         const rate  = parseInt(pos.mwstSatz);
                         if (rate === 7) bruttoUmsatz7 += netto * 1.07;
                         else if (rate === 19 || isNaN(rate)) bruttoUmsatz19 += netto * 1.19;
-                        // rate === 0 (Reverse-Charge/steuerfrei/OSS) bewusst ausgeschlossen — gehört nicht zu Kz.81/86
+                        else if (rate === 0) {
+                            // steuerfreie Position — nur ig. Lieferung/Ausfuhr sind eigene Kennzahlen,
+                            // sonstige steuerfreie Inlandsumsätze (§4 UStG divers) werden hier bewusst nicht erfasst
+                            if (istIgLieferung) nettoIgLieferung += netto;
+                            else if (istAusfuhr) nettoAusfuhr += netto;
+                        }
                     });
                 });
             // Direktverkäufe ohne zugehörige Rechnung (Marktplatz) weiterhin über Verkaufsdatum
@@ -65,9 +88,10 @@ const UstVoranmeldung = {
                     else if (rate !== 0) bruttoUmsatz19 += _brutto(s);
                 });
         } else {
-            // Ist: nur bezahlte Rechnungen, bereits zum Zahlungsdatum in Store.getSales() gebucht
-            // Rechnungs-verknüpfte Verkäufe ausschließen (bereits über die Rechnung erfasst — sonst Doppelzählung)
-            const sales = Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate));
+            // Ist: alle Verkäufe (Direktverkäufe + aus bezahlten Rechnungen synchronisiert) zum
+            // Zahlungsdatum in Store.getSales() gebucht — anders als bei Soll gibt es hier keinen
+            // separaten Rechnungs-Pfad, der Rechnungs-Umsätze schon zählt, also KEIN _invoiceId-Ausschluss.
+            const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
             bruttoUmsatz7  = sales.filter(v => _rate(v) === 7).reduce((s, v) => s + _brutto(v), 0);
             bruttoUmsatz19 = sales.filter(v => { const r = _rate(v); return r !== 7 && r !== 0; }).reduce((s, v) => s + _brutto(v), 0);
         }
@@ -88,47 +112,109 @@ const UstVoranmeldung = {
         const nettoUmsatz7  = bruttoUmsatz7adj / 1.07;
         const ust7          = nettoUmsatz7 * 0.07;
 
-        // Vorsteuer aus Einkäufen + Ausgaben + §13b/EU: Kz. 66
-        // Per-item Berechnung statt flat rate (nutzt Vorsteuer-Modul wenn verfügbar)
-        let vorsteuer = 0;
+        // Vorsteuer getrennt nach Herkunft — ELSTER verlangt Kz. 66 (Einkäufe/Ausgaben), Kz. 61 (IG-Erwerb)
+        // und Kz. 67 (§13b) als EIGENE Kennzahlen, nicht zusammengefasst!
+        let vorsteuerEinkaufAusgaben = 0, vorsteuerRc = 0, vorsteuerIgErwerb = 0;
+        let rcNettoAbs1 = 0, rcSteuerAbs1 = 0, rcNettoOther = 0, rcSteuerOther = 0;
+        let erwerbNetto19 = 0, erwerbSteuer19 = 0, erwerbNetto7 = 0, erwerbSteuer7 = 0;
         if (typeof Vorsteuer !== 'undefined') {
             const vstCalc = Vorsteuer._calcTotal(startDate, endDate);
-            vorsteuer = vstCalc.totalVorsteuer;
+            vorsteuerEinkaufAusgaben = vstCalc.purch.vst19 + vstCalc.purch.vst7 + vstCalc.exp.vst19 + vstCalc.exp.vst7;
+            vorsteuerRc = vstCalc.manual.reverseCharge;
+            vorsteuerIgErwerb = vstCalc.manual.igErwerb;
+
+            // §13b-Steuerschuld + Erwerbsteuer aus den Einträgen selbst ermitteln (für Kz. 46/89/93 etc.)
+            Vorsteuer._getEntries().filter(e => Utils.isInPeriod(e.datum, startDate, endDate)).forEach(e => {
+                if (e.typ === 'reverse_charge') {
+                    const netto  = parseFloat(e.nettoBetrag) || 0;
+                    const steuer = parseFloat(e.vorsteuerBetrag) || 0; // 1:1 zur Vorsteuer bei Reverse Charge
+                    if (e.paragraph === 'Abs. 1') { rcNettoAbs1 += netto; rcSteuerAbs1 += steuer; }
+                    else { rcNettoOther += netto; rcSteuerOther += steuer; }
+                } else if (e.typ === 'ig_erwerb') {
+                    const netto  = parseFloat(e.nettoBetrag) || 0;
+                    const steuer = parseFloat(e.erwerbsteuer) || 0;
+                    if ((parseInt(e.ustSatz) || 19) === 7) { erwerbNetto7 += netto; erwerbSteuer7 += steuer; }
+                    else { erwerbNetto19 += netto; erwerbSteuer19 += steuer; }
+                }
+            });
         } else {
-            // Fallback: per-item Berechnung
+            // Fallback ohne Vorsteuer-Modul: nur Einkäufe + Ausgaben (kein §13b/IG-Erwerb erfassbar)
             purchases.forEach(p => {
                 const rate = parseFloat(p.steuersatz) || 19;
                 const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
-                vorsteuer += brutto - (brutto / (1 + rate / 100));
+                vorsteuerEinkaufAusgaben += brutto - (brutto / (1 + rate / 100));
             });
             expenses.forEach(e => {
                 const rate = parseFloat(e.ustSatz || e.steuersatz) || 19;
                 const brutto = parseFloat(e.betrag) || 0;
-                if (rate > 0) vorsteuer += brutto - (brutto / (1 + rate / 100));
+                if (rate > 0) vorsteuerEinkaufAusgaben += brutto - (brutto / (1 + rate / 100));
             });
         }
+        const rcSteuerGesamt     = rcSteuerAbs1 + rcSteuerOther;
+        const erwerbSteuerGesamt = erwerbSteuer19 + erwerbSteuer7;
+        const vorsteuer = vorsteuerEinkaufAusgaben + vorsteuerRc + vorsteuerIgErwerb; // Summe nur zur Zahllast-Kontrolle
 
-        // Zahllast / Erstattung
-        const zahllast = ust19 + ust7 - vorsteuer;
+        // Zahllast / Erstattung — §13b-Steuerschuld + Erwerbsteuer zählen mit (heben sich ggü. dem
+        // gleichzeitigen Vorsteuerabzug idR auf, müssen aber als eigene Kennzahlen gemeldet werden, s.u.)
+        // ig. Lieferung/Ausfuhr sind steuerfrei (0%) und fließen nicht in die Zahllast ein.
+        const zahllast = ust19 + ust7 + rcSteuerGesamt + erwerbSteuerGesamt - vorsteuer;
 
-        return { bruttoUmsatz, bruttoUmsatz19, bruttoUmsatz7, nettoUmsatz19, nettoUmsatz7, ust19, ust7, vorsteuer, zahllast };
+        return {
+            bruttoUmsatz, bruttoUmsatz19, bruttoUmsatz7, nettoUmsatz19, nettoUmsatz7, ust19, ust7, vorsteuer, zahllast,
+            vorsteuerEinkaufAusgaben, vorsteuerRc, vorsteuerIgErwerb, rcSteuerGesamt, erwerbSteuerGesamt,
+            rcNettoAbs1, rcSteuerAbs1, rcNettoOther, rcSteuerOther,
+            erwerbNetto19, erwerbSteuer19, erwerbNetto7, erwerbSteuer7,
+            nettoIgLieferung, nettoAusfuhr
+        };
     },
 
     // Für bereits eingereichte Perioden: gespeicherten Stand zum Meldezeitpunkt nutzen statt live neu zu berechnen
     // (verhindert abweichende Zahlen, wenn z.B. die Versteuerungsart nachträglich gewechselt wird)
-    _calcPeriodeLocked(year, quartal, startDate, endDate) {
-        const gesperrt = Store.getUstPerioden().find(p => p.year === year && p.quartal === quartal && p.eingereichtAm);
+    _calcPeriodeLocked(year, typ, idx, startDate, endDate) {
+        const gesperrt = Store.getUstPerioden().find(p => p.year === year &&
+            (typ === 'monat' ? p.monat === idx + 1 : (p.quartal === idx && !p.monat)));
         if (gesperrt && gesperrt.snapshot) return { calc: gesperrt.snapshot, gesperrt };
         return { calc: this._calcPeriode(startDate, endDate), gesperrt };
     },
 
-    // Startdatum eines Quartals
+    // Quartals-Grenzen (Legacy-Helfer, weiterhin für Vorjahresvergleich genutzt)
     _qStart(year, q) {
         return `${year}-${String(q * 3 + 1).padStart(2, '0')}-01`;
     },
     _qEnd(year, q) {
         const d = new Date(year, q * 3 + 3, 0);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    },
+
+    // Periodengrenzen generisch für Monat/Quartal
+    _pStart(year, typ, idx) {
+        if (typ === 'monat') return `${year}-${String(idx + 1).padStart(2, '0')}-01`;
+        return this._qStart(year, idx);
+    },
+    _pEnd(year, typ, idx) {
+        if (typ === 'monat') {
+            const d = new Date(year, idx + 1, 0);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+        return this._qEnd(year, idx);
+    },
+    _periodeLabel(year, typ, idx) {
+        if (typ === 'monat') {
+            const namen = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+            return `${namen[idx]} ${year}`;
+        }
+        return `Q${idx + 1}/${year}`;
+    },
+
+    // Abgabefrist: 10. des Folgemonats nach Periodenende, +1 Monat bei Dauerfristverlängerung (§46 UStDV)
+    _fristDatum(year, typ, idx) {
+        const end = new Date(this._pEnd(year, typ, idx));
+        let monate = 1;
+        if (Store.getSettings().ustDauerfristverlaengerung) monate = 2;
+        return new Date(end.getFullYear(), end.getMonth() + monate, 10);
+    },
+    _formatFrist(d) {
+        return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
     },
 
     render() {
@@ -159,44 +245,70 @@ const UstVoranmeldung = {
             </div>`;
         }
 
+        const typ  = this._typ();
         const year = this._year;
-        const q    = this._quartal;
-        const start = this._qStart(year, q);
-        const end   = this._qEnd(year, q);
-        const { calc } = this._calcPeriodeLocked(year, q, start, end);
+        const idx  = this._idx();
+        const periodsCount = typ === 'monat' ? 12 : 4;
+        const start = this._pStart(year, typ, idx);
+        const end   = this._pEnd(year, typ, idx);
+        const { calc } = this._calcPeriodeLocked(year, typ, idx, start, end);
 
-        // Alle 4 Quartale für Jahresübersicht
-        const jahresUebersicht = [0, 1, 2, 3].map(qi => {
-            const qs = this._qStart(year, qi);
-            const qe = this._qEnd(year, qi);
-            const { calc: c, gesperrt } = this._calcPeriodeLocked(year, qi, qs, qe);
-            return { qi, c, gesperrt };
+        // Jahresübersicht über alle Perioden des gewählten Typs
+        const jahresUebersicht = Array.from({ length: periodsCount }, (_, i) => i).map(pi => {
+            const ps = this._pStart(year, typ, pi);
+            const pe = this._pEnd(year, typ, pi);
+            const { calc: c, gesperrt } = this._calcPeriodeLocked(year, typ, pi, ps, pe);
+            return { pi, c, gesperrt };
         });
 
         const jahresZahllast = jahresUebersicht.reduce((s, r) => s + r.c.zahllast, 0);
 
+        // Monatlich-Pflicht-Hinweis: Vorjahres-Zahllast > 7.500€ und aktuell nur quartalsweise gemeldet (§18 Abs. 2 UStG)
+        let monatspflichtHinweis = '';
+        if (typ === 'quartal') {
+            const vjZahllast = [0, 1, 2, 3]
+                .map(qi => this._calcPeriode(this._qStart(year - 1, qi), this._qEnd(year - 1, qi)))
+                .reduce((s, c) => s + c.zahllast, 0);
+            if (vjZahllast > 7500) {
+                monatspflichtHinweis = `
+                <div class="card" style="margin-bottom:16px;border-left:3px solid var(--warning);">
+                    <div style="padding:12px 16px;font-size:13px;">
+                        ⚠️ <strong>Monatliche Voranmeldung vermutlich Pflicht:</strong> Die Zahllast ${year - 1} lag bei ${Utils.formatCurrency(vjZahllast)} und damit über der 7.500 €-Grenze (§18 Abs. 2 Satz 2 UStG). Bitte in den <strong>Einstellungen</strong> auf "Monatlich" umstellen und mit dem Finanzamt/Steuerberater abstimmen.
+                    </div>
+                </div>`;
+            }
+        }
+
         const yearOptions = Array.from({ length: 8 }, (_, i) => 2020 + i)
             .map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('');
 
-        const qOptions = [0, 1, 2, 3].map(qi =>
-            `<option value="${qi}" ${qi === q ? 'selected' : ''}>Q${qi + 1} (${this._qStart(year, qi).slice(0, 7)} – ${this._qEnd(year, qi).slice(0, 7)})</option>`
-        ).join('');
+        const periodOptions = typ === 'monat'
+            ? Array.from({ length: 12 }, (_, mi) => mi)
+                .map(mi => `<option value="${mi}" ${mi === idx ? 'selected' : ''}>${this._periodeLabel(year, 'monat', mi)}</option>`).join('')
+            : [0, 1, 2, 3].map(qi =>
+                `<option value="${qi}" ${qi === idx ? 'selected' : ''}>Q${qi + 1} (${this._qStart(year, qi).slice(0, 7)} – ${this._qEnd(year, qi).slice(0, 7)})</option>`
+            ).join('');
 
-        const gesperrt = Store.getUstPerioden().find(p => p.year === year && p.quartal === q);
+        const gesperrt = Store.getUstPerioden().find(p => p.year === year &&
+            (typ === 'monat' ? p.monat === idx + 1 : (p.quartal === idx && !p.monat)));
+
+        const fristDatum = this._fristDatum(year, typ, idx);
 
         return `
         <div class="page-header">
             <h2>USt-Voranmeldung</h2>
             <div class="page-header-actions no-print">
                 <select class="form-select" id="uvYear" style="width:90px;">${yearOptions}</select>
-                <select class="form-select" id="uvQuartal">${qOptions}</select>
+                <select class="form-select" id="uvPeriode">${periodOptions}</select>
+                <button class="btn btn-primary" data-action="uva-copy">📋 Werte kopieren</button>
                 <button class="btn" data-action="uva-export">ELSTER CSV</button>
             </div>
         </div>
+        ${monatspflichtHinweis}
 
         <div class="stats-grid" style="margin-bottom:20px;">
             <div class="card stat-card">
-                <div class="card-label">Brutto-Umsatz Q${q + 1}/${year}</div>
+                <div class="card-label">Brutto-Umsatz ${this._periodeLabel(year, typ, idx)}</div>
                 <div class="card-value">${Utils.formatCurrency(calc.bruttoUmsatz)}</div>
                 <div class="card-subtitle">Inkl. 19% USt</div>
             </div>
@@ -206,9 +318,9 @@ const UstVoranmeldung = {
                 <div class="card-subtitle">Steuerpflichtige Umsätze 19%</div>
             </div>
             <div class="card stat-card danger">
-                <div class="card-label">USt auf Umsätze (Kz. 83)</div>
+                <div class="card-label">USt auf Umsätze (19%)</div>
                 <div class="card-value">${Utils.formatCurrency(calc.ust19)}</div>
-                <div class="card-subtitle">19% von Netto-Umsatz</div>
+                <div class="card-subtitle">Info – wird von ELSTER automatisch aus Kz. 81 berechnet</div>
             </div>
             <div class="card stat-card success">
                 <div class="card-label">Vorsteuer (Kz. 66)</div>
@@ -219,7 +331,7 @@ const UstVoranmeldung = {
 
         <div class="card" style="margin-bottom:16px;">
             <div class="card-header">
-                <div class="card-title">Kennzahlen Q${q + 1}/${year} (${Utils.formatDate(start)} – ${Utils.formatDate(end)})</div>
+                <div class="card-title">Kennzahlen ${this._periodeLabel(year, typ, idx)} (${Utils.formatDate(start)} – ${Utils.formatDate(end)})</div>
                 ${gesperrt ? '<span class="badge badge-success">✅ Eingereicht</span>' : '<span class="badge badge-warning">⏳ Offen</span>'}
             </div>
             <div class="table-container" style="border:none;">
@@ -227,12 +339,20 @@ const UstVoranmeldung = {
                     <thead><tr><th style="width:20%">Kz.</th><th>Bezeichnung</th><th style="text-align:right;width:25%">Betrag</th></tr></thead>
                     <tbody>
                         <tr><td><strong>Kz. 81</strong></td><td>Steuerpflichtige Umsätze (19%) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoUmsatz19)}</td></tr>
-                        <tr><td><strong>Kz. 83</strong></td><td>Umsatzsteuer darauf (19%)</td><td style="text-align:right">${Utils.formatCurrency(calc.ust19)}</td></tr>
+                        <tr style="opacity:0.75;"><td></td><td style="font-size:12px;">↳ USt darauf (19%) <span style="color:var(--text-muted);">– nur Info, ELSTER berechnet automatisch</span></td><td style="text-align:right;font-size:12px;">${Utils.formatCurrency(calc.ust19)}</td></tr>
                         ${calc.nettoUmsatz7 > 0 ? `
                         <tr><td><strong>Kz. 86</strong></td><td>Steuerpflichtige Umsätze (7%) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoUmsatz7)}</td></tr>
-                        <tr><td><strong>Kz. 35</strong></td><td>Umsatzsteuer darauf (7%)</td><td style="text-align:right">${Utils.formatCurrency(calc.ust7)}</td></tr>
+                        <tr style="opacity:0.75;"><td></td><td style="font-size:12px;">↳ USt darauf (7%) <span style="color:var(--text-muted);">– nur Info, ELSTER berechnet automatisch</span></td><td style="text-align:right;font-size:12px;">${Utils.formatCurrency(calc.ust7)}</td></tr>
                         ` : ''}
-                        <tr><td><strong>Kz. 66</strong></td><td>Vorsteuerbeträge (§15 UStG)</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(calc.vorsteuer)}</td></tr>
+                        ${calc.nettoIgLieferung > 0 ? `<tr><td><strong>Kz. 41</strong></td><td>Innergem. Lieferungen (§4 Nr.1b UStG) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoIgLieferung)}</td></tr>` : ''}
+                        ${calc.nettoAusfuhr > 0 ? `<tr><td><strong>Kz. 43</strong></td><td>Ausfuhrlieferungen Drittland (§4 Nr.1a UStG) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoAusfuhr)}</td></tr>` : ''}
+                        ${calc.erwerbNetto19 > 0 ? `<tr><td><strong>Kz. 89</strong></td><td>Innergem. Erwerbe (19%) – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.erwerbNetto19)}</td></tr>` : ''}
+                        ${calc.erwerbNetto7 > 0 ? `<tr><td><strong>Kz. 93</strong></td><td>Innergem. Erwerbe (7%) – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.erwerbNetto7)}</td></tr>` : ''}
+                        ${calc.rcNettoAbs1 > 0 ? `<tr><td><strong>Kz. 46</strong></td><td>§13b Abs.1 EU-Dienstleistungen – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.rcNettoAbs1)}</td></tr>` : ''}
+                        ${calc.rcNettoOther > 0 ? `<tr><td><strong>§13b (sonst.)</strong></td><td>Weitere §13b-Fälle (Bau/Gebäudereinigung/Mobilfunk) <span style="color:var(--warning);font-size:11px;">⚠ genaue Zeile im Formular prüfen</span></td><td style="text-align:right">${Utils.formatCurrency(calc.rcNettoOther)}</td></tr>` : ''}
+                        <tr><td><strong>Kz. 66</strong></td><td>Vorsteuerbeträge aus Rechnungen (§15 UStG)</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(calc.vorsteuerEinkaufAusgaben)}</td></tr>
+                        ${calc.vorsteuerIgErwerb > 0 ? `<tr><td><strong>Kz. 61</strong></td><td>Vorsteuer aus innergem. Erwerben</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(calc.vorsteuerIgErwerb)}</td></tr>` : ''}
+                        ${calc.vorsteuerRc > 0 ? `<tr><td><strong>Kz. 67</strong></td><td>Vorsteuer aus §13b-Leistungen</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(calc.vorsteuerRc)}</td></tr>` : ''}
                         <tr class="euer-result">
                             <td></td>
                             <td><strong>${calc.zahllast >= 0 ? '🔴 Zahllast (Verbleibt zu zahlen)' : '🟢 Überschuss (Erstattung)'}</strong></td>
@@ -246,7 +366,7 @@ const UstVoranmeldung = {
             <div style="padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                 ${!gesperrt ? `<button class="btn btn-primary" data-action="uva-mark">✅ Als eingereicht markieren</button>` : ''}
                 ${gesperrt ? `<div style="color:var(--text-muted);font-size:12px;">Eingereicht am ${Utils.formatDate(gesperrt.eingereichtAm)}</div>` : ''}
-                <div style="font-size:12px;color:var(--text-muted);">Abgabefrist: 10. des Folgemonats nach Quartalsende</div>
+                <div style="font-size:12px;color:var(--text-muted);">Abgabefrist: ${this._formatFrist(fristDatum)}${Store.getSettings().ustDauerfristverlaengerung ? ' (inkl. Dauerfristverlängerung)' : ''}</div>
             </div>
         </div>
 
@@ -254,11 +374,11 @@ const UstVoranmeldung = {
             <div class="card-header"><div class="card-title">Jahresübersicht ${year}</div></div>
             <div class="table-container" style="border:none;">
                 <table class="data-table">
-                    <thead><tr><th>Quartal</th><th style="text-align:right">Netto-Umsatz</th><th style="text-align:right">USt</th><th style="text-align:right">Vorsteuer</th><th style="text-align:right">Zahllast</th><th>Status</th></tr></thead>
+                    <thead><tr><th>${typ === 'monat' ? 'Monat' : 'Quartal'}</th><th style="text-align:right">Netto-Umsatz</th><th style="text-align:right">USt</th><th style="text-align:right">Vorsteuer</th><th style="text-align:right">Zahllast</th><th>Status</th></tr></thead>
                     <tbody>
-                        ${jahresUebersicht.map(({ qi, c, gesperrt: g }) => `
-                        <tr style="cursor:pointer;" data-action="uva-quartal" data-args='[${qi}]' >
-                            <td><strong>Q${qi + 1}/${year}</strong><br><span style="font-size:11px;color:var(--text-muted)">${this._qStart(year,qi).slice(0,7)} – ${this._qEnd(year,qi).slice(0,7)}</span></td>
+                        ${jahresUebersicht.map(({ pi, c, gesperrt: g }) => `
+                        <tr style="cursor:pointer;" data-action="uva-periode" data-args='[${pi}]' >
+                            <td><strong>${this._periodeLabel(year, typ, pi)}</strong><br><span style="font-size:11px;color:var(--text-muted)">${this._pStart(year, typ, pi).slice(0,7)} – ${this._pEnd(year, typ, pi).slice(0,7)}</span></td>
                             <td style="text-align:right">${Utils.formatCurrency(c.nettoUmsatz19)}</td>
                             <td style="text-align:right">${Utils.formatCurrency(c.ust19)}</td>
                             <td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(c.vorsteuer)}</td>
@@ -282,13 +402,16 @@ const UstVoranmeldung = {
 
         <div class="card" style="margin-top:16px;">
             <div style="padding:12px 16px;font-size:13px;color:var(--text-muted);line-height:1.7;">
-                <strong>Kz. 81:</strong> Netto-Umsätze aus Lieferungen und Leistungen zum Regelsteuersatz 19%.<br>
-                <strong>Kz. 83:</strong> Steuerbetrag (19%) auf die Umsätze aus Kz. 81.<br>
-                <strong>Kz. 86:</strong> Netto-Umsätze zum ermäßigten Steuersatz 7% (z.B. Bücher, Lebensmittel).<br>
-                <strong>Kz. 35:</strong> Steuerbetrag (7%) auf die Umsätze aus Kz. 86.<br>
-                <strong>Kz. 66:</strong> Abzugsfähige Vorsteuer aus Eingangsrechnungen (§15 UStG).<br>
-                <strong>Abgabefrist:</strong> 10. des auf den Voranmeldungszeitraum folgenden Monats (§18 Abs. 1 UStG).<br>
-                <strong>Dauerfreigabe:</strong> Auf Antrag kann eine Dauerfristverlängerung von 1 Monat gewährt werden.<br>
+                <strong>Kz. 81:</strong> Netto-Umsätze aus Lieferungen und Leistungen zum Regelsteuersatz 19% – <u>das ist der einzige Wert, den du in ELSTER bei Kz. 81 einträgst</u>. ELSTER berechnet die USt darauf selbst.<br>
+                <strong>Kz. 86:</strong> Netto-Umsätze zum ermäßigten Steuersatz 7% (z.B. Bücher, Lebensmittel) – ebenfalls einziger Eintrag bei Kz. 86, USt wird automatisch berechnet.<br>
+                ${calc.nettoIgLieferung > 0 ? `<strong>Kz. 41:</strong> Innergemeinschaftliche Lieferungen an Unternehmen mit gültiger USt-IdNr in der EU (§4 Nr.1b, §6a UStG) – steuerfrei, keine USt darauf. Voraussetzung: gültige USt-IdNr des Kunden geprüft (BZSt-Bestätigungsverfahren) und Zusammenfassende Meldung (ZM) abgegeben.<br>` : ''}
+                ${calc.nettoAusfuhr > 0 ? `<strong>Kz. 43:</strong> Ausfuhrlieferungen in Drittländer außerhalb der EU (§4 Nr.1a, §6 UStG) – steuerfrei, Ausfuhrnachweis (z.B. Zollbeleg) muss vorliegen.<br>` : ''}
+                ${calc.erwerbNetto19 > 0 || calc.erwerbNetto7 > 0 ? `<strong>Kz. 89/93:</strong> Innergemeinschaftliche Erwerbe (§1a UStG) – Bemessungsgrundlage eintragen, gleichzeitig als Vorsteuer bei Kz. 61 abziehbar.<br>` : ''}
+                ${calc.rcNettoAbs1 > 0 || calc.rcNettoOther > 0 ? `<strong>Kz. 46 / §13b:</strong> Reverse-Charge-Leistungen (§13b UStG) – du schuldest hier die Steuer als Leistungsempfänger, gleichzeitig als Vorsteuer bei Kz. 67 abziehbar. Bei "Weitere §13b-Fälle" bitte die passende Zeile im ELSTER-Formular je nach Kategorie (Bauleistung/Gebäudereinigung/Mobilfunk) selbst nachsehen – dafür gibt es jeweils eigene Kennzahlen.<br>` : ''}
+                <strong>Kz. 66:</strong> Abzugsfähige Vorsteuer aus Eingangsrechnungen (§15 UStG) – <u>nur</u> Einkäufe/Ausgaben, NICHT §13b oder IG-Erwerb (die haben eigene Kennzahlen, s.o.).<br>
+                <strong>⚠️ Wichtig:</strong> Die "USt darauf"-Zeilen bei Kz. 81/86 sind reine Kontrollwerte für dich, <u>keine eigenen ELSTER-Kennzahlen</u> – insbesondere Kz. 35/36 im echten Formular meint etwas anderes (Umsätze zu "anderen Steuersätzen", z.B. 16%/5%). Trage dort nichts ein, wenn du normale 19%/7%-Umsätze hast.<br>
+                <strong>Voranmeldungszeitraum:</strong> Aktuell <u>${typ === 'monat' ? 'monatlich' : 'vierteljährlich'}</u> eingestellt (Einstellungen → USt-Modus). Monatlich ist Pflicht bei Vorjahres-Zahllast > 7.500€ sowie im Gründungsjahr und Folgejahr.<br>
+                <strong>Abgabefrist:</strong> 10. des auf den Voranmeldungszeitraum folgenden Monats (§18 Abs. 1 UStG)${Store.getSettings().ustDauerfristverlaengerung ? ', durch Dauerfristverlängerung um 1 Monat verschoben' : ''} — für die aktuell gewählte Periode: <strong>${this._formatFrist(fristDatum)}</strong>.<br>
                 <strong>⚠️ Unverbindlich</strong> – Abgabe über ELSTER (elster.de) oder Steuerberater erforderlich.
             </div>
         </div>
@@ -297,9 +420,13 @@ const UstVoranmeldung = {
 
     init() {
         const ySel = document.getElementById('uvYear');
-        const qSel = document.getElementById('uvQuartal');
+        const pSel = document.getElementById('uvPeriode');
         if (ySel) ySel.addEventListener('change', () => { this._year = parseInt(ySel.value); this._refresh(); });
-        if (qSel) qSel.addEventListener('change', () => { this._quartal = parseInt(qSel.value); this._refresh(); });
+        if (pSel) pSel.addEventListener('change', () => {
+            const v = parseInt(pSel.value);
+            if (this._typ() === 'monat') this._monat = v; else this._quartal = v;
+            this._refresh();
+        });
     },
 
     _refresh() {
@@ -307,54 +434,98 @@ const UstVoranmeldung = {
         if (el) { el.innerHTML = this.render(); this.init(); }
     },
 
-    _selectQuartal(qi) {
-        this._quartal = qi;
+    _selectPeriode(pi) {
+        if (this._typ() === 'monat') this._monat = pi; else this._quartal = pi;
         this._refresh();
     },
 
     _markEingereicht() {
-        const start = this._qStart(this._year, this._quartal);
-        const end   = this._qEnd(this._year, this._quartal);
+        const typ = this._typ();
+        const idx = this._idx();
+        const start = this._pStart(this._year, typ, idx);
+        const end   = this._pEnd(this._year, typ, idx);
         Store.saveUstPeriode({
             year: this._year,
-            quartal: this._quartal,
-            monat: null,
+            quartal: typ === 'quartal' ? idx : null,
+            monat: typ === 'monat' ? idx + 1 : null,
             eingereichtAm: Utils.todayISO(),
             versteuerungsartBeiMeldung: Store.getSettings().ustVersteuerungsart || 'soll',
             snapshot: this._calcPeriode(start, end)
         });
-        Utils.showToast(`Q${this._quartal + 1}/${this._year} als eingereicht markiert`, 'success');
+        Utils.showToast(`${this._periodeLabel(this._year, typ, idx)} als eingereicht markiert`, 'success');
         this._refresh();
     },
 
+    // Baut die vollständige, ELSTER-Reihenfolge-treue Zeilenliste (für CSV + Copy gemeinsam genutzt)
+    _buildRows(c) {
+        const rows = [
+            ['Kz. 81', 'Steuerpflichtige Umsätze 19% (Netto) - in ELSTER eintragen', c.nettoUmsatz19.toFixed(2)],
+            ['(Info)', 'USt 19% - NICHT eintragen, ELSTER berechnet automatisch', c.ust19.toFixed(2)],
+        ];
+        if (c.nettoUmsatz7 > 0) {
+            rows.push(['Kz. 86', 'Steuerpflichtige Umsätze 7% (Netto) - in ELSTER eintragen', c.nettoUmsatz7.toFixed(2)]);
+            rows.push(['(Info)', 'USt 7% - NICHT eintragen, ELSTER berechnet automatisch', c.ust7.toFixed(2)]);
+        }
+        if (c.nettoIgLieferung > 0) rows.push(['Kz. 41', 'Innergem. Lieferungen (Netto) - in ELSTER eintragen', c.nettoIgLieferung.toFixed(2)]);
+        if (c.nettoAusfuhr     > 0) rows.push(['Kz. 43', 'Ausfuhrlieferungen Drittland (Netto) - in ELSTER eintragen', c.nettoAusfuhr.toFixed(2)]);
+        if (c.erwerbNetto19 > 0) rows.push(['Kz. 89', 'Innergem. Erwerbe 19% (Bemessungsgrundlage) - in ELSTER eintragen', c.erwerbNetto19.toFixed(2)]);
+        if (c.erwerbNetto7  > 0) rows.push(['Kz. 93', 'Innergem. Erwerbe 7% (Bemessungsgrundlage) - in ELSTER eintragen', c.erwerbNetto7.toFixed(2)]);
+        if (c.rcNettoAbs1   > 0) rows.push(['Kz. 46', '§13b Abs.1 EU-Dienstleistungen (Bemessungsgrundlage) - in ELSTER eintragen', c.rcNettoAbs1.toFixed(2)]);
+        if (c.rcNettoOther  > 0) rows.push(['§13b (sonst.)', 'Weitere §13b-Fälle - passende Zeile im Formular prüfen (Bau/Gebäudereinigung/Mobilfunk)', c.rcNettoOther.toFixed(2)]);
+        rows.push(['Kz. 66', 'Vorsteuer aus Rechnungen (Einkäufe/Ausgaben) - in ELSTER eintragen', c.vorsteuerEinkaufAusgaben.toFixed(2)]);
+        if (c.vorsteuerIgErwerb > 0) rows.push(['Kz. 61', 'Vorsteuer aus innergem. Erwerben - in ELSTER eintragen', c.vorsteuerIgErwerb.toFixed(2)]);
+        if (c.vorsteuerRc       > 0) rows.push(['Kz. 67', 'Vorsteuer aus §13b-Leistungen - in ELSTER eintragen', c.vorsteuerRc.toFixed(2)]);
+        rows.push(['', c.zahllast >= 0 ? 'Verbleibende Zahllast (zur Kontrolle)' : 'Erstattung (zur Kontrolle)', Math.abs(c.zahllast).toFixed(2)]);
+        return rows;
+    },
+
     _exportCSV() {
+        const typ   = this._typ();
         const year  = this._year;
-        const q     = this._quartal;
-        const start = this._qStart(year, q);
-        const end   = this._qEnd(year, q);
-        const { calc: c } = this._calcPeriodeLocked(year, q, start, end);
+        const idx   = this._idx();
+        const start = this._pStart(year, typ, idx);
+        const end   = this._pEnd(year, typ, idx);
+        const { calc: c } = this._calcPeriodeLocked(year, typ, idx, start, end);
+        const label = this._periodeLabel(year, typ, idx);
         const rows  = [
             ['USt-Voranmeldung ELSTER Export', '', ''],
-            [`Zeitraum: Q${q+1}/${year}`, start + ' bis ' + end, ''],
+            [`Zeitraum: ${label}`, start + ' bis ' + end, ''],
             ['', '', ''],
             ['Kennzahl', 'Bezeichnung', 'Betrag EUR'],
-            ['Kz. 81', 'Steuerpflichtige Umsätze 19% (Netto)', c.nettoUmsatz19.toFixed(2)],
-            ['Kz. 83', 'Umsatzsteuer 19%', c.ust19.toFixed(2)],
-            ...(c.nettoUmsatz7 > 0 ? [
-                ['Kz. 86', 'Steuerpflichtige Umsätze 7% (Netto)', c.nettoUmsatz7.toFixed(2)],
-                ['Kz. 35', 'Umsatzsteuer 7%', c.ust7.toFixed(2)],
-            ] : []),
-            ['Kz. 66', 'Vorsteuer', c.vorsteuer.toFixed(2)],
-            ['', 'Verbleibende Zahllast', c.zahllast.toFixed(2)],
+            ...this._buildRows(c),
         ];
-        Utils.downloadCSV(rows, `uvr_Q${q+1}_${year}.csv`);
+        const dateiSuffix = typ === 'monat' ? `M${idx + 1}` : `Q${idx + 1}`;
+        Utils.downloadCSV(rows, `uvr_${dateiSuffix}_${year}.csv`);
         Utils.showToast('ELSTER CSV exportiert', 'success');
+    },
+
+    // Schnelle Zwischenablage-Kopie für die manuelle ELSTER-Eingabe (nur die "eintragen"-Zeilen, in Formular-Reihenfolge)
+    _copyForElster() {
+        const typ   = this._typ();
+        const year  = this._year;
+        const idx   = this._idx();
+        const start = this._pStart(year, typ, idx);
+        const end   = this._pEnd(year, typ, idx);
+        const { calc: c } = this._calcPeriodeLocked(year, typ, idx, start, end);
+        const label = this._periodeLabel(year, typ, idx);
+        const rows  = this._buildRows(c).filter(r => r[0] && r[0] !== '(Info)');
+        const text  = `USt-Voranmeldung ${label} (${start} bis ${end})\n` +
+            rows.map(r => `${r[0]}: ${r[2]} € — ${r[1]}`).join('\n');
+
+        const done = () => { Utils.showToast('Werte in Zwischenablage kopiert', 'success'); };
+        const fail = () => { Utils.showToast('Kopieren fehlgeschlagen — bitte CSV nutzen', 'warning'); };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(fail);
+        } else {
+            fail();
+        }
     }
 };
 
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
 if (window.Actions) Actions.register({
     'uva-export':  function () { UstVoranmeldung._exportCSV(); },
+    'uva-copy':    function () { UstVoranmeldung._copyForElster(); },
     'uva-mark':    function () { UstVoranmeldung._markEingereicht(); },
-    'uva-quartal': function (qi) { UstVoranmeldung._selectQuartal(qi); }
+    'uva-periode': function (pi) { UstVoranmeldung._selectPeriode(pi); }
 });

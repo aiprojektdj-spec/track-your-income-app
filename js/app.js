@@ -1074,14 +1074,19 @@ const App = {
         }
         const versteuerungsartGroup = document.getElementById(prefix + '_versteuerungsart_group');
         if (versteuerungsartGroup) versteuerungsartGroup.style.display = value === 'regel' ? '' : 'none';
+        const uvaPeriodeGroup = document.getElementById(prefix + '_uva_periode_group');
+        if (uvaPeriodeGroup) uvaPeriodeGroup.style.display = value === 'regel' ? '' : 'none';
     },
 
     // ── §19 UStG Jahresumsatz-Grenzprüfung ───────────────────────
+    // Gesamtumsatz i.S.d. §19 Abs. 3 UStG umfasst auch vom Käufer erstattete Versandkosten
+    // (Teil des Entgelts) — muss konsistent mit euer.js' bruttoEinnahmen-Definition sein,
+    // sonst wird die 25k/100k-Grenze real überschritten, während die Warnung noch stumm bleibt.
     _calcJahresumsatz(year) {
         const y = String(year || new Date().getFullYear());
         return Store.getSales()
             .filter(s => !s.storniert && s.datum && s.datum.startsWith(y))
-            .reduce((sum, s) => sum + (parseFloat(s.verkaufspreis) || 0), 0);
+            .reduce((sum, s) => sum + (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0), 0);
     },
 
     _checkUstThreshold() {
@@ -1631,6 +1636,18 @@ const App = {
                 </select>
                 <div style="font-size:11px;color:var(--warning);margin-top:6px;"><i class="ti ti-alert-triangle"></i> Ein Wechsel wirkt nur auf zukünftige Voranmeldungen. Bereits gemeldete Zeiträume werden nicht rückwirkend neu berechnet — bei Wechsel während des Jahres bitte mit dem Steuerberater abstimmen, damit keine Umsätze doppelt oder gar nicht erfasst werden.</div>
             </div>
+            <div class="form-group" id="set_uva_periode_group" style="${s.ustMode === 'regel' ? '' : 'display:none'}">
+                <label class="form-label" for="set_ustVaPeriodenTyp">Voranmeldungs-Zeitraum</label>
+                <select class="form-select" id="set_ustVaPeriodenTyp">
+                    <option value="quartal" ${(s.ustVaPeriodenTyp || 'quartal') === 'quartal' ? 'selected' : ''}>Vierteljährlich (Regelfall)</option>
+                    <option value="monat" ${s.ustVaPeriodenTyp === 'monat' ? 'selected' : ''}>Monatlich</option>
+                </select>
+                <div class="form-hint">Monatlich ist Pflicht, wenn die USt-Zahllast des Vorjahres 7.500 € überstieg, sowie im Gründungsjahr und im Folgejahr (§18 Abs. 2 UStG).</div>
+                <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer;">
+                    <input type="checkbox" id="set_ustDauerfrist" ${s.ustDauerfristverlaengerung ? 'checked' : ''}>
+                    Dauerfristverlängerung beantragt/genehmigt (verschiebt Abgabefrist um 1 Monat)
+                </label>
+            </div>
             <hr style="border-color:var(--border);margin:16px 0;">
             <div class="section-title" style="margin-bottom:12px;display:flex;align-items:center;gap:6px;">
                 <i class="ti ti-world"></i> Land / Region
@@ -1748,6 +1765,8 @@ const App = {
                 ustId: document.getElementById('set_ustId').value.trim(),
                 ustMode: document.getElementById('set_ustMode').value,
                 ustVersteuerungsart: (document.getElementById('set_ustVersteuerungsart') || {}).value || 'soll',
+                ustVaPeriodenTyp: (document.getElementById('set_ustVaPeriodenTyp') || {}).value || 'quartal',
+                ustDauerfristverlaengerung: !!(document.getElementById('set_ustDauerfrist') || {}).checked,
                 land: (document.getElementById('set_land') || {}).value || 'DE',
                 chKanton: (document.getElementById('set_chKanton') || {}).value || s.chKanton || 'ZH',
                 chMwstNr: ((document.getElementById('set_chMwstNr') || {}).value || '').trim(),
@@ -2586,21 +2605,24 @@ const App = {
                                 importedEinkauf++;
 
                                 const verkaufsdatumRaw = col.verkaufsdatum !== undefined ? r[col.verkaufsdatum] : null;
-                                if (verkaufsdatumRaw) {
+                                const verkaufRaw = col.verkauf !== undefined ? r[col.verkauf] : '';
+                                const hatVerkauf = !!verkaufsdatumRaw || (verkaufRaw !== '' && verkaufRaw !== null && verkaufRaw !== undefined);
+                                if (hatVerkauf) {
                                     const plattform = col.plattform !== undefined ? String(r[col.plattform] || '').trim() : '';
+                                    const datumFallback = !verkaufsdatumRaw;
                                     const sale = {
-                                        datum: parseDate(verkaufsdatumRaw),
+                                        datum: datumFallback ? parseDate(kaufdatumRaw) : parseDate(verkaufsdatumRaw),
                                         marke: '',
                                         artikeltyp: 'Sonstiges',
                                         groesse: '',
                                         beschreibung,
-                                        verkaufspreis: parseNum(r[col.verkauf]),
+                                        verkaufspreis: parseNum(verkaufRaw),
                                         versandkostenKaeufer: 0,
                                         plattformgebuehrProzent: 0,
                                         versandkostenVerkaufer: 0,
                                         verkaufsplattform: plattform,
                                         kaeufer: '',
-                                        notizen: '',
+                                        notizen: datumFallback ? 'Verkaufsdatum unbekannt – Kaufdatum übernommen' : '',
                                         purchaseId: saved.id
                                     };
                                     if (sale.verkaufsplattform) Store.addPlatform(sale.verkaufsplattform);

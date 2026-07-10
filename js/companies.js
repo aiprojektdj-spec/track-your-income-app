@@ -209,8 +209,10 @@ const CompanyManager = {
         for (const co of companies) {
             const purchases = await this._readPurchasesAllSources(co.id);
             purchases.forEach(p => {
-                if (p.id)            purchaseToCo[p.id] = co.id;
-                if (p.eigenbeleg_id) ebIdToCo[p.eigenbeleg_id] = co.id;
+                // Erste Firma gewinnt bei einer (eigentlich unmöglichen) id-Kollision zwischen
+                // Firmen — verhindert, dass eine später verarbeitete Firma die Zuordnung überschreibt.
+                if (p.id && !(p.id in purchaseToCo))                       purchaseToCo[p.id] = co.id;
+                if (p.eigenbeleg_id && !(p.eigenbeleg_id in ebIdToCo))     ebIdToCo[p.eigenbeleg_id] = co.id;
             });
         }
 

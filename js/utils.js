@@ -182,7 +182,7 @@ const Utils = {
         const BOM = '\uFEFF';
         const csv = BOM + rows.map(row => row.map(cell => {
             const str = String(cell == null ? '' : cell);
-            return str.includes(',') || str.includes('"') || str.includes('\n')
+            return str.includes(';') || str.includes(',') || str.includes('"') || str.includes('\n')
                 ? '"' + str.replace(/"/g, '""') + '"'
                 : str;
         }).join(';')).join('\n');

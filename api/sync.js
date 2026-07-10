@@ -113,9 +113,26 @@ module.exports = async function handler(req, res) {
         return res.status(502).json({ error: 'whop_unreachable' });
     }
 
-    // ── 3. PRO erzwingen (server-seitig, nicht nur UI) ────────────────────────
+    // ── 3. Request-Grunddaten (Action früh gebraucht für Pro-Gate-Ausnahme) ───
+    var body   = req.body || {};
+    var action = body.action;
+    var scope  = body.scope;
+
+    // Grantee-Lese-Aktionen (Steuerberater): durch ein Grant autorisiert, KEIN eigenes
+    // Pro-Abo nötig — der zahlende Mandant teilt seine Daten. Public-Key-Registrierung
+    // ist harmlos (öffentlicher Schlüssel). pull mit owner-Param wird per Grant-Check gated.
+    var GRANTEE_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+    var isGranteeRead = (action === 'register_pubkey' || action === 'list_grants' ||
+                         (action === 'pull' && !!body.owner));
+
+    // Schreiben in fremde Owner-Daten ist NIE erlaubt (StB read-only) — vor dem Pro-Gate,
+    // damit die Antwort 'readonly' ist, egal ob der StB selbst ein Abo hat.
+    if ((action === 'push' || action === 'delete') && body.owner)
+        return res.status(403).json({ error: 'readonly' });
+
+    // ── 4. PRO erzwingen (server-seitig) — nur für Owner-/Schreib-Aktionen ────
     var isOwner = OWNERS.indexOf(username) !== -1;
-    if (!isOwner) {
+    if (!isOwner && !isGranteeRead) {
         try {
             var accRes  = await fetch('https://api.whop.com/v5/me/has-access/' + WHOP_APP_ID, {
                 headers: { 'Authorization': 'Bearer ' + token },
@@ -129,7 +146,7 @@ module.exports = async function handler(req, res) {
         }
     }
 
-    // ── 4. Rate-Limit (KV-Counter, 60s-Fenster) ──────────────────────────────
+    // ── 4b. Rate-Limit (KV-Counter, 60s-Fenster) ─────────────────────────────
     try {
         var rlKey = 'sync:rl:' + userId;
         var count = await redisCmd(['INCR', rlKey]);
@@ -143,20 +160,31 @@ module.exports = async function handler(req, res) {
     }
 
     // ── 5. Request validieren ─────────────────────────────────────────────────
-    var body   = req.body || {};
-    var action = body.action;
-    var scope  = body.scope;
-    if (!SCOPE_RE.test(String(scope || ''))) return res.status(400).json({ error: 'bad_scope' });
+    // scope nur für scope-gebundene Aktionen (pull/push/delete) verlangen;
+    // pubkey-/grant-Aktionen brauchen keinen scope.
+    var isScopeAction = (action === 'pull' || action === 'push' || action === 'delete');
+    if (isScopeAction && !SCOPE_RE.test(String(scope || ''))) return res.status(400).json({ error: 'bad_scope' });
 
     var key = 'sync:' + userId + ':' + scope;
 
     try {
         if (action === 'pull') {
-            var cur = await redisCmd(['GET', key]);
+            var readKey = key;
+            if (body.owner) {
+                // Steuerberater liest fremden Mandanten-Scope → nur mit gültigem Grant (read-only)
+                var ownerId = String(body.owner);
+                if (!GRANTEE_ID_RE.test(ownerId)) return res.status(400).json({ error: 'bad_owner' });
+                var grantChk = await redisCmd(['GET', 'grant:' + ownerId + ':' + userId]);
+                if (!grantChk) return res.status(403).json({ error: 'no_grant' });
+                readKey = 'sync:' + ownerId + ':' + scope;
+            }
+            var cur = await redisCmd(['GET', readKey]);
             return res.status(200).json({ ok: true, blob: cur ? JSON.parse(cur) : null });
         }
 
         if (action === 'push') {
+            // Grantee (StB) ist strikt read-only: nie in fremde Owner-Keys schreiben
+            if (body.owner) return res.status(403).json({ error: 'readonly' });
             var expected = parseInt(body.version, 10);
             if (isNaN(expected) || expected < 0) return res.status(400).json({ error: 'bad_version' });
             if (typeof body.ciphertext !== 'string' || typeof body.iv !== 'string')
@@ -183,6 +211,58 @@ module.exports = async function handler(req, res) {
             // Art. 17 DSGVO — löscht den verschlüsselten Snapshot dieses Scopes unwiderruflich.
             await redisCmd(['DEL', key]);
             return res.status(200).json({ ok: true });
+        }
+
+        // ── Steuerberater-Freigabe (Envelope-Key, siehe js/stb-share.js) ──────
+        // Öffentlichen Schlüssel registrieren (idempotent). Kein Geheimnis.
+        if (action === 'register_pubkey') {
+            if (!body.pub || typeof body.pub !== 'object') return res.status(400).json({ error: 'bad_payload' });
+            var pubStr = JSON.stringify({ pub: body.pub, username: username, updatedAt: Date.now() });
+            if (pubStr.length > 4096) return res.status(413).json({ error: 'too_large' });
+            await redisCmd(['SET', 'pubkey:' + userId, pubStr]);
+            return res.status(200).json({ ok: true });
+        }
+
+        // Owner holt den Public-Key des einzuladenden StB (zum Wrappen des Datenschlüssels)
+        if (action === 'get_pubkey') {
+            var gidP = String(body.granteeId || '');
+            if (!GRANTEE_ID_RE.test(gidP)) return res.status(400).json({ error: 'bad_grantee' });
+            var pk = await redisCmd(['GET', 'pubkey:' + gidP]);
+            if (!pk) return res.status(404).json({ error: 'no_pubkey' });
+            return res.status(200).json({ ok: true, pubkey: JSON.parse(pk) });
+        }
+
+        // Owner erteilt Grant: verpackter Datenschlüssel (Envelope) für den StB ablegen
+        if (action === 'grant') {
+            var gidG = String(body.granteeId || '');
+            if (!GRANTEE_ID_RE.test(gidG)) return res.status(400).json({ error: 'bad_grantee' });
+            if (!body.envelope || typeof body.envelope !== 'object') return res.status(400).json({ error: 'bad_payload' });
+            var envStr = JSON.stringify(body.envelope);
+            if (envStr.length > 8192) return res.status(413).json({ error: 'too_large' });
+            var grantVal = JSON.stringify({ role: 'readonly', envelope: body.envelope, ownerName: username, createdAt: Date.now() });
+            await redisCmd(['SET', 'grant:' + userId + ':' + gidG, grantVal]);
+            await redisCmd(['SADD', 'grantsfor:' + gidG, userId]);
+            return res.status(200).json({ ok: true });
+        }
+
+        // Owner entzieht Grant (echter Revoke; Owner sollte danach re-keyen)
+        if (action === 'revoke') {
+            var gidR = String(body.granteeId || '');
+            if (!GRANTEE_ID_RE.test(gidR)) return res.status(400).json({ error: 'bad_grantee' });
+            await redisCmd(['DEL', 'grant:' + userId + ':' + gidR]);
+            await redisCmd(['SREM', 'grantsfor:' + gidR, userId]);
+            return res.status(200).json({ ok: true });
+        }
+
+        // StB listet alle Mandanten, die ihm Zugriff gewährt haben (+ Envelope zum Entpacken)
+        if (action === 'list_grants') {
+            var owners = (await redisCmd(['SMEMBERS', 'grantsfor:' + userId])) || [];
+            var grants = [];
+            for (var i = 0; i < owners.length; i++) {
+                var g = await redisCmd(['GET', 'grant:' + owners[i] + ':' + userId]);
+                if (g) { var go = JSON.parse(g); grants.push({ ownerId: owners[i], ownerName: go.ownerName || '', role: go.role, envelope: go.envelope }); }
+            }
+            return res.status(200).json({ ok: true, grants: grants });
         }
 
         return res.status(400).json({ error: 'bad_action' });

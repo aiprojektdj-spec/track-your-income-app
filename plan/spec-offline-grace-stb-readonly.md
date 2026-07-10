@@ -116,15 +116,21 @@ ist nur noch UX, keine Sicherheitsgrenze.
     lokal als `_readonly`-Client-Firmen ablegen), `foreignUnload()`. Sync überspringt `_readonly`-Firmen,
     `onLocalChange` gesperrt im Read-Only → Mandantendaten werden NIE hochgeladen.
   - `js/actions.js`: zentraler Read-Only-Guard am Dispatch (blockt Schreib-Verben via Regex; nur
-    click/submit) — EIN Chokepoint statt 155 Buttons. + Banner-CSS blendet Primär-Schreib-Buttons aus.
+    click/submit) — EIN Chokepoint statt 155 Buttons.
+  - `css/style.css`: `.stb-readonly`-Regeln blenden Schreib-Buttons per Attribut-Suffix aus
+    (extern statt inline, da CSP injizierte `<style>` blockt) — deckt so auch die eb-*/rech-*-
+    Router-Buttons ab. Banner-Platz via `padding-top`.
   - `js/whop-auth.js`: Menü-Einträge (einladen / Mandanten / Mein Code) + registerPubkey + Banner-Init.
-  - `app.html`: lädt `js/stb-share.js`.
+  - `app.html` **+ rechnungen/lager/eigenbelege/index.html**: laden `js/stb-share.js`.
   - **Architektur:** Mandanten erscheinen als zusätzliche READ-ONLY-Firmen in der bestehenden
     Multi-Company-Registry → volle App zeigt sie via CompanyManager, kein separater Renderpfad.
-  - **Offen/Rest:** (a) Browser-E2E mit 2 echten Whop-Accounts (Whop-Gate, nicht automatisierbar).
-    (b) Standalone-Seiten rechnungen/lager/eigenbelege laden stb-share.js/cloud-sync.js noch NICHT
-    (Parallel-Chat editierte deren HTML — Kollision vermieden) → dort greift der UI-Read-Only-Guard
-    noch nicht (Server-Schutz gilt trotzdem). (c) unwahrscheinliche co_id-Kollision Client↔eigene Firma.
+  - **co_id-Kollisionsschutz:** `foreignLoad` lässt Mandanten-Firmen mit ID-Kollision zu einer
+    eigenen Firma aus (nie überschreiben) + Warn-Toast.
+  - **Standalone-Seiten:** stb-share.js dort geladen → Banner + CSS-Ausblendung greifen. UI-Dispatch-
+    Guard deckt nur js/actions.js-Aktionen; eb-*/rech-* haben eigene Router → dort schützen CSS-
+    Ausblendung + Server-Hard-Block (StB kann nie in fremde Owner-Keys schreiben).
+  - **NOCH OFFEN (nur das):** Browser-E2E mit 2 echten Whop-Accounts (Einladung→Grant→Live-
+    Mandantenansicht→Entzug) — Whop-Gate, nicht automatisierbar, muss der User mit 2 Accounts fahren.
 
 **Rest-Risiko/Hinweis:** StB hat lesenden Vollzugriff (gewollt). „Read-only" schützt Owner-Daten vor
 Schreibzugriff (server-seitig), nicht vor Lesen/Export durch den StB — das ist der Zweck.

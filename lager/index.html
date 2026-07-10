@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Robust gegen Aufruf ohne Trailing-Slash (/lager): relative Pfade gegen Unterordner auflösen -->
     <base href="/lager/">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com; frame-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com; frame-src 'none';">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
     <title>Stackr — Lager</title>
     <link rel="preload" href="../fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="../fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="../css/style.css">
+    <script src="../js/actions.js"></script>
     <script src="../js/i18n.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.44.0/dist/tabler-icons.min.css" integrity="sha384-ccZHbezhtZWmNy0cg8odL0D/jFU5k5HIls9y78Qd6lWor7rpvFIZtK0fTFG4z456" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.css" integrity="sha384-snpJ3knpH6avB6cP1vPkNdmRzCYaCpom/3TNOyvo189BiogXYXQfXkyYpZ2/xADs" crossorigin="anonymous">
@@ -39,7 +40,7 @@
         <div id="companySwitcher"></div>
         <button class="theme-toggle" id="themeToggle" title="Theme wechseln" style="display:none;"></button>
         <a href="../app.html" id="settingsLink" title="Einstellungen" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-settings"></i></a>
-        <a href="../app.html" id="backupLink" title="Backup & Daten" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-device-floppy"></i></a>
+        <a href="../app.html?openBackup=1" id="backupLink" title="Backup & Daten" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-device-floppy"></i></a>
         <div id="fsBackupStatus" style="display:none;"></div>
     </div>
 </div>
@@ -57,7 +58,7 @@
             <div class="sidebar-link active" id="sidebarNeuArtikel">
                 <span class="icon"><i class="ti ti-plus"></i></span><span class="sidebar-link-label"> Neuer Artikel</span>
             </div>
-            <div class="sidebar-link" id="sidebarBuchungen" onclick="LagerPage.switchTab('buchungen')">
+            <div class="sidebar-link" id="sidebarBuchungen" data-action="lgp-tab" data-args='["buchungen"]' >
                 <span class="icon"><i class="ti ti-notes"></i></span><span class="sidebar-link-label"> Buchungen</span>
             </div>
             <div class="sidebar-link" id="sidebarBulkEinkauf">
@@ -107,25 +108,25 @@
 
         <div class="sidebar-section">Verknüpfungen</div>
         <div class="sidebar-section-items">
-            <div class="sidebar-link" onclick="window.location.href='../app.html'">
+            <div class="sidebar-link" data-action="goto" data-args=\'["../app.html"]\'>
                 <span class="icon"><i class="ti ti-layout-dashboard"></i></span><span class="sidebar-link-label"> Dashboard</span>
             </div>
-            <div class="sidebar-link" onclick="window.location.href='../app.html?page=euer'">
+            <div class="sidebar-link" data-action="goto" data-args=\'["../app.html?page=euer"]\'>
                 <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> EÜR ansehen</span>
             </div>
-            <div class="sidebar-link" id="sidebarGbrLink" style="display:none;" onclick="window.location.href='../app.html?page=gbr'">
+            <div class="sidebar-link" id="sidebarGbrLink" style="display:none;" data-action="goto" data-args=\'["../app.html?page=gbr"]\'>
                 <span class="icon"><i class="ti ti-users"></i></span><span class="sidebar-link-label"> GbR-Verwaltung</span>
             </div>
-            <div class="sidebar-link" onclick="window.location.href='../app.html?page=retouren'">
+            <div class="sidebar-link" data-action="goto" data-args=\'["../app.html?page=retouren"]\'>
                 <span class="icon"><i class="ti ti-arrow-back-up"></i></span><span class="sidebar-link-label"> Retouren</span>
             </div>
-            <div class="sidebar-link" onclick="window.location.href='../app.html?page=kassenbuch'">
+            <div class="sidebar-link" data-action="goto" data-args=\'["../app.html?page=kassenbuch"]\'>
                 <span class="icon"><i class="ti ti-cash"></i></span><span class="sidebar-link-label"> Kassenbuch</span>
             </div>
-            <div class="sidebar-link" onclick="window.location.href='../app.html?page=materiallager'">
+            <div class="sidebar-link" data-action="goto" data-args=\'["../app.html?page=materiallager"]\'>
                 <span class="icon"><i class="ti ti-box"></i></span><span class="sidebar-link-label"> Materiallager</span>
             </div>
-            <div class="sidebar-link" onclick="window.location.href='../app.html?openBackup=1'">
+            <div class="sidebar-link" data-action="goto" data-args=\'["../app.html?openBackup=1"]\'>
                 <span class="icon"><i class="ti ti-device-floppy"></i></span><span class="sidebar-link-label"> Backup &amp; Daten</span>
             </div>
         </div>

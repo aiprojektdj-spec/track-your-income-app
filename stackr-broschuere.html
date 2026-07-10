@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stackr — Buchhaltung für Freelancer, Reseller &amp; Kleinunternehmer</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+@font-face { font-family:'Inter'; font-style:normal; font-weight:100 900; font-display:swap; src:url('fonts/inter-var-latin.woff2') format('woff2'); }
+@font-face { font-family:'Fraunces'; font-style:normal; font-weight:100 900; font-display:swap; src:url('fonts/fraunces-var-latin.woff2') format('woff2'); }
+
+:root{
+    --bg:#0a0c0b; --surface:#101312; --card:#161a18;
+    --border:rgba(255,255,255,.06); --border-hi:rgba(16,185,129,.28);
+    --accent:#10b981; --accent2:#0da271;
+    --text:#eef2f0; --muted:#71807a; --subtle:#9ba8a1;
+    --green:#22c55e; --red:#ef5350; --amber:#f5a623;
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    --font-display:'Fraunces','Iowan Old Style',Georgia,serif;
+    --ease:cubic-bezier(.35,.7,.25,1);
+}
+html{ scroll-behavior:smooth; }
+body{ background:var(--bg); color:var(--text); font-family:var(--font-sans); line-height:1.6; overflow-x:hidden; -webkit-font-smoothing:antialiased; }
+::selection{ background:rgba(16,185,129,.25); }
+.ic{ width:22px; height:22px; stroke-width:1.75; }
+
+/* ── Header ── */
+.topbar{ display:flex; align-items:center; gap:10px; padding:18px 24px; border-bottom:1px solid var(--border); max-width:1100px; margin:0 auto; }
+.brand-icon{ font-size:22px; color:var(--accent); line-height:1; }
+.brand-name{ font-size:16px; font-weight:700; letter-spacing:-.2px; }
+.brand-tag{ margin-left:auto; font-size:11.5px; color:#34d399; background:rgba(16,185,129,.1); border:1px solid var(--border-hi); padding:4px 12px; border-radius:999px; }
+
+/* ── Hero ── */
+.hero{ position:relative; padding:80px 24px 72px; text-align:center; overflow:hidden; }
+.hero-glow{ position:absolute; top:-140px; left:50%; transform:translateX(-50%); width:760px; height:440px; background:radial-gradient(ellipse at center,rgba(16,185,129,.16) 0%,transparent 70%); pointer-events:none; }
+.hero-badge{ display:inline-flex; align-items:center; gap:6px; background:rgba(16,185,129,.1); border:1px solid var(--border-hi); color:#34d399; font-size:12px; padding:5px 14px; border-radius:999px; margin-bottom:26px; }
+.hero h1{ font-family:var(--font-display); font-size:clamp(36px,6.4vw,64px); font-weight:580; line-height:1.06; letter-spacing:-.015em; margin-bottom:22px; max-width:840px; margin-left:auto; margin-right:auto; }
+.hero h1 .grad{ background:linear-gradient(135deg,#34d399,#10b981,#059669); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.hero-sub{ font-size:clamp(15px,2.5vw,18px); color:var(--subtle); max-width:620px; margin:0 auto 32px; line-height:1.65; }
+.hero-sub strong{ color:var(--text); font-weight:600; }
+.hero-actions{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:14px; }
+.hero-micro{ font-size:12.5px; color:var(--muted); margin-bottom:52px; }
+
+/* ── WhatsApp button ── */
+.btn-wa{ display:inline-flex; align-items:center; gap:10px; background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; border:none; padding:14px 26px; border-radius:12px; cursor:pointer; font-size:15px; font-weight:600; font-family:var(--font-sans); text-decoration:none; transition:opacity .2s,transform .2s var(--ease); box-shadow:0 8px 32px -8px rgba(16,185,129,.45),inset 0 1px 0 rgba(255,255,255,.18); }
+.btn-wa:hover{ opacity:.92; transform:translateY(-1px); }
+.btn-wa svg{ width:20px; height:20px; flex-shrink:0; }
+.btn-wa small{ font-weight:400; opacity:.85; }
+
+/* ── App mockup ── */
+.hero-mockup-wrap{ position:relative; max-width:840px; margin:0 auto; }
+.hero-mockup{ background:var(--card); border:1px solid var(--border); border-radius:18px; padding:16px; box-shadow:0 40px 96px -24px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.04),inset 0 1px 0 rgba(255,255,255,.05); }
+.mockup-bar{ display:flex; align-items:center; gap:8px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+.mockup-dot{ width:10px; height:10px; border-radius:50%; }
+.mockup-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px; }
+.mockup-stat{ background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px; text-align:left; }
+.mockup-stat-label{ font-size:10px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.4px; }
+.mockup-stat-val{ font-size:19px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
+.mockup-stat-sub{ font-size:10px; color:var(--green); margin-top:2px; }
+.mockup-chart{ background:var(--surface); border:1px solid var(--border); border-radius:8px; height:110px; display:flex; align-items:flex-end; gap:6px; padding:14px; }
+.hbar{ flex:1; background:linear-gradient(to top,rgba(16,185,129,.55),rgba(52,211,153,.85)); border-radius:3px 3px 0 0; height:var(--h); transform-origin:bottom; animation:barGrow .9s var(--ease) both; }
+@keyframes barGrow{ from{transform:scaleY(0);} to{transform:scaleY(1);} }
+.mockup-chip{ position:absolute; display:flex; align-items:center; gap:7px; background:rgba(16,20,18,.92); border:1px solid var(--border-hi); border-radius:10px; padding:9px 14px; font-size:12px; font-weight:600; color:var(--text); box-shadow:0 16px 40px -8px rgba(0,0,0,.6); backdrop-filter:blur(8px); animation:chipFloat 5s ease-in-out infinite; }
+.mockup-chip svg{ width:16px; height:16px; color:var(--accent); flex-shrink:0; }
+.chip-gobd{ top:18px; right:-26px; }
+.chip-euer{ bottom:26px; left:-30px; animation-delay:2.5s; }
+@keyframes chipFloat{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(-7px);} }
+.hero-stats{ display:flex; gap:36px; justify-content:center; flex-wrap:wrap; margin-top:52px; padding-top:40px; border-top:1px solid var(--border); max-width:840px; margin-left:auto; margin-right:auto; }
+.hero-stat{ text-align:center; }
+.hero-stat-num{ font-family:var(--font-display); font-size:24px; font-weight:580; color:var(--text); }
+.hero-stat-lbl{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+/* ── Sections ── */
+section{ padding:80px 24px; max-width:1100px; margin:0 auto; }
+.section-head{ text-align:center; margin-bottom:48px; }
+.section-tag{ display:inline-block; background:rgba(16,185,129,.1); border:1px solid var(--border-hi); color:#34d399; font-size:11px; font-weight:600; padding:4px 12px; border-radius:999px; letter-spacing:.5px; text-transform:uppercase; margin-bottom:14px; }
+.section-title{ font-family:var(--font-display); font-size:clamp(26px,4.2vw,40px); font-weight:580; letter-spacing:-.01em; line-height:1.15; margin-bottom:12px; }
+.section-sub{ font-size:16px; color:var(--subtle); max-width:640px; margin:0 auto; }
+
+/* ── Pain ── */
+.pain-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
+.pain-card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:28px; }
+.pain-num{ font-family:var(--font-display); font-size:15px; color:var(--muted); margin-bottom:14px; letter-spacing:1px; }
+.pain-title{ font-size:16px; font-weight:700; margin-bottom:8px; }
+.pain-desc{ font-size:13.5px; color:var(--subtle); line-height:1.65; }
+.pain-bridge{ text-align:center; margin-top:48px; font-family:var(--font-display); font-size:clamp(20px,3vw,28px); font-weight:580; color:var(--text); }
+.pain-bridge .down{ display:block; color:var(--accent); font-size:22px; margin-top:14px; }
+
+/* ── Flow ── */
+.flow-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+.flow-step{ padding:30px 26px; background:var(--card); border:1px solid var(--border); border-radius:16px; }
+.flow-num{ font-family:var(--font-display); font-size:42px; font-weight:580; line-height:1; background:linear-gradient(135deg,#34d399,#059669); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:16px; }
+.flow-title{ font-size:16px; font-weight:700; margin-bottom:8px; }
+.flow-desc{ font-size:13.5px; color:var(--subtle); line-height:1.65; }
+
+/* ── Bento ── */
+.bento{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.bento-card{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:24px; transition:border-color .25s var(--ease),transform .25s var(--ease); }
+.bento-card:hover{ border-color:var(--border-hi); transform:translateY(-2px); }
+.bento-card.wide{ grid-column:span 2; }
+.bento-icon{ width:38px; height:38px; border-radius:10px; background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.2); display:flex; align-items:center; justify-content:center; color:var(--accent); margin-bottom:14px; }
+.bento-title{ font-size:14.5px; font-weight:700; margin-bottom:6px; }
+.bento-desc{ font-size:12.5px; color:var(--subtle); line-height:1.6; }
+.bento-mini{ margin-top:16px; display:flex; flex-direction:column; gap:5px; }
+.bento-mini-row{ display:flex; justify-content:space-between; gap:8px; background:var(--surface); border-radius:6px; padding:7px 10px; font-size:11.5px; color:var(--subtle); }
+.bento-mini-row strong{ color:var(--text); font-variant-numeric:tabular-nums; }
+.bento-split{ margin-top:16px; }
+.bento-split-bar{ display:flex; height:10px; border-radius:5px; overflow:hidden; margin-bottom:8px; }
+.bento-split-bar .a{ background:var(--accent); width:60%; }
+.bento-split-bar .b{ background:#8b93f8; width:40%; }
+.bento-split-leg{ display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
+
+/* ── Personas ── */
+.persona-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:16px; }
+.persona-card{ background:var(--card); border:1px solid var(--border); border-radius:16px; padding:30px 28px; display:flex; flex-direction:column; }
+.persona-icon{ width:42px; height:42px; border-radius:11px; background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.2); display:flex; align-items:center; justify-content:center; color:var(--accent); margin-bottom:16px; }
+.persona-kicker{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; font-weight:600; margin-bottom:4px; }
+.persona-title{ font-family:var(--font-display); font-size:21px; font-weight:580; margin-bottom:10px; }
+.persona-lead{ font-size:13.5px; color:var(--subtle); line-height:1.65; margin-bottom:18px; }
+.persona-list{ list-style:none; display:flex; flex-direction:column; gap:8px; }
+.persona-list li{ font-size:13px; color:var(--subtle); display:flex; gap:9px; line-height:1.5; }
+.persona-list li::before{ content:"✓"; color:var(--accent); font-weight:700; flex-shrink:0; }
+
+/* ── Vergleich ── */
+.cmp-scroll{ overflow-x:auto; border:1px solid var(--border); border-radius:16px; background:var(--card); }
+.cmp-table{ width:100%; border-collapse:collapse; min-width:680px; font-size:13.5px; }
+.cmp-table th,.cmp-table td{ padding:14px 18px; text-align:center; border-bottom:1px solid var(--border); }
+.cmp-table tr:last-child th,.cmp-table tr:last-child td{ border-bottom:none; }
+.cmp-table th:first-child,.cmp-table td:first-child{ text-align:left; color:var(--subtle); font-weight:500; max-width:280px; }
+.cmp-table thead th{ font-size:13px; font-weight:700; color:var(--text); padding-top:20px; padding-bottom:16px; }
+.cmp-table thead th:first-child{ color:var(--muted); font-weight:500; font-size:12px; }
+.cmp-table .c-us{ background:rgba(16,185,129,.06); color:var(--text); font-weight:600; }
+.cmp-table thead .c-us{ color:var(--accent); font-size:14px; }
+.cmp-yes{ color:var(--accent); font-weight:700; }
+.cmp-no{ color:var(--muted); }
+.cmp-half{ color:var(--amber); }
+.cmp-note{ font-size:11.5px; color:var(--muted); margin-top:14px; line-height:1.6; }
+.cmp-legend{ display:flex; gap:18px; justify-content:center; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:16px; }
+
+/* ── Testimonials ── */
+.testimonials-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
+.testimonial-card{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:24px 26px; display:flex; flex-direction:column; }
+.testimonial-stars{ color:var(--amber); font-size:13px; margin-bottom:12px; letter-spacing:1.5px; }
+.testimonial-text{ font-size:14px; color:var(--subtle); line-height:1.7; margin-bottom:18px; flex:1; }
+.testimonial-author{ display:flex; align-items:center; gap:11px; }
+.testimonial-avatar{ width:36px; height:36px; border-radius:50%; background:rgba(16,185,129,.07); border:1px solid rgba(16,185,129,.2); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:var(--accent); flex-shrink:0; }
+.testimonial-name{ font-size:13px; font-weight:600; color:var(--text); }
+.testimonial-role{ font-size:11px; color:var(--muted); margin-top:1px; }
+
+/* ── Preis ── */
+#preise{ background:linear-gradient(to bottom,var(--bg),var(--surface)); }
+.price-wrap{ max-width:560px; margin:0 auto; }
+.price-card{ background:linear-gradient(135deg,rgba(16,185,129,.07),rgba(5,150,105,.03)); border:1px solid var(--border-hi); border-radius:20px; padding:40px 36px; text-align:center; position:relative; box-shadow:0 0 0 1px rgba(16,185,129,.15),0 20px 48px rgba(0,0,0,.4); }
+.price-card .badge{ position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff; font-size:11px; font-weight:700; padding:4px 16px; border-radius:999px; letter-spacing:.3px; }
+.price-plan{ font-size:13px; font-weight:600; color:var(--subtle); text-transform:uppercase; letter-spacing:1px; margin-bottom:14px; }
+.price-amt{ font-family:var(--font-display); font-size:64px; font-weight:580; color:var(--text); line-height:1; font-variant-numeric:tabular-nums; }
+.price-amt span{ font-family:var(--font-sans); font-size:18px; font-weight:400; color:var(--muted); }
+.price-tagline{ font-size:14px; color:var(--accent); font-weight:600; margin:14px 0 24px; }
+.price-features{ list-style:none; text-align:left; max-width:340px; margin:0 auto 28px; }
+.price-features li{ font-size:13.5px; color:var(--subtle); padding:7px 0; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border); }
+.price-features li:last-child{ border-bottom:none; }
+.price-features li .check{ color:var(--green); font-size:14px; flex-shrink:0; }
+.price-pay{ font-size:12.5px; color:var(--muted); margin-top:16px; }
+.price-pay b{ color:var(--subtle); }
+.price-anchor{ max-width:600px; margin:32px auto 0; text-align:center; font-size:14px; color:var(--subtle); line-height:1.7; }
+.price-anchor strong{ color:var(--text); }
+
+/* ── FAQ ── */
+.faq-list{ max-width:760px; margin:0 auto; }
+.faq-item{ border-bottom:1px solid var(--border); padding:18px 0; }
+.faq-q{ font-size:15px; font-weight:600; color:var(--text); margin-bottom:8px; display:flex; gap:10px; }
+.faq-q::before{ content:"›"; color:var(--accent); font-weight:700; }
+.faq-a{ font-size:14px; color:var(--subtle); line-height:1.65; padding-left:18px; }
+
+/* ── CTA banner ── */
+.cta-wrap{ padding:0 24px; }
+.cta-banner{ position:relative; background:linear-gradient(150deg,rgba(16,185,129,.1),rgba(13,162,113,.05)); border:1px solid var(--border-hi); border-radius:24px; padding:56px 32px; text-align:center; max-width:760px; margin:0 auto 80px; overflow:hidden; }
+.cta-banner::before{ content:""; position:absolute; top:-80px; left:50%; transform:translateX(-50%); width:420px; height:220px; background:radial-gradient(ellipse at center,rgba(16,185,129,.14) 0%,transparent 70%); pointer-events:none; }
+.cta-banner h2{ font-family:var(--font-display); font-size:clamp(24px,4vw,36px); font-weight:580; letter-spacing:-.01em; margin-bottom:12px; position:relative; }
+.cta-banner p{ font-size:15px; color:var(--subtle); margin-bottom:26px; position:relative; }
+.cta-banner .hero-micro{ margin-top:14px; margin-bottom:0; position:relative; }
+
+/* ── Footer ── */
+footer{ border-top:1px solid var(--border); padding:32px 24px; text-align:center; font-size:13px; color:var(--muted); }
+footer a{ color:var(--muted); text-decoration:none; }
+.footer-claim{ font-size:11.5px; color:var(--muted); margin-top:10px; max-width:600px; margin-left:auto; margin-right:auto; line-height:1.5; }
+
+/* ── Print / PDF ── */
+@media print{
+    @page{ size:A4 portrait; margin:10mm; }
+    html,body{ background:var(--bg)!important; }
+    *{ -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; }
+    .mockup-chip,.hero-glow{ display:none!important; }
+    section,.hero{ padding:36px 0; break-inside:avoid; }
+    .bento-card,.pain-card,.flow-step,.persona-card,.testimonial-card,.price-card{ break-inside:avoid; }
+    a{ text-decoration:none; }
+}
+
+@media(max-width:980px){ .bento{ grid-template-columns:repeat(2,1fr); } .flow-grid{ grid-template-columns:1fr; } }
+@media(max-width:640px){
+    .mockup-stats{ grid-template-columns:repeat(2,1fr); }
+    .hero-stats{ gap:22px; }
+    .mockup-chip{ display:none; }
+    .bento{ grid-template-columns:1fr; }
+    .bento-card.wide{ grid-column:span 1; }
+    section{ padding:60px 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ICONS -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3h6v2"/><path d="m9 13.5 2 2 4-4.5"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12 4 7.5M12 12l8-4.5M12 12v9"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.6c2.5.3 3.5 2.2 3.5 4.4"/></symbol>
+    <symbol id="i-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16.5V14l2-5.5h12L20 14v2.5"/><path d="M4 14h16"/><circle cx="8" cy="17.5" r="1.6"/><circle cx="16" cy="17.5" r="1.6"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6z"/><path d="m9.5 11.5 2 2 3.5-4"/></symbol>
+    <symbol id="i-school" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 4.5 9 4.5-9 4.5L3 9z"/><path d="M7 11.5V16c0 1 2.2 2 5 2s5-1 5-2v-4.5"/></symbol>
+    <symbol id="i-receipt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2-1.5L14 21l-2-1.5L10 21l-2-1.5L6 21z"/><path d="M9.5 8.5h5M9.5 12.5h5"/></symbol>
+    <symbol id="i-calc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><rect x="8" y="6" width="8" height="3.5" rx=".5"/><path d="M8.5 14h.01M12 14h.01M15.5 14h.01M8.5 17.5h.01M12 17.5h.01M15.5 17.5h.01"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m4 20 1.2-4.2L16.5 4.5a2.12 2.12 0 0 1 3 3L8.2 18.8z"/><path d="m13.5 7.5 3 3"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12V4h8l8 8-8 8z"/><circle cx="8.5" cy="8.5" r="1.2"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 6-6 4 4 7-8"/><path d="M14 7h6v6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></symbol>
+    <symbol id="i-wa" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm5.8 14.18c-.24.68-1.42 1.31-1.95 1.36-.5.05-1.13.07-1.83-.11-.42-.13-.96-.31-1.66-.61-2.92-1.26-4.83-4.2-4.98-4.4-.15-.2-1.19-1.58-1.19-3.02s.76-2.13 1.03-2.43c.27-.29.58-.36.78-.36.19 0 .39 0 .56.01.18.01.42-.07.66.5.24.59.83 2.03.9 2.18.07.15.12.32.02.51-.09.2-.14.32-.28.49-.14.17-.29.38-.42.51-.14.14-.28.29-.12.57.16.27.71 1.17 1.53 1.9 1.05.94 1.94 1.23 2.21 1.37.27.14.43.12.59-.07.16-.2.68-.79.86-1.06.18-.27.36-.23.61-.14.25.09 1.6.75 1.87.89.27.14.46.2.53.32.07.12.07.66-.17 1.34z"/></symbol>
+</svg>
+
+<!-- HEADER -->
+<header class="topbar">
+    <span class="brand-icon">◆</span>
+    <span class="brand-name">Stackr</span>
+    <span class="brand-tag">Buchhaltung, die dich in Ruhe lässt</span>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-badge">✦ Für Freelancer, Reseller &amp; Kleinunternehmer</div>
+    <h1>Steuern stressen.<br><span class="grad">Stackr beruhigt.</span></h1>
+    <p class="hero-sub">
+        Buchungen, Rechnungen, EÜR und GoBD-Protokoll in <strong>einer App</strong> —
+        statt an einem verlorenen Sonntag erledigst du deine Buchhaltung in
+        <strong>20 Minuten im Monat</strong>. Deine Daten bleiben auf <strong>deinem Gerät</strong>, läuft offline.
+    </p>
+    <div class="hero-actions">
+        <a class="btn-wa" href="https://wa.me/4915734191444"><svg><use href="#i-wa"/></svg> Auf WhatsApp holen — 45 €</a>
+    </div>
+    <div class="hero-micro">Einmal 45 € · kein Abo · alle 12 Module · läuft offline</div>
+
+    <div class="hero-mockup-wrap">
+        <div class="hero-mockup">
+            <div class="mockup-bar">
+                <div class="mockup-dot" style="background:#ef4444;"></div>
+                <div class="mockup-dot" style="background:#f59e0b;"></div>
+                <div class="mockup-dot" style="background:#22c55e;"></div>
+                <span style="font-size:12px;color:var(--muted);margin-left:8px;">Stackr — Dashboard</span>
+                <span style="margin-left:auto;font-size:11px;color:var(--muted);">Juni 2026</span>
+            </div>
+            <div class="mockup-stats">
+                <div class="mockup-stat"><div class="mockup-stat-label">Einnahmen (Monat)</div><div class="mockup-stat-val">8.450 €</div><div class="mockup-stat-sub">↑ +12 % vs. Vormonat</div></div>
+                <div class="mockup-stat"><div class="mockup-stat-label">Ausgaben</div><div class="mockup-stat-val">2.130 €</div><div class="mockup-stat-sub" style="color:#f87171;">↑ +3 %</div></div>
+                <div class="mockup-stat"><div class="mockup-stat-label">Offene Rechnungen</div><div class="mockup-stat-val">3</div><div class="mockup-stat-sub" style="color:var(--muted);">1.240 € offen</div></div>
+                <div class="mockup-stat"><div class="mockup-stat-label">Gewinn (netto)</div><div class="mockup-stat-val">6.320 €</div><div class="mockup-stat-sub">↑ +18 %</div></div>
+            </div>
+            <div class="mockup-chart" aria-hidden="true">
+                <div class="hbar" style="--h:38%;animation-delay:.05s;"></div>
+                <div class="hbar" style="--h:55%;animation-delay:.12s;"></div>
+                <div class="hbar" style="--h:46%;animation-delay:.19s;"></div>
+                <div class="hbar" style="--h:72%;animation-delay:.26s;"></div>
+                <div class="hbar" style="--h:60%;animation-delay:.33s;"></div>
+                <div class="hbar" style="--h:84%;animation-delay:.40s;"></div>
+                <div class="hbar" style="--h:100%;animation-delay:.47s;"></div>
+            </div>
+        </div>
+        <div class="mockup-chip chip-gobd"><svg><use href="#i-shield"/></svg> GoBD-protokolliert</div>
+        <div class="mockup-chip chip-euer"><svg><use href="#i-clip"/></svg> EÜR exportiert · XLSX</div>
+    </div>
+
+    <div class="hero-stats">
+        <div class="hero-stat"><div class="hero-stat-num">GoBD</div><div class="hero-stat-lbl">Änderungsprotokoll</div></div>
+        <div class="hero-stat"><div class="hero-stat-num">DSGVO</div><div class="hero-stat-lbl">100 % lokal gespeichert</div></div>
+        <div class="hero-stat"><div class="hero-stat-num">§14 · §19</div><div class="hero-stat-lbl">UStG-konforme Rechnungen</div></div>
+        <div class="hero-stat"><div class="hero-stat-num">12 Module</div><div class="hero-stat-lbl">Ein Preis. Keine Tarif-Treppe.</div></div>
+    </div>
+</div>
+
+<!-- PAIN -->
+<section>
+    <div class="section-head">
+        <div class="section-tag">Kennst du das?</div>
+        <h2 class="section-title">Der Sonntagabend vor der Steuer.</h2>
+        <p class="section-sub">Selbstständig sein heißt: Du machst die Arbeit von fünf Leuten. Buchhalter sollte nicht dazugehören.</p>
+    </div>
+    <div class="pain-grid">
+        <div class="pain-card"><div class="pain-num">01</div><div class="pain-title">Das Excel-Chaos</div><div class="pain-desc">Drei Versionen derselben Tabelle, eine kaputte Formel, und niemand weiß mehr, welche Zahl stimmt. Jeden Monat fängst du wieder bei null an.</div></div>
+        <div class="pain-card"><div class="pain-num">02</div><div class="pain-title">Der Schuhkarton voller Belege</div><div class="pain-desc">Flohmarkt-Quittungen, PayPal-Screenshots, DHL-Belege — und im Hinterkopf die leise Angst: <em>Was, wenn das Finanzamt prüft?</em></div></div>
+        <div class="pain-card"><div class="pain-num">03</div><div class="pain-title">Die Steuerberater-Rechnung</div><div class="pain-desc">150 € die Stunde — fürs <em>Sortieren</em> deiner Unterlagen. Je chaotischer du übergibst, desto teurer wird es am Jahresende.</div></div>
+    </div>
+    <div class="pain-bridge">Es geht auch ruhig.<span class="down">↓</span></div>
+</section>
+
+<!-- FLOW -->
+<section>
+    <div class="section-head">
+        <div class="section-tag">So funktioniert's</div>
+        <h2 class="section-title">Drei Schritte. Mehr ist es nicht.</h2>
+        <p class="section-sub">Von der ersten Buchung bis zur Übergabe an den Steuerberater — ohne Buchhaltungs-Vorkenntnisse.</p>
+    </div>
+    <div class="flow-grid">
+        <div class="flow-step"><div class="flow-num">1</div><div class="flow-title">Erfassen</div><div class="flow-desc">Buchung in 10 Sekunden: Betrag, Kategorie, fertig. Lager-Verkäufe übernimmst du mit einem Klick, Barkäufe dokumentierst du als Eigenbeleg mit Foto.</div></div>
+        <div class="flow-step"><div class="flow-num">2</div><div class="flow-title">Verstehen</div><div class="flow-desc">Dashboard, Statistiken und EÜR berechnen sich von selbst. Du siehst jederzeit, was du verdienst, was du schuldest — und was du absetzen kannst.</div></div>
+        <div class="flow-step"><div class="flow-num">3</div><div class="flow-title">Übergeben</div><div class="flow-desc">Am Jahresende exportierst du EÜR, Buchungen und GoBD-Protokoll als XLSX. Dein Steuerberater spart Stunden — und du sparst sein Honorar dafür.</div></div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<section>
+    <div class="section-head">
+        <div class="section-tag">Funktionen</div>
+        <h2 class="section-title">Von der ersten Buchung bis zur Steuererklärung.</h2>
+        <p class="section-sub">12 Module, ein Preis — alles enthalten. Kein „nur im Premium-Plan".</p>
+    </div>
+    <div class="bento">
+        <div class="bento-card wide"><div class="bento-icon"><svg class="ic"><use href="#i-clip"/></svg></div><div class="bento-title">EÜR auf Knopfdruck</div><div class="bento-desc">Deine Einnahmen-Überschuss-Rechnung berechnet sich automatisch aus jeder Buchung — Monat, Quartal, Jahr. Als Excel exportierbar, steuerberater-ready.</div><div class="bento-mini"><div class="bento-mini-row"><span>Betriebseinnahmen</span><strong style="color:var(--accent);">48.920,00 €</strong></div><div class="bento-mini-row"><span>Betriebsausgaben</span><strong style="color:var(--red);">− 22.460,00 €</strong></div><div class="bento-mini-row"><span>Gewinn</span><strong style="color:var(--green);">26.460,00 €</strong></div></div></div>
+        <div class="bento-card wide"><div class="bento-icon"><svg class="ic"><use href="#i-box"/></svg></div><div class="bento-title">Lager für Reseller</div><div class="bento-desc">Artikel mit EK, VK, Zustand und Marge tracken. Beim Verkauf mit einem Klick als Buchung übernehmen — Lagerwert läuft automatisch mit.</div><div class="bento-split"><div class="bento-split-bar"><div class="a"></div><div class="b"></div></div><div class="bento-split-leg"><span>Verkauft · 60 %</span><span>Lagerbestand · 40 %</span></div></div></div>
+        <div class="bento-card wide"><div class="bento-icon"><svg class="ic"><use href="#i-file"/></svg></div><div class="bento-title">Rechnungen &amp; Angebote</div><div class="bento-desc">§14 UStG-konforme Rechnungen mit eigenem Logo in 30 Sekunden. Fortlaufende Nummern, Angebote, Mahnungen, PDF-Export — auch für Kleinunternehmer (§19).</div></div>
+        <div class="bento-card wide"><div class="bento-icon"><svg class="ic"><use href="#i-users"/></svg></div><div class="bento-title">Echte GbR-Verwaltung</div><div class="bento-desc">Gewinnverteilung nach Quote, Verrechnungskonten je Gesellschafter, separate EÜR — eines der wenigen Tools, das GbRs wirklich kann.</div></div>
+        <div class="bento-card"><div class="bento-icon"><svg class="ic"><use href="#i-receipt"/></svg></div><div class="bento-title">Eigenbelege</div><div class="bento-desc">Flohmarkt-Kauf ohne Quittung? GoBD-konform dokumentiert, mit Foto-Upload.</div></div>
+        <div class="bento-card"><div class="bento-icon"><svg class="ic"><use href="#i-car"/></svg></div><div class="bento-title">Fahrtenbuch</div><div class="bento-desc">Fahrten erfassen, 0,30 €/km automatisch berechnet und absetzbar.</div></div>
+        <div class="bento-card"><div class="bento-icon"><svg class="ic"><use href="#i-calc"/></svg></div><div class="bento-title">AfA &amp; KSK</div><div class="bento-desc">Abschreibungen mit Anlagenverzeichnis und Künstlersozialabgabe — automatisch berechnet.</div></div>
+        <div class="bento-card"><div class="bento-icon"><svg class="ic"><use href="#i-shield"/></svg></div><div class="bento-title">GoBD-Protokoll</div><div class="bento-desc">Lückenloses Audit-Log mit Zeitstempel und Checksumme. Storno statt Löschen.</div></div>
+        <div class="bento-card"><div class="bento-icon"><svg class="ic"><use href="#i-trend"/></svg></div><div class="bento-title">Statistiken</div><div class="bento-desc">Margen je Kategorie, beste Monate, Top-Plattformen — interaktive Charts.</div></div>
+        <div class="bento-card"><div class="bento-icon"><svg class="ic"><use href="#i-school"/></svg></div><div class="bento-title">Steuer-Akademie</div><div class="bento-desc">9 Module, 31+ Lektionen: Steuern, Krankenversicherung, EÜR — verständlich erklärt.</div></div>
+        <div class="bento-card"><div class="bento-icon"><svg class="ic"><use href="#i-shield"/></svg></div><div class="bento-title">Automatische Backups</div><div class="bento-desc">Daten bleiben lokal auf deinem Gerät — automatische Sicherungen plus Backup in einen Ordner deiner Wahl.</div></div>
+        <div class="bento-card"><div class="bento-icon"><svg class="ic"><use href="#i-receipt"/></svg></div><div class="bento-title">Kleinunternehmer §19</div><div class="bento-desc">Voller Support für die Kleinunternehmerregelung — jederzeit umschaltbar.</div></div>
+    </div>
+</section>
+
+<!-- PERSONAS -->
+<section>
+    <div class="section-head">
+        <div class="section-tag">Für wen?</div>
+        <h2 class="section-title">Drei Arten, selbstständig zu sein.<br>Eine App.</h2>
+        <p class="section-sub">Stackr ist für Leute gebaut, die keine Buchhalter sind — und auch keine werden wollen.</p>
+    </div>
+    <div class="persona-grid">
+        <div class="persona-card">
+            <div class="persona-icon"><svg class="ic"><use href="#i-pen"/></svg></div>
+            <div class="persona-kicker">Solo &amp; kreativ</div>
+            <div class="persona-title">Freelancer</div>
+            <p class="persona-lead">Du willst arbeiten, nicht buchhalten. Stackr nimmt dir den Papierkram ab — inklusive der Dinge, die nur Kreative betreffen.</p>
+            <ul class="persona-list">
+                <li>Rechnungen mit eigenem Logo in 30 Sekunden</li>
+                <li>KSK-Abgabe automatisch berechnet</li>
+                <li>EÜR &amp; USt-Voranmeldung vorbereitet</li>
+                <li>Akademie: Krankenversicherung &amp; Steuern erklärt</li>
+            </ul>
+        </div>
+        <div class="persona-card">
+            <div class="persona-icon"><svg class="ic"><use href="#i-tag"/></svg></div>
+            <div class="persona-kicker">eBay · Vinted · Flohmarkt</div>
+            <div class="persona-title">Reseller</div>
+            <p class="persona-lead">200 Artikel im Monat und ein Schuhkarton voller Belege? Stackr ist das einzige Buchhaltungstool mit echtem Reseller-Lager.</p>
+            <ul class="persona-list">
+                <li>Lager mit EK, VK und Marge je Artikel</li>
+                <li>Verkauf → Buchung mit einem Klick</li>
+                <li>Eigenbelege für Barkäufe ohne Quittung</li>
+                <li>Plattform-Statistiken: eBay, Vinted &amp; Co.</li>
+            </ul>
+        </div>
+        <div class="persona-card">
+            <div class="persona-icon"><svg class="ic"><use href="#i-receipt"/></svg></div>
+            <div class="persona-kicker">Nebengewerbe · §19 UStG</div>
+            <div class="persona-title">Kleinunternehmer</div>
+            <p class="persona-lead">Nebenbei was dazuverdienen — ohne Ärger mit dem Finanzamt. Stackr hält dir den Überblick, ganz ohne Buchhaltungs-Studium.</p>
+            <ul class="persona-list">
+                <li>Kleinunternehmerregelung (§19) voll unterstützt</li>
+                <li>Rechnungen ohne MwSt. mit korrektem Hinweis</li>
+                <li>EÜR &amp; Belege sauber dokumentiert</li>
+                <li>Einfach genug für den Feierabend</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- VERGLEICH -->
+<section>
+    <div class="section-head">
+        <div class="section-tag">Vergleich</div>
+        <h2 class="section-title">Einmal zahlen statt ewig abonnieren.</h2>
+        <p class="section-sub">Die großen Anbieter sind für Unternehmen mit Buchhaltungsabteilung gebaut — und kassieren jeden Monat. Stackr gehört dir.</p>
+    </div>
+    <div class="cmp-scroll">
+        <table class="cmp-table">
+            <thead>
+                <tr><th></th><th class="c-us">◆ Stackr</th><th>sevDesk</th><th>lexoffice</th><th>Papierkram</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Kosten (voller Funktionsumfang)</td><td class="c-us">45 € einmalig</td><td>ca. 20–30 €/Mon.*</td><td>ca. 20–35 €/Mon.*</td><td>ca. 10–20 €/Mon.*</td></tr>
+                <tr><td>Abo nötig?</td><td class="c-us"><span class="cmp-yes">Nein</span></td><td><span class="cmp-no">Ja, monatlich</span></td><td><span class="cmp-no">Ja, monatlich</span></td><td><span class="cmp-no">Ja, monatlich</span></td></tr>
+                <tr><td>Läuft offline, Daten 100 % lokal</td><td class="c-us"><span class="cmp-yes">✓</span></td><td><span class="cmp-no">—</span></td><td><span class="cmp-no">—</span></td><td><span class="cmp-no">—</span></td></tr>
+                <tr><td>EÜR &amp; Kleinunternehmer (§19 UStG)</td><td class="c-us"><span class="cmp-yes">✓</span></td><td><span class="cmp-yes">✓</span></td><td><span class="cmp-yes">✓</span></td><td><span class="cmp-yes">✓</span></td></tr>
+                <tr><td>Echte GbR-Verwaltung (Quote, Verrechnungskonten, EÜR je Gesellschafter)</td><td class="c-us"><span class="cmp-yes">✓</span></td><td><span class="cmp-no">—</span></td><td><span class="cmp-no">—</span></td><td><span class="cmp-no">—</span></td></tr>
+                <tr><td>Reseller-Lager mit EK / VK / Marge</td><td class="c-us"><span class="cmp-yes">✓</span></td><td><span class="cmp-half">◐</span></td><td><span class="cmp-no">—</span></td><td><span class="cmp-half">◐</span></td></tr>
+                <tr><td>KSK-Berechnung (Künstlersozialkasse)</td><td class="c-us"><span class="cmp-yes">✓</span></td><td><span class="cmp-no">—</span></td><td><span class="cmp-no">—</span></td><td><span class="cmp-no">—</span></td></tr>
+                <tr><td>Fahrtenbuch integriert</td><td class="c-us"><span class="cmp-yes">✓</span></td><td><span class="cmp-no">—</span></td><td><span class="cmp-no">—</span></td><td><span class="cmp-half">◐</span></td></tr>
+                <tr><td>Steuer-Akademie integriert</td><td class="c-us"><span class="cmp-yes">✓</span></td><td><span class="cmp-no">—</span></td><td><span class="cmp-no">—</span></td><td><span class="cmp-no">—</span></td></tr>
+                <tr><td>GoBD-konformes Protokoll</td><td class="c-us"><span class="cmp-yes">✓</span></td><td><span class="cmp-yes">✓</span></td><td><span class="cmp-yes">✓</span></td><td><span class="cmp-yes">✓</span></td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="cmp-legend">
+        <span><span class="cmp-yes">✓</span> enthalten</span>
+        <span><span class="cmp-half">◐</span> teilweise / über Umwege</span>
+        <span><span class="cmp-no">—</span> nicht enthalten</span>
+    </div>
+    <p class="cmp-note">* Listenpreise der Anbieter für vergleichbaren Funktionsumfang bei monatlicher Abrechnung, Stand Juni 2026, ohne Gewähr. Angaben zu Fremdprodukten nach bestem Wissen — Funktionsumfang der Anbieter kann sich ändern.</p>
+</section>
+
+<!-- TESTIMONIALS -->
+<section>
+    <div class="section-head">
+        <div class="section-tag">Stimmen</div>
+        <h2 class="section-title">Leute wie du. Nur schon entspannter.</h2>
+    </div>
+    <div class="testimonials-grid">
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-text">„Als Reseller mit über 200 Artikeln im Monat war Excel ein Albtraum. Mit Stackr bin ich in 20 Minuten fertig — und mein Steuerberater liebt die XLSX-Exporte."</p><div class="testimonial-author"><div class="testimonial-avatar">MK</div><div><div class="testimonial-name">Max K.</div><div class="testimonial-role">Vintage-Reseller · eBay &amp; Vinted</div></div></div></div>
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-text">„Wir sind eine GbR zu zweit — endlich eine Software, die das wirklich unterstützt. Gewinnverteilung, getrennte EÜR, alles automatisch. Hätte ich vorher nicht erwartet."</p><div class="testimonial-author"><div class="testimonial-avatar">SL</div><div><div class="testimonial-name">Sara L.</div><div class="testimonial-role">Grafikdesignerin · GbR-Gesellschafterin</div></div></div></div>
+        <div class="testimonial-card"><div class="testimonial-stars">★★★★★</div><p class="testimonial-text">„Die Akademie hat mir mehr über Steuern beigebracht als 3 Stunden YouTube. Und die KSK-Berechnung spart mir jedes Quartal Zeit und Nerven."</p><div class="testimonial-author"><div class="testimonial-avatar">TM</div><div><div class="testimonial-name">Tom M.</div><div class="testimonial-role">Illustrator · KSK-Mitglied</div></div></div></div>
+    </div>
+</section>
+
+<!-- PREIS -->
+<section id="preise">
+    <div class="section-head">
+        <div class="section-tag">Preis</div>
+        <h2 class="section-title">Ein Preis. Einmal. Für immer.</h2>
+        <p class="section-sub">Kein Abo, keine monatliche Abbuchung, kein Kleingedrucktes. Du kaufst Stackr einmal — und es gehört dir.</p>
+    </div>
+    <div class="price-wrap">
+        <div class="price-card">
+            <div class="badge">✦ Komplettpaket</div>
+            <div class="price-plan">Stackr — Local</div>
+            <div class="price-amt">45 €<span> einmalig</span></div>
+            <div class="price-tagline">Kein Abo. Für immer deins.</div>
+            <ul class="price-features">
+                <li><span class="check">✓</span> <strong>Alle 12 Module enthalten</strong></li>
+                <li><span class="check">✓</span> Unbegrenzte Buchungen</li>
+                <li><span class="check">✓</span> Rechnungen, EÜR, Lager, Fahrtenbuch</li>
+                <li><span class="check">✓</span> GoBD-Protokoll, AfA, KSK</li>
+                <li><span class="check">✓</span> PDF- &amp; Excel-Export</li>
+                <li><span class="check">✓</span> 100 % lokal · läuft offline · DSGVO</li>
+            </ul>
+            <a class="btn-wa" href="https://wa.me/4915734191444"><svg><use href="#i-wa"/></svg> Jetzt holen — 0157 3419 1444</a>
+            <div class="price-pay">Zahlung per <b>PayPal</b> oder <b>Überweisung</b> — Daten bekommst du direkt im Chat.</div>
+        </div>
+        <p class="price-anchor">Zum Vergleich: Eine einzige Steuerberater-Stunde kostet <strong>150–250 €</strong>. Andere Buchhaltungs-Apps kosten <strong>20–35 € — jeden Monat</strong>. Stackr kostet <strong>45 € — einmal</strong>.</p>
+    </div>
+</section>
+
+<!-- FAQ -->
+<section>
+    <div class="section-head">
+        <div class="section-tag">FAQ</div>
+        <h2 class="section-title">Häufige Fragen</h2>
+    </div>
+    <div class="faq-list">
+        <div class="faq-item"><div class="faq-q">Was kostet Stackr und gibt es ein Abo?</div><div class="faq-a">Stackr — Local kostet einmalig 45 €. Kein Abo, keine monatlichen Kosten, keine Folgekosten. Einmal gezahlt, gehört es dir.</div></div>
+        <div class="faq-item"><div class="faq-q">Wie bekomme ich Stackr?</div><div class="faq-a">Schreib einfach per WhatsApp an 0157 3419 1444. Du bekommst die Zahlungsdaten (PayPal oder Überweisung) direkt im Chat und danach deinen Zugang.</div></div>
+        <div class="faq-item"><div class="faq-q">Wo werden meine Daten gespeichert?</div><div class="faq-a">Deine Buchhaltungsdaten werden ausschließlich lokal auf deinem Gerät gespeichert und verlassen es nicht. Kein fremder Server, kein Cloud-Zwang. Alle Datenschutzanforderungen der DSGVO werden eingehalten, und du kannst deine Daten jederzeit komplett exportieren.</div></div>
+        <div class="faq-item"><div class="faq-q">Ist Stackr GoBD-konform?</div><div class="faq-a">Ja. Stackr führt ein lückenloses GoBD-konformes Protokoll: Buchungen werden mit Zeitstempel, Vorher-/Nachher-Wert und Checksumme protokolliert, Storno statt Löschen. Das Protokoll ist jederzeit exportierbar. Hinweis: Stackr ist ein Werkzeug — kein Ersatz für einen Steuerberater.</div></div>
+        <div class="faq-item"><div class="faq-q">Brauche ich noch einen Steuerberater?</div><div class="faq-a">Stackr ersetzt keine Steuerberatung, macht sie aber günstiger. EÜR, USt-Voranmeldung und GoBD-Protokoll sind exportbereit — dein Steuerberater braucht weniger Zeit (= weniger Kosten). Viele Nutzer übergeben einfach den XLSX-Export.</div></div>
+        <div class="faq-item"><div class="faq-q">Funktioniert Stackr für meine GbR?</div><div class="faq-a">Ja — Stackr ist eines der wenigen Tools mit echter GbR-Unterstützung: Gesellschafter-Verrechnungskonten, automatische Gewinnverteilung und GoBD-konforme Jahresabrechnung für alle Partner. Ideal für Zweimannbetriebe und kleine Agenturen.</div></div>
+        <div class="faq-item"><div class="faq-q">Funktioniert Stackr als Kleinunternehmer (§19 UStG)?</div><div class="faq-a">Ja. Die Kleinunternehmerregelung wird vollständig unterstützt. Rechnungen werden ohne Mehrwertsteuerausweis mit dem korrekten gesetzlichen Hinweis erstellt, die EÜR funktioniert identisch. Den Modus kannst du jederzeit umschalten.</div></div>
+        <div class="faq-item"><div class="faq-q">Kann ich Daten aus Excel importieren?</div><div class="faq-a">Ja. Buchungen können als CSV- oder Excel-Datei importiert werden. Dein aktueller Datenstand ist in wenigen Minuten übertragen — kein manuelles Abtippen.</div></div>
+    </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-wrap">
+    <div class="cta-banner">
+        <h2>Dein nächster Steuer-Abend<br>dauert 20 Minuten.</h2>
+        <p>Hol dir Stackr einmal für 45 € — und die Buchhaltung erledigt sich fast von allein.</p>
+        <a class="btn-wa" href="https://wa.me/4915734191444"><svg><use href="#i-wa"/></svg> Schreib mir auf WhatsApp · 0157 3419 1444</a>
+        <div class="hero-micro">Einmal 45 € · kein Abo · Zahlung per PayPal oder Überweisung</div>
+    </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+    <div style="margin-bottom:8px;">◆ <strong style="color:var(--subtle);">Stackr</strong></div>
+    <div>© 2026 Stackr · <a href="datenschutz.html">Datenschutz</a> · <a href="impressum.html">Impressum</a> · <a href="agb.html">AGB</a></div>
+    <div class="footer-claim">Stackr ist ein Werkzeug für deine Buchhaltung und ersetzt keine steuerliche Beratung. Im Zweifel bitte Steuerberater:in fragen.</div>
+</footer>
+
+</body>
+</html>

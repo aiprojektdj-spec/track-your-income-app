@@ -668,9 +668,12 @@ var CloudSync = (function () {
         if (reg.status !== 200) throw new Error('pull_' + reg.status);
         var regObj = reg.json.blob ? await _decrypt(reg.json.blob, kb) : null;
         var ownerCos = (regObj && regObj.keys && regObj.keys.oyi_companies) ? regObj.keys.oyi_companies : [];
-        var clientCos = [];
+        // Kollisionsschutz: IDs eigener (Nicht-Readonly-)Firmen nie überschreiben
+        var ownIds = {}; try { JSON.parse(localStorage.getItem('oyi_companies') || '[]').forEach(function (c) { if (c && c.id && !c._readonly) ownIds[c.id] = 1; }); } catch (e) {}
+        var clientCos = [], skipped = 0;
         for (var i = 0; i < ownerCos.length; i++) {
             var co = ownerCos[i]; if (!co || !co.id) continue;
+            if (ownIds[co.id]) { skipped++; continue; }   // ID-Kollision mit eigener Firma → auslassen
             var p = await _api({ action: 'pull', scope: co.id, owner: ownerId });
             if (p.status !== 200 || !p.json.blob) continue;
             var data = await _decrypt(p.json.blob, kb);   // { keys, meta }
@@ -688,6 +691,10 @@ var CloudSync = (function () {
         var byId = {}; mine.forEach(function (c) { if (c && c.id) byId[c.id] = c; });
         clientCos.forEach(function (c) { byId[c.id] = c; });
         localStorage.setItem('oyi_companies', JSON.stringify(Object.keys(byId).map(function (id) { return byId[id]; })));
+        if (skipped) {
+            console.warn('[CloudSync] ' + skipped + ' Mandanten-Firma(en) wegen ID-Kollision mit eigener Firma ausgelassen');
+            if (typeof Utils !== 'undefined') Utils.showToast(skipped + ' Mandanten-Firma(en) konnten wegen einer ID-Kollision mit einer eigenen Firma nicht geladen werden.', 'warning', 7000);
+        }
         return clientCos;
     }
 

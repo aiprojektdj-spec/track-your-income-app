@@ -134,7 +134,9 @@ var StbShare = (function () {
     function blocks(name) { return isReadonly() && !ALLOW_SET[name] && WRITE_RE.test(name); }
 
     // ── UI: eigener Freigabe-Code ─────────────────────────────────────────────
+    function _noApp() { if (typeof App === 'undefined' || !App.showModal) { _toast('Bitte im Haupt-Dashboard öffnen.', 'info'); return true; } return false; }
     function showCode() {
+        if (_noApp()) return;
         var code = _uid();
         if (!code) { _toast('Bitte zuerst mit Whop anmelden.', 'warning'); return; }
         var body =
@@ -152,6 +154,7 @@ var StbShare = (function () {
 
     // ── UI: Steuerberater einladen (Owner) ────────────────────────────────────
     function inviteFlow() {
+        if (_noApp()) return;
         if (typeof CloudSync === 'undefined' || !CloudSync.keyBytes || !CloudSync.keyBytes()) {
             _toast('Aktiviere zuerst Cloud-Sync — nur dann liegen deine Daten (verschlüsselt) bereit, damit dein Steuerberater sie sehen kann.', 'warning', 6000);
             return;
@@ -185,6 +188,7 @@ var StbShare = (function () {
 
     // ── UI: Mandanten (StB-Seite) ─────────────────────────────────────────────
     async function clientsFlow() {
+        if (_noApp()) return;
         var r = await _api({ action: 'list_grants' });
         if (r.status !== 200) { _toast('Abruf fehlgeschlagen (' + r.status + ').', 'error'); return; }
         var grants = r.json.grants || [];
@@ -238,12 +242,8 @@ var StbShare = (function () {
         bar.innerHTML = '🔒 Nur-Lese-Ansicht — Mandant: ' + _esc(name) +
             ' <button data-action="stb-exit" style="background:#111;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;">Zurück zu meinen Daten</button>';
         document.body.appendChild(bar);
-        var st = document.createElement('style');
-        st.textContent = 'body.stb-readonly{padding-top:34px!important;}' +
-            'body.stb-readonly [data-action$="-save"],body.stb-readonly [data-action$="-add"],body.stb-readonly [data-action$="-new"],' +
-            'body.stb-readonly [data-action$="-delete"],body.stb-readonly [data-action$="-edit"],body.stb-readonly [data-action$="-create"],' +
-            'body.stb-readonly [data-action$="-storno"],body.stb-readonly [data-action$="-import"]{display:none!important;}';
-        document.head.appendChild(st);
+        // Schreib-Button-Ausblendung + padding-top liegen in css/style.css
+        // (.stb-readonly …) — injiziertes <style> würde von der CSP geblockt.
     }
 
     return {

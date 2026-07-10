@@ -2699,3 +2699,15 @@ tbody tr:last-child td {
 }
 /* Generischer Row-Hover (js/app.js Speicher-Aufräumen-Liste) */
 .hover-bg-main:hover { background: var(--bg-main) !important; }
+
+/* Steuerberater Read-Only-Modus (js/stb-share.js) — Platz fürs Banner + Schreib-Buttons ausblenden.
+   In externer CSS statt injiziertem <style>, da die strikte CSP inline-Stylesheets blockt. */
+body.stb-readonly { padding-top: 34px !important; }
+body.stb-readonly [data-action$="-save"],
+body.stb-readonly [data-action$="-add"],
+body.stb-readonly [data-action$="-new"],
+body.stb-readonly [data-action$="-delete"],
+body.stb-readonly [data-action$="-edit"],
+body.stb-readonly [data-action$="-create"],
+body.stb-readonly [data-action$="-storno"],
+body.stb-readonly [data-action$="-import"] { display: none !important; }

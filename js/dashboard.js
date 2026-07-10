@@ -28,9 +28,9 @@ const Dashboard = {
         const startDate = `${year}-01-01`;
         const endDate   = `${year}-12-31`;
 
-        const allPurchases = Store.getPurchases(true);
-        const allSales     = Store.getSales(true);
-        const allExpenses  = Store.getExpenses(true);
+        const allPurchases = Store.getPurchases();
+        const allSales     = Store.getSales();
+        const allExpenses  = Store.getExpenses();
 
         const purchases = allPurchases.filter(p => Utils.isInPeriod(p.datum, startDate, endDate));
         const sales     = allSales.filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
@@ -329,9 +329,9 @@ const Dashboard = {
     _getYearStats(year) {
         const startDate = `${year}-01-01`;
         const endDate   = `${year}-12-31`;
-        const allPurchases = Store.getPurchases(true);
-        const allSales     = Store.getSales(true);
-        const allExpenses  = Store.getExpenses(true);
+        const allPurchases = Store.getPurchases();
+        const allSales     = Store.getSales();
+        const allExpenses  = Store.getExpenses();
         const sales     = allSales.filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
         const purchases = allPurchases.filter(p => Utils.isInPeriod(p.datum, startDate, endDate));
         const expenses  = allExpenses.filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
@@ -395,7 +395,7 @@ const Dashboard = {
 
         const isDark    = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const textColor = isDark ? '#94a3b8' : '#64748b';
-        const allSales = Store.getSales(true), allPurchases = Store.getPurchases(true), allExpenses = Store.getExpenses(true);
+        const allSales = Store.getSales(), allPurchases = Store.getPurchases(), allExpenses = Store.getExpenses();
 
         const labels = [], gewinne = [];
         const now = new Date();
@@ -538,9 +538,9 @@ const Dashboard = {
         if (typeof ApexCharts === 'undefined') return;
 
         const year      = this._selectedYear;
-        const sales     = Store.getSales(true);
-        const purchases = Store.getPurchases(true);
-        const expenses  = Store.getExpenses(true);
+        const sales     = Store.getSales();
+        const purchases = Store.getPurchases();
+        const expenses  = Store.getExpenses();
         const isDark    = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const textColor = isDark ? '#94a3b8' : '#64748b';
 

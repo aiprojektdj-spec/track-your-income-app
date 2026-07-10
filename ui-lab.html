@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="de" data-pack="emerald" data-profile="euer">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stackr · UI-Lab (Prototyp)</title>
+
+<!-- Tabler Icons (wie Live-App) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.44.0/dist/tabler-icons.min.css">
+
+<style>
+/* ════════════════════════════════════════════════════════════
+   Stackr UI-Lab — Prototyp
+   Zweck: zwei konfigurierbare Systeme demonstrieren
+     (1) Terminologie-Profile  → austauschbare Überschriften je Steuerklasse
+     (2) Design-Packs          → fertige Farb-Themes zum Umschalten
+   Beide nutzen die GLEICHEN CSS-Variablen-Namen wie die Live-App
+   (css/style.css), damit sie 1:1 übernommen werden können.
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Fonts (self-hosted, /fonts) ── */
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('fonts/inter-var-latin.woff2') format('woff2');}
+@font-face{font-family:'Fraunces';font-style:normal;font-weight:100 900;font-display:swap;src:url('fonts/fraunces-var-latin.woff2') format('woff2');}
+
+/* ── Basis-Variablen (werden vom Design-Pack per JS überschrieben) ── */
+:root{
+    --bg-primary:#0a0c0b; --bg-secondary:#101312; --bg-card:#161a18; --bg-elevated:#1c211f;
+    --accent:#10b981; --accent-hover:#0da271; --accent-light:#34d399;
+    --accent-glow:rgba(16,185,129,.10); --accent-text:#fff;
+    --success:#22c55e; --warning:#f5a623; --danger:#ef5350;
+    --text-primary:#eef2f0; --text-secondary:#9ba8a1; --text-muted:#71807a;
+    --border:#1d2421; --border-light:#2a332e; --border-strong:#3a453f;
+    --shadow:0 1px 2px rgba(0,0,0,.25),0 4px 16px -8px rgba(0,0,0,.35);
+    --shadow-lg:0 4px 12px rgba(0,0,0,.25),0 24px 64px -16px rgba(0,0,0,.55);
+    --radius:10px; --radius-sm:8px; --radius-lg:14px;
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    --font-display:'Fraunces','Iowan Old Style',Georgia,serif;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+    background:var(--bg-primary); color:var(--text-primary);
+    font-family:var(--font-sans); line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    transition:background .25s ease, color .25s ease;
+}
+h1,h2,h3{font-family:var(--font-display); font-weight:600; letter-spacing:-.01em;}
+
+/* ── Layout ── */
+.wrap{max-width:1100px; margin:0 auto; padding:28px 20px 80px;}
+
+.lab-banner{
+    display:flex; align-items:center; gap:10px;
+    background:var(--accent-glow); border:1px solid var(--accent);
+    color:var(--text-primary); border-radius:var(--radius);
+    padding:10px 14px; font-size:13px; margin-bottom:24px;
+}
+.lab-banner b{color:var(--accent);}
+
+/* ── Control-Bar (Profil + Pack-Auswahl) ── */
+.controls{
+    display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:28px;
+}
+@media(max-width:760px){.controls{grid-template-columns:1fr;}}
+.ctrl-card{
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--radius-lg); padding:18px;
+}
+.ctrl-card > .ctrl-label{
+    font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--text-muted); font-weight:700; margin-bottom:12px; display:block;
+}
+
+/* Profil-Buttons */
+.seg{display:flex; flex-direction:column; gap:8px;}
+.seg-btn{
+    text-align:left; cursor:pointer; font-family:inherit;
+    background:var(--bg-secondary); border:1.5px solid var(--border);
+    border-radius:var(--radius); padding:11px 14px; color:var(--text-secondary);
+    transition:all .15s; display:flex; align-items:center; gap:10px;
+}
+.seg-btn:hover{border-color:var(--border-strong);}
+.seg-btn.active{border-color:var(--accent); background:var(--accent-glow); color:var(--text-primary);}
+.seg-btn .seg-title{font-weight:700; font-size:13px;}
+.seg-btn .seg-sub{font-size:11px; color:var(--text-muted); margin-top:1px;}
+.seg-btn .seg-ico{font-size:18px; opacity:.9;}
+.seg-btn.active .seg-ico{color:var(--accent);}
+
+/* Pack-Swatches */
+.swatches{display:flex; flex-wrap:wrap; gap:10px;}
+.swatch{
+    cursor:pointer; border:2px solid var(--border); border-radius:var(--radius);
+    padding:8px; width:96px; background:var(--bg-secondary); transition:all .15s;
+}
+.swatch:hover{border-color:var(--border-strong);}
+.swatch.active{border-color:var(--accent);}
+.swatch .chip-row{display:flex; gap:4px; margin-bottom:7px;}
+.swatch .chip{width:18px; height:18px; border-radius:5px; border:1px solid rgba(255,255,255,.08);}
+.swatch .sw-name{font-size:11px; font-weight:700; color:var(--text-secondary);}
+.swatch.active .sw-name{color:var(--text-primary);}
+
+/* ── Preview-Screen (Mini-Stackr) ── */
+.preview{
+    background:var(--bg-secondary); border:1px solid var(--border);
+    border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-lg);
+}
+.pv-topbar{
+    display:flex; align-items:center; gap:10px;
+    padding:12px 18px; border-bottom:1px solid var(--border); background:var(--bg-card);
+}
+.pv-logo{width:22px; height:22px; border-radius:6px; background:var(--accent);
+    display:flex; align-items:center; justify-content:center; color:var(--accent-text); font-weight:800;}
+.pv-brand{font-weight:700; font-size:14px; letter-spacing:-.3px;}
+.pv-tabs{display:flex; gap:4px; margin-left:8px;}
+.pv-tab{font-size:12px; color:var(--text-muted); padding:5px 10px; border-radius:7px;}
+.pv-tab.active{color:var(--accent); background:var(--accent-glow);}
+.pv-body{padding:22px;}
+
+.pv-pagehead{margin-bottom:18px;}
+.pv-pagehead h2{font-size:22px; margin-bottom:3px;}
+.pv-pagehead .sub{font-size:12px; color:var(--text-muted);}
+
+/* KPI cards */
+.kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;}
+@media(max-width:600px){.kpis{grid-template-columns:1fr;}}
+.kpi{background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px;}
+.kpi .k-label{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted); font-weight:700;}
+.kpi .k-val{font-size:24px; font-weight:700; margin-top:6px; font-variant-numeric:tabular-nums;}
+.kpi.accent .k-val{color:var(--accent);}
+
+/* Table */
+.pv-sec-head{display:flex; align-items:baseline; justify-content:space-between; margin:6px 0 10px;}
+.pv-sec-head h3{font-size:15px;}
+.btn{cursor:pointer; font-family:inherit; font-size:12px; font-weight:600;
+    background:var(--accent); color:var(--accent-text); border:none;
+    padding:8px 14px; border-radius:var(--radius-sm);}
+.tbl{width:100%; border-collapse:collapse; font-size:13px;}
+.tbl th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--text-muted); font-weight:700; padding:8px 10px; border-bottom:1px solid var(--border);}
+.tbl td{padding:9px 10px; border-bottom:1px solid var(--border); color:var(--text-secondary); font-variant-numeric:tabular-nums;}
+.tbl td.num{text-align:right;}
+.tbl th.num{text-align:right;}
+
+.pv-note{
+    margin-top:16px; font-size:12px; color:var(--text-muted);
+    background:var(--bg-card); border:1px dashed var(--border-light);
+    border-radius:var(--radius-sm); padding:11px 14px; line-height:1.6;
+}
+.pv-note b{color:var(--text-secondary);}
+
+.mapping{
+    margin-top:24px; font-size:12px; color:var(--text-muted);
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:var(--radius); padding:14px 16px; line-height:1.7;
+}
+.mapping b{color:var(--text-secondary);}
+.tag{display:inline-block; background:var(--bg-elevated); border:1px solid var(--border-light);
+    border-radius:6px; padding:1px 7px; font-size:11px; margin:0 2px;}
+.hide{display:none !important;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+    <div class="lab-banner">
+        <i class="ti ti-flask"></i>
+        <div><b>UI-Lab · Prototyp</b> — zwei konfigurierbare Systeme zum Ausprobieren. Auswahl wird gespeichert. Noch nicht in der Live-App.</div>
+    </div>
+
+    <!-- ══ STEUERUNG ══ -->
+    <div class="controls">
+
+        <!-- Terminologie-Profil -->
+        <div class="ctrl-card">
+            <span class="ctrl-label"><i class="ti ti-typography"></i> Terminologie-Profil — austauschbare Überschriften</span>
+            <div class="seg" id="profileSeg">
+                <button class="seg-btn" data-profile="klein">
+                    <i class="ti ti-seeding seg-ico"></i>
+                    <div><div class="seg-title">Kleinunternehmer</div><div class="seg-sub">§19 UStG · einfache Sprache · keine USt</div></div>
+                </button>
+                <button class="seg-btn" data-profile="euer">
+                    <i class="ti ti-user seg-ico"></i>
+                    <div><div class="seg-title">EÜR (Einzel / Freiberufler)</div><div class="seg-sub">Einnahmen-Überschuss-Rechnung · Regelbesteuerung</div></div>
+                </button>
+                <button class="seg-btn" data-profile="bilanz">
+                    <i class="ti ti-building-bank seg-ico"></i>
+                    <div><div class="seg-title">Bilanz (GmbH / UG / OHG / KG)</div><div class="seg-sub">Doppelte Buchführung · GuV + Bilanz</div></div>
+                </button>
+            </div>
+        </div>
+
+        <!-- Design-Pack -->
+        <div class="ctrl-card">
+            <span class="ctrl-label"><i class="ti ti-palette"></i> Design-Pack — fertige Farb-Themes</span>
+            <div class="swatches" id="packSwatches"></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:12px;line-height:1.5;">
+                Gleiche CSS-Variablen wie die Live-App — direkt übertragbar.
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ VORSCHAU (Mini-Stackr) ══ -->
+    <div class="preview">
+        <div class="pv-topbar">
+            <div class="pv-logo">◆</div>
+            <div class="pv-brand">Stackr</div>
+            <div class="pv-tabs">
+                <div class="pv-tab">Dashboard</div>
+                <div class="pv-tab active" data-term="report.tab">EÜR</div>
+                <div class="pv-tab">Rechnungen</div>
+            </div>
+        </div>
+        <div class="pv-body">
+
+            <div class="pv-pagehead">
+                <h2 data-term="report.heading">Einnahmen-Überschuss-Rechnung</h2>
+                <div class="sub" data-term="report.sub">§4 Abs. 3 EStG · Gewinnermittlung</div>
+            </div>
+
+            <div class="kpis">
+                <div class="kpi">
+                    <div class="k-label" data-term="kpi.revenue">Betriebseinnahmen</div>
+                    <div class="k-val">48.250 €</div>
+                </div>
+                <div class="kpi">
+                    <div class="k-label" data-term="kpi.expenses">Betriebsausgaben</div>
+                    <div class="k-val">31.900 €</div>
+                </div>
+                <div class="kpi accent">
+                    <div class="k-label" data-term="kpi.profit">Überschuss / Gewinn</div>
+                    <div class="k-val">16.350 €</div>
+                </div>
+            </div>
+
+            <div class="pv-sec-head">
+                <h3 data-term="bookings.heading">Buchungen</h3>
+                <button class="btn" data-term="report.export">EÜR exportieren</button>
+            </div>
+
+            <table class="tbl">
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th data-term="col.desc">Beschreibung</th>
+                        <th class="col-ust num" data-term="col.ust">USt 19%</th>
+                        <th class="num" data-term="col.amount">Betrag</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>03.06.</td><td>Verkauf · Sneaker Pack</td><td class="col-ust num">+38,00 €</td><td class="num">+238,00 €</td></tr>
+                    <tr><td>11.06.</td><td>Wareneinkauf</td><td class="col-ust num">−22,80 €</td><td class="num">−142,80 €</td></tr>
+                    <tr><td>19.06.</td><td>Versandkosten</td><td class="col-ust num">−3,20 €</td><td class="num">−19,99 €</td></tr>
+                </tbody>
+            </table>
+
+            <div class="pv-note" data-term-html="tax.note">
+                <b>Hinweis:</b> Umsatzsteuer wird ausgewiesen (Regelbesteuerung, §19 UStG Opt-out).
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ Mapping-Erklärung ══ -->
+    <div class="mapping">
+        <b>So greift das in der Live-App:</b><br>
+        Das Profil leitet sich automatisch aus der <b>Rechtsform</b> ab (<code>Rechtsform.gewinnermittlung</code>) und bleibt manuell überschreibbar.<br>
+        <span class="tag">Kleinunternehmer</span> § 19 aktiv ·
+        <span class="tag">EÜR</span> Einzelunternehmen · Freiberufler · GbR ·
+        <span class="tag">Bilanz</span> GmbH · UG · OHG · KG · GmbH&nbsp;&&nbsp;Co.&nbsp;KG
+    </div>
+
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   (1) TERMINOLOGIE-PROFILE
+   Jeder Schlüssel mappt auf data-term="…" Elemente im DOM.
+   Live-Integration analog zu I18n.applyAll(): Terminology.apply().
+   ════════════════════════════════════════════════════════════ */
+var TERM_PROFILES = {
+    klein: {
+        'report.tab':      'Einnahmen',
+        'report.heading':  'Einnahmen & Ausgaben',
+        'report.sub':      '§ 4 Abs. 3 EStG · Kleinunternehmer (§ 19 UStG)',
+        'report.export':   'Übersicht exportieren',
+        'kpi.revenue':     'Einnahmen',
+        'kpi.expenses':    'Ausgaben',
+        'kpi.profit':      'Gewinn',
+        'bookings.heading':'Buchungen',
+        'col.desc':        'Beschreibung',
+        'col.amount':      'Betrag',
+        '_showUst':        false,
+        'tax.note':        '<b>Hinweis:</b> Als Kleinunternehmer nach § 19 UStG wird keine Umsatzsteuer ausgewiesen — Beträge sind brutto = netto.'
+    },
+    euer: {
+        'report.tab':      'EÜR',
+        'report.heading':  'Einnahmen-Überschuss-Rechnung',
+        'report.sub':      '§ 4 Abs. 3 EStG · Gewinnermittlung',
+        'report.export':   'EÜR exportieren',
+        'kpi.revenue':     'Betriebseinnahmen',
+        'kpi.expenses':    'Betriebsausgaben',
+        'kpi.profit':      'Überschuss / Gewinn',
+        'bookings.heading':'Buchungen',
+        'col.desc':        'Beschreibung',
+        'col.ust':         'USt 19%',
+        'col.amount':      'Betrag',
+        '_showUst':        true,
+        'tax.note':        '<b>Hinweis:</b> Umsatzsteuer wird ausgewiesen (Regelbesteuerung). Vorsteuerabzug möglich.'
+    },
+    bilanz: {
+        'report.tab':      'GuV',
+        'report.heading':  'Gewinn- und Verlustrechnung',
+        'report.sub':      '§ 242 HGB · doppelte Buchführung · GuV + Bilanz',
+        'report.export':   'GuV + Bilanz exportieren',
+        'kpi.revenue':     'Umsatzerlöse',
+        'kpi.expenses':    'Aufwendungen',
+        'kpi.profit':      'Jahresüberschuss',
+        'bookings.heading':'Buchungssätze (Soll / Haben)',
+        'col.desc':        'Buchungstext / Konto',
+        'col.ust':         'USt 19%',
+        'col.amount':      'Betrag',
+        '_showUst':        true,
+        'tax.note':        '<b>Hinweis:</b> Doppelte Buchführung nach HGB — Erträge und Aufwendungen periodengerecht. Umsatzsteuer wird ausgewiesen.'
+    }
+};
+
+/* ════════════════════════════════════════════════════════════
+   (2) DESIGN-PACKS
+   Setzen exakt die CSS-Variablen aus css/style.css.
+   ════════════════════════════════════════════════════════════ */
+var DESIGN_PACKS = {
+    emerald: {
+        label:'Emerald', dark:true, chips:['#10b981','#161a18','#eef2f0'],
+        vars:{
+            '--bg-primary':'#0a0c0b','--bg-secondary':'#101312','--bg-card':'#161a18','--bg-elevated':'#1c211f',
+            '--accent':'#10b981','--accent-hover':'#0da271','--accent-light':'#34d399','--accent-glow':'rgba(16,185,129,.10)','--accent-text':'#ffffff',
+            '--text-primary':'#eef2f0','--text-secondary':'#9ba8a1','--text-muted':'#71807a',
+            '--border':'#1d2421','--border-light':'#2a332e','--border-strong':'#3a453f'
+        }
+    },
+    indigo: {
+        label:'Indigo', dark:true, chips:['#6366f1','#17161f','#eceaf5'],
+        vars:{
+            '--bg-primary':'#0a0a0f','--bg-secondary':'#111016','--bg-card':'#17161f','--bg-elevated':'#1f1d2b',
+            '--accent':'#6366f1','--accent-hover':'#4f46e5','--accent-light':'#818cf8','--accent-glow':'rgba(99,102,241,.12)','--accent-text':'#ffffff',
+            '--text-primary':'#eceaf5','--text-secondary':'#a3a0b5','--text-muted':'#6f6c82',
+            '--border':'#221f2e','--border-light':'#2e2a3d','--border-strong':'#3c3750'
+        }
+    },
+    slate: {
+        label:'Slate', dark:true, chips:['#64748b','#181c20','#e5e9ec'],
+        vars:{
+            '--bg-primary':'#0b0d0f','--bg-secondary':'#121518','--bg-card':'#181c20','--bg-elevated':'#21262b',
+            '--accent':'#64748b','--accent-hover':'#475569','--accent-light':'#94a3b8','--accent-glow':'rgba(148,163,184,.12)','--accent-text':'#ffffff',
+            '--text-primary':'#e5e9ec','--text-secondary':'#9aa4ad','--text-muted':'#6b757d',
+            '--border':'#1f242a','--border-light':'#2b323a','--border-strong':'#3a434c'
+        }
+    },
+    sand: {
+        label:'Sand', dark:false, chips:['#c2683b','#ffffff','#2b2620'],
+        vars:{
+            '--bg-primary':'#f6f5f1','--bg-secondary':'#fdfcfa','--bg-card':'#ffffff','--bg-elevated':'#efece4',
+            '--accent':'#c2683b','--accent-hover':'#a8542c','--accent-light':'#d98a5e','--accent-glow':'rgba(194,104,59,.12)','--accent-text':'#ffffff',
+            '--text-primary':'#2b2620','--text-secondary':'#6b6354','--text-muted':'#968c79',
+            '--border':'#e6e1d6','--border-light':'#d8d2c4','--border-strong':'#c4bba8',
+            '--shadow':'0 1px 2px rgba(80,60,30,.06),0 4px 16px -8px rgba(80,60,30,.12)',
+            '--shadow-lg':'0 4px 12px rgba(80,60,30,.08),0 24px 64px -16px rgba(80,60,30,.18)'
+        }
+    },
+    contrast: {
+        label:'Kontrast', dark:true, chips:['#00e676','#000000','#ffffff'],
+        vars:{
+            '--bg-primary':'#000000','--bg-secondary':'#0a0a0a','--bg-card':'#111111','--bg-elevated':'#1a1a1a',
+            '--accent':'#00e676','--accent-hover':'#00c853','--accent-light':'#69f0ae','--accent-glow':'rgba(0,230,118,.18)','--accent-text':'#000000',
+            '--text-primary':'#ffffff','--text-secondary':'#e0e0e0','--text-muted':'#b0b0b0',
+            '--border':'#3a3a3a','--border-light':'#4d4d4d','--border-strong':'#ffffff'
+        }
+    }
+};
+
+/* ── Persistenz (gleiche Namens-Konvention wie Live-App) ── */
+var LS_PROFILE = 'stackr_term_profile';
+var LS_PACK    = 'stackr_design_pack';
+function lsGet(k,d){try{return localStorage.getItem(k)||d;}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+
+/* ── Terminologie anwenden ── */
+function applyProfile(key){
+    var p = TERM_PROFILES[key] || TERM_PROFILES.euer;
+    document.documentElement.setAttribute('data-profile', key);
+
+    document.querySelectorAll('[data-term]').forEach(function(el){
+        var t = p[el.getAttribute('data-term')];
+        if (t !== undefined) el.textContent = t;
+    });
+    document.querySelectorAll('[data-term-html]').forEach(function(el){
+        var t = p[el.getAttribute('data-term-html')];
+        if (t !== undefined) el.innerHTML = t;
+    });
+
+    // Konditionale Spalten (USt) je Profil
+    var showUst = p['_showUst'] !== false;
+    document.querySelectorAll('.col-ust').forEach(function(el){
+        el.classList.toggle('hide', !showUst);
+    });
+
+    // Aktiven Button markieren
+    document.querySelectorAll('#profileSeg .seg-btn').forEach(function(b){
+        b.classList.toggle('active', b.getAttribute('data-profile') === key);
+    });
+    lsSet(LS_PROFILE, key);
+}
+
+/* ── Design-Pack anwenden ── */
+function applyPack(key){
+    var pack = DESIGN_PACKS[key] || DESIGN_PACKS.emerald;
+    var root = document.documentElement;
+    Object.keys(pack.vars).forEach(function(v){ root.style.setProperty(v, pack.vars[v]); });
+    root.setAttribute('data-pack', key);
+    document.querySelectorAll('#packSwatches .swatch').forEach(function(s){
+        s.classList.toggle('active', s.getAttribute('data-pack') === key);
+    });
+    lsSet(LS_PACK, key);
+}
+
+/* ── Swatches rendern ── */
+(function renderSwatches(){
+    var box = document.getElementById('packSwatches');
+    Object.keys(DESIGN_PACKS).forEach(function(key){
+        var p = DESIGN_PACKS[key];
+        var el = document.createElement('button');
+        el.className = 'swatch'; el.type = 'button';
+        el.setAttribute('data-pack', key);
+        el.innerHTML =
+            '<div class="chip-row">' +
+                '<span class="chip" style="background:'+p.chips[0]+'"></span>' +
+                '<span class="chip" style="background:'+p.chips[1]+'"></span>' +
+                '<span class="chip" style="background:'+p.chips[2]+'"></span>' +
+            '</div><div class="sw-name">'+p.label+'</div>';
+        el.addEventListener('click', function(){ applyPack(key); });
+        box.appendChild(el);
+    });
+})();
+
+/* ── Profil-Buttons verdrahten ── */
+document.querySelectorAll('#profileSeg .seg-btn').forEach(function(b){
+    b.addEventListener('click', function(){ applyProfile(b.getAttribute('data-profile')); });
+});
+
+/* ── Init aus localStorage ── */
+applyPack(lsGet(LS_PACK, 'emerald'));
+applyProfile(lsGet(LS_PROFILE, 'euer'));
+</script>
+</body>
+</html>

@@ -66,8 +66,8 @@ var BackupCrypto = (function () {
             if (typeof Store._idbPut === 'function') Store._idbPut(fullKey, str);
             return Promise.resolve();
         }
-        try { localStorage.setItem(fullKey, str); } catch (e) {}
-        return Promise.resolve();
+        try { localStorage.setItem(fullKey, str); return Promise.resolve(); }
+        catch (e) { return Promise.reject(e); }
     }
 
     // ── Welche Keys gehören zu einem Scope ────────────────────────────────────

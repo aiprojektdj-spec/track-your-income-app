@@ -242,6 +242,7 @@ const Euer = {
         return `
             <div class="page-header">
                 <h2>Einnahmen-Überschuss-Rechnung</h2>
+                <p class="text-muted no-print" style="margin:-8px 0 16px;font-size:13px;">Deine Steuer-Zusammenfassung für das Finanzamt — als CSV für ELSTER exportieren oder deinem Steuerberater weitergeben.</p>
                 <div class="page-header-actions no-print">
                     ${unsyncedInvoices.length > 0 ? `<button class="btn btn-warning" id="euerSync" title="${unsyncedInvoices.length} bezahlte Rechnung(en) noch nicht synchronisiert"><i class="ti ti-refresh"></i> ${unsyncedInvoices.length} synchronisieren</button> ` : ''}
                     <button class="btn" id="euerSteuertermine"><i class="ti ti-calendar-event"></i> Steuertermine</button>
@@ -890,6 +891,10 @@ const Euer = {
                 });
                 const sExp = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, sDate, eDate));
                 const sFahrt = Store.getFahrten().filter(f => Utils.isInPeriod(f.datum, sDate, eDate));
+                if (!sSales.length && !sPurch.length && !sExp.length && !sFahrt.length) {
+                    Utils.showToast(`Keine Daten für ${sDate} bis ${eDate} — nichts zu exportieren`, 'warning');
+                    return;
+                }
                 // Regelbesteuerer: Anlage EÜR verlangt Netto-Beträge (USt ist Durchlaufposten, kein Ertrag/Aufwand).
                 // Kleinunternehmer (§19 UStG): keine USt ausgewiesen, brutto = netto.
                 const isRegel = (Store.getSettings().ustMode || 'klein') === 'regel';

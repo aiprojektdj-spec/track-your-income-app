@@ -1823,6 +1823,34 @@ const App = {
         return { usedKB, usedMB, usedGB, pct: 0, color, limitMB: null };
     },
 
+    _buildDiagnoseReport() {
+        let errors = [];
+        try { errors = JSON.parse(localStorage.getItem('stackr_error_log') || '[]'); } catch (e) {}
+        const si = this._getStorageInfo();
+        const co = (typeof Companies !== 'undefined' && Companies.getActive) ? Companies.getActive() : null;
+        const lines = [
+            'Stackr Diagnose-Export',
+            '======================',
+            'Zeit: ' + new Date().toISOString(),
+            'App-Version: ' + this.APP_VERSION,
+            'Browser: ' + navigator.userAgent,
+            'Sprache: ' + (typeof I18n !== 'undefined' ? I18n.getLang() : '?'),
+            'Firma (id): ' + (co ? co.id : '—'),
+            'Speicher genutzt: ' + si.usedKB + ' KB',
+            '',
+            'Fehlerprotokoll (letzte ' + errors.length + ' Einträge, keine Geschäftsdaten):',
+            '------------------------------------------------------------'
+        ];
+        if (errors.length === 0) {
+            lines.push('Keine Fehler protokolliert.');
+        } else {
+            errors.forEach(e => {
+                lines.push(`[${e.ts}] ${e.type}: ${e.message} (${e.source}:${e.line}:${e.col})`);
+            });
+        }
+        return lines.join('\n');
+    },
+
     showBackupModal() {
         const si = this._getStorageInfo();
         const lastBackup = localStorage.getItem('last_backup_date');
@@ -1950,6 +1978,11 @@ const App = {
                 </div>
                 <input type="file" accept=".xlsx,.xls" id="xlsxImportFile" style="display:none;">
                 <div id="xlsxImportStatus" style="font-size:12px;color:var(--text-secondary);"></div>
+            </div>
+            <div class="section">
+                <div class="section-title"><i class="ti ti-stethoscope"></i> Diagnose für Support</div>
+                <p style="margin-bottom:10px;color:var(--text-secondary);font-size:12px;">Exportiert Fehlerprotokoll, App-Version und Speicherstatus als Textdatei — keine Buchhaltungsdaten enthalten. Zum Anhängen an eine Support-E-Mail.</p>
+                <button class="btn btn-small" id="exportDiagnoseBtn"><i class="ti ti-file-text"></i> Diagnose exportieren</button>
             </div>
             <div class="section" style="border:2px solid var(--danger);border-radius:8px;padding:14px;background:rgba(220,38,38,0.04);">
                 <div class="section-title" style="color:var(--danger);"><i class="ti ti-urgent"></i> Notfall-Datenwiederherstellung</div>
@@ -2298,6 +2331,12 @@ const App = {
                 this.showBackupModal();
             });
         }
+
+        document.getElementById('exportDiagnoseBtn').addEventListener('click', () => {
+            const text = this._buildDiagnoseReport();
+            Utils.downloadFile(text, 'stackr_diagnose_' + Utils.todayISO() + '.txt', 'text/plain');
+            Utils.showToast('Diagnose exportiert', 'success');
+        });
 
         document.getElementById('exportBackupBtn').addEventListener('click', () => {
             const data = Store.exportAll();

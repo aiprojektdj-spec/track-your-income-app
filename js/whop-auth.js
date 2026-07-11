@@ -36,6 +36,7 @@ var AuthUI = (function () {
     var GRACE_MS = 4 * 60 * 60 * 1000;           // 4 h ohne erneuten Whop-Server-Check
 
     var _bootDone = false;
+    var _focusRecheckBound = false; // verhindert doppelte 'focus'-Listener bei erneutem No-Membership-Screen
 
     // ── Offline-Grace ─────────────────────────────────────────
     // Einmal online autorisiert → Access-Flag 4 h lokal gültig, kein Server-Roundtrip.
@@ -271,6 +272,21 @@ var AuthUI = (function () {
         }
     }
 
+    // ── Nach Kauf: Whop-Checkout öffnet in neuem Tab, kein Redirect zurück.
+    //    Beim Rückkehren auf diesen Tab (Fenster-Fokus) Zugang still neu prüfen,
+    //    statt den Nutzer zum manuellen Reload zu zwingen. ──────
+    async function _recheckOnFocus() {
+        var overlay = document.getElementById('whopNoMemberOverlay');
+        if (!overlay) return;
+        var token = localStorage.getItem(LS_TOKEN);
+        if (!token) return;
+        var ok = await _validateAndContinue(token);
+        if (ok) {
+            var ov = document.getElementById('whopNoMemberOverlay');
+            if (ov) ov.remove();
+        }
+    }
+
     // ── Abmelden ──────────────────────────────────────────────
     function _logout() {
         var m = document.getElementById('authUserMenu');
@@ -326,7 +342,7 @@ var AuthUI = (function () {
             '<p style="color:var(--text-muted,#888);font-size:13.5px;margin:0 0 6px;line-height:1.6;">',
             'Hallo <strong style="color:var(--text-secondary,#ccc);">' + _esc(name) + '</strong>, du hast aktuell kein aktives Abo.',
             '</p>',
-            '<p style="color:var(--text-muted,#777);font-size:12px;margin:0 0 22px;line-height:1.6;">Deine Daten bleiben lokal gespeichert — nach der Aktivierung ist alles sofort wieder da.</p>',
+            '<p style="color:var(--text-muted,#777);font-size:12px;margin:0 0 22px;line-height:1.6;">Deine Daten bleiben lokal gespeichert — nach der Zahlung wirst du beim Zurückwechseln zu diesem Tab automatisch erkannt.</p>',
 
             // Jahresabo (hervorgehoben)
             '<a href="' + WHOP_URL_YEARLY + '" target="_blank" rel="noopener" style="display:block;text-align:left;position:relative;padding:14px 16px;margin-bottom:10px;background:linear-gradient(135deg,rgba(16,185,129,.14),rgba(5,150,105,.08));border:1.5px solid var(--accent,#10b981);border-radius:12px;text-decoration:none;box-sizing:border-box;">',
@@ -353,6 +369,11 @@ var AuthUI = (function () {
             '</div>'
         ].join('');
         document.body.appendChild(overlay);
+
+        if (!_focusRecheckBound) {
+            _focusRecheckBound = true;
+            window.addEventListener('focus', _recheckOnFocus);
+        }
     }
 
     // ── Topnav-Widget ─────────────────────────────────────────

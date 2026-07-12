@@ -30,6 +30,14 @@ var AuthUI = (function () {
     // Whop company owners can't self-subscribe — grant them permanent access
     var OWNER_USERNAMES   = ['secondlifevintage41'];
 
+    // Zugangs-Check: gegen die tatsächlich gekauften Produkte / die Company prüfen —
+    // NICHT gegen die OAuth-App-ID. Ein Kunde kauft ein Produkt (prod_…); die Whop-Antwort
+    // has-access/app_… ist false, solange das Produkt die App nicht "included" (bei uns leer),
+    // d.h. ein zahlender Kunde würde ausgesperrt. Company-ID zuerst (deckt alle aktuellen UND
+    // künftigen Produkte/Pläne der Stackr-Whop automatisch ab) → prod_-IDs als sichere Rückfallebene.
+    //   biz_2OEWYGlOwb8b0f = Stackr-Whop · prod_wgVmaJg4sBVOD = "Stackr Pro" 15 €/Mon · prod_p1WHi5t65rAA6 = "Stackr" 135 €/Jahr
+    var WHOP_ACCESS_IDS   = ['biz_2OEWYGlOwb8b0f', 'prod_wgVmaJg4sBVOD', 'prod_p1WHi5t65rAA6'];
+
     var LS_TOKEN = 'whop_access_token';
     var LS_USER  = 'whop_user';
     var LS_GRACE = 'whop_grace_until';           // Offline-Grace: Access-Ablauf (ms-Epoch)
@@ -217,12 +225,20 @@ var AuthUI = (function () {
                 return true;
             }
 
-            // Membership-Check
-            var accessRes = await fetch('https://api.whop.com/v5/me/has-access/' + WHOP_CLIENT_ID, {
-                headers: { 'Authorization': 'Bearer ' + token }
-            });
-            var accessData = accessRes.ok ? await accessRes.json() : {};
-            var hasAccess  = accessData.has_access === true;
+            // Membership-Check — gegen Produkt-/Company-IDs (siehe WHOP_ACCESS_IDS), nicht die App-ID.
+            // Erste ID, die has_access:true liefert, gewährt Zugang. Netzwerkfehler propagiert an den
+            // äußeren catch → Offline-Grace; non-ok (z. B. 404 für eine nicht unterstützte ID-Form)
+            // überspringt nur diese ID und probiert die nächste.
+            var hasAccess = false;
+            for (var ai = 0; ai < WHOP_ACCESS_IDS.length; ai++) {
+                var accessRes = await fetch('https://api.whop.com/v5/me/has-access/' + WHOP_ACCESS_IDS[ai], {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (accessRes.ok) {
+                    var accessData = await accessRes.json();
+                    if (accessData && accessData.has_access === true) { hasAccess = true; break; }
+                }
+            }
 
             if (hasAccess) {
                 _stampGrace();

@@ -16,7 +16,7 @@
 // Env (Vercel, EU-Region) — von der Upstash-Marketplace-Integration automatisch
 // gesetzt (KV_REST_API_*). UPSTASH_REDIS_REST_* werden als Override unterstützt.
 //   KV_REST_API_URL / KV_REST_API_TOKEN    (Upstash REST-Endpoint + RW-Token)
-//   WHOP_APP_ID                (default app_dc3OND8eGv2Iim)
+//   WHOP_ACCESS_IDS            (optional, kommagetrennt — Company-/Produkt-IDs für den Zugangs-Check)
 //   SYNC_OWNER_USERNAMES       (optional, kommagetrennt — Owner ohne Abo)
 // =============================================================================
 
@@ -24,7 +24,13 @@
 var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
 var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
 
-var WHOP_APP_ID  = process.env.WHOP_APP_ID || 'app_dc3OND8eGv2Iim';
+// Zugangs-Check gegen die gekauften Produkte / die Company, NICHT die App-ID: eine Membership
+// liegt auf einem Produkt (prod_…); has-access/app_… ist false, wenn das Produkt die App nicht
+// "included" — ein zahlender Kunde bekäme sonst pro_required. Company-ID deckt alle Produkte der
+// Whop ab, prod_-IDs als sichere Rückfallebene. Kommagetrennt via ENV WHOP_ACCESS_IDS überschreibbar.
+var WHOP_ACCESS_IDS = (process.env.WHOP_ACCESS_IDS ||
+                       'biz_2OEWYGlOwb8b0f,prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6')
+                       .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 var OWNERS       = (process.env.SYNC_OWNER_USERNAMES || 'secondlifevintage41')
                        .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 
@@ -134,12 +140,18 @@ module.exports = async function handler(req, res) {
     var isOwner = OWNERS.indexOf(username) !== -1;
     if (!isOwner && !isGranteeRead) {
         try {
-            var accRes  = await fetch('https://api.whop.com/v5/me/has-access/' + WHOP_APP_ID, {
-                headers: { 'Authorization': 'Bearer ' + token },
-                signal:  AbortSignal.timeout(8000)
-            });
-            var accData = accRes.ok ? await accRes.json() : {};
-            if (accData.has_access !== true) return res.status(403).json({ error: 'pro_required' });
+            var hasAccess = false;
+            for (var pi = 0; pi < WHOP_ACCESS_IDS.length; pi++) {
+                var accRes = await fetch('https://api.whop.com/v5/me/has-access/' + WHOP_ACCESS_IDS[pi], {
+                    headers: { 'Authorization': 'Bearer ' + token },
+                    signal:  AbortSignal.timeout(8000)
+                });
+                if (accRes.ok) {
+                    var accData = await accRes.json();
+                    if (accData && accData.has_access === true) { hasAccess = true; break; }
+                }
+            }
+            if (!hasAccess) return res.status(403).json({ error: 'pro_required' });
         } catch (e) {
             console.error('[sync] has-access failed:', e);
             return res.status(502).json({ error: 'whop_unreachable' });

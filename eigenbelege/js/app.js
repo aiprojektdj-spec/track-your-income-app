@@ -757,18 +757,21 @@ async function _syncPositionenToLager(beleg) {
         const existing = (await OYI_IDB.get(idbKey)) || [];
 
         // Höchste vorhandene Artikelnummer ermitteln für korrekte Fortführung
+        // Gleiches Format wie Store.savePurchase() (YYYY-NNN), damit Eigenbeleg- und
+        // Lager-Artikel einheitlich nummeriert sind.
         const year   = new Date().getFullYear();
-        const prefix = 'ART-' + year + '-';
+        const prefix = year + '-';
         let maxN = existing.reduce((max, p) => {
-            const m = (p.artikelNr || '').match(/ART-\d{4}-(\d+)/);
-            return m ? Math.max(max, parseInt(m[1])) : max;
+            if (!p.artikelNr || !p.artikelNr.startsWith(prefix)) return max;
+            const m = p.artikelNr.match(/^(\d{4})-(\d+)$/);
+            return m ? Math.max(max, parseInt(m[2])) : max;
         }, 0);
 
         const newPurchases = newPos.map(pos => {
             maxN++;
             const id = 'eb_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 6);
             pos.lagerArtikelId = id;                              // Rückverweis setzen
-            pos.artikelNr      = prefix + String(maxN).padStart(4, '0');
+            pos.artikelNr      = prefix + String(maxN).padStart(3, '0');
             return {
                 id,
                 createdAt:       new Date().toISOString(),

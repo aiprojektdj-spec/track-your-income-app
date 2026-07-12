@@ -1256,6 +1256,7 @@ const Store = {
             if (idx >= 0) {
                 const old = Object.assign({}, purchases[idx]);
                 if (this.isLocked(old)) return purchase; // GoBD: festgeschriebene/stornierte Einträge nicht bearbeitbar
+                if (old.artikelNr) purchase.artikelNr = old.artikelNr; // Artikelnummer nie per Edit überschreibbar
                 this._addAuditEntry('bearbeitet', 'einkauf', purchase.id, old, purchase, 'Einkauf bearbeitet');
                 purchases[idx] = this._stampRecord(purchase);
             } else {

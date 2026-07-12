@@ -6,18 +6,18 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none';">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
 <title>Stackr — Buchhaltung für Freelancer, GbR &amp; Reseller | EÜR &amp; GoBD</title>
-<meta name="description" content="Buchhaltung für Freelancer, GbR &amp; Reseller — EÜR, GoBD, Rechnungen, Lager, KSK. Live-Demo direkt im Browser. 14 Tage kostenlos testen, danach ab 11,25 €/Monat. DSGVO-konform — Daten standardmäßig lokal, optionaler Ende-zu-Ende-verschlüsselter Cloud-Sync.">
+<meta name="description" content="Buchhaltung für Freelancer, GbR &amp; Reseller — EÜR, GoBD, Rechnungen, Lager, KSK. Live-Demo direkt im Browser. 7 Tage kostenlos testen, danach ab 15 €/Monat. DSGVO-konform — Daten standardmäßig lokal, optionaler Ende-zu-Ende-verschlüsselter Cloud-Sync.">
 <link rel="canonical" href="https://stackr.app/">
 <!-- Open Graph -->
 <meta property="og:type"        content="website">
 <meta property="og:title"       content="Stackr — Buchhaltung für Freelancer, GbR &amp; Reseller">
-<meta property="og:description" content="EÜR, GoBD, Rechnungen, Lager und KSK in einer App. Live-Demo im Browser. 14 Tage kostenlos — keine Kreditkarte. Ab 11,25 €/Monat.">
+<meta property="og:description" content="EÜR, GoBD, Rechnungen, Lager und KSK in einer App. Live-Demo im Browser. 7 Tage kostenlos — Karte hinterlegen, keine Abbuchung. Ab 15 €/Monat.">
 <meta property="og:url"         content="https://stackr.app/">
 <meta property="og:image"       content="https://stackr.app/og-image.png">
 <meta property="og:locale"      content="de_DE">
 <meta name="twitter:card"       content="summary_large_image">
 <meta name="twitter:title"      content="Stackr — Buchhaltung für Freelancer, GbR &amp; Reseller">
-<meta name="twitter:description" content="EÜR, GoBD, Rechnungen, Lager und KSK in einer App. Live-Demo im Browser. 14 Tage kostenlos. Ab 11,25 €/Monat.">
+<meta name="twitter:description" content="EÜR, GoBD, Rechnungen, Lager und KSK in einer App. Live-Demo im Browser. 7 Tage kostenlos. Ab 15 €/Monat.">
 <meta name="twitter:image"      content="https://stackr.app/og-image.png">
 <link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -59,7 +59,7 @@
     </div>
     <div class="nav-actions">
         <button class="btn-ghost" data-action="auth" data-mode="login">Anmelden</button>
-        <button class="btn-primary" data-action="auth" data-mode="register">14 Tage testen →</button>
+        <a class="btn-primary" href="#preise">7 Tage testen →</a>
     </div>
 </nav>
 
@@ -79,10 +79,10 @@
     </p>
 
     <div class="hero-actions">
-        <button class="btn-hero" data-action="auth" data-mode="register">14 Tage kostenlos testen →</button>
+        <a class="btn-hero" href="#preise">7 Tage kostenlos testen →</a>
         <a href="#demo" class="btn-hero-ghost">Live-Demo ausprobieren ↓</a>
     </div>
-    <div class="hero-micro">Keine Kreditkarte nötig · danach 15 €/Monat · jederzeit kündbar</div>
+    <div class="hero-micro">Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung · danach 15 €/Monat · jederzeit kündbar</div>
 
     <!-- App-Mockup -->
     <div class="hero-mockup-wrap">
@@ -599,7 +599,7 @@
     <div style="text-align:center;margin-bottom:48px;" data-reveal>
         <div class="section-tag">Preise</div>
         <h2 class="section-title">Ein Preis. Alles drin.</h2>
-        <p class="section-sub">14 Tage alles kostenlos testen — keine Kreditkarte nötig. Danach 15 € im Monat. Das war's. Kein Kleingedrucktes, keine Tarif-Treppe.</p>
+        <p class="section-sub">Erst 7 Tage kostenlos testen — Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung. Danach 15 € im Monat. Das war's. Kein Kleingedrucktes, keine Tarif-Treppe.</p>
 
         <!-- Billing toggle -->
         <div class="billing-toggle" role="group" aria-label="Abrechnungszeitraum wählen">
@@ -609,26 +609,9 @@
     </div>
 
     <div class="pricing-grid" data-reveal>
-        <!-- TRIAL -->
-        <div class="pricing-card">
-            <div class="plan-name">14 Tage Trial</div>
-            <div class="plan-price">0 € <span>/ kostenlos</span></div>
-            <div class="plan-desc">Kein Abo, keine Kreditkarte</div>
-            <ul class="plan-features">
-                <li><span class="check">✓</span> <strong>Alle Features freigeschaltet</strong></li>
-                <li><span class="check">✓</span> Unbegrenzte Buchungen</li>
-                <li><span class="check">✓</span> Automatische lokale Backups</li>
-                <li><span class="check">✓</span> Rechnungen &amp; Angebote</li>
-                <li><span class="check">✓</span> EÜR, Lager, Fahrtenbuch</li>
-                <li><span class="check">✓</span> PDF &amp; Excel Export</li>
-                <li style="color:var(--muted);font-size:12px;padding-top:4px;">Nach 14 Tagen: Upgrade erforderlich</li>
-            </ul>
-            <button class="btn-plan btn-plan-free" data-action="auth" data-mode="register">Jetzt 14 Tage testen →</button>
-        </div>
-
         <!-- PRO -->
-        <div class="pricing-card popular">
-            <div class="popular-badge">✦ Empfohlen</div>
+        <div class="pricing-card popular" style="grid-column:1/-1;max-width:400px;margin:0 auto;">
+            <div class="popular-badge">✦ Erst 7 Tage kostenlos</div>
             <div class="plan-name">Pro</div>
             <div class="plan-price" id="proPrice">15,00 € <span id="proPricePeriod">/ Monat</span></div>
             <div class="plan-desc" id="proDesc">inkl. MwSt. · Jederzeit kündbar</div>
@@ -641,8 +624,9 @@
                 <li><span class="check">✓</span> AfA, KSK &amp; GoBD-Protokoll</li>
                 <li><span class="check">✓</span> PDF &amp; Excel Export</li>
                 <li><span class="check">✓</span> Prioritäts-Support</li>
+                <li style="color:var(--muted);font-size:12px;padding-top:4px;">Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung</li>
             </ul>
-            <button class="btn-plan btn-plan-pro" id="proCtaBtn" data-action="auth" data-mode="register">Jetzt Pro starten →</button>
+            <a class="btn-plan btn-plan-pro" id="proCtaBtn" href="https://whop.com/checkout/plan_iR6YIKLcychSZ" rel="noopener">Jetzt 7 Tage kostenlos testen →</a>
         </div>
     </div>
 
@@ -652,7 +636,7 @@
         weniger Stunden braucht.
     </p>
     <div class="price-guarantees" data-reveal>
-        <span class="price-guarantee"><svg><use href="#i-check"/></svg> 14 Tage kostenlos testen</span>
+        <span class="price-guarantee"><svg><use href="#i-check"/></svg> 7 Tage kostenlos testen</span>
         <span class="price-guarantee"><svg><use href="#i-check"/></svg> Monatlich kündbar</span>
         <span class="price-guarantee"><svg><use href="#i-check"/></svg> Daten jederzeit exportierbar</span>
         <span class="price-guarantee"><svg><use href="#i-check"/></svg> 100 % lokal · DSGVO</span>
@@ -670,7 +654,7 @@
                 Kann ich die App kostenlos testen?
                 <span class="arrow">+</span>
             </button>
-            <div class="faq-a">Ja! Du erhältst 14 Tage vollen Zugriff auf alle Features — komplett kostenlos und ohne Kreditkarte. Nach der Testphase kannst du für 15 €/Monat (inkl. MwSt.) oder 135 €/Jahr upgraden.</div>
+            <div class="faq-a">Ja! Du startest den Pro-Plan über Whop mit einer kostenlosen 7-tägigen Testphase — dafür hinterlegst du eine Karte, abgebucht wird aber erst nach Ablauf der 7 Tage. Kündigst du vorher formlos über dein Whop-Konto, zahlst du nichts. Danach läuft dein gewähltes Abo (15 €/Monat oder 135 €/Jahr, inkl. MwSt.) normal weiter.</div>
         </div>
         <div class="faq-item">
             <button class="faq-q" data-action="faq">
@@ -757,8 +741,8 @@
 <div class="cta-banner" data-reveal>
     <h2>Dein nächster Steuer-Abend<br>dauert 20 Minuten.</h2>
     <p>Starte jetzt — in 2 Minuten ist dein Konto eingerichtet, deine erste Buchung dauert 10 Sekunden.</p>
-    <button class="btn-hero" data-action="auth" data-mode="register">Jetzt 14 Tage kostenlos testen →</button>
-    <div class="hero-micro">Keine Kreditkarte · danach 15 €/Monat · jederzeit kündbar</div>
+    <a class="btn-hero" href="#preise">Jetzt 7 Tage kostenlos testen →</a>
+    <div class="hero-micro">Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung · danach 15 €/Monat · jederzeit kündbar</div>
 </div>
 </div>
 
@@ -771,8 +755,8 @@
 
 <!-- ═══════════════════ STICKY MOBILE CTA ═══════════════════ -->
 <div id="stickyCta" aria-hidden="true">
-    <div class="sc-price"><strong>14 Tage kostenlos</strong>danach 15 €/Monat</div>
-    <button class="btn-hero" data-action="auth" data-mode="register">Jetzt testen →</button>
+    <div class="sc-price"><strong>7 Tage kostenlos</strong>danach 15 €/Monat</div>
+    <a class="btn-hero" href="#preise">Jetzt testen →</a>
 </div>
 
 <!-- Auth-Modal entfernt: Anmeldung, Registrierung & Zahlung laufen vollständig über Whop in der App -->
@@ -809,7 +793,7 @@
         {
             "@type": "Question",
             "name": "Kann ich die App kostenlos testen?",
-            "acceptedAnswer": { "@type": "Answer", "text": "Ja! Du erhältst 14 Tage vollen Zugriff auf alle Features — komplett kostenlos und ohne Kreditkarte. Nach der Testphase kannst du für 15 €/Monat (inkl. MwSt.) oder 135 €/Jahr upgraden." }
+            "acceptedAnswer": { "@type": "Answer", "text": "Ja! Du startest den Pro-Plan über Whop mit einer kostenlosen 7-tägigen Testphase — dafür hinterlegst du eine Karte, abgebucht wird aber erst nach Ablauf der 7 Tage. Kündigst du vorher formlos über dein Whop-Konto, zahlst du nichts. Danach läuft dein gewähltes Abo (15 €/Monat oder 135 €/Jahr, inkl. MwSt.) normal weiter." }
         },
         {
             "@type": "Question",

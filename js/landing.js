@@ -333,12 +333,17 @@
             priceEl.childNodes[0].textContent = '11,25 € ';
             periodEl.textContent = '/ Monat';
             descEl.textContent   = 'Abgerechnet jährlich (135 €) · Du sparst 45 € · inkl. MwSt.';
-            ctaBtn.textContent   = 'Jetzt Pro (jährlich) starten →';
         } else {
             priceEl.childNodes[0].textContent = '15,00 € ';
             periodEl.textContent = '/ Monat';
             descEl.textContent   = 'inkl. MwSt. · Jederzeit kündbar';
-            ctaBtn.textContent   = 'Jetzt Pro starten →';
+        }
+        // Bei aktiver Whop-Session zeigt der CTA "Zur App" (checkExistingSession) — nicht überschreiben
+        if (!ctaBtn.dataset.session) {
+            ctaBtn.textContent = 'Jetzt 7 Tage kostenlos testen →';
+            ctaBtn.href        = isYearly
+                ? 'https://whop.com/checkout/plan_b5IBQ1lecggOT'
+                : 'https://whop.com/checkout/plan_iR6YIKLcychSZ';
         }
     };
 
@@ -371,7 +376,12 @@
         var btns = document.querySelectorAll('.btn-hero, .btn-plan-free, .btn-plan-pro');
         btns.forEach(function(btn) {
             btn.textContent = 'Zur App →';
-            btn.onclick = function() {
+            btn.dataset.session = '1';
+            // CTAs sind jetzt <a>-Elemente (Whop-Checkout bzw. #preise) — href mit umstellen,
+            // sonst gewinnt die Default-Navigation über den onclick-Handler
+            if (btn.hasAttribute('href')) btn.setAttribute('href', APP_URL);
+            btn.onclick = function(ev) {
+                ev.preventDefault();
                 showLoader('App wird geöffnet...');
                 window.location.href = APP_URL;
             };

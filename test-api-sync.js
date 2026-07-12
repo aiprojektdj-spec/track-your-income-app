@@ -1,11 +1,12 @@
 // Handler-Test für die StB-Grant-Autorisierung:  node test-api-sync.js
-// Mockt Upstash-Redis (in-memory) + Whop (userinfo/has-access) und fährt den echten
+// Mockt Upstash-Redis (in-memory) + Whop (userinfo + app/memberships) und fährt den echten
 // api/sync.js-Handler. Prüft: Grant-gated pull, read-only push-Sperre, Pro-Ausnahme
 // für Grantee-Reads, echter Revoke.
 'use strict';
 const assert = require('assert');
 process.env.UPSTASH_REDIS_REST_URL   = 'http://redis.mock';
 process.env.UPSTASH_REDIS_REST_TOKEN = 'x';
+process.env.WHOP_API_KEY             = 'test_app_key';
 
 // ── In-Memory-Redis ───────────────────────────────────────────────────────────
 const store = new Map(), sets = new Map();
@@ -35,7 +36,13 @@ global.fetch = async (url, opts) => {
     const auth = (opts.headers.Authorization || '').replace('Bearer ', '');
     const u = whopUsers[auth] || null;
     if (url.includes('/oauth/userinfo')) return u ? { ok: true, json: async () => ({ sub: u.sub, preferred_username: u.preferred_username }) } : { ok: false };
-    if (url.includes('/has-access/'))    return { ok: true, json: async () => ({ has_access: !!u && u.has_access }) };
+    if (url.includes('/company/memberships')) {
+        // Company-API-Key-Check: gibt ALLE gültigen Memberships zurück (user_id-Filter wirkt nicht);
+        // der Handler matcht die user_id selbst. Nur Mock-User mit has_access sind gültig.
+        const members = Object.values(whopUsers).filter(x => x.has_access)
+            .map(x => ({ id: 'mem_' + x.sub, user_id: x.sub, valid: true, status: 'active' }));
+        return { ok: true, json: async () => ({ data: members, pagination: { next_page: null } }) };
+    }
     return { ok: false };
 };
 

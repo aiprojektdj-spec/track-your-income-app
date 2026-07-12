@@ -7,7 +7,7 @@
 // Flow (OAuth 2.1 + PKCE):
 //  1. _loginWithWhop(): erzeugt code_verifier/challenge, leitet zu Whop weiter
 //  2. boot(): erkennt ?code= Callback, tauscht Code gegen Token (PKCE, kein client_secret)
-//  3. _validateAndContinue(): prüft userinfo + has-access
+//  3. _validateAndContinue(): userinfo + Membership-Check via /api/whop-access (serverseitig)
 //  4. _onAuthorized(): App starten
 // ============================================
 var AuthUI = (function () {
@@ -30,13 +30,12 @@ var AuthUI = (function () {
     // Whop company owners can't self-subscribe — grant them permanent access
     var OWNER_USERNAMES   = ['secondlifevintage41'];
 
-    // Zugangs-Check: gegen die tatsächlich gekauften Produkte / die Company prüfen —
-    // NICHT gegen die OAuth-App-ID. Ein Kunde kauft ein Produkt (prod_…); die Whop-Antwort
-    // has-access/app_… ist false, solange das Produkt die App nicht "included" (bei uns leer),
-    // d.h. ein zahlender Kunde würde ausgesperrt. Company-ID zuerst (deckt alle aktuellen UND
-    // künftigen Produkte/Pläne der Stackr-Whop automatisch ab) → prod_-IDs als sichere Rückfallebene.
-    //   biz_2OEWYGlOwb8b0f = Stackr-Whop · prod_wgVmaJg4sBVOD = "Stackr Pro" 15 €/Mon · prod_p1WHi5t65rAA6 = "Stackr" 135 €/Jahr
-    var WHOP_ACCESS_IDS   = ['biz_2OEWYGlOwb8b0f', 'prod_wgVmaJg4sBVOD', 'prod_p1WHi5t65rAA6'];
+    // Zugangs-Check läuft SERVERSEITIG über /api/whop-access — NICHT direkt gegen Whop.
+    // Grund: Ein OAuth-USER-Token darf bei Whop nur /oauth/userinfo lesen; /v5/me/* lehnt es
+    // mit 403 "token is invalid" ab (empirisch bestätigt). Der Mitgliedschafts-Check braucht
+    // einen App-API-Key, der niemals in den Browser darf → er liegt im Vercel-Backend.
+    // Die alte Route /v5/me/has-access/<id> existierte bei Whop gar nicht (404) und sperrte
+    // dadurch jeden zahlenden Kunden aus.
 
     var LS_TOKEN = 'whop_access_token';
     var LS_USER  = 'whop_user';
@@ -225,19 +224,23 @@ var AuthUI = (function () {
                 return true;
             }
 
-            // Membership-Check — gegen Produkt-/Company-IDs (siehe WHOP_ACCESS_IDS), nicht die App-ID.
-            // Erste ID, die has_access:true liefert, gewährt Zugang. Netzwerkfehler propagiert an den
-            // äußeren catch → Offline-Grace; non-ok (z. B. 404 für eine nicht unterstützte ID-Form)
-            // überspringt nur diese ID und probiert die nächste.
+            // Membership-Check serverseitig: /api/whop-access leitet die user_id aus dem Token ab
+            // (userinfo) und prüft mit dem App-API-Key /v5/app/memberships?user_id=…&valid=true.
+            // 5xx/Netzfehler → äußerer catch → Offline-Grace. Sonstiger non-ok → kein Zugang,
+            // laut geloggt, damit eine falsch konfigurierte WHOP_API_KEY-Env sofort sichtbar ist.
             var hasAccess = false;
-            for (var ai = 0; ai < WHOP_ACCESS_IDS.length; ai++) {
-                var accessRes = await fetch('https://api.whop.com/v5/me/has-access/' + WHOP_ACCESS_IDS[ai], {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (accessRes.ok) {
-                    var accessData = await accessRes.json();
-                    if (accessData && accessData.has_access === true) { hasAccess = true; break; }
-                }
+            var accRes = await fetch('/api/whop-access', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ token: token })
+            });
+            if (accRes.ok) {
+                var accJson = await accRes.json();
+                hasAccess = !!(accJson && accJson.has_access === true);
+            } else if (accRes.status >= 500) {
+                throw new Error('whop-access HTTP ' + accRes.status); // → Offline-Grace
+            } else {
+                console.warn('[WhopAuth] /api/whop-access HTTP ' + accRes.status + ' — Zugang nicht bestätigt');
             }
 
             if (hasAccess) {

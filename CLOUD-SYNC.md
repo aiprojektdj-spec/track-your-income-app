@@ -4,8 +4,9 @@ Optionaler, Ende-zu-Ende-verschlüsselter Sync zwischen Geräten desselben Whop-
 Offline-First bleibt unangetastet: ohne Aktivierung passiert nichts.
 
 ## Architektur (kurz)
-- **Server:** `api/sync.js` (Vercel Serverless). Validiert Whop-Bearer-Token server-seitig
-  (`/v5/me` + `/v5/me/has-access`), leitet UserID server-seitig ab, erzwingt Pro.
+- **Server:** `api/sync.js` (Vercel Serverless). Validiert das Whop-User-Token server-seitig
+  über `/oauth/userinfo` (leitet UserID ab), erzwingt Pro via App-API-Key gegen
+  `/v5/app/memberships?user_id=…&valid=true` (`WHOP_API_KEY`).
   Speichert **nur Chiffrat** + Metadaten. CAS per Lua-`EVAL` (Versions-Vergleich) → 409 bei Konflikt.
 - **Store:** **Upstash Redis (REST), Region `eu-central-1` / Frankfurt** → EU-Datenresidenz.
   Keys: `sync:<userId>:<scope>` (scope = `__account` | `co_<id>`), Rate-Limit `sync:rl:<userId>`.

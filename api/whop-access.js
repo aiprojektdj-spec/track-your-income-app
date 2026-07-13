@@ -1,57 +1,96 @@
-// Vercel Serverless Function — Whop Membership / Zugangs-Check (serverseitig)
+// Vercel Serverless Function — Whop Zugangs-Check (serverseitig)
 //
-// Warum serverseitig: Ein OAuth-USER-Token darf bei Whop nur /oauth/userinfo lesen;
-// /v5/me/* lehnt es mit 403 "Your token is invalid" ab. Der Mitgliedschafts-Check
-// braucht einen Company-API-Key, der NIEMALS in den Browser darf → er lebt hier im Backend.
-// (Die früher genutzte Route /v5/me/has-access/<id> existiert bei Whop gar nicht → 404,
-//  dadurch wurde JEDER zahlende Kunde ausgesperrt.)
+// Zwei unabhängige Prüfwege, Zugang sobald EINER bestätigt — robust gegen die beiden
+// bisherigen Ausfallursachen (falscher Endpoint bzw. fehlende Server-Env):
 //
-// Flow:
-//   1. Client schickt sein OAuth-User-Token.
-//   2. Wir leiten daraus serverseitig die user_id ab (/oauth/userinfo) — der Client-ID
-//      wird nie vertraut.
-//   3. Mit WHOP_API_KEY (Company-API-Key): GET /v5/company/memberships?valid=true
-//      → durchsuchen nach einer gültigen Membership mit dieser user_id.
-//      HINWEIS: Der user_id-Query-Filter wird von Whop bei Company-Keys IGNORIERT
-//      (gibt immer alle zurück) → wir filtern selbst im Code. Der App-Endpoint
-//      /v5/app/memberships (der user_id filtern würde) liefert mit Company-Key 403.
+//   1. PRIMÄR — mit dem OAuth-USER-Token des Kunden gegen
+//        GET https://api.whop.com/api/v2/me/has_access/<id>
+//      Der has_access-Endpoint existiert bei Whop unter v2 (NICHT v5 → 404, NICHT
+//      mit Bindestrich → 404). Braucht KEINEN Server-API-Key. Mit einer prod_-/biz_-ID
+//      meldet Whop Zugang, wenn der Token-Inhaber eine gültige Membership hat.
+//   2. FALLBACK — nur wenn WHOP_API_KEY gesetzt ist: Company-Membership-Scan mit dem
+//        Company-API-Key gegen GET /v5/company/memberships?valid=true
+//      (empirisch bestätigter Weg; user_id-Filter wird bei Company-Keys ignoriert →
+//       im Code selbst nach user_id matchen).
+//
+// Historie (nicht wiederholen): /v5/me/has-access (Bindestrich) → 404;
+//   /v5/me/has_access → 404 (Route existiert nur unter v2); has_access gegen die App-ID
+//   app_… → false für Kunden (Produkte "includen" die OAuth-App nicht) → biz_/prod_ nutzen.
 //
 // Env:
-//   WHOP_API_KEY            Company-API-Key aus dem Whop-Dashboard (Scope: "Read members")
-//   WHOP_OWNER_USERNAMES    optional, kommagetrennt — Company-Owner ohne eigenes Abo
+//   WHOP_ACCESS_IDS       optional, kommagetrennt — Zugangs-IDs (prod_ zuerst, biz_ als Fallback)
+//   WHOP_API_KEY          optional — Company-API-Key aktiviert den Fallback-Scan
+//   WHOP_OWNER_USERNAMES  optional, kommagetrennt — Company-Owner ohne eigenes Abo
+
+//   prod_wgVmaJg4sBVOD = "Stackr Pro" 15 €/Mon · prod_p1WHi5t65rAA6 = "Stackr" 135 €/Jahr · biz_2OEWYGlOwb8b0f = Company
+var ACCESS_IDS = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
+    .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+
+var WHOP_API_KEY = process.env.WHOP_API_KEY || '';
 
 var OWNERS = (process.env.WHOP_OWNER_USERNAMES || 'secondlifevintage41')
     .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 
-// Durchsucht die Company-Memberships nach einer gültigen Mitgliedschaft der user_id.
-// Paginiert (Filter wirkt nicht → selbst matchen), mit Seiten-Obergrenze als Schutz.
-async function _hasValidMembership(apiKey, userId) {
+// Erkennt Zugang in den unterschiedlichen has_access-/Membership-Shapes.
+function _grants(obj) {
+    return !!(obj && (obj.valid === true || obj.has_access === true ||
+        obj.status === 'active' || obj.status === 'trialing' ||
+        (obj.access_level && obj.access_level !== 'no_access')));
+}
+
+// PRIMÄR: has_access mit dem User-Token (v2). Rückgabe: true | false | null(unbestimmt).
+// null = der Endpoint akzeptiert das Token nicht (401/403) → Aufrufer nutzt den Fallback.
+// 5xx → wirft (→ 502 → Client-Offline-Grace).
+async function _hasAccessViaToken(userToken) {
+    var sawOk = false;
+    for (var i = 0; i < ACCESS_IDS.length; i++) {
+        var r = await fetch('https://api.whop.com/api/v2/me/has_access/' + ACCESS_IDS[i], {
+            headers: { 'Authorization': 'Bearer ' + userToken, 'Accept': 'application/json' },
+            signal:  AbortSignal.timeout(8000)
+        });
+        if (r.status === 401 || r.status === 403) return null; // Token hier nicht akzeptiert → unbestimmt
+        if (r.status >= 500) { var e = new Error('has_access HTTP ' + r.status); e.httpStatus = r.status; throw e; }
+        if (!r.ok) continue;                                   // 4xx (ID-Form) → nächste ID
+        sawOk = true;
+        var j = null; try { j = await r.json(); } catch (pe) { continue; }
+        if (_grants(j) || _grants(j && j.data)) return true;
+    }
+    return sawOk ? false : null;
+}
+
+// FALLBACK: Company-Membership-Scan mit dem Company-API-Key. Paginiert, Seiten-Obergrenze.
+async function _hasAccessViaCompanyKey(userId) {
     var page = 1, MAX_PAGES = 20;
     while (page <= MAX_PAGES) {
         var res = await fetch('https://api.whop.com/v5/company/memberships?valid=true&per=50&page=' + page, {
-            headers: { 'Authorization': 'Bearer ' + apiKey, 'Accept': 'application/json' },
+            headers: { 'Authorization': 'Bearer ' + WHOP_API_KEY, 'Accept': 'application/json' },
             signal:  AbortSignal.timeout(8000)
         });
-        if (!res.ok) {
-            var body = ''; try { body = await res.text(); } catch (e) {}
-            var err = new Error('memberships HTTP ' + res.status + ' ' + body);
-            err.httpStatus = res.status;
-            throw err;
-        }
+        if (!res.ok) { var e = new Error('memberships HTTP ' + res.status); e.httpStatus = res.status; throw e; }
         var json = await res.json();
         var list = (json && json.data) || [];
         for (var i = 0; i < list.length; i++) {
-            var m = list[i];
-            if (m && m.user_id === userId &&
-                (m.valid === true || m.status === 'active' || m.status === 'trialing')) {
-                return true;
-            }
+            if (list[i] && list[i].user_id === userId && _grants(list[i])) return true;
         }
         var pg = json && json.pagination;
         if (!pg || !pg.next_page || list.length === 0) break;
         page = pg.next_page;
     }
     return false;
+}
+
+// Kombiniert: Token-Weg zuerst; bei true sofort Zugang. Sonst — wenn ein Company-Key
+// vorhanden ist — der bewährte Membership-Scan als maßgebliche Zweitmeinung.
+async function _checkAccess(userToken, userId) {
+    var t = await _hasAccessViaToken(userToken);   // true | false | null
+    if (t === true) return true;
+    if (WHOP_API_KEY) return await _hasAccessViaCompanyKey(userId);
+    if (t === false) return false;
+    // Token-Endpoint unbestimmt UND kein Company-Key → nicht entscheidbar:
+    // einen zahlenden Kunden NICHT fälschlich aussperren → als Serverproblem behandeln.
+    var e = new Error('access_undeterminable (no WHOP_API_KEY, token endpoint rejected user token)');
+    e.httpStatus = 502;
+    throw e;
 }
 
 module.exports = async function handler(req, res) {
@@ -68,14 +107,8 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: 'Missing or invalid token' });
     }
 
-    var apiKey = process.env.WHOP_API_KEY;
-    if (!apiKey) {
-        console.error('[whop-access] WHOP_API_KEY not set');
-        return res.status(500).json({ error: 'Server misconfigured' });
-    }
-
     try {
-        // ── 1. user_id serverseitig aus dem User-Token ableiten ──────────────
+        // ── 1. user_id + username serverseitig aus dem Token ableiten ─────────
         var meRes = await fetch('https://api.whop.com/oauth/userinfo', {
             headers: { 'Authorization': 'Bearer ' + token },
             signal:  AbortSignal.timeout(8000)
@@ -92,17 +125,16 @@ module.exports = async function handler(req, res) {
 
         if (!userId) return res.status(502).json({ error: 'no_user_id' });
 
-        // Owner-Bypass: Company-Owner haben kein eigenes Abo (können sich nicht selbst abonnieren).
+        // Owner-Bypass: Company-Owner haben kein eigenes Abo.
         if (OWNERS.indexOf(username) !== -1) {
             return res.status(200).json({ has_access: true, user_id: userId, owner: true });
         }
 
-        // ── 2. Gültige Mitgliedschaft des Users prüfen (Company-API-Key) ─────
-        var hasAccess = await _hasValidMembership(apiKey, userId);
+        // ── 2. Zugang prüfen (Token-Weg, dann ggf. Company-Key-Fallback) ─────
+        var hasAccess = await _checkAccess(token, userId);
         return res.status(200).json({ has_access: hasAccess, user_id: userId });
     } catch (err) {
-        // 401/403 vom Membership-Call = falscher/fehlender API-Key → Serverfehler,
-        // NICHT "kein Abo". Netz/5xx → ebenfalls 502 → Client nutzt Offline-Grace.
+        // Netz/5xx/unbestimmt → 502 → Client nutzt Offline-Grace (kein falsches „kein Abo").
         console.error('[whop-access] error:', err && err.message);
         return res.status(502).json({ error: 'whop_unreachable' });
     }

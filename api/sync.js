@@ -4,7 +4,7 @@
 // niemals entschlüsseln — der Schlüssel verlässt das Gerät des Nutzers nie.
 //
 // Identität: Whop-Bearer-Token wird server-seitig gegen Whop validiert
-//   (userinfo + has-access). Die UserID wird server-seitig abgeleitet —
+//   (userinfo + /v5/me/has_access). Die UserID wird server-seitig abgeleitet —
 //   einer client-gesendeten ID wird NIE vertraut.
 // Sync ist PRO-ONLY: nur bei has_access === true (oder Owner-Allowlist).
 //
@@ -16,7 +16,8 @@
 // Env (Vercel, EU-Region) — von der Upstash-Marketplace-Integration automatisch
 // gesetzt (KV_REST_API_*). UPSTASH_REDIS_REST_* werden als Override unterstützt.
 //   KV_REST_API_URL / KV_REST_API_TOKEN    (Upstash REST-Endpoint + RW-Token)
-//   WHOP_API_KEY               (App-API-Key aus dem Whop-Dashboard — für den Membership-Check)
+//   WHOP_ACCESS_IDS            (optional, kommagetrennt — Zugangs-IDs; Default prod_+biz_)
+//   WHOP_API_KEY               (optional — Company-API-Key aktiviert den Fallback-Scan)
 //   SYNC_OWNER_USERNAMES       (optional, kommagetrennt — Owner ohne Abo)
 // =============================================================================
 
@@ -24,16 +25,44 @@
 var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
 var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
 
-// Zugangs-Check mit dem Company-API-Key gegen /v5/company/memberships?valid=true.
-// NICHT mit dem User-Token: /v5/me/* lehnt OAuth-User-Tokens ab, und /v5/me/has-access
-// existiert bei Whop nicht (404) → sperrte früher jeden zahlenden Kunden aus.
-// Der user_id-Query-Filter wird bei Company-Keys ignoriert → im Code selbst matchen.
+// Zugangs-Check — zwei unabhängige Wege, Zugang sobald EINER bestätigt (identisch zu
+// api/whop-access.js): (1) User-Token gegen https://api.whop.com/api/v2/me/has_access/<id>
+// (has_access existiert bei Whop unter v2, NICHT v5→404, NICHT mit Bindestrich→404;
+// braucht KEINEN Server-Key), (2) Fallback nur wenn WHOP_API_KEY gesetzt: Company-Scan
+// gegen /v5/company/memberships?valid=true (user_id-Filter wird ignoriert → selbst matchen).
+//   prod_wgVmaJg4sBVOD = Pro 15 €/Mon · prod_p1WHi5t65rAA6 = 135 €/Jahr · biz_2OEWYGlOwb8b0f = Company
+var ACCESS_IDS   = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
+                       .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 var WHOP_API_KEY = process.env.WHOP_API_KEY || '';
 var OWNERS       = (process.env.SYNC_OWNER_USERNAMES || 'secondlifevintage41')
                        .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 
-// true, wenn userId eine gültige Company-Membership hat. Paginiert, Seiten-Obergrenze als Schutz.
-async function whopHasValidMembership(userId) {
+function whopGrants(obj) {
+    return !!(obj && (obj.valid === true || obj.has_access === true ||
+        obj.status === 'active' || obj.status === 'trialing' ||
+        (obj.access_level && obj.access_level !== 'no_access')));
+}
+
+// has_access mit dem User-Token (v2). true | false | null(unbestimmt: 401/403). 5xx → wirft.
+async function whopHasAccessViaToken(userToken) {
+    var sawOk = false;
+    for (var i = 0; i < ACCESS_IDS.length; i++) {
+        var r = await fetch('https://api.whop.com/api/v2/me/has_access/' + ACCESS_IDS[i], {
+            headers: { 'Authorization': 'Bearer ' + userToken, 'Accept': 'application/json' },
+            signal:  AbortSignal.timeout(8000)
+        });
+        if (r.status === 401 || r.status === 403) return null;
+        if (r.status >= 500) { var e = new Error('has_access HTTP ' + r.status); e.httpStatus = r.status; throw e; }
+        if (!r.ok) continue;
+        sawOk = true;
+        var j = null; try { j = await r.json(); } catch (pe) { continue; }
+        if (whopGrants(j) || whopGrants(j && j.data)) return true;
+    }
+    return sawOk ? false : null;
+}
+
+// Fallback: Company-Membership-Scan mit dem Company-API-Key. Paginiert, Seiten-Obergrenze.
+async function whopHasAccessViaCompanyKey(userId) {
     var page = 1, MAX_PAGES = 20;
     while (page <= MAX_PAGES) {
         var r = await fetch('https://api.whop.com/v5/company/memberships?valid=true&per=50&page=' + page, {
@@ -44,15 +73,23 @@ async function whopHasValidMembership(userId) {
         var j = await r.json();
         var list = (j && j.data) || [];
         for (var i = 0; i < list.length; i++) {
-            var m = list[i];
-            if (m && m.user_id === userId &&
-                (m.valid === true || m.status === 'active' || m.status === 'trialing')) return true;
+            if (list[i] && list[i].user_id === userId && whopGrants(list[i])) return true;
         }
         var pg = j && j.pagination;
         if (!pg || !pg.next_page || list.length === 0) break;
         page = pg.next_page;
     }
     return false;
+}
+
+// Kombiniert: Token-Weg zuerst; sonst — falls Company-Key vorhanden — der Membership-Scan.
+async function whopHasAccess(userToken, userId) {
+    var t = await whopHasAccessViaToken(userToken);
+    if (t === true) return true;
+    if (WHOP_API_KEY) return await whopHasAccessViaCompanyKey(userId);
+    if (t === false) return false;
+    var e = new Error('access_undeterminable (no WHOP_API_KEY, token endpoint rejected user token)');
+    e.httpStatus = 502; throw e;
 }
 
 var RATE_MAX     = 40;             // Requests pro Minute pro Nutzer (Push ist 6s-debounced, 40 deckt Firmenwechsel+Retries komfortabel)
@@ -161,17 +198,11 @@ module.exports = async function handler(req, res) {
     var isOwner = OWNERS.indexOf(username) !== -1;
     if (!isOwner && !isGranteeRead) {
         try {
-            // Membership-Check mit dem Company-API-Key (NICHT dem User-Token — /v5/me/* lehnt
-            // User-Tokens ab, und /v5/me/has-access existiert nicht → 404). Company-Endpoint,
-            // weil /v5/app/memberships mit Company-Key 403 liefert.
-            if (!WHOP_API_KEY) {
-                console.error('[sync] WHOP_API_KEY not set');
-                return res.status(500).json({ error: 'server_misconfigured' });
-            }
-            if (!(await whopHasValidMembership(userId)))
+            // Zugangs-Check: User-Token gegen /api/v2/me/has_access, sonst Company-Key-Fallback.
+            if (!(await whopHasAccess(token, userId)))
                 return res.status(403).json({ error: 'pro_required' });
         } catch (e) {
-            console.error('[sync] membership check failed:', e && e.message);
+            console.error('[sync] access check failed:', e && e.message);
             return res.status(502).json({ error: 'whop_unreachable' });
         }
     }

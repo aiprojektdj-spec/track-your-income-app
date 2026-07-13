@@ -30,12 +30,10 @@ var AuthUI = (function () {
     // Whop company owners can't self-subscribe — grant them permanent access
     var OWNER_USERNAMES   = ['secondlifevintage41'];
 
-    // Zugangs-Check läuft SERVERSEITIG über /api/whop-access — NICHT direkt gegen Whop.
-    // Grund: Ein OAuth-USER-Token darf bei Whop nur /oauth/userinfo lesen; /v5/me/* lehnt es
-    // mit 403 "token is invalid" ab (empirisch bestätigt). Der Mitgliedschafts-Check braucht
-    // einen App-API-Key, der niemals in den Browser darf → er liegt im Vercel-Backend.
-    // Die alte Route /v5/me/has-access/<id> existierte bei Whop gar nicht (404) und sperrte
-    // dadurch jeden zahlenden Kunden aus.
+    // Zugangs-Check läuft SERVERSEITIG über /api/whop-access. Das Backend prüft primär mit dem
+    // durchgereichten User-Token gegen /api/v2/me/has_access/<id> (has_access existiert bei Whop
+    // unter v2, nicht v5) und — falls WHOP_API_KEY gesetzt ist — zusätzlich per Company-Scan.
+    // Kein Server-Key zwingend nötig, damit eine fehlende Env den Kunden nicht aussperrt.
 
     var LS_TOKEN = 'whop_access_token';
     var LS_USER  = 'whop_user';
@@ -224,10 +222,9 @@ var AuthUI = (function () {
                 return true;
             }
 
-            // Membership-Check serverseitig: /api/whop-access leitet die user_id aus dem Token ab
-            // (userinfo) und prüft mit dem App-API-Key /v5/app/memberships?user_id=…&valid=true.
-            // 5xx/Netzfehler → äußerer catch → Offline-Grace. Sonstiger non-ok → kein Zugang,
-            // laut geloggt, damit eine falsch konfigurierte WHOP_API_KEY-Env sofort sichtbar ist.
+            // Membership-Check serverseitig: /api/whop-access prüft mit dem durchgereichten
+            // User-Token /api/v2/me/has_access (+ optional Company-Scan). 5xx/Netzfehler →
+            // äußerer catch → Offline-Grace. Sonstiger non-ok → kein Zugang, laut geloggt.
             var hasAccess = false;
             var accRes = await fetch('/api/whop-access', {
                 method:  'POST',

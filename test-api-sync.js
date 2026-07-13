@@ -1,5 +1,5 @@
 // Handler-Test für die StB-Grant-Autorisierung:  node test-api-sync.js
-// Mockt Upstash-Redis (in-memory) + Whop (userinfo + app/memberships) und fährt den echten
+// Mockt Upstash-Redis (in-memory) + Whop (userinfo + v2/me/has_access + company/memberships) und fährt den echten
 // api/sync.js-Handler. Prüft: Grant-gated pull, read-only push-Sperre, Pro-Ausnahme
 // für Grantee-Reads, echter Revoke.
 'use strict';
@@ -35,7 +35,11 @@ global.fetch = async (url, opts) => {
     }
     const auth = (opts.headers.Authorization || '').replace('Bearer ', '');
     const u = whopUsers[auth] || null;
-    if (url.includes('/oauth/userinfo')) return u ? { ok: true, json: async () => ({ sub: u.sub, preferred_username: u.preferred_username }) } : { ok: false };
+    if (url.includes('/oauth/userinfo')) return u ? { ok: true, json: async () => ({ sub: u.sub, preferred_username: u.preferred_username }) } : { ok: false, status: 401 };
+    if (url.includes('/me/has_access/')) {
+        // v2 has_access mit dem User-Token: valid = hat der Token-User Zugang?
+        return u ? { ok: true, status: 200, json: async () => ({ valid: !!u.has_access }) } : { ok: false, status: 401 };
+    }
     if (url.includes('/company/memberships')) {
         // Company-API-Key-Check: gibt ALLE gültigen Memberships zurück (user_id-Filter wirkt nicht);
         // der Handler matcht die user_id selbst. Nur Mock-User mit has_access sind gültig.

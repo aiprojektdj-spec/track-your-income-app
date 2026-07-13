@@ -51,7 +51,9 @@ const Bilanz = {
         const wareneinsatz = purchases.reduce((s, p) => {
             const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
             if (isRegel) {
-                const rate = parseFloat(p.steuersatz) || 19;
+                // Einkäufe tragen den Satz als ustSatz; 0 (Privatankauf) ist gültig
+                const rateRaw = (p.ustSatz != null && p.ustSatz !== '') ? parseFloat(p.ustSatz) : 19;
+                const rate = isNaN(rateRaw) ? 19 : rateRaw;
                 return s + brutto / (1 + rate / 100);
             }
             return s + brutto;

@@ -142,6 +142,8 @@ const Utils = {
 
     isInPeriod(dateStr, startDate, endDate) {
         const d = new Date(dateStr);
+        // Ungültiges/leeres Datum: NaN-Vergleiche sind immer false → wäre sonst in JEDER Periode enthalten
+        if (isNaN(d)) return false;
         if (startDate && d < new Date(startDate)) return false;
         if (endDate && d > new Date(endDate)) return false;
         return true;

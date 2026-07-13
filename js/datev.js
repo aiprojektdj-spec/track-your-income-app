@@ -135,7 +135,8 @@ var DatevExport = (function () {
             var netto = 0;
             var mwstMap = {};
             (inv.positionen || []).forEach(function (pos) {
-                var ln = parseFloat(pos.menge || 1) * parseFloat(pos.einzelpreis || 0);
+                // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
+                var ln = (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0);
                 netto += ln;
                 var rate = isKlein ? 0 : (parseInt(pos.mwstSatz) || 0);
                 if (rate > 0) mwstMap[rate] = (mwstMap[rate] || 0) + ln * rate / 100;
@@ -168,10 +169,14 @@ var DatevExport = (function () {
             });
         });
 
-        // Verkäufe (Einnahmen) aus Buchungen (falls kein Rechnungsmodul)
-        if (invoices.length === 0) {
-            sales.forEach(function (s) {
-                var vkp = parseFloat(s.verkaufspreis || 0);
+        // Direktverkäufe (Marktplatz) — immer exportieren, aber Sales aus bezahlten Rechnungen
+        // (_invoiceId) ausschließen: die sind oben schon als Rechnungszeile gebucht. Der frühere
+        // Guard `invoices.length === 0` verschluckte sonst ALLE Direktverkäufe, sobald im Jahr
+        // eine einzige Rechnung existierte.
+        {
+            sales.filter(function (s) { return !s._invoiceId; }).forEach(function (s) {
+                // Käufer-Versand zählt zur Einnahme (konsistent zu UVA/EÜR)
+                var vkp = (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
                 var erloesKonto = isKlein ? accounts.erloese_klein : accounts.erloese_19;
                 rows.push({
                     umsatz:       vkp,

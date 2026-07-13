@@ -26,7 +26,11 @@ const Vorsteuer = {
 
         let vst19 = 0, vst7 = 0, netto19 = 0, netto7 = 0;
         purchases.forEach(p => {
-            const rate = parseFloat(p.steuersatz) || 19;
+            // Einkäufe tragen den Satz als ustSatz (nicht steuersatz) und 0 ist ein gültiger
+            // Wert (Privatankauf ohne VSt-Abzug) — darf nicht per || auf 19 fallen
+            const rateRaw = (p.ustSatz != null && p.ustSatz !== '') ? parseFloat(p.ustSatz) : 19;
+            const rate = isNaN(rateRaw) ? 19 : rateRaw;
+            if (rate === 0) return; // steuerfrei/Privat — keine Vorsteuer
             const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
             const netto = brutto / (1 + rate / 100);
             const vst = brutto - netto;
@@ -48,7 +52,12 @@ const Vorsteuer = {
 
         let vst19 = 0, vst7 = 0, vst0 = 0, netto19 = 0, netto7 = 0;
         expenses.forEach(e => {
-            const rate = parseFloat(e.ustSatz || e.steuersatz) || 19;
+            // 0 ist ein gültiger Satz (steuerfreie Ausgaben: Versicherung, Porto, Bankgebühren) —
+            // die ||-Kette machte den 0%-Zweig unerreichbar und kreditierte immer 19/119
+            const rawVal = (e.ustSatz != null && e.ustSatz !== '') ? e.ustSatz
+                         : ((e.steuersatz != null && e.steuersatz !== '') ? e.steuersatz : 19);
+            const rateRaw = parseFloat(rawVal);
+            const rate = isNaN(rateRaw) ? 19 : rateRaw;
             const brutto = parseFloat(e.betrag) || 0;
             if (rate === 0) {
                 vst0 += brutto; // kein Vorsteuerabzug
@@ -345,7 +354,8 @@ const Vorsteuer = {
                     </tr></thead>
                     <tbody>
                         ${purchases.map(p => {
-                            const rate = parseFloat(p.steuersatz) || 19;
+                            const rateRaw = (p.ustSatz != null && p.ustSatz !== '') ? parseFloat(p.ustSatz) : 19;
+                            const rate = isNaN(rateRaw) ? 19 : rateRaw;
                             const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
                             const netto = brutto / (1 + rate / 100);
                             const vst = brutto - netto;
@@ -740,7 +750,7 @@ const Vorsteuer = {
             if (!datum || isNaN(vst) || vst <= 0) { Utils.showToast('Pflichtfelder ausfüllen', 'warning'); return; }
 
             const entries = this._getEntries();
-            entries.push({
+            const entry = {
                 id: Store.generateId(),
                 typ: document.getElementById('mv_typ').value,
                 datum,
@@ -749,7 +759,11 @@ const Vorsteuer = {
                 lieferant: document.getElementById('mv_lieferant').value.trim(),
                 beschreibung: document.getElementById('mv_beschr').value.trim(),
                 createdAt: new Date().toISOString()
-            });
+            };
+            // IG-Erwerb: Erwerbsteuer entsteht 1:1 zur Vorsteuer (§1a UStG) — ohne dieses Feld
+            // zöge die UVA nur Kz. 61 ab, ohne die gegenläufige Erwerbsteuer (Kz. 89) anzusetzen
+            if (entry.typ === 'ig_erwerb') entry.erwerbsteuer = vst;
+            entries.push(entry);
             this._saveEntries(entries);
             App.closeModal();
             Utils.showToast('Eintrag gespeichert', 'success');

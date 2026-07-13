@@ -31,7 +31,8 @@ const OSS = {
     },
 
     _netto(inv) {
-        return (inv.positionen || []).reduce((s, p) => s + parseFloat(p.menge || 1) * parseFloat(p.einzelpreis || 0), 0);
+        // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
+        return (inv.positionen || []).reduce((s, p) => s + (parseFloat(p.menge) || 0) * parseFloat(p.einzelpreis || 0), 0);
     },
 
     _calcLaender(year) {
@@ -72,7 +73,11 @@ const OSS = {
 
         const year = this._year;
         const umsatz = this._jahresumsatz(year);
-        const ueberSchwelle = umsatz >= this.SCHWELLE;
+        // §3c Abs. 4 UStG: Schwelle muss im Vorjahr UND im laufenden Jahr unterschritten sein —
+        // nach einem Überschreitungsjahr gilt das Bestimmungslandprinzip ab dem ersten Euro
+        const vorjahrUmsatz = this._jahresumsatz(year - 1);
+        const ueberSchwelle = umsatz >= this.SCHWELLE || vorjahrUmsatz >= this.SCHWELLE;
+        const nurWegenVorjahr = ueberSchwelle && umsatz < this.SCHWELLE;
         const byLand = this._calcLaender(year);
         const laender = Object.keys(byLand).sort();
 
@@ -97,8 +102,8 @@ const OSS = {
                 </div>
                 <div style="text-align:right;">
                     ${ueberSchwelle
-                        ? '<span class="badge badge-danger">⚠️ Schwelle überschritten</span><div style="font-size:12px;color:var(--text-muted);margin-top:6px;max-width:280px;">USt ist ab Überschreiten im jeweiligen Bestimmungsland fällig. Melde dich beim <a href="https://www.bzst.de" target="_blank" rel="noopener">BZSt</a> für das OSS-Verfahren an.</div>'
-                        : '<span class="badge badge-success">✅ Unter Schwelle</span><div style="font-size:12px;color:var(--text-muted);margin-top:6px;max-width:280px;">Bis hierhin gilt das Ursprungslandprinzip — normale deutsche USt auf diesen Rechnungen ist korrekt.</div>'}
+                        ? `<span class="badge badge-danger">⚠️ Schwelle überschritten${nurWegenVorjahr ? ' (Vorjahr)' : ''}</span><div style="font-size:12px;color:var(--text-muted);margin-top:6px;max-width:280px;">${nurWegenVorjahr ? `Das Vorjahr lag mit ${Utils.formatCurrency(vorjahrUmsatz)} über der Schwelle — das Bestimmungslandprinzip gilt daher schon ab dem ersten Euro dieses Jahres (§3c Abs. 4 UStG). ` : 'USt ist ab Überschreiten im jeweiligen Bestimmungsland fällig. '}Melde dich beim <a href="https://www.bzst.de" target="_blank" rel="noopener">BZSt</a> für das OSS-Verfahren an.</div>`
+                        : '<span class="badge badge-success">✅ Unter Schwelle</span><div style="font-size:12px;color:var(--text-muted);margin-top:6px;max-width:280px;">Bis hierhin gilt das Ursprungslandprinzip — normale deutsche USt auf diesen Rechnungen ist korrekt (Vorjahr ebenfalls unter der Schwelle).</div>'}
                 </div>
             </div>
             <div style="margin-top:14px;height:8px;background:var(--bg-secondary);border-radius:4px;overflow:hidden;">

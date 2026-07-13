@@ -50,7 +50,10 @@ const UstVoranmeldung = {
             const customers  = (typeof Store.getRechCustomers === 'function') ? Store.getRechCustomers() : [];
             const euLaender  = (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : [];
             const periodYear = parseInt(String(startDate).slice(0, 4), 10);
-            const ossActive  = (typeof OSS !== 'undefined') && OSS._jahresumsatz(periodYear) >= OSS.SCHWELLE;
+            // §3c Abs. 4 UStG: Schwelle gilt nur, wenn sie im VORJAHR UND im laufenden Jahr
+            // unterschritten ist — nach einem Überschreitungsjahr gilt OSS ab dem ersten Euro
+            const ossActive  = (typeof OSS !== 'undefined') &&
+                (OSS._jahresumsatz(periodYear) >= OSS.SCHWELLE || OSS._jahresumsatz(periodYear - 1) >= OSS.SCHWELLE);
 
             // Soll: alle ausgestellten Rechnungen zum Rechnungsdatum, unabhängig vom Zahlungseingang
             Store.getRechInvoices()
@@ -68,7 +71,8 @@ const UstVoranmeldung = {
                         if (isEuB2C) return; // OSS-pflichtig — läuft über das BZSt-Portal, nicht über diese UVA
                     }
                     (i.positionen || []).forEach(pos => {
-                        const netto = parseFloat(pos.menge || 1) * parseFloat(pos.einzelpreis || 0);
+                        // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
+                        const netto = (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0);
                         const rate  = parseInt(pos.mwstSatz);
                         if (rate === 7) bruttoUmsatz7 += netto * 1.07;
                         else if (rate === 19 || isNaN(rate)) bruttoUmsatz19 += netto * 1.19;
@@ -96,11 +100,23 @@ const UstVoranmeldung = {
             bruttoUmsatz19 = sales.filter(v => { const r = _rate(v); return r !== 7 && r !== 0; }).reduce((s, v) => s + _brutto(v), 0);
         }
 
-        // 7%-/19%-Retouren abziehen (§17 UStG)
-        const bruttoUmsatz7adj = bruttoUmsatz7
-            - retouren.filter(r => _rate(r) === 7).reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
-        const bruttoUmsatz19adj = bruttoUmsatz19
-            - retouren.filter(r => _rate(r) !== 7).reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
+        // 7%-/19%-Retouren abziehen (§17 UStG).
+        // Guard wie in der EÜR: Wurde der verknüpfte Verkauf über die Retoure storniert, ist der
+        // Umsatz oben schon nicht mehr enthalten — Erstattung nicht nochmal abziehen (Doppelabzug).
+        // Satz: Retouren tragen selbst keinen Steuersatz → vom verknüpften Verkauf übernehmen.
+        const salesById = {};
+        Store.getSales(true).forEach(s => { salesById[s.id] = s; });
+        let retour7 = 0, retour19 = 0;
+        retouren.forEach(r => {
+            const linked = r.saleId ? salesById[r.saleId] : null;
+            if (linked && linked.storniert) return;
+            const rate = _rate(linked || r);
+            const betrag = parseFloat(r.erstattungBetrag) || 0;
+            if (rate === 7) retour7 += betrag;
+            else if (rate !== 0) retour19 += betrag;
+        });
+        const bruttoUmsatz7adj  = bruttoUmsatz7  - retour7;
+        const bruttoUmsatz19adj = bruttoUmsatz19 - retour19;
 
         const bruttoUmsatz = bruttoUmsatz19adj + bruttoUmsatz7adj;
 
@@ -119,7 +135,9 @@ const UstVoranmeldung = {
         let erwerbNetto19 = 0, erwerbSteuer19 = 0, erwerbNetto7 = 0, erwerbSteuer7 = 0;
         if (typeof Vorsteuer !== 'undefined') {
             const vstCalc = Vorsteuer._calcTotal(startDate, endDate);
-            vorsteuerEinkaufAusgaben = vstCalc.purch.vst19 + vstCalc.purch.vst7 + vstCalc.exp.vst19 + vstCalc.exp.vst7;
+            // manuelle "Sonstige Vorsteuer"-Einträge gehören ebenfalls in Kz. 66
+            vorsteuerEinkaufAusgaben = vstCalc.purch.vst19 + vstCalc.purch.vst7 + vstCalc.exp.vst19 + vstCalc.exp.vst7
+                + (vstCalc.manual && vstCalc.manual.sonstige || 0);
             vorsteuerRc = vstCalc.manual.reverseCharge;
             vorsteuerIgErwerb = vstCalc.manual.igErwerb;
 
@@ -140,7 +158,9 @@ const UstVoranmeldung = {
         } else {
             // Fallback ohne Vorsteuer-Modul: nur Einkäufe + Ausgaben (kein §13b/IG-Erwerb erfassbar)
             purchases.forEach(p => {
-                const rate = parseFloat(p.steuersatz) || 19;
+                const rateRaw = (p.ustSatz != null && p.ustSatz !== '') ? parseFloat(p.ustSatz) : 19;
+                const rate = isNaN(rateRaw) ? 19 : rateRaw;
+                if (rate === 0) return;
                 const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
                 vorsteuerEinkaufAusgaben += brutto - (brutto / (1 + rate / 100));
             });
@@ -324,8 +344,8 @@ const UstVoranmeldung = {
             </div>
             <div class="card stat-card success">
                 <div class="card-label">Vorsteuer (Kz. 66)</div>
-                <div class="card-value">${Utils.formatCurrency(calc.vorsteuer)}</div>
-                <div class="card-subtitle">Aus Einkäufen + Ausgaben</div>
+                <div class="card-value">${Utils.formatCurrency(calc.vorsteuerEinkaufAusgaben)}</div>
+                <div class="card-subtitle">Aus Einkäufen + Ausgaben (ohne §13b/IG — eigene Kz.)</div>
             </div>
         </div>
 
@@ -404,7 +424,7 @@ const UstVoranmeldung = {
             <div style="padding:12px 16px;font-size:13px;color:var(--text-muted);line-height:1.7;">
                 <strong>Kz. 81:</strong> Netto-Umsätze aus Lieferungen und Leistungen zum Regelsteuersatz 19% – <u>das ist der einzige Wert, den du in ELSTER bei Kz. 81 einträgst</u>. ELSTER berechnet die USt darauf selbst.<br>
                 <strong>Kz. 86:</strong> Netto-Umsätze zum ermäßigten Steuersatz 7% (z.B. Bücher, Lebensmittel) – ebenfalls einziger Eintrag bei Kz. 86, USt wird automatisch berechnet.<br>
-                ${calc.nettoIgLieferung > 0 ? `<strong>Kz. 41:</strong> Innergemeinschaftliche Lieferungen an Unternehmen mit gültiger USt-IdNr in der EU (§4 Nr.1b, §6a UStG) – steuerfrei, keine USt darauf. Voraussetzung: gültige USt-IdNr des Kunden geprüft (BZSt-Bestätigungsverfahren) und Zusammenfassende Meldung (ZM) abgegeben.<br>` : ''}
+                ${calc.nettoIgLieferung > 0 ? `<strong>Kz. 41:</strong> Innergemeinschaftliche Lieferungen an Unternehmen mit gültiger USt-IdNr in der EU (§4 Nr.1b, §6a UStG) – steuerfrei, keine USt darauf. Voraussetzung: gültige USt-IdNr des Kunden geprüft (BZSt-Bestätigungsverfahren) und Zusammenfassende Meldung (ZM) abgegeben. <span style="color:var(--warning);">⚠ Kz. 41 gilt nur für <u>Warenlieferungen</u> — sonstige Leistungen/Dienstleistungen an EU-Unternehmer (§3a Abs. 2 UStG, Reverse Charge) gehören stattdessen in Kz. 21 und in der ZM in die Spalte „Sonstige Leistungen". Stackr kann Ware und Dienstleistung nicht unterscheiden — bitte je nach Leistungsart selbst zuordnen.</span><br>` : ''}
                 ${calc.nettoAusfuhr > 0 ? `<strong>Kz. 43:</strong> Ausfuhrlieferungen in Drittländer außerhalb der EU (§4 Nr.1a, §6 UStG) – steuerfrei, Ausfuhrnachweis (z.B. Zollbeleg) muss vorliegen.<br>` : ''}
                 ${calc.erwerbNetto19 > 0 || calc.erwerbNetto7 > 0 ? `<strong>Kz. 89/93:</strong> Innergemeinschaftliche Erwerbe (§1a UStG) – Bemessungsgrundlage eintragen, gleichzeitig als Vorsteuer bei Kz. 61 abziehbar.<br>` : ''}
                 ${calc.rcNettoAbs1 > 0 || calc.rcNettoOther > 0 ? `<strong>Kz. 46 / §13b:</strong> Reverse-Charge-Leistungen (§13b UStG) – du schuldest hier die Steuer als Leistungsempfänger, gleichzeitig als Vorsteuer bei Kz. 67 abziehbar. Bei "Weitere §13b-Fälle" bitte die passende Zeile im ELSTER-Formular je nach Kategorie (Bauleistung/Gebäudereinigung/Mobilfunk) selbst nachsehen – dafür gibt es jeweils eigene Kennzahlen.<br>` : ''}

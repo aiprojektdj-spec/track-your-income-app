@@ -24,7 +24,11 @@ module.exports = async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST')    return res.status(405).json({ error: 'Method not allowed' });
 
-    if (REDIS_URL && REDIS_TOKEN) {
+    if (!REDIS_URL || !REDIS_TOKEN) {
+        // ponytail: kein In-Memory-Fallback — in Serverless (Cold Starts, N Instanzen) wertlos.
+        // Nicht still überspringen: sichtbar loggen, damit fehlende Redis-Env auffällt.
+        console.warn('[whop-token] Rate-Limit INAKTIV — UPSTASH_REDIS_REST_URL/TOKEN nicht gesetzt');
+    } else {
         try {
             var ip    = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
             var rlKey = 'whoptoken:rl:' + ip;

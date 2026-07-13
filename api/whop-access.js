@@ -42,25 +42,27 @@ function _grants(obj) {
 // null = der Endpoint akzeptiert das Token nicht (401/403) → Aufrufer nutzt den Fallback.
 // 5xx → wirft (→ 502 → Client-Offline-Grace).
 async function _hasAccessViaToken(userToken) {
-    var sawOk = false;
-    for (var i = 0; i < ACCESS_IDS.length; i++) {
-        var r = await fetch('https://api.whop.com/api/v2/me/has_access/' + ACCESS_IDS[i], {
+    // Alle IDs PARALLEL — sequentiell wären es bis 3×8 s = 24 s > Vercel-10-s-Limit → 502/Grace
+    // beim Erst-Login eines Jahres-/Nicht-Kunden. Parallel = Worst Case 1×8 s.
+    var results = await Promise.all(ACCESS_IDS.map(function (id) {
+        return fetch('https://api.whop.com/api/v2/me/has_access/' + id, {
             headers: { 'Authorization': 'Bearer ' + userToken, 'Accept': 'application/json' },
             signal:  AbortSignal.timeout(8000)
+        }).then(async function (r) {
+            if (r.status >= 500) { var e = new Error('has_access HTTP ' + r.status); e.httpStatus = r.status; throw e; }
+            if (r.status === 401 || r.status === 403) return 'reject'; // Token hier nicht akzeptiert
+            if (!r.ok) return 'skip';                                  // 4xx (ID-Form)
+            var j = null; try { j = await r.json(); } catch (pe) { return 'skip'; }
+            return (_grants(j) || _grants(j && j.data)) ? 'grant' : 'ok';
         });
-        if (r.status === 401 || r.status === 403) return null; // Token hier nicht akzeptiert → unbestimmt
-        if (r.status >= 500) { var e = new Error('has_access HTTP ' + r.status); e.httpStatus = r.status; throw e; }
-        if (!r.ok) continue;                                   // 4xx (ID-Form) → nächste ID
-        sawOk = true;
-        var j = null; try { j = await r.json(); } catch (pe) { continue; }
-        if (_grants(j) || _grants(j && j.data)) return true;
-    }
-    return sawOk ? false : null;
+    })); // 5xx wirft → Promise.all rejected → äußerer catch → 502 → Grace
+    if (results.indexOf('grant') !== -1) return true;
+    return results.indexOf('ok') !== -1 ? false : null; // mind. ein 2xx ohne Grant → false, sonst unbestimmt
 }
 
 // FALLBACK: Company-Membership-Scan mit dem Company-API-Key. Paginiert, Seiten-Obergrenze.
 async function _hasAccessViaCompanyKey(userId) {
-    var page = 1, MAX_PAGES = 20;
+    var page = 1, MAX_PAGES = 200; // 200×50 = 10.000 valid memberships Kopfraum; nur Sicherheits-Deckel, Loop bricht ohnehin bei next_page=null
     while (page <= MAX_PAGES) {
         var res = await fetch('https://api.whop.com/v5/company/memberships?valid=true&per=50&page=' + page, {
             headers: { 'Authorization': 'Bearer ' + WHOP_API_KEY, 'Accept': 'application/json' },
@@ -139,3 +141,6 @@ module.exports = async function handler(req, res) {
         return res.status(502).json({ error: 'whop_unreachable' });
     }
 };
+
+// Test-Hook (siehe test-whop-access.js) — reine Zugangs-Logik ohne HTTP-Handler
+module.exports._test = { _hasAccessViaToken: _hasAccessViaToken, _grants: _grants };

@@ -45,25 +45,26 @@ function whopGrants(obj) {
 
 // has_access mit dem User-Token (v2). true | false | null(unbestimmt: 401/403). 5xx → wirft.
 async function whopHasAccessViaToken(userToken) {
-    var sawOk = false;
-    for (var i = 0; i < ACCESS_IDS.length; i++) {
-        var r = await fetch('https://api.whop.com/api/v2/me/has_access/' + ACCESS_IDS[i], {
+    // Alle IDs parallel (sonst bis 3×8 s = 24 s > Vercel-10-s-Limit). Spiegelt whop-access.js.
+    var results = await Promise.all(ACCESS_IDS.map(function (id) {
+        return fetch('https://api.whop.com/api/v2/me/has_access/' + id, {
             headers: { 'Authorization': 'Bearer ' + userToken, 'Accept': 'application/json' },
             signal:  AbortSignal.timeout(8000)
+        }).then(async function (r) {
+            if (r.status >= 500) { var e = new Error('has_access HTTP ' + r.status); e.httpStatus = r.status; throw e; }
+            if (r.status === 401 || r.status === 403) return 'reject';
+            if (!r.ok) return 'skip';
+            var j = null; try { j = await r.json(); } catch (pe) { return 'skip'; }
+            return (whopGrants(j) || whopGrants(j && j.data)) ? 'grant' : 'ok';
         });
-        if (r.status === 401 || r.status === 403) return null;
-        if (r.status >= 500) { var e = new Error('has_access HTTP ' + r.status); e.httpStatus = r.status; throw e; }
-        if (!r.ok) continue;
-        sawOk = true;
-        var j = null; try { j = await r.json(); } catch (pe) { continue; }
-        if (whopGrants(j) || whopGrants(j && j.data)) return true;
-    }
-    return sawOk ? false : null;
+    }));
+    if (results.indexOf('grant') !== -1) return true;
+    return results.indexOf('ok') !== -1 ? false : null;
 }
 
 // Fallback: Company-Membership-Scan mit dem Company-API-Key. Paginiert, Seiten-Obergrenze.
 async function whopHasAccessViaCompanyKey(userId) {
-    var page = 1, MAX_PAGES = 20;
+    var page = 1, MAX_PAGES = 200; // 10.000 valid memberships Kopfraum; nur Sicherheits-Deckel (Loop bricht bei next_page=null)
     while (page <= MAX_PAGES) {
         var r = await fetch('https://api.whop.com/v5/company/memberships?valid=true&per=50&page=' + page, {
             headers: { 'Authorization': 'Bearer ' + WHOP_API_KEY, 'Accept': 'application/json' },

@@ -259,6 +259,11 @@ var AuthUI = (function () {
     // ── Autorisiert: App starten ──────────────────────────────
     async function _onAuthorized(user) {
         _updateLoader('Lade Stackr...');
+        // Autorisiert → alle Gate-Overlays weg. Sonst bleibt ein Rest-Overlay (z. B. das
+        // Login-Overlay aus dem Callback-Pfad hinter dem Kein-Abo-Screen) nach dem Kauf
+        // per _recheckOnFocus liegen und sperrt den frisch zahlenden Kunden aus.
+        var _lo = document.getElementById('whopLoginOverlay');    if (_lo) _lo.remove();
+        var _no = document.getElementById('whopNoMemberOverlay'); if (_no) _no.remove();
         _updateWidget(user);
 
         if (typeof UserPlan !== 'undefined') {

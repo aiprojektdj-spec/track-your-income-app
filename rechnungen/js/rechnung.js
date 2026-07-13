@@ -4,6 +4,14 @@ var Rechnung = (function() {
     var editingInvoice = null;
     var positionCount = 0;
 
+    // EU-Mitgliedstaaten für die §13b-Reverse-Charge-Erkennung. Fallback nötig, weil die
+    // Standalone-Rechnungsseite js/vorsteuer.js (Quelle von Vorsteuer.EU_LAENDER) nicht lädt —
+    // mit leerem Fallback wäre die RC-Automatik dort komplett wirkungslos.
+    var EU_LAENDER_FALLBACK = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'];
+    function rcEuLaender() {
+        return (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : EU_LAENDER_FALLBACK;
+    }
+
     // Mergt Unternehmensdaten (Rechnungen-Tab) mit allgemeinen Settings.
     // Unternehmensdaten haben Vorrang, leere Werte fallen auf Settings zurück.
     function mergeRechSettings() {
@@ -478,7 +486,7 @@ var Rechnung = (function() {
             var kundeId = document.getElementById('invKunde').value;
             var customers = Store.getRechCustomers();
             var kunde = customers.find(function(c) { return c.id === kundeId; });
-            var euLaender = (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : [];
+            var euLaender = rcEuLaender();
             var settings = mergeRechSettings();
             var isCH = settings.land === 'CH';
             var isKlein = isCH ? ((settings.chMwstMode || 'klein') === 'klein') : (settings.ustMode === 'klein');
@@ -528,6 +536,8 @@ var Rechnung = (function() {
             container.appendChild(newRow);
             positionCount++;
             bindPositionEvents(newRow);
+            // Bei aktivem Reverse Charge (§13b) darf die neue Position nicht mit 19% starten
+            applyReverseChargeCheck(true);
         });
 
         document.querySelectorAll('.position-row').forEach(function(row) {
@@ -994,7 +1004,7 @@ var Rechnung = (function() {
         }
 
         // \u00A713b UStG Reverse Charge notice
-        var _rcEuLaender = (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : [];
+        var _rcEuLaender = rcEuLaender();
         if (!isCH && !isKlein && kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && _rcEuLaender.indexOf(kunde.land) !== -1) {
             html += '<div class="inv-klein">Steuerschuldnerschaft des Leistungsempf\u00E4ngers gem\u00E4\u00DF \u00A713b UStG (Reverse Charge). USt-IdNr. Leistungsempf\u00E4nger: ' + Utils.escapeHtml(kunde.ustIdNr) + '</div>';
         }

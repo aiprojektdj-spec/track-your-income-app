@@ -2108,6 +2108,18 @@ const Store = {
             _typ: 'rechnung'
         };
 
+        // Steuersatz der Rechnung mitgeben, sonst zählt die Ist-UVA den Sale mit dem
+        // 19%-Default — falsch bei 0% (Reverse Charge / ig. Lieferung) und 7%-Rechnungen.
+        // Nur bei einheitlichem Satz über alle Positionen eindeutig ableitbar.
+        if (isKlein) {
+            sale.steuersatz = 0;
+        } else {
+            const saetze = [...new Set((invoice.positionen || [])
+                .filter(p => (p.menge || 0) * (p.einzelpreis || 0) !== 0)
+                .map(p => parseInt(p.mwstSatz) || 0))];
+            if (saetze.length === 1) sale.steuersatz = saetze[0];
+        }
+
         return this.saveSale(sale);
     },
 

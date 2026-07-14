@@ -333,10 +333,10 @@ var AuthUI = (function () {
             '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 32px;line-height:1.6;">Dein Buchhaltungs-Tool für Selbstständige</p>',
             errorMsg ? '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px 14px;margin-bottom:20px;font-size:13px;color:#f87171;text-align:left;">' + _esc(errorMsg) + '</div>' : '',
             '<button id="whopLoginBtn" data-action="wa-login" style="width:100%;padding:14px;background:var(--accent,#10b981);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:15px;font-weight:700;letter-spacing:-.2px;margin-bottom:12px;">',
-            'Mit Whop anmelden →',
+            'Mit Whop anmelden',
             '</button>',
             '<p style="color:var(--text-muted,#666);font-size:12px;margin:0;line-height:1.6;">',
-            'Noch kein Zugang? <a href="' + WHOP_PURCHASE_URL + '" target="_blank" rel="noopener" style="color:var(--accent,#10b981);text-decoration:none;font-weight:600;">Stackr Pro kaufen →</a>',
+            'Noch kein Zugang? <a href="' + WHOP_PURCHASE_URL + '" target="_blank" rel="noopener" style="color:var(--accent,#10b981);text-decoration:none;font-weight:600;">Stackr Pro kaufen</a>',
             '</p>',
             '</div>'
         ].join('');

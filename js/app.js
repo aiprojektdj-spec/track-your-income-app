@@ -1459,6 +1459,13 @@ const App = {
         const nextBtn = step < totalSteps
             ? `<button class="btn btn-primary" id="obNext">${L.t('ob.next')}</button>`
             : `<button class="btn btn-success" id="obFinish">${L.t('ob.finish')}</button>`;
+        const skipLink = step === 1
+            ? `<div style="text-align:center;margin-top:14px;">
+                   <button class="btn-link" id="obSkip" style="background:none;border:none;color:var(--text-muted);font-size:12px;text-decoration:underline;cursor:pointer;">
+                       Ich habe schon eine Firma — Setup überspringen
+                   </button>
+               </div>`
+            : '';
 
         document.getElementById('onboarding').innerHTML = `
             <div class="onboarding-overlay">
@@ -1471,6 +1478,7 @@ const App = {
                         ${prevBtn}
                         ${nextBtn}
                     </div>
+                    ${skipLink}
                 </div>
             </div>
         `;
@@ -1493,6 +1501,21 @@ const App = {
             if (ok === false) return;
             this._finishOnboarding();
         });
+
+        const skipEl = document.getElementById('obSkip');
+        if (skipEl) skipEl.addEventListener('click', () => this._skipOnboarding());
+    },
+
+    // Für Nutzer, die ihre Firma (Stammdaten/Land/Branche) bereits über
+    // CompanyManager angelegt haben und nur die Cloud-Sync-Daten eines anderen
+    // Geräts holen wollen — überspringt nur diesen Stammdaten-Wizard, keine
+    // neue Firma wird angelegt. Von der Dashboard-Seite aus ist Cloud-Sync
+    // (cloudSyncDot-Icon → "Mit bestehendem Sync verbinden") sofort erreichbar.
+    _skipOnboarding() {
+        Store.saveSettings(Object.assign({}, Store.getSettings(), { onboardingDone: true }));
+        document.getElementById('onboarding').innerHTML = '';
+        Utils.showToast('Setup übersprungen — Cloud-Sync-Icon oben rechts verbindet dich mit deinen bestehenden Daten.', 'info');
+        this.navigate('dashboard');
     },
 
     _saveOnboardingStep() {

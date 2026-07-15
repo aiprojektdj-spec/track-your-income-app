@@ -374,7 +374,7 @@ const Schweiz = {
             return s;
         }, 0);
 
-        const eigenbelegeRaw = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; return JSON.parse(localStorage.getItem((_ebCo?_ebCo+'__':'')+'eigenbelege_belege')||'[]'); } catch{return[];} })();
+        const eigenbelegeRaw = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; const _k = (_ebCo?_ebCo+'__':'')+'eigenbelege_belege'; return (typeof Store !== 'undefined' ? Store._syncReadRaw(_k) : JSON.parse(localStorage.getItem(_k)||'[]')) || []; } catch{return[];} })();
         const eigenbelegeAusgaben = eigenbelegeRaw
             .filter(b=>!b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, start, end))
             .reduce((s,b)=>s+(parseFloat(b.betragNetto)||parseFloat(b.betragBrutto)||0), 0);

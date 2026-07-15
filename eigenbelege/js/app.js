@@ -7,33 +7,52 @@ function _ebPrefix() {
     return co ? co + '__' : '';
 }
 
+// ── IDB-Cache-Read/Write (Store._cache, gleiche oyi_maindata-DB wie die Haupt-App) ──
+// Eigenbelege lagen bisher NUR in localStorage (5-10 MB Deckel) — jetzt IndexedDB
+// (mehrere GB), siehe Store._migrateEigenbelegeToIDB. _ebRead/_ebWrite bleiben SYNCHRON
+// (Cache ist beim Boot bereits geladen, s. _ebEnsureStoreReady), kein Aufrufer muss sich ändern.
+function _ebRead(key, fallback) {
+    var fk = _ebPrefix() + key;
+    // Store._syncReadRaw gibt (trotz des Namens) bereits geparste Werte zurück.
+    if (typeof Store !== 'undefined') { var v = Store._syncReadRaw(fk); return v == null ? fallback : v; }
+    try { var raw = localStorage.getItem(fk); return raw == null ? fallback : JSON.parse(raw); } catch (e) { return fallback; }
+}
+function _ebWrite(key, value) {
+    var fk  = _ebPrefix() + key;
+    var str = JSON.stringify(value);
+    if (typeof Store !== 'undefined') { Store._cache[fk] = str; Store._idbPut(fk, str); }
+    else { try { localStorage.setItem(fk, str); } catch (e) {} }
+}
+async function _ebEnsureStoreReady() {
+    if (typeof Store === 'undefined') return;
+    if (!Store._mainIdbReady) await Store.initMainIDB();
+}
+
 const EB = {
-    getBelege:        () => JSON.parse(localStorage.getItem(_ebPrefix()+'eigenbelege_belege') || '[]'),
-    saveBelege:       v  => localStorage.setItem(_ebPrefix()+'eigenbelege_belege', JSON.stringify(v)),
-    getKategorien:    () => JSON.parse(localStorage.getItem(_ebPrefix()+'eigenbelege_kategorien') || '[]'),
-    saveKategorien:   v  => localStorage.setItem(_ebPrefix()+'eigenbelege_kategorien', JSON.stringify(v)),
+    getBelege:        () => _ebRead('eigenbelege_belege', []),
+    saveBelege:       v  => _ebWrite('eigenbelege_belege', v),
+    getKategorien:    () => _ebRead('eigenbelege_kategorien', []),
+    saveKategorien:   v  => _ebWrite('eigenbelege_kategorien', v),
 
     getEinstellungen() {
         const def  = { firmenname:'', inhaberName:'', adresse:'', prefix:'EB', jahresReset:true, mwstModus:'kleinunternehmer', standardErlaeuterung:'' };
-        const own  = JSON.parse(localStorage.getItem(_ebPrefix()+'eigenbelege_einstellungen') || '{}');
+        const own  = _ebRead('eigenbelege_einstellungen', {});
         return { ...def, ...own };   // firmen-spezifisch — kein globales app_einstellungen mehr (kein firmenübergreifendes Leck)
     },
     saveEinstellungen(e) {
-        localStorage.setItem(_ebPrefix()+'eigenbelege_einstellungen', JSON.stringify(e));
+        _ebWrite('eigenbelege_einstellungen', e);
         // kein globales app_einstellungen mehr schreiben → Firmendaten bleiben pro Unternehmen getrennt
     },
 
     getNextNum() {
-        const raw = localStorage.getItem(_ebPrefix()+'eigenbelege_naechste_nummer');
-        if (!raw) return 1;
-        const d = JSON.parse(raw);
+        const d = _ebRead('eigenbelege_naechste_nummer', null);
+        if (!d) return 1;
         if (this.getEinstellungen().jahresReset === false) return d.num || 1;
         return d.year === new Date().getFullYear() ? (d.num || 1) : 1;
     },
     bumpNum() {
         const n = this.getNextNum();
-        localStorage.setItem(_ebPrefix()+'eigenbelege_naechste_nummer',
-            JSON.stringify({ year: new Date().getFullYear(), num: n + 1 }));
+        _ebWrite('eigenbelege_naechste_nummer', { year: new Date().getFullYear(), num: n + 1 });
         return n;
     },
     peekId() {
@@ -48,8 +67,8 @@ const EB = {
     },
 
     // ── Produkt-Vorlagen ──
-    getProdukte: () => JSON.parse(localStorage.getItem(_ebPrefix()+'eigenbelege_produkte') || '[]'),
-    saveProdukte: v  => localStorage.setItem(_ebPrefix()+'eigenbelege_produkte', JSON.stringify(v)),
+    getProdukte: () => _ebRead('eigenbelege_produkte', []),
+    saveProdukte: v  => _ebWrite('eigenbelege_produkte', v),
 
     // ── Lager-Artikel aus Haupt-App lesen (synchron, Fallback) ──
     getLagerArtikel() {
@@ -1239,17 +1258,31 @@ function deleteBeleg(id) {
 // Unternehmen lag. Gibt die Anzahl bereinigter Keys zurück.
 function purgeEigenbelegEverywhere(id) {
     let count = 0;
-    const keys = [];
+    const keys = new Set();
+    if (typeof Store !== 'undefined') {
+        Object.keys(Store._cache).forEach(k => {
+            if (k === 'eigenbelege_belege' || k.endsWith('__eigenbelege_belege')) keys.add(k);
+        });
+    }
+    // Altlast: noch nicht migrierte localStorage-Keys (z.B. anderes Gerät, alter Stand) mit erfassen
     for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && (k === 'eigenbelege_belege' || k.endsWith('__eigenbelege_belege'))) keys.push(k);
+        if (k && (k === 'eigenbelege_belege' || k.endsWith('__eigenbelege_belege'))) keys.add(k);
     }
     keys.forEach(k => {
         let arr = [];
-        try { arr = JSON.parse(localStorage.getItem(k) || '[]'); } catch(e) { return; }
+        try {
+            if (typeof Store !== 'undefined') arr = Store._syncReadRaw(k) || [];   // bereits geparst
+            else arr = JSON.parse(localStorage.getItem(k) || '[]');
+        } catch(e) { return; }
         if (!Array.isArray(arr)) return;
         const kept = arr.filter(b => b && b.id !== id);
-        if (kept.length !== arr.length) { localStorage.setItem(k, JSON.stringify(kept)); count++; }
+        if (kept.length !== arr.length) {
+            const str = JSON.stringify(kept);
+            if (typeof Store !== 'undefined') { Store._cache[k] = str; Store._idbPut(k, str); localStorage.removeItem(k); }
+            else { try { localStorage.setItem(k, str); } catch(e) {} }
+            count++;
+        }
     });
     return count;
 }
@@ -1746,11 +1779,12 @@ function renderEbSubnav() {
         }).join('') +
         '</div></div>';
 }
-function ebMount() {
+async function ebMount() {
     if (typeof CompanyManager !== 'undefined' && typeof Store !== 'undefined' && Store.setCompany) {
         var id = CompanyManager.getActiveId();
         if (id) Store.setCompany(id);
     }
+    await _ebEnsureStoreReady();   // eingebettet meist schon bereit (Host-App), Guard ist idempotent
     renderEbSubnav();
     navigate('dashboard');
 }
@@ -1761,7 +1795,8 @@ window.EBApp = { mount: ebMount, navigate: navigate };
 // #moduleSubnav) NICHT, dann ruft die Haupt-App EBApp.mount().
 // ═══════════════════════════════════════════════════════════════════
 if (!document.getElementById('moduleSubnav')) {
-    function _ebStandaloneBoot() {
+    async function _ebStandaloneBoot() {
+        await _ebEnsureStoreReady();
         navigate('dashboard');
 
         // Sidebar collapse (nur Standalone)

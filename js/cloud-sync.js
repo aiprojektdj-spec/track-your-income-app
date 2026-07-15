@@ -23,6 +23,7 @@ var CloudSync = (function () {
 
     var API          = '/api/sync';
     var PUSH_DEBOUNCE = 6000;
+    var MAX_INLINE_CIPHER = 3.5 * 1024 * 1024;   // muss zu MAX_CIPHER in api/sync.js passen
     var B32           = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
     var EB_KEYS       = ['eigenbelege_belege', 'eigenbelege_kategorien',
                          'eigenbelege_einstellungen', 'eigenbelege_naechste_nummer', 'eigenbelege_produkte'];
@@ -31,6 +32,7 @@ var CloudSync = (function () {
     var LS_KEY     = function (uid) { return 'oyi_sync_key_' + uid; };
     var LS_META    = function (scope) { return 'oyi_sync_keymeta_' + scope; };
     var LS_BASE    = function (scope) { return 'oyi_sync_base_' + scope; };   // zuletzt synchronisierter updatedAt je Record (Konflikt-Basis)
+    var LS_BLOBCACHE = function (scope) { return 'oyi_sync_blobcache_' + scope; };   // Inhalts-Hash → Blob-URL, verhindert Doppel-Uploads unveränderter Anhänge
     var LS_CONFLICTS = 'oyi_sync_conflicts';                                  // offene Parallel-Konflikte (beide Fassungen), überlebt Reload
 
     var _cryptoKeyCache = null;   // importierter CryptoKey (für aktuellen User)
@@ -113,9 +115,23 @@ var CloudSync = (function () {
     async function _decrypt(blob, overrideBytes) {
         var key = overrideBytes ? await _importKey(overrideBytes) : await _cryptoKey();
         var iv  = _unb64(blob.iv);
-        var ct  = _unb64(blob.ciphertext);
+        // Übergroßes Ledger-Chiffrat liegt als eigenes Blob-Objekt (siehe push unten) —
+        // erst herunterladen, dann wie gewohnt entschlüsseln.
+        var ct  = blob.blobUrl ? await BlobAttachments.get(blob.blobUrl) : _unb64(blob.ciphertext);
         var pt  = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, ct);
         return JSON.parse(new TextDecoder().decode(pt));
+    }
+    // ── Roh-Byte-Ver-/Entschlüsselung — für ausgelagerte Anhänge (BlobAttachments) ──
+    async function _encryptBytes(bytes) {
+        var key = await _cryptoKey();
+        var iv  = crypto.getRandomValues(new Uint8Array(12));
+        var ct  = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, bytes);
+        return { ct: _b64(new Uint8Array(ct)), iv: _b64(iv) };
+    }
+    async function _decryptBytes(ctBytes, ivB64, overrideBytes) {
+        var key = overrideBytes ? await _importKey(overrideBytes) : await _cryptoKey();
+        var pt  = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: _unb64(ivB64) }, key, ctBytes);
+        return new Uint8Array(pt);
     }
 
     // ── Server-API ────────────────────────────────────────────────────────────
@@ -146,6 +162,8 @@ var CloudSync = (function () {
     // ── Konflikt-Basis: updatedAt je Record zum Zeitpunkt des letzten Syncs ────
     function _getBase(scope) { try { return JSON.parse(localStorage.getItem(LS_BASE(scope)) || '{}'); } catch (e) { return {}; } }
     function _saveBase(scope, b) { try { localStorage.setItem(LS_BASE(scope), JSON.stringify(b)); } catch (e) {} }
+    function _getBlobCache(scope) { try { return JSON.parse(localStorage.getItem(LS_BLOBCACHE(scope)) || '{}'); } catch (e) { return {}; } }
+    function _saveBlobCache(scope, c) { try { localStorage.setItem(LS_BLOBCACHE(scope), JSON.stringify(c)); } catch (e) {} }
     // ── Offene Konflikte persistieren (überleben Reload, dedupe scope+key+id) ──
     function _loadConflicts() { try { return JSON.parse(localStorage.getItem(LS_CONFLICTS) || '[]'); } catch (e) { return []; } }
     function _clearConflicts() { try { localStorage.removeItem(LS_CONFLICTS); } catch (e) {} }
@@ -181,7 +199,8 @@ var CloudSync = (function () {
         }
         EB_KEYS.forEach(function (s) {
             var fk = scope + '__' + s;
-            if (localStorage.getItem(fk) != null && keys.indexOf(fk) === -1) keys.push(fk);
+            var v  = (typeof Store !== 'undefined') ? Store._syncReadRaw(fk) : localStorage.getItem(fk);
+            if (v != null && keys.indexOf(fk) === -1) keys.push(fk);
         });
         return keys;
     }
@@ -289,7 +308,7 @@ var CloudSync = (function () {
         Object.keys(merged.keys).forEach(function (k) {
             var ser = JSON.stringify(merged.keys[k]);
             // Nicht-IDB-Keys (Registry, Eigenbelege) liegen in localStorage
-            var isCacheKey = (k.indexOf('__reselling_') !== -1 || k.indexOf('__rechnungsbuch_') !== -1 || /__audit_log$/.test(k));
+            var isCacheKey = (k.indexOf('__reselling_') !== -1 || k.indexOf('__rechnungsbuch_') !== -1 || k.indexOf('__eigenbelege_') !== -1 || /__audit_log$/.test(k));
             if (isCacheKey) toCache[k] = ser;
             else { try { localStorage.setItem(k, ser); } catch (e) {} }
             if (merged.meta[k] != null) _setMeta(scope, k, ser, merged.meta[k]);
@@ -308,6 +327,9 @@ var CloudSync = (function () {
         if (pull.json.blob) {
             remoteVer = pull.json.blob.version || 0;
             remote = await _decrypt(pull.json.blob);   // { keys, meta }
+            // Ausgelagerte große Felder (Logo/Foto/PDF) wieder zu voller "data:"-URL machen,
+            // BEVOR gemerged wird — der Merge kennt nur echte Werte, keine Blob-Referenzen.
+            if (remote) await BlobAttachments.hydrateFields(remote.keys, _decryptBytes);
         }
         var local  = _buildLocal(scope);
         var merged = _merge(scope, local, remote);
@@ -318,8 +340,28 @@ var CloudSync = (function () {
         }
 
         if (remote === null || merged.remoteDirty) {
+            // Große Felder vor dem Verschlüsseln auslagern — hält das Ledger-Chiffrat
+            // unabhängig von Anzahl/Größe der Anhänge klein (siehe blob-attachments.js).
+            // Cache verhindert Doppel-Upload unveränderter Anhänge bei jedem Scope-Sync.
+            var blobCache = _getBlobCache(scope);
+            await BlobAttachments.offloadLargeFields(scope, merged.keys, _encryptBytes, blobCache);
+            _saveBlobCache(scope, blobCache);
             var enc  = await _encrypt({ v: 1, keys: merged.keys, meta: merged.meta });
-            var push = await _api({ action: 'push', scope: scope, version: remoteVer, ciphertext: enc.ct, iv: enc.iv, deviceId: Store._deviceId() });
+            var pushBody = { action: 'push', scope: scope, version: remoteVer, iv: enc.iv, deviceId: Store._deviceId() };
+            // Auch nach dem Auslagern von Feldern kann das Ledger selbst (viele tausend
+            // Textbuchungen) noch zu groß fürs Inline-Limit sein — dann ebenfalls als
+            // eigenes Blob-Objekt hochladen statt inline zu pushen.
+            if (enc.ct.length > MAX_INLINE_CIPHER) { // muss zum Server-Limit in api/sync.js passen (dort die maßgebliche Grenze)
+                pushBody.blobUrl = await BlobAttachments.put(scope, 'ledger-' + Date.now().toString(36), _unb64(enc.ct));
+            } else {
+                pushBody.ciphertext = enc.ct;
+            }
+            var push = await _api(pushBody);
+            if (push.status === 413) { // Sicherheitsnetz: Server-Grenze doch gerissen → als Blob nachschieben und retry
+                pushBody.blobUrl = await BlobAttachments.put(scope, 'ledger-' + Date.now().toString(36), _unb64(enc.ct));
+                delete pushBody.ciphertext;
+                push = await _api(pushBody);
+            }
             if (push.status === 409 && attempt < 3) return _syncScope(scope, isStartup, attempt + 1);
             if (push.status === 403) throw new Error('pro_required');
             if (push.status !== 200) throw new Error('push_' + push.status);
@@ -618,7 +660,7 @@ var CloudSync = (function () {
         var out = arr.map(function (x) { if (x && x.id === rec.id) { found = true; return stamped; } return x; });
         if (!found) out.push(stamped);
         var ser = JSON.stringify(out);
-        var isCacheKey = (key.indexOf('__reselling_') !== -1 || key.indexOf('__rechnungsbuch_') !== -1 || /__audit_log$/.test(key));
+        var isCacheKey = (key.indexOf('__reselling_') !== -1 || key.indexOf('__rechnungsbuch_') !== -1 || key.indexOf('__eigenbelege_') !== -1 || /__audit_log$/.test(key));
         if (isCacheKey && typeof Store !== 'undefined') { var o = {}; o[key] = ser; Store.syncApplyKeys(o); }
         else { try { localStorage.setItem(key, ser); } catch (e) {} }
     }
@@ -644,15 +686,41 @@ var CloudSync = (function () {
     async function deleteRemote(scope) {
         if (!_enabled() || !_hasKey() || !_token()) return true; // Cloud-Sync nicht aktiv → nichts zu löschen
         try {
+            // Art. 17 DSGVO muss auch ausgelagerte Anhänge (Blob-Objekte) erfassen —
+            // vor dem Löschen des Redis-Keys den aktuellen Stand pullen und alle
+            // referenzierten Blob-URLs (Ledger-Overflow + Feld-Anhänge) einsammeln.
+            try {
+                var cur = await _api({ action: 'pull', scope: scope });
+                if (cur.status === 200 && cur.json.blob) {
+                    var urls = [];
+                    if (cur.json.blob.blobUrl) urls.push(cur.json.blob.blobUrl);
+                    var data = await _decrypt(cur.json.blob).catch(function () { return null; });
+                    if (data && data.keys) _collectBlobRefs(data.keys, urls);
+                    if (urls.length) await BlobAttachments.deleteUrls(urls);
+                }
+            } catch (e) { console.warn('[CloudSync] Anhang-Cleanup vor Löschung fehlgeschlagen:', e && e.message); }
+
             await _api({ action: 'delete', scope: scope });
             // lokale Sync-Metadaten + Konflikt-Basis für diesen Scope ebenfalls verwerfen
             localStorage.removeItem(LS_META(scope));
             localStorage.removeItem(LS_BASE(scope));
+            localStorage.removeItem(LS_BLOBCACHE(scope));
             return true;
         } catch (e) {
             console.warn('[CloudSync] deleteRemote error:', e && e.message);
             return false;
         }
+    }
+    // Sammelt alle { __blobref__ } URLs aus einem keys-Objekt (Records + einzelne Objekte) ein.
+    function _collectBlobRefs(keys, out) {
+        function visit(obj) {
+            if (!obj || typeof obj !== 'object') return;
+            for (var f in obj) { var v = obj[f]; if (v && typeof v === 'object' && v.__blobref__ && v.url) out.push(v.url); }
+        }
+        Object.keys(keys).forEach(function (k) {
+            var v = keys[k];
+            if (Array.isArray(v)) v.forEach(visit); else visit(v);
+        });
     }
 
     // ── Steuerberater: fremde (Mandanten-)Daten read-only laden ───────────────
@@ -677,10 +745,11 @@ var CloudSync = (function () {
             var p = await _api({ action: 'pull', scope: co.id, owner: ownerId });
             if (p.status !== 200 || !p.json.blob) continue;
             var data = await _decrypt(p.json.blob, kb);   // { keys, meta }
+            await BlobAttachments.hydrateFields(data.keys, function (ct, iv) { return _decryptBytes(ct, iv, kb); });
             var toCache = {};
             Object.keys(data.keys || {}).forEach(function (k) {
                 var ser = JSON.stringify(data.keys[k]);
-                var isCacheKey = (k.indexOf('__reselling_') !== -1 || k.indexOf('__rechnungsbuch_') !== -1 || /__audit_log$/.test(k));
+                var isCacheKey = (k.indexOf('__reselling_') !== -1 || k.indexOf('__rechnungsbuch_') !== -1 || k.indexOf('__eigenbelege_') !== -1 || /__audit_log$/.test(k));
                 if (isCacheKey) toCache[k] = ser; else { try { localStorage.setItem(k, ser); } catch (e) {} }
             });
             if (Object.keys(toCache).length && typeof Store !== 'undefined') Store.syncApplyKeys(toCache);

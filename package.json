@@ -1,0 +1,8 @@
+{
+  "name": "stackr-web",
+  "private": true,
+  "description": "Serverless-Function-Abhängigkeiten (api/*). Kein Build-Schritt für die statische Seite.",
+  "dependencies": {
+    "@vercel/blob": "^2.6.1"
+  }
+}

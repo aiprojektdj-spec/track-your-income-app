@@ -598,7 +598,8 @@ const Lager = {
             const ebMap = {};
             try {
                 const _ebCo = localStorage.getItem('oyi_active_company') || '';
-                const belege = JSON.parse(localStorage.getItem((_ebCo?_ebCo+'__':'')+'eigenbelege_belege') || '[]');
+                const _ebKey = (_ebCo?_ebCo+'__':'')+'eigenbelege_belege';
+                const belege = (typeof Store !== 'undefined' ? Store._syncReadRaw(_ebKey) : JSON.parse(localStorage.getItem(_ebKey) || '[]')) || [];
                 belege.forEach(b => {
                     (b.warenPositionen || []).forEach(wp => {
                         if (wp.lagerArtikelId) {

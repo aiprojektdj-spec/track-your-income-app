@@ -2,6 +2,9 @@
   "rewrites": [
     { "source": "/app", "destination": "/app.html" }
   ],
+  "crons": [
+    { "path": "/api/blob-cleanup", "schedule": "0 4 * * *" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

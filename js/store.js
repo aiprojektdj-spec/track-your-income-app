@@ -115,32 +115,55 @@ const Store = {
 
     _isCacheableKey(k) {
         // Legacy-Format (ohne Firma-Prefix)
-        if (k.startsWith('reselling_') || k.startsWith('rechnungsbuch_') || k === 'audit_log') return true;
+        if (k.startsWith('reselling_') || k.startsWith('rechnungsbuch_') || k === 'audit_log' || k.startsWith('eigenbelege_')) return true;
         // Multi-Firmen-Format: co_xxx__reselling_* etc.
         if (k.startsWith('co_')) {
             const rest = k.replace(/^co_[a-z0-9_]+__/, '');
-            return rest.startsWith('reselling_') || rest.startsWith('rechnungsbuch_') || rest === 'audit_log';
+            return rest.startsWith('reselling_') || rest.startsWith('rechnungsbuch_') || rest === 'audit_log' || rest.startsWith('eigenbelege_');
         }
         return false;
     },
 
     _migrateFromLS() {
-        if (this._cache['_idb_migrated']) return;
+        // Bestandsnutzer haben _idb_migrated evtl. schon von VOR der Eigenbelege-IDB-Migration
+        // (s.u.) gesetzt — eigener Flag, damit die alte Markierung diese Migration nicht überspringt.
+        if (!this._cache['_idb_migrated']) {
+            let moved = false;
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && this._isCacheableKey(k)) {
+                    if (!this._cache[k]) {
+                        const v = localStorage.getItem(k);
+                        this._cache[k] = v;
+                        this._idbPut(k, v);
+                        moved = true;
+                    }
+                }
+            }
+            this._cache['_idb_migrated'] = '"1"';
+            this._idbPut('_idb_migrated', '"1"');
+            if (moved) console.log('[Store] localStorage → IndexedDB Migration abgeschlossen');
+        }
+        this._migrateEigenbelegeToIDB();
+    },
+
+    // Eigenbelege lagen bisher NUR in localStorage (5-10 MB Deckel), nicht im IDB-Cache.
+    // Eigener, immer laufender Migrationspass (idempotent über !this._cache[k]-Gate) — läuft
+    // AUCH bei Bestandsnutzern, deren _idb_migrated-Flag schon vor dieser Änderung gesetzt wurde.
+    _migrateEigenbelegeToIDB() {
         let moved = false;
         for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i);
-            if (k && this._isCacheableKey(k)) {
-                if (!this._cache[k]) {
-                    const v = localStorage.getItem(k);
-                    this._cache[k] = v;
-                    this._idbPut(k, v);
-                    moved = true;
-                }
+            if (!k) continue;
+            const rest = k.startsWith('co_') ? k.replace(/^co_[a-z0-9_]+__/, '') : k;
+            if (rest.startsWith('eigenbelege_') && !this._cache[k]) {
+                const v = localStorage.getItem(k);
+                this._cache[k] = v;
+                this._idbPut(k, v);
+                moved = true;
             }
         }
-        this._cache['_idb_migrated'] = '"1"';
-        this._idbPut('_idb_migrated', '"1"');
-        if (moved) console.log('[Store] localStorage → IndexedDB Migration abgeschlossen');
+        if (moved) console.log('[Store] Eigenbelege → IndexedDB Migration abgeschlossen');
     },
 
     _idbPut(key, valueStr) {
@@ -2138,7 +2161,7 @@ const Store = {
         console.log('[Store] Aktive Firma:', id || '(keine)');
     },
 
-    // Eigenbelege-Schlüssel (localStorage-only, nicht im IDB-Cache)
+    // Eigenbelege-Schlüssel (jetzt im IDB-Cache, siehe _migrateEigenbelegeToIDB)
     _EIGENBELEG_KEYS: [
         'eigenbelege_belege', 'eigenbelege_kategorien',
         'eigenbelege_einstellungen', 'eigenbelege_naechste_nummer', 'eigenbelege_produkte'
@@ -2161,12 +2184,15 @@ const Store = {
             }
         }
 
-        // Eigenbelege (liegen nur in localStorage, nicht im IDB-Cache) — company-präfixiert lesen
+        // Eigenbelege (IDB-Cache, Fallback localStorage) — company-präfixiert lesen
         const ebData = {};
         const ebPfx  = this._ebKeyPrefix;
         this._EIGENBELEG_KEYS.forEach(k => {
-            const v = localStorage.getItem(ebPfx + k);
-            if (v && v !== '[]' && v !== '{}') ebData[k] = v;   // unter Roh-Key sichern → Import remappt auf Ziel-Firma
+            const fk = ebPfx + k;
+            // Roh-JSON-STRING lesen (Cache hält Strings, _syncReadRaw parst trotz des Namens bereits) —
+            // ebData[k] muss ein String bleiben, s. JSON.stringify(ebData) unten (Import remappt auf Ziel-Firma).
+            const v = this._cache[fk] != null ? this._cache[fk] : localStorage.getItem(fk);
+            if (v && v !== '[]' && v !== '{}') ebData[k] = v;
         });
         if (Object.keys(ebData).length) data._eigenbelege = JSON.stringify(ebData);
 
@@ -2666,9 +2692,14 @@ const Store = {
             this._idbDelete(k);
         });
 
-        // 2. Eigenbelege-Daten der AKTIVEN FIRMA (company-präfixierte localStorage-Keys)
+        // 2. Eigenbelege-Daten der AKTIVEN FIRMA (IDB-Cache + evtl. localStorage-Altlast)
         const ebPfx = this._ebKeyPrefix;
-        this._EIGENBELEG_KEYS.forEach(k => localStorage.removeItem(ebPfx + k));
+        this._EIGENBELEG_KEYS.forEach(k => {
+            const fk = ebPfx + k;
+            delete this._cache[fk];
+            this._idbDelete(fk);
+            localStorage.removeItem(fk);
+        });
 
         // 3. Akademie-Achievements (basieren auf Geschäftsdaten — werden sonst inkonsistent)
         localStorage.removeItem('akademie_progress');

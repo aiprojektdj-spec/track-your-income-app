@@ -177,7 +177,7 @@ const Euer = {
 
         // Eigenbelege als Ausgaben (aus eigenbelege/index.html localStorage)
         // Felder: belegDatum (nicht datum), betragNetto (nicht betrag)
-        const eigenbelegeRaw = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; return JSON.parse(localStorage.getItem((_ebCo?_ebCo+'__':'')+'eigenbelege_belege') || '[]'); } catch { return []; } })();
+        const eigenbelegeRaw = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; const _k = (_ebCo?_ebCo+'__':'')+'eigenbelege_belege'; return (typeof Store !== 'undefined' ? Store._syncReadRaw(_k) : JSON.parse(localStorage.getItem(_k) || '[]')) || []; } catch { return []; } })();
         const eigenbelegeAusgaben = eigenbelegeRaw
             .filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, startDate, endDate))
             .reduce((sum, b) => sum + (parseFloat(b.betragNetto) || parseFloat(b.betragBrutto) || 0), 0);
@@ -915,7 +915,7 @@ const Euer = {
                 const platGeb = sSales.reduce((s, x) => { const vk=parseFloat(x.verkaufspreis)||0; const vkK=parseFloat(x.versandkostenKaeufer)||0; const pct=parseFloat(x.plattformgebuehrProzent)||0; return s+(vk+vkK)*pct/100; }, 0);
                 const versand = sSales.reduce((s, x) => s + (parseFloat(x.versandkostenVerkaufer)||0), 0);
                 const sMat = Store.getMaterialVerbrauch().filter(v => !v.storniert && v.grund==='verkauf' && Utils.isInPeriod(v.datum, sDate, eDate)).reduce((s,v)=>s+(parseFloat(v.kosten)||0),0);
-                const sEB = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; return JSON.parse(localStorage.getItem((_ebCo?_ebCo+'__':'')+'eigenbelege_belege')||'[]'); } catch{return[];} })()
+                const sEB = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; const _k = (_ebCo?_ebCo+'__':'')+'eigenbelege_belege'; return (typeof Store !== 'undefined' ? Store._syncReadRaw(_k) : JSON.parse(localStorage.getItem(_k)||'[]')) || []; } catch{return[];} })()
                     .filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, sDate, eDate))
                     .reduce((s,b)=>s+(parseFloat(b.betragNetto)||parseFloat(b.betragBrutto)||0),0);
                 const z64brutto = sonstAusg + platGeb + versand + sMat + sEB;

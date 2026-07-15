@@ -95,7 +95,14 @@ async function whopHasAccess(userToken, userId) {
 
 var RATE_MAX     = 40;             // Requests pro Minute pro Nutzer (Push ist 6s-debounced, 40 deckt Firmenwechsel+Retries komfortabel)
 var IP_RATE_MAX  = 60;             // Requests pro Minute pro IP, VOR dem teuren Whop-Call — bremst Kosten-Flood mit Müll-Tokens
-var MAX_CIPHER   = 8 * 1024 * 1024; // 8 MB base64-Chiffrat pro Scope
+// 3,5 MB Base64-Chiffrat (≈2,6 MB roh) — bewusst deutlich unter Vercels HARTEM
+// 4,5-MB-Function-Body-Limit (nicht konfigurierbar, gilt für JEDE Node-Serverless-
+// Function). Das alte MAX_CIPHER=8MB war praktisch nie erreichbar: ein Request in
+// dieser Größe wäre schon von der Plattform abgelehnt worden, bevor dieser Code
+// überhaupt lief. Größere Payloads gehen über js/blob-attachments.js als eigenes
+// Objekt zu Vercel Blob (api/blob-upload.js, kein Body-Limit-Problem dort) — hier
+// wird dann nur noch { blobUrl, iv, version, ... } gespeichert (siehe push unten).
+var MAX_CIPHER   = 3.5 * 1024 * 1024;
 var SCOPE_RE     = /^(__account|co_[a-z0-9_]+)$/;
 
 // CAS-Skript: setzt nur, wenn die gespeicherte Version == erwarteter Version.
@@ -249,12 +256,23 @@ module.exports = async function handler(req, res) {
             if (body.owner) return res.status(403).json({ error: 'readonly' });
             var expected = parseInt(body.version, 10);
             if (isNaN(expected) || expected < 0) return res.status(400).json({ error: 'bad_version' });
-            if (typeof body.ciphertext !== 'string' || typeof body.iv !== 'string')
-                return res.status(400).json({ error: 'bad_payload' });
-            if (body.ciphertext.length > MAX_CIPHER) return res.status(413).json({ error: 'too_large' });
+            if (typeof body.iv !== 'string') return res.status(400).json({ error: 'bad_payload' });
 
-            var newBlob = JSON.stringify({
+            // Zwei Formen: inline (klein, wie bisher) ODER blobUrl (großes Chiffrat liegt
+            // bereits als eigenes Objekt in Vercel Blob, siehe js/blob-attachments.js).
+            var hasInline = typeof body.ciphertext === 'string';
+            var hasBlob   = typeof body.blobUrl === 'string' && body.blobUrl.indexOf('https://') === 0;
+            if (!hasInline && !hasBlob) return res.status(400).json({ error: 'bad_payload' });
+            if (hasInline && body.ciphertext.length > MAX_CIPHER) return res.status(413).json({ error: 'too_large', maxCipher: MAX_CIPHER });
+
+            var newBlob = JSON.stringify(hasInline ? {
                 ciphertext: body.ciphertext,
+                iv:         body.iv,
+                version:    expected + 1,
+                updatedAt:  Date.now(),
+                deviceId:   typeof body.deviceId === 'string' ? body.deviceId.slice(0, 64) : ''
+            } : {
+                blobUrl:    body.blobUrl,
                 iv:         body.iv,
                 version:    expected + 1,
                 updatedAt:  Date.now(),

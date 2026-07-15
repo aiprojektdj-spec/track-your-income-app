@@ -766,7 +766,9 @@ var Rechnung = (function() {
         var belege = [];
         try {
             var _ebCo = localStorage.getItem('oyi_active_company') || '';
-            belege = JSON.parse(localStorage.getItem((_ebCo?_ebCo+'__':'')+'eigenbelege_belege') || '[]');
+            var _ebKey = (_ebCo?_ebCo+'__':'')+'eigenbelege_belege';
+            // Eigenbelege liegen jetzt im IDB-Cache (Store), localStorage nur noch Fallback
+            belege = (typeof Store !== 'undefined' ? Store._syncReadRaw(_ebKey) : JSON.parse(localStorage.getItem(_ebKey) || '[]')) || [];
         } catch(e) {}
 
         if (belege.length === 0) {

@@ -55,7 +55,7 @@ var BackupCrypto = (function () {
     }
     function _isCacheKey(k) {
         var r = k.replace(/^co_[a-z0-9_]+__/, '');
-        return r.indexOf('reselling_') === 0 || r.indexOf('rechnungsbuch_') === 0 || r === 'audit_log';
+        return r.indexOf('reselling_') === 0 || r.indexOf('rechnungsbuch_') === 0 || r === 'audit_log' || r.indexOf('eigenbelege_') === 0;
     }
     // gibt ein Promise zurück (IDB-Schreibvorgang) — Aufrufer kann auf Flush warten
     function _write(fullKey, value) {

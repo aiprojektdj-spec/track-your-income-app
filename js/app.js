@@ -1512,7 +1512,11 @@ const App = {
     // neue Firma wird angelegt. Von der Dashboard-Seite aus ist Cloud-Sync
     // (cloudSyncDot-Icon → "Mit bestehendem Sync verbinden") sofort erreichbar.
     _skipOnboarding() {
-        Store.saveSettings(Object.assign({}, Store.getSettings(), { onboardingDone: true }));
+        // ponytail: ustMode fehlt sonst komplett -> settings.ustMode === 'klein' (store.js)
+        // wird false -> App behandelt als Regelbesteuerung. 'klein' ist der sichere Default,
+        // den der volle Wizard sowieso vorauswählt.
+        const s = Store.getSettings();
+        Store.saveSettings(Object.assign({}, s, { onboardingDone: true, ustMode: s.ustMode || 'klein' }));
         document.getElementById('onboarding').innerHTML = '';
         Utils.showToast('Setup übersprungen — Cloud-Sync-Icon oben rechts verbindet dich mit deinen bestehenden Daten.', 'info');
         this.navigate('dashboard');

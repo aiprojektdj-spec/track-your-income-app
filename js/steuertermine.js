@@ -4,8 +4,6 @@
 const Steuertermine = {
 
     _getFixedTermine(year) {
-        const land = (typeof CompanyManager !== 'undefined') ? CompanyManager.getActiveLand() : 'DE';
-        if (land === 'AT') return this._getFixedTermineAT(year);
         return [
             { id: 'fix_eur_' + year,   datum: `${year}-07-31`, beschreibung: 'Steuererklärung / EÜR Vorjahr abgeben',      typ: 'steuer', fix: true },
             { id: 'fix_pstg_' + year,  datum: `${year}-03-31`, beschreibung: 'PStTG: Jahresbericht Plattformdaten',          typ: 'pstg',   fix: true },
@@ -17,21 +15,6 @@ const Steuertermine = {
             { id: 'fix_ust2_' + year,  datum: `${year}-07-10`, beschreibung: 'USt-Voranmeldung Q2 (bis 10.07.)',             typ: 'ust',    fix: true },
             { id: 'fix_ust3_' + year,  datum: `${year}-10-10`, beschreibung: 'USt-Voranmeldung Q3 (bis 10.10.)',             typ: 'ust',    fix: true },
             { id: 'fix_ust4y_' + year, datum: `${year}-01-10`, beschreibung: 'USt-Voranmeldung Q4 Vorjahr (bis 10.01.)',     typ: 'ust',    fix: true }
-        ];
-    },
-
-    _getFixedTermineAT(year) {
-        return [
-            // Finanzamt Austria
-            { id: 'at_est_'  + year, datum: `${year}-06-30`, beschreibung: 'Einkommensteuererklärung E1/E1a Vorjahr (FinanzOnline)',  typ: 'steuer', fix: true },
-            { id: 'at_pstg_' + year, datum: `${year}-03-31`, beschreibung: 'DAC7/PStTG: Jahresbericht Plattformdaten',               typ: 'pstg',   fix: true },
-            // SVS Vorauszahlungen (Quartale: Feb, Mai, Aug, Nov)
-            { id: 'at_svs1_' + year, datum: `${year}-02-28`, beschreibung: 'SVS-Vorauszahlung Q1 (Fälligkeit 28.02.)',               typ: 'svs',    fix: true },
-            { id: 'at_svs2_' + year, datum: `${year}-05-31`, beschreibung: 'SVS-Vorauszahlung Q2 (Fälligkeit 31.05.)',               typ: 'svs',    fix: true },
-            { id: 'at_svs3_' + year, datum: `${year}-08-31`, beschreibung: 'SVS-Vorauszahlung Q3 (Fälligkeit 31.08.)',               typ: 'svs',    fix: true },
-            { id: 'at_svs4_' + year, datum: `${year}-11-30`, beschreibung: 'SVS-Vorauszahlung Q4 (Fälligkeit 30.11.)',               typ: 'svs',    fix: true },
-            // KU-Schwelle Warnung (42.000 €)
-            { id: 'at_ku_'   + year, datum: `${year}-12-31`, beschreibung: 'KU-Grenze prüfen: Umsatz < 42.000 € für §6 UStG?',      typ: 'steuer', fix: true },
         ];
     },
 
@@ -128,10 +111,7 @@ const Steuertermine = {
 
         const fromEuer = (typeof App !== 'undefined' && App._cameFromEuer);
 
-        const land = (typeof CompanyManager !== 'undefined') ? CompanyManager.getActiveLand() : 'DE';
-        const landBadge = land === 'AT'
-            ? `<span style="font-size:12px;padding:3px 10px;border-radius:12px;background:rgba(228,50,62,.12);color:#e4323e;font-weight:600;border:1px solid rgba(228,50,62,.3);">🇦🇹 Österreich · §6 UStG</span>`
-            : `<span style="font-size:12px;padding:3px 10px;border-radius:12px;background:rgba(99,102,241,.1);color:var(--accent);font-weight:600;border:1px solid rgba(99,102,241,.2);">🇩🇪 Deutschland · §19 UStG</span>`;
+        const landBadge = `<span style="font-size:12px;padding:3px 10px;border-radius:12px;background:rgba(99,102,241,.1);color:var(--accent);font-weight:600;border:1px solid rgba(99,102,241,.2);">🇩🇪 Deutschland · §19 UStG</span>`;
 
         return `
             <div class="page-header" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
@@ -139,7 +119,6 @@ const Steuertermine = {
                 <h2 style="margin:0;">Steuertermin-Kalender</h2>
                 ${landBadge}
             </div>
-            ${land === 'AT' ? `<div id="svsTrackerWidget"></div>` : ''}
 
             <div class="stats-grid" style="margin-bottom:20px;">
                 ${upcomingCards}
@@ -206,12 +185,6 @@ const Steuertermine = {
     },
 
     init() {
-        // SVS-Widget für AT-User befüllen
-        const svsEl = document.getElementById('svsTrackerWidget');
-        if (svsEl && typeof SVS !== 'undefined') {
-            svsEl.innerHTML = SVS.renderWidget();
-        }
-
         // Zurück-Button (nur wenn von EÜR aufgerufen)
         const backBtn = document.getElementById('steuerBackToEuer');
         if (backBtn) backBtn.addEventListener('click', () => {

@@ -121,7 +121,7 @@ var DatevExport = (function () {
         var invKeyDate = function (i) { return isSoll ? i.datum : (i.bezahltAm || i.datum); };
         var invoices = (Store.getRechInvoices ? Store.getRechInvoices() : [])
             .filter(function (i) {
-                if (i.typ !== 'rechnung') return false;
+                if (i.typ !== 'rechnung' && i.typ !== 'gutschrift') return false;
                 if (isSoll ? (i.status !== 'versendet' && i.status !== 'bezahlt') : i.status !== 'bezahlt') return false;
                 var d = invKeyDate(i);
                 return (d || '') >= vonDate && (d || '') <= bisDate;
@@ -157,14 +157,18 @@ var DatevExport = (function () {
             var kunde = customers.find(function (c) { return c.id === inv.kundeId; });
             var kundeName = kunde ? (kunde.firma || kunde.ansprechpartner || '') : '';
 
+            // Gutschrift (Kreditnote) mindert den Umsatz (§17 UStG) → Buchung gegenläufig zur
+            // normalen Rechnung (Soll statt Haben auf dem Erlöskonto), Betrag bleibt absolut.
+            var isGutschrift = inv.typ === 'gutschrift';
+
             rows.push({
                 umsatz:       brutto,
-                sh:           'H',             // Haben = Einnahme
+                sh:           isGutschrift ? 'S' : 'H',
                 konto:        erloesKonto,
                 gegenkonto:   accounts.bank,
                 datum:        invKeyDate(inv),
                 belegfeld1:   inv.nummer || '',
-                buchungstext: ('Rechnung ' + (inv.nummer || '') + (kundeName ? ' ' + kundeName : '')).slice(0, 60),
+                buchungstext: ((isGutschrift ? 'Gutschrift ' : 'Rechnung ') + (inv.nummer || '') + (kundeName ? ' ' + kundeName : '')).slice(0, 60),
                 buSchluessel: isKlein ? '' : (primaryRate === 19 ? '' : primaryRate === 7 ? '2' : '40'),
             });
         });

@@ -3,8 +3,7 @@ var Mahnungen = (function() {
     var highlightInvoiceId = null;
 
     function calcBrutto(invoice) {
-        var settings = Store.getSettings();
-        var isKlein = settings.ustMode === 'klein';
+        var isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (Store.getSettings().ustMode === 'klein');
         var sum = 0;
         (invoice.positionen || []).forEach(function(pos) {
             var netto = pos.menge * pos.einzelpreis;

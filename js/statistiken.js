@@ -101,7 +101,25 @@ const Statistiken = {
             sales = sales.filter(s => Utils.isInPeriod(s.datum, this._customStart, this._customEnd));
             purchases = purchases.filter(p => Utils.isInPeriod(p.datum, this._customStart, this._customEnd));
         }
-        return { sales, purchases, allPurchases: Store.getPurchases() };
+
+        // Bezahlte Rechnungen, die noch nicht als Verkauf gesynct sind (gleiches Pattern wie euer.js/dashboard.js).
+        // Nur als Umsatz-Summand nutzbar — Rechnungen haben keine Plattform/Marke/EK, fließen daher
+        // nicht in die Plattform-/Marken-/Typ-Aufschlüsselungen ein (dokumentierte Limitation).
+        const syncedInvoiceIds = new Set(Store.getSales(true).filter(s => s._invoiceId).map(s => s._invoiceId));
+        const unsyncedRevenue = (Store.getRechInvoices ? Store.getRechInvoices() : []).filter(inv => {
+            if (inv.status !== 'bezahlt' || inv._storniert) return false;
+            if (inv.typ !== 'rechnung' && inv.typ !== 'gutschrift') return false;
+            if (syncedInvoiceIds.has(inv.id)) return false;
+            const d = inv.bezahltAm || inv.datum;
+            if (this._period === 'custom' && this._customStart && this._customEnd) return Utils.isInPeriod(d, this._customStart, this._customEnd);
+            if (!isNaN(yearNum)) return Utils.isInPeriod(d, `${yearNum}-01-01`, `${yearNum}-12-31`);
+            return true;
+        }).reduce((sum, inv) => {
+            const sign = inv.typ === 'gutschrift' ? -1 : 1; // §17 UStG: Gutschrift mindert den Umsatz
+            return sum + sign * (inv.positionen || []).reduce((s2, p) => s2 + (p.menge || 0) * (p.einzelpreis || 0), 0);
+        }, 0);
+
+        return { sales, purchases, allPurchases: Store.getPurchases(), unsyncedRevenue };
     },
 
     _destroyCharts() {
@@ -223,7 +241,7 @@ const Statistiken = {
         });
     },
 
-    _renderMaterialStats(sales) {
+    _renderMaterialStats(sales, unsyncedRevenue) {
         const section = document.getElementById('matStatSection');
         if (!section) return;
 
@@ -232,7 +250,7 @@ const Statistiken = {
         if (!bestand.length && !verbrauch.length) { section.innerHTML = ''; return; }
 
         const totalVerbrauchKosten = verbrauch.reduce((s, v) => s + (parseFloat(v.kosten) || 0), 0);
-        const totalUmsatz = sales.reduce((s, x) => s + (parseFloat(x.verkaufspreis) || 0), 0);
+        const totalUmsatz = sales.reduce((s, x) => s + (parseFloat(x.verkaufspreis) || 0), 0) + (unsyncedRevenue || 0);
         const avgProVerkauf = sales.length > 0 ? totalVerbrauchKosten / sales.length : 0;
         const pct = totalUmsatz > 0 ? (totalVerbrauchKosten / totalUmsatz * 100).toFixed(1) : '0';
         const restwert = bestand.reduce((s, m) => s + (parseFloat(m.kostenProEinheit) || 0) * (parseInt(m.bestand) || 0), 0);
@@ -277,7 +295,7 @@ const Statistiken = {
 
     _renderCharts() {
         this._destroyCharts();
-        const { sales, purchases, allPurchases } = this._getFilteredData();
+        const { sales, purchases, allPurchases, unsyncedRevenue } = this._getFilteredData();
         const { textColor, gridColor } = this._getThemeColors();
 
         // ── G: Leerer Zustand ────────────────────────────────────────────────
@@ -305,7 +323,7 @@ const Statistiken = {
         }
 
         this._renderPlatformAnalyse(sales, allPurchases);
-        this._renderMaterialStats(sales);
+        this._renderMaterialStats(sales, unsyncedRevenue);
         this._renderProfitabilitaet(sales, allPurchases);
 
         // 1. Gewinn pro Marke (horizontal bar)

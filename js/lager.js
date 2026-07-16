@@ -1166,7 +1166,7 @@ const Lager = {
             const zone = layout.zones.find(z => z.bereich && z.bereich === p.lagerort.bereich);
             if (zone) {
                 zoneStats[zone.id].count++;
-                zoneStats[zone.id].value += parseFloat(p.einkaufspreis) || 0;
+                zoneStats[zone.id].value += (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
                 assignedIds.add(p.id);
             }
         });
@@ -1516,7 +1516,7 @@ const Lager = {
             !p.storniert && p.status === 'verfuegbar' &&
             p.lagerort && p.lagerort.bereich === zone.bereich
         );
-        const totalVal = items.reduce((s, p) => s + (parseFloat(p.einkaufspreis) || 0), 0);
+        const totalVal = items.reduce((s, p) => s + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1), 0);
 
         const rows = items.length === 0
             ? `<tr><td colspan="5" class="table-empty" style="padding:20px;">Keine verfügbaren Artikel mit Bereich "${Utils.escapeHtml(zone.bereich)}"</td></tr>`
@@ -1628,7 +1628,7 @@ const Lager = {
                 Store.savePurchase(p);
             });
             App.closeModal();
-            Utils.showToast(`✅ ${selected.length} Artikel → ${zone.name} zugeordnet`, 'success');
+            Utils.showToast(`✅ ${selected.length} Artikel → ${Utils.escapeHtml(zone.name)} zugeordnet`, 'success');
             const contentEl = document.getElementById('content');
             contentEl.innerHTML = this.render();
             this.init();

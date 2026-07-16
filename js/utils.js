@@ -4,16 +4,11 @@
 const Utils = {
     formatCurrency(amount) {
         const num = parseFloat(amount) || 0;
-        const land = (typeof Store !== 'undefined') ? (Store.getSettings().land || 'DE') : 'DE';
-        if (land === 'CH') {
-            return 'CHF\u00a0' + num.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
         return num.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '\u00a0\u20ac';
     },
 
     getCurrencySymbol() {
-        const land = (typeof Store !== 'undefined') ? (Store.getSettings().land || 'DE') : 'DE';
-        return land === 'CH' ? 'CHF' : '\u20ac';
+        return '\u20ac';
     },
 
     formatNumber(num) {

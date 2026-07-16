@@ -26,3 +26,8 @@ compliance/
 
 # graphify Knowledge-Graph-Artefakte (lokal generiert)
 graphify-out/
+.vercel
+.env*
+
+# Dependencies
+node_modules/

@@ -152,7 +152,7 @@ var RechApp = (function() {
     function closeMobileMenu() {
         var sidebar = document.getElementById('sidebar');
         var overlay = document.getElementById('mobileOverlay');
-        if (sidebar) sidebar.classList.remove('open');
+        if (sidebar) sidebar.classList.remove('sidebar-open');
         if (overlay) overlay.classList.remove('active');
     }
 
@@ -279,7 +279,7 @@ var RechApp = (function() {
 
         if (menuBtn) {
             menuBtn.addEventListener('click', function() {
-                sidebar.classList.toggle('open');
+                sidebar.classList.toggle('sidebar-open');
                 mobileOverlay.classList.toggle('active');
             });
         }

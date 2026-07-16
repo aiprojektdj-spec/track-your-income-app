@@ -399,7 +399,7 @@ const Materiallager = {
                 mindestbestand: parseInt(document.getElementById('ml_mindest').value) || 0,
                 kostenProEinheit: parseFloat(document.getElementById('ml_kosten').value) || 0,
             });
-            Utils.showToast(name + ' hinzugefügt', 'success');
+            Utils.showToast(Utils.escapeHtml(name) + ' hinzugefügt', 'success');
             this._refresh();
         });
 
@@ -491,7 +491,7 @@ const Materiallager = {
             });
 
             // Log as consumption entry with negative menge (positive stock addition)
-            Utils.showToast(`${menge} × ${mat.name} eingebucht (+${Utils.formatCurrency(gesamt)})`, 'success');
+            Utils.showToast(`${menge} × ${Utils.escapeHtml(mat.name)} eingebucht (+${Utils.formatCurrency(gesamt)})`, 'success');
             this._refresh();
         });
 
@@ -522,7 +522,7 @@ const Materiallager = {
                 document.getElementById('mlv_datum').value,
                 grund, null, ''
             );
-            Utils.showToast(`${menge} × ${mat.name} verbraucht`, 'success');
+            Utils.showToast(`${menge} × ${Utils.escapeHtml(mat.name)} verbraucht`, 'success');
             this._refresh();
         });
 

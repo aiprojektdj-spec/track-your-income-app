@@ -101,44 +101,6 @@
                 </div>
             </div>
 
-            <!-- ── Österreich-Sektion (nur sichtbar wenn AT-Modus aktiv) ── -->
-            <div class="sidebar-section" id="atSidebarSection" style="display:none;">Österreich</div>
-            <div class="sidebar-section-items" id="atSidebarItems" style="display:none;">
-                <div class="sidebar-link" data-action="at-nav" data-args='["ear"]' >
-                    <span class="icon"><i class="ti ti-clipboard-list"></i></span><span class="sidebar-link-label"> EAR</span>
-                </div>
-                <div class="sidebar-link" data-action="at-nav" data-args='["ust"]' >
-                    <span class="icon"><i class="ti ti-receipt-tax"></i></span><span class="sidebar-link-label"> USt</span>
-                </div>
-                <div class="sidebar-link" data-action="at-nav" data-args='["gsvg"]' >
-                    <span class="icon"><i class="ti ti-shield-heart"></i></span><span class="sidebar-link-label"> GSVG / SV</span>
-                </div>
-                <div class="sidebar-link" data-action="at-nav" data-args='["est"]' >
-                    <span class="icon"><i class="ti ti-calculator"></i></span><span class="sidebar-link-label"> Einkommensteuer</span>
-                </div>
-            </div>
-
-            <!-- ── Schweiz-Sektion (nur sichtbar wenn CH-Modus aktiv) ── -->
-            <div class="sidebar-section" id="chSidebarSection" style="display:none;">Schweiz – EAR</div>
-            <div class="sidebar-section-items" id="chSidebarItems" style="display:none;">
-                <div class="sidebar-link" id="chNav_jahr" data-ch-period="jahr">
-                    <span class="icon"><i class="ti ti-clipboard-list"></i></span><span class="sidebar-link-label"> Jahres-EAR</span>
-                </div>
-                <div class="sidebar-link" id="chNav_monat" data-ch-period="monat">
-                    <span class="icon"><i class="ti ti-calendar"></i></span><span class="sidebar-link-label"> Monatliche EAR</span>
-                </div>
-                <div class="sidebar-link" id="chNav_quartal" data-ch-period="quartal">
-                    <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> Quartals-EAR</span>
-                </div>
-                <div style="border-top:1px solid var(--border);margin:6px 12px;"></div>
-                <div class="sidebar-link" data-page="steuertermine">
-                    <span class="icon"><i class="ti ti-calendar-event"></i></span><span class="sidebar-link-label"> Steuertermine (CH)</span>
-                </div>
-                <div class="sidebar-link" data-page="statistiken">
-                    <span class="icon"><i class="ti ti-trending-up"></i></span><span class="sidebar-link-label"> Statistiken</span>
-                </div>
-            </div>
-
             <!-- ── EÜR-Sektion (nur sichtbar wenn EÜR aktiv) ── -->
             <div class="sidebar-section" id="euerSidebarSection" style="display:none;">EÜR – Auswertung</div>
             <div class="sidebar-section-items" id="euerSidebarItems" style="display:none;">
@@ -318,14 +280,10 @@
     <script defer src="js/lohnsteuer.js"></script>
     <script defer src="js/gbr.js"></script>
     <script defer src="js/gbr-modul.js"></script>
-    <script defer src="js/schweiz.js"></script>
-    <script defer src="js/oesterreich.js"></script>
-    <script defer src="js/svs.js"></script>
     <script defer src="js/materiallager.js"></script>
     <script defer src="js/akademie.js"></script>
 
     <!-- ── Rechnungen-Sub-App (eingebettet als Finanzen-Sub-Tab) ── -->
-    <script defer src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js" integrity="sha384-lQXOAyZwHXE55JFyrOMB7nY2Wv+m5ZWNtJcHrd1rceRQXAYNLak8ukN5TjBTcIwz" crossorigin="anonymous"></script>
     <script defer src="rechnungen/js/xrechnung.js"></script>
     <script defer src="rechnungen/js/erechnung-import.js"></script>
     <script defer src="rechnungen/js/rech-dashboard.js"></script>

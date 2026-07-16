@@ -55,10 +55,13 @@ const UstVoranmeldung = {
             const ossActive  = (typeof OSS !== 'undefined') &&
                 (OSS._jahresumsatz(periodYear) >= OSS.SCHWELLE || OSS._jahresumsatz(periodYear - 1) >= OSS.SCHWELLE);
 
-            // Soll: alle ausgestellten Rechnungen zum Rechnungsdatum, unabhängig vom Zahlungseingang
+            // Soll: alle ausgestellten Rechnungen zum Rechnungsdatum, unabhängig vom Zahlungseingang.
+            // Gutschriften (Kreditnoten) laufen mit umgekehrtem Vorzeichen mit — sie mindern die
+            // Bemessungsgrundlage zum Gutschriftsdatum (§17 UStG Änderung der Bemessungsgrundlage).
             Store.getRechInvoices()
-                .filter(i => i.typ === 'rechnung' && (i.status === 'versendet' || i.status === 'bezahlt') && Utils.isInPeriod(i.datum, startDate, endDate))
+                .filter(i => (i.typ === 'rechnung' || i.typ === 'gutschrift') && (i.status === 'versendet' || i.status === 'bezahlt') && Utils.isInPeriod(i.datum, startDate, endDate))
                 .forEach(i => {
+                    const sign = i.typ === 'gutschrift' ? -1 : 1;
                     const kunde = customers.find(c => c.id === i.kundeId);
                     const kundeLand = kunde && kunde.land;
                     // ig. Lieferung (§4 Nr.1b + §6a UStG): B2B-Kunde in der EU mit gültiger USt-IdNr
@@ -72,7 +75,7 @@ const UstVoranmeldung = {
                     }
                     (i.positionen || []).forEach(pos => {
                         // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
-                        const netto = (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0);
+                        const netto = sign * (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0);
                         const rate  = parseInt(pos.mwstSatz);
                         if (rate === 7) bruttoUmsatz7 += netto * 1.07;
                         else if (rate === 19 || isNaN(rate)) bruttoUmsatz19 += netto * 1.19;
@@ -238,17 +241,6 @@ const UstVoranmeldung = {
     },
 
     render() {
-        if (Store.getSettings().land === 'CH') {
-            return `
-            <div class="page-header"><h2><i class="ti ti-receipt-tax" style="margin-right:6px;"></i> USt-Voranmeldung</h2></div>
-            <div class="card" style="padding:40px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:12px;">🇨🇭</div>
-                <div style="font-weight:700;font-size:16px;margin-bottom:8px;">Nicht verfügbar im Schweiz-Modus</div>
-                <div style="color:var(--text-muted);margin-bottom:16px;">Die deutsche USt-Voranmeldung (§18 UStG) gilt nicht in der Schweiz.<br>Für die MWST-Abrechnung nach MWSTG nutze das Schweiz-Modul.</div>
-                <button class="btn btn-primary" data-action="navigate" data-args=\'["schweiz"]\'>→ Schweiz MWST-Abrechnung</button>
-            </div>`;
-        }
-
         if (!this._isRegel()) {
             return `
             <div class="page-header"><h2>USt-Voranmeldung</h2></div>

@@ -37,8 +37,6 @@ const App = {
         rechtsform: Rechtsform,
         lohnsteuer: Lohnsteuer,
         gewerbesteuer: Gewerbesteuer,
-        schweiz: Schweiz,
-        oesterreich: Oesterreich,
         // Eingebettete Rechnungen-Sub-App — bootet via RechApp.mount() in #content
         rechnungen: {
             render() { return '<div id="rechMount"></div>'; },
@@ -109,40 +107,30 @@ const App = {
         if (typeof I18n !== 'undefined') I18n.applyAll();
 
         // ── Firmen-Check: Muss VOR allem anderen laufen ──
+        // Erster Start (0 Firmen): keine eigene Firmen-Anlage-Seite mehr davor — Step 1
+        // des Stammdaten-Wizards (_saveOnboardingStep) legt die Firma direkt an.
         const companies = CompanyManager.getAll();
-        if (companies.length === 0) {
-            // Erster Start oder Migration nötig
-            const hasData = Object.keys(Store._cache).some(k =>
-                k.startsWith('reselling_') || k.startsWith('rechnungsbuch_')
-            );
-            CompanyManager.showOnboarding(hasData);
-            return;  // _continueAfterCompany() wird vom Onboarding-Wizard aufgerufen
-        }
+        if (companies.length > 0) {
+            // Aktive Firma setzen (oder erste Firma wählen)
+            const activeId = CompanyManager.getActiveId() || companies[0].id;
+            Store.setCompany(activeId);
 
-        // Aktive Firma setzen (oder erste Firma wählen)
-        const activeId = CompanyManager.getActiveId() || companies[0].id;
-        Store.setCompany(activeId);
-
-        // letzterZugriff aktualisieren + company.land → Store.settings.land synchronisieren
-        const cos = CompanyManager.getAll();
-        const co  = cos.find(c => c.id === activeId);
-        if (co) {
-            co.letzterZugriff = new Date().toISOString();
-            CompanyManager._save(cos);
-            if (co.land) {
-                const s = Store.getSettings();
-                if (s.land !== co.land) Store.saveSettings(Object.assign({}, s, { land: co.land }));
-                if (co.land === 'CH' && typeof Schweiz !== 'undefined') {
-                    if (s.chKanton)                Schweiz._kanton   = s.chKanton;
-                    if (s.chGemeinde !== undefined) Schweiz._gemeinde = s.chGemeinde || '';
-                    if (s.chGjStart)               Schweiz._gjStart  = s.chGjStart;
+            // letzterZugriff aktualisieren + company.land → Store.settings.land synchronisieren
+            const cos = CompanyManager.getAll();
+            const co  = cos.find(c => c.id === activeId);
+            if (co) {
+                co.letzterZugriff = new Date().toISOString();
+                CompanyManager._save(cos);
+                if (co.land) {
+                    const s = Store.getSettings();
+                    if (s.land !== co.land) Store.saveSettings(Object.assign({}, s, { land: co.land }));
                 }
             }
-        }
 
-        // Company-Switcher-Button einfügen
-        const switcherEl = document.getElementById('companySwitcher');
-        if (switcherEl) switcherEl.innerHTML = CompanyManager.renderSwitcherBtn();
+            // Company-Switcher-Button einfügen
+            const switcherEl = document.getElementById('companySwitcher');
+            if (switcherEl) switcherEl.innerHTML = CompanyManager.renderSwitcherBtn();
+        }
 
         this._continueAfterCompany();
     },
@@ -169,7 +157,6 @@ const App = {
         this._checkBackupReminder();
         this.bindGlobalEvents();
         this._updateGbrTabVisibility();
-        this._updateSchweizTabVisibility();
 
         // DSGVO-Hinweis beim ersten Start nach AGB-Akzeptanz
         if (!localStorage.getItem('dsgvo_notice_shown')) {
@@ -525,9 +512,6 @@ const App = {
     navigate(page) {
         if (!this.pages[page]) return;
 
-        // Land-Gate: Österreich nur bei AT
-        if (page === 'oesterreich' && Store.getSettings().land !== 'AT') { this.navigate('dashboard'); return; }
-
         // Rechtsform-Gate: block navigation to pages hidden for current form
         if (typeof Rechtsform !== 'undefined') {
             const cfg = Rechtsform.getConfig();
@@ -550,16 +534,10 @@ const App = {
             this._cameFromEuer = false;
         }
 
-        // Schweiz-Modus: EÜR komplett durch EAR ersetzen
-        if (Store.getSettings().land === 'CH' && page === 'euer') {
-            this.navigate('schweiz');
-            return;
-        }
-
         this.currentPage = page;
 
-        // §19 UStG Umsatzgrenzprüfung bei jeder Navigation (nur DE)
-        if (Store.getSettings().land !== 'CH') this._checkUstThreshold();
+        // §19 UStG Umsatzgrenzprüfung bei jeder Navigation
+        this._checkUstThreshold();
 
         // Update sidebar active state
         document.querySelectorAll('.sidebar-link').forEach(link => {
@@ -592,40 +570,8 @@ const App = {
             });
         }
 
-        // Länder-Sektionen ein-/ausblenden
-        const settings    = Store.getSettings();
-        const isCH        = settings.land === 'CH';
-        const isAT        = settings.land === 'AT';
-        const onCH        = page === 'schweiz' || (isCH && page === 'steuertermine');
-        const onAT        = page === 'oesterreich';
-        const chSection   = document.getElementById('chSidebarSection');
-        const chItems     = document.getElementById('chSidebarItems');
-        const atSection   = document.getElementById('atSidebarSection');
-        const atItems     = document.getElementById('atSidebarItems');
-        const schweizTab  = document.getElementById('toolTabSchweiz');
-        const atTab       = document.getElementById('toolTabOesterreich');
-        const euerTabEl   = document.getElementById('toolTabEuer');
-        if (chSection)  chSection.style.display  = onCH ? '' : 'none';
-        if (chItems)    chItems.style.display    = onCH ? '' : 'none';
-        if (atSection)  atSection.style.display  = onAT ? '' : 'none';
-        if (atItems)    atItems.style.display    = onAT ? '' : 'none';
-        if (schweizTab) schweizTab.style.display = isCH ? '' : 'none';
-        if (atTab)      atTab.style.display      = isAT ? '' : 'none';
-        if (euerTabEl)  euerTabEl.style.display  = (isCH || isAT) ? 'none' : '';
-
-        // Schweiz Periode-Buttons aktiv markieren
-        if (onCH && typeof Schweiz !== 'undefined') {
-            document.querySelectorAll('[data-ch-period]').forEach(el => {
-                el.classList.toggle('active', el.dataset.chPeriod === Schweiz._period);
-                el.onclick = () => {
-                    Schweiz._period = el.dataset.chPeriod;
-                    App.navigate('schweiz');
-                };
-            });
-        }
-
-        // EÜR-Sektion ein-/ausblenden (im CH-Modus nie sichtbar)
-        const onEuer = !isCH && (page === 'euer' || page === 'steuertermine');
+        // EÜR-Sektion ein-/ausblenden
+        const onEuer = (page === 'euer' || page === 'steuertermine');
         const euerSection  = document.getElementById('euerSidebarSection');
         const euerItems    = document.getElementById('euerSidebarItems');
         const mainSection  = document.getElementById('mainSidebarSection');
@@ -646,9 +592,9 @@ const App = {
         if (steuerSection) steuerSection.style.display = (onSteuer && !onGbr) ? '' : 'none';
         if (steuerItems)   steuerItems.style.display   = (onSteuer && !onGbr) ? '' : 'none';
 
-        if (mainSection) mainSection.style.display  = (onEuer || onGbr || onSteuer || onCH || onAT) ? 'none' : '';
+        if (mainSection) mainSection.style.display  = (onEuer || onGbr || onSteuer) ? 'none' : '';
         const mainItems = document.getElementById('section-hauptmenu');
-        if (mainItems)   mainItems.style.display    = (onEuer || onGbr || onSteuer || onCH || onAT) ? 'none' : '';
+        if (mainItems)   mainItems.style.display    = (onEuer || onGbr || onSteuer) ? 'none' : '';
 
         // EÜR Periode-Buttons aktiv markieren
         if (onEuer && typeof Euer !== 'undefined') {
@@ -990,9 +936,9 @@ const App = {
         };
     },
 
-    // Anzeige-Text "welche Firma bekommt den Excel-Import" — verhindert versehentlichen Import in falsche Firma (z.B. DE statt CH)
+    // Anzeige-Text "welche Firma bekommt den Excel-Import" — verhindert versehentlichen Import in falsche Firma
     _importTargetLabel() {
-        const flags = { DE: '🇩🇪 Deutschland', AT: '🇦🇹 Österreich', CH: '🇨🇭 Schweiz' };
+        const flags = { DE: '🇩🇪 Deutschland' };
         if (typeof CompanyManager !== 'undefined') {
             const co = CompanyManager.getActive();
             if (co) return `${co.name} (${flags[co.land] || co.land})`;
@@ -1017,50 +963,6 @@ const App = {
         return new TextDecoder().decode(pt);
     },
 
-
-    // ── Land-Wechsel: CH-Felder ein-/ausblenden ──────────────
-    _onLandChange(land) {
-        const isCH = land === 'CH';
-        ['set_ch_kanton_group', 'set_ch_mwstnr_group', 'set_ch_mwst_default_group', 'set_ch_rate_group'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = isCH ? '' : 'none';
-        });
-    },
-
-    // ── Schweiz/AT-Tab-Sichtbarkeit aktualisieren ────────────────
-    _updateSchweizTabVisibility() {
-        const land = Store.getSettings().land || 'DE';
-        const isCH = land === 'CH';
-        const isAT = land === 'AT';
-        // CH sidebar
-        const chSection = document.getElementById('chSidebarSection');
-        const chItems   = document.getElementById('chSidebarItems');
-        if (chSection) chSection.style.display = isCH ? '' : 'none';
-        if (chItems)   chItems.style.display   = isCH ? '' : 'none';
-        // AT sidebar
-        const atSection = document.getElementById('atSidebarSection');
-        const atItems   = document.getElementById('atSidebarItems');
-        if (atSection) atSection.style.display = isAT ? '' : 'none';
-        if (atItems)   atItems.style.display   = isAT ? '' : 'none';
-        // Topnav tabs
-        const schweizTab = document.getElementById('toolTabSchweiz');
-        if (schweizTab) schweizTab.style.display = isCH ? '' : 'none';
-        const atTab = document.getElementById('toolTabOesterreich');
-        if (atTab) atTab.style.display = isAT ? '' : 'none';
-        // EÜR-Tab-Label dynamisch
-        const euerTab = document.getElementById('toolTabEuer');
-        if (euerTab) {
-            euerTab.style.display = (isCH || isAT) ? 'none' : '';
-            const label = euerTab.querySelector('span');
-            if (label) label.textContent = 'EÜR';
-        }
-        // EÜR-Sidebar anpassen
-        const euerSect = document.getElementById('euerSidebarSection');
-        if (euerSect) {
-            const txt = euerSect.firstChild;
-            if (txt && txt.nodeType === 3) txt.textContent = 'EÜR – Auswertung';
-        }
-    },
 
     // ── USt-Modus Kartenauswahl ───────────────────────────────
     _pickUst(prefix, value) {
@@ -1266,8 +1168,7 @@ const App = {
         const step = this._onboardingStep;
         const d = this._onboardingData;
         const L = (typeof I18n !== 'undefined') ? I18n : { t: function(k) { return k; } };
-        const isCH = (typeof CompanyManager !== 'undefined') && CompanyManager.getActiveLand() === 'CH';
-        const totalSteps = isCH ? 6 : 5;
+        const totalSteps = 5;
 
         let stepsHtml = '<div class="onboarding-steps">';
         for (let i = 1; i <= totalSteps; i++) {
@@ -1281,14 +1182,26 @@ const App = {
         if (step === 1) {
             title = L.t('ob.step1.title');
             subtitle = L.t('ob.step1.subtitle');
+            const branchenOpts = CompanyManager.BRANCHEN.map(b =>
+                `<option value="${b}" ${(d.branche || CompanyManager.BRANCHEN[0]) === b ? 'selected' : ''}>${b}</option>`).join('');
+            const rechtsformOpts = ['Einzelunternehmen', 'GbR'].map(f =>
+                `<option value="${f}" ${(d.rechtsform || 'Einzelunternehmen') === f ? 'selected' : ''}>${f === 'GbR' ? 'GbR (Gesellschaft bürgerlichen Rechts)' : f}</option>`).join('');
             fieldsHtml = `
                 <div class="form-group">
                     <label class="form-label" for="ob_firmenname">${L.t('field.company')}</label>
-                    <input type="text" class="form-input" id="ob_firmenname" value="${Utils.escapeHtml(d.firmenname || '')}">
+                    <input type="text" class="form-input" id="ob_firmenname" value="${Utils.escapeHtml(d.firmenname || '')}" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="ob_name">${L.t('field.name.req')}</label>
                     <input type="text" class="form-input" id="ob_name" value="${Utils.escapeHtml(d.name || '')}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="ob_branche">Branche</label>
+                    <select class="form-input" id="ob_branche">${branchenOpts}</select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="ob_rechtsform">Rechtsform</label>
+                    <select class="form-input" id="ob_rechtsform">${rechtsformOpts}</select>
                 </div>
             `;
         } else if (step === 2) {
@@ -1325,50 +1238,8 @@ const App = {
             `;
         } else if (step === 4) {
             title = L.t('ob.step4.title');
-            subtitle = isCH ? 'Steuerliche Angaben für die EAR.' : L.t('ob.step4.subtitle');
-            if (isCH) {
-                fieldsHtml = `
-                <div class="form-group">
-                    <label class="form-label" for="ob_ahvNr">AHV-Nummer (optional)</label>
-                    <input type="text" class="form-input" id="ob_ahvNr" value="${Utils.escapeHtml(d.ahvNr || '')}" placeholder="756.xxxx.xxxx.xx">
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="ob_chMwstNr">MWST-Nummer (optional)</label>
-                    <input type="text" class="form-input" id="ob_chMwstNr" value="${Utils.escapeHtml(d.chMwstNr || '')}" placeholder="CHE-xxx.xxx.xxx MWST">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">MWST-Modus</label>
-                    <input type="hidden" id="ob_ch_ustMode" value="${d.chMwstMode || 'klein'}">
-                    <div class="ust-picker" id="ob_ch_ust_picker">
-                        <div class="ust-card ${(d.chMwstMode || 'klein') === 'klein' ? 'selected' : ''}" data-value="klein" data-action="app-pick-ust" data-args='["ob_ch","klein"]'>
-                            <div class="ust-card-icon" style="color:var(--success);"><i class="ti ti-shield-check"></i></div>
-                            <div class="ust-card-title">Nicht pflichtig</div>
-                            <div class="ust-card-law">Art. 10 Abs. 2 MWSTG</div>
-                            <ul class="ust-card-facts">
-                                <li>Umsatz &lt; CHF 100'000 / Jahr</li>
-                                <li>Keine MWST auf Rechnungen</li>
-                                <li>Kein Vorsteuerabzug</li>
-                                <li>Keine MWST-Abrechnung</li>
-                            </ul>
-                            <div class="ust-card-hint">Ideal für Einsteiger &amp; Kleinbetriebe</div>
-                        </div>
-                        <div class="ust-card ${d.chMwstMode === 'effektiv' ? 'selected' : ''}" data-value="effektiv" data-action="app-pick-ust" data-args='["ob_ch","effektiv"]'>
-                            <div class="ust-card-icon" style="color:var(--info);"><i class="ti ti-trending-up"></i></div>
-                            <div class="ust-card-title">Effektive Methode</div>
-                            <div class="ust-card-law">8.1% Normalsatz</div>
-                            <ul class="ust-card-facts">
-                                <li>MWST auf Ausgangsrechnungen</li>
-                                <li>Vorsteuerabzug möglich</li>
-                                <li>Quartals-/Jahresabrechnung</li>
-                                <li>Pflicht ab CHF 100'000 Umsatz</li>
-                            </ul>
-                            <div class="ust-card-hint">Für B2B &amp; höhere Umsätze empfohlen</div>
-                        </div>
-                    </div>
-                </div>
-                `;
-            } else {
-                fieldsHtml = `
+            subtitle = L.t('ob.step4.subtitle');
+            fieldsHtml = `
                 <div class="form-group">
                     <label class="form-label" for="ob_steuernummer">${L.t('field.taxnr')}</label>
                     <input type="text" class="form-input" id="ob_steuernummer" value="${Utils.escapeHtml(d.steuernummer || '')}">
@@ -1407,51 +1278,23 @@ const App = {
                         </div>
                     </div>
                 </div>
-                `;
-            }
-        } else if (step === 5 && isCH) {
-            title = 'Standort & Geschäftsjahr';
-            subtitle = 'Für die Steuerberechnung und EAR-Auswertung.';
-            const kNames = {AG:'Aargau',AI:'Appenzell Innerrhoden',AR:'Appenzell Ausserrhoden',BE:'Bern',BL:'Basel-Landschaft',BS:'Basel-Stadt',FR:'Freiburg',GE:'Genf',GL:'Glarus',GR:'Graubünden',JU:'Jura',LU:'Luzern',NE:'Neuenburg',NW:'Nidwalden',OW:'Obwalden',SG:'St. Gallen',SH:'Schaffhausen',SO:'Solothurn',SZ:'Schwyz',TG:'Thurgau',TI:'Tessin',UR:'Uri',VD:'Waadt',VS:'Wallis',ZG:'Zug',ZH:'Zürich'};
-            const curKanton = d.chKanton || 'ZH';
-            const kantonOpts = Object.entries(kNames).map(([k,n])=>`<option value="${k}" ${curKanton===k?'selected':''}>${k} – ${n}</option>`).join('');
-            const gemListe = (typeof Schweiz !== 'undefined' && Schweiz.GEMEINDEN && Schweiz.GEMEINDEN[curKanton]) || [];
-            const gemOpts = `<option value="">— Kantonsschnitt verwenden —</option>` +
-                gemListe.map(g=>`<option value="${g.id}" ${(d.chGemeinde||'')===g.id?'selected':''}>${Utils.escapeHtml(g.name)}</option>`).join('');
-            const mNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-            const monthOpts = mNames.map((m,i)=>`<option value="${i+1}" ${(d.chGjStart||1)===(i+1)?'selected':''}>${m}</option>`).join('');
-            fieldsHtml = `
-                <div class="form-group">
-                    <label class="form-label" for="ob_chKanton">Kanton</label>
-                    <select class="form-input" id="ob_chKanton" data-action-change="app-ob-gemeinde">${kantonOpts}</select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="ob_chGemeinde">Gemeinde <span style="font-size:10px;color:var(--text-muted);">(optional)</span></label>
-                    <select class="form-input" id="ob_chGemeinde">${gemOpts}</select>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Für eine genauere Steuerrechnung. Auch später im Steuer-Tab wählbar.</div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="ob_chGjStart">Geschäftsjahr beginnt im</label>
-                    <select class="form-input" id="ob_chGjStart">${monthOpts}</select>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Standard: Januar. Nur ändern wenn dein Geschäftsjahr abweicht.</div>
-                </div>
             `;
-        } else if ((step === 5 && !isCH) || step === 6) {
+        } else if (step === 5) {
             title = L.t('ob.step5.title');
-            subtitle = isCH ? 'Die IBAN wird auch für die QR-Rechnung verwendet.' : L.t('ob.step5.subtitle');
+            subtitle = L.t('ob.step5.subtitle');
             fieldsHtml = `
                 <div class="form-group">
                     <label class="form-label">${L.t('field.bank')}</label>
                     <input type="text" class="form-input" id="ob_bankname" value="${Utils.escapeHtml(d.bankname || '')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">${L.t('field.iban')}${isCH ? ' <span style="font-size:10px;background:var(--accent);color:#fff;padding:1px 6px;border-radius:3px;vertical-align:middle;margin-left:4px;">QR</span>' : ''}</label>
-                    <input type="text" class="form-input" id="ob_iban" value="${Utils.escapeHtml(d.iban || '')}" ${isCH ? 'placeholder="CH56 0483 5012 3456 7800 9"' : ''}>
+                    <label class="form-label">${L.t('field.iban')}</label>
+                    <input type="text" class="form-input" id="ob_iban" value="${Utils.escapeHtml(d.iban || '')}">
                 </div>
-                ${!isCH ? `<div class="form-group">
+                <div class="form-group">
                     <label class="form-label">${L.t('field.bic')}</label>
                     <input type="text" class="form-input" id="ob_bic" value="${Utils.escapeHtml(d.bic || '')}">
-                </div>` : ''}
+                </div>
             `;
         }
 
@@ -1459,7 +1302,7 @@ const App = {
         const nextBtn = step < totalSteps
             ? `<button class="btn btn-primary" id="obNext">${L.t('ob.next')}</button>`
             : `<button class="btn btn-success" id="obFinish">${L.t('ob.finish')}</button>`;
-        const skipLink = step === 1
+        const skipLink = (step === 1 && CompanyManager.getActiveId())
             ? `<div style="text-align:center;margin-top:14px;">
                    <button class="btn-link" id="obSkip" style="background:none;border:none;color:var(--text-muted);font-size:12px;text-decoration:underline;cursor:pointer;">
                        Ich habe schon eine Firma — Setup überspringen
@@ -1526,8 +1369,27 @@ const App = {
         const d = this._onboardingData;
         const step = this._onboardingStep;
         if (step === 1) {
-            d.firmenname = document.getElementById('ob_firmenname').value.trim();
-            d.name = document.getElementById('ob_name').value.trim();
+            d.firmenname  = document.getElementById('ob_firmenname').value.trim();
+            d.name        = document.getElementById('ob_name').value.trim();
+            d.branche     = document.getElementById('ob_branche').value;
+            d.rechtsform  = document.getElementById('ob_rechtsform').value;
+            if (!d.firmenname) {
+                Utils.showToast('Bitte einen Firmennamen eingeben', 'warning');
+                return false;
+            }
+            // Erste Firma dieses Profils entsteht direkt hier (Step 1), nicht mehr über einen
+            // vorgeschalteten Screen — companies.js `showOnboarding()` wird dafür nicht mehr aufgerufen.
+            if (!CompanyManager.getActiveId()) {
+                const farbe = CompanyManager.FARBEN[Math.floor(Math.random() * CompanyManager.FARBEN.length)].hex;
+                const co = CompanyManager.create(d.firmenname, farbe, d.branche, 'DE');
+                if (!co) return false; // Plan-Limit (max. 1 Firma ohne Pro) hat schon einen Toast gezeigt
+                localStorage.setItem(CompanyManager.ACTIVE_KEY, co.id);
+                Store._companyId = co.id;
+                CompanyManager.migrateExistingData(co.id);
+                const switcherEl = document.getElementById('companySwitcher');
+                if (switcherEl) switcherEl.innerHTML = CompanyManager.renderSwitcherBtn();
+            }
+            if (typeof Rechtsform !== 'undefined') Rechtsform.set(d.rechtsform);
         } else if (step === 2) {
             d.adresse = document.getElementById('ob_adresse').value.trim();
             d.plz = document.getElementById('ob_plz').value.trim();
@@ -1536,30 +1398,13 @@ const App = {
             d.telefon = document.getElementById('ob_telefon').value.trim();
             d.email = document.getElementById('ob_email').value.trim();
         } else if (step === 4) {
-            const isCH = (typeof CompanyManager !== 'undefined') && CompanyManager.getActiveLand() === 'CH';
-            if (isCH) {
-                d.ahvNr      = (document.getElementById('ob_ahvNr')?.value || '').trim();
-                d.chMwstNr   = (document.getElementById('ob_chMwstNr')?.value || '').trim();
-                d.chMwstMode = document.getElementById('ob_ch_ustMode')?.value || 'klein';
-            } else {
-                d.steuernummer = document.getElementById('ob_steuernummer').value.trim();
-                d.ustId        = document.getElementById('ob_ustId').value.trim();
-                d.ustMode      = document.getElementById('ob_ustMode').value;
-            }
+            d.steuernummer = document.getElementById('ob_steuernummer').value.trim();
+            d.ustId        = document.getElementById('ob_ustId').value.trim();
+            d.ustMode      = document.getElementById('ob_ustMode').value;
         } else if (step === 5) {
-            const isCH = (typeof CompanyManager !== 'undefined') && CompanyManager.getActiveLand() === 'CH';
-            if (isCH) {
-                d.chKanton    = document.getElementById('ob_chKanton')?.value || 'ZH';
-                d.chGemeinde  = document.getElementById('ob_chGemeinde')?.value || '';
-                d.chGjStart   = parseInt(document.getElementById('ob_chGjStart')?.value) || 1;
-            } else {
-                d.bankname = document.getElementById('ob_bankname').value.trim();
-                d.iban     = document.getElementById('ob_iban').value.trim();
-                d.bic      = document.getElementById('ob_bic').value.trim();
-            }
-        } else if (step === 6) {
             d.bankname = document.getElementById('ob_bankname').value.trim();
             d.iban     = document.getElementById('ob_iban').value.trim();
+            d.bic      = document.getElementById('ob_bic').value.trim();
         }
     },
 
@@ -1570,14 +1415,6 @@ const App = {
         document.getElementById('onboarding').innerHTML = '';
         Utils.showToast('Einrichtung abgeschlossen! 🎉', 'success');
         this.navigate('dashboard');
-    },
-
-    _obRefreshGemeinde(kanton) {
-        const sel = document.getElementById('ob_chGemeinde');
-        if (!sel) return;
-        const gList = (typeof Schweiz !== 'undefined' && Schweiz.GEMEINDEN && Schweiz.GEMEINDEN[kanton]) || [];
-        sel.innerHTML = '<option value="">— Kantonsschnitt verwenden —</option>' +
-            gList.map(g => `<option value="${g.id}">${Utils.escapeHtml(g.name)}</option>`).join('');
     },
 
     // ---- Settings Modal ----
@@ -1676,46 +1513,6 @@ const App = {
                 </label>
             </div>
             <hr style="border-color:var(--border);margin:16px 0;">
-            <div class="section-title" style="margin-bottom:12px;display:flex;align-items:center;gap:6px;">
-                <i class="ti ti-world"></i> Land / Region
-            </div>
-            <div class="form-row" style="align-items:flex-end;">
-                <div class="form-group">
-                    <label class="form-label" for="set_land">Land</label>
-                    <select class="form-select" id="set_land" data-action-change="app-land-change">
-                        <option value="DE" ${(s.land || 'DE') === 'DE' ? 'selected' : ''}>🇩🇪 Deutschland (EÜR, USt, ELSTER)</option>
-                        <option value="CH" ${s.land === 'CH' ? 'selected' : ''}>🇨🇭 Schweiz (EAR, MWST, ESTV)</option>
-                        <option value="AT" ${s.land === 'AT' ? 'selected' : ''}>🇦🇹 Österreich (EAR, USt, GSVG, ESt)</option>
-                    </select>
-                </div>
-                <div class="form-group" id="set_ch_kanton_group" style="${s.land === 'CH' ? '' : 'display:none'}">
-                    <label class="form-label" for="set_chKanton">Kanton</label>
-                    <select class="form-select" id="set_chKanton">
-                        ${typeof Schweiz !== 'undefined' ? Object.entries(Schweiz.KANTONE).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([k, v]) =>
-                            `<option value="${k}" ${(s.chKanton || 'ZH') === k ? 'selected' : ''}>${k} – ${v.name}</option>`
-                        ).join('') : '<option value="ZH">ZH – Zürich</option>'}
-                    </select>
-                </div>
-                <div class="form-group" id="set_ch_mwstnr_group" style="${s.land === 'CH' ? '' : 'display:none'}">
-                    <label class="form-label" for="set_chMwstNr">MWST-Nummer</label>
-                    <input type="text" class="form-input" id="set_chMwstNr" placeholder="CHE-123.456.789 MWST" value="${Utils.escapeHtml(s.chMwstNr || '')}">
-                </div>
-                <div class="form-group" id="set_ch_mwst_default_group" style="${s.land === 'CH' ? '' : 'display:none'}">
-                    <label class="form-label" for="set_chMwstSatzDefault">Standard-MWST (Rechnungen)</label>
-                    <select class="form-select" id="set_chMwstSatzDefault">
-                        <option value="8.1" ${(s.chMwstSatzDefault||'8.1')==='8.1'?'selected':''}>8.1% – Normalsatz</option>
-                        <option value="2.6" ${s.chMwstSatzDefault==='2.6'?'selected':''}>2.6% – Sondersatz</option>
-                        <option value="3.8" ${s.chMwstSatzDefault==='3.8'?'selected':''}>3.8% – Beherbergung</option>
-                        <option value="0"   ${s.chMwstSatzDefault==='0'?'selected':''}>0% – nicht steuerpflichtig</option>
-                    </select>
-                    <div class="form-hint">Vorauswahl bei neuer Rechnungsposition</div>
-                </div>
-                <div class="form-group" id="set_ch_rate_group" style="${s.land === 'CH' ? '' : 'display:none'}">
-                    <label class="form-label" for="set_chfRate">CHF/EUR-Kurs</label>
-                    <input type="number" class="form-input" id="set_chfRate" step="0.001" min="0.5" max="5" placeholder="1.050" value="${s.chfRate || '1.050'}">
-                    <div class="form-hint">Für Währungsumrechnung in Buchungen (1 EUR = X CHF)</div>
-                </div>
-            </div>
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="set_bankname">Bankname</label>
@@ -1777,8 +1574,6 @@ const App = {
             this.showDsgvoModal(() => this.showSettingsModal());
         });
 
-        // Land-Wechsel: CH-Felder ein-/ausblenden (via inline onchange handler)
-
         document.getElementById('saveSettingsBtn').addEventListener('click', () => {
             const updated = {
                 firmenname: document.getElementById('set_firmenname').value.trim(),
@@ -1794,13 +1589,7 @@ const App = {
                 ustVersteuerungsart: (document.getElementById('set_ustVersteuerungsart') || {}).value || 'soll',
                 ustVaPeriodenTyp: (document.getElementById('set_ustVaPeriodenTyp') || {}).value || 'quartal',
                 ustDauerfristverlaengerung: !!(document.getElementById('set_ustDauerfrist') || {}).checked,
-                land: (document.getElementById('set_land') || {}).value || 'DE',
-                chKanton: (document.getElementById('set_chKanton') || {}).value || s.chKanton || 'ZH',
-                chMwstNr: ((document.getElementById('set_chMwstNr') || {}).value || '').trim(),
-                chMwstSatzDefault: (document.getElementById('set_chMwstSatzDefault') || {}).value || s.chMwstSatzDefault || '8.1',
-                chfRate: parseFloat((document.getElementById('set_chfRate') || {}).value) || s.chfRate || 1.05,
-                chMwstMode: s.chMwstMode || 'klein',
-                chSaldoSatz: s.chSaldoSatz || 2.0,
+                land: 'DE',
                 bankname: document.getElementById('set_bankname').value.trim(),
                 iban: document.getElementById('set_iban').value.trim(),
                 bic: document.getElementById('set_bic').value.trim(),
@@ -3087,9 +2876,7 @@ if (window.Actions) Actions.register({
     },
     'app-ust-switch-regel': function (key) { App._ustSwitchToRegel(key); },
     'app-ust-dismiss':      function (key) { App._ustDismissThreshold(key); },
-    'app-pick-ust':         function (ctx, mode) { App._pickUst(ctx, mode); },
-    'app-ob-gemeinde':      function (e, el) { App._obRefreshGemeinde(el.value); },
-    'app-land-change':      function (e, el) { App._onLandChange(el.value); }
+    'app-pick-ust':         function (ctx, mode) { App._pickUst(ctx, mode); }
 });
 
 // Start the app — vollständiger Start mit Integritätsprüfung und Auto-Recovery

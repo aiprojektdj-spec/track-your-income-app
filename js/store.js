@@ -2083,12 +2083,16 @@ const Store = {
     createSaleFromInvoice(invoice, platform, purchaseId, manualEK) {
         const settings = this.getSettings();
         const isKlein = settings.ustMode === 'klein';
+        const isGutschrift = invoice.typ === 'gutschrift';
         let brutto = 0;
         (invoice.positionen || []).forEach(p => {
             const netto = (p.menge || 0) * (p.einzelpreis || 0);
             const mwst = isKlein ? 0 : netto * (p.mwstSatz || 0) / 100;
             brutto += netto + mwst;
         });
+        // Gutschrift (Kreditnote) mindert den Umsatz statt ihn zu erhöhen (§17 UStG
+        // Änderung der Bemessungsgrundlage) — als Sale daher mit negativem Betrag verbucht.
+        if (isGutschrift) brutto = -brutto;
 
         const customers = this.getRechCustomers();
         const kunde = customers.find(c => c.id === invoice.kundeId);
@@ -2128,7 +2132,7 @@ const Store = {
             versandkostenVerkaufer: 0,
             purchaseId: linkedPurchaseId,
             _invoiceId: invoice.id,
-            _typ: 'rechnung'
+            _typ: isGutschrift ? 'gutschrift' : 'rechnung'
         };
 
         // Steuersatz der Rechnung mitgeben, sonst zählt die Ist-UVA den Sale mit dem
@@ -2844,15 +2848,6 @@ const Store = {
             this._trackDataCounts();
             return { lossDetected: false, recovered: null };
         });
-    },
-
-    // ── SVS (Österreich) — Vorauszahlungen ──────────────────────────────────
-    getSvsVorauszahlungen() {
-        return this.get('svs_vorauszahlungen') || [];
-    },
-
-    saveSvsVorauszahlungen(data) {
-        this.set('svs_vorauszahlungen', data);
     },
 
     // ── GbR — Gesellschaft bürgerlichen Rechts ───────────────────────────────

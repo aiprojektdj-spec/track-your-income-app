@@ -45,15 +45,17 @@ const Dashboard = {
         const syncedIds = new Set(allSales.filter(s => s._invoiceId).map(s => s._invoiceId));
         const unsyncedRechnungen = allRechnungen.filter(inv => {
             if (inv.status !== 'bezahlt' || inv._storniert) return false;
+            if (inv.typ !== 'rechnung' && inv.typ !== 'gutschrift') return false;
             if (syncedIds.has(inv.id)) return false;
             return Utils.isInPeriod(inv.bezahltAm || inv.datum, startDate, endDate);
         });
-        const unsyncedRevenue = unsyncedRechnungen.reduce((sum, inv) =>
-            sum + (inv.positionen || []).reduce((s2, p) => {
+        const unsyncedRevenue = unsyncedRechnungen.reduce((sum, inv) => {
+            const sign = inv.typ === 'gutschrift' ? -1 : 1;
+            return sum + sign * (inv.positionen || []).reduce((s2, p) => {
                 const n = (p.menge || 0) * (p.einzelpreis || 0);
                 return s2 + n + (isKlein ? 0 : n * (p.mwstSatz || 0) / 100);
-            }, 0), 0
-        );
+            }, 0);
+        }, 0);
 
         // Offene Rechnungen (offen / versendet / überfällig) — alle Jahre
         const offeneRechnungen = allRechnungen.filter(inv =>
@@ -115,11 +117,11 @@ const Dashboard = {
         // Last 5 bookings in selected year
         const allBookings = [
             ...purchases.map(p => ({ ...p, _type: 'Einkauf',  _amount: -(parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1) })),
-            ...sales.map(s    => ({ ...s,  _type: s._typ === 'rechnung' ? 'Rechnung' : 'Verkauf', _amount: parseFloat(s.verkaufspreis) || 0 })),
+            ...sales.map(s    => ({ ...s,  _type: s._typ === 'rechnung' ? 'Rechnung' : s._typ === 'gutschrift' ? 'Gutschrift' : 'Verkauf', _amount: parseFloat(s.verkaufspreis) || 0 })),
             ...unsyncedRechnungen.map(inv => ({
                 datum: inv.bezahltAm || inv.datum, marke: 'Rechnung', artikeltyp: inv.nummer || '', beschreibung: '',
-                _type: 'Rechnung',
-                _amount: (inv.positionen || []).reduce((s2, p) => s2 + (p.menge || 0) * (p.einzelpreis || 0), 0)
+                _type: inv.typ === 'gutschrift' ? 'Gutschrift' : 'Rechnung',
+                _amount: (inv.typ === 'gutschrift' ? -1 : 1) * (inv.positionen || []).reduce((s2, p) => s2 + (p.menge || 0) * (p.einzelpreis || 0), 0)
             }))
         ].sort((a, b) => (b.datum || '').localeCompare(a.datum || '')).slice(0, 5);
 
@@ -177,11 +179,6 @@ const Dashboard = {
             <div class="year-switcher">
                 ${yearBtns}
             </div>
-
-            ${(() => {
-                const land = (typeof CompanyManager !== 'undefined') ? CompanyManager.getActiveLand() : 'DE';
-                return (land === 'AT' && typeof SVS !== 'undefined') ? SVS.renderDashboardKachel() : '';
-            })()}
 
             <!-- Primary KPIs: 4 main financial metrics -->
             <div class="stats-grid-primary">

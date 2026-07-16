@@ -21,7 +21,6 @@
     var page = new URLSearchParams(location.search).get('page');
     var tabIds = {
         euer: 'toolTabEuer', akademie: 'toolTabAkademie', gbr: 'toolTabGbr',
-        schweiz: 'toolTabSchweiz', oesterreich: 'toolTabOesterreich',
         // Finanzen-Modul: alle transaktionalen Seiten teilen sich einen Tab
         rechnungen: 'toolTabFinanzen', eigenbelege: 'toolTabFinanzen',
         buchungen: 'toolTabFinanzen', ausgaben: 'toolTabFinanzen', bankimport: 'toolTabFinanzen',

@@ -16,12 +16,18 @@ var AuthUI = (function () {
     var WHOP_CLIENT_ID    = 'app_dc3OND8eGv2Iim';
     var WHOP_REDIRECT_URI = 'https://track-your-income-app.vercel.app/app.html';
     var WHOP_SCOPE        = 'openid profile email';
-    var WHOP_PURCHASE_URL = 'https://whop.com/stackr-3244/';        // Fallback / Produktseite
+    // WICHTIG: NIE auf https://whop.com/stackr-3244/ (Company-Hub) verlinken — das ist eine
+    // allgemeine Profilseite mit "Join"-Button, die erst durch Products→See all→Stackr Pro
+    // führt. Ein echter Kunde blieb dort hängen ("ich komm auch gar nd auf die seite wo man
+    // kaufen kann"). Jeder Kauf-Link geht direkt auf den Checkout (bestätigt: 200, zeigt sofort
+    // "Stackr Pro" — auch mit ?a=-Referral-Parameter).
+    var WHOP_PURCHASE_URL = 'https://whop.com/checkout/plan_iR6YIKLcychSZ'; // Fallback = Direkt-Checkout monatlich
     // Direkt-Checkout-Links pro Abo-Intervall — echte Whop-Plan-Links hier eintragen:
     var WHOP_URL_MONTHLY  = 'https://whop.com/checkout/plan_iR6YIKLcychSZ'; // Stackr Pro monatlich (15 €) — Whop-Plan plan_iR6YIKLcychSZ
     var WHOP_URL_YEARLY   = 'https://whop.com/checkout/plan_b5IBQ1lecggOT'; // Stackr Pro jährlich (135 €) — Whop-Plan plan_b5IBQ1lecggOT (Produkt "Stackr App Access", gewährt dieselbe App)
-    // Referral/Affiliate-Basislink — {ref} wird durch den Whop-Username ersetzt:
-    var WHOP_REFERRAL_BASE = 'https://whop.com/stackr-3244/?a={ref}'; // Whop-Affiliate: ?a=<username> (bestätigt, docs.whop.com/developer/guides/affiliates)
+    // Referral/Affiliate-Basislink — {ref} wird durch den Whop-Username ersetzt. Direkter
+    // Checkout-Link (NICHT der Company-Hub), ?a= funktioniert dort ebenso (verifiziert):
+    var WHOP_REFERRAL_BASE = 'https://whop.com/checkout/plan_iR6YIKLcychSZ?a={ref}'; // Whop-Affiliate: ?a=<username> (bestätigt, docs.whop.com/developer/guides/affiliates)
     // Preise (nur für die Ersparnis-Anzeige):
     var PRICE_MONTHLY = 15;   // €/Monat
     var PRICE_YEARLY  = 135;  // €/Jahr
@@ -37,27 +43,60 @@ var AuthUI = (function () {
 
     var LS_TOKEN = 'whop_access_token';
     var LS_USER  = 'whop_user';
-    var LS_GRACE = 'whop_grace_until';           // Offline-Grace: Access-Ablauf (ms-Epoch)
-    var GRACE_MS = 4 * 60 * 60 * 1000;           // 4 h ohne erneuten Whop-Server-Check
+    var LS_GRACE = 'whop_grace_token';           // Offline-Grace: server-signiertes Token (ECDSA P-256)
+    var GRACE_MS = 4 * 60 * 60 * 1000;           // 4 h ohne erneuten Whop-Server-Check (muss zu api/whop-access.js passen)
+
+    // Public Key zu api/whop-access.js WHOP_GRACE_PRIVATE_KEY (nur der Server kennt den Private
+    // Key → Client kann ein Grace-Token nicht fälschen, nur ein echtes vom Server verifizieren).
+    var GRACE_PUBKEY_JWK = { kty: 'EC', crv: 'P-256', ext: true,
+        x: 'ZZQLtX5IWVyHHZ9hDmnJ1_uxS_oJGGkGTGtLxHRcT9U',
+        y: 'Ik6rDmTMqm6fdxbXCt_5akptY8i8Ere7VvLTTeZgVkc' };
+    var _gracePubKeyPromise = null;
+    function _gracePubKey() {
+        if (!_gracePubKeyPromise) {
+            _gracePubKeyPromise = crypto.subtle.importKey('jwk', GRACE_PUBKEY_JWK, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+        }
+        return _gracePubKeyPromise;
+    }
+    function _b64urlToBytes(b64url) {
+        var b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        var bin = atob(b64);
+        var bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes;
+    }
 
     var _bootDone = false;
     var _focusRecheckBound = false; // verhindert doppelte 'focus'-Listener bei erneutem No-Membership-Screen
 
     // ── Offline-Grace ─────────────────────────────────────────
-    // Einmal online autorisiert → Access-Flag 4 h lokal gültig, kein Server-Roundtrip.
-    // ICE-Szenario: wiederholtes Netzflackern blockiert die App nicht.
-    function _stampGrace() { try { localStorage.setItem(LS_GRACE, String(Date.now() + GRACE_MS)); } catch (e) {} }
+    // Einmal online autorisiert → Server liefert signiertes Grace-Token, 4 h lokal ohne
+    // Server-Roundtrip gültig. ICE-Szenario: wiederholtes Netzflackern blockiert die App nicht.
+    // Token ist ECDSA-signiert (uid + exp) — anders als ein reiner Timestamp kann es im DevTools
+    // NICHT gefälscht werden (Signaturprüfung schlägt ohne den serverseitigen Private Key fehl).
+    function _stampGrace(token) { try { if (token) localStorage.setItem(LS_GRACE, token); else localStorage.removeItem(LS_GRACE); } catch (e) {} }
     function _clearGrace() { try { localStorage.removeItem(LS_GRACE); } catch (e) {} }
-    function _graceFresh() { return parseInt(localStorage.getItem(LS_GRACE) || '0', 10) > Date.now(); }
+    async function _verifyGraceToken(token, expectedUid) {
+        if (!token) return false;
+        var parts = token.split('.');
+        if (parts.length !== 2) return false;
+        try {
+            var pubKey = await _gracePubKey();
+            var ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pubKey, _b64urlToBytes(parts[1]), new TextEncoder().encode(parts[0]));
+            if (!ok) return false;
+            var payload = JSON.parse(new TextDecoder().decode(_b64urlToBytes(parts[0])));
+            return payload.exp > Date.now() && (!expectedUid || payload.uid === expectedUid);
+        } catch (e) { return false; }
+    }
     function _cachedUser() { try { return JSON.parse(localStorage.getItem(LS_USER) || 'null'); } catch (e) { return null; } }
 
     // Whop nicht erreichbar (offline/flaky) → innerhalb der Frist weiterarbeiten,
     // sonst klare Re-Login-Aufforderung. Local-first → keine Daten gehen verloren.
     async function _graceFallback() {
         var user = _cachedUser();
-        if (_graceFresh() && user) {
-            console.warn('[WhopAuth] Whop nicht erreichbar — Offline-Grace aktiv bis ' +
-                new Date(parseInt(localStorage.getItem(LS_GRACE) || '0', 10)).toLocaleTimeString());
+        if (user && await _verifyGraceToken(localStorage.getItem(LS_GRACE), user.id)) {
+            console.warn('[WhopAuth] Whop nicht erreichbar — Offline-Grace aktiv (signiertes Token gültig)');
             await _onAuthorized(user);
             return true;
         }
@@ -110,11 +149,12 @@ var AuthUI = (function () {
 
         var token = localStorage.getItem(LS_TOKEN);
         if (token) {
-            // Offline-Grace: frische Frist → sofort aus Cache starten, kein Server-Roundtrip.
+            // Offline-Grace: gültiges signiertes Token → sofort aus Cache starten, kein Server-Roundtrip.
             // ponytail: keine Hintergrund-Revalidierung — bei Ablauf revalidiert der nächste
             //   Load ohnehin voll (gebundene Staleness ≤ 4 h, gewollter Grace-Tradeoff).
-            if (_graceFresh() && _cachedUser()) {
-                await _onAuthorized(_cachedUser());
+            var _cu = _cachedUser();
+            if (_cu && await _verifyGraceToken(localStorage.getItem(LS_GRACE), _cu.id)) {
+                await _onAuthorized(_cu);
                 return;
             }
             var ok = await _validateAndContinue(token);
@@ -215,17 +255,15 @@ var AuthUI = (function () {
             me.username = me.preferred_username || me.name || me.sub || 'User';
             localStorage.setItem(LS_USER, JSON.stringify(me));
 
-            // Owner bypass: Whop company owners can't self-subscribe
-            if (OWNER_USERNAMES.indexOf(me.username) !== -1) {
-                _stampGrace();
-                await _onAuthorized(me);
-                return true;
-            }
+            // Owner-Bypass läuft über /api/whop-access (prüft OWNERS serverseitig identisch) —
+            // kein Client-Shortcut mehr, sonst bekäme der Owner-Pfad nie ein signiertes
+            // Grace-Token und bräuchte bei jedem Offline-Start einen Server-Roundtrip.
 
             // Membership-Check serverseitig: /api/whop-access prüft mit dem durchgereichten
             // User-Token /api/v2/me/has_access (+ optional Company-Scan). 5xx/Netzfehler →
             // äußerer catch → Offline-Grace. Sonstiger non-ok → kein Zugang, laut geloggt.
             var hasAccess = false;
+            var graceToken = null;
             var accRes = await fetch('/api/whop-access', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -233,7 +271,8 @@ var AuthUI = (function () {
             });
             if (accRes.ok) {
                 var accJson = await accRes.json();
-                hasAccess = !!(accJson && accJson.has_access === true);
+                hasAccess  = !!(accJson && accJson.has_access === true);
+                graceToken = accJson && accJson.grace_token;
             } else if (accRes.status >= 500) {
                 throw new Error('whop-access HTTP ' + accRes.status); // → Offline-Grace
             } else {
@@ -241,7 +280,7 @@ var AuthUI = (function () {
             }
 
             if (hasAccess) {
-                _stampGrace();
+                _stampGrace(graceToken);
                 await _onAuthorized(me);
                 return true;
             } else {

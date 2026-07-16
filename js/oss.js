@@ -48,16 +48,6 @@ const OSS = {
     },
 
     render() {
-        if (Store.getSettings().land === 'CH') {
-            return `
-            <div class="page-header"><h2><i class="ti ti-world" style="margin-right:6px;"></i> OSS (EU-Fernverkauf)</h2></div>
-            <div class="card" style="padding:40px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:12px;">🇨🇭</div>
-                <div style="font-weight:700;font-size:16px;margin-bottom:8px;">Nicht verfügbar im Schweiz-Modus</div>
-                <div style="color:var(--text-muted);">Das EU-OSS-Verfahren gilt nur für Unternehmen mit Sitz in der EU.</div>
-            </div>`;
-        }
-
         if (!this._isRegel()) {
             return `
             <div class="page-header"><h2>OSS (EU-Fernverkauf)</h2></div>

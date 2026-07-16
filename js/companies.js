@@ -34,7 +34,7 @@ const CompanyManager = {
         return this.getAll().find(c => c.id === id) || null;
     },
 
-    // Gibt das Land der aktiven Firma zurück ('DE' oder 'AT')
+    // Gibt das Land der aktiven Firma zurück (aktuell immer 'DE')
     getActiveLand() {
         const co = this.getActive();
         return (co && co.land) ? co.land : 'DE';
@@ -104,6 +104,18 @@ const CompanyManager = {
             delete Store._cache[k];
             Store._idbDelete(k);
         });
+        // Rohe localStorage-Reste (v.a. co_<id>__eigenbelege_*, dort noch nicht in den Cache
+        // migriert) — sonst holt sie _migrateEigenbelegeToIDB() beim nächsten Start zurück,
+        // weil das Cache-Gate (!this._cache[k]) nach dem Löschen wieder greift
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith(prefix)) localStorage.removeItem(k);
+        }
+        // Cloud-Snapshot löschen (Art. 17 DSGVO) — sonst bringt der nächste Sync die Firma zurück
+        if (typeof CloudSync !== 'undefined') {
+            try { await CloudSync.deleteRemote(id); }
+            catch (e) { console.error('[CompanyManager] Cloud-Löschung fehlgeschlagen:', e); }
+        }
         // Aus Registry entfernen
         const companies = this.getAll().filter(c => c.id !== id);
         this._save(companies);
@@ -376,7 +388,7 @@ const CompanyManager = {
                     <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         ${Utils.escapeHtml(co.name)}
                     </div>
-                    <div style="font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(co.branche || '')} · ${co.land === 'AT' ? '🇦🇹' : co.land === 'CH' ? '🇨🇭' : '🇩🇪'}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(co.branche || '')} · 🇩🇪</div>
                 </div>
                 ${isActive
                     ? `<span style="font-size:11px;padding:2px 8px;background:rgba(99,102,241,.2);color:#818cf8;border-radius:10px;font-weight:600;white-space:nowrap;">✓ Aktiv</span>`
@@ -494,38 +506,6 @@ const CompanyManager = {
         const body = `
             <div style="display:flex;flex-direction:column;gap:16px;padding:4px 0;">
                 <div class="form-group">
-                    <label class="form-label">Steuerliches Sitzland</label>
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:4px;">
-                        <label style="cursor:pointer;">
-                            <input type="radio" name="new_firma_land" value="DE" checked style="display:none;">
-                            <div data-action="co-land-btn" data-args='["new","DE"]'  id="new_land_de" style="
-                                border:2px solid var(--accent);border-radius:8px;padding:8px;text-align:center;
-                                background:rgba(99,102,241,.1);cursor:pointer;">
-                                <span style="font-size:20px;">🇩🇪</span>
-                                <div style="font-size:12px;font-weight:700;">Deutschland</div>
-                            </div>
-                        </label>
-                        <label style="cursor:pointer;">
-                            <input type="radio" name="new_firma_land" value="AT" style="display:none;">
-                            <div data-action="co-land-btn" data-args='["new","AT"]'  id="new_land_at" style="
-                                border:2px solid var(--border);border-radius:8px;padding:8px;text-align:center;
-                                background:var(--bg-secondary);cursor:pointer;">
-                                <span style="font-size:20px;">🇦🇹</span>
-                                <div style="font-size:12px;font-weight:700;">Österreich</div>
-                            </div>
-                        </label>
-                        <label style="cursor:pointer;">
-                            <input type="radio" name="new_firma_land" value="CH" style="display:none;">
-                            <div data-action="co-land-btn" data-args='["new","CH"]'  id="new_land_ch" style="
-                                border:2px solid var(--border);border-radius:8px;padding:8px;text-align:center;
-                                background:var(--bg-secondary);cursor:pointer;">
-                                <span style="font-size:20px;">🇨🇭</span>
-                                <div style="font-size:12px;font-weight:700;">Schweiz</div>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-                <div class="form-group">
                     <label class="form-label">Firmenname *</label>
                     <input type="text" class="form-input" id="new_firma_name"
                            placeholder="z.B. Mein Business, Max Mustermann" maxlength="40"
@@ -551,7 +531,7 @@ const CompanyManager = {
         const name    = document.getElementById('new_firma_name')?.value?.trim();
         const branche = document.getElementById('new_firma_branche')?.value || 'Reselling';
         const farbe   = document.querySelector('input[name="firma_farbe"]:checked')?.value || '#10b981';
-        const land    = document.querySelector('input[name="new_firma_land"]:checked')?.value || 'DE';
+        const land    = 'DE';
 
         if (!name) {
             Utils.showToast('Bitte einen Firmennamen eingeben', 'warning');
@@ -658,198 +638,6 @@ const CompanyManager = {
         }
     },
 
-    // ── Onboarding (Erster Start — keine Firmen vorhanden) ──────────────────
-
-    showOnboarding(hasExistingData) {
-        const farbenHtml = this.FARBEN.map((f, i) => `
-            <label style="cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;">
-                <input type="radio" name="onb_farbe" value="${f.hex}" ${i===0?'checked':''} style="display:none;">
-                <span class="onb-farb-dot" style="
-                    width:36px;height:36px;border-radius:50%;background:${f.hex};display:block;
-                    border:3px solid ${i===0?'white':'transparent'};transition:all .15s;box-shadow:0 2px 8px rgba(0,0,0,.3);"
-                    data-action="co-pick-color" data-args='[".onb-farb-dot"]' >
-                </span>
-                <span style="font-size:11px;color:var(--text-muted);">${f.name}</span>
-            </label>`).join('');
-
-        const branchenHtml = this.BRANCHEN.map(b =>
-            `<option value="${b}">${b}</option>`).join('');
-
-        const el = document.getElementById('onboarding');
-        if (!el) return;
-        el.innerHTML = `
-    <div style="
-        position:fixed;inset:0;z-index:9999;
-        background:var(--bg-primary);
-        display:flex;align-items:center;justify-content:center;
-        padding:20px;overflow-y:auto;
-    ">
-        <div style="
-            max-width:480px;width:100%;
-            background:var(--bg-card);
-            border:1px solid var(--border);
-            border-radius:16px;
-            padding:32px 28px;
-            box-shadow:0 20px 60px rgba(0,0,0,.5);
-            margin:auto;
-        ">
-            <div style="text-align:center;margin-bottom:24px;">
-                <div style="font-size:36px;color:var(--accent);margin-bottom:10px;line-height:1;">◆</div>
-                <h2 style="font-size:22px;font-weight:800;margin:0 0 6px;letter-spacing:-.3px;">Willkommen bei Stackr</h2>
-                <p style="font-size:13px;color:var(--text-secondary);margin:0;">
-                    ${hasExistingData
-                        ? 'Deine bestehenden Daten bleiben erhalten — benenne einfach deine erste Firma.'
-                        : 'Richte dein Business ein — dauert unter 60 Sekunden.'}
-                </p>
-            </div>
-
-            <div style="display:flex;flex-direction:column;gap:18px;">
-
-                <!-- Land / Steuerrecht -->
-                <div class="form-group">
-                    <label class="form-label" style="font-size:14px;font-weight:700;">Steuerliches Sitzland *</label>
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:6px;">
-                        <label id="onb_land_de_lbl" style="cursor:pointer;">
-                            <input type="radio" name="onb_land" value="DE" checked style="display:none;">
-                            <div class="onb-land-btn" id="onb_land_de_btn" data-action="co-select-land" data-args='["DE"]'  style="
-                                border:2px solid var(--accent);border-radius:10px;padding:12px;text-align:center;
-                                background:rgba(99,102,241,.1);transition:all .15s;">
-                                <div style="font-size:26px;">🇩🇪</div>
-                                <div style="font-weight:700;font-size:14px;margin-top:4px;">Deutschland</div>
-                                <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">§19 UStG · EÜR · GoBD</div>
-                            </div>
-                        </label>
-                        <label id="onb_land_at_lbl" style="cursor:pointer;">
-                            <input type="radio" name="onb_land" value="AT" style="display:none;">
-                            <div class="onb-land-btn" id="onb_land_at_btn" data-action="co-select-land" data-args='["AT"]'  style="
-                                border:2px solid var(--border);border-radius:10px;padding:12px;text-align:center;
-                                background:var(--bg-secondary);transition:all .15s;">
-                                <div style="font-size:26px;">🇦🇹</div>
-                                <div style="font-weight:700;font-size:14px;margin-top:4px;">Österreich</div>
-                                <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">§6 UStG · E1a · SVS</div>
-                            </div>
-                        </label>
-                        <label id="onb_land_ch_lbl" style="cursor:pointer;">
-                            <input type="radio" name="onb_land" value="CH" style="display:none;">
-                            <div class="onb-land-btn" id="onb_land_ch_btn" data-action="co-select-land" data-args='["CH"]'  style="
-                                border:2px solid var(--border);border-radius:10px;padding:12px;text-align:center;
-                                background:var(--bg-secondary);transition:all .15s;">
-                                <div style="font-size:26px;">🇨🇭</div>
-                                <div style="font-weight:700;font-size:14px;margin-top:4px;">Schweiz</div>
-                                <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">MWST · EAR · AHV</div>
-                            </div>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" style="font-size:14px;font-weight:700;">Firmenname *</label>
-                    <input type="text" class="form-input" id="onb_name"
-                           placeholder="z.B. Mein Business, Max Mustermann"
-                           maxlength="40" style="font-size:16px;"
-                           data-action-key="co-onboard-enter">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" style="font-size:14px;font-weight:700;">Branche</label>
-                    <select class="form-select" id="onb_branche">${branchenHtml}</select>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" style="font-size:14px;font-weight:700;">Erkennungsfarbe</label>
-                    <div style="display:flex;gap:16px;margin-top:8px;justify-content:center;">${farbenHtml}</div>
-                </div>
-
-                <button class="btn btn-primary" data-action="co-submit-onboarding"
-                        style="width:100%;padding:14px;font-size:16px;font-weight:700;margin-top:4px;border-radius:10px;">
-                    🚀 Starten
-                </button>
-            </div>
-        </div>
-    </div>`;
-        setTimeout(() => document.getElementById('onb_name')?.focus(), 100);
-    },
-
-    // Hilfsmethode: Land im Onboarding visuell selektieren
-    _selectLand(land) {
-        const deBtn = document.getElementById('onb_land_de_btn');
-        const atBtn = document.getElementById('onb_land_at_btn');
-        const chBtn = document.getElementById('onb_land_ch_btn');
-        const deRad = document.querySelector('input[name="onb_land"][value="DE"]');
-        const atRad = document.querySelector('input[name="onb_land"][value="AT"]');
-        const chRad = document.querySelector('input[name="onb_land"][value="CH"]');
-        const reset = (btn) => { if (btn) { btn.style.border = '2px solid var(--border)'; btn.style.background = 'var(--bg-secondary)'; } };
-        reset(deBtn); reset(atBtn); reset(chBtn);
-        if (land === 'DE') {
-            if (deBtn) { deBtn.style.border = '2px solid var(--accent)'; deBtn.style.background = 'rgba(99,102,241,.1)'; }
-            if (deRad) deRad.checked = true;
-        } else if (land === 'AT') {
-            if (atBtn) { atBtn.style.border = '2px solid #e4323e'; atBtn.style.background = 'rgba(228,50,62,.08)'; }
-            if (atRad) atRad.checked = true;
-        } else if (land === 'CH') {
-            if (chBtn) { chBtn.style.border = '2px solid #e4323e'; chBtn.style.background = 'rgba(228,50,62,.08)'; }
-            if (chRad) chRad.checked = true;
-        }
-    },
-
-    // Für Create-Modal Land-Wahl
-    _selectLandBtn(prefix, land) {
-        const de = document.getElementById(prefix + '_land_de');
-        const at = document.getElementById(prefix + '_land_at');
-        const ch = document.getElementById(prefix + '_land_ch');
-        const deR = document.querySelector(`input[name="${prefix}_firma_land"][value="DE"]`);
-        const atR = document.querySelector(`input[name="${prefix}_firma_land"][value="AT"]`);
-        const chR = document.querySelector(`input[name="${prefix}_firma_land"][value="CH"]`);
-        const reset = (el) => { if (el) { el.style.border = '2px solid var(--border)'; el.style.background = 'var(--bg-secondary)'; } };
-        reset(de); reset(at); reset(ch);
-        if (land === 'DE') {
-            if (de) { de.style.border = '2px solid var(--accent)'; de.style.background = 'rgba(99,102,241,.1)'; }
-            if (deR) deR.checked = true;
-        } else if (land === 'AT') {
-            if (at) { at.style.border = '2px solid #e4323e'; at.style.background = 'rgba(228,50,62,.08)'; }
-            if (atR) atR.checked = true;
-        } else if (land === 'CH') {
-            if (ch) { ch.style.border = '2px solid #e4323e'; ch.style.background = 'rgba(228,50,62,.08)'; }
-            if (chR) chR.checked = true;
-        }
-    },
-
-    async _submitOnboarding() {
-        const name    = document.getElementById('onb_name')?.value?.trim();
-        const branche = document.getElementById('onb_branche')?.value || 'Reselling';
-        const farbe   = document.querySelector('input[name="onb_farbe"]:checked')?.value || '#10b981';
-        const land    = document.querySelector('input[name="onb_land"]:checked')?.value || 'DE';
-
-        if (!name) {
-            document.getElementById('onb_name')?.focus();
-            const inp = document.getElementById('onb_name');
-            if (inp) inp.style.borderColor = 'var(--danger)';
-            Utils.showToast('Bitte einen Firmennamen eingeben', 'warning');
-            return;
-        }
-
-        const btn = document.querySelector('#onboarding button.btn-primary');
-        if (btn) { btn.disabled = true; btn.textContent = '⏳ Wird angelegt…'; }
-
-        const co = this.create(name, farbe, branche, land);
-        localStorage.setItem(this.ACTIVE_KEY, co.id);
-
-        await this.migrateExistingData(co.id);
-        await this.migrateEigenbelegeToCompanies();   // ggf. vorhandene globale Eigenbelege dieser ersten Firma zuordnen
-        this.migrateAppEinstellungenToCompanies();    // ggf. vorhandene globale Firmen-Stammdaten dieser ersten Firma zuordnen
-
-        Store._companyId = co.id;
-
-        const el = document.getElementById('onboarding');
-        if (el) el.innerHTML = '';
-
-        const switcher = document.getElementById('companySwitcher');
-        if (switcher) switcher.innerHTML = this.renderSwitcherBtn();
-
-        Utils.showToast(`✅ Firma "${name}" angelegt! (${land === 'AT' ? '🇦🇹 Österreich' : '🇩🇪 Deutschland'})`, 'success');
-
-        App._continueAfterCompany();
-    }
 };
 window.CompanyManager = CompanyManager;
 
@@ -885,12 +673,8 @@ if (window.Actions) Actions.register({
         document.querySelectorAll(sel).forEach(function (d) { d.style.borderColor = 'transparent'; });
         el.style.borderColor = 'white';
     },
-    'co-land-btn':          function (ctx, land) { CompanyManager._selectLandBtn(ctx, land); },
     'co-create-modal':      function () { CompanyManager._createFromModal(); },
     'co-save-manage':       function (id) { CompanyManager._saveManageModal(id); },
     'co-confirm-del':       function (id) { CompanyManager._confirmDelete(id); },
-    'co-exec-del':          function (id) { CompanyManager._executeDelete(id); },
-    'co-select-land':       function (land) { CompanyManager._selectLand(land); },
-    'co-onboard-enter':     function (e) { if (e.key === 'Enter') CompanyManager._submitOnboarding(); },
-    'co-submit-onboarding': function () { CompanyManager._submitOnboarding(); }
+    'co-exec-del':          function (id) { CompanyManager._executeDelete(id); }
 });

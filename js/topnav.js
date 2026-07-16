@@ -7,9 +7,9 @@
 //   <div class="topnav-apps" id="topnavApps" data-active="dashboard"></div>
 //   <script src="<pfad>/js/topnav.js"></script>   (NICHT defer, direkt nach dem Container)
 //
-// data-active: dashboard | rechnungen | eigenbelege | lager | euer | akademie | gbr | schweiz | oesterreich
+// data-active: dashboard | rechnungen | eigenbelege | lager | euer | akademie | gbr
 //
-// IDs bleiben identisch zu app.html (toolTabEuer/toolTabSchweiz/...),
+// IDs bleiben identisch zu app.html (toolTabEuer/toolTabGbr/...),
 // damit app.js die Tabs auf app.html weiterhin dynamisch steuern kann.
 // ============================================
 (function () {
@@ -50,9 +50,7 @@
             { key:'lager',       href:'lager/index.html',          icon:'ti-package',          label:'Lager',       title:'Lager / Inventory',  id:'toolTabLager',    i18n:'nav.inventory' },
             { key:'euer',        href:'app.html?page=euer',        icon:'ti-chart-bar',        label:'EÜR',         title:'EÜR / P&L',          id:'toolTabEuer',     i18n:'nav.euer' },
             { key:'akademie',    href:'app.html?page=akademie',    icon:'ti-school',           label:'Akademie',    title:'Akademie / Academy', id:'toolTabAkademie', i18n:'nav.academy' },
-            { key:'gbr',         href:'app.html?page=gbr',         icon:'ti-users',            label:'GbR',         title:'GbR',                id:'toolTabGbr',       i18n:'nav.gbr', hidden:true },
-            { key:'schweiz',     href:'app.html?page=schweiz',     icon:'ti-flag-3',           label:'Schweiz',     title:'Schweiz – EAR/MWST/AHV',          id:'toolTabSchweiz',     hidden:true },
-            { key:'oesterreich', href:'app.html?page=oesterreich', icon:'ti-flag-3',           label:'Österreich',  title:'Österreich – EAR/USt/GSVG/ESt',   id:'toolTabOesterreich', hidden:true }
+            { key:'gbr',         href:'app.html?page=gbr',         icon:'ti-users',            label:'GbR',         title:'GbR',                id:'toolTabGbr',       i18n:'nav.gbr', hidden:true }
         ];
         var html = '';
         for (var i = 0; i < t.length; i++) html += _tab(prefix, active, t[i]);
@@ -60,12 +58,8 @@
     }
 
     function _applyVisibility(root, meta) {
-        var isCH = meta.land === 'CH', isAT = meta.land === 'AT';
         function set(id, show) { var el = root.querySelector('#' + id); if (el) el.style.display = show ? '' : 'none'; }
-        set('toolTabEuer',        !isCH && !isAT);
-        set('toolTabSchweiz',     isCH);
-        set('toolTabOesterreich', isAT);
-        set('toolTabGbr',         PERSONENGES.indexOf(meta.firmenform) !== -1);
+        set('toolTabGbr', PERSONENGES.indexOf(meta.firmenform) !== -1);
     }
 
     window.Topnav = {

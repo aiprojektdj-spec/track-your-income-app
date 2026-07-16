@@ -696,11 +696,14 @@ const GbR = {
         const syncedInvIds = new Set(Store.getSales(true).filter(s => s._invoiceId).map(s => s._invoiceId));
         const unsyncedInv  = (Store.getRechInvoices ? Store.getRechInvoices() : []).filter(inv => {
             if (inv.status !== 'bezahlt' || inv._storniert) return false;
+            if (inv.typ !== 'rechnung' && inv.typ !== 'gutschrift') return false;
             if (syncedInvIds.has(inv.id)) return false;
             return Utils.isInPeriod(inv.bezahltAm || inv.datum, startDate, endDate);
         });
-        const rechnungsEinn = unsyncedInv.reduce((sum, inv) =>
-            sum + (inv.positionen || []).reduce((s2, p) => s2 + (p.menge || 0) * (p.einzelpreis || 0), 0), 0);
+        const rechnungsEinn = unsyncedInv.reduce((sum, inv) => {
+            const sign = inv.typ === 'gutschrift' ? -1 : 1; // §17 UStG: Gutschrift mindert den Umsatz
+            return sum + sign * (inv.positionen || []).reduce((s2, p) => s2 + (p.menge || 0) * (p.einzelpreis || 0), 0);
+        }, 0);
 
         const nettoEinnahmen = bruttoEinnahmen + rechnungsEinn - retourenErstattungen;
 

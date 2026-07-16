@@ -11,17 +11,6 @@ const Euer = {
     _lastRenderData: {},
 
     render() {
-        // Schweiz-Modus: EAR nutzen statt EÜR
-        if (Store.getSettings().land === 'CH') {
-            return `<div class="page-header"><h2><i class="ti ti-file-analytics" style="margin-right:6px;"></i> EÜR</h2></div>
-            <div class="card" style="padding:40px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:12px;">🇨🇭</div>
-                <div style="font-weight:700;font-size:16px;margin-bottom:8px;">EÜR nicht verfügbar im Schweiz-Modus</div>
-                <div style="color:var(--text-muted);margin-bottom:16px;">In der Schweiz wird die Einnahmen-Ausgaben-Rechnung (EAR) verwendet.<br>Nutze das Schweiz-Modul für deine Auswertung.</div>
-                <button class="btn btn-primary" data-action="navigate" data-args=\'["schweiz"]\'>→ Schweiz EAR öffnen</button>
-            </div>`;
-        }
-
         // Kapitalgesellschaften nutzen Bilanz, nicht EÜR
         if (typeof Rechtsform !== 'undefined' && Rechtsform.isKapitalgesellschaft()) {
             return `<div class="page-header"><h2><i class="ti ti-file-analytics" style="margin-right:6px;"></i> EÜR</h2></div>
@@ -87,12 +76,14 @@ const Euer = {
         const syncedInvoiceIds = new Set(Store.getSales(true).filter(s => s._invoiceId).map(s => s._invoiceId));
         const unsyncedInvoices = (Store.getRechInvoices ? Store.getRechInvoices() : []).filter(inv => {
             if (inv.status !== 'bezahlt' || inv._storniert) return false;
+            if (inv.typ !== 'rechnung' && inv.typ !== 'gutschrift') return false;
             if (syncedInvoiceIds.has(inv.id)) return false;
             const d = inv.bezahltAm || inv.datum;
             return Utils.isInPeriod(d, startDate, endDate);
         });
         const rechnungsEinnahmen = unsyncedInvoices.reduce((sum, inv) => {
-            return sum + (inv.positionen || []).reduce((s2, p) => s2 + (p.menge || 0) * (p.einzelpreis || 0), 0);
+            const sign = inv.typ === 'gutschrift' ? -1 : 1; // §17 UStG: Gutschrift mindert den Umsatz
+            return sum + sign * (inv.positionen || []).reduce((s2, p) => s2 + (p.menge || 0) * (p.einzelpreis || 0), 0);
         }, 0);
 
         // Einnahmen: Bruttoerlöse = Verkaufspreis + Versand vom Käufer (§11 EStG Zufluss)
@@ -954,6 +945,7 @@ const Euer = {
             syncBtn.addEventListener('click', () => {
                 const toSync = (Store.getRechInvoices ? Store.getRechInvoices() : []).filter(inv => {
                     if (inv.status !== 'bezahlt' || inv._storniert) return false;
+                    if (inv.typ !== 'rechnung' && inv.typ !== 'gutschrift') return false;
                     const ids = new Set(Store.getSales(true).filter(s => s._invoiceId).map(s => s._invoiceId));
                     return !ids.has(inv.id);
                 });

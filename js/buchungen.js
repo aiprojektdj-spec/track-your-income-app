@@ -895,7 +895,7 @@ const Buchungen = {
                     : (s.artikeltyp || '');
                 return {
                     id: s.id, _source: 'sale', datum: s.datum,
-                    typ: s._typ === 'rechnung' ? 'Rechnung' : 'Verkauf',
+                    typ: s._typ === 'rechnung' ? 'Rechnung' : s._typ === 'gutschrift' ? 'Gutschrift' : 'Verkauf',
                     marke: s.marke || '', artikelNr: '', artikel, beschreibung: s.beschreibung || '',
                     betrag: parseFloat(s.verkaufspreis) || 0,
                     plattform: s.verkaufsplattform || '', einkaufsquelle: '',

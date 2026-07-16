@@ -31,6 +31,45 @@ var WHOP_API_KEY = process.env.WHOP_API_KEY || '';
 var OWNERS = (process.env.WHOP_OWNER_USERNAMES || 'secondlifevintage41')
     .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 
+// Offline-Grace-Token: signiert mit ECDSA P-256, Client verifiziert mit Public Key aus
+// js/whop-auth.js (crypto.subtle.verify). Ersetzt den alten reinen localStorage-Timestamp
+// (whop_grace_until), der ohne Serverkontakt frei fälschbar war (KRITISCH — DevTools-Bypass).
+// Client kann ohne WHOP_GRACE_PRIVATE_KEY keine gültige Signatur erzeugen.
+var crypto = require('crypto');
+var GRACE_PRIVATE_KEY_PEM = process.env.WHOP_GRACE_PRIVATE_KEY || '';
+var GRACE_MS = 4 * 60 * 60 * 1000; // muss zu js/whop-auth.js GRACE_MS passen
+
+function _signGraceToken(uid) {
+    if (!GRACE_PRIVATE_KEY_PEM) return null; // Secret nicht gesetzt → kein Offline-Grace für Clients
+    try {
+        var payloadB64 = Buffer.from(JSON.stringify({ uid: uid, exp: Date.now() + GRACE_MS })).toString('base64url');
+        var key = crypto.createPrivateKey(GRACE_PRIVATE_KEY_PEM);
+        var sig = crypto.sign('sha256', Buffer.from(payloadB64), { key: key, dsaEncoding: 'ieee-p1363' });
+        return payloadB64 + '.' + sig.toString('base64url');
+    } catch (e) {
+        console.error('[whop-access] grace-sign error:', e && e.message);
+        return null;
+    }
+}
+
+// IP-Rate-Limit — verhindert Whop-API-Quota-Erschöpfung durch Request-Flood (jeder Call
+// löst bis zu 4 Whop-API-Calls aus, s. api/sync.js:155-167 für identisches Muster).
+// Best-effort: fehlt Redis-Env oder schlägt der Call fehl, wird NICHT blockiert (fail-open,
+// ein zahlender Kunde darf nie an einem Redis-Ausfall scheitern).
+var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
+var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
+var IP_RATE_MAX = 30; // Requests/Minute/IP — boot() + Fokus-Recheck brauchen komfortabel Platz
+
+function redisCmd(cmd) {
+    return fetch(REDIS_URL, {
+        method:  'POST',
+        headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' },
+        body:    JSON.stringify(cmd),
+        signal:  AbortSignal.timeout(8000)
+    }).then(function (r) { return r.json(); })
+      .then(function (j) { return j ? j.result : null; });
+}
+
 // Erkennt Zugang in den unterschiedlichen has_access-/Membership-Shapes.
 function _grants(obj) {
     return !!(obj && (obj.valid === true || obj.has_access === true ||
@@ -109,6 +148,19 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: 'Missing or invalid token' });
     }
 
+    if (REDIS_URL && REDIS_TOKEN) {
+        try {
+            var ip      = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
+            var ipRlKey = 'whopaccess:iprl:' + ip;
+            var ipCount = await redisCmd(['INCR', ipRlKey]);
+            await redisCmd(['EXPIRE', ipRlKey, '60', 'NX']);
+            if (ipCount > IP_RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
+        } catch (e) {
+            console.error('[whop-access] ip-rate-limit error:', e && e.message);
+            // nicht blockierend — weiter
+        }
+    }
+
     try {
         // ── 1. user_id + username serverseitig aus dem Token ableiten ─────────
         var meRes = await fetch('https://api.whop.com/oauth/userinfo', {
@@ -129,12 +181,12 @@ module.exports = async function handler(req, res) {
 
         // Owner-Bypass: Company-Owner haben kein eigenes Abo.
         if (OWNERS.indexOf(username) !== -1) {
-            return res.status(200).json({ has_access: true, user_id: userId, owner: true });
+            return res.status(200).json({ has_access: true, user_id: userId, owner: true, grace_token: _signGraceToken(userId) });
         }
 
         // ── 2. Zugang prüfen (Token-Weg, dann ggf. Company-Key-Fallback) ─────
         var hasAccess = await _checkAccess(token, userId);
-        return res.status(200).json({ has_access: hasAccess, user_id: userId });
+        return res.status(200).json({ has_access: hasAccess, user_id: userId, grace_token: hasAccess ? _signGraceToken(userId) : null });
     } catch (err) {
         // Netz/5xx/unbestimmt → 502 → Client nutzt Offline-Grace (kein falsches „kein Abo").
         console.error('[whop-access] error:', err && err.message);

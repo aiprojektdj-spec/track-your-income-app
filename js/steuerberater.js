@@ -341,7 +341,7 @@ var Steuerberater = (function () {
             + '<main>'
             + sections
             + '</main>'
-            + '<footer>Dieses Dokument wurde automatisch von Stackr (stackr.app) generiert. Es enthält keine Zugangsdaten. '
+            + '<footer>Dieses Dokument wurde automatisch von Stackr generiert. Es enthält keine Zugangsdaten. '
             + 'Alle Daten sind unverbindlich — die Verantwortung für die korrekte steuerliche Einordnung liegt beim Steuerberater. '
             + '§ 5 StBerG: Keine Steuerberatung durch Stackr.</footer>'
             + pinScript

@@ -249,7 +249,7 @@ const Ausgaben = {
                             mat.bestand = neuerBestand;
                             Store.saveMaterialBestandItem(mat);
                             Store.saveMaterialEinkauf({ datum, materialId: matId, materialName: mat.name, einheit: mat.einheit || 'Stück', menge, gesamtkosten: betrag, kostenProEinheit, lieferant: 'Ausgabe' });
-                            Utils.showToast(`${menge} × ${mat.name} ins Materiallager eingebucht`, 'success');
+                            Utils.showToast(`${menge} × ${Utils.escapeHtml(mat.name)} ins Materiallager eingebucht`, 'success');
                         }
                     }
                 }

@@ -43,6 +43,19 @@ const Bilanz = {
             return s + brutto;
         }, 0);
 
+        // Bezahlte Rechnungen, die noch nicht als Verkauf gesynct sind (gleiches Pattern wie euer.js)
+        const syncedInvoiceIds = new Set((Store.getSales ? Store.getSales(true) : []).filter(s => s._invoiceId).map(s => s._invoiceId));
+        const unsyncedInvoicesBrutto = (Store.getRechInvoices ? Store.getRechInvoices() : []).filter(inv => {
+            if (inv.status !== 'bezahlt' || inv._storniert) return false;
+            if (inv.typ !== 'rechnung' && inv.typ !== 'gutschrift') return false;
+            if (syncedInvoiceIds.has(inv.id)) return false;
+            return ((inv.bezahltAm || inv.datum) || '').startsWith(y);
+        }).reduce((sum, inv) => {
+            const sign = inv.typ === 'gutschrift' ? -1 : 1; // §17 UStG: Gutschrift mindert den Umsatz
+            return sum + sign * (inv.positionen || []).reduce((s2, p) => s2 + (p.menge || 0) * (p.einzelpreis || 0), 0);
+        }, 0);
+        umsatzerloese += isRegel ? (unsyncedInvoicesBrutto / 1.19) : unsyncedInvoicesBrutto;
+
         // Retouren abziehen
         const retourenSum = retouren.reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
         umsatzerloese -= retourenSum;

@@ -8,7 +8,10 @@
 var UserPlan = (function () {
     'use strict';
 
-    var WHOP_PURCHASE_URL = 'https://whop.com/stackr-3244/';        // Fallback / Produktseite
+    // NIE auf den Company-Hub https://whop.com/stackr-3244/ verlinken — allgemeine Profilseite
+    // mit "Join"-Button, führt erst über Products→See all→Stackr Pro zum Kauf (Kunde blieb dort
+    // hängen). Direkter Checkout-Link landet sofort auf "Stackr Pro" (verifiziert: HTTP 200).
+    var WHOP_PURCHASE_URL = 'https://whop.com/checkout/plan_iR6YIKLcychSZ'; // Direkt-Checkout monatlich
     var WHOP_URL_MONTHLY  = 'https://whop.com/checkout/plan_iR6YIKLcychSZ'; // Stackr Pro monatlich (15 €) — Whop-Plan plan_iR6YIKLcychSZ
     var WHOP_URL_YEARLY   = 'https://whop.com/checkout/plan_b5IBQ1lecggOT'; // Stackr Pro jährlich (135 €) — Whop-Plan plan_b5IBQ1lecggOT (Produkt "Stackr App Access", gewährt dieselbe App)
 

@@ -188,7 +188,7 @@ const Vorsteuer = {
             <div class="card stat-card success">
                 <div class="card-label">Gesamt-Vorsteuer</div>
                 <div class="card-value">${Utils.formatCurrency(calc.totalVorsteuer)}</div>
-                <div class="card-subtitle">${periodLabel} · Kz. 66</div>
+                <div class="card-subtitle">${periodLabel}</div>
             </div>
             <div class="card stat-card">
                 <div class="card-label">Vorsteuer Einkauf</div>
@@ -309,7 +309,7 @@ const Vorsteuer = {
 
                         <tr class="euer-result">
                             <td></td>
-                            <td><strong>Gesamt abzugsfähige Vorsteuer (Kz. 66)</strong></td>
+                            <td><strong>Gesamt abzugsfähige Vorsteuer</strong></td>
                             <td></td>
                             <td style="text-align:right;font-size:1.1rem;color:var(--success);font-weight:800;">${Utils.formatCurrency(calc.totalVorsteuer)}</td>
                         </tr>

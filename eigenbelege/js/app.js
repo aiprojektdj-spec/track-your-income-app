@@ -762,6 +762,7 @@ async function saveBeleg(e, editId) {
         belege.push(beleg);
     }
     EB.saveBelege(belege);
+    if (!editId && typeof Webhooks !== 'undefined') Webhooks.fire('eigenbeleg', beleg);
     toast(editId ? 'Eigenbeleg aktualisiert' : `Eigenbeleg ${id} gespeichert`, 'success');
     await _syncPositionenToLager(beleg); // warten bis IDB-Schreibvorgang abgeschlossen
     navigate('alle');

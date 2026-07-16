@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Robust gegen Aufruf ohne Trailing-Slash (/rechnungen): relative Pfade gegen Unterordner auflösen -->
     <base href="/rechnungen/">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com; frame-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com https://*.make.com; frame-src 'none';">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
     <title>Stackr — Rechnungsbuch</title>
     <link rel="preload" href="../fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -101,6 +101,7 @@
     <script src="../js/cookie-banner.js"></script>
     <script src="../js/companies.js"></script>
     <script src="../js/store.js"></script>
+    <script src="../js/webhooks.js"></script>
     <script src="../js/stb-share.js"></script>
     <script src="../js/whop-auth.js"></script>
     <script src="../js/user-plan.js?v=3"></script>

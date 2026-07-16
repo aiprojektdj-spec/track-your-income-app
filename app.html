@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Gate: Whop OAuth callback (?code=) oder gespeichertes Token → durch -->
     <!-- WhopAuth.boot() übernimmt Login-Logik nach Script-Load -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com https://*.public.blob.vercel-storage.com; frame-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com https://*.public.blob.vercel-storage.com https://*.make.com; frame-src 'none';">
 
     <!-- ── Resource Hints: faster CDN connections ── -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -247,6 +247,7 @@
     <script defer src="js/error-logger.js"></script>
     <script defer src="js/companies.js"></script>
     <script defer src="js/store.js"></script>
+    <script defer src="js/webhooks.js"></script>
     <script defer src="js/user-plan.js?v=3"></script>
     <script defer src="js/whop-auth.js"></script>
     <script defer src="js/utils.js"></script>

@@ -1359,6 +1359,7 @@ const Store = {
     },
 
     saveSale(sale) {
+        const isNew = !sale.id;
         const sales = this.getAllSalesRaw();
         if (sale.id) {
             const idx = sales.findIndex(s => s.id === sale.id);
@@ -1404,6 +1405,7 @@ const Store = {
         if (!sale.storniert && window.App && typeof App._checkUstThreshold === 'function') {
             setTimeout(() => App._checkUstThreshold(), 300);
         }
+        if (isNew && typeof Webhooks !== 'undefined') Webhooks.fire('einnahme', sale);
         return sale;
     },
 
@@ -1440,6 +1442,7 @@ const Store = {
         if (window.App && typeof App._checkUstThreshold === 'function') {
             setTimeout(() => App._checkUstThreshold(), 300);
         }
+        if (typeof Webhooks !== 'undefined') Webhooks.fire('einnahme', sale);
         return sale;
     },
 
@@ -1912,6 +1915,7 @@ const Store = {
     },
 
     saveRechInvoice(invoice) {
+        const isNew = !invoice.id;
         const invoices = this._rechGet('dokumente') || [];
         if (invoice.id) {
             const idx = invoices.findIndex(i => i.id === invoice.id);
@@ -1933,6 +1937,7 @@ const Store = {
             this._addAuditEntry('erstellt', 'dokument', invoice.id, null, invoice, 'Dokument erstellt: ' + (invoice.nummer || ''));
         }
         this._rechSet('dokumente', invoices);
+        if (isNew && typeof Webhooks !== 'undefined') Webhooks.fire('rechnung', invoice);
         return invoice;
     },
 

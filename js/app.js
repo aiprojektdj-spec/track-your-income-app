@@ -980,6 +980,16 @@ const App = {
         if (uvaPeriodeGroup) uvaPeriodeGroup.style.display = value === 'regel' ? '' : 'none';
     },
 
+    async _testWebhook(key) {
+        const input = document.getElementById('set_webhook_' + key);
+        const url = input ? input.value.trim() : '';
+        if (!url) { Utils.showToast('Erst eine Webhook-URL eintragen', 'warning'); return; }
+        Utils.showToast('Sende Test-Payload …', 'info');
+        const res = await Webhooks.test(key, url);
+        if (res.ok) Utils.showToast('Test-Payload gesendet (' + res.status + ')', 'success');
+        else Utils.showToast('Fehlgeschlagen: ' + (res.error || 'HTTP ' + res.status), 'error');
+    },
+
     // ── §19 UStG Jahresumsatz-Grenzprüfung ───────────────────────
     // Gesamtumsatz i.S.d. §19 Abs. 3 UStG umfasst auch vom Käufer erstattete Versandkosten
     // (Teil des Entgelts) — muss konsistent mit euer.js' bruttoEinnahmen-Definition sein,
@@ -1547,6 +1557,18 @@ const App = {
             ${s.logoBase64 ? `<div style="margin-top:8px;"><img src="${s.logoBase64}" style="max-height:60px;max-width:200px;object-fit:contain;border:1px solid var(--border);border-radius:6px;padding:4px;background:white;"></div>` : ''}
             ${(typeof GbR !== 'undefined') ? GbR.renderSettingsBlock() : ''}
             <hr style="border-color:var(--border);margin:16px 0;">
+            <div class="section-title" style="margin-bottom:12px;">Make.com-Webhooks</div>
+            <div class="form-hint" style="margin-bottom:10px;">Eigene Custom-Webhook-URL aus einem Make.com-Szenario (HTTP-Modul) eintragen. Stackr sendet bei jedem Ereignis einen JSON-POST direkt aus dem Browser — es gibt keinen Stackr-Server-Zwischenschritt, die URL selbst ist dein Secret.</div>
+            ${Object.entries(Webhooks.EVENTS).map(([key, label]) => `
+                <div class="form-group">
+                    <label class="form-label" for="set_webhook_${key}">${Utils.escapeHtml(label)}</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="url" class="form-input" id="set_webhook_${key}" placeholder="https://hook.eu1.make.com/..." value="${Utils.escapeHtml((s.webhookUrls || {})[key] || '')}" style="flex:1;">
+                        <button type="button" class="btn" data-action="webhook-test" data-args='["${key}"]'>Test</button>
+                    </div>
+                </div>
+            `).join('')}
+            <hr style="border-color:var(--border);margin:16px 0;">
             <div class="form-group">
                 <label class="form-label">🌐 Sprache / Language</label>
                 <div style="display:flex;gap:10px;margin-top:6px;">
@@ -1595,6 +1617,11 @@ const App = {
                 bic: document.getElementById('set_bic').value.trim(),
                 invoiceHeaderColor: document.getElementById('set_headerColor').value,
                 invoicePrimaryColor: document.getElementById('set_primaryColor').value,
+                webhookUrls: Object.keys(Webhooks.EVENTS).reduce((acc, key) => {
+                    const v = (document.getElementById('set_webhook_' + key) || {}).value || '';
+                    if (v.trim()) acc[key] = v.trim();
+                    return acc;
+                }, {}),
                 onboardingDone: true
             };
             const logoInput = document.getElementById('set_logo');
@@ -2876,7 +2903,8 @@ if (window.Actions) Actions.register({
     },
     'app-ust-switch-regel': function (key) { App._ustSwitchToRegel(key); },
     'app-ust-dismiss':      function (key) { App._ustDismissThreshold(key); },
-    'app-pick-ust':         function (ctx, mode) { App._pickUst(ctx, mode); }
+    'app-pick-ust':         function (ctx, mode) { App._pickUst(ctx, mode); },
+    'webhook-test':         function (key) { App._testWebhook(key); }
 });
 
 // Start the app — vollständiger Start mit Integritätsprüfung und Auto-Recovery

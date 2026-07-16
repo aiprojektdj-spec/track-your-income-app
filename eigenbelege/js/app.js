@@ -426,7 +426,7 @@ function renderWarenPosTable() {
             : `<button type="button" class="btn btn-small" data-action="eb-show-lager" data-idx="${i}" style="font-size:11px;padding:2px 7px;" title="Bestehenden Lagerartikel verknüpfen">🔗 Lager</button>`;
         return `<tr data-idx="${i}">
             <td><input class="form-control wp-artikel" data-idx="${i}" value="${esc(p.artikel)}" placeholder="Artikelbezeichnung"></td>
-            <td style="width:70px"><input class="form-control wp-menge" type="number" min="0.01" step="0.01" data-idx="${i}" value="${p.menge||1}"></td>
+            <td style="width:90px"><input class="form-control wp-menge" type="number" min="0.01" step="0.01" data-idx="${i}" value="${p.menge||1}" style="padding-right:6px"></td>
             <td style="width:110px"><input class="form-control wp-preis" type="number" step="0.01" min="0" data-idx="${i}" value="${p.einzelpreis||''}" placeholder="0,00"></td>
             <td style="width:90px;text-align:right;font-weight:600;color:var(--accent-light)">${gesamt > 0 ? euro(gesamt) : '—'}</td>
             <td style="width:120px">${lagerBadge}</td>

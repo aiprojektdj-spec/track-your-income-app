@@ -2064,6 +2064,12 @@ tbody tr:last-child td {
     }
 }
 
+@media (max-width: 768px) {
+    .mobile-menu-btn {
+        display: flex !important;
+    }
+}
+
 .mobile-overlay.active {
     display: block;
 }
@@ -2515,6 +2521,12 @@ tbody tr:last-child td {
         }
         select.form-control { cursor: pointer; }
         textarea.form-control { resize: vertical; min-height: 70px; }
+        .wp-menge, .wp-preis { -moz-appearance: textfield; }
+        .wp-menge::-webkit-outer-spin-button, .wp-menge::-webkit-inner-spin-button,
+        .wp-preis::-webkit-outer-spin-button, .wp-preis::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
 
         .btn-secondary {
             background: var(--bg-card);

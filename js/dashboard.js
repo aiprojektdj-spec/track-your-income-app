@@ -433,7 +433,8 @@ const Dashboard = {
 
         // Jahresvergleich chart
         const elJ = document.getElementById('dashChartJahres');
-        if (elJ && !this._chartJahres) {
+        if (this._chartJahres) { this._chartJahres.destroy(); this._chartJahres = null; }
+        if (elJ) {
             const cy    = this._selectedYear;
             const years = [cy - 2, cy - 1, cy].filter(y => y >= 2020);
             const stats = years.map(y => this._getYearStats(y));

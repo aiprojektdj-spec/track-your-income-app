@@ -436,7 +436,8 @@ function renderWarenPosTable() {
 
     return `
         ${chipHtml}
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <div style="overflow-x:auto">
+        <table style="width:100%;min-width:560px;border-collapse:collapse;font-size:13px">
             <thead><tr style="border-bottom:1px solid var(--border)">
                 <th style="padding:4px 8px 8px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--text-muted)">Artikel / Beschreibung</th>
                 <th style="padding:4px 8px 8px;text-align:left;font-size:11px;text-transform:uppercase;color:var(--text-muted)">Menge</th>
@@ -446,7 +447,8 @@ function renderWarenPosTable() {
                 <th></th>
             </tr></thead>
             <tbody id="warenPosBody">${rows}</tbody>
-        </table>`;
+        </table>
+        </div>`;
 }
 
 function addWarenPos() {

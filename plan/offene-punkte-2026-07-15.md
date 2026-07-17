@@ -29,6 +29,9 @@ Konsolidiert aus `plan/launch-prompts.md`, `plan/launch-woche-2026-07-13.md`,
 
 ## USt-Regelbesteuerung — Restliste (nicht launch-blockierend, vor breiter Nutzung angehen)
 
+Punkte 2–4: echtes UStG-Reasoning, nicht ohne `legal-reviewer`/Anwalt final entscheiden.
+Punkte 5/6/7 am 2026-07-17 verifiziert und abgeschlossen (siehe unten).
+
 1. ✅ **Gutschriften mindern jetzt den Umsatz (§17 UStG)** — 2026-07-16 gefixt: Root-Fix in
    `Store.createSaleFromInvoice()` (negiert Betrag bei `typ==='gutschrift'`, wirkt auf alle
    Sync-Konsumenten: Ist-UVA, DATEV, GbR). Zusätzlich Soll-UVA (`ustvoranmeldung.js`), EÜR
@@ -38,20 +41,50 @@ Konsolidiert aus `plan/launch-prompts.md`, `plan/launch-woche-2026-07-13.md`,
    gehärtet: dieselben Filter ließen bislang auch `typ==='angebot'` durch, falls versehentlich als
    "bezahlt" markiert — jetzt auf `rechnung`/`gutschrift` beschränkt. Nicht angefasst: OSS-
    Schwellenwert-Tracking (`oss.js`) berücksichtigt Gutschrift-Stornos noch nicht — siehe Punkt 4.
-2. Kz. 41 vs. Kz. 21 bei EU-B2B-Dienstleistungen (ZM-Abgleich-Diskrepanz).
-3. Ist-Modus strukturell lückenhaft bei EU-Geschäft (dokumentierte Limitation).
-4. OSS unterjährig: rückwirkendes Kippen von Q1/Q2 bei Schwellen-Überschreitung in Q3.
-5. `vorsteuer.js` Doppelabzug-Label-Bug (gleiche Falle wie gefixte UVA-Stat-Karte).
-6. `calcBrutto` nutzt aktuelle §19-Einstellung für historische Rechnungen.
-7. Exotische Steuersätze (CH 8.1/2.6) nach Landwechsel fallen aus UVA-Töpfen.
+2. OFFEN — Kz. 41 vs. Kz. 21 bei EU-B2B-Dienstleistungen (ZM-Abgleich-Diskrepanz). Braucht
+   Ware/Leistung-Feld an Position/Rechnung + `legal-reviewer`-Konsultation. Nicht angefasst.
+3. OFFEN — Ist-Modus strukturell lückenhaft bei EU-Geschäft. Verifiziert 2026-07-17: kein
+   In-App-Hinweis in `js/ustvoranmeldung.js` (`_isSoll()`-Pfad) — die "Dokumentation" ist bislang
+   nur ein Code-Kommentar, für Nutzer unsichtbar. Braucht sichtbaren UI-Hinweis, nicht angefasst
+   (UX-Entscheidung nötig).
+4. OFFEN — OSS unterjährig: rückwirkendes Kippen von Q1/Q2 bei Schwellen-Überschreitung in Q3.
+   Braucht Klärung §3c UStG Schwellenübergang, nicht angefasst.
+5. ✅ **`vorsteuer.js` Kz.-66-Label** — 2026-07-17 verifiziert: Zeile ~297-302 zeigt Kz. 66 bereits
+   korrekt separiert (nur echte Vorsteuer aus Einkäufen/Ausgaben), §13b läuft unter Kz. 67, IG-Erwerb
+   unter Kz. 61, kein Aufsummieren. War beim P0-4/5-Fix bereits miterledigt — Restliste-Eintrag war
+   stale, gestrichen.
+6. ✅ **`calcBrutto`/`isKlein` — jetzt vollständig gefixt (2026-07-17).** Root-Ursache gefunden: die
+   `invoice.isKlein`-Leseguards aus dem P0-4/5-Fix waren wirkungslos, weil **kein einziger
+   Erstellungspfad `isKlein` je auf die Rechnung geschrieben hat** — jede Rechnung hatte
+   `isKlein === undefined` und fiel immer auf die aktuelle `Store.getSettings().ustMode` zurück.
+   Schreibseite gefixt: `rechnungen/js/rechnung.js` `buildInvoiceObject()` (persistiert jetzt beim
+   Speichern, behält bei bestehender Rechnung den historischen Wert), `js/store.js`
+   `createStornoRechnung()` (übernimmt `isKlein` von der Originalrechnung), `rechnungen/js/
+   wiederkehrend.js` `createInvoiceFromRule()` (stempelt aktuellen Stand bei Generierung).
+   Leseseite nachgezogen (bisher übersehene Kopien, zusätzlich zu den 3 aus dem P0-4/5-Fix):
+   `rechnung.js` `calcBrutto()` (totes Codepfad, aus Konsistenz mitgefixt), `updateSummen()`
+   (Live-Editor, nutzt `editingInvoice.isKlein`), `generatePreviewHtml()` (**das tatsächlich
+   gedruckte/exportierte Rechnungsdokument** — wichtigste Stelle), `dokumente.js`
+   `showSendModal()`, `xrechnung.js` `generate()` (E-Rechnung-XML, §14-relevant), `kunden.js`
+   (2 Stellen, pro-Rechnung statt einmal-außerhalb-der-Schleife korrigiert), `js/store.js`
+   `createSaleFromInvoice()`, `js/datev.js` `buildCSV()`-Rechnungszeilen (GoBD-Export). Alle 8
+   geänderten Dateien mit `node --check` syntaxgeprüft. **Nicht browser-verifiziert** — App ist
+   Whop-Login-gated, keine Zugangsdaten in dieser Session verfügbar; nur statisch (grep/read)
+   verifiziert.
+7. ✅ **Exotische Steuersätze (CH 8.1/2.6)** — 2026-07-17 verifiziert: für Web 1.7 gegenstandslos.
+   `js/schweiz.js` existiert noch, wird aber in keiner HTML-Seite mehr geladen (dormant/dead seit
+   CH/AT-Entfernung, siehe W2 unten) — kein Landwechsel zu CH mehr möglich. Aus der Restliste
+   gestrichen statt gefixt. Für `Local 1.7` (behält CH aktiv) separat prüfen, nicht in diesem Repo.
 8. Kosmetik: Dashboard-Einnahmen-Karte-Diskrepanz — im P0-4-QA-Sweep nachgehen.
 
 ## P0-4/P0-5 QA+Security-Sweep (2026-07-16) — gefixt
 
 - ✅ `vorsteuer.js` Doppelabzug-Label-Bug (Kz. 66 fälschlich auf Gesamtsumme inkl. §13b/IG)
-- ✅ `calcBrutto` nutzte aktuelle §19-Einstellung statt Rechnungs-Stand (4 Kopien: rechnung.js,
-  mahnungen.js, rech-dashboard.js, dokumente.js) — `invoice.isKlein` wird jetzt beim Speichern
-  persistiert und bevorzugt gelesen
+- 🟡 `calcBrutto` nutzte aktuelle §19-Einstellung statt Rechnungs-Stand (Lese-Guard `invoice.isKlein`
+  in 3 von 6 Kopien ergänzt: mahnungen.js, rech-dashboard.js, dokumente.js:4) — **Achtung, dieser
+  Eintrag war unvollständig:** die Schreibseite (`isKlein` beim Speichern persistieren) fehlte
+  komplett, siehe Punkt 6 der Restliste unten — dort am 2026-07-17 vollständig nachgezogen
+  (Schreibseite + 8 weitere Lesestellen).
 - ✅ `api/whop-access.js` hatte kein Rate-Limit (🔴 KRITISCH, Kosten-/Quota-DoS gegen den
   gemeinsamen Whop-Key) — IP-Rate-Limit nach Vorbild `api/sync.js` ergänzt
 - ✅ showToast-HTML-Injection an 6 Stellen (materiallager.js, ausgaben.js, lager.js,
@@ -106,7 +139,7 @@ Konsolidiert aus `plan/launch-prompts.md`, `plan/launch-woche-2026-07-13.md`,
 | # | Punkt | Status |
 |---|---|---|
 | P1-1 | Steuerberater-Read-Only fertigbauen (2 Client-Lücken, Branch `feature/csp-phase-c`) | ⬜ offen — wartet auf Kunden-Go |
-| P1-2 | Landing-Copy + technisches SEO-Minimum | ⬜ offen |
+| P1-2 | Landing-Copy + technisches SEO-Minimum | ⬜ offen — Prompt: `plan/session-prompt-landing-seo.md` |
 | P1-3 | Launch-Baseline messen (Wachstumsplan Juli Woche 1) | ⬜ offen |
 
 **P1-1 Details (`session-prompt-stb-luecken.md`):**
@@ -119,8 +152,8 @@ Konsolidiert aus `plan/launch-prompts.md`, `plan/launch-woche-2026-07-13.md`,
 
 | # | Punkt | Status |
 |---|---|---|
-| P2-1 | Local 1.7 spiegeln + verwaistes Git reparieren | ⬜ offen |
-| P2-2 | Performance + Accessibility Audit (Landing/Onboarding) | ⬜ offen |
+| P2-1 | Local 1.7 spiegeln + verwaistes Git reparieren | 🟡 teilweise (2026-07-17): Git repariert (fsck sauber, war nur 3 Commits hinter `origin/main`, nicht wirklich verwaist), 70 uncommittete Änderungen in 4 thematische Commits aufgeteilt + gepusht (`e800115`..`fba3222`). Dabei 2 echte Bugs gefixt: `impressum.html`/`datenschutz.html` waren gelöscht aber noch von `app.html` verlinkt (rechtlich pflichtig, wiederhergestellt aus altem HEAD); `lager/index.html` + `rechnungen/index.html` luden noch 4 gelöschte Cloud-Sync/Auth-Dateien (tote `<script>`-Tags + veraltete Supabase-CSP-Regel entfernt). Schritt 3 (eigentlicher Spiegel-Abgleich Web→Local laut Prompt: USt-Regelbesteuerung, GoBD Edit/Delete, Whop-Grace-Token, Datum-Handling) noch **offen** — dafür braucht es eine eigene Session. CH/AT (`js/schweiz.js`/`js/oesterreich.js`) bestätigt weiterhin aktiv in Local. |
+| P2-2 | Performance + Accessibility Audit (Landing/Onboarding) | ⬜ offen — Prompt: `plan/session-prompt-performance-a11y.md` |
 
 ---
 
@@ -147,10 +180,14 @@ Rate-Limit-Lücken, Pagination-Limit bei >1000 Memberships. ⬜ offen.
   nie im Klartext ausgegeben.
 - ✅ `WHOP_GRACE_PRIVATE_KEY` env var in Vercel (Production) gesetzt — 2026-07-16, neues
   ECDSA-P256-Schlüsselpaar generiert (alter Key aus Vorsession war nirgends gespeichert),
-  zugehöriger Public Key in `js/whop-auth.js` (`GRACE_PUBKEY_JWK`) nachgezogen. Hinweis: der
-  Grace-Token-Umbau selbst liegt noch **uncommitted** im Working Tree (aus der Vorsession),
-  Public-Key-Fix ist Teil dieser uncommitteten Änderung — vor Commit gegenlesen.
-- Nach P0-1/P0-2/P0-4/P0-5: einmal deployen + Prod-Smoke-Test.
+  zugehöriger Public Key in `js/whop-auth.js` (`GRACE_PUBKEY_JWK`) nachgezogen. Grace-Token-
+  Umbau + Public-Key-Fix mit Commit `4d74de9` committet + gepusht — kein uncommitted Rest mehr.
+- ✅ Deploy + Prod-Smoke-Test — 2026-07-16: Commit `4d74de9` live auf
+  `track-your-income-app.vercel.app`, verifiziert (Browser, 8 Seiten: `/`, `agb.html`,
+  `datenschutz.html`, `app.html`, `rechnungen/index.html`, `lager/index.html`,
+  `eigenbelege/index.html`, `impressum.html`). Keine Console-Errors. CH/AT-Reste in
+  agb/datenschutz/app.html live bestätigt entfernt (Fehltreffer "CHF" war nur "na**chf**olgend"
+  in beiden Fällen). E-Rechnung-Hinweis im Rechnungsformular live bestätigt.
 - Blob-Sync + Cloud-Sync-E2E: echter Test mit echtem Whop-Login (User selbst) — laut User
   2026-07-16 bereits erledigt bzw. läuft sobald live.
 

@@ -1,5 +1,16 @@
 # Prompt für neue Session (copy-paste) — W3-Abschluss: Make.com-Test + Deploy
 
+## ✅ ERLEDIGT (2026-07-17)
+
+E2E-Test für Event-Typ `einnahme` mit echter Make.com-Webhook-URL
+(`https://hook.eu1.make.com/psvjyzl3...`) durchgeführt: `Webhooks.test()` lieferte
+HTTP 200, Make.com zeigte „3 values detected and ready to map" (event/ts/data) im
+Custom-Webhook-Modul. Test lief per Browser-Konsole direkt gegen `Webhooks.test()`
+(gleicher Code-Pfad wie der Settings-Test-Button), da der lokale Python-Static-Server
+keinen echten Whop-OAuth-Roundtrip kann (`/api/whop-access` fehlt ohne `vercel dev`).
+Code (4cbd40d) war zum Testzeitpunkt bereits auf `origin/master` — kein weiterer Push
+nötig.
+
 ---
 
 Kontext: `js/webhooks.js` + Settings-UI + 3 Trigger-Punkte (Einnahme/Rechnung/Eigenbeleg)

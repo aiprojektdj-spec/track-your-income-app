@@ -36,6 +36,8 @@ var CloudSync = (function () {
     var LS_CONFLICTS = 'oyi_sync_conflicts';                                  // offene Parallel-Konflikte (beide Fassungen), überlebt Reload
     var LS_LAST_OK   = 'oyi_sync_last_ok';                                    // Timestamp des letzten vollständig erfolgreichen Sync-Laufs
     var HEALTHY_MAX_AGE_MS = 7 * 86400000;   // älter → lokale Backup-Hinweise NICHT unterdrücken (Sync könnte hängen)
+    var LS_CODE_REMIND = 'oyi_sync_code_remind_last';                         // Timestamp der letzten Wiederherstellungscode-Erinnerung
+    var CODE_REMIND_INTERVAL_MS = 90 * 86400000;   // alle 90 Tage — Code-Verlust ist das eine Risiko, das isHealthy() nicht erkennen kann
 
     var _cryptoKeyCache = null;   // importierter CryptoKey (für aktuellen User)
     var _cryptoKeyUid   = null;
@@ -440,11 +442,29 @@ var CloudSync = (function () {
         _pushTimer = setTimeout(function () { _syncAll(false); }, PUSH_DEBOUNCE);
     }
 
+    // ── Wiederherstellungscode-Erinnerung (selten, unabhängig von isHealthy) ──
+    // isHealthy() erkennt kaputten/hängenden Sync, aber NICHT den Verlust des
+    // Wiederherstellungscodes selbst — der ist laut Enable-Dialog der einzige
+    // Weg an die Cloud-Daten und nicht zurücksetzbar. Deshalb unabhängig davon
+    // alle 90 Tage ein leiser Reminder, den Code nochmal zu sichern.
+    function _maybeRemindCode() {
+        if (!_enabled() || !_hasKey()) return;
+        var last = parseInt(localStorage.getItem(LS_CODE_REMIND) || '0', 10);
+        if (last && (Date.now() - last) < CODE_REMIND_INTERVAL_MS) return;
+        try { localStorage.setItem(LS_CODE_REMIND, String(Date.now())); } catch (e) {}
+        setTimeout(function () {
+            if (typeof Utils !== 'undefined' && Utils.showToast) {
+                Utils.showToast('Cloud-Sync-Wiederherstellungscode noch sicher verwahrt? Er ist der einzige Weg an deine Cloud-Daten — Cloud-Sync-Menü → Code anzeigen.', 'info');
+            }
+        }, 6000);
+    }
+
     // ── Init: Dot setzen, beim Start Pull (sobald Store bereit) ───────────────
     function init() {
         _setDot(_loadConflicts().length ? 'warn' : (_enabled() && _hasKey() ? 'ok' : 'off'));   // offene Konflikte nach Reload sichtbar halten
         if (_inited) return; _inited = true;
         if (!_enabled() || !_hasKey() || !_token()) return;
+        _maybeRemindCode();
         var tries = 0;
         var iv = setInterval(function () {
             tries++;

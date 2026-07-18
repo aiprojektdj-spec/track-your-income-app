@@ -373,7 +373,7 @@
         try {
             if (!localStorage.getItem('whop_access_token')) return;
         } catch (e) { return; }
-        var btns = document.querySelectorAll('.btn-hero, .btn-plan-free, .btn-plan-pro');
+        var btns = document.querySelectorAll('.btn-hero, .btn-plan-free, .btn-plan-pro, .btn-primary');
         btns.forEach(function(btn) {
             btn.textContent = 'Zur App →';
             btn.dataset.session = '1';

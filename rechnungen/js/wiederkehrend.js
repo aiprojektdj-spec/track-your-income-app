@@ -89,18 +89,41 @@ var Wiederkehrend = (function () {
         };
     }
 
+    // ── Lager-Verknüpfung beim Generieren auflösen ───────────────────────
+    // rule.positionen ist die feste Vorlage der Regel und wird bei jeder Wiederholung
+    // 1:1 kopiert. Ein verlinkter Lagerartikel ist aber ein physisches Einzelstück und darf
+    // nur bei der ERSTEN Generierung tatsächlich "verkauft" werden — bei jeder weiteren
+    // Wiederholung (Artikel dann schon verkauft/storniert) wird die Verknüpfung gekappt,
+    // damit nicht derselbe Artikel wiederholt als verkauft gemeldet wird.
+    function resolvePositionenFuerNeueRechnung(positionen) {
+        var purchases = Store.getPurchases(true);
+        return (positionen || []).map(function (pos) {
+            var copy = Object.assign({}, pos);
+            if (copy.lagerArtikelId) {
+                var art = purchases.find(function (a) { return a.id === copy.lagerArtikelId; });
+                if (art && !art.storniert && art.status === 'verfuegbar') {
+                    Store.savePurchase(Object.assign({}, art, { status: 'verkauft', verkaufsdatum: Utils.todayISO() }));
+                } else {
+                    copy.lagerArtikelId = null;
+                }
+            }
+            return copy;
+        });
+    }
+
     // ── Create invoice from rule ────────────────────────────────────────
     function createInvoiceFromRule(rule) {
         var nummer = Store.nextRechInvoiceNumber('rechnung');
         var invoice = {
             id:              Store.generateId(),
             typ:             'rechnung',
+            isKlein:         Store.getSettings().ustMode === 'klein',
             nummer:          nummer,
             datum:           rule.nextDate,
             faelligkeit:     addFaelligkeit(rule.nextDate, rule.interval),
             datumsOption:    rule.datumsOption || 'faelligkeit',
             kundeId:         rule.kundeId,
-            positionen:      rule.positionen,
+            positionen:      resolvePositionenFuerNeueRechnung(rule.positionen),
             zahlungsbedingungen: rule.zahlungsbedingungen || 'Zahlbar innerhalb von 14 Tagen nach Rechnungserhalt.',
             notizen:         rule.notizen || '',
             verkaufsplattform: rule.verkaufsplattform || '',

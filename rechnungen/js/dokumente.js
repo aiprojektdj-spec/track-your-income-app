@@ -305,7 +305,7 @@ var Dokumente = (function() {
         var kunde = customers.find(function(c) { return c.id === inv.kundeId; });
         var kundeEmail = kunde ? (kunde.email || '') : '';
         var brutto = 0;
-        var isKlein = settings.ustMode === 'klein';
+        var isKlein = inv.isKlein !== undefined ? inv.isKlein : (settings.ustMode === 'klein');
         (inv.positionen || []).forEach(function(pos) {
             var netto = pos.menge * pos.einzelpreis;
             var mwst = isKlein ? 0 : (netto * pos.mwstSatz / 100);
@@ -405,12 +405,14 @@ var Dokumente = (function() {
             return '<option value="' + Utils.escapeHtml(p) + '"' + (p === invPlattform ? ' selected' : '') + '>' + Utils.escapeHtml(p) + '</option>';
         }).join('');
 
-        // Bereits in Positionen verknüpfte Lager-Artikel ermitteln
+        // Bereits in Positionen verknüpfte Lager-Artikel ermitteln — diese wurden beim
+        // Verknüpfen in der Rechnung bereits als "verkauft" markiert (nicht erst hier),
+        // daher hier bewusst ohne Status-Filter suchen.
         var posLinkedIds = (inv.positionen || [])
             .map(function(p) { return p.lagerArtikelId; })
             .filter(Boolean);
         var posLinkedArts = posLinkedIds.map(function(id) {
-            return purchases.find(function(p) { return p.id === id && p.status === 'verfuegbar'; });
+            return purchases.find(function(p) { return p.id === id; });
         }).filter(Boolean);
 
         var lagerOptions = '<option value="">-- Kein weiterer Lagerartikel --</option>';
@@ -425,7 +427,7 @@ var Dokumente = (function() {
         // Verknüpfte Artikel aus Positionen anzeigen
         if (posLinkedArts.length > 0) {
             body += '<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;">';
-            body += '<div style="font-weight:600;font-size:12px;color:#065f46;margin-bottom:6px;">✅ ' + posLinkedArts.length + ' Lagerartikel aus Positionen werden automatisch als <em>Verkauft</em> markiert:</div>';
+            body += '<div style="font-weight:600;font-size:12px;color:#065f46;margin-bottom:6px;">✅ ' + posLinkedArts.length + ' Lagerartikel aus Positionen sind bereits als <em>Verkauft</em> markiert (Verkaufsdatum wird auf das Zahlungsdatum aktualisiert):</div>';
             posLinkedArts.forEach(function(a) {
                 body += '<div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">• <span style="font-family:monospace;color:var(--accent);">' + Utils.escapeHtml(a.artikelNr || '—') + '</span> ' + Utils.escapeHtml((a.marke || '') + ' ' + (a.artikeltyp || '') + (a.beschreibung ? ' – ' + a.beschreibung : '')) + ' (' + Utils.formatCurrency(a.einkaufspreis) + ')</div>';
             });

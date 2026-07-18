@@ -3,6 +3,7 @@ var Rechnung = (function() {
     var currentTyp = 'rechnung';
     var editingInvoice = null;
     var positionCount = 0;
+    var originalLinkedLagerIds = []; // Lager-Verknüpfungen der geladenen Rechnung (vor dieser Bearbeitungssitzung)
 
     // EU-Mitgliedstaaten für die §13b-Reverse-Charge-Erkennung. Fallback nötig, weil die
     // Standalone-Rechnungsseite js/vorsteuer.js (Quelle von Vorsteuer.EU_LAENDER) nicht lädt —
@@ -38,7 +39,7 @@ var Rechnung = (function() {
 
     function calcBrutto(invoice) {
         var settings = Store.getSettings();
-        var isKlein = settings.ustMode === 'klein';
+        var isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (settings.ustMode === 'klein');
         var sum = 0;
         (invoice.positionen || []).forEach(function(pos) {
             var netto = pos.menge * pos.einzelpreis;
@@ -62,6 +63,9 @@ var Rechnung = (function() {
             editingInvoice = null;
             if (params.typ) currentTyp = params.typ;
         }
+        originalLinkedLagerIds = editingInvoice
+            ? (editingInvoice.positionen || []).map(function(p) { return p.lagerArtikelId; }).filter(Boolean)
+            : [];
 
         var typLabel = currentTyp === 'rechnung' ? 'Rechnung' : currentTyp === 'angebot' ? 'Angebot' : 'Gutschrift';
         var title = editingInvoice ? (typLabel + ' bearbeiten') : ('Neue ' + (currentTyp === 'gutschrift' ? 'Gutschrift' : (currentTyp === 'angebot' ? 'Neues Angebot' : 'Neue Rechnung')));
@@ -189,7 +193,8 @@ var Rechnung = (function() {
         }
 
         html += '</div>';
-        html += '<button class="btn btn-primary" id="addPosition" style="margin-top: 0.5rem;">+ Position hinzuf\u00FCgen</button>';
+        html += '<button class="btn btn-primary" id="addPosition" style="margin-top: 0.5rem;">+ Position hinzuf\u00FCgen</button> ';
+        html += '<button class="btn" id="addFromLager" style="margin-top: 0.5rem;">\uD83D\uDCE6 Artikel aus Lager</button>';
 
         // Summenblock
         html += '<div id="summenBlock" style="margin-top: 1.5rem; text-align: right;"></div>';
@@ -299,25 +304,57 @@ var Rechnung = (function() {
         return html;
     }
 
-    // ---- Lager-Artikel-Picker ----
-    function showLagerPicker(row) {
-        var allArts = Store.getPurchases(true);
-        var available = allArts.filter(function(a) { return !a.storniert && a.status === 'verfuegbar'; });
-        var currentId = row.querySelector('.pos-lager-id').value;
+    // ---- Lager-Status-Helfer ----
+    // Ein Lagerartikel gilt ab dem Verknüpfen mit einer Rechnungsposition als verkauft
+    // (nicht erst beim Bezahlen) — verhindert, dass derselbe Artikel in einer zweiten,
+    // parallel offenen Rechnung erneut ausgewählt werden kann.
+    function markLagerVerkauft(artId) {
+        if (!artId) return;
+        var art = Store.getPurchases(true).find(function(a) { return a.id === artId; });
+        if (!art) return;
+        Store.savePurchase(Object.assign({}, art, { status: 'verkauft', verkaufsdatum: art.verkaufsdatum || Utils.todayISO() }));
+    }
 
-        var rows = '';
-        if (available.length === 0) {
-            rows = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">Keine verfügbaren Lagerartikel</td></tr>';
-        } else {
-            rows = available.map(function(a) {
-                var isSelected = a.id === currentId;
-                return '<tr style="cursor:pointer;' + (isSelected ? 'background:rgba(124,58,237,0.1);' : '') + '" data-art-id="' + a.id + '" class="lager-picker-row">' +
+    function markLagerVerfuegbar(artId) {
+        if (!artId) return;
+        var art = Store.getPurchases(true).find(function(a) { return a.id === artId; });
+        if (!art || art.status !== 'verkauft') return;
+        Store.savePurchase(Object.assign({}, art, { status: 'verfuegbar', verkaufsdatum: '' }));
+    }
+
+    // ---- Lager-Artikel-Picker ----
+    // row === null -> "Artikel aus Lager hinzufügen": legt für jede Auswahl eine neue Position an.
+    // row = <element> -> verknüpft den gewählten Lagerartikel mit dieser bestehenden Position.
+    function showLagerPicker(row) {
+        var isNewMode = !row;
+        var allArts = Store.getPurchases(true);
+        var linkedElsewhere = isNewMode
+            ? Array.prototype.map.call(document.querySelectorAll('.pos-lager-id'), function(el) { return el.value; }).filter(Boolean)
+            : [];
+        var available = allArts.filter(function(a) {
+            return !a.storniert && a.status === 'verfuegbar' && linkedElsewhere.indexOf(a.id) === -1;
+        });
+        var currentId = isNewMode ? '' : row.querySelector('.pos-lager-id').value;
+
+        function renderRows(list) {
+            if (list.length === 0) {
+                return '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">Keine verfügbaren Lagerartikel</td></tr>';
+            }
+            return list.map(function(a) {
+                var isSelected = !isNewMode && a.id === currentId;
+                var actionCell;
+                if (isSelected) {
+                    actionCell = '<span style="color:var(--success);">✓ Aktiv</span>';
+                } else {
+                    actionCell = '<button class="btn btn-small btn-primary lp-select" data-id="' + a.id + '">' + (isNewMode ? '+ Hinzufügen' : 'Auswählen') + '</button>';
+                }
+                return '<tr data-art-id="' + a.id + '" class="lager-picker-row">' +
                     '<td><span style="font-family:monospace;font-size:11px;color:var(--accent);">' + Utils.escapeHtml(a.artikelNr || '—') + '</span></td>' +
                     '<td>' + Utils.escapeHtml((a.marke || '') + ' ' + (a.artikeltyp || '')) + '</td>' +
                     '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;">' + Utils.escapeHtml(a.beschreibung || '') + '</td>' +
                     '<td>' + Utils.escapeHtml(a.groesse || '') + '</td>' +
                     '<td style="text-align:right;">' + Utils.formatCurrency(a.einkaufspreis) + '</td>' +
-                    '<td>' + (isSelected ? '<span style="color:var(--success);">✓ Aktiv</span>' : '<button class="btn btn-small btn-primary lp-select" data-id="' + a.id + '">Auswählen</button>') + '</td>' +
+                    '<td>' + actionCell + '</td>' +
                     '</tr>';
             }).join('');
         }
@@ -325,43 +362,64 @@ var Rechnung = (function() {
         // Aktuelle Verknüpfung aufheben Button
         var clearBtn = currentId ? '<button class="btn btn-small btn-danger" id="lpClearBtn" style="margin-left:8px;">🗑 Verknüpfung entfernen</button>' : '';
 
-        var body = '<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary);">Wähle einen verfügbaren Lagerartikel für diese Position aus. Beim Bezahlen der Rechnung wird der Artikel automatisch als <em>Verkauft</em> markiert.</div>';
-        body += '<div style="overflow-x:auto;"><table style="width:100%;font-size:12px;"><thead><tr><th>Art.-Nr.</th><th>Artikel</th><th>Beschreibung</th><th>Größe</th><th>EK-Preis</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+        var introText = isNewMode
+            ? 'Wähle einen oder mehrere verfügbare Lagerartikel aus – für jeden wird eine neue Position angelegt.'
+            : 'Wähle einen verfügbaren Lagerartikel für diese Position aus.';
+        var body = '<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary);">' + introText + ' Der Artikel wird sofort als <em>Verkauft</em> markiert, damit er nicht versehentlich in einer zweiten Rechnung verwendet wird.</div>';
+        body += '<div style="overflow-x:auto;"><table style="width:100%;font-size:12px;"><thead><tr><th>Art.-Nr.</th><th>Artikel</th><th>Beschreibung</th><th>Größe</th><th>EK-Preis</th><th></th></tr></thead><tbody id="lagerPickerBody">' + renderRows(available) + '</tbody></table></div>';
 
-        var footer = clearBtn + ' <button class="btn" data-action="rech-close-modal">Schließen</button>';
-        RechApp.showModal('Lagerartikel verknüpfen', body, footer);
+        var footer = clearBtn + ' <button class="btn" data-action="rech-close-modal">' + (isNewMode ? 'Fertig' : 'Schließen') + '</button>';
+        RechApp.showModal('Lagerartikel ' + (isNewMode ? 'hinzufügen' : 'verknüpfen'), body, footer);
 
-        // Events binden
-        document.querySelectorAll('.lp-select').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var artId = this.getAttribute('data-id');
-                var art = allArts.find(function(a) { return a.id === artId; });
-                if (!art) return;
-                // Verknüpfung speichern
-                row.querySelector('.pos-lager-id').value = artId;
-                // Button-Label aktualisieren
-                var lagerBtn = row.querySelector('.pos-lager-btn');
-                if (lagerBtn) {
-                    lagerBtn.textContent = '🔗 ' + (art.artikelNr || (art.marke + ' ' + art.artikeltyp).trim().slice(0, 12));
-                    lagerBtn.title = 'Verknüpft: ' + Utils.escapeHtml((art.marke || '') + ' ' + (art.artikeltyp || '') + ' ' + (art.beschreibung || ''));
-                    lagerBtn.style.background = 'rgba(16,185,129,0.15)';
-                    lagerBtn.style.borderColor = 'var(--success,#10b981)';
-                    lagerBtn.style.color = 'var(--success,#10b981)';
-                }
-                // Beschreibung auto-fill wenn leer
-                var beschEl = row.querySelector('.pos-beschreibung');
-                if (beschEl && !beschEl.value.trim()) {
-                    beschEl.value = ((art.marke || '') + ' ' + (art.artikeltyp || '') + (art.beschreibung ? ' – ' + art.beschreibung : '') + (art.groesse ? ' (Gr. ' + art.groesse + ')' : '')).trim();
-                }
-                Utils.showToast('Lagerartikel verknüpft: ' + (art.artikelNr || art.marke), 'success');
-                RechApp.closeModal();
+        function bindSelectButtons() {
+            document.querySelectorAll('.lp-select').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var artId = this.getAttribute('data-id');
+                    var art = allArts.find(function(a) { return a.id === artId; });
+                    if (!art) return;
+
+                    if (isNewMode) {
+                        addPositionFromLagerArt(art);
+                        available = available.filter(function(a) { return a.id !== artId; });
+                        var tbody = document.getElementById('lagerPickerBody');
+                        if (tbody) tbody.innerHTML = renderRows(available);
+                        Utils.showToast('Position aus Lagerartikel angelegt: ' + (art.artikelNr || art.marke), 'success');
+                        bindSelectButtons();
+                        return;
+                    }
+
+                    // Verknüpfung speichern (alten Artikel ggf. wieder freigeben, neuen als verkauft markieren)
+                    var oldArtId = row.querySelector('.pos-lager-id').value;
+                    row.querySelector('.pos-lager-id').value = artId;
+                    markLagerVerkauft(artId);
+                    if (oldArtId && oldArtId !== artId) markLagerVerfuegbar(oldArtId);
+                    // Button-Label aktualisieren
+                    var lagerBtn = row.querySelector('.pos-lager-btn');
+                    if (lagerBtn) {
+                        lagerBtn.textContent = '🔗 ' + (art.artikelNr || (art.marke + ' ' + art.artikeltyp).trim().slice(0, 12));
+                        lagerBtn.title = 'Verknüpft: ' + Utils.escapeHtml((art.marke || '') + ' ' + (art.artikeltyp || '') + ' ' + (art.beschreibung || ''));
+                        lagerBtn.style.background = 'rgba(16,185,129,0.15)';
+                        lagerBtn.style.borderColor = 'var(--success,#10b981)';
+                        lagerBtn.style.color = 'var(--success,#10b981)';
+                    }
+                    // Beschreibung auto-fill wenn leer
+                    var beschEl = row.querySelector('.pos-beschreibung');
+                    if (beschEl && !beschEl.value.trim()) {
+                        beschEl.value = ((art.marke || '') + ' ' + (art.artikeltyp || '') + (art.beschreibung ? ' – ' + art.beschreibung : '') + (art.groesse ? ' (Gr. ' + art.groesse + ')' : '')).trim();
+                    }
+                    Utils.showToast('Lagerartikel verknüpft: ' + (art.artikelNr || art.marke), 'success');
+                    RechApp.closeModal();
+                });
             });
-        });
+        }
+        bindSelectButtons();
 
         var clearBtnEl = document.getElementById('lpClearBtn');
         if (clearBtnEl) {
             clearBtnEl.addEventListener('click', function() {
+                var oldArtId = row.querySelector('.pos-lager-id').value;
                 row.querySelector('.pos-lager-id').value = '';
+                markLagerVerfuegbar(oldArtId);
                 var lagerBtn = row.querySelector('.pos-lager-btn');
                 if (lagerBtn) {
                     lagerBtn.textContent = '🔗';
@@ -374,6 +432,24 @@ var Rechnung = (function() {
                 RechApp.closeModal();
             });
         }
+    }
+
+    function addPositionFromLagerArt(art) {
+        var beschreibung = ((art.marke || '') + ' ' + (art.artikeltyp || '') + (art.beschreibung ? ' – ' + art.beschreibung : '') + (art.groesse ? ' (Gr. ' + art.groesse + ')' : '')).trim();
+        // Bei aktivem Reverse Charge (§13b) darf die neue Position nicht mit 19% starten
+        var hint = document.getElementById('reverseChargeHint');
+        var mwstSatz = (hint && hint.style.display === 'block') ? 0 : 19;
+        var pos = { beschreibung: beschreibung, menge: 1, einheit: 'Stück', einzelpreis: 0, mwstSatz: mwstSatz, lagerArtikelId: art.id };
+
+        var container = document.getElementById('positionenContainer');
+        var div = document.createElement('div');
+        div.innerHTML = renderPositionRow(positionCount, pos);
+        var newRow = div.firstChild;
+        container.appendChild(newRow);
+        positionCount++;
+        bindPositionEvents(newRow);
+        markLagerVerkauft(art.id);
+        updateSummen();
     }
 
     function collectPositionen() {
@@ -405,7 +481,7 @@ var Rechnung = (function() {
     function updateSummen() {
         var positionen = collectPositionen();
         var settings = Store.getSettings();
-        var isKlein = settings.ustMode === 'klein';
+        var isKlein = editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (settings.ustMode === 'klein');
 
         var netto = 0;
         var mwstMap = {};
@@ -482,7 +558,7 @@ var Rechnung = (function() {
             var kunde = customers.find(function(c) { return c.id === kundeId; });
             var euLaender = rcEuLaender();
             var settings = mergeRechSettings();
-            var isKlein = settings.ustMode === 'klein';
+            var isKlein = editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (settings.ustMode === 'klein');
             var isEuB2B = !isKlein && kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && euLaender.indexOf(kunde.land) !== -1;
             if (hint) hint.style.display = isEuB2B ? 'block' : 'none';
             if (isEuB2B && forceApply) {
@@ -533,6 +609,13 @@ var Rechnung = (function() {
             applyReverseChargeCheck(true);
         });
 
+        var addFromLagerBtn = document.getElementById('addFromLager');
+        if (addFromLagerBtn) {
+            addFromLagerBtn.addEventListener('click', function() {
+                showLagerPicker(null);
+            });
+        }
+
         document.querySelectorAll('.position-row').forEach(function(row) {
             bindPositionEvents(row);
         });
@@ -544,7 +627,21 @@ var Rechnung = (function() {
             showInvoicePreview(inv);
         });
         document.getElementById('invCancel').addEventListener('click', function() {
+            reconcileLagerOnCancel();
             RechApp.navigate('dokumente');
+        });
+    }
+
+    // Beim Abbrechen der Bearbeitung müssen Lager-Statusänderungen, die nur als
+    // Nebeneffekt des Editierens (Verknüpfen/Entfernen) passiert sind, rückgängig
+    // gemacht bzw. wiederhergestellt werden — die gespeicherte Rechnung bleibt unverändert.
+    function reconcileLagerOnCancel() {
+        var currentIds = Array.prototype.map.call(document.querySelectorAll('.pos-lager-id'), function(el) { return el.value; }).filter(Boolean);
+        currentIds.forEach(function(id) {
+            if (originalLinkedLagerIds.indexOf(id) === -1) markLagerVerfuegbar(id); // neu verlinkt, nie gespeichert
+        });
+        originalLinkedLagerIds.forEach(function(id) {
+            if (currentIds.indexOf(id) === -1) markLagerVerkauft(id); // während der Bearbeitung entfernt, Rechnung aber unverändert
         });
     }
 
@@ -586,6 +683,8 @@ var Rechnung = (function() {
                     Utils.showToast('Mindestens eine Position erforderlich', 'warning');
                     return;
                 }
+                var lagerIdEl = row.querySelector('.pos-lager-id');
+                if (lagerIdEl && lagerIdEl.value) markLagerVerfuegbar(lagerIdEl.value);
                 row.remove();
                 updateSummen();
             });
@@ -730,6 +829,7 @@ var Rechnung = (function() {
 
         var invoice = {
             id: editingInvoice ? editingInvoice.id : Store.generateId(),
+            isKlein: editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (Store.getSettings().ustMode === 'klein'),
             typ: typ,
             nummer: nummer,
             datum: datum,
@@ -807,7 +907,7 @@ var Rechnung = (function() {
         var accentColor = settings.invoicePrimaryColor || '#4f46e5';
         var customers = Store.getRechCustomers();
         var kunde = customers.find(function(c) { return c.id === inv.kundeId; });
-        var isKlein = settings.ustMode === 'klein';
+        var isKlein = inv.isKlein !== undefined ? inv.isKlein : (settings.ustMode === 'klein');
         var isStorno = inv.typ === 'stornorechnung';
         if (isStorno) accentColor = '#dc2626';
 

@@ -128,7 +128,7 @@ Punkte 5/6/7 am 2026-07-17 verifiziert und abgeschlossen (siehe unten).
 |---|---|---|
 | W1 | Onboarding "Ich habe schon eine Firma" + Cloud-Sync | ✅ erledigt (6527bcc, 00bc921) |
 | W2 | Schweiz/Österreich-Modul aus Web 1.7 entfernen (Local 1.7 unangetastet) | ✅ erledigt 2026-07-16 — 14 Dateien CH/AT-frei, schweiz/oesterreich/svs.js dormant behalten, Rechtstexte (agb/datenschutz) offen für Anwalt |
-| W3 | Make.com-Webhook-API (Trigger-Events, HMAC-Signatur) | ⬜ offen — Prompt: `plan/session-prompt-makecom-webhook.md` |
+| W3 | Make.com-Webhook-API (Trigger-Events, HMAC-Signatur) | ✅ erledigt (4cbd40d, E2E-Test 53b0ec4 2026-07-17) |
 | W4 | UI-Politur (separate interaktive Session mit User) | ⬜ offen — Prompt: `plan/session-prompt-ui-politur.md` |
 | — | Weitere Test-Kunden akquirieren | ⬜ macht User selbst |
 

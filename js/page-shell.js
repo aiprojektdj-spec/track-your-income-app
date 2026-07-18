@@ -36,6 +36,15 @@
 })();
 
 (function() {
+    // ── Akademie: mobile Sidebar komplett ausblenden (öffnete leer/kaputt) ──
+    if (new URLSearchParams(location.search).get('page') !== 'akademie') return;
+    ['sidebar', 'sidebarToggleBtn', 'mobileOverlay'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+})();
+
+(function() {
     // ── Sidebar-Toggle (mobil) ──
     var btn     = document.getElementById('sidebarToggleBtn');
     var sidebar = document.getElementById('sidebar');

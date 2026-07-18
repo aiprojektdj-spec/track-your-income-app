@@ -201,7 +201,7 @@ const Fahrtenbuch = {
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Kilometer (einfach) *</label>
-                            <input type="number" step="0.1" min="0" class="form-input" id="fb_km"
+                            <input type="number" step="0.1" min="0" max="99999" class="form-input" id="fb_km"
                                 value="${f?.km || ''}" placeholder="0" required>
                         </div>
                         <div class="form-group">
@@ -239,7 +239,7 @@ const Fahrtenbuch = {
                         <div class="form-group" id="fb_tatsKostenGroup"
                             style="display:${berechnungsartDef === 'tatsaechlich' ? '' : 'none'}">
                             <label class="form-label">Tatsächl. Kosten (€)</label>
-                            <input type="number" step="0.01" min="0" class="form-input" id="fb_tatsKosten"
+                            <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="fb_tatsKosten"
                                 value="${f?.tatsaechlicheKosten || ''}" placeholder="0,00">
                         </div>
                         <div class="form-group">

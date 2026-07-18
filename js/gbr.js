@@ -663,11 +663,15 @@ const GbR = {
     },
 
     // Monatsgewinn berechnen (gleiche Logik wie euer.js, aber für einen einzelnen Monat)
+    // Fix: berechnete vorher IMMER brutto, ohne USt/Vorsteuer herauszurechnen — bei Regelbesteuerung
+    // wurde damit die USt mit ausgezahlt (Auszahlungen-Tab nutzt dieses Ergebnis direkt).
     _calcMonthData(year, month) {
         const pad = n => String(n).padStart(2, '0');
         const startDate = `${year}-${pad(month + 1)}-01`;
         const lastDay   = new Date(year, month + 1, 0).getDate();
         const endDate   = `${year}-${pad(month + 1)}-${pad(lastDay)}`;
+        const settings = Store.getSettings();
+        const isRegel = (settings.ustMode || 'klein') === 'regel';
 
         const storniertInvIds = new Set(
             (Store.getRechInvoices ? Store.getRechInvoices() : [])
@@ -688,9 +692,24 @@ const GbR = {
 
         const bruttoEinnahmen = sales.reduce((sum, s) =>
             sum + (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0), 0);
-        const retourenErstattungen = Store.getRetouren()
-            .filter(r => Utils.isInPeriod(r.datum, startDate, endDate))
-            .reduce((sum, r) => sum + (parseFloat(r.erstattungBetrag) || 0), 0);
+        // Verkäufe netto zum tatsächlichen Steuersatz je Verkauf (nicht pauschal 19%)
+        const salesNetto = isRegel ? sales.reduce((sum, s) => {
+            const brutto = (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
+            const rateRaw = (s.steuersatz != null && s.steuersatz !== '') ? parseFloat(s.steuersatz) : 19;
+            const rate = isNaN(rateRaw) ? 19 : rateRaw;
+            return sum + brutto / (1 + rate / 100);
+        }, 0) : bruttoEinnahmen;
+
+        const retourenListe = Store.getRetouren().filter(r => Utils.isInPeriod(r.datum, startDate, endDate));
+        const retourenErstattungen = retourenListe.reduce((sum, r) => sum + (parseFloat(r.erstattungBetrag) || 0), 0);
+        // Retouren am Steuersatz des verknüpften Verkaufs netten (Fallback 19% ohne Verknüpfung)
+        const retourenNetto = isRegel ? retourenListe.reduce((sum, r) => {
+            const betrag = parseFloat(r.erstattungBetrag) || 0;
+            const relSale = r.saleId ? Store.getSales(true).find(s => s.id === r.saleId) : null;
+            const rateRaw = relSale && relSale.steuersatz != null && relSale.steuersatz !== '' ? parseFloat(relSale.steuersatz) : 19;
+            const rate = isNaN(rateRaw) ? 19 : rateRaw;
+            return sum + betrag / (1 + rate / 100);
+        }, 0) : retourenErstattungen;
 
         // Synced unsynced invoices
         const syncedInvIds = new Set(Store.getSales(true).filter(s => s._invoiceId).map(s => s._invoiceId));
@@ -700,15 +719,23 @@ const GbR = {
             if (syncedInvIds.has(inv.id)) return false;
             return Utils.isInPeriod(inv.bezahltAm || inv.datum, startDate, endDate);
         });
+        // Rechnungspositionen sind bereits NETTO (MwSt separat draufgerechnet) — nicht nochmal netten
         const rechnungsEinn = unsyncedInv.reduce((sum, inv) => {
             const sign = inv.typ === 'gutschrift' ? -1 : 1; // §17 UStG: Gutschrift mindert den Umsatz
             return sum + sign * (inv.positionen || []).reduce((s2, p) => s2 + (p.menge || 0) * (p.einzelpreis || 0), 0);
         }, 0);
 
-        const nettoEinnahmen = bruttoEinnahmen + rechnungsEinn - retourenErstattungen;
+        const nettoEinnahmen = (isRegel ? salesNetto : bruttoEinnahmen) + rechnungsEinn - (isRegel ? retourenNetto : retourenErstattungen);
 
-        const wareneinkauf = purchases.filter(p => !p.eigenbeleg_id)
-            .reduce((sum, p) => sum + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1), 0);
+        // Wareneinkauf netto zum tatsächlichen Satz je Einkauf (wie bilanz.js/vorsteuer.js)
+        const wareneinkauf = purchases.filter(p => !p.eigenbeleg_id).reduce((sum, p) => {
+            const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
+            if (!isRegel) return sum + brutto;
+            const rateRaw = (p.ustSatz != null && p.ustSatz !== '') ? parseFloat(p.ustSatz) : 19;
+            const rate = isNaN(rateRaw) ? 19 : rateRaw;
+            return sum + brutto / (1 + rate / 100);
+        }, 0);
+        // Versand/Plattform/Fahrt/Material: keine Satz-Info je Posten gespeichert → pauschal 19% netten (wie euer.js vstOther)
         const versandkosten = sales.reduce((sum, s) =>
             sum + (parseFloat(s.versandkostenVerkaufer) || 0), 0);
         const plattformgebuehren = sales.reduce((sum, s) => {
@@ -722,11 +749,18 @@ const GbR = {
         const materialKosten = Store.getMaterialVerbrauch()
             .filter(v => !v.storniert && v.grund === 'verkauf' && Utils.isInPeriod(v.datum, startDate, endDate))
             .reduce((sum, v) => sum + (parseFloat(v.kosten) || 0), 0);
-        const sonstigeAusgaben = expenses.reduce((sum, e) =>
-            sum + (parseFloat(e.betrag) || 0), 0);
+        const pauschalAusgabenBrutto = versandkosten + plattformgebuehren + fahrtkosten + materialKosten;
+        const pauschalAusgabenNetto = isRegel ? (pauschalAusgabenBrutto / 1.19) : pauschalAusgabenBrutto;
+        // Sonstige Ausgaben netto zum tatsächlichen Satz je Ausgabe
+        const sonstigeAusgaben = expenses.reduce((sum, e) => {
+            const brutto = parseFloat(e.betrag) || 0;
+            if (!isRegel) return sum + brutto;
+            const rateRaw = (e.ustSatz != null && e.ustSatz !== '') ? parseFloat(e.ustSatz) : ((e.steuersatz != null && e.steuersatz !== '') ? parseFloat(e.steuersatz) : 19);
+            const rate = isNaN(rateRaw) ? 19 : rateRaw;
+            return rate > 0 ? sum + brutto / (1 + rate / 100) : sum + brutto;
+        }, 0);
 
-        const summeAusgaben = wareneinkauf + versandkosten + plattformgebuehren +
-                              fahrtkosten + materialKosten + sonstigeAusgaben;
+        const summeAusgaben = wareneinkauf + pauschalAusgabenNetto + sonstigeAusgaben;
         const gewinn = nettoEinnahmen - summeAusgaben;
 
         return { einnahmen: nettoEinnahmen, ausgaben: summeAusgaben, gewinn, verkaeufe: sales.length };
@@ -979,7 +1013,7 @@ const GbR = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Betrag (€) *</label>
-                    <input type="number" step="0.01" min="0" class="form-input" id="nausz_betrag"
+                    <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="nausz_betrag"
                            value="${offen > 0 ? offen.toFixed(2) : '0'}" style="font-size:15px;font-weight:700;">
                 </div>
             </div>

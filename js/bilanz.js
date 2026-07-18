@@ -44,8 +44,11 @@ const Bilanz = {
         }, 0);
 
         // Bezahlte Rechnungen, die noch nicht als Verkauf gesynct sind (gleiches Pattern wie euer.js)
+        // Rechnungspositionen sind bereits NETTO (MwSt wird separat draufgerechnet, s. rechnung.js
+        // updateSummen()) — NICHT nochmal /1.19 teilen (Fix: war vorher ein Doppel-Netting-Fehler,
+        // Netto-Umsatz aus Rechnungen wurde zu niedrig ausgewiesen).
         const syncedInvoiceIds = new Set((Store.getSales ? Store.getSales(true) : []).filter(s => s._invoiceId).map(s => s._invoiceId));
-        const unsyncedInvoicesBrutto = (Store.getRechInvoices ? Store.getRechInvoices() : []).filter(inv => {
+        const unsyncedInvoicesNetto = (Store.getRechInvoices ? Store.getRechInvoices() : []).filter(inv => {
             if (inv.status !== 'bezahlt' || inv._storniert) return false;
             if (inv.typ !== 'rechnung' && inv.typ !== 'gutschrift') return false;
             if (syncedInvoiceIds.has(inv.id)) return false;
@@ -54,11 +57,23 @@ const Bilanz = {
             const sign = inv.typ === 'gutschrift' ? -1 : 1; // §17 UStG: Gutschrift mindert den Umsatz
             return sum + sign * (inv.positionen || []).reduce((s2, p) => s2 + (p.menge || 0) * (p.einzelpreis || 0), 0);
         }, 0);
-        umsatzerloese += isRegel ? (unsyncedInvoicesBrutto / 1.19) : unsyncedInvoicesBrutto;
+        umsatzerloese += unsyncedInvoicesNetto;
 
-        // Retouren abziehen
-        const retourenSum = retouren.reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
-        umsatzerloese -= retourenSum;
+        // Retouren abziehen — am Steuersatz des verknüpften Verkaufs netten (Fix: war Brutto-Abzug von
+        // einer bereits genetteten Netto-Basis, hat den Umsatz um die USt-Quote zu stark gemindert).
+        // Retouren, deren Verkauf bereits vollständig storniert wurde, NICHT nochmal abziehen
+        // (die Einnahme ist durch Store.getSales()-Filterung oben schon raus → sonst Doppelabzug,
+        // gleiches Muster wie euer.js).
+        const stornierteSaleIds = new Set((Store.getSales ? Store.getSales(true) : []).filter(s => s.storniert).map(s => s.id));
+        const relevanteRetouren = retouren.filter(r => !(r.saleId && stornierteSaleIds.has(r.saleId)));
+        const retourenSum = relevanteRetouren.reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
+        const retourenNetto = isRegel ? relevanteRetouren.reduce((s, r) => {
+            const betrag = parseFloat(r.erstattungBetrag) || 0;
+            const relSale = r.saleId ? (Store.getSales ? Store.getSales(true) : []).find(sale => sale.id === r.saleId) : null;
+            const rate = relSale && relSale.steuersatz != null && relSale.steuersatz !== '' ? (parseFloat(relSale.steuersatz) || 19) : 19;
+            return s + betrag / (1 + rate / 100);
+        }, 0) : retourenSum;
+        umsatzerloese -= retourenNetto;
 
         // Wareneinsatz
         const wareneinsatz = purchases.reduce((s, p) => {
@@ -474,7 +489,7 @@ const Bilanz = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Betrag (€) *</label>
-                    <input type="number" step="0.01" min="0" class="form-input" id="ap_betrag">
+                    <input type="number" step="0.01" min="0" max="999999999" class="form-input" id="ap_betrag">
                 </div>
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>
@@ -503,7 +518,7 @@ const Bilanz = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Betrag (€) *</label>
-                    <input type="number" step="0.01" min="0" class="form-input" id="vb_betrag">
+                    <input type="number" step="0.01" min="0" max="999999999" class="form-input" id="vb_betrag">
                 </div>
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>

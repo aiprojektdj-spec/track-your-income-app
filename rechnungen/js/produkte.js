@@ -45,7 +45,7 @@ var Produkte = (function() {
         body += '<textarea class="form-textarea" id="pfBeschr" rows="2">' + Utils.escapeHtml(product ? product.beschreibung || '' : '') + '</textarea></div>';
         body += '<div class="form-row">';
         body += '<div class="form-group"><label class="form-label">Preis (netto)</label>';
-        body += '<input class="form-input" type="number" step="0.01" min="0" id="pfPreis" value="' + (product ? product.preis || 0 : 0) + '"></div>';
+        body += '<input class="form-input" type="number" step="0.01" min="0" max="99999999" id="pfPreis" value="' + (product ? product.preis || 0 : 0) + '"></div>';
         body += '<div class="form-group"><label class="form-label">Einheit</label>';
         body += '<select class="form-select" id="pfEinheit">';
         var einheit = product ? product.einheit || 'St\u00FCck' : 'St\u00FCck';

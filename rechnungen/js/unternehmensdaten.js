@@ -272,9 +272,8 @@ var Unternehmensdaten = (function() {
                 this.value = '';
                 return;
             }
-            var reader = new FileReader();
-            reader.onload = function(ev) {
-                var b64 = ev.target.result;
+            var inputEl = this;
+            Utils.sanitizeImageFile(file).then(function(b64) {
                 // In field speichern
                 logoInput._pendingBase64 = b64;
                 // Vorschau zeigen
@@ -293,8 +292,10 @@ var Unternehmensdaten = (function() {
                     if (wrap) wrap.style.display = '';
                 }
                 if (placeholder) placeholder.style.display = 'none';
-            };
-            reader.readAsDataURL(file);
+            }).catch(function(e) {
+                Utils.showToast(e && e.message || 'Ungültige Bilddatei', 'error');
+                inputEl.value = '';
+            });
         });
 
         // Farb-Vorschau live aktualisieren

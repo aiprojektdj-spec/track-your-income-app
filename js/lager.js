@@ -204,7 +204,7 @@ const Lager = {
                     <!-- Verkaufspreis (groß) -->
                     <div>
                         <label class="form-label" style="font-size:11px;">Verkaufspreis (€) *</label>
-                        <input type="number" step="0.01" min="0" class="form-input" id="vk_preis"
+                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="vk_preis"
                                placeholder="0,00" style="font-size:22px;font-weight:700;padding:8px 12px;"
                                data-action-input="lg-calc-vk">
                     </div>
@@ -213,7 +213,7 @@ const Lager = {
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                         <div>
                             <label class="form-label" style="font-size:11px;">Versand Käufer (€)</label>
-                            <input type="number" step="0.01" min="0" class="form-input" id="vk_versandKaeufer"
+                            <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="vk_versandKaeufer"
                                    value="0" style="padding:6px 10px;font-size:13px;" data-action-input="lg-calc-vk">
                         </div>
                         <div>
@@ -226,7 +226,7 @@ const Lager = {
                     <!-- Versand Verkäufer -->
                     <div>
                         <label class="form-label" style="font-size:11px;">Versand Verkäufer (€)</label>
-                        <input type="number" step="0.01" min="0" class="form-input" id="vk_versandVk"
+                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="vk_versandVk"
                                value="0" style="padding:6px 10px;font-size:13px;" data-action-input="lg-calc-vk">
                     </div>
 
@@ -2099,7 +2099,7 @@ const Lager = {
                     const id     = td.dataset.inlineEk;
                     const curVal = parseFloat(td.dataset.ekVal) || 0;
                     td.innerHTML = `
-                        <input type="number" step="0.01" min="0"
+                        <input type="number" step="0.01" min="0" max="99999999"
                             id="ekInline_${id}" value="${curVal.toFixed(2)}"
                             style="width:82px;padding:2px 5px;font-size:12px;text-align:right;
                                    background:var(--bg-input);color:var(--text-primary);

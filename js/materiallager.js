@@ -153,15 +153,15 @@ const Materiallager = {
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Anfangsbestand</label>
-                            <input type="number" step="1" min="0" class="form-input" id="ml_bestand" placeholder="0" value="0">
+                            <input type="number" step="1" min="0" max="9999999" class="form-input" id="ml_bestand" placeholder="0" value="0">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Mindestbestand (Warnung)</label>
-                            <input type="number" step="1" min="0" class="form-input" id="ml_mindest" placeholder="0" value="0">
+                            <input type="number" step="1" min="0" max="9999999" class="form-input" id="ml_mindest" placeholder="0" value="0">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Kosten pro Einheit (€)</label>
-                            <input type="number" step="0.001" min="0" class="form-input" id="ml_kosten" placeholder="0,00">
+                            <input type="number" step="0.001" min="0" max="99999999" class="form-input" id="ml_kosten" placeholder="0,00">
                         </div>
                     </div>
                     <div class="form-actions">
@@ -236,7 +236,7 @@ const Materiallager = {
                         </div>
                         <div class="form-group">
                             <label class="form-label">Gesamtkosten (€)</label>
-                            <input type="number" step="0.01" min="0" class="form-input" id="mle_gesamt" placeholder="0,00">
+                            <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="mle_gesamt" placeholder="0,00">
                         </div>
                         <div class="form-group">
                             <label class="form-label">€/Einheit (berechnet)</label>
@@ -410,11 +410,11 @@ const Materiallager = {
                 const body = `
                     <div class="form-row">
                         <div class="form-group"><label class="form-label">Bestand</label>
-                            <input type="number" step="1" min="0" class="form-input" id="me_bestand" value="${m.bestand || 0}"></div>
+                            <input type="number" step="1" min="0" max="9999999" class="form-input" id="me_bestand" value="${m.bestand || 0}"></div>
                         <div class="form-group"><label class="form-label">Mindestbestand</label>
-                            <input type="number" step="1" min="0" class="form-input" id="me_mindest" value="${m.mindestbestand || 0}"></div>
+                            <input type="number" step="1" min="0" max="9999999" class="form-input" id="me_mindest" value="${m.mindestbestand || 0}"></div>
                         <div class="form-group"><label class="form-label">€/Einheit</label>
-                            <input type="number" step="0.001" min="0" class="form-input" id="me_kosten" value="${m.kostenProEinheit || 0}"></div>
+                            <input type="number" step="0.001" min="0" max="99999999" class="form-input" id="me_kosten" value="${m.kostenProEinheit || 0}"></div>
                     </div>`;
                 App.showModal('✏️ ' + m.name + ' bearbeiten', body,
                     `<button class="btn btn-primary" data-action="ml-save-edit" data-args='["${m.id}"]' >Speichern</button>

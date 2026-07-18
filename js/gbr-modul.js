@@ -18,12 +18,35 @@ const GbrModul = {
     // ── Jahresgewinn berechnen ────────────────────────────────────
     _calcJahresgewinn(year) {
         const y = String(year);
+        // GbR ist eigenes USt-Steuersubjekt (§19 UStG-Grenze separat von anderen Companies) —
+        // Beträge müssen bei Regelbesteuerung netto in den Gewinn einfließen, USt ist Durchlaufposten.
+        const settings = Store.getSettings();
+        const isRegel = (settings.ustMode || 'klein') === 'regel';
         const sales     = (Store.getSales     ? Store.getSales()     : Store.get('sales')     || []).filter(s => (s.datum||'').startsWith(y));
         const purchases = (Store.getPurchases ? Store.getPurchases() : Store.get('purchases') || []).filter(p => (p.datum||'').startsWith(y) && !p.storniert);
-        const ausgaben  = (Store.get('ausgaben') || []).filter(a => (a.datum||'').startsWith(y));
-        const einnahmen = sales.reduce((s, v) => s + (parseFloat(v.verkaufspreis)||0) + (parseFloat(v.versandkostenKaeufer)||0), 0);
-        const wareneinkauf = purchases.reduce((s, p) => s + (parseFloat(p.einkaufspreis)||0), 0);
-        const betriebsausgaben = ausgaben.reduce((s, a) => s + (parseFloat(a.betrag)||0), 0);
+        // Fix: las vorher aus totem Key 'ausgaben' statt 'expenses' → Betriebsausgaben waren immer 0.
+        const ausgaben  = (Store.getExpenses ? Store.getExpenses() : Store.get('expenses') || []).filter(a => (a.datum||'').startsWith(y));
+        const einnahmen = sales.reduce((s, v) => {
+            const brutto = (parseFloat(v.verkaufspreis)||0) + (parseFloat(v.versandkostenKaeufer)||0);
+            if (!isRegel) return s + brutto;
+            const rate = parseFloat(v.steuersatz) || 19;
+            return s + brutto / (1 + rate / 100);
+        }, 0);
+        // Fix: Menge (anzahl) fehlte im Wareneinkauf-Multiplikator.
+        const wareneinkauf = purchases.reduce((s, p) => {
+            const brutto = (parseFloat(p.einkaufspreis)||0) * (parseInt(p.anzahl)||1);
+            if (!isRegel) return s + brutto;
+            const rateRaw = (p.ustSatz != null && p.ustSatz !== '') ? parseFloat(p.ustSatz) : 19;
+            const rate = isNaN(rateRaw) ? 19 : rateRaw;
+            return s + brutto / (1 + rate / 100);
+        }, 0);
+        const betriebsausgaben = ausgaben.reduce((s, a) => {
+            const brutto = parseFloat(a.betrag) || 0;
+            if (!isRegel) return s + brutto;
+            const rateRaw = (a.ustSatz != null && a.ustSatz !== '') ? parseFloat(a.ustSatz) : ((a.steuersatz != null && a.steuersatz !== '') ? parseFloat(a.steuersatz) : 19);
+            const rate = isNaN(rateRaw) ? 19 : rateRaw;
+            return rate > 0 ? s + brutto / (1 + rate / 100) : s + brutto;
+        }, 0);
         return { einnahmen, wareneinkauf, betriebsausgaben, gewinn: einnahmen - wareneinkauf - betriebsausgaben };
     },
 
@@ -274,7 +297,7 @@ const GbrModul = {
             const betrag = parseFloat(document.getElementById('verr_betrag').value);
             const beschr = document.getElementById('verr_beschr').value.trim();
             if (!datum||!gsId)               { Utils.showToast('Pflichtfelder ausfüllen','warning'); return; }
-            if (isNaN(betrag)||betrag<0)     { Utils.showToast('Ungültiger Betrag','warning');      return; }
+            if (!Number.isFinite(betrag)||betrag<0)     { Utils.showToast('Ungültiger Betrag','warning');      return; }
             const all = this._getVerr();
             all.push({ id: Store.generateId(), gsId, datum, typ, betrag, beschreibung: beschr, createdAt: new Date().toISOString() });
             this._saveVerr(all);
@@ -420,7 +443,7 @@ const GbrModul = {
             const betrag  = parseFloat(document.getElementById('vz_betrag').value);
             const notizen = document.getElementById('vz_notizen').value.trim();
             if (!datum)              { Utils.showToast('Datum angeben','warning');   return; }
-            if (isNaN(betrag)||betrag<=0) { Utils.showToast('Betrag angeben','warning'); return; }
+            if (!Number.isFinite(betrag)||betrag<=0) { Utils.showToast('Betrag angeben','warning'); return; }
             const d = this._getGewSt();
             if (!d[year]) d[year] = { vorauszahlungen: [] };
             d[year].vorauszahlungen.push({ id: Store.generateId(), datum, quartal, betrag, notizen, createdAt: new Date().toISOString() });

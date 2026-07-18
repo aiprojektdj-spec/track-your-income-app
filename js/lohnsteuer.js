@@ -135,7 +135,7 @@ const Lohnsteuer = {
             <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
                 <div class="form-group" style="flex:1;min-width:150px;">
                     <label class="form-label">Brutto-Monatsgehalt (€)</label>
-                    <input type="number" step="1" min="0" class="form-input" id="calcBrutto" value="3000" placeholder="3000">
+                    <input type="number" step="1" min="0" max="9999999" class="form-input" id="calcBrutto" value="3000" placeholder="3000">
                 </div>
                 <div class="form-group" style="width:120px;">
                     <label class="form-label">Steuerklasse</label>
@@ -271,7 +271,7 @@ const Lohnsteuer = {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Brutto-Monatsgehalt (€) *</label>
-                        <input type="number" step="1" min="0" class="form-input" id="emp_brutto" placeholder="3000">
+                        <input type="number" step="1" min="0" max="9999999" class="form-input" id="emp_brutto" placeholder="3000">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Steuerklasse</label>

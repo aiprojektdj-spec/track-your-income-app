@@ -452,7 +452,7 @@ var Dokumente = (function() {
         body += '<select class="form-select" id="bezahltPurchaseId">' + lagerOptions + '</select></div>';
 
         body += '<div class="form-group" id="bezahltManualGroup" style="display:none;"><label class="form-label">Einkaufspreis (\u20AC)</label>';
-        body += '<input type="number" step="0.01" min="0" class="form-input" id="bezahltManualEK" placeholder="0,00"></div>';
+        body += '<input type="number" step="0.01" min="0" max="99999999" class="form-input" id="bezahltManualEK" placeholder="0,00"></div>';
 
         var footer = '<button class="btn btn-success" id="confirmBezahlt">Bezahlt markieren &amp; Verkauf eintragen</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
 

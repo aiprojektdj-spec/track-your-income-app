@@ -17,7 +17,12 @@ const Retouren = {
         ).join('');
 
         // Sales dropdown: recent non-storniert sales for linking
+        // Fix: Sales aus Rechnungen (_invoiceId) ausgeschlossen — eine Retoure storniert den Sale-Eintrag,
+        // aber in Soll-Versteuerung liest die UVA Rechnungsumsätze direkt aus den Rechnungen (nicht aus
+        // Sales), das Stornieren des Sale-Spiegels hätte also KEINE Wirkung auf die gemeldete USt.
+        // Für Rechnungen ist eine Gutschrift (§17 UStG) der korrekte Weg, nicht eine Retoure.
         const recentSales = Store.getSales()
+            .filter(s => !s._invoiceId)
             .sort((a, b) => (b.datum || '').localeCompare(a.datum || ''))
             .slice(0, 100);
         const salesOptions = recentSales.map(s => {
@@ -119,11 +124,11 @@ const Retouren = {
                         </div>
                         <div class="form-group">
                             <label class="form-label">Originaler Verkaufspreis (€)</label>
-                            <input type="number" step="0.01" min="0" class="form-input" id="rt_vkPreis" placeholder="0,00">
+                            <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="rt_vkPreis" placeholder="0,00">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Erstattung an Käufer (€)</label>
-                            <input type="number" step="0.01" min="0" class="form-input" id="rt_erstattung" placeholder="0,00">
+                            <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="rt_erstattung" placeholder="0,00">
                         </div>
                     </div>
 
@@ -133,6 +138,7 @@ const Retouren = {
                             <option value="">– Kein Verkauf verknüpfen –</option>
                             ${salesOptions}
                         </select>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Für eine Rechnung gibt es hier keine Auswahl — bitte stattdessen eine <strong>Gutschrift</strong> zur Rechnung erstellen (§17 UStG), sonst wirkt sich die Retoure nicht auf die USt-Voranmeldung aus.</div>
                     </div>
                     <div id="rt_saleHint" style="display:none;padding:8px 12px;background:var(--success-bg);border:1px solid var(--success);border-radius:var(--radius-sm);font-size:12px;color:var(--success);margin-bottom:12px;">
                         ✅ Verkauf wird storniert · Artikel zurück ins Lager · Verpackungskosten storniert

@@ -1014,8 +1014,11 @@ const App = {
         const preWarnKey = 'ust_prewarn_' + year;
 
         // 1) Obere Grenze: 100.000 € im laufenden Jahr → Status entfällt SOFORT ab überschreitendem Umsatz
+        // Fix: Dismiss-Flags liefen vorher über rohes, NICHT company-gescoptes localStorage — bei zwei
+        // Companies (z.B. Einzelunternehmen + GbR) konnte das Bestätigen der Warnung in einer Company
+        // die Warnung der anderen Company unterdrücken. Store.get/set scoped automatisch pro Company.
         if (umsatz >= GRENZE_LFD) {
-            if (!localStorage.getItem(hardKey)) {
+            if (!Store.get(hardKey)) {
                 setTimeout(() => this._showUstThresholdModal(umsatz, year, hardKey, 'sofort'), 400);
             }
             return;
@@ -1023,13 +1026,13 @@ const App = {
 
         // 2) Vorjahresgrenze 25.000 € im lfd. Jahr überschritten → ab Folgejahr regelbesteuert
         if (umsatz >= GRENZE_VJ) {
-            if (!localStorage.getItem(warnKey)) {
+            if (!Store.get(warnKey)) {
                 setTimeout(() => this._showUstThresholdModal(umsatz, year, warnKey, 'folgejahr'), 400);
             }
         } else if (umsatz >= GRENZE_VJ * 0.9) {
             // 90 % Vorwarnung (ab 22.500 €) — einmalige Toast-Meldung
-            if (!localStorage.getItem(preWarnKey) && !localStorage.getItem(warnKey)) {
-                localStorage.setItem(preWarnKey, '1');
+            if (!Store.get(preWarnKey) && !Store.get(warnKey)) {
+                Store.set(preWarnKey, '1');
                 const rest = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
                     .format(GRENZE_VJ - umsatz);
                 setTimeout(() => Utils.showToast(
@@ -1098,13 +1101,13 @@ const App = {
         const s = Store.getSettings();
         s.ustMode = 'regel';
         Store.saveSettings(s);
-        localStorage.setItem(warnKey, '1');
+        Store.set(warnKey, '1');
         this.closeModal();
         Utils.showToast('Umgestellt auf Regelbesteuerung — bitte Finanzamt informieren!', 'warning');
     },
 
     _ustDismissThreshold(warnKey) {
-        localStorage.setItem(warnKey, '1');
+        Store.set(warnKey, '1');
         this.closeModal();
     },
 
@@ -1640,9 +1643,9 @@ const App = {
                     Utils.showToast('Logo zu groß (max. 500 KB)', 'warning');
                     return;
                 }
-                const reader = new FileReader();
-                reader.onload = (ev) => saveAndClose(ev.target.result);
-                reader.readAsDataURL(file);
+                Utils.sanitizeImageFile(file).then(saveAndClose).catch((e) => {
+                    Utils.showToast(e && e.message || 'Ungültige Bilddatei', 'error');
+                });
                 return;
             }
             saveAndClose(s.logoBase64 || '');

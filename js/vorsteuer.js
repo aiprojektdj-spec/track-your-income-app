@@ -587,7 +587,7 @@ const Vorsteuer = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Netto-Betrag (€) *</label>
-                    <input type="number" step="0.01" min="0" class="form-input" id="rc_netto" placeholder="0,00">
+                    <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="rc_netto" placeholder="0,00">
                     <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Vorsteuer wird automatisch berechnet</div>
                 </div>
                 <div class="form-group">
@@ -656,7 +656,7 @@ const Vorsteuer = {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Netto-Betrag (€) *</label>
-                        <input type="number" step="0.01" min="0" class="form-input" id="ig_netto" placeholder="0,00">
+                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="ig_netto" placeholder="0,00">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Steuersatz DE (%)</label>
@@ -724,11 +724,11 @@ const Vorsteuer = {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Netto-Betrag (€) *</label>
-                        <input type="number" step="0.01" min="0" class="form-input" id="mv_netto" placeholder="0,00">
+                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="mv_netto" placeholder="0,00">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Vorsteuer-Betrag (€) *</label>
-                        <input type="number" step="0.01" min="0" class="form-input" id="mv_vst" placeholder="0,00">
+                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="mv_vst" placeholder="0,00">
                     </div>
                 </div>
                 <div class="form-group">

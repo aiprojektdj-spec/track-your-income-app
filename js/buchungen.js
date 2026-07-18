@@ -116,7 +116,7 @@ const Buchungen = {
                     </div>
                     <div class="form-group">
                         <label class="form-label">Gesamtbudget (optional)</label>
-                        <input type="number" step="0.01" min="0" class="form-input" id="sess_budget" placeholder="0,00" value="${Utils.escapeHtml(String(sessionBudget))}">
+                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="sess_budget" placeholder="0,00" value="${Utils.escapeHtml(String(sessionBudget))}">
                     </div>
                 </div>
             </div>
@@ -557,19 +557,19 @@ const Buchungen = {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Verkaufspreis (Gesamt)</label>
-                        <input type="number" step="0.01" min="0" class="form-input" id="vk_preis" placeholder="0,00">
+                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="vk_preis" placeholder="0,00">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Versandkosten (Käufer zahlt)</label>
-                        <input type="number" step="0.01" min="0" class="form-input" id="vk_versandKaeufer" value="0">
+                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="vk_versandKaeufer" value="0">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Plattformgebühr (%)</label>
-                        <input type="number" step="0.01" min="0" class="form-input" id="vk_gebuehr" value="0">
+                        <input type="number" step="0.01" min="0" max="100" class="form-input" id="vk_gebuehr" value="0">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Versandkosten (meine Kosten)</label>
-                        <input type="number" step="0.01" min="0" class="form-input" id="vk_versandVk" value="0">
+                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="vk_versandVk" value="0">
                     </div>
                 </div>
                 <div class="form-group">
@@ -586,7 +586,7 @@ const Buchungen = {
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
                             <span style="flex:2;font-size:13px;">${Utils.escapeHtml(m.name)}</span>
                             <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${parseInt(m.bestand)||0} ${m.einheit||'Stück'}</span>
-                            <input type="number" step="1" min="0" class="form-input vk_mat_menge"
+                            <input type="number" step="1" min="0" max="999999" class="form-input vk_mat_menge"
                                 data-mat-id="${m.id}" data-kosten="${m.kostenProEinheit||0}"
                                 style="width:70px;" placeholder="0" value="0">
                             <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;"

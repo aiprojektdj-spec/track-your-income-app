@@ -198,7 +198,7 @@ const Koerperschaftsteuer = {
             <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
                 <div class="form-group" style="flex:1;min-width:200px;">
                     <label class="form-label">Verlustvortrag aus Vorjahr (€)</label>
-                    <input type="number" step="0.01" min="0" class="form-input" id="kstVerlust" value="${calc.verlustvortrag || ''}" placeholder="0,00">
+                    <input type="number" step="0.01" min="0" max="999999999" class="form-input" id="kstVerlust" value="${calc.verlustvortrag || ''}" placeholder="0,00">
                 </div>
                 <button class="btn btn-primary" id="saveVerlustBtn" style="height:38px;">Speichern</button>
             </div>
@@ -228,7 +228,7 @@ const Koerperschaftsteuer = {
                 ${vz.length === 0
                     ? `<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-muted);">Keine Vorauszahlungen</td></tr>`
                     : vz.map(v => `<tr style="border-bottom:1px solid var(--border);">
-                        <td style="padding:7px 8px;font-size:12px;">${v.datum}</td>
+                        <td style="padding:7px 8px;font-size:12px;">${Utils.escapeHtml(v.datum)}</td>
                         <td style="padding:7px 8px;font-size:12px;">Q${v.quartal}</td>
                         <td style="padding:7px 8px;font-size:12px;color:var(--text-secondary);">${Utils.escapeHtml(v.notiz || '')}</td>
                         <td style="padding:7px 8px;font-size:12px;font-weight:700;text-align:right;">${Utils.formatCurrency(v.betrag)}</td>
@@ -277,7 +277,7 @@ const Koerperschaftsteuer = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Betrag (€) *</label>
-                    <input type="number" step="0.01" min="0" class="form-input" id="kvz_betrag" placeholder="0,00">
+                    <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="kvz_betrag" placeholder="0,00">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Notiz</label>

@@ -166,7 +166,7 @@ const Privatbuchungen = {
             </div>
             <div class="form-group">
                 <label class="form-label">Betrag (€) *</label>
-                <input type="number" class="form-input" id="priv_betrag" step="0.01" min="0" placeholder="0,00">
+                <input type="number" class="form-input" id="priv_betrag" step="0.01" min="0" max="99999999" placeholder="0,00">
             </div>
             <div class="form-group">
                 <label class="form-label">Beschreibung / Zweck</label>

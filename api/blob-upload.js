@@ -182,10 +182,13 @@ module.exports = async function handler(req, res) {
             var finalName = String(b.name || 'f').replace(/[^a-zA-Z0-9_.-]/g, '');
             if (!finalName) return res.status(400).json({ error: 'bad_name' });
 
+            // ponytail: Host auf Vercel-Blob-Storage eingeschraenkt (nicht nur https://) —
+            // sonst SSRF, da chunkUrls vom Client kommen und der Server sie blind fetcht.
+            var BLOB_HOST_RE = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i;
             var parts = [], total = 0;
             for (var i = 0; i < chunkUrls.length; i++) {
                 var u = String(chunkUrls[i] || '');
-                if (u.indexOf('https://') !== 0) return res.status(400).json({ error: 'bad_chunk_url' });
+                if (!BLOB_HOST_RE.test(u)) return res.status(400).json({ error: 'bad_chunk_url' });
                 var r = await fetch(u, { signal: AbortSignal.timeout(15000) });
                 if (!r.ok) return res.status(502).json({ error: 'chunk_fetch_failed', index: i });
                 var buf = Buffer.from(await r.arrayBuffer());

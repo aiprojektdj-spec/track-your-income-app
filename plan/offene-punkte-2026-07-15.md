@@ -41,14 +41,31 @@ Punkte 5/6/7 am 2026-07-17 verifiziert und abgeschlossen (siehe unten).
    gehärtet: dieselben Filter ließen bislang auch `typ==='angebot'` durch, falls versehentlich als
    "bezahlt" markiert — jetzt auf `rechnung`/`gutschrift` beschränkt. Nicht angefasst: OSS-
    Schwellenwert-Tracking (`oss.js`) berücksichtigt Gutschrift-Stornos noch nicht — siehe Punkt 4.
-2. OFFEN — Kz. 41 vs. Kz. 21 bei EU-B2B-Dienstleistungen (ZM-Abgleich-Diskrepanz). Braucht
-   Ware/Leistung-Feld an Position/Rechnung + `legal-reviewer`-Konsultation. Nicht angefasst.
-3. OFFEN — Ist-Modus strukturell lückenhaft bei EU-Geschäft. Verifiziert 2026-07-17: kein
-   In-App-Hinweis in `js/ustvoranmeldung.js` (`_isSoll()`-Pfad) — die "Dokumentation" ist bislang
-   nur ein Code-Kommentar, für Nutzer unsichtbar. Braucht sichtbaren UI-Hinweis, nicht angefasst
-   (UX-Entscheidung nötig).
-4. OFFEN — OSS unterjährig: rückwirkendes Kippen von Q1/Q2 bei Schwellen-Überschreitung in Q3.
-   Braucht Klärung §3c UStG Schwellenübergang, nicht angefasst.
+2. ✅ **Kz. 41 vs. Kz. 21 bei EU-B2B-Dienstleistungen — 2026-07-18 gefixt.** `legal-reviewer`
+   bestätigt: Kz. 41 ist an §4 Nr.1b/§6a UStG (Lieferungen) gebunden, sonstige Leistungen
+   (§3a Abs.2 UStG) gehören in Kz. 21 — kein Geldschaden, aber ZM-Abgleich-Diskrepanz-Risiko bei
+   Finanzamt-Prüfung. Fix: neues `igArt`-Feld (`'ware'`|`'leistung'`, Default `'ware'` =
+   rückwärtskompatibel) auf Rechnungsebene, Auswahl-Dropdown im §13b-Hinweisblock in
+   `rechnungen/js/rechnung.js` (nur sichtbar bei erkanntem EU-B2B-Kunden). `js/ustvoranmeldung.js`
+   verzweigt jetzt `nettoIgLieferung`(Kz.41)/`nettoIgLeistung`(Kz.21) getrennt in Render, Footer-Text
+   und ELSTER-CSV-Export. Alter Warnhinweis ("Stackr kann nicht unterscheiden") entfernt, da jetzt
+   möglich. Render-Test (isoliert, vm-Sandbox) bestätigt korrekte Kz.41/21-Verzweigung.
+3. ✅ **Ist-Modus strukturell lückenhaft bei EU-Geschäft — 2026-07-18 gefixt.** Sichtbarer
+   Warnhinweis in `js/ustvoranmeldung.js` `render()` ergänzt (erscheint nur wenn
+   `!this._isSoll()`): weist auf fehlende Kz.41/21- und OSS-Erfassung im Ist-Modus hin, empfiehlt
+   Rücksprache mit Steuerberater bei EU-Geschäft. Render-Test bestätigt korrektes Ein-/Ausblenden.
+4. ✅ **OSS unterjährig: rückwirkendes Kippen — 2026-07-18 gefixt (echter Bug, hoch).**
+   `legal-reviewer` + `fn-checker` bestätigt: §3c Abs.4 S.1 UStG wirkt prospektiv ab dem
+   Umsatz, der die 10.000€-Schwelle reißt — NICHT rückwirkend auf bereits getätigte Umsätze
+   desselben Jahres (nur die Vorjahresschwelle nach S.2 wirkt rückwirkend ab dem 1. Umsatz).
+   Der alte Code (`ossActive`-Boolean aus `OSS._jahresumsatz(periodYear)`, dem GESAMTEN
+   Jahresumsatz) schloss bei später im Jahr gerissener Schwelle auch früh im Jahr korrekt
+   dt.-versteuerte Rechnungen rückwirkend aus der UVA aus — stille USt-Verkürzung, Risiko
+   §153 AO Anzeigepflicht + §233a AO Zinsen. Fix: `OSS._ueberSchwelleInvoiceIds(year)` in
+   `js/oss.js` — chronologische Laufsumme pro Rechnung statt Jahres-Flag, nur Rechnungen ab
+   (inkl.) dem Schwellen-Riss gehen zu OSS. `js/ustvoranmeldung.js` nutzt jetzt Invoice-ID-Set
+   statt Boolean. Isolierter Node-Test (2 Fälle: unterjähriger Riss + Vorjahresschwelle-Fall)
+   bestätigt korrektes Verhalten.
 5. ✅ **`vorsteuer.js` Kz.-66-Label** — 2026-07-17 verifiziert: Zeile ~297-302 zeigt Kz. 66 bereits
    korrekt separiert (nur echte Vorsteuer aus Einkäufen/Ausgaben), §13b läuft unter Kz. 67, IG-Erwerb
    unter Kz. 61, kein Aufsummieren. War beim P0-4/5-Fix bereits miterledigt — Restliste-Eintrag war

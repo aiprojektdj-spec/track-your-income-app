@@ -239,7 +239,7 @@ const Afa = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Anschaffungskosten (€) *</label>
-                    <input type="number" class="form-input" id="afa_ak" step="0.01" min="0" value="${existing.anschaffungskosten || ''}" placeholder="0,00">
+                    <input type="number" class="form-input" id="afa_ak" step="0.01" min="0" max="99999999" value="${existing.anschaffungskosten || ''}" placeholder="0,00">
                 </div>
             </div>
             <div class="form-row">
@@ -279,7 +279,7 @@ const Afa = {
 
         if (!bez) { Utils.showToast('Bezeichnung fehlt', 'error'); return; }
         if (!datum) { Utils.showToast('Datum fehlt', 'error'); return; }
-        if (ak <= 0) { Utils.showToast('Anschaffungskosten fehlen', 'error'); return; }
+        if (!Number.isFinite(ak) || ak <= 0 || ak > 99999999) { Utils.showToast('Anschaffungskosten ungültig', 'error'); return; }
         if (nd < 1) { Utils.showToast('Nutzungsdauer muss ≥ 1 sein', 'error'); return; }
 
         const item = {

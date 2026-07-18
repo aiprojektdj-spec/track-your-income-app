@@ -85,6 +85,7 @@ const CompanyManager = {
     },
 
     updateColor(id, hex) {
+        if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
         const companies = this.getAll();
         const co = companies.find(c => c.id === id);
         if (!co) return;
@@ -336,7 +337,7 @@ const CompanyManager = {
     renderSwitcherBtn() {
         this._injectStyles();
         const co    = this.getActive();
-        const color = co ? co.farbe : '#10b981';
+        const color = (co && /^#[0-9a-fA-F]{6}$/.test(co.farbe)) ? co.farbe : '#10b981';
         const name  = co ? co.name  : '—';
 
         return `

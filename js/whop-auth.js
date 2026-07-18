@@ -582,7 +582,7 @@ var AuthUI = (function () {
     }
 
     function _esc(s) {
-        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     return { boot, openUserMenu, openReferral, _logout, _loginWithWhop };

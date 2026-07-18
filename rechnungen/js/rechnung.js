@@ -142,6 +142,13 @@ var Rechnung = (function() {
         html += '</div>';
         html += '<div id="reverseChargeHint" style="display:none;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);">';
         html += 'ℹ️ <strong>§13b UStG – Reverse Charge:</strong> EU-Geschäftskunde mit USt-IdNr. erkannt. Steuerschuldnerschaft geht auf den Empfänger über, USt-Sätze wurden auf 0% gesetzt.';
+        html += '<div style="margin-top:8px;">';
+        html += '<label class="form-label" style="font-size:11px;">Art des Umsatzes (entscheidet Kz. 41 vs. Kz. 21 in der UVA)</label>';
+        html += '<select class="form-select" id="invIgArt" style="max-width:320px;">';
+        html += '<option value="ware"' + ((editingInvoice && editingInvoice.igArt === 'leistung') ? '' : ' selected') + '>Lieferung (Ware) – §4 Nr.1b/§6a UStG, Kz. 41</option>';
+        html += '<option value="leistung"' + ((editingInvoice && editingInvoice.igArt === 'leistung') ? ' selected' : '') + '>Sonstige Leistung (Dienstleistung) – §3a Abs.2 UStG, Kz. 21</option>';
+        html += '</select>';
+        html += '</div>';
         html += '</div>';
         // §14 UStG (Wachstumschancengesetz): seit 01.01.2025 müssen inländische Unternehmen (auch KU)
         // strukturierte E-Rechnungen empfangen können; die aktive Versandpflicht greift gestaffelt ab 2027/2028.
@@ -206,7 +213,7 @@ var Rechnung = (function() {
         html += '<div class="form-group"><label class="form-label">Zahlungsbedingungen</label>';
         html += '<textarea class="form-textarea" id="invZahlung" rows="2">' + Utils.escapeHtml(zahlungsbedingungen) + '</textarea></div>';
         html += '<div class="form-group"><label class="form-label">Notizen</label>';
-        html += '<textarea class="form-textarea" id="invNotizen" rows="2">' + Utils.escapeHtml(notizen) + '</textarea></div>';
+        html += '<textarea class="form-textarea" id="invNotizen" rows="2" maxlength="1000">' + Utils.escapeHtml(notizen) + '</textarea></div>';
         html += '</div></div>';
 
         // Eigenbelege-Verknüpfung
@@ -258,11 +265,11 @@ var Rechnung = (function() {
 
         html += '<div class="form-group" style="flex: 2;">';
         if (idx === 0) html += '<label class="form-label">Beschreibung</label>';
-        html += '<input class="form-input pos-beschreibung" data-idx="' + idx + '" value="' + Utils.escapeHtml(pos.beschreibung || '') + '"></div>';
+        html += '<input class="form-input pos-beschreibung" maxlength="500" data-idx="' + idx + '" value="' + Utils.escapeHtml(pos.beschreibung || '') + '"></div>';
 
         html += '<div class="form-group" style="flex: 0.7;">';
         if (idx === 0) html += '<label class="form-label">Menge</label>';
-        html += '<input class="form-input pos-menge" type="number" step="0.01" min="0" data-idx="' + idx + '" value="' + (pos.menge || 1) + '"></div>';
+        html += '<input class="form-input pos-menge" type="number" step="0.01" min="0" max="999999" data-idx="' + idx + '" value="' + (pos.menge || 1) + '"></div>';
 
         html += '<div class="form-group" style="flex: 0.8;">';
         if (idx === 0) html += '<label class="form-label">Einheit</label>';
@@ -274,7 +281,7 @@ var Rechnung = (function() {
 
         html += '<div class="form-group" style="flex: 1;">';
         if (idx === 0) html += '<label class="form-label">Einzelpreis</label>';
-        html += '<input class="form-input pos-einzelpreis" type="number" step="0.01" min="0" data-idx="' + idx + '" value="' + (pos.einzelpreis || 0) + '"></div>';
+        html += '<input class="form-input pos-einzelpreis" type="number" step="0.01" min="0" max="99999999" data-idx="' + idx + '" value="' + (pos.einzelpreis || 0) + '"></div>';
 
         html += '<div class="form-group" style="flex: 0.7;">';
         if (idx === 0) html += '<label class="form-label">MwSt</label>';
@@ -826,10 +833,22 @@ var Rechnung = (function() {
             Utils.showToast('Mindestens eine Position erforderlich', 'warning');
             return null;
         }
+        if (positionen.some(function(p) { return !Number.isFinite(p.menge) || !Number.isFinite(p.einzelpreis) || p.menge < 0 || p.einzelpreis < 0 || p.menge > 999999 || p.einzelpreis > 99999999; })) {
+            Utils.showToast('Menge und Einzelpreis müssen gültige, nicht-negative Zahlen in einem plausiblen Bereich sein.', 'error');
+            return null;
+        }
+
+        if (nummer && Store.getRechInvoices(true).some(function(d) {
+            return d.nummer === nummer && (!editingInvoice || d.id !== editingInvoice.id);
+        })) {
+            Utils.showToast('Rechnungsnummer "' + nummer + '" ist bereits vergeben.', 'error');
+            return null;
+        }
 
         var invoice = {
             id: editingInvoice ? editingInvoice.id : Store.generateId(),
             isKlein: editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (Store.getSettings().ustMode === 'klein'),
+            igArt: (document.getElementById('invIgArt') && document.getElementById('invIgArt').value) || 'ware',
             typ: typ,
             nummer: nummer,
             datum: datum,

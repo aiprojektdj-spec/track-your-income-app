@@ -47,6 +47,26 @@ const OSS = {
         return this._getB2CInvoices(year).reduce((s, { inv }) => s + this._netto(inv), 0);
     },
 
+    // Rechnungs-IDs, die dem Bestimmungslandprinzip unterliegen (OSS-pflichtig statt dt. USt).
+    // §3c Abs. 4 S. 1 UStG wirkt PROSPEKTIV ab dem Umsatz, der die 10.000€-Schwelle reißt — nicht
+    // rückwirkend auf bereits getätigte Umsätze desselben Jahres. Nur die Vorjahresschwelle (S. 2)
+    // wirkt rückwirkend ab dem 1. Umsatz. Darum hier chronologische Laufsumme statt Jahres-Flag.
+    // ponytail: Tie-Break bei gleichem Rechnungsdatum = Einfügereihenfolge, in der Praxis irrelevant.
+    _ueberSchwelleInvoiceIds(year) {
+        if (this._jahresumsatz(year - 1) >= this.SCHWELLE) {
+            return new Set(this._getB2CInvoices(year).map(({ inv }) => inv.id));
+        }
+        const sorted = this._getB2CInvoices(year).slice().sort((a, b) => (a.inv.datum || '').localeCompare(b.inv.datum || ''));
+        let kumuliert = 0, ueberschritten = false;
+        const ids = new Set();
+        sorted.forEach(({ inv }) => {
+            if (ueberschritten) { ids.add(inv.id); return; }
+            kumuliert += this._netto(inv);
+            if (kumuliert >= this.SCHWELLE) { ueberschritten = true; ids.add(inv.id); }
+        });
+        return ids;
+    },
+
     render() {
         if (!this._isRegel()) {
             return `

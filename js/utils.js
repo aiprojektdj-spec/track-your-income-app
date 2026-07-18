@@ -165,6 +165,56 @@ const Utils = {
             .replace(/'/g, '&#39;');
     },
 
+    // Logo-Upload-Sanitizer: prüft Magic Bytes statt dem client-seitig spoofbaren
+    // declared MIME-Type, und entschärft SVGs (Script/Event-Handler/javascript:-URIs
+    // strippen), bevor sie als data:-URL im Logo-Feld landen.
+    sanitizeImageFile(file) {
+        return new Promise((resolve, reject) => {
+            const isSvg = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name || '');
+            if (isSvg) {
+                const reader = new FileReader();
+                reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden.'));
+                reader.onload = () => {
+                    let text = String(reader.result || '');
+                    if (!/^\s*(<\?xml[^>]*>\s*)?(<!DOCTYPE[^>]*>\s*)?<svg[\s>]/i.test(text)) {
+                        reject(new Error('Keine gültige SVG-Datei.'));
+                        return;
+                    }
+                    text = text
+                        .replace(/<script[\s\S]*?<\/script>/gi, '')
+                        .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
+                        .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+                        .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
+                        .replace(/(xlink:href|href)\s*=\s*["']\s*javascript:[^"']*["']/gi, '$1="#"')
+                        .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '');
+                    resolve('data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(text))));
+                };
+                reader.readAsText(file);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden.'));
+            reader.onload = () => {
+                const bytes = new Uint8Array(reader.result);
+                const hex = Array.from(bytes.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join('');
+                const isPng  = hex === '89504e47';
+                const isJpeg = hex.startsWith('ffd8ff');
+                const isGif  = hex.startsWith('47494638');
+                if (!isPng && !isJpeg && !isGif) {
+                    reject(new Error('Dateityp nicht erkannt — nur PNG, JPEG, GIF oder SVG erlaubt.'));
+                    return;
+                }
+                const blob = new Blob([bytes], { type: file.type });
+                const r2 = new FileReader();
+                r2.onerror = () => reject(new Error('Datei konnte nicht gelesen werden.'));
+                r2.onload = () => resolve(r2.result);
+                r2.readAsDataURL(blob);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    },
+
     downloadFile(content, filename, type = 'text/plain') {
         const blob = new Blob([content], { type });
         const url = URL.createObjectURL(blob);
@@ -178,7 +228,11 @@ const Utils = {
     downloadCSV(rows, filename) {
         const BOM = '\uFEFF';
         const csv = BOM + rows.map(row => row.map(cell => {
-            const str = String(cell == null ? '' : cell);
+            let str = String(cell == null ? '' : cell);
+            // CSV-/Formel-Injection: Excel/Sheets interpretieren Zellen, die mit =, +, -
+            // oder @ beginnen, als Formel (z.B. via importiertem SEPA-Verwendungszweck).
+            // F\u00FChrendes Apostroph erzwingt Text-Interpretation.
+            if (/^[=+\-@]/.test(str)) str = "'" + str;
             return str.includes(';') || str.includes(',') || str.includes('"') || str.includes('\n')
                 ? '"' + str.replace(/"/g, '""') + '"'
                 : str;

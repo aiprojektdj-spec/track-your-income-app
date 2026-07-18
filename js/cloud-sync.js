@@ -34,6 +34,8 @@ var CloudSync = (function () {
     var LS_BASE    = function (scope) { return 'oyi_sync_base_' + scope; };   // zuletzt synchronisierter updatedAt je Record (Konflikt-Basis)
     var LS_BLOBCACHE = function (scope) { return 'oyi_sync_blobcache_' + scope; };   // Inhalts-Hash → Blob-URL, verhindert Doppel-Uploads unveränderter Anhänge
     var LS_CONFLICTS = 'oyi_sync_conflicts';                                  // offene Parallel-Konflikte (beide Fassungen), überlebt Reload
+    var LS_LAST_OK   = 'oyi_sync_last_ok';                                    // Timestamp des letzten vollständig erfolgreichen Sync-Laufs
+    var HEALTHY_MAX_AGE_MS = 7 * 86400000;   // älter → lokale Backup-Hinweise NICHT unterdrücken (Sync könnte hängen)
 
     var _cryptoKeyCache = null;   // importierter CryptoKey (für aktuellen User)
     var _cryptoKeyUid   = null;
@@ -393,6 +395,7 @@ var CloudSync = (function () {
                 if (companies[i] && companies[i].id && !companies[i]._readonly) await _syncScope(companies[i].id, isStartup);
             }
             _setDot('ok');
+            try { localStorage.setItem(LS_LAST_OK, String(Date.now())); } catch (e) {}
             if (_conflicts.length) {
                 console.warn('[CloudSync] Parallel-Konflikte erkannt (beide Fassungen gesichert):', _conflicts);
                 var pending = _persistConflicts(_conflicts);
@@ -753,7 +756,12 @@ var CloudSync = (function () {
                 if (isCacheKey) toCache[k] = ser; else { try { localStorage.setItem(k, ser); } catch (e) {} }
             });
             if (Object.keys(toCache).length && typeof Store !== 'undefined') Store.syncApplyKeys(toCache);
-            clientCos.push(Object.assign({}, co, { _readonly: true, _clientOf: ownerId }));
+            // Fremde Firmenfelder landen ungeprüft im eigenen localStorage (Klartext-Ursprung ist
+            // der Mandant, nicht der Server) — farbe wird überall als CSS-Wert interpoliert, daher
+            // hier hart auf gültiges Hex whitelisten statt erst beim Rendern zu filtern.
+            var safeCo = Object.assign({}, co, { _readonly: true, _clientOf: ownerId });
+            if (!/^#[0-9a-fA-F]{6}$/.test(safeCo.farbe)) safeCo.farbe = '#10b981';
+            clientCos.push(safeCo);
         }
         // Registry mergen — eigene Firmen NICHT überschreiben (Client-IDs sind eigenständig)
         var mine = []; try { mine = JSON.parse(localStorage.getItem('oyi_companies') || '[]'); } catch (e) {}
@@ -782,6 +790,20 @@ var CloudSync = (function () {
         });
         localStorage.setItem('oyi_companies', JSON.stringify(keep));
         return drop.length;
+    }
+
+    // ── Health-Check für lokale Backup-Hinweise ───────────────────────────────
+    // "Gesund" heißt: aktiv, entschlüsselbar, Pro, keine offenen Konflikte UND
+    // erst kürzlich erfolgreich synchronisiert (nicht bloß "aktiviert, aber tot").
+    // Nur dann dürfen die lokalen Backup-Nudges in app.js unterdrückt werden —
+    // sonst könnte ein hängender/fehlerhafter Sync unbemerkt zum einzigen (und
+    // stillen) Ausfallpunkt werden.
+    function isHealthy() {
+        if (!_enabled() || !_hasKey() || !_isPro() || !_token()) return false;
+        if (_loadConflicts().length) return false;
+        var last = parseInt(localStorage.getItem(LS_LAST_OK) || '0', 10);
+        if (!last) return false;
+        return (Date.now() - last) < HEALTHY_MAX_AGE_MS;
     }
 
     function disableFlow() {
@@ -820,6 +842,7 @@ var CloudSync = (function () {
         syncNow: syncNow,
         openConflicts: openConflicts,
         keyBytes: keyBytes,
+        isHealthy: isHealthy,
         foreignLoad: foreignLoad,
         foreignUnload: foreignUnload,
         deleteRemote: deleteRemote,

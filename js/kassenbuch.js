@@ -106,13 +106,13 @@ const Kassenbuch = {
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="kb_betrag">Betrag (€)</label>
-                            <input type="number" step="0.01" min="0" class="form-input" id="kb_betrag" placeholder="0,00">
+                            <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="kb_betrag" placeholder="0,00">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="kb_beschreibung">Beschreibung</label>
-                            <input type="text" class="form-input" id="kb_beschreibung" placeholder="Wofür?">
+                            <input type="text" class="form-input" id="kb_beschreibung" maxlength="300" placeholder="Wofür?">
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="kb_beleg">Beleg-Nr. (optional)</label>
@@ -193,7 +193,8 @@ const Kassenbuch = {
                 const s = Store.getSettings();
                 const val = prompt('Anfangsbestand (€):', (s.kassenbuchAnfangsbestand || 0).toString());
                 if (val === null) return;
-                s.kassenbuchAnfangsbestand = parseFloat(val.replace(',', '.')) || 0;
+                const n = parseFloat(val.replace(',', '.'));
+                s.kassenbuchAnfangsbestand = Number.isFinite(n) ? n : 0;
                 Store.saveSettings(s);
                 this._refresh();
             });

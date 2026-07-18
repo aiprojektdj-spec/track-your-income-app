@@ -114,17 +114,17 @@ const Ausgaben = {
                         </div>
                         <div class="form-group">
                             <label class="form-label">Betrag</label>
-                            <input type="number" step="0.01" min="0" class="form-input" id="exp_betrag" placeholder="0,00">
+                            <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="exp_betrag" placeholder="0,00">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Beschreibung</label>
-                            <input type="text" class="form-input" id="exp_beschreibung" placeholder="Was wurde bezahlt?">
+                            <input type="text" class="form-input" id="exp_beschreibung" maxlength="300" placeholder="Was wurde bezahlt?">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Beleg-Nr. (optional)</label>
-                            <input type="text" class="form-input" id="exp_belegNr" placeholder="z.B. RE-2026-001">
+                            <input type="text" class="form-input" id="exp_belegNr" maxlength="100" placeholder="z.B. RE-2026-001">
                         </div>
                     </div>
                     <div id="expMatLagerSection" style="display:none;border:1px solid var(--info);border-radius:var(--radius);padding:12px;margin-bottom:12px;background:var(--info-bg);">
@@ -223,6 +223,10 @@ const Ausgaben = {
             e.preventDefault();
             const datum = Utils.getDateInputValue('exp_datum');
             const betrag = parseFloat(document.getElementById('exp_betrag').value) || 0;
+            if (!Number.isFinite(betrag) || betrag < 0 || betrag > 99999999) {
+                Utils.showToast('Betrag ungültig', 'error');
+                return;
+            }
             Store.saveExpense({
                 datum,
                 kategorie: document.getElementById('exp_kategorie').value,

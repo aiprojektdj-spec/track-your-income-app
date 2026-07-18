@@ -467,6 +467,7 @@ const App = {
     _showBackupBanner() {
         if (localStorage.getItem('backup_banner_dismissed')) return;
         if (Store.getFsBackupFolderName()) return; // bereits konfiguriert
+        if (typeof CloudSync !== 'undefined' && CloudSync.isHealthy()) return; // Cloud-Sync übernimmt bereits nachweislich das Backup
         const hasData = (Store.getPurchases(true).length + Store.getSales(true).length) > 5;
         if (!hasData) return; // nicht stören wenn kaum Daten
 
@@ -1110,6 +1111,7 @@ const App = {
     _checkBackupReminder() {
         // Auto-Backup läuft jetzt vollautomatisch via IndexedDB (Store._triggerAutoBackup)
         // Hier nur Erinnerung für manuelles JSON-Export alle 30 Tage
+        if (typeof CloudSync !== 'undefined' && CloudSync.isHealthy()) return; // Cloud-Sync übernimmt bereits nachweislich das Backup
         const lastBackup = localStorage.getItem('last_backup_date');
         if (!lastBackup) {
             setTimeout(() => {

@@ -171,7 +171,7 @@ const Buchungen = {
                     </div>
                     <div class="form-group">
                         <label class="form-label">Beschreibung</label>
-                        <input type="text" class="form-input" id="item_beschreibung" placeholder="Kurze Beschreibung...">
+                        <input type="text" class="form-input" id="item_beschreibung" maxlength="300" placeholder="Kurze Beschreibung...">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Warenkategorie</label>
@@ -188,7 +188,7 @@ const Buchungen = {
                     </div>
                     <div class="form-group">
                         <label class="form-label">EK-Preis (€)</label>
-                        <input type="number" step="0.01" min="0" class="form-input" id="item_preis" placeholder="0,00">
+                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="item_preis" placeholder="0,00">
                     </div>
                     <div class="form-group" style="max-width:80px;">
                         <label class="form-label">Anzahl</label>
@@ -244,6 +244,10 @@ const Buchungen = {
 
                 if (!marke && !beschreibung) {
                     Utils.showToast('Bitte mindestens Marke oder Beschreibung eingeben', 'warning');
+                    return;
+                }
+                if (!Number.isFinite(preis) || !Number.isFinite(anzahl) || preis < 0 || anzahl < 0 || preis > 99999999) {
+                    Utils.showToast('Preis und Anzahl müssen gültige, nicht-negative Zahlen sein', 'warning');
                     return;
                 }
 
@@ -461,7 +465,7 @@ const Buchungen = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Beschreibung</label>
-                    <input type="text" class="form-input" id="vk_beschreibung">
+                    <input type="text" class="form-input" id="vk_beschreibung" maxlength="300">
                 </div>
             </div>
         ` : '';
@@ -570,7 +574,7 @@ const Buchungen = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Notizen</label>
-                    <textarea class="form-textarea" id="vk_notizen" placeholder="Optionale Notizen..."></textarea>
+                    <textarea class="form-textarea" id="vk_notizen" maxlength="1000" placeholder="Optionale Notizen..."></textarea>
                 </div>
                 ${(() => {
                     const mat = Store.getMaterialBestand();

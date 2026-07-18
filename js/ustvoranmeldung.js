@@ -41,7 +41,7 @@ const UstVoranmeldung = {
         const _brutto = item => (parseFloat(item.verkaufspreis) || 0) + (parseFloat(item.versandkostenKaeufer) || 0);
 
         let bruttoUmsatz19 = 0, bruttoUmsatz7 = 0;
-        let nettoIgLieferung = 0, nettoAusfuhr = 0;
+        let nettoIgLieferung = 0, nettoIgLeistung = 0, nettoAusfuhr = 0;
 
         if (this._isSoll() && typeof Store.getRechInvoices === 'function') {
             // OSS (§3c UStG): sobald die EU-weite 10.000€-Jahresschwelle überschritten ist, ist für
@@ -50,10 +50,13 @@ const UstVoranmeldung = {
             const customers  = (typeof Store.getRechCustomers === 'function') ? Store.getRechCustomers() : [];
             const euLaender  = (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : [];
             const periodYear = parseInt(String(startDate).slice(0, 4), 10);
-            // §3c Abs. 4 UStG: Schwelle gilt nur, wenn sie im VORJAHR UND im laufenden Jahr
-            // unterschritten ist — nach einem Überschreitungsjahr gilt OSS ab dem ersten Euro
-            const ossActive  = (typeof OSS !== 'undefined') &&
-                (OSS._jahresumsatz(periodYear) >= OSS.SCHWELLE || OSS._jahresumsatz(periodYear - 1) >= OSS.SCHWELLE);
+            // §3c Abs. 4 UStG: Schwellen-Überschreitung wirkt prospektiv ab dem Umsatz, der die
+            // 10.000€ reißt — NICHT rückwirkend auf bereits getätigte Umsätze desselben Jahres.
+            // Nur die Vorjahresschwelle (Satz 2) wirkt rückwirkend ab dem 1. Umsatz. Darum hier
+            // pro Rechnung prüfen (chronologische Laufsumme), statt ein Jahres-Flag auf jede Periode
+            // anzuwenden — sonst verschwinden früh im Jahr korrekt dt.-versteuerte Rechnungen aus der
+            // UVA, sobald die Schwelle später im Jahr überschritten wird.
+            const ossUeberInvoiceIds = (typeof OSS !== 'undefined') ? OSS._ueberSchwelleInvoiceIds(periodYear) : null;
 
             // Soll: alle ausgestellten Rechnungen zum Rechnungsdatum, unabhängig vom Zahlungseingang.
             // Gutschriften (Kreditnoten) laufen mit umgekehrtem Vorzeichen mit — sie mindern die
@@ -64,14 +67,15 @@ const UstVoranmeldung = {
                     const sign = i.typ === 'gutschrift' ? -1 : 1;
                     const kunde = customers.find(c => c.id === i.kundeId);
                     const kundeLand = kunde && kunde.land;
-                    // ig. Lieferung (§4 Nr.1b + §6a UStG): B2B-Kunde in der EU mit gültiger USt-IdNr
+                    // ig. Lieferung/sonstige Leistung (§4 Nr.1b+§6a bzw. §3a Abs.2 UStG): B2B-Kunde
+                    // in der EU mit gültiger USt-IdNr — igArt entscheidet Kz. 41 (Ware) vs. Kz. 21 (Dienstleistung)
                     const istIgLieferung = !!(kundeLand && kundeLand !== 'DE' && euLaender.indexOf(kundeLand) !== -1 && kunde.ustIdNr);
                     // Ausfuhrlieferung (§4 Nr.1a + §6 UStG): Kunde außerhalb EU (Drittland)
                     const istAusfuhr = !!(kundeLand && kundeLand !== 'DE' && euLaender.indexOf(kundeLand) === -1);
 
-                    if (ossActive) {
+                    if (ossUeberInvoiceIds && ossUeberInvoiceIds.has(i.id)) {
                         const isEuB2C = kundeLand && kundeLand !== 'DE' && euLaender.indexOf(kundeLand) !== -1 && !kunde.ustIdNr;
-                        if (isEuB2C) return; // OSS-pflichtig — läuft über das BZSt-Portal, nicht über diese UVA
+                        if (isEuB2C) return; // OSS-pflichtig ab Schwellen-Überschreitung — läuft über das BZSt-Portal, nicht über diese UVA
                     }
                     (i.positionen || []).forEach(pos => {
                         // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
@@ -80,10 +84,12 @@ const UstVoranmeldung = {
                         if (rate === 7) bruttoUmsatz7 += netto * 1.07;
                         else if (rate === 19 || isNaN(rate)) bruttoUmsatz19 += netto * 1.19;
                         else if (rate === 0) {
-                            // steuerfreie Position — nur ig. Lieferung/Ausfuhr sind eigene Kennzahlen,
+                            // steuerfreie Position — nur ig. Lieferung/Leistung/Ausfuhr sind eigene Kennzahlen,
                             // sonstige steuerfreie Inlandsumsätze (§4 UStG divers) werden hier bewusst nicht erfasst
-                            if (istIgLieferung) nettoIgLieferung += netto;
-                            else if (istAusfuhr) nettoAusfuhr += netto;
+                            if (istIgLieferung) {
+                                if ((i.igArt || 'ware') === 'leistung') nettoIgLeistung += netto;
+                                else nettoIgLieferung += netto;
+                            } else if (istAusfuhr) nettoAusfuhr += netto;
                         }
                     });
                 });
@@ -187,7 +193,7 @@ const UstVoranmeldung = {
             vorsteuerEinkaufAusgaben, vorsteuerRc, vorsteuerIgErwerb, rcSteuerGesamt, erwerbSteuerGesamt,
             rcNettoAbs1, rcSteuerAbs1, rcNettoOther, rcSteuerOther,
             erwerbNetto19, erwerbSteuer19, erwerbNetto7, erwerbSteuer7,
-            nettoIgLieferung, nettoAusfuhr
+            nettoIgLieferung, nettoIgLeistung, nettoAusfuhr
         };
     },
 
@@ -291,6 +297,15 @@ const UstVoranmeldung = {
             }
         }
 
+        // Ist-Versteuerung + EU-Geschäft: ig. Lieferung/Leistung (Kz. 41/21) und OSS (§3c UStG) werden
+        // nur im Soll-Zweig oben berechnet — im Ist-Modus strukturell nicht erfasst/differenziert.
+        const istEuHinweis = !this._isSoll() ? `
+        <div class="card" style="margin-bottom:16px;border-left:3px solid var(--warning);">
+            <div style="padding:12px 16px;font-size:13px;">
+                ⚠️ <strong>Ist-Versteuerung + EU-Geschäft:</strong> Bei Ist-Versteuerung (§20 UStG, Zahlungsdatum) werden innergemeinschaftliche Lieferungen/sonstige Leistungen (Kz. 41/21) und der OSS-Schwellenwert (§3c UStG) hier <u>nicht gesondert erfasst</u> — dieses Modell ist auf Soll-Versteuerung ausgelegt. Bei EU-Kunden im Ist-Modus die Zuordnung bitte manuell mit deinem Steuerberater klären.
+            </div>
+        </div>` : '';
+
         const yearOptions = Array.from({ length: 8 }, (_, i) => 2020 + i)
             .map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('');
 
@@ -317,6 +332,7 @@ const UstVoranmeldung = {
             </div>
         </div>
         ${monatspflichtHinweis}
+        ${istEuHinweis}
 
         <div class="stats-grid" style="margin-bottom:20px;">
             <div class="card stat-card">
@@ -357,6 +373,7 @@ const UstVoranmeldung = {
                         <tr style="opacity:0.75;"><td></td><td style="font-size:12px;">↳ USt darauf (7%) <span style="color:var(--text-muted);">– nur Info, ELSTER berechnet automatisch</span></td><td style="text-align:right;font-size:12px;">${Utils.formatCurrency(calc.ust7)}</td></tr>
                         ` : ''}
                         ${calc.nettoIgLieferung > 0 ? `<tr><td><strong>Kz. 41</strong></td><td>Innergem. Lieferungen (§4 Nr.1b UStG) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoIgLieferung)}</td></tr>` : ''}
+                        ${calc.nettoIgLeistung > 0 ? `<tr><td><strong>Kz. 21</strong></td><td>Innergem. sonstige Leistungen (§3a Abs.2 UStG) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoIgLeistung)}</td></tr>` : ''}
                         ${calc.nettoAusfuhr > 0 ? `<tr><td><strong>Kz. 43</strong></td><td>Ausfuhrlieferungen Drittland (§4 Nr.1a UStG) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoAusfuhr)}</td></tr>` : ''}
                         ${calc.erwerbNetto19 > 0 ? `<tr><td><strong>Kz. 89</strong></td><td>Innergem. Erwerbe (19%) – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.erwerbNetto19)}</td></tr>` : ''}
                         ${calc.erwerbNetto7 > 0 ? `<tr><td><strong>Kz. 93</strong></td><td>Innergem. Erwerbe (7%) – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.erwerbNetto7)}</td></tr>` : ''}
@@ -416,7 +433,8 @@ const UstVoranmeldung = {
             <div style="padding:12px 16px;font-size:13px;color:var(--text-muted);line-height:1.7;">
                 <strong>Kz. 81:</strong> Netto-Umsätze aus Lieferungen und Leistungen zum Regelsteuersatz 19% – <u>das ist der einzige Wert, den du in ELSTER bei Kz. 81 einträgst</u>. ELSTER berechnet die USt darauf selbst.<br>
                 <strong>Kz. 86:</strong> Netto-Umsätze zum ermäßigten Steuersatz 7% (z.B. Bücher, Lebensmittel) – ebenfalls einziger Eintrag bei Kz. 86, USt wird automatisch berechnet.<br>
-                ${calc.nettoIgLieferung > 0 ? `<strong>Kz. 41:</strong> Innergemeinschaftliche Lieferungen an Unternehmen mit gültiger USt-IdNr in der EU (§4 Nr.1b, §6a UStG) – steuerfrei, keine USt darauf. Voraussetzung: gültige USt-IdNr des Kunden geprüft (BZSt-Bestätigungsverfahren) und Zusammenfassende Meldung (ZM) abgegeben. <span style="color:var(--warning);">⚠ Kz. 41 gilt nur für <u>Warenlieferungen</u> — sonstige Leistungen/Dienstleistungen an EU-Unternehmer (§3a Abs. 2 UStG, Reverse Charge) gehören stattdessen in Kz. 21 und in der ZM in die Spalte „Sonstige Leistungen". Stackr kann Ware und Dienstleistung nicht unterscheiden — bitte je nach Leistungsart selbst zuordnen.</span><br>` : ''}
+                ${calc.nettoIgLieferung > 0 ? `<strong>Kz. 41:</strong> Innergemeinschaftliche Lieferungen (Ware) an Unternehmen mit gültiger USt-IdNr in der EU (§4 Nr.1b, §6a UStG) – steuerfrei, keine USt darauf. Voraussetzung: gültige USt-IdNr des Kunden geprüft (BZSt-Bestätigungsverfahren) und Zusammenfassende Meldung (ZM, Spalte „Lieferungen") abgegeben.<br>` : ''}
+                ${calc.nettoIgLeistung > 0 ? `<strong>Kz. 21:</strong> Innergemeinschaftliche sonstige Leistungen (Dienstleistungen) an Unternehmen mit gültiger USt-IdNr in der EU (§3a Abs. 2 UStG, Reverse Charge beim Empfänger) – nicht steuerbar in Deutschland. In der ZM in die Spalte „Sonstige Leistungen" eintragen (nicht „Lieferungen"). Zuordnung erfolgt über die Auswahl "Art des Umsatzes" bei der jeweiligen Rechnung.<br>` : ''}
                 ${calc.nettoAusfuhr > 0 ? `<strong>Kz. 43:</strong> Ausfuhrlieferungen in Drittländer außerhalb der EU (§4 Nr.1a, §6 UStG) – steuerfrei, Ausfuhrnachweis (z.B. Zollbeleg) muss vorliegen.<br>` : ''}
                 ${calc.erwerbNetto19 > 0 || calc.erwerbNetto7 > 0 ? `<strong>Kz. 89/93:</strong> Innergemeinschaftliche Erwerbe (§1a UStG) – Bemessungsgrundlage eintragen, gleichzeitig als Vorsteuer bei Kz. 61 abziehbar.<br>` : ''}
                 ${calc.rcNettoAbs1 > 0 || calc.rcNettoOther > 0 ? `<strong>Kz. 46 / §13b:</strong> Reverse-Charge-Leistungen (§13b UStG) – du schuldest hier die Steuer als Leistungsempfänger, gleichzeitig als Vorsteuer bei Kz. 67 abziehbar. Bei "Weitere §13b-Fälle" bitte die passende Zeile im ELSTER-Formular je nach Kategorie (Bauleistung/Gebäudereinigung/Mobilfunk) selbst nachsehen – dafür gibt es jeweils eigene Kennzahlen.<br>` : ''}
@@ -479,6 +497,7 @@ const UstVoranmeldung = {
             rows.push(['(Info)', 'USt 7% - NICHT eintragen, ELSTER berechnet automatisch', c.ust7.toFixed(2)]);
         }
         if (c.nettoIgLieferung > 0) rows.push(['Kz. 41', 'Innergem. Lieferungen (Netto) - in ELSTER eintragen', c.nettoIgLieferung.toFixed(2)]);
+        if (c.nettoIgLeistung  > 0) rows.push(['Kz. 21', 'Innergem. sonstige Leistungen (Netto) - in ELSTER eintragen', c.nettoIgLeistung.toFixed(2)]);
         if (c.nettoAusfuhr     > 0) rows.push(['Kz. 43', 'Ausfuhrlieferungen Drittland (Netto) - in ELSTER eintragen', c.nettoAusfuhr.toFixed(2)]);
         if (c.erwerbNetto19 > 0) rows.push(['Kz. 89', 'Innergem. Erwerbe 19% (Bemessungsgrundlage) - in ELSTER eintragen', c.erwerbNetto19.toFixed(2)]);
         if (c.erwerbNetto7  > 0) rows.push(['Kz. 93', 'Innergem. Erwerbe 7% (Bemessungsgrundlage) - in ELSTER eintragen', c.erwerbNetto7.toFixed(2)]);

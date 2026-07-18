@@ -19,6 +19,10 @@
 //   ciphertext = AES-GCM über JSON des Klartext-Bundles:
 //     { "__account": { "oyi_companies": [...] },
 //       "co_<id>":   { "co_<id>__reselling_purchases": [...], ... } }
+//
+// Wechsel-Datei (unverschlüsselt, Local 1.7 → Web 1.7, Trigger in Local-UI):
+//   { format:"stackr-migration", version:1, app:"stackr", createdAt:<ISO>, bundle:<Klartext-Bundle> }
+//   doImport() erkennt format automatisch, Passphrase-Feld wird ignoriert.
 // ============================================================================
 var BackupCrypto = (function () {
     'use strict';
@@ -71,9 +75,12 @@ var BackupCrypto = (function () {
     }
 
     // ── Welche Keys gehören zu einem Scope ────────────────────────────────────
-    function _companyIds() {
-        try { return JSON.parse(localStorage.getItem('oyi_companies') || '[]').map(function (c) { return c.id; }).filter(Boolean); }
-        catch (e) { return []; }
+    function _companyIds(onlyLand) {
+        try {
+            var list = JSON.parse(localStorage.getItem('oyi_companies') || '[]');
+            if (onlyLand) list = list.filter(function (c) { return (c.land || 'DE') === onlyLand; });
+            return list.map(function (c) { return c.id; }).filter(Boolean);
+        } catch (e) { return []; }
     }
     function _scopeKeys(scope) {
         if (scope === '__account') return ['oyi_companies'];
@@ -88,12 +95,19 @@ var BackupCrypto = (function () {
     }
 
     // ── Klartext-Bundle bauen (Export) ────────────────────────────────────────
-    function _buildBundle() {
+    // onlyLand: z.B. 'DE' — Wechsel-Export enthält nur Firmen dieses Sitzlands
+    // (Web 1.7 hat kein CH/AT-UI mehr, siehe ch-at-removal-web); normales
+    // Komplett-Backup ruft ohne Filter auf und sichert weiterhin alles.
+    function _buildBundle(onlyLand) {
         var bundle = {};
         _scopeKeys('__account').forEach(function (k) {
-            var v = _read(k); if (v !== undefined) (bundle.__account = bundle.__account || {})[k] = v;
+            var v = _read(k);
+            if (v !== undefined) {
+                if (k === 'oyi_companies' && onlyLand && Array.isArray(v)) v = v.filter(function (c) { return (c.land || 'DE') === onlyLand; });
+                (bundle.__account = bundle.__account || {})[k] = v;
+            }
         });
-        _companyIds().forEach(function (id) {
+        _companyIds(onlyLand).forEach(function (id) {
             var sc = {};
             _scopeKeys(id).forEach(function (k) { var v = _read(k); if (v !== undefined) sc[k] = v; });
             if (Object.keys(sc).length) bundle[id] = sc;
@@ -216,13 +230,35 @@ var BackupCrypto = (function () {
             // Import
             '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;">' +
               '<div class="section-title" style="margin:0;"><i class="ti ti-package-import"></i> Backup importieren</div>' +
-              '<input type="file" id="bkpImpFile" accept=".stackrbak,application/json" class="form-input">' +
-              '<input type="password" id="bkpImpPass" class="form-input" placeholder="Passphrase" autocomplete="off">' +
+              '<input type="file" id="bkpImpFile" accept=".stackrbak,.json,application/json" class="form-input">' +
+              '<input type="password" id="bkpImpPass" class="form-input" placeholder="Passphrase (leer lassen bei Wechsel-Datei von Local 1.7)" autocomplete="off">' +
               '<div style="font-size:12px;color:var(--text-muted);">Daten werden mit den vorhandenen <strong>zusammengeführt</strong> (neuere Einträge gewinnen). Anschließend lädt die Seite neu.</div>' +
               '<button class="btn" data-action="bc-import" style="width:100%;"><i class="ti ti-upload"></i> Backup importieren</button>' +
             '</div>' +
           '</div>';
         App.showModal('Komplett-Backup (alle Firmen, verschlüsselt)', body, '');
+    }
+
+    // ── Export (unverschlüsselt, Wechsel-Datei Local→Web) ─────────────────────
+    // Nur Firmen mit Sitzland DE: Web 1.7 hat kein CH/AT-UI mehr, CH/AT-Firmen
+    // würden sonst unsichtbar im Bundle landen (siehe ch-at-removal-web-Memo).
+    function doExportPlain() {
+        try {
+            var bundle = _buildBundle('DE');
+            var deCount = ((bundle.__account || {}).oyi_companies || []).length;
+            if (!deCount) { _toast('Keine Firma mit Sitzland Deutschland gefunden — nichts zu exportieren.', 'warning', 6000); return; }
+            var file = { format: 'stackr-migration', version: 1, app: 'stackr', createdAt: new Date().toISOString(), bundle: bundle };
+            var name = 'stackr-wechsel-' + new Date().toLocaleDateString('sv-SE') + '.json';
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([JSON.stringify(file)], { type: 'application/json' }));
+            a.download = name;
+            document.body.appendChild(a); a.click();
+            setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+            _toast('✅ Wechsel-Datei gespeichert: ' + name, 'success', 5000);
+        } catch (e) {
+            console.error('[Backup] exportPlain', e);
+            _toast('Export fehlgeschlagen: ' + (e && e.message || e), 'error');
+        }
     }
 
     async function doExport() {
@@ -250,8 +286,7 @@ var BackupCrypto = (function () {
         var fileEl = document.getElementById('bkpImpFile');
         var pass   = (document.getElementById('bkpImpPass') || {}).value || '';
         if (!fileEl || !fileEl.files || !fileEl.files[0]) { _toast('Bitte zuerst eine Backup-Datei wählen.', 'warning'); return; }
-        if (!pass) { _toast('Bitte Passphrase eingeben.', 'warning'); return; }
-        if (!confirm('Backup importieren?\n\nDie enthaltenen Daten werden mit deinen vorhandenen zusammengeführt (neuere Einträge gewinnen). Anschließend lädt die Seite neu.')) return;
+        if (!confirm('Daten importieren?\n\nDie enthaltenen Daten werden mit deinen vorhandenen zusammengeführt (neuere Einträge gewinnen). Anschließend lädt die Seite neu.')) return;
 
         var reader = new FileReader();
         reader.onload = async function () {
@@ -259,9 +294,19 @@ var BackupCrypto = (function () {
             try { parsed = JSON.parse(reader.result); }
             catch (e) { _toast('Datei ist kein gültiges JSON.', 'error'); return; }
             try {
-                var bundle = await _decryptFile(parsed, pass);
+                var bundle;
+                if (parsed && parsed.format === 'stackr-migration') {
+                    bundle = parsed.bundle || {};
+                } else {
+                    if (!pass) { _toast('Bitte Passphrase eingeben.', 'warning'); return; }
+                    bundle = await _decryptFile(parsed, pass);
+                }
                 await _restore(bundle);
-                _toast('✅ Backup importiert — lade neu…', 'success', 1800);
+                var maxCo = (typeof Companies !== 'undefined' && Companies.MAX_COMPANIES) || 5;
+                if (_companyIds().length > maxCo) {
+                    _toast('⚠️ Mehr als ' + maxCo + ' Firmen vorhanden — „Neue Firma anlegen" bleibt gesperrt, bis eine gelöscht wird. Bestehende Firmen funktionieren normal.', 'warning', 8000);
+                }
+                _toast('✅ Daten importiert — lade neu…', 'success', 1800);
                 setTimeout(function () { location.reload(); }, 1300);
             } catch (e) {
                 console.warn('[Backup] import', e && e.message);
@@ -285,13 +330,17 @@ var BackupCrypto = (function () {
         var aud = _mergeAudit([{ id: 'a', timestamp: '1' }], [{ id: 'b', timestamp: '2' }]);
         var ok3 = aud[0].prevHash === 'GENESIS' && aud[1].prevHash === aud[0].checksum;
         var bad = false; try { await _decryptFile(f, 'wrong-pass'); } catch (e) { bad = true; }
-        console.log('[Backup] selftest', { roundtrip: ok1, lww: ok2, rechain: ok3, wrongPass: bad });
-        return ok1 && ok2 && ok3 && bad;
+        // Wechsel-Datei: doImport()-Formaterkennung nachgebildet (unverschlüsselt, kein Passphrase-Zwang)
+        var mig = JSON.parse(JSON.stringify({ format: 'stackr-migration', version: 1, app: 'stackr', bundle: b }));
+        var ok4 = mig.format === 'stackr-migration' && JSON.stringify(mig.bundle) === JSON.stringify(b);
+        console.log('[Backup] selftest', { roundtrip: ok1, lww: ok2, rechain: ok3, wrongPass: bad, migrationFormat: ok4 });
+        return ok1 && ok2 && ok3 && bad && ok4;
     }
 
     return {
         openModal: openModal,
         doExport: doExport,
+        doExportPlain: doExportPlain,
         doImport: doImport,
         _selftest: _selftest,
         _test: { buildBundle: _buildBundle, mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, mergeKey: _mergeKey }
@@ -302,7 +351,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = BackupCryp
 
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
 if (window.Actions) Actions.register({
-    'bc-open-modal': function () { BackupCrypto.openModal(); },
-    'bc-export':     function () { BackupCrypto.doExport(); },
-    'bc-import':     function () { BackupCrypto.doImport(); }
+    'bc-open-modal':   function () { BackupCrypto.openModal(); },
+    'bc-export':       function () { BackupCrypto.doExport(); },
+    'bc-export-plain': function () { BackupCrypto.doExportPlain(); },
+    'bc-import':       function () { BackupCrypto.doImport(); }
 });

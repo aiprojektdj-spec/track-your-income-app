@@ -19,20 +19,24 @@ const OSS = {
         return (Store.getSettings().ustMode || 'klein') === 'regel';
     },
 
-    // B2C-Rechnungen an EU-Privatkunden eines Jahres (Ausland, EU-Mitglied, keine USt-IdNr. → kein Reverse Charge B2B)
+    // B2C-Rechnungen (+ Gutschriften, gegenrechnend) an EU-Privatkunden eines Jahres (Ausland,
+    // EU-Mitglied, keine USt-IdNr. → kein Reverse Charge B2B). Gutschriften muessen mitzaehlen,
+    // sonst sinkt der kumulierte OSS-Umsatz nicht, wenn ein EU-Fernverkauf storniert wird
+    // (Inkonsistenz zur UVA-Logik in ustvoranmeldung.js, die Gutschriften bereits gegenrechnet).
     _getB2CInvoices(year) {
         if (typeof Store.getRechInvoices !== 'function') return [];
         const euLaender = (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : Object.keys(this.EU_VAT_RATES);
         const customers = Store.getRechCustomers ? Store.getRechCustomers() : [];
         return Store.getRechInvoices()
-            .filter(i => i.typ === 'rechnung' && (i.status === 'versendet' || i.status === 'bezahlt') && (i.datum || '').startsWith(String(year)))
+            .filter(i => (i.typ === 'rechnung' || i.typ === 'gutschrift') && (i.status === 'versendet' || i.status === 'bezahlt') && (i.datum || '').startsWith(String(year)))
             .map(i => ({ inv: i, kunde: customers.find(c => c.id === i.kundeId) }))
             .filter(x => x.kunde && x.kunde.land && x.kunde.land !== 'DE' && euLaender.indexOf(x.kunde.land) !== -1 && !x.kunde.ustIdNr);
     },
 
     _netto(inv) {
         // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
-        return (inv.positionen || []).reduce((s, p) => s + (parseFloat(p.menge) || 0) * parseFloat(p.einzelpreis || 0), 0);
+        const sign = inv.typ === 'gutschrift' ? -1 : 1;
+        return sign * (inv.positionen || []).reduce((s, p) => s + (parseFloat(p.menge) || 0) * parseFloat(p.einzelpreis || 0), 0);
     },
 
     _calcLaender(year) {
@@ -53,7 +57,10 @@ const OSS = {
     // wirkt rückwirkend ab dem 1. Umsatz. Darum hier chronologische Laufsumme statt Jahres-Flag.
     // ponytail: Tie-Break bei gleichem Rechnungsdatum = Einfügereihenfolge, in der Praxis irrelevant.
     _ueberSchwelleInvoiceIds(year) {
-        if (this._jahresumsatz(year - 1) >= this.SCHWELLE) {
+        // §3c Abs. 4 UStG: "nicht überschritten"/"nicht übersteigt" -> bei exakt 10.000,00 €
+        // greift die Ausnahme (Ursprungslandprinzip) noch. Erst der Umsatz, der die Schwelle
+        // tatsächlich UEBERsteigt, loest das Bestimmungslandprinzip aus -> strikt '>'.
+        if (this._jahresumsatz(year - 1) > this.SCHWELLE) {
             return new Set(this._getB2CInvoices(year).map(({ inv }) => inv.id));
         }
         const sorted = this._getB2CInvoices(year).slice().sort((a, b) => (a.inv.datum || '').localeCompare(b.inv.datum || ''));
@@ -62,7 +69,7 @@ const OSS = {
         sorted.forEach(({ inv }) => {
             if (ueberschritten) { ids.add(inv.id); return; }
             kumuliert += this._netto(inv);
-            if (kumuliert >= this.SCHWELLE) { ueberschritten = true; ids.add(inv.id); }
+            if (kumuliert > this.SCHWELLE) { ueberschritten = true; ids.add(inv.id); }
         });
         return ids;
     },
@@ -86,8 +93,9 @@ const OSS = {
         // §3c Abs. 4 UStG: Schwelle muss im Vorjahr UND im laufenden Jahr unterschritten sein —
         // nach einem Überschreitungsjahr gilt das Bestimmungslandprinzip ab dem ersten Euro
         const vorjahrUmsatz = this._jahresumsatz(year - 1);
-        const ueberSchwelle = umsatz >= this.SCHWELLE || vorjahrUmsatz >= this.SCHWELLE;
-        const nurWegenVorjahr = ueberSchwelle && umsatz < this.SCHWELLE;
+        // strikt '>' -> siehe Begruendung bei _ueberSchwelleInvoiceIds()
+        const ueberSchwelle = umsatz > this.SCHWELLE || vorjahrUmsatz > this.SCHWELLE;
+        const nurWegenVorjahr = ueberSchwelle && umsatz <= this.SCHWELLE;
         const byLand = this._calcLaender(year);
         const laender = Object.keys(byLand).sort();
 

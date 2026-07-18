@@ -75,7 +75,7 @@ var XRechnung = (function () {
      * @returns {string} UTF-8 XML
      */
     function generate(inv, settings, kunde) {
-        var isKlein = settings.ustMode === 'klein';
+        var isKlein = inv.isKlein !== undefined ? inv.isKlein : (settings.ustMode === 'klein');
         var t = calcTotals(inv.positionen, isKlein);
 
         var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';

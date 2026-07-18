@@ -132,6 +132,7 @@ var DatevExport = (function () {
 
         // Verkäufe (Einnahmen) aus Rechnungen
         invoices.forEach(function (inv) {
+            var isKlein = inv.isKlein !== undefined ? inv.isKlein : (settings.ustMode === 'klein');
             var netto = 0;
             var mwstMap = {};
             (inv.positionen || []).forEach(function (pos) {

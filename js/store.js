@@ -1993,6 +1993,7 @@ const Store = {
         const stornoDoc = {
             id: this.generateId(),
             typ: 'stornorechnung',
+            isKlein: orig.isKlein,
             nummer: stornoNum,
             originalRechnungId: originalId,
             originalRechnungNummer: orig.nummer,
@@ -2087,7 +2088,7 @@ const Store = {
 
     createSaleFromInvoice(invoice, platform, purchaseId, manualEK) {
         const settings = this.getSettings();
-        const isKlein = settings.ustMode === 'klein';
+        const isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (settings.ustMode === 'klein');
         const isGutschrift = invoice.typ === 'gutschrift';
         let brutto = 0;
         (invoice.positionen || []).forEach(p => {

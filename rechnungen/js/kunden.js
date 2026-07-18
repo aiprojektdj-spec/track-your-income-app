@@ -7,10 +7,10 @@ var Kunden = (function() {
     function calcCustomerUmsatz(customerId) {
         var invoices = Store.getRechInvoices();
         var settings = Store.getSettings();
-        var isKlein = settings.ustMode === 'klein';
         var sum = 0;
         invoices.forEach(function(inv) {
             if (inv.kundeId === customerId && inv.typ === 'rechnung' && inv.status === 'bezahlt') {
+                var isKlein = inv.isKlein !== undefined ? inv.isKlein : (settings.ustMode === 'klein');
                 (inv.positionen || []).forEach(function(pos) {
                     var netto = pos.menge * pos.einzelpreis;
                     var mwst = isKlein ? 0 : (netto * pos.mwstSatz / 100);
@@ -110,7 +110,6 @@ var Kunden = (function() {
 
         var invoices = Store.getRechInvoices().filter(function(i) { return i.kundeId === customer.id; });
         var settings = Store.getSettings();
-        var isKlein = settings.ustMode === 'klein';
 
         var html = '<div class="page-header"><h2>Kunde: ' + Utils.escapeHtml(customer.firma || customer.ansprechpartner) + '</h2>';
         html += '<div class="page-header-actions"><button class="btn" id="kundeBack">Zur\u00FCck zur Liste</button></div></div>';
@@ -141,6 +140,7 @@ var Kunden = (function() {
                 var typLabel = inv.typ === 'rechnung' ? 'Rechnung' : inv.typ === 'angebot' ? 'Angebot' : 'Gutschrift';
                 var statusClass = inv.status === 'bezahlt' ? 'badge-success' : inv.status === 'ueberfaellig' ? 'badge-danger' : inv.status === 'storniert' ? 'badge-neutral' : 'badge-info';
                 var statusLabel = inv.status === 'bezahlt' ? 'Bezahlt' : inv.status === 'ueberfaellig' ? '\u00DCberf\u00E4llig' : inv.status === 'storniert' ? 'Storniert' : 'Offen';
+                var isKlein = inv.isKlein !== undefined ? inv.isKlein : (settings.ustMode === 'klein');
                 var brutto = 0;
                 (inv.positionen || []).forEach(function(pos) {
                     var n = pos.menge * pos.einzelpreis;

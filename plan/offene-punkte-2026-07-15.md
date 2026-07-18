@@ -41,15 +41,23 @@ Punkte 5/6/7 am 2026-07-17 verifiziert und abgeschlossen (siehe unten).
    gehärtet: dieselben Filter ließen bislang auch `typ==='angebot'` durch, falls versehentlich als
    "bezahlt" markiert — jetzt auf `rechnung`/`gutschrift` beschränkt. Nicht angefasst: OSS-
    Schwellenwert-Tracking (`oss.js`) berücksichtigt Gutschrift-Stornos noch nicht — siehe Punkt 4.
-2. ✅ **Kz. 41 vs. Kz. 21 bei EU-B2B-Dienstleistungen — 2026-07-18 gefixt.** `legal-reviewer`
-   bestätigt: Kz. 41 ist an §4 Nr.1b/§6a UStG (Lieferungen) gebunden, sonstige Leistungen
-   (§3a Abs.2 UStG) gehören in Kz. 21 — kein Geldschaden, aber ZM-Abgleich-Diskrepanz-Risiko bei
-   Finanzamt-Prüfung. Fix: neues `igArt`-Feld (`'ware'`|`'leistung'`, Default `'ware'` =
-   rückwärtskompatibel) auf Rechnungsebene, Auswahl-Dropdown im §13b-Hinweisblock in
-   `rechnungen/js/rechnung.js` (nur sichtbar bei erkanntem EU-B2B-Kunden). `js/ustvoranmeldung.js`
-   verzweigt jetzt `nettoIgLieferung`(Kz.41)/`nettoIgLeistung`(Kz.21) getrennt in Render, Footer-Text
-   und ELSTER-CSV-Export. Alter Warnhinweis ("Stackr kann nicht unterscheiden") entfernt, da jetzt
-   möglich. Render-Test (isoliert, vm-Sandbox) bestätigt korrekte Kz.41/21-Verzweigung.
+2. ✅ **Kz. 41 vs. Kz. 21 bei EU-B2B-Dienstleistungen — 2026-07-18 gefixt, 2026-07-18 nachgeschärft.**
+   `legal-reviewer` bestätigt: Kz. 41 ist an §4 Nr.1b/§6a UStG (Lieferungen) gebunden, sonstige
+   Leistungen (§3a Abs.2 UStG) gehören in Kz. 21 — kein Geldschaden, aber ZM-Abgleich-Diskrepanz-
+   Risiko bei Finanzamt-Prüfung. Ursprungs-Fix (parallel, unstaged): `igArt`-Feld auf
+   **Rechnungsebene** mit Silent-Default `'ware'`. Risiko-Assessment (`/legal-risk-assessment`)
+   fand 2 offene Lücken (beide YELLOW, Score 6/8): (a) Rechnungsebene kann keine Misch-Rechnung
+   (Ware+Leistung an denselben EU-Kunden) korrekt abbilden; (b) Silent-Default `'ware'` ohne
+   aktive Wahl passt schlecht zu Stackrs service-/beratungslastiger Zielgruppe (Freelancer/GbR).
+   Nachgeschärft: `igArt` jetzt **pro Position** (`rechnungen/js/rechnung.js`
+   `renderPositionRow`/`collectPositionen`, Sichtbarkeit über `applyReverseChargeCheck()`
+   gekoppelt an den §13b-Hinweis), Dropdown hat **keinen vorbelegten Wert** mehr (erste Option
+   `disabled`, erzwingt aktive Wahl) und `buildInvoiceObject()` blockt das Speichern mit Toast,
+   wenn bei EU-B2B eine 0%-Position ohne gewählte Art bleibt. `js/ustvoranmeldung.js` liest
+   `pos.igArt` (Fallback `i.igArt` für Alt-Daten, dann `'ware'`) und verzweigt
+   `nettoIgLieferung`(Kz.41)/`nettoIgLeistung`(Kz.21) weiterhin getrennt in Render, Footer-Text
+   und ELSTER-CSV-Export. **Nicht browser-verifiziert** — App Whop-Login-gated, kein Zugang in
+   dieser Session (identische Einschränkung wie Punkt 6); nur `node --check` + Code-Review.
 3. ✅ **Ist-Modus strukturell lückenhaft bei EU-Geschäft — 2026-07-18 gefixt.** Sichtbarer
    Warnhinweis in `js/ustvoranmeldung.js` `render()` ergänzt (erscheint nur wenn
    `!this._isSoll()`): weist auf fehlende Kz.41/21- und OSS-Erfassung im Ist-Modus hin, empfiehlt
@@ -184,10 +192,12 @@ Rate-Limit-Lücken, Pagination-Limit bei >1000 Memberships. ⬜ offen.
 
 ## Rechtliches
 
-- **Anwalt-Freigabe §11 AGB-Haftung** — beauftragt, Antwort offen. ⬜
+- **Anwalt-Freigabe §11 AGB-Haftung** — beauftragt, Antwort offen. ⬜ Briefing-Erstellung
+  (noch nicht das Freigabe-Ergebnis selbst): Prompt `plan/session-prompt-anwalt-briefing.md`.
 - **Trial-Klausel § 356 Abs. 5 BGB** (vorzeitiges Erlöschen Widerrufsrecht bei Abo) — geht in
-  dieselbe Anwalt-Prüfrunde wie §11 (`P0-6`). ⬜
-- **Whop-DPA/AV-Vertrag** — noch nicht angefordert. ⬜
+  dieselbe Anwalt-Prüfrunde wie §11 (`P0-6`), abgedeckt vom selben Briefing-Prompt oben. ⬜
+- **Whop-DPA/AV-Vertrag** — noch nicht angefordert. ⬜ Prompt:
+  `plan/session-prompt-whop-dpa-anfrage.md` (Recherche + Anfrage-Entwurf, Versand macht User).
 
 ---
 

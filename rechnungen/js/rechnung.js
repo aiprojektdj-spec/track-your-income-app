@@ -141,14 +141,7 @@ var Rechnung = (function() {
         html += '</select></div>';
         html += '</div>';
         html += '<div id="reverseChargeHint" style="display:none;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);">';
-        html += 'ℹ️ <strong>§13b UStG – Reverse Charge:</strong> EU-Geschäftskunde mit USt-IdNr. erkannt. Steuerschuldnerschaft geht auf den Empfänger über, USt-Sätze wurden auf 0% gesetzt.';
-        html += '<div style="margin-top:8px;">';
-        html += '<label class="form-label" style="font-size:11px;">Art des Umsatzes (entscheidet Kz. 41 vs. Kz. 21 in der UVA)</label>';
-        html += '<select class="form-select" id="invIgArt" style="max-width:320px;">';
-        html += '<option value="ware"' + ((editingInvoice && editingInvoice.igArt === 'leistung') ? '' : ' selected') + '>Lieferung (Ware) – §4 Nr.1b/§6a UStG, Kz. 41</option>';
-        html += '<option value="leistung"' + ((editingInvoice && editingInvoice.igArt === 'leistung') ? ' selected' : '') + '>Sonstige Leistung (Dienstleistung) – §3a Abs.2 UStG, Kz. 21</option>';
-        html += '</select>';
-        html += '</div>';
+        html += 'ℹ️ <strong>§13b UStG – Reverse Charge:</strong> EU-Geschäftskunde mit USt-IdNr. erkannt. Steuerschuldnerschaft geht auf den Empfänger über, USt-Sätze wurden auf 0% gesetzt. Bitte bei jeder Position unten „Art des Umsatzes" wählen (entscheidet Kz. 41 vs. Kz. 21 – eine Rechnung kann Ware <em>und</em> Leistung an denselben Kunden mischen).';
         html += '</div>';
         // §14 UStG (Wachstumschancengesetz): seit 01.01.2025 müssen inländische Unternehmen (auch KU)
         // strukturierte E-Rechnungen empfangen können; die aktive Versandpflicht greift gestaffelt ab 2027/2028.
@@ -289,6 +282,17 @@ var Rechnung = (function() {
         html += '<option value="19"' + ((pos.mwstSatz === undefined || pos.mwstSatz === 19) ? ' selected' : '') + '>19%</option>';
         html += '<option value="7"'  + (pos.mwstSatz === 7 ? ' selected' : '') + '>7%</option>';
         html += '<option value="0"'  + (pos.mwstSatz === 0 ? ' selected' : '') + '>0%</option>';
+        html += '</select></div>';
+
+        // Nur relevant bei EU-B2B-Reverse-Charge (§13b) — Sichtbarkeit steuert applyReverseChargeCheck().
+        // Pro Position statt pro Rechnung, weil eine Rechnung Ware UND Leistung an denselben EU-Kunden
+        // mischen kann (Kz. 41 vs. Kz. 21 sind pro Position zu ermitteln).
+        html += '<div class="form-group pos-igart-wrap" style="flex: 1.3;display:none;">';
+        if (idx === 0) html += '<label class="form-label">Art (EU)</label>';
+        html += '<select class="form-select pos-igart" data-idx="' + idx + '">';
+        html += '<option value=""' + (pos.igArt ? '' : ' selected') + ' disabled>-- wählen --</option>';
+        html += '<option value="ware"' + (pos.igArt === 'ware' ? ' selected' : '') + '>Ware (Kz.41)</option>';
+        html += '<option value="leistung"' + (pos.igArt === 'leistung' ? ' selected' : '') + '>Leistung (Kz.21)</option>';
         html += '</select></div>';
 
         html += '<div class="form-group" style="flex: 1;">';
@@ -445,7 +449,8 @@ var Rechnung = (function() {
         var beschreibung = ((art.marke || '') + ' ' + (art.artikeltyp || '') + (art.beschreibung ? ' – ' + art.beschreibung : '') + (art.groesse ? ' (Gr. ' + art.groesse + ')' : '')).trim();
         // Bei aktivem Reverse Charge (§13b) darf die neue Position nicht mit 19% starten
         var hint = document.getElementById('reverseChargeHint');
-        var mwstSatz = (hint && hint.style.display === 'block') ? 0 : 19;
+        var isEuB2B = !!(hint && hint.style.display === 'block');
+        var mwstSatz = isEuB2B ? 0 : 19;
         var pos = { beschreibung: beschreibung, menge: 1, einheit: 'Stück', einzelpreis: 0, mwstSatz: mwstSatz, lagerArtikelId: art.id };
 
         var container = document.getElementById('positionenContainer');
@@ -454,6 +459,8 @@ var Rechnung = (function() {
         var newRow = div.firstChild;
         container.appendChild(newRow);
         positionCount++;
+        var igArtWrap = newRow.querySelector('.pos-igart-wrap');
+        if (igArtWrap) igArtWrap.style.display = isEuB2B ? '' : 'none';
         bindPositionEvents(newRow);
         markLagerVerkauft(art.id);
         updateSummen();
@@ -471,6 +478,8 @@ var Rechnung = (function() {
             var mwstSatz = parseFloat(row.querySelector('.pos-mwst').value) || 0;
             var lagerIdEl = row.querySelector('.pos-lager-id');
             var lagerArtikelId = lagerIdEl ? (lagerIdEl.value || null) : null;
+            var igArtEl = row.querySelector('.pos-igart');
+            var igArt = igArtEl ? igArtEl.value : '';
             if (beschreibung || einzelpreis > 0) {
                 positionen.push({
                     beschreibung: beschreibung,
@@ -478,7 +487,8 @@ var Rechnung = (function() {
                     einheit: einheit,
                     einzelpreis: einzelpreis,
                     mwstSatz: mwstSatz,
-                    lagerArtikelId: lagerArtikelId
+                    lagerArtikelId: lagerArtikelId,
+                    igArt: igArt || undefined
                 });
             }
         });
@@ -532,12 +542,17 @@ var Rechnung = (function() {
         row.querySelector('.pos-gesamt').value = gesamt.toFixed(2);
     }
 
+    // Zeigt nur eine Vorschau der nächsten Nummer — verbraucht KEINEN Counter-Wert.
+    // Fix: rief vorher nextRechInvoiceNumber() auf, bei JEDEM Öffnen/Typ-Wechsel des Formulars —
+    // Abbrechen/Wegnavigieren ohne Speichern verbrannte die Nummer trotzdem dauerhaft (Lücke,
+    // §14 Abs.4 Nr.4 UStG/GoBD). Die Nummer wird jetzt erst in buildInvoiceObject() beim
+    // tatsächlichen Speichern fixiert (gleiches "Peek zuerst"-Muster wie bei Storno-Nummern).
     function autoGenerateNumber() {
         var typ = document.getElementById('invTyp').value;
         if (!editingInvoice) {
             var numField = document.getElementById('invNummer');
             if (numField && !numField.dataset.userEdited) {
-                numField.value = Store.nextRechInvoiceNumber(typ);
+                numField.value = Store.peekRechInvoiceNumber(typ);
             }
         }
     }
@@ -568,6 +583,7 @@ var Rechnung = (function() {
             var isKlein = editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (settings.ustMode === 'klein');
             var isEuB2B = !isKlein && kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && euLaender.indexOf(kunde.land) !== -1;
             if (hint) hint.style.display = isEuB2B ? 'block' : 'none';
+            document.querySelectorAll('.pos-igart-wrap').forEach(function(w) { w.style.display = isEuB2B ? '' : 'none'; });
             if (isEuB2B && forceApply) {
                 document.querySelectorAll('.pos-mwst').forEach(function(sel) {
                     sel.value = '0';
@@ -712,7 +728,7 @@ var Rechnung = (function() {
                 var modalBody = '<div class="form-group"><label class="form-label">Name <span style="color:red;">*</span></label><input class="form-input" id="npName"></div>';
                 modalBody += '<div class="form-group"><label class="form-label">Beschreibung</label><textarea class="form-textarea" id="npBeschreibung" rows="2"></textarea></div>';
                 modalBody += '<div class="form-row">';
-                modalBody += '<div class="form-group"><label class="form-label">Preis</label><input class="form-input" id="npPreis" type="number" step="0.01" min="0" value="0"></div>';
+                modalBody += '<div class="form-group"><label class="form-label">Preis</label><input class="form-input" id="npPreis" type="number" step="0.01" min="0" max="99999999" value="0"></div>';
                 modalBody += '<div class="form-group"><label class="form-label">Einheit</label><select class="form-select" id="npEinheit"><option value="St\u00FCck">St\u00FCck</option><option value="Std.">Std.</option><option value="pauschal">pauschal</option></select></div>';
                 modalBody += '<div class="form-group"><label class="form-label">MwSt-Satz</label><select class="form-select" id="npMwst"><option value="19">19%</option><option value="7">7%</option><option value="0">0%</option></select></div>';
                 modalBody += '</div>';
@@ -812,21 +828,30 @@ var Rechnung = (function() {
             return null;
         }
 
-        // \u00A714 UStG \u2014 warn if required fields missing on invoices
+        // \u00A714 UStG \u2014 Pflichtangaben, blockiert das Speichern statt nur zu warnen
+        // (Fix: Toast allein verhinderte das Speichern nicht \u2014 eine Rechnung ohne
+        // vollst\u00E4ndige Empf\u00E4ngeranschrift oder ohne Steuernummer/USt-IdNr. des Ausstellers
+        // konnte bisher vollst\u00E4ndig erstellt, exportiert und versendet werden).
         if (typ === 'rechnung') {
             var kd = Store.getRechCustomers().find(function(c) { return c.id === kundeId; });
             if (kd && (!kd.strasse || !kd.plz || !kd.ort)) {
-                Utils.showToast('\u26A0\uFE0F Kundenadresse unvollst\u00E4ndig (Stra\u00DFe, PLZ, Ort) \u2014 \u00A714 UStG Pflichtangabe.', 'warning');
+                Utils.showToast('\u26A0\uFE0F Kundenadresse unvollst\u00E4ndig (Stra\u00DFe, PLZ, Ort) \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Kundendaten erg\u00E4nzen.', 'error');
+                return null;
             }
             var s14 = Store.getRechUnternehmen ? Store.getRechUnternehmen() : {};
             if (!s14.steuernummer && !s14.ustId) {
-                Utils.showToast('\u26A0\uFE0F Keine Steuernummer / USt-IdNr. hinterlegt \u2014 \u00A714 UStG Pflichtangabe.', 'warning');
+                Utils.showToast('\u26A0\uFE0F Keine Steuernummer / USt-IdNr. hinterlegt \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Unternehmensdaten erg\u00E4nzen.', 'error');
+                return null;
             }
         }
 
-        if (!nummer) {
-            nummer = Store.nextRechInvoiceNumber(typ);
-        }
+        // Wurde die Nummer nur automatisch vorgeschlagen (nicht vom Nutzer editiert)? Dann ist es bis
+        // hierher nur eine unverbindliche Vorschau (s. autoGenerateNumber/peekRechInvoiceNumber) — der
+        // tatsächliche Counter-Verbrauch passiert erst ganz am Ende, NACH allen Validierungen unten, die
+        // das Speichern noch mit return null abbrechen können (sonst würde bei einem Validierungsfehler
+        // trotzdem eine Nummer verbrannt — exakt der Lücken-Bug, den dieser Fix beheben soll).
+        var numFieldEl = document.getElementById('invNummer');
+        var wasAutoPreview = !editingInvoice && numFieldEl && !numFieldEl.dataset.userEdited;
 
         var positionen = collectPositionen();
         if (positionen.length === 0) {
@@ -838,17 +863,50 @@ var Rechnung = (function() {
             return null;
         }
 
-        if (nummer && Store.getRechInvoices(true).some(function(d) {
+        // §13b UStG EU-B2B: "Art des Umsatzes" muss pro 0%-Position explizit gewählt sein (Kz. 41 vs.
+        // Kz. 21) — kein Silent-Default, da eine Rechnung Ware und Leistung an denselben Kunden mischen kann.
+        var kd13b = Store.getRechCustomers().find(function(c) { return c.id === kundeId; });
+        var settings13b = mergeRechSettings();
+        var isKlein13b = editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (settings13b.ustMode === 'klein');
+        var isEuB2B13b = !isKlein13b && kd13b && kd13b.ustIdNr && kd13b.land && kd13b.land !== 'DE' && rcEuLaender().indexOf(kd13b.land) !== -1;
+        if (isEuB2B13b && positionen.some(function(p) { return p.mwstSatz === 0 && !p.igArt; })) {
+            Utils.showToast('Bitte bei jeder 0%-Position „Art des Umsatzes" (Ware/Leistung) wählen — entscheidet Kz. 41 vs. Kz. 21.', 'error');
+            return null;
+        }
+        // §13b UStG — bei Reverse Charge darf KEINE deutsche USt ausgewiesen werden (sonst §14c Abs.1
+        // UStG: unrichtiger Steuerausweis, Steuerschuld trotzdem). Guard deckte bisher nur die 0%-igArt-
+        // Pflicht ab, nicht den Fall, dass eine Position noch einen Steuersatz &gt;0% trägt (z.B. nach
+        // nachträglicher USt-IdNr. beim Kunden oder Produkt-Einfügen mit fixem 19%-Satz).
+        if (isEuB2B13b && positionen.some(function(p) { return p.mwstSatz > 0; })) {
+            Utils.showToast('Reverse-Charge-Kunde (EU-Ausland mit USt-IdNr.): Positionen dürfen keine deutsche USt tragen. Bitte MwSt-Satz auf 0% setzen.', 'error');
+            return null;
+        }
+
+        // Duplikatsprüfung nur für vom Nutzer selbst eingetragene Nummern nötig — eine automatisch
+        // vergebene Nummer (s.u.) ist durch Store.nextRechInvoiceNumber()'s eigene Prüfung immer eindeutig.
+        if (!wasAutoPreview && nummer && Store.getRechInvoices(true).some(function(d) {
             return d.nummer === nummer && (!editingInvoice || d.id !== editingInvoice.id);
         })) {
             Utils.showToast('Rechnungsnummer "' + nummer + '" ist bereits vergeben.', 'error');
             return null;
         }
 
+        // Jetzt, nach allen Validierungen, die Nummer final fixieren (Counter tatsächlich verbrauchen).
+        if (!nummer || wasAutoPreview) {
+            nummer = Store.nextRechInvoiceNumber(typ);
+        }
+
+        var isKleinFinal = editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (Store.getSettings().ustMode === 'klein');
+        // §19 UStG: Kleinunternehmer-Rechnung darf NIE einen Steuerbetrag ausweisen (§14c Abs.1 UStG
+        // Risiko sonst). mwstSatz hart auf 0 erzwingen statt darauf zu vertrauen, dass jeder Konsument
+        // (PDF, xrechnung.js, Sale-Sync, ...) isKlein selbst vor mwstSatz prüft.
+        if (isKleinFinal) {
+            positionen = positionen.map(function(p) { return Object.assign({}, p, { mwstSatz: 0 }); });
+        }
+
         var invoice = {
             id: editingInvoice ? editingInvoice.id : Store.generateId(),
-            isKlein: editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (Store.getSettings().ustMode === 'klein'),
-            igArt: (document.getElementById('invIgArt') && document.getElementById('invIgArt').value) || 'ware',
+            isKlein: isKleinFinal,
             typ: typ,
             nummer: nummer,
             datum: datum,
@@ -915,7 +973,12 @@ var Rechnung = (function() {
     function saveInvoice() {
         var invoice = buildInvoiceObject();
         if (!invoice) return;
-        Store.saveRechInvoice(invoice);
+        var saved = Store.saveRechInvoice(invoice);
+        if (!saved) {
+            Utils.showToast('Nicht gespeichert — Dokument ist bereits gestellt/gesperrt (GoBD §14 UStG).', 'error');
+            RechApp.navigate('dokumente');
+            return;
+        }
         Utils.showToast('Dokument gespeichert!', 'success');
         RechApp.navigate('dokumente');
     }
@@ -1012,6 +1075,10 @@ var Rechnung = (function() {
                 html += '<div class="inv-meta-row"><span class="inv-meta-lbl">Lieferdatum</span><span class="inv-meta-val">' + Utils.formatDate(inv.lieferdatum) + '</span></div>';
             } else if (dOpt === 'lieferzeitraum' && (inv.lieferVon || inv.lieferBis)) {
                 html += '<div class="inv-meta-row"><span class="inv-meta-lbl">Lieferzeitraum</span><span class="inv-meta-val">' + Utils.formatDate(inv.lieferVon) + ' \u2013 ' + Utils.formatDate(inv.lieferBis) + '</span></div>';
+            } else {
+                // \u00a714 Abs.4 Nr.6 UStG verlangt zwingend einen Leistungszeitpunkt \u2014 ohne F\u00e4llig-/Liefer-
+                // angabe (dOpt 'nur_datum') fehlte dieser Pflichthinweis bisher komplett auf der Rechnung.
+                html += '<div class="inv-meta-row"><span class="inv-meta-lbl">Leistungsdatum</span><span class="inv-meta-val">entspricht Rechnungsdatum</span></div>';
             }
         }
         html += '</div>';

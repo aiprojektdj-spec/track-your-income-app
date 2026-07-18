@@ -1183,6 +1183,21 @@ const Store = {
             (p.monat ? p.monat === month : p.quartal === quartal));
     },
 
+    // Aktive Erinnerung, wenn eine NEUE Buchung mit Datum in einer bereits eingereichten/abgeschlossenen
+    // Periode angelegt wird. Kein Hard-Block (rückdatierte Nachbuchungen sind legitim, z.B. verspätet
+    // erhaltener Beleg) — aber die bereits gemeldete UVA-Periode ist als Snapshot eingefroren (s.
+    // _calcPeriodeLocked in ustvoranmeldung.js) und ändert sich NICHT rückwirkend. Ohne diesen Hinweis
+    // verschwindet die Buchung sonst unbemerkt aus jeder UVA-Meldung (§153 AO verlangt Korrektur in der
+    // nächsten offenen Periode).
+    _warnIfPeriodLocked(dateStr) {
+        try {
+            if (!this.isPeriodLocked(dateStr)) return;
+            if (typeof Utils !== 'undefined' && Utils.showToast) {
+                Utils.showToast('⚠️ Buchung liegt in einer bereits eingereichten/abgeschlossenen USt-Periode — bitte als Korrektur in der nächsten offenen Periode nachmelden (§153 AO).', 'warning', 8000);
+            }
+        } catch (e) {}
+    },
+
     // Warum ist der Datensatz gesperrt? (für UI-Tooltips)
     lockReason(record) {
         if (!record) return '';
@@ -1307,6 +1322,7 @@ const Store = {
             this._stampRecord(purchase);
             purchases.push(purchase);
             this._addAuditEntry('erstellt', 'einkauf', purchase.id, null, purchase, 'Einkauf erstellt');
+            this._warnIfPeriodLocked(purchase.datum);
         }
         this.set('purchases', purchases);
         return purchase;
@@ -1382,6 +1398,7 @@ const Store = {
             this._stampRecord(sale);
             sales.push(sale);
             this._addAuditEntry('erstellt', 'verkauf', sale.id, null, sale, 'Verkauf erstellt');
+            this._warnIfPeriodLocked(sale.datum);
         }
         this.set('sales', sales);
         // Mark purchase(s) as sold if linked - supports both single (purchaseId) and multiple (purchaseIds)
@@ -1538,6 +1555,7 @@ const Store = {
             this._stampRecord(expense);
             expenses.push(expense);
             this._addAuditEntry('erstellt', 'ausgabe', expense.id, null, expense, 'Ausgabe erstellt');
+            this._warnIfPeriodLocked(expense.datum);
         }
         this.set('expenses', expenses);
         return expense;
@@ -1922,7 +1940,10 @@ const Store = {
             if (idx >= 0) {
                 const old = Object.assign({}, invoices[idx]);
                 const action = invoice.status !== old.status ? 'status_geaendert' : 'bearbeitet';
-                if (action === 'bearbeitet' && this._isRechInvoiceLocked(old)) return invoice; // GoBD §14: gestellte Rechnung nicht mehr inhaltlich änderbar
+                // GoBD §14: gestellte Rechnung nicht mehr inhaltlich änderbar — null statt invoice
+                // zurückgeben, damit Aufrufer den No-Op erkennen (Fix: saveInvoice() im UI meldete
+                // vorher "Dokument gespeichert!" auch wenn die Änderung hier still verworfen wurde).
+                if (action === 'bearbeitet' && this._isRechInvoiceLocked(old)) return null;
                 this._addAuditEntry(action, 'dokument', invoice.id, old, invoice,
                     action === 'status_geaendert' ? `Status: ${old.status} -> ${invoice.status}` : 'Dokument bearbeitet');
                 invoices[idx] = this._stampRecord(invoice);
@@ -1935,6 +1956,7 @@ const Store = {
             this._stampRecord(invoice);
             invoices.push(invoice);
             this._addAuditEntry('erstellt', 'dokument', invoice.id, null, invoice, 'Dokument erstellt: ' + (invoice.nummer || ''));
+            this._warnIfPeriodLocked(invoice.datum);
         }
         this._rechSet('dokumente', invoices);
         if (isNew && typeof Webhooks !== 'undefined') Webhooks.fire('rechnung', invoice);
@@ -2064,6 +2086,18 @@ const Store = {
     // ---- Rechnungsbuch Invoice Counter ----
     getRechInvoiceCounter() {
         return this._rechGet('invoice_counter') || { RE: 0, AN: 0, GU: 0 };
+    },
+
+    // Nicht-mutierende Vorschau der nächsten Nummer — für die Live-Anzeige im "Neue Rechnung"-Formular.
+    // Verbraucht KEINEN Counter-Wert (Fix: autoGenerateNumber() rief vorher nextRechInvoiceNumber()
+    // bei jedem Öffnen/Typ-Wechsel des Formulars auf und verbrannte damit dauerhaft Nummern, auch wenn
+    // nie gespeichert wurde — §14 Abs.4 Nr.4 UStG/GoBD verlangen lückenlose, erklärbare Nummernfolgen).
+    peekRechInvoiceNumber(typ) {
+        const counter = this.getRechInvoiceCounter();
+        const prefix = typ === 'rechnung' ? 'RE' : typ === 'angebot' ? 'AN' : 'GU';
+        const year = new Date().getFullYear();
+        const n = (counter._year === year ? (counter[prefix] || 0) : 0) + 1;
+        return `${prefix}-${year}-${String(n).padStart(3, '0')}`;
     },
 
     nextRechInvoiceNumber(typ) {
@@ -2377,13 +2411,16 @@ const Store = {
     },
 
     // Synchronisiert bezahlte Rechnungen automatisch als Verkaufseintraege
+    // Fix: filterte vorher hart auf typ==='rechnung' → bezahlte Gutschriften (§17 UStG) liefen NIE
+    // automatisch ein, nur über den manuellen Sync-Button in euer.js. In Ist-Versteuerung fehlte die
+    // Korrektur dadurch in der USt-Voranmeldung, solange niemand manuell synct.
     autoSyncInvoices() {
         try {
             const invoices = this.getRechInvoices ? this.getRechInvoices() : [];
             const allSales = this.getAllSalesRaw();
             const syncedIds = new Set(allSales.filter(s => s._invoiceId).map(s => s._invoiceId));
             invoices.forEach(inv => {
-                if (inv.status === 'bezahlt' && inv.typ === 'rechnung' && !syncedIds.has(inv.id)) {
+                if (inv.status === 'bezahlt' && (inv.typ === 'rechnung' || inv.typ === 'gutschrift') && !inv._storniert && !syncedIds.has(inv.id)) {
                     this.createSaleFromInvoice(inv, inv.verkaufsplattform || '', null, null);
                     syncedIds.add(inv.id); // doppelten sync verhindern
                 }

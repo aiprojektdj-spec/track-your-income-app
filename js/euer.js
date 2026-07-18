@@ -87,9 +87,10 @@ const Euer = {
         }, 0);
 
         // Einnahmen: Bruttoerlöse = Verkaufspreis + Versand vom Käufer (§11 EStG Zufluss)
-        const bruttoEinnahmen = sales.reduce((sum, s) => {
+        const salesBrutto = sales.reduce((sum, s) => {
             return sum + (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
-        }, 0) + rechnungsEinnahmen;
+        }, 0);
+        const bruttoEinnahmen = salesBrutto + rechnungsEinnahmen;
 
         // Ausgaben
         // Wareneinkauf: ALLE Einkäufe im Zeitraum (EÜR Abflussprinzip §4 Abs. 3 EStG – Ausgabe beim Bezahlen, nicht beim Verkaufen)
@@ -142,18 +143,46 @@ const Euer = {
             .filter(r => Utils.isInPeriod(r.datum, startDate, endDate) && !(r.saleId && stornierteSaleIds.has(r.saleId)))
             .reduce((sum, r) => sum + (parseFloat(r.erstattungBetrag) || 0), 0);
 
-        // Netto-Einnahmen nach Retouren
+        // Netto-Einnahmen nach Retouren (Anzeige: Brutto-Basis, vor USt-Extraktion)
         const nettoEinnahmen = bruttoEinnahmen - retourenErstattungen;
 
         // ── USt-Berechnung (nur Regelbesteuerung) ──────────────────────────────
         // Nutzer geben Brutto-Marktplatzpreise ein (eBay, Vinted etc. zeigen Brutto).
         // Kleinunternehmer (§19 UStG): keine USt auf Einnahmen, keine Vorsteuer absetzbar.
-        // Regelbesteuerung: USt ist im Brutto enthalten → herausrechnen per /1.19 × 0.19
-        //   Bsp: 119 € Brutto → 100 € Netto + 19 € USt
-        const ustEinnahmen = isRegel ? (nettoEinnahmen / 1.19 * 0.19) : 0;
-        // Für die EÜR zählt bei Regelbesteuerung der Netto-Umsatz als Betriebseinnahme
-        // + die vereinnahmte USt wird separat als Durchlaufposten gezeigt
-        const summeEinnahmen = isRegel ? (nettoEinnahmen / 1.19) + ustEinnahmen : nettoEinnahmen;
+        // Marktplatz-Verkäufe: Brutto → Netto per TATSÄCHLICHEM Steuersatz je Verkauf
+        // (Fix: war pauschal 19% via /1.19, jetzt gewichtet wie beim Vorsteuerabzug aus Einkäufen).
+        // Rechnungspositionen (rechnungsEinnahmen) sind dagegen bereits NETTO — MwSt wird dort
+        // separat oben draufgerechnet (s. rechnung.js updateSummen()), NICHT nochmal /1.19 teilen
+        // (Fix: wurden vorher fälschlich ein zweites Mal genettet → Netto-Umsatz aus Rechnungen zu niedrig).
+        const salesNettoWeighted = isRegel ? sales.reduce((sum, s) => {
+            const brutto = (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
+            const rateRaw = (s.steuersatz != null && s.steuersatz !== '') ? parseFloat(s.steuersatz) : 19;
+            const rate = isNaN(rateRaw) ? 19 : rateRaw;
+            return sum + brutto / (1 + rate / 100);
+        }, 0) : 0;
+        // Retouren am Steuersatz des jeweils verknüpften Verkaufs netten (Fallback 19% ohne Verknüpfung)
+        const retourenNettoWeighted = isRegel ? Store.getRetouren()
+            .filter(r => Utils.isInPeriod(r.datum, startDate, endDate) && !(r.saleId && stornierteSaleIds.has(r.saleId)))
+            .reduce((sum, r) => {
+                const betrag = parseFloat(r.erstattungBetrag) || 0;
+                const relSale = r.saleId ? Store.getSales(true).find(s => s.id === r.saleId) : null;
+                const rateRaw = relSale && relSale.steuersatz != null && relSale.steuersatz !== '' ? parseFloat(relSale.steuersatz) : 19;
+                const rate = isNaN(rateRaw) ? 19 : rateRaw;
+                return sum + betrag / (1 + rate / 100);
+            }, 0) : 0;
+        // Vereinnahmte USt aus Rechnungspositionen (echter Durchlaufposten, je Position/Satz, §17-Vorzeichen bei Gutschrift)
+        const ustAusRechnungen = isRegel ? unsyncedInvoices.reduce((sum, inv) => {
+            const sign = inv.typ === 'gutschrift' ? -1 : 1;
+            return sum + sign * (inv.positionen || []).reduce((s2, p) => {
+                const satz = parseFloat(p.mwstSatz) || 0;
+                return s2 + (p.menge || 0) * (p.einzelpreis || 0) * satz / 100;
+            }, 0);
+        }, 0) : 0;
+        const ustEinnahmen = isRegel ? ((salesBrutto - retourenErstattungen) - (salesNettoWeighted - retourenNettoWeighted)) + ustAusRechnungen : 0;
+        // Für die EÜR zählt bei Regelbesteuerung der Netto-Umsatz als Betriebseinnahme;
+        // die vereinnahmte USt ist ein reiner Durchlaufposten und fließt NICHT in den Gewinn
+        // (Fix: wurde vorher rechnerisch wieder voll addiert → Gewinn war um die USt überhöht).
+        const summeEinnahmen = isRegel ? (salesNettoWeighted - retourenNettoWeighted) + rechnungsEinnahmen : nettoEinnahmen;
 
         // Sonstige Betriebsausgaben
         const sonstigeAusgaben = expenses.reduce((sum, e) => sum + (parseFloat(e.betrag) || 0), 0);
@@ -376,11 +405,11 @@ const Euer = {
                                 <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(nettoEinnahmen)}</td>
                             </tr>` : ''}
                             ${isRegel ? `<tr style="opacity:0.8;">
-                                <td style="padding-left:16px;font-size:12px;">↳ davon Netto-Umsatz <span style="color:var(--text-muted);">(Brutto ÷ 1,19)</span></td>
-                                <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(nettoEinnahmen / 1.19)}</td>
+                                <td style="padding-left:16px;font-size:12px;">↳ davon Netto-Umsatz <span style="color:var(--text-muted);">(je Verkauf/Position zum tatsächlichen Steuersatz genettet)</span></td>
+                                <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(summeEinnahmen)}</td>
                             </tr>
                             <tr style="opacity:0.8;">
-                                <td style="padding-left:16px;font-size:12px;">↳ Umsatzsteuer vereinnahmt (19%) <span style="color:var(--text-muted);">Durchlaufposten</span></td>
+                                <td style="padding-left:16px;font-size:12px;">↳ Umsatzsteuer vereinnahmt <span style="color:var(--text-muted);">Durchlaufposten</span></td>
                                 <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(ustEinnahmen)}</td>
                             </tr>` : ''}
                             <tr class="euer-total">

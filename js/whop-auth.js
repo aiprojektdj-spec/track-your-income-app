@@ -273,8 +273,8 @@ var AuthUI = (function () {
                 var accJson = await accRes.json();
                 hasAccess  = !!(accJson && accJson.has_access === true);
                 graceToken = accJson && accJson.grace_token;
-            } else if (accRes.status >= 500) {
-                throw new Error('whop-access HTTP ' + accRes.status); // → Offline-Grace
+            } else if (accRes.status >= 500 || accRes.status === 429) {
+                throw new Error('whop-access HTTP ' + accRes.status); // → Offline-Grace (429: IP-Rate-Limit ist kein "kein Abo")
             } else {
                 console.warn('[WhopAuth] /api/whop-access HTTP ' + accRes.status + ' — Zugang nicht bestätigt');
             }
@@ -354,7 +354,7 @@ var AuthUI = (function () {
         localStorage.removeItem(LS_TOKEN);
         localStorage.removeItem(LS_USER);
         _clearGrace();
-        location.replace('app.html');
+        location.replace('/app.html'); // absolut: relativ 404et von /lager/, /rechnungen/, /eigenbelege/ aus
     }
 
     // ── Login-Screen ──────────────────────────────────────────

@@ -81,10 +81,8 @@ const Euer = {
             const d = inv.bezahltAm || inv.datum;
             return Utils.isInPeriod(d, startDate, endDate);
         });
-        const rechnungsEinnahmen = unsyncedInvoices.reduce((sum, inv) => {
-            const sign = inv.typ === 'gutschrift' ? -1 : 1; // §17 UStG: Gutschrift mindert den Umsatz
-            return sum + sign * (inv.positionen || []).reduce((s2, p) => s2 + (p.menge || 0) * (p.einzelpreis || 0), 0);
-        }, 0);
+        const rechnungenNetting = SteuerBerechnung.nettoRechnungen(unsyncedInvoices);
+        const rechnungsEinnahmen = rechnungenNetting.netto;
 
         // Einnahmen: Bruttoerlöse = Verkaufspreis + Versand vom Käufer (§11 EStG Zufluss)
         const salesBrutto = sales.reduce((sum, s) => {
@@ -154,30 +152,14 @@ const Euer = {
         // Rechnungspositionen (rechnungsEinnahmen) sind dagegen bereits NETTO — MwSt wird dort
         // separat oben draufgerechnet (s. rechnung.js updateSummen()), NICHT nochmal /1.19 teilen
         // (Fix: wurden vorher fälschlich ein zweites Mal genettet → Netto-Umsatz aus Rechnungen zu niedrig).
-        const salesNettoWeighted = isRegel ? sales.reduce((sum, s) => {
-            const brutto = (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
-            const rateRaw = (s.steuersatz != null && s.steuersatz !== '') ? parseFloat(s.steuersatz) : 19;
-            const rate = isNaN(rateRaw) ? 19 : rateRaw;
-            return sum + brutto / (1 + rate / 100);
-        }, 0) : 0;
+        const salesNettoWeighted = isRegel ? SteuerBerechnung.nettoSales(sales, true).netto : 0;
         // Retouren am Steuersatz des jeweils verknüpften Verkaufs netten (Fallback 19% ohne Verknüpfung)
-        const retourenNettoWeighted = isRegel ? Store.getRetouren()
-            .filter(r => Utils.isInPeriod(r.datum, startDate, endDate) && !(r.saleId && stornierteSaleIds.has(r.saleId)))
-            .reduce((sum, r) => {
-                const betrag = parseFloat(r.erstattungBetrag) || 0;
-                const relSale = r.saleId ? Store.getSales(true).find(s => s.id === r.saleId) : null;
-                const rateRaw = relSale && relSale.steuersatz != null && relSale.steuersatz !== '' ? parseFloat(relSale.steuersatz) : 19;
-                const rate = isNaN(rateRaw) ? 19 : rateRaw;
-                return sum + betrag / (1 + rate / 100);
-            }, 0) : 0;
+        const retourenNettoWeighted = isRegel ? SteuerBerechnung.nettoRetouren(
+            Store.getRetouren().filter(r => Utils.isInPeriod(r.datum, startDate, endDate) && !(r.saleId && stornierteSaleIds.has(r.saleId))),
+            Store.getSales(true), true
+        ).netto : 0;
         // Vereinnahmte USt aus Rechnungspositionen (echter Durchlaufposten, je Position/Satz, §17-Vorzeichen bei Gutschrift)
-        const ustAusRechnungen = isRegel ? unsyncedInvoices.reduce((sum, inv) => {
-            const sign = inv.typ === 'gutschrift' ? -1 : 1;
-            return sum + sign * (inv.positionen || []).reduce((s2, p) => {
-                const satz = parseFloat(p.mwstSatz) || 0;
-                return s2 + (p.menge || 0) * (p.einzelpreis || 0) * satz / 100;
-            }, 0);
-        }, 0) : 0;
+        const ustAusRechnungen = isRegel ? rechnungenNetting.ust : 0;
         const ustEinnahmen = isRegel ? ((salesBrutto - retourenErstattungen) - (salesNettoWeighted - retourenNettoWeighted)) + ustAusRechnungen : 0;
         // Für die EÜR zählt bei Regelbesteuerung der Netto-Umsatz als Betriebseinnahme;
         // die vereinnahmte USt ist ein reiner Durchlaufposten und fließt NICHT in den Gewinn
@@ -211,15 +193,10 @@ const Euer = {
         // Purchases können jetzt ustSatz = 19 | 7 | 0 tragen.
         // Fallback: 19% wenn kein ustSatz gespeichert (Altdaten-Kompatibilität).
         const vorsteuer = isRegel ? (() => {
-            // Einkäufe: nach tatsächlichem Satz gewichtet
-            const vstPurch = periodPurchases
-                .filter(p => !p.storniert)
-                .reduce((sum, p) => {
-                    const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
-                    const rate   = (p.ustSatz != null ? Number(p.ustSatz) : 19) / 100;
-                    const factor = rate / (1 + rate); // extract USt from brutto
-                    return sum + brutto * factor;
-                }, 0);
+            // Einkäufe: nach tatsächlichem Satz gewichtet (gleiches Set wie bisher — periodPurchases
+            // ist bereits ohne storniert, der zusätzliche Filter hier ist ein No-Op, aber bewusst
+            // beibehalten um exakt das vorherige Verhalten zu spiegeln, s. wareneinkauf-Kommentar oben)
+            const vstPurch = SteuerBerechnung.nettoPurchases(periodPurchases.filter(p => !p.storniert)).ust;
             // Sonstige Ausgaben, Fahrtkosten, Eigenbelege: pauschal 19% (keine Satz-Info).
             // AfA NICHT enthalten: die Vorsteuer wurde bereits im Anschaffungsjahr in voller Höhe
             // gezogen, die AfA selbst ist eine vorsteuerfreie (Netto-)Abschreibung.

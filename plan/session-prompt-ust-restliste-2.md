@@ -1,5 +1,11 @@
 # Prompt für neue Session (copy-paste) — USt-Regelbesteuerung: Restliste Teil 2
 
+> **ERLEDIGT (2026-07-18)** — Punkte 2/3/4 gefixt + committed (`daefd12`, `d6b6b9a`, siehe
+> `plan/offene-punkte-2026-07-15.md` Punkt 2 für den vollen Trail inkl. Nachschärfung
+> auf Pro-Position-`igArt`). Punkte 5/6 waren bereits vor dieser Datei erledigt. Offen bleibt
+> nur die Browser-E2E-Verifikation — siehe `plan/session-prompt-ust-bulletproof.md`. Diese
+> Datei kann archiviert/gelöscht werden.
+
 ---
 
 Kontext: Anschluss an `plan/session-prompt-ust-restliste.md` (Punkte 2–7 der USt-Restliste).

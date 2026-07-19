@@ -193,11 +193,15 @@ const Euer = {
             // ist bereits ohne storniert, der zusätzliche Filter hier ist ein No-Op, aber bewusst
             // beibehalten um exakt das vorherige Verhalten zu spiegeln, s. wareneinkauf-Kommentar oben)
             const vstPurch = SteuerBerechnung.nettoPurchases(periodPurchases.filter(p => !p.storniert)).ust;
-            // Sonstige Ausgaben, Fahrtkosten, Eigenbelege: pauschal 19% (keine Satz-Info).
-            // AfA NICHT enthalten: die Vorsteuer wurde bereits im Anschaffungsjahr in voller Höhe
-            // gezogen, die AfA selbst ist eine vorsteuerfreie (Netto-)Abschreibung.
-            const vstOther = (versandkosten + plattformgebuehren + fahrtkosten + materialKosten + sonstigeAusgaben + eigenbelegeAusgaben) / 1.19 * 0.19;
-            return vstPurch + vstOther;
+            // Sonstige Betriebsausgaben tragen ustSatz (0% gültig, z.B. Versicherung/Porto) —
+            // per-Eintrag netten statt pauschal (Fix: war pauschal 19%, ignorierte ustSatz=0).
+            const vstExpenses = SteuerBerechnung.nettoExpenses(expenses).ust;
+            // Fahrtkosten, Eigenbelege, Versand, Plattformgebühren, Material: pauschal 19%
+            // (keine Satz-Info in diesen Kategorien). AfA NICHT enthalten: die Vorsteuer wurde
+            // bereits im Anschaffungsjahr in voller Höhe gezogen, die AfA selbst ist eine
+            // vorsteuerfreie (Netto-)Abschreibung.
+            const vstOther = (versandkosten + plattformgebuehren + fahrtkosten + materialKosten + eigenbelegeAusgaben) / 1.19 * 0.19;
+            return vstPurch + vstExpenses + vstOther;
         })() : 0;
         // Bei Regelbesteuerung zählt nur Netto als abzugsfähige BA; USt ist Durchlaufposten
         const summeAusgaben = isRegel ? (abzugsfaehig - vorsteuer) : abzugsfaehig;

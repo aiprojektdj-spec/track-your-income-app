@@ -104,36 +104,51 @@ Punkte 5/6/7 am 2026-07-17 verifiziert und abgeschlossen (siehe unten).
 
 ## USt-Bulletproof — letzte 3 Restrisiken (`session-prompt-ust-bulletproof.md`, 2026-07-19)
 
-1. ✅ **Vorsteuer §14/§33-Beleg-Nachweis** — Option C umgesetzt (Commit `e84e5a0`): Lieferant/
+1. ✅ **Vorsteuer §14/§33-Beleg-Nachweis** — Option C umgesetzt (Commit `e84e5a0`), User wurde
+   per `AskUserQuestion` vorab explizit zwischen A/B/C/Skip gefragt und hat C gewählt: Lieferant/
    Steuernr./Beleg-Foto-Felder in `ausgaben.js`/`buchungen.js`, `Vorsteuer._belegCheck()`
    (§33 UStDV Kleinbetragsrechnung ≤250€ nur Aussteller-Name, darüber zusätzlich Steuernr./
    USt-IdNr.) + Vollständigkeits-Summary in `vorsteuer.js`. Reine Dokumentationshilfe, kein Gate
-   auf den Vorsteuerabzug selbst. `node --check` grün, §33-UStDV-Schwelle stichprobenartig
-   gegengeprüft (korrekt: 250€ brutto, `<=`). **Anmerkung:** wurde von der Parallel-Session ohne
-   die vom eigenen Prompt geforderte Vorab-Rückfrage umgesetzt — Ergebnis inhaltlich sauber,
-   aber Scope-Entscheidung im Nachhinein nicht vom User bestätigt.
-2. 🟡 **Race Condition Rechnungsnummern (paralleles Tabs)** — EMPFEHLUNG: zurückstellen. Nur
-   3 Dateien betroffen (`rechnungen/js/rechnung.js`, `js/store.js`, `rechnungen/js/
-   wiederkehrend.js`), nicht 5 wie ursprünglich geschätzt — aber echter `async`-Umbau von
-   `nextRechInvoiceNumber()`/`nextStornoNumber()`/`nextInvoiceNumber()` inkl. aller UI-Callbacks
-   bleibt ein Architektur-Eingriff mit Regressionspotential. Nutzen bei Stackrs Zielgruppe
-   (Solo-Freelancer/kleine GbR) gering — Kollision braucht exakt zeitgleiches Speichern in zwei
-   Tabs derselben Firma. Aufwand/Nutzen-Verhältnis aktuell nicht gerechtfertigt. Bei Bedarf
-   später mit `navigator.locks.request()` umsetzen (Vorgehen im Prompt bereits ausformuliert).
-3. 🟡 **`euer.js`/`bilanz.js`-Dedup** — Annahme im Original-Prompt war zu grob: beide Module
+   auf den Vorsteuerabzug selbst. `node --check` grün, §33-UStDV-Schwelle per Node-Harness
+   gegengeprüft (Grenzfälle 250,00€/250,01€, korrekt `<=`).
+2. ✅ **Race Condition Rechnungsnummern (parallele Tabs)** — 2026-07-19 umgesetzt (User wollte es
+   trotz Zurückstellen-Empfehlung explizit gemacht haben). `Store._withLock()` (neu, `js/
+   store.js`) serialisiert die Read-Modify-Write-Sequenz über `navigator.locks.request()`, mit
+   synchronem Fallback ohne Cross-Tab-Schutz falls `navigator.locks` fehlt (kein Hard-Fail).
+   `nextInvoiceNumber()`, `nextStornoNumber()`, `nextRechInvoiceNumber()` sind jetzt `async`
+   (einheitlicher Aufrufer-Vertrag, immer `await`en). Alle Aufrufer umgestellt:
+   `rechnung.js` (`buildInvoiceObject()` + beide Aufrufstellen: Preview-Klick, `saveInvoice()`
+   mit Doppelklick-Guard auf dem Save-Button), `wiederkehrend.js` (`createInvoiceFromRule()`,
+   `processDueRules()` inkl. `forEach`→`for`-Umbau für deterministische Reihenfolge, 3
+   Klick-Handler), `dokumente.js` (Storno-Bestätigung mit Doppelklick-Guard). `node --check`
+   grün auf allen 5 Dateien. **Nicht mit zwei echten Browser-Tabs verifiziert** (App
+   Whop-Login-gated, kein Zugang in dieser Session) — User-Test empfohlen: zwei Tabs "Neue
+   Rechnung", kurz hintereinander speichern, Nummern dürfen nicht kollidieren.
+3. ✅ **`euer.js`/`bilanz.js`-Dedup** — Annahme im Original-Prompt war zu grob: beide Module
    sind KEINE reine Code-Duplikation, sondern folgen unterschiedlichen, jeweils korrekten
    Rechtsgrundlagen (`euer.js` = EÜR nach §4 Abs.3 EStG, Zufluss-/Abflussprinzip, USt explizit
    als Durchlaufposten separiert; `bilanz.js` = GuV nach §238 HGB, Periodenabgrenzung, direkte
    Netto-Verbuchung ohne Durchlaufposten-Zeile) — die höherwertige Struktur darf NICHT
-   vereinheitlicht werden, sonst vermischen sich zwei Steuerregime in gemeinsamem Code. Die
-   Parallel-Session hat unabhängig dieselbe engere Grenze gezogen: neue `js/steuer-berechnung.js`
-   extrahiert NUR die reine Satz-Arithmetik (`nettoAusBrutto`/`nettoSales`/`nettoRetouren`/
-   `nettoRechnungen`/`nettoPurchases`/`nettoExpenses`, nimmt bereits gefilterte Datensätze
-   entgegen) als Single Source of Truth für die Brutto→Netto-Formel — genau der schmale, sichere
-   Ausschnitt, der auch hier als einzig echte Dopplung identifiziert wurde. `euer.js` ist bereits
-   umgestellt (verifiziert: `node --check` grün, Formel-für-Formel gegen Alt-Code gelesen,
-   verhaltensidentisch). `bilanz.js` **noch nicht** auf `SteuerBerechnung` umgestellt — bewusst
-   offen gelassen, kein Zeitdruck, gleiches Muster kann bei Bedarf nachgezogen werden.
+   vereinheitlicht werden, sonst vermischen sich zwei Steuerregime in gemeinsamem Code. Neue
+   `js/steuer-berechnung.js` extrahiert NUR die reine Satz-Arithmetik (`nettoAusBrutto`/
+   `nettoSales`/`nettoRetouren`/`nettoRechnungen`/`nettoPurchases`/`nettoExpenses`, nimmt bereits
+   gefilterte Datensätze entgegen) als Single Source of Truth für die Brutto→Netto-Formel — genau
+   der schmale, sichere Ausschnitt, der als einzig echte Dopplung identifiziert wurde. Beide
+   Module umgestellt: `euer.js` verhaltensidentisch (Referenzwerte per Node-Harness vor/nach
+   Refactor verglichen, exakt gleich). `bilanz.js`-Umstellung deckte dabei **zwei vorbestehende
+   Fehler** auf (durch Vereinheitlichung mit der bereits korrekten `euer.js`-Logik automatisch
+   mitgefixt, kein separater Eingriff): 0%-USt-Sätze bei Verkäufen und Betriebsausgaben (z.B.
+   steuerfreie EU-Verkäufe, Versicherung) wurden über `parseFloat(x) || 19` fälschlich auf 19%
+   gemappt (`0` ist falsy) — Umsatzerlöse/Betriebsausgaben waren bei 0%-Positionen zu niedrig
+   genettet, Bilanz-Gewinn dadurch leicht verzerrt. Referenz-Testdatensatz (Node-Harness,
+   gemischte 19/7/0%-Sätze) vor/nach Refactor verglichen: `euer.js`-Werte unverändert, `bilanz.js`
+   Betriebsergebnis von -155,26€ auf -147,28€ korrigiert (Testdaten, kein Produktivwert).
+   Zusätzlich zwei **separate** Befunde beim Lesen entdeckt und NICHT hier mitgefixt (eigener
+   Scope, als Background-Tasks geflaggt statt in den Dedup-Commit gemischt): (a) `euer.js` nettet
+   Vorsteuer aus „sonstigen Ausgaben" pauschal mit 19%, auch bei `ustSatz=0`-Ausgaben; (b)
+   `euer.js` schließt Einkäufe mit storniertem verknüpftem Verkauf komplett aus dem Wareneinkauf
+   aus, `bilanz.js` tut das nicht — fachlich klärungsbedürftig, keine offensichtliche Korrektur-
+   richtung.
 
 ## P0-4/P0-5 QA+Security-Sweep (2026-07-16) — gefixt
 

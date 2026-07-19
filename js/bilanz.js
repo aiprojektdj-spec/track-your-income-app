@@ -34,30 +34,25 @@ const Bilanz = {
         const settings = Store.getSettings();
         const isRegel = (settings.ustMode || 'klein') === 'regel';
 
-        let umsatzerloese = sales.reduce((s, v) => {
-            const brutto = (parseFloat(v.verkaufspreis) || 0) + (parseFloat(v.versandkostenKaeufer) || 0);
-            if (isRegel) {
-                const rate = parseFloat(v.steuersatz) || 19;
-                return s + brutto / (1 + rate / 100);
-            }
-            return s + brutto;
-        }, 0);
+        // Netting jetzt über js/steuer-berechnung.js (Single Source of Truth mit euer.js).
+        // Fix durch die Vereinheitlichung: 0%-Sätze (steuerfreie/EU-Verkäufe, steuerfreie Ausgaben
+        // wie Versicherung) wurden hier vorher über `parseFloat(x) || 19` fälschlich auf 19% gemappt
+        // (0 ist falsy) — Umsatzerlöse und Betriebsausgaben waren dadurch bei 0%-Positionen zu
+        // niedrig genettet. euer.js hatte diesen Fehler nicht (dort schon `!= null && !== ''`-Check).
+        let umsatzerloese = SteuerBerechnung.nettoSales(sales, isRegel).netto;
 
         // Bezahlte Rechnungen, die noch nicht als Verkauf gesynct sind (gleiches Pattern wie euer.js)
         // Rechnungspositionen sind bereits NETTO (MwSt wird separat draufgerechnet, s. rechnung.js
         // updateSummen()) — NICHT nochmal /1.19 teilen (Fix: war vorher ein Doppel-Netting-Fehler,
         // Netto-Umsatz aus Rechnungen wurde zu niedrig ausgewiesen).
         const syncedInvoiceIds = new Set((Store.getSales ? Store.getSales(true) : []).filter(s => s._invoiceId).map(s => s._invoiceId));
-        const unsyncedInvoicesNetto = (Store.getRechInvoices ? Store.getRechInvoices() : []).filter(inv => {
+        const unsyncedInvoices = (Store.getRechInvoices ? Store.getRechInvoices() : []).filter(inv => {
             if (inv.status !== 'bezahlt' || inv._storniert) return false;
             if (inv.typ !== 'rechnung' && inv.typ !== 'gutschrift') return false;
             if (syncedInvoiceIds.has(inv.id)) return false;
             return ((inv.bezahltAm || inv.datum) || '').startsWith(y);
-        }).reduce((sum, inv) => {
-            const sign = inv.typ === 'gutschrift' ? -1 : 1; // §17 UStG: Gutschrift mindert den Umsatz
-            return sum + sign * (inv.positionen || []).reduce((s2, p) => s2 + (p.menge || 0) * (p.einzelpreis || 0), 0);
-        }, 0);
-        umsatzerloese += unsyncedInvoicesNetto;
+        });
+        umsatzerloese += SteuerBerechnung.nettoRechnungen(unsyncedInvoices).netto;
 
         // Retouren abziehen — am Steuersatz des verknüpften Verkaufs netten (Fix: war Brutto-Abzug von
         // einer bereits genetteten Netto-Basis, hat den Umsatz um die USt-Quote zu stark gemindert).
@@ -66,41 +61,22 @@ const Bilanz = {
         // gleiches Muster wie euer.js).
         const stornierteSaleIds = new Set((Store.getSales ? Store.getSales(true) : []).filter(s => s.storniert).map(s => s.id));
         const relevanteRetouren = retouren.filter(r => !(r.saleId && stornierteSaleIds.has(r.saleId)));
-        const retourenSum = relevanteRetouren.reduce((s, r) => s + (parseFloat(r.erstattungBetrag) || 0), 0);
-        const retourenNetto = isRegel ? relevanteRetouren.reduce((s, r) => {
-            const betrag = parseFloat(r.erstattungBetrag) || 0;
-            const relSale = r.saleId ? (Store.getSales ? Store.getSales(true) : []).find(sale => sale.id === r.saleId) : null;
-            const rate = relSale && relSale.steuersatz != null && relSale.steuersatz !== '' ? (parseFloat(relSale.steuersatz) || 19) : 19;
-            return s + betrag / (1 + rate / 100);
-        }, 0) : retourenSum;
-        umsatzerloese -= retourenNetto;
+        const retourenNetting = SteuerBerechnung.nettoRetouren(relevanteRetouren, Store.getSales ? Store.getSales(true) : [], isRegel);
+        const retourenSum = retourenNetting.brutto;
+        umsatzerloese -= retourenNetting.netto;
 
-        // Wareneinsatz
-        const wareneinsatz = purchases.reduce((s, p) => {
-            const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
-            if (isRegel) {
-                // Einkäufe tragen den Satz als ustSatz; 0 (Privatankauf) ist gültig
-                const rateRaw = (p.ustSatz != null && p.ustSatz !== '') ? parseFloat(p.ustSatz) : 19;
-                const rate = isNaN(rateRaw) ? 19 : rateRaw;
-                return s + brutto / (1 + rate / 100);
-            }
-            return s + brutto;
-        }, 0);
+        // Wareneinsatz — Einkäufe tragen den Satz als ustSatz; 0 (Privatankauf) ist gültig
+        const purchNetting = SteuerBerechnung.nettoPurchases(purchases);
+        const wareneinsatz = isRegel ? purchNetting.netto : purchNetting.brutto;
 
         // Betriebsausgaben nach Kategorie
-        const ausgabenKat = {};
-        let betriebsausgabenGesamt = 0;
-        ausgaben.forEach(a => {
+        const expNetting = isRegel ? SteuerBerechnung.nettoExpenses(ausgaben) : { byKategorie: ausgaben.reduce((acc, a) => {
             const kat = a.kategorie || 'Sonstiges';
-            const brutto = parseFloat(a.betrag) || 0;
-            let netto = brutto;
-            if (isRegel) {
-                const rate = parseFloat(a.ustSatz || a.steuersatz) || 19;
-                if (rate > 0) netto = brutto / (1 + rate / 100);
-            }
-            ausgabenKat[kat] = (ausgabenKat[kat] || 0) + netto;
-            betriebsausgabenGesamt += netto;
-        });
+            acc[kat] = (acc[kat] || 0) + (parseFloat(a.betrag) || 0);
+            return acc;
+        }, {}), netto: ausgaben.reduce((s, a) => s + (parseFloat(a.betrag) || 0), 0) };
+        const ausgabenKat = expNetting.byKategorie;
+        const betriebsausgabenGesamt = expNetting.netto;
 
         // AfA aus Anlagevermögen
         const afaItems = Store.get('afa_items') || [];

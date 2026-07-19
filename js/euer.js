@@ -63,13 +63,6 @@ const Euer = {
             !(s._invoiceId && storniertInvIds.has(s._invoiceId))
         );
         const periodPurchases = Store.getPurchases().filter(p => Utils.isInPeriod(p.datum, startDate, endDate));
-        // Einkäufe, deren Verkauf storniert wurde, dürfen NICHT als Ausgabe erscheinen
-        // (da auch die Einnahme aus dem stornierten Verkauf entfällt → kein Vorgang in der EÜR)
-        const _storniertePurchaseIds = new Set();
-        Store.getSales(true).filter(s => s.storniert).forEach(s => {
-            if (s.purchaseIds) s.purchaseIds.forEach(id => _storniertePurchaseIds.add(id));
-            else if (s.purchaseId) _storniertePurchaseIds.add(s.purchaseId);
-        });
         const expenses = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
 
         // Bezahlte Rechnungen die noch nicht als Verkauf gesynct sind
@@ -92,9 +85,12 @@ const Euer = {
 
         // Ausgaben
         // Wareneinkauf: ALLE Einkäufe im Zeitraum (EÜR Abflussprinzip §4 Abs. 3 EStG – Ausgabe beim Bezahlen, nicht beim Verkaufen)
+        // Storno des VERKAUFS gibt den Einkauf laut Store.stornoSale() nur wieder als "verfuegbar" frei
+        // (Ware bleibt auf Lager) — der Einkauf selbst bleibt eine reale Ausgabe, solange er nicht
+        // separat storniert wurde (bereits durch Store.getPurchases() ausgefiltert). Gleiche Logik wie bilanz.js.
         // ACHTUNG: Eigenbeleg-Einkäufe (eigenbeleg_id gesetzt) werden NICHT hier gezählt, da der
         // Betrag bereits über eigenbelegeAusgaben (s.u.) erfasst wird. Verhindert Doppelzählung.
-        const wareneinkauf = periodPurchases.filter(p => !p.eigenbeleg_id && !_storniertePurchaseIds.has(p.id)).reduce((sum, p) => {
+        const wareneinkauf = periodPurchases.filter(p => !p.eigenbeleg_id).reduce((sum, p) => {
             return sum + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
         }, 0);
 
@@ -880,12 +876,6 @@ const Euer = {
                     : this._customEnd || `${y}-12-31`;
                 const sSales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, sDate, eDate));
                 const sPurch = Store.getPurchases().filter(p => Utils.isInPeriod(p.datum, sDate, eDate));
-                // Einkäufe mit storniertem Verkauf aus z22 herausfiltern
-                const _elsterStorniertePurchaseIds = new Set();
-                Store.getSales(true).filter(s => s.storniert).forEach(s => {
-                    if (s.purchaseIds) s.purchaseIds.forEach(id => _elsterStorniertePurchaseIds.add(id));
-                    else if (s.purchaseId) _elsterStorniertePurchaseIds.add(s.purchaseId);
-                });
                 const sExp = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, sDate, eDate));
                 const sFahrt = Store.getFahrten().filter(f => Utils.isInPeriod(f.datum, sDate, eDate));
                 if (!sSales.length && !sPurch.length && !sExp.length && !sFahrt.length) {
@@ -904,7 +894,7 @@ const Euer = {
                     .filter(r => Utils.isInPeriod(r.datum, sDate, eDate) && !(r.saleId && _storniertSaleIds.has(r.saleId)))
                     .reduce((s,r)=>s+(parseFloat(r.erstattungBetrag)||0),0);
                 const z11 = _netto19(z11brutto - sRetouren);
-                const z22brutto = sPurch.filter(p => !_elsterStorniertePurchaseIds.has(p.id)).reduce((s, p) => s + (parseFloat(p.einkaufspreis)||0) * (parseInt(p.anzahl)||1), 0);
+                const z22brutto = sPurch.reduce((s, p) => s + (parseFloat(p.einkaufspreis)||0) * (parseInt(p.anzahl)||1), 0);
                 const z22 = _netto19(z22brutto);
                 const z50brutto = sFahrt.reduce((s, f) => s + (parseFloat(f.kosten)||0), 0);
                 const z50 = _netto19(z50brutto);

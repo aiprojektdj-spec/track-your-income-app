@@ -127,6 +127,23 @@ const Ausgaben = {
                             <input type="text" class="form-input" id="exp_belegNr" maxlength="100" placeholder="z.B. RE-2026-001">
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Lieferant / Aussteller</label>
+                            <input type="text" class="form-input" id="exp_lieferant" maxlength="200" placeholder="Name des Rechnungsausstellers">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Steuernr. / USt-IdNr. Lieferant</label>
+                            <input type="text" class="form-input" id="exp_lieferantSteuerId" maxlength="50" placeholder="nur bei Rechnung >250€ Pflicht">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Beleg-Foto/Scan (empfohlen, §14 UStG)</label>
+                        <input type="file" accept="image/*" class="form-input" id="exp_belegFoto">
+                        <div class="form-hint" style="font-size:12px;color:var(--text-muted);">
+                            Für den Vorsteuerabzug musst du eine ordnungsgemäße Rechnung <em>besitzen</em> — hier hinterlegen macht das prüfbar.
+                        </div>
+                    </div>
                     <div id="expMatLagerSection" style="display:none;border:1px solid var(--info);border-radius:var(--radius);padding:12px;margin-bottom:12px;background:var(--info-bg);">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
                             <input type="checkbox" id="exp_matToggle" style="width:16px;height:16px;">
@@ -219,7 +236,7 @@ const Ausgaben = {
         });
 
         // Form submit
-        document.getElementById('expenseForm').addEventListener('submit', (e) => {
+        document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const datum = Utils.getDateInputValue('exp_datum');
             const betrag = parseFloat(document.getElementById('exp_betrag').value) || 0;
@@ -227,12 +244,21 @@ const Ausgaben = {
                 Utils.showToast('Betrag ungültig', 'error');
                 return;
             }
+            const belegFotoFile = document.getElementById('exp_belegFoto')?.files?.[0];
+            let belegFoto;
+            if (belegFotoFile) {
+                try { belegFoto = await Utils.sanitizeImageFile(belegFotoFile); }
+                catch (err) { Utils.showToast(err.message || 'Beleg-Foto konnte nicht gelesen werden', 'error'); return; }
+            }
             Store.saveExpense({
                 datum,
                 kategorie: document.getElementById('exp_kategorie').value,
                 beschreibung: document.getElementById('exp_beschreibung').value.trim(),
                 betrag,
-                belegNr: document.getElementById('exp_belegNr').value.trim()
+                belegNr: document.getElementById('exp_belegNr').value.trim(),
+                lieferant: document.getElementById('exp_lieferant').value.trim(),
+                lieferantSteuerId: document.getElementById('exp_lieferantSteuerId').value.trim(),
+                belegFoto
             });
 
             // Optionally book to materiallager
@@ -309,13 +335,39 @@ const Ausgaben = {
                             <input type="text" class="form-input" id="ee_belegNr" value="${Utils.escapeHtml(exp.belegNr || '')}">
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Lieferant / Aussteller</label>
+                            <input type="text" class="form-input" id="ee_lieferant" maxlength="200" value="${Utils.escapeHtml(exp.lieferant || '')}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Steuernr. / USt-IdNr. Lieferant</label>
+                            <input type="text" class="form-input" id="ee_lieferantSteuerId" maxlength="50" value="${Utils.escapeHtml(exp.lieferantSteuerId || '')}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Beleg-Foto/Scan ${exp.belegFoto ? '(vorhanden — Datei wählen zum Ersetzen)' : ''}</label>
+                        ${exp.belegFoto ? `<div style="margin-bottom:6px;"><a href="#" id="ee_belegFotoView" style="font-size:12px;">📎 aktuelles Beleg-Foto ansehen</a></div>` : ''}
+                        <input type="file" accept="image/*" class="form-input" id="ee_belegFoto">
+                    </div>
                 `;
                 const footer = `
                     <button class="btn" data-action="close-modal">Abbrechen</button>
                     <button class="btn btn-primary" id="saveExpenseEdit">Speichern</button>
                 `;
                 App.showModal('Ausgabe bearbeiten', body, footer);
-                document.getElementById('saveExpenseEdit').addEventListener('click', () => {
+                const belegFotoViewLink = document.getElementById('ee_belegFotoView');
+                if (belegFotoViewLink) belegFotoViewLink.addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    App.showModal('Beleg-Foto', `<img src="${exp.belegFoto}" style="max-width:100%;border-radius:var(--radius-sm);">`, '<button class="btn" data-action="close-modal">Schließen</button>');
+                });
+                document.getElementById('saveExpenseEdit').addEventListener('click', async () => {
+                    const newFotoFile = document.getElementById('ee_belegFoto')?.files?.[0];
+                    let belegFoto = exp.belegFoto;
+                    if (newFotoFile) {
+                        try { belegFoto = await Utils.sanitizeImageFile(newFotoFile); }
+                        catch (err) { Utils.showToast(err.message || 'Beleg-Foto konnte nicht gelesen werden', 'error'); return; }
+                    }
                     Store.saveExpense({
                         id: exp.id,
                         datum: Utils.getDateInputValue('ee_datum'),
@@ -323,6 +375,9 @@ const Ausgaben = {
                         beschreibung: document.getElementById('ee_beschreibung').value.trim(),
                         betrag: parseFloat(document.getElementById('ee_betrag').value) || 0,
                         belegNr: document.getElementById('ee_belegNr').value.trim(),
+                        lieferant: document.getElementById('ee_lieferant').value.trim(),
+                        lieferantSteuerId: document.getElementById('ee_lieferantSteuerId').value.trim(),
+                        belegFoto,
                         createdAt: exp.createdAt
                     });
                     App.closeModal();

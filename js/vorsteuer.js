@@ -76,6 +76,42 @@ const Vorsteuer = {
         return { vst19, vst7, vst0, netto19, netto7, count: expenses.length };
     },
 
+    // ── §14 UStG / §33 UStDV Beleg-Vollständigkeit ──
+    // Kleinbetragsrechnung (Brutto ≤250€, §33 UStDV) braucht nur Aussteller-Name; darüber
+    // zusätzlich Steuernr./USt-IdNr. des Ausstellers (Rechnungsnummer/Anschrift werden aktuell
+    // nicht strukturiert erfasst — reine Namens-/Steuer-ID-Prüfung ist eine Annäherung, kein
+    // vollständiger §14-Check, aber deckt den häufigsten Lückenfall ab).
+    _belegCheck(record, brutto) {
+        const name = ((record.lieferantName || record.lieferant || '')).trim();
+        const steuerId = (record.lieferantSteuerId || '').trim();
+        const kleinbetrag = brutto <= 250;
+        const missing = [];
+        if (!name) missing.push('Aussteller-Name');
+        if (!kleinbetrag && !steuerId) missing.push('Steuernr./USt-IdNr.');
+        return { complete: missing.length === 0, kleinbetrag, missing };
+    },
+
+    // Nur Vorsteuer-relevante Einträge zählen (Satz >0) — bei 0% besteht zwar Aufbewahrungs-
+    // pflicht, aber kein Vorsteuerabzug, den ein fehlender Beleg gefährden könnte.
+    _belegSummary(startDate, endDate) {
+        const purchases = (Store.getPurchases ? Store.getPurchases() : Store.get('purchases') || [])
+            .filter(p => Utils.isInPeriod(p.datum, startDate, endDate) && !p.storniert)
+            .filter(p => { const r = (p.ustSatz != null && p.ustSatz !== '') ? parseFloat(p.ustSatz) : 19; return !isNaN(r) && r > 0; });
+        const expenses = (Store.getExpenses ? Store.getExpenses() : Store.get('ausgaben') || [])
+            .filter(e => Utils.isInPeriod(e.datum, startDate, endDate))
+            .filter(e => { const raw = (e.ustSatz != null && e.ustSatz !== '') ? e.ustSatz : ((e.steuersatz != null && e.steuersatz !== '') ? e.steuersatz : 19); const r = parseFloat(raw); return !isNaN(r) && r > 0; });
+
+        let complete = 0;
+        purchases.forEach(p => {
+            const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
+            if (this._belegCheck(p, brutto).complete) complete++;
+        });
+        expenses.forEach(e => {
+            if (this._belegCheck(e, parseFloat(e.betrag) || 0).complete) complete++;
+        });
+        return { total: purchases.length + expenses.length, complete };
+    },
+
     // ── Manuelle Vorsteuer-Einträge (§13b, EU-Erwerbe, etc.) ──
     _calcManualEntries(startDate, endDate) {
         const entries = this._getEntries()
@@ -319,12 +355,28 @@ const Vorsteuer = {
         </div>
         ${monthlyRows}
 
+        ${(() => {
+            const bs = this._belegSummary(this._periodStart(this._year, this._month), this._periodEnd(this._year, this._month));
+            if (bs.total === 0) return '';
+            const incomplete = bs.total - bs.complete;
+            const ok = incomplete === 0;
+            return `
+        <div class="card" style="margin-top:16px;padding:14px 16px;border:1px solid ${ok ? 'var(--success)' : 'var(--warning)'};">
+            <div style="font-weight:700;font-size:13px;color:${ok ? 'var(--success)' : 'var(--warning)'};margin-bottom:4px;">
+                ${ok ? '✅' : '⚠️'} Beleg-Nachweis: ${bs.complete} von ${bs.total} Vorsteuer-Buchungen vollständig dokumentiert
+            </div>
+            <div style="font-size:12px;color:var(--text-muted);">
+                ${incomplete > 0 ? `${incomplete} Buchung(en) ohne Aussteller-Name bzw. (bei Rechnungen &gt;250€) ohne Steuernr./USt-IdNr. — Details in „Wareneinkauf"/„Betriebsausgaben".` : 'Aussteller-Name und Steuernr./USt-IdNr. sind bei allen Vorsteuer-relevanten Buchungen hinterlegt.'}
+            </div>
+        </div>`;
+        })()}
+
         <div class="card" style="margin-top:16px;padding:14px 16px;">
             <div style="font-size:12px;color:var(--text-muted);line-height:1.7;">
                 <strong>§15 UStG — Vorsteuerabzug:</strong> Vorsteuer darf nur abgezogen werden wenn eine ordnungsgemäße Rechnung (§14 UStG) vorliegt.<br>
                 <strong>§13b UStG — Reverse Charge:</strong> Leistungsempfänger schuldet USt (z.B. Bauleistungen, EU-Dienstleistungen). Vorsteuer gleichzeitig abziehbar.<br>
                 <strong>§1a UStG — Innergemeinschaftlicher Erwerb:</strong> Erwerb aus EU → Erwerbsteuer + gleichzeitiger Vorsteuerabzug.<br>
-                <strong>⚠️ Unverbindlich</strong> — Vorsteuerabzug nur mit korrekten Belegen. Steuerberater hinzuziehen.
+                <strong>⚠️ Unverbindlich</strong> — Beleg-Nachweis oben ist eine Vollständigkeits-Prüfung der in Stackr hinterlegten Angaben, kein Ersatz für die tatsächliche Papier-/PDF-Rechnung. Steuerberater hinzuziehen.
             </div>
         </div>`;
     },
@@ -350,7 +402,7 @@ const Vorsteuer = {
                     <thead><tr>
                         <th>Datum</th><th>Artikel</th><th style="text-align:right">Brutto</th>
                         <th style="text-align:center">USt%</th><th style="text-align:right">Netto</th>
-                        <th style="text-align:right">Vorsteuer</th>
+                        <th style="text-align:right">Vorsteuer</th><th style="text-align:center">Beleg</th>
                     </tr></thead>
                     <tbody>
                         ${purchases.map(p => {
@@ -359,6 +411,7 @@ const Vorsteuer = {
                             const brutto = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
                             const netto = brutto / (1 + rate / 100);
                             const vst = brutto - netto;
+                            const beleg = rate > 0 ? this._belegCheck(p, brutto) : null;
                             return `<tr>
                                 <td style="white-space:nowrap;">${p.datum || '—'}</td>
                                 <td>${Utils.escapeHtml((p.titel || p.name || '').substring(0, 40))}</td>
@@ -366,6 +419,7 @@ const Vorsteuer = {
                                 <td style="text-align:center">${rate}%</td>
                                 <td style="text-align:right">${Utils.formatCurrency(netto)}</td>
                                 <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(vst)}</td>
+                                <td style="text-align:center;" title="${beleg ? Utils.escapeHtml(beleg.missing.join(', ') || 'vollständig') : 'kein Vorsteuerabzug'}">${beleg ? (beleg.complete ? '✅' : '⚠️') : '—'}</td>
                             </tr>`;
                         }).join('')}
                     </tbody>
@@ -395,13 +449,14 @@ const Vorsteuer = {
                     <thead><tr>
                         <th>Datum</th><th>Beschreibung</th><th>Kategorie</th>
                         <th style="text-align:right">Brutto</th><th style="text-align:center">USt%</th>
-                        <th style="text-align:right">Vorsteuer</th>
+                        <th style="text-align:right">Vorsteuer</th><th style="text-align:center">Beleg</th>
                     </tr></thead>
                     <tbody>
                         ${expenses.map(e => {
                             const rate = parseFloat(e.ustSatz || e.steuersatz) || 19;
                             const brutto = parseFloat(e.betrag) || 0;
                             const vst = rate > 0 ? brutto - (brutto / (1 + rate / 100)) : 0;
+                            const beleg = rate > 0 ? this._belegCheck(e, brutto) : null;
                             return `<tr>
                                 <td style="white-space:nowrap;">${e.datum || '—'}</td>
                                 <td>${Utils.escapeHtml((e.beschreibung || e.name || '').substring(0, 40))}</td>
@@ -409,6 +464,7 @@ const Vorsteuer = {
                                 <td style="text-align:right">${Utils.formatCurrency(brutto)}</td>
                                 <td style="text-align:center">${rate}%</td>
                                 <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(vst)}</td>
+                                <td style="text-align:center;" title="${beleg ? Utils.escapeHtml(beleg.missing.join(', ') || 'vollständig') : 'kein Vorsteuerabzug'}">${beleg ? (beleg.complete ? '✅' : '⚠️') : '—'}</td>
                             </tr>`;
                         }).join('')}
                     </tbody>

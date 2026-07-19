@@ -1257,6 +1257,21 @@ const Buchungen = {
                             </select>
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Verkäufer / Rechnungsaussteller</label>
+                            <input type="text" class="form-input" id="ep_lieferant" maxlength="200" value="${Utils.escapeHtml(p.lieferantName || '')}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Steuernr. / USt-IdNr. Verkäufer</label>
+                            <input type="text" class="form-input" id="ep_lieferantSteuerId" maxlength="50" value="${Utils.escapeHtml(p.lieferantSteuerId || '')}" placeholder="nur bei Rechnung >250€ Pflicht">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Beleg-Foto/Scan ${p.belegFoto ? '(vorhanden — Datei wählen zum Ersetzen)' : ''} <span style="font-weight:400;color:var(--text-muted);">— nur relevant bei Vorsteuerabzug (§14 UStG)</span></label>
+                        ${p.belegFoto ? `<div style="margin-bottom:6px;"><a href="#" id="ep_belegFotoView" style="font-size:12px;">📎 aktuelles Beleg-Foto ansehen</a></div>` : ''}
+                        <input type="file" accept="image/*" class="form-input" id="ep_belegFoto">
+                    </div>
                     <div class="form-group">
                         <label class="form-label">Notizen</label>
                         <textarea class="form-textarea" id="ep_notizen">${Utils.escapeHtml(p.notizen || '')}</textarea>
@@ -1276,7 +1291,13 @@ const Buchungen = {
                 epCustomQuelleGroup.style.display = epQuelleSelect.value === 'Sonstiges' ? '' : 'none';
             });
 
-            document.getElementById('savePurchaseEdit').addEventListener('click', () => {
+            const epBelegFotoViewLink = document.getElementById('ep_belegFotoView');
+            if (epBelegFotoViewLink) epBelegFotoViewLink.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                App.showModal('Beleg-Foto', `<img src="${p.belegFoto}" style="max-width:100%;border-radius:var(--radius-sm);">`, '<button class="btn" data-action="close-modal">Schließen</button>');
+            });
+
+            document.getElementById('savePurchaseEdit').addEventListener('click', async () => {
                 const marke = document.getElementById('ep_marke').value.trim();
                 if (marke) Store.addBrand(marke);
 
@@ -1287,6 +1308,13 @@ const Buchungen = {
                         einkaufsquelle = custom;
                         Store.addEinkaufsquelle(custom);
                     }
+                }
+
+                const newFotoFile = document.getElementById('ep_belegFoto')?.files?.[0];
+                let belegFoto = p.belegFoto;
+                if (newFotoFile) {
+                    try { belegFoto = await Utils.sanitizeImageFile(newFotoFile); }
+                    catch (err) { Utils.showToast(err.message || 'Beleg-Foto konnte nicht gelesen werden', 'error'); return; }
                 }
 
                 Store.savePurchase({
@@ -1300,6 +1328,9 @@ const Buchungen = {
                     anzahl: parseInt(document.getElementById('ep_anzahl').value) || 1,
                     ustSatz: parseInt(document.getElementById('ep_ustSatz').value) ?? 19,
                     einkaufsquelle: einkaufsquelle,
+                    lieferantName: document.getElementById('ep_lieferant').value.trim(),
+                    lieferantSteuerId: document.getElementById('ep_lieferantSteuerId').value.trim(),
+                    belegFoto,
                     notizen: document.getElementById('ep_notizen').value.trim(),
                     status: p.status,
                     createdAt: p.createdAt

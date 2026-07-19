@@ -74,6 +74,10 @@ async function call(token, body) { const res = mkRes(); await handler({ method: 
     assert.strictEqual(r.code, 200); assert.strictEqual(r.body.grants.length, 1);
     assert.strictEqual(r.body.grants[0].ownerId, 'owner1'); assert.ok(r.body.grants[0].envelope, 'Envelope dabei'); pass++; console.log('✓ list_grants (StB sieht Mandant + Envelope)');
 
+    r = await call('tok_owner', { action: 'list_my_grantees' });
+    assert.strictEqual(r.code, 200); assert.strictEqual(r.body.grantees.length, 1);
+    assert.strictEqual(r.body.grantees[0].granteeId, 'stb1'); assert.ok(r.body.grantees[0].createdAt, 'createdAt dabei'); pass++; console.log('✓ list_my_grantees (Owner sieht erteilten Grant)');
+
     r = await call('tok_stb', { action: 'pull', scope: '__account', owner: 'owner1' });
     assert.strictEqual(r.code, 200); assert.strictEqual(r.body.blob.ciphertext, 'X', 'Chiffrat gelesen'); pass++; console.log('✓ pull nach Grant → Chiffrat');
 
@@ -85,8 +89,11 @@ async function call(token, body) { const res = mkRes(); await handler({ method: 
     r = await call('tok_stb', { action: 'pull', scope: '__account', owner: 'owner1' });
     assert.strictEqual(r.code, 403, 'nach Revoke kein Zugriff'); pass++; console.log('✓ revoke → Zugriff entzogen');
 
+    r = await call('tok_owner', { action: 'list_my_grantees' });
+    assert.strictEqual(r.code, 200); assert.strictEqual(r.body.grantees.length, 0, 'nach Revoke aus eigener Liste verschwunden'); pass++; console.log('✓ list_my_grantees nach Revoke → leer');
+
     r = await call('tok_stb', { action: 'pull', scope: '__account' });   // eigener Scope, StB ohne Pro
     assert.strictEqual(r.code, 403); assert.strictEqual(r.body.error, 'pro_required', 'eigener Scope braucht Pro'); pass++; console.log('✓ eigener pull ohne Pro → pro_required');
 
-    console.log('\n' + pass + '/9 API-Tests bestanden ✅');
+    console.log('\n' + pass + '/11 API-Tests bestanden ✅');
 })().catch(e => { console.error('✗ FAIL', e); process.exit(1); });

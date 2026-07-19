@@ -322,6 +322,7 @@ module.exports = async function handler(req, res) {
             var grantVal = JSON.stringify({ role: 'readonly', envelope: body.envelope, ownerName: username, createdAt: Date.now() });
             await redisCmd(['SET', 'grant:' + userId + ':' + gidG, grantVal]);
             await redisCmd(['SADD', 'grantsfor:' + gidG, userId]);
+            await redisCmd(['SADD', 'grantsby:' + userId, gidG]); // symmetrisch, für list_my_grantees
             return res.status(200).json({ ok: true });
         }
 
@@ -331,6 +332,7 @@ module.exports = async function handler(req, res) {
             if (!GRANTEE_ID_RE.test(gidR)) return res.status(400).json({ error: 'bad_grantee' });
             await redisCmd(['DEL', 'grant:' + userId + ':' + gidR]);
             await redisCmd(['SREM', 'grantsfor:' + gidR, userId]);
+            await redisCmd(['SREM', 'grantsby:' + userId, gidR]);
             return res.status(200).json({ ok: true });
         }
 
@@ -343,6 +345,18 @@ module.exports = async function handler(req, res) {
                 if (g) { var go = JSON.parse(g); grants.push({ ownerId: owners[i], ownerName: go.ownerName || '', role: go.role, envelope: go.envelope }); }
             }
             return res.status(200).json({ ok: true, grants: grants });
+        }
+
+        // Owner listet, wem ER Zugriff gewährt hat (zum Entziehen). Grantee-Klarname ist
+        // server-seitig nicht bekannt (nur die userId) — Code + Datum reicht für den Dialog.
+        if (action === 'list_my_grantees') {
+            var grantees = (await redisCmd(['SMEMBERS', 'grantsby:' + userId])) || [];
+            var myGrantees = [];
+            for (var j = 0; j < grantees.length; j++) {
+                var gg = await redisCmd(['GET', 'grant:' + userId + ':' + grantees[j]]);
+                if (gg) { var ggo = JSON.parse(gg); myGrantees.push({ granteeId: grantees[j], createdAt: ggo.createdAt || null }); }
+            }
+            return res.status(200).json({ ok: true, grantees: myGrantees });
         }
 
         return res.status(400).json({ error: 'bad_action' });

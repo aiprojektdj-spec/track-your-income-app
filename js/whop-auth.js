@@ -283,11 +283,27 @@ var AuthUI = (function () {
                 _stampGrace(graceToken);
                 await _onAuthorized(me);
                 return true;
-            } else {
-                _hideLoader();
-                _showNoMembershipScreen(me);
-                return false;
             }
+
+            // Kein eigenes Abo — evtl. Steuerberater mit Read-Only-Grant von einem Mandanten
+            // (Henne-Ei sonst: ohne App-Zugang kann er nie seinen Public-Key registrieren
+            // oder seinen Freigabe-Code sehen). register_pubkey/list_grants sind laut
+            // api/sync.js serverseitig explizit Pro-frei für Grantee-Lesezugriff.
+            if (typeof StbShare !== 'undefined') {
+                try {
+                    await StbShare.registerPubkey();
+                    var grants = await StbShare.checkGrants();
+                    if (grants.length > 0) {
+                        _stampGrace(graceToken);
+                        await _onAuthorized(me);
+                        return true;
+                    }
+                } catch (e) { console.warn('[WhopAuth] StB-Grant-Check fehlgeschlagen:', e && e.message); }
+            }
+
+            _hideLoader();
+            _showNoMembershipScreen(me);
+            return false;
         } catch (err) {
             // Netzwerkfehler (offline) → Grace-Fallback statt Logout (Token NICHT löschen)
             console.warn('[WhopAuth] Validierung fehlgeschlagen (offline?):', err && err.message);
@@ -426,6 +442,13 @@ var AuthUI = (function () {
             '<button data-action="wa-logout" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:13px;width:100%;padding:6px 0;">',
             'Mit anderem Konto anmelden',
             '</button>',
+
+            '<hr style="border:none;border-top:1px solid var(--border,#2e2e42);margin:14px 0 12px;">',
+            '<p style="color:var(--text-muted,#666);font-size:11.5px;margin:0 0 8px;line-height:1.6;text-align:left;">Bist du Steuerberater? Gib deinem Mandanten diesen Freigabe-Code für Nur-Lese-Zugriff:</p>',
+            '<div style="display:flex;gap:8px;">',
+            '<div style="flex:1;min-width:0;font-family:monospace;font-size:11px;word-break:break-all;background:var(--surface-2,rgba(255,255,255,.04));border:1px solid var(--border,#2e2e42);border-radius:8px;padding:8px 10px;color:var(--text-secondary,#ccc);text-align:left;">' + _esc(user && (user.id || user.sub) || '') + '</div>',
+            '<button data-action="stb-copy-code" data-args="' + _esc(JSON.stringify([(user && (user.id || user.sub)) || ''])).replace(/"/g, '&quot;') + '" style="background:var(--surface-2,rgba(255,255,255,.04));border:1px solid var(--border,#2e2e42);color:var(--text-primary,#fff);font-size:12px;padding:0 12px;border-radius:8px;cursor:pointer;white-space:nowrap;">Kopieren</button>',
+            '</div>',
             '</div>'
         ].join('');
         document.body.appendChild(overlay);
@@ -484,6 +507,7 @@ var AuthUI = (function () {
             '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-invite">👥 Steuerberater einladen</button>' +
             '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-clients">📂 Mandanten (als Steuerberater)</button>' +
             '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-my-code">🔑 Mein Freigabe-Code</button>' +
+            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-manage">🔒 Freigaben verwalten</button>' +
             '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:#ef4444;cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-logout">🚪 Abmelden</button>';
 
         document.body.appendChild(menu);

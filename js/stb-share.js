@@ -186,6 +186,13 @@ var StbShare = (function () {
         } catch (e) { console.error('[StbShare] invite', e); _toast('Freigabe fehlgeschlagen.', 'error'); }
     }
 
+    // Reiner Grant-Abruf ohne UI (Unterschied zu clientsFlow, das direkt ein Modal öffnet) —
+    // fürs Login-Gate: ein StB ohne eigenes Abo braucht nur die Info "hat er Grants ja/nein".
+    async function checkGrants() {
+        try { var r = await _api({ action: 'list_grants' }); return (r.status === 200 && r.json.grants) || []; }
+        catch (e) { return []; }
+    }
+
     // ── UI: Mandanten (StB-Seite) ─────────────────────────────────────────────
     async function clientsFlow() {
         if (_noApp()) return;
@@ -229,6 +236,38 @@ var StbShare = (function () {
         location.reload();
     }
 
+    // ── UI: erteilte Freigaben verwalten (Owner entzieht Zugriff) ─────────────
+    async function manageFlow() {
+        if (_noApp()) return;
+        var r = await _api({ action: 'list_my_grantees' });
+        if (r.status !== 200) { _toast('Abruf fehlgeschlagen (' + r.status + ').', 'error'); return; }
+        var grantees = r.json.grantees || [];
+        if (!grantees.length) { _toast('Du hast noch keinem Steuerberater Zugriff gewährt.', 'info'); return; }
+        var rows = grantees.map(function (g) {
+            var date = g.createdAt ? new Date(g.createdAt).toLocaleDateString('de-DE') : '';
+            return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">' +
+                '<div><div style="font-family:monospace;font-size:12px;word-break:break-all;">' + _esc(g.granteeId) + '</div>' +
+                (date ? '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">seit ' + _esc(date) + '</div>' : '') + '</div>' +
+                '<button class="btn btn-outline" style="color:var(--danger);border-color:rgba(239,68,68,.3);white-space:nowrap;flex-shrink:0;" data-action="stb-do-revoke" data-args="' + _esc(JSON.stringify([g.granteeId])).replace(/"/g, '&quot;') + '">Entziehen</button>' +
+            '</div>';
+        }).join('');
+        var body =
+          '<div style="display:flex;flex-direction:column;gap:4px;">' +
+            '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;margin-bottom:8px;">Steuerberater mit Nur-Lese-Zugriff auf deine Buchhaltung.</div>' +
+            rows +
+            '<div style="font-size:11px;color:var(--text-muted);margin-top:12px;line-height:1.5;">Hinweis: Entzogener Zugriff gilt für künftige Abrufe. Bereits geladene Snapshots kann ein Steuerberater mit seinem alten Schlüssel theoretisch weiter lesen, bis du deine Daten neu verschlüsselst.</div>' +
+          '</div>';
+        App.showModal('Freigaben verwalten', body, '');
+    }
+    async function _doRevoke(granteeId) {
+        try {
+            var r = await _api({ action: 'revoke', granteeId: granteeId });
+            if (r.status !== 200) { _toast('Entziehen fehlgeschlagen (' + r.status + ').', 'error'); return; }
+            _toast('Zugriff entzogen.', 'success');
+            manageFlow();
+        } catch (e) { console.error('[StbShare] revoke', e); _toast('Entziehen fehlgeschlagen.', 'error'); }
+    }
+
     // ── Read-Only-Banner (beim Laden, wenn Mandantenansicht aktiv) ────────────
     function initReadonlyBanner() {
         if (!isReadonly() || document.getElementById('stbRoBanner')) return;
@@ -251,6 +290,7 @@ var StbShare = (function () {
         wrapKey:    wrapKey,
         unwrapKey:  unwrapKey,
         registerPubkey: registerPubkey,
+        checkGrants: checkGrants,
         isReadonly: isReadonly,
         blocks: blocks,
         showCode: showCode,
@@ -258,8 +298,10 @@ var StbShare = (function () {
         clientsFlow: clientsFlow,
         enterClient: enterClient,
         exitClient: exitClient,
+        manageFlow: manageFlow,
         initReadonlyBanner: initReadonlyBanner,
         _doInvite: _doInvite,
+        _doRevoke: _doRevoke,
         _b64: _b64, _unb64: _unb64,
         _test: { genKeyPair: genKeyPair, wrapKey: wrapKey, unwrapKey: unwrapKey }
     };
@@ -273,7 +315,9 @@ if (typeof window !== 'undefined' && window.Actions) Actions.register({
     'stb-do-invite': function () { StbShare._doInvite ? StbShare._doInvite() : 0; },
     'stb-clients':   function () { StbShare.clientsFlow(); },
     'stb-enter':     function (ownerId) { StbShare.enterClient(ownerId); },
-    'stb-exit':      function () { StbShare.exitClient(); }
+    'stb-exit':      function () { StbShare.exitClient(); },
+    'stb-manage':    function () { StbShare.manageFlow(); },
+    'stb-do-revoke': function (granteeId) { StbShare._doRevoke ? StbShare._doRevoke(granteeId) : 0; }
 });
 if (typeof window !== 'undefined') window.StbShare = StbShare;
 if (typeof module !== 'undefined' && module.exports) module.exports = StbShare;

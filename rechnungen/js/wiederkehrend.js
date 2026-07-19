@@ -112,8 +112,8 @@ var Wiederkehrend = (function () {
     }
 
     // ── Create invoice from rule ────────────────────────────────────────
-    function createInvoiceFromRule(rule) {
-        var nummer = Store.nextRechInvoiceNumber('rechnung');
+    async function createInvoiceFromRule(rule) {
+        var nummer = await Store.nextRechInvoiceNumber('rechnung');
         var invoice = {
             id:              Store.generateId(),
             typ:             'rechnung',
@@ -150,15 +150,16 @@ var Wiederkehrend = (function () {
     }
 
     // ── Auto-process all due rules (call on app start) ──────────────────
-    function processDueRules() {
+    async function processDueRules() {
         var rules = getRules();
         var created = [];
-        rules.forEach(function (rule) {
+        for (var i = 0; i < rules.length; i++) {
+            var rule = rules[i];
             if (isDue(rule)) {
-                var inv = createInvoiceFromRule(rule);
+                var inv = await createInvoiceFromRule(rule);
                 created.push({ invoice: inv, rule: rule });
             }
-        });
+        }
         if (created.length > 0 && typeof Utils !== 'undefined') {
             Utils.showToast(created.length + ' wiederkehrende Rechnung(en) automatisch erstellt.', 'success');
         }
@@ -245,20 +246,20 @@ var Wiederkehrend = (function () {
 
         var processBtn = document.getElementById('wkProcessDue');
         if (processBtn) {
-            processBtn.addEventListener('click', function () {
-                var created = processDueRules();
+            processBtn.addEventListener('click', async function () {
+                var created = await processDueRules();
                 Utils.showToast(created.length + ' Rechnung(en) erstellt.', 'success');
                 RechApp.navigate('wiederkehrend');
             });
         }
 
         document.querySelectorAll('.wk-create').forEach(function (btn) {
-            btn.addEventListener('click', function () {
+            btn.addEventListener('click', async function () {
                 var id = this.getAttribute('data-id');
                 var rules = getRules();
                 var rule = rules.find(function (r) { return r.id === id; });
                 if (!rule) return;
-                var inv = createInvoiceFromRule(rule);
+                var inv = await createInvoiceFromRule(rule);
                 Utils.showToast('Rechnung ' + inv.nummer + ' erstellt!', 'success');
                 RechApp.navigate('wiederkehrend');
             });

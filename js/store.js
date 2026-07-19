@@ -1809,14 +1809,28 @@ const Store = {
         return counter;
     },
 
-    nextInvoiceNumber(typ) {
-        const counter = this.getInvoiceCounter();
-        const prefix = typ === 'rechnung' ? 'RE' : typ === 'angebot' ? 'AN' : 'GU';
-        const year = new Date().getFullYear();
-        this._resetCounterIfNewYear(counter, year);
-        counter[prefix] = (counter[prefix] || 0) + 1;
-        this.set('invoice_counter', counter);
-        return `${prefix}-${year}-${String(counter[prefix]).padStart(3, '0')}`;
+    // Web Locks API (nativ, kein Dependency) serialisiert die Read-Modify-Write-Sequenz
+    // einer Nummern-Vergabe cross-tab — ohne Lock koennen zwei Tabs denselben Counter-Stand
+    // lesen und dieselbe Nummer ziehen. Fallback ohne navigator.locks (sehr alte Browser):
+    // synchrones Verhalten wie bisher, kein Hard-Fail — Funktion bleibt async (einheitlicher
+    // Aufrufer-Vertrag), nur ohne Cross-Tab-Schutz.
+    async _withLock(name, fn) {
+        if (typeof navigator !== 'undefined' && navigator.locks && navigator.locks.request) {
+            return navigator.locks.request(name, () => fn());
+        }
+        return fn();
+    },
+
+    async nextInvoiceNumber(typ) {
+        return this._withLock(this._prefix + 'invoice_counter', () => {
+            const counter = this.getInvoiceCounter();
+            const prefix = typ === 'rechnung' ? 'RE' : typ === 'angebot' ? 'AN' : 'GU';
+            const year = new Date().getFullYear();
+            this._resetCounterIfNewYear(counter, year);
+            counter[prefix] = (counter[prefix] || 0) + 1;
+            this.set('invoice_counter', counter);
+            return `${prefix}-${year}-${String(counter[prefix]).padStart(3, '0')}`;
+        });
     },
 
     // ============================================
@@ -1994,21 +2008,23 @@ const Store = {
         return `SR-${year}-${String(n).padStart(4, '0')}`;
     },
 
-    nextStornoNumber() {
-        const counter = this.getRechInvoiceCounter();
-        const year = new Date().getFullYear();
-        this._resetCounterIfNewYear(counter, year);
-        counter['SR'] = (counter['SR'] || 0) + 1;
-        this._rechSet('invoice_counter', counter);
-        return `SR-${year}-${String(counter['SR']).padStart(4, '0')}`;
+    async nextStornoNumber() {
+        return this._withLock(this._rechPrefix + 'invoice_counter', () => {
+            const counter = this.getRechInvoiceCounter();
+            const year = new Date().getFullYear();
+            this._resetCounterIfNewYear(counter, year);
+            counter['SR'] = (counter['SR'] || 0) + 1;
+            this._rechSet('invoice_counter', counter);
+            return `SR-${year}-${String(counter['SR']).padStart(4, '0')}`;
+        });
     },
 
-    createStornoRechnung(originalId, grund, grundText) {
+    async createStornoRechnung(originalId, grund, grundText) {
         const invoices = this._rechGet('dokumente') || [];
         const orig = invoices.find(x => x.id === originalId);
         if (!orig || orig.typ === 'stornorechnung') return null;
         const old = Object.assign({}, orig);
-        const stornoNum = this.nextStornoNumber();
+        const stornoNum = await this.nextStornoNumber();
         // Negative Positionen
         const stornoPos = (orig.positionen || []).map(p => Object.assign({}, p, { einzelpreis: -Math.abs(p.einzelpreis) }));
         const today = new Date().toLocaleDateString('sv-SE');
@@ -2100,20 +2116,22 @@ const Store = {
         return `${prefix}-${year}-${String(n).padStart(3, '0')}`;
     },
 
-    nextRechInvoiceNumber(typ) {
-        const counter = this.getRechInvoiceCounter();
-        const prefix = typ === 'rechnung' ? 'RE' : typ === 'angebot' ? 'AN' : 'GU';
-        const year = new Date().getFullYear();
-        this._resetCounterIfNewYear(counter, year);
-        // Existierende Nummern laden, um Duplikate zu vermeiden (Schutz vor Counter-Desync)
-        const existingNrs = new Set((this._rechGet('dokumente') || []).map(i => i.nummer || ''));
-        let candidate;
-        do {
-            counter[prefix] = (counter[prefix] || 0) + 1;
-            candidate = `${prefix}-${year}-${String(counter[prefix]).padStart(3, '0')}`;
-        } while (existingNrs.has(candidate));
-        this._rechSet('invoice_counter', counter);
-        return candidate;
+    async nextRechInvoiceNumber(typ) {
+        return this._withLock(this._rechPrefix + 'invoice_counter', () => {
+            const counter = this.getRechInvoiceCounter();
+            const prefix = typ === 'rechnung' ? 'RE' : typ === 'angebot' ? 'AN' : 'GU';
+            const year = new Date().getFullYear();
+            this._resetCounterIfNewYear(counter, year);
+            // Existierende Nummern laden, um Duplikate zu vermeiden (Schutz vor Counter-Desync)
+            const existingNrs = new Set((this._rechGet('dokumente') || []).map(i => i.nummer || ''));
+            let candidate;
+            do {
+                counter[prefix] = (counter[prefix] || 0) + 1;
+                candidate = `${prefix}-${year}-${String(counter[prefix]).padStart(3, '0')}`;
+            } while (existingNrs.has(candidate));
+            this._rechSet('invoice_counter', counter);
+            return candidate;
+        });
     },
 
     // ============================================

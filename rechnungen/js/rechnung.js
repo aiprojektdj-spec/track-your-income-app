@@ -644,8 +644,8 @@ var Rechnung = (function() {
         });
 
         document.getElementById('invSave').addEventListener('click', saveInvoice);
-        document.getElementById('invPreview').addEventListener('click', function() {
-            var inv = buildInvoiceObject();
+        document.getElementById('invPreview').addEventListener('click', async function() {
+            var inv = await buildInvoiceObject();
             if (!inv) return;
             showInvoicePreview(inv);
         });
@@ -778,7 +778,7 @@ var Rechnung = (function() {
         }
     }
 
-    function buildInvoiceObject() {
+    async function buildInvoiceObject() {
         var typ = document.getElementById('invTyp').value;
         var nummer = document.getElementById('invNummer').value.trim();
         var datum = document.getElementById('invDatum').value;
@@ -893,7 +893,7 @@ var Rechnung = (function() {
 
         // Jetzt, nach allen Validierungen, die Nummer final fixieren (Counter tatsächlich verbrauchen).
         if (!nummer || wasAutoPreview) {
-            nummer = Store.nextRechInvoiceNumber(typ);
+            nummer = await Store.nextRechInvoiceNumber(typ);
         }
 
         var isKleinFinal = editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (Store.getSettings().ustMode === 'klein');
@@ -970,17 +970,25 @@ var Rechnung = (function() {
         return ids;
     }
 
-    function saveInvoice() {
-        var invoice = buildInvoiceObject();
-        if (!invoice) return;
-        var saved = Store.saveRechInvoice(invoice);
-        if (!saved) {
-            Utils.showToast('Nicht gespeichert — Dokument ist bereits gestellt/gesperrt (GoBD §14 UStG).', 'error');
+    async function saveInvoice() {
+        // Doppelklick-Schutz: buildInvoiceObject() awaited jetzt den Web-Locks-Nummernzug,
+        // ohne Sperre koennte ein zweiter Klick waehrend des Awaits eine zweite Nummer ziehen.
+        var btn = document.getElementById('invSave');
+        if (btn) { if (btn.disabled) return; btn.disabled = true; }
+        try {
+            var invoice = await buildInvoiceObject();
+            if (!invoice) return;
+            var saved = Store.saveRechInvoice(invoice);
+            if (!saved) {
+                Utils.showToast('Nicht gespeichert — Dokument ist bereits gestellt/gesperrt (GoBD §14 UStG).', 'error');
+                RechApp.navigate('dokumente');
+                return;
+            }
+            Utils.showToast('Dokument gespeichert!', 'success');
             RechApp.navigate('dokumente');
-            return;
+        } finally {
+            if (btn) btn.disabled = false;
         }
-        Utils.showToast('Dokument gespeichert!', 'success');
-        RechApp.navigate('dokumente');
     }
 
     function generatePreviewHtml(inv, watermarkText) {

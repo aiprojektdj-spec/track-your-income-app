@@ -275,7 +275,7 @@ var Dokumente = (function() {
             document.getElementById('stornoFreitextGroup').style.display = this.value === 'sonstiges' ? '' : 'none';
         });
 
-        document.getElementById('confirmStorno').addEventListener('click', function() {
+        document.getElementById('confirmStorno').addEventListener('click', async function() {
             var grund = document.getElementById('stornoGrund').value;
             if (!grund) {
                 Utils.showToast('Bitte einen Stornogrund ausw\u00E4hlen.', 'error');
@@ -289,7 +289,9 @@ var Dokumente = (function() {
                     return;
                 }
             }
-            Store.createStornoRechnung(id, grund, grundText);
+            if (this.disabled) return;
+            this.disabled = true;
+            await Store.createStornoRechnung(id, grund, grundText);
             Utils.showToast('Stornorechnung erstellt.', 'success');
             RechApp.closeModal();
             RechApp.navigate('dokumente');

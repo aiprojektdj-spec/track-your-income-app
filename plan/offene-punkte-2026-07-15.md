@@ -212,12 +212,34 @@ Punkte 5/6/7 am 2026-07-17 verifiziert und abgeschlossen (siehe unten).
 | # | Punkt | Status |
 |---|---|---|
 | P1-1 | Steuerberater-Read-Only fertigbauen (2 Client-Lücken, Branch `feature/csp-phase-c`) | ⬜ offen — wartet auf Kunden-Go |
-| P1-2 | Landing-Copy + technisches SEO-Minimum | ⬜ offen — Prompt: `plan/session-prompt-landing-seo.md` |
+| P1-2 | Landing-Copy + technisches SEO-Minimum | 🟡 teils erledigt — Rest s. u. |
 | P1-3 | Launch-Baseline messen (Wachstumsplan Juli Woche 1) | ⬜ offen |
 
 **P1-1 Details (`session-prompt-stb-luecken.md`):**
 - Lücke 1 (kritisch): Steuerberater ohne eigenes Abo muss durchs Login-Gate kommen können.
 - Lücke 2 (klein): "Zugriff entziehen"-Button beim Mandanten fehlt (nur per DevTools möglich).
+
+**P1-2 Details (`session-prompt-landing-seo.md`, 2026-07-19):**
+- ✅ `landing-v2.html` war Duplicate-Content-Risiko (canonical/og:url zeigten auf Root-URL,
+  Seite selbst live unter `/landing-v2.html` erreichbar, robots.txt blockte sie nicht) —
+  User-Entscheid: bleibt liegen, aber `noindex, nofollow` + eigener canonical gesetzt,
+  zusätzlich `robots.txt` Disallow ergänzt.
+- ✅ `deploy/` (index.html + onepager.html, alter Broschüre-Build-Output) war ebenfalls live
+  crawlbar ohne canonical — User-Entscheid: kompletter Ordner entfernt (Altlast).
+- ✅ Geprüft, kein Fix nötig: JSON-LD (`SoftwareApplication` + `FAQPage`) existiert bereits
+  auf `index.html` und kollidiert nicht mit der CSP (ld+json ist kein von `script-src`
+  geblockter Typ). Preis-/Trial-Copy (15 €/Monat, 135 €/Jahr, 7-Tage-Trial mit Kartenpflicht)
+  deckt sich exakt mit `agb.html §4`. Steuerberater-FAQ hat korrekten Disclaimer. Kein
+  CH/AT-Restwortlaut mehr auf `index.html` (W2-Sweep hat gehalten). Nur eine H1.
+- 🔴 Offen: `og-image.png` wird in `index.html` (Zeile 16) referenziert, existiert aber
+  nirgendwo im Repo — OG-Bild ist aktuell tot (404). Braucht echtes Asset (1200×630),
+  keine Design-Entscheidung die diese Session treffen sollte.
+- ⬜ Offen (nicht angefasst, braucht eigene Zeit): Lighthouse-SEO-Score messen,
+  Mobile-Lesbarkeit FAQ/Pricing @375px, `verfahrensdokumentation.html` bewusst nicht in
+  Sitemap/robots (Orphan-Page, evtl. gewollt).
+- ⚠️ Parallel-Session war während dieser Session im selben Ordner aktiv (app.html,
+  index.html, css/landing.css, js/whop-auth.js, eigenbelege/js/app.js verändert) —
+  nicht angefasst, nicht gestaged.
 
 ---
 
@@ -226,7 +248,7 @@ Punkte 5/6/7 am 2026-07-17 verifiziert und abgeschlossen (siehe unten).
 | # | Punkt | Status |
 |---|---|---|
 | P2-1 | Local 1.7 spiegeln + verwaistes Git reparieren | 🟡 teilweise (2026-07-17): Git repariert (fsck sauber, war nur 3 Commits hinter `origin/main`, nicht wirklich verwaist), 70 uncommittete Änderungen in 4 thematische Commits aufgeteilt + gepusht (`e800115`..`fba3222`). Dabei 2 echte Bugs gefixt: `impressum.html`/`datenschutz.html` waren gelöscht aber noch von `app.html` verlinkt (rechtlich pflichtig, wiederhergestellt aus altem HEAD); `lager/index.html` + `rechnungen/index.html` luden noch 4 gelöschte Cloud-Sync/Auth-Dateien (tote `<script>`-Tags + veraltete Supabase-CSP-Regel entfernt). Schritt 3 (eigentlicher Spiegel-Abgleich Web→Local laut Prompt: USt-Regelbesteuerung, GoBD Edit/Delete, Whop-Grace-Token, Datum-Handling) noch **offen** — dafür braucht es eine eigene Session. CH/AT (`js/schweiz.js`/`js/oesterreich.js`) bestätigt weiterhin aktiv in Local. |
-| P2-2 | Performance + Accessibility Audit (Landing/Onboarding) | ⬜ offen — Prompt: `plan/session-prompt-performance-a11y.md` |
+| P2-2 | Performance + Accessibility Audit (Landing/Onboarding) | 🟡 teilweise (2026-07-19): 2 Fixes gebaut+verifiziert: (1) ApexCharts (~600KB) lief bisher als statischer `<script>`-Tag in `app.html` bei JEDEM App-Boot, obwohl `dashboard.js` es eigentlich lazy nachladen sollte — Widerspruch war real, nicht nur Landing. `eigenbelege/js/app.js` bekam eigenen `_ensureApexCharts()`-Lazy-Loader (gleiches Muster wie `dashboard.js`), statischer Tag entfernt. (2) Skip-Link fehlte auf Landing (`index.html`) — ergänzt (`.skip-link` in `css/landing.css`, Ziel `#main-content` auf Hero). Beides statisch verifiziert (Datei-Inhalt via lokalem Server geprüft, keine Konsolenfehler beim App-Boot); `:focus`-Sichtbarkeit des Skip-Links selbst nicht per Screenshot beweisbar, da Browser-Pane-Tab kein OS-Fokus hat (`document.hasFocus()===false`) — Mechanik ist Standard-CSS, User sollte per echtem Tab-Druck gegenchecken. Farbcodierte Status-Badges (bezahlt/offen) bereits WCAG-konform (Text+Icon, nicht nur Farbe) — kein Fix nötig. Noch offen: Lighthouse-Baseline (Performance-Score/LCP/CLS/INP) braucht echtes DevTools, nicht via MCP-Tools messbar; Bundle-Splitting-Frage (`js/app.js`/`js/store.js`, je >130KB) nur als Empfehlung dokumentiert, nicht umgesetzt (Architekturentscheidung, siehe Prompt); Screenreader-Formulare + Touch-Targets in App noch nicht geprüft. |
 
 ---
 

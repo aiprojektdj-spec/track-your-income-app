@@ -6,6 +6,7 @@ Disallow: /styleguide.html
 Disallow: /lager/
 Disallow: /rechnungen/
 Disallow: /eigenbelege/
+Disallow: /landing-v2.html
 
 # Öffentliche Seiten erlauben
 Allow: /index.html

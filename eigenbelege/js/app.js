@@ -238,6 +238,38 @@ function toast(msg, type='success') {
 
 let _chartInst = null;
 
+/** Lazy-loads ApexCharts (~600KB) only when a chart is actually needed */
+function _ensureApexCharts(cb) {
+    if (typeof ApexCharts !== 'undefined') { cb(); return; }
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js';
+    script.integrity = 'sha384-KNaFJ+EK516RuHsoycvreec5pD7BkTKJEkjMrVSQWu9KGTl7En4dhIDv7t1DFJ+g';
+    script.crossOrigin = 'anonymous';
+    script.onload = cb;
+    script.onerror = () => console.warn('[Eigenbelege] ApexCharts failed to load');
+    document.head.appendChild(script);
+}
+
+function _renderKatChart(el, katMap) {
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    const textColor = isDark ? '#94a3b8' : '#475569';
+    const katKeys = Object.keys(katMap);
+    _chartInst = new ApexCharts(el, {
+        chart: { type:'bar', height:200, background:'transparent', toolbar:{show:false}, fontFamily:'inherit', animations:{enabled:true,speed:500} },
+        theme: { mode: isDark ? 'dark' : 'light' },
+        series: [{ name:'Summe', data: katKeys.map(k=>+(katMap[k].toFixed(2))) }],
+        colors: katKeys.map(k=>getKat(k).farbe),
+        plotOptions: { bar:{ columnWidth:'55%', borderRadius:3, distributed:true } },
+        xaxis: { categories: katKeys.map(k=>getKat(k).name), labels:{style:{colors:textColor,fontSize:'10px'}}, axisBorder:{show:false}, axisTicks:{show:false} },
+        yaxis: { labels:{style:{colors:textColor,fontSize:'10px'}, formatter:v=>v.toFixed(0)+'€'} },
+        grid: { borderColor: isDark?'#334155':'#e2e8f0', strokeDashArray:4 },
+        legend: { show:false },
+        tooltip: { theme: isDark?'dark':'light', y:{ formatter:v=>euro(v) } },
+        dataLabels: { enabled:false }
+    });
+    _chartInst.render();
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════
@@ -351,29 +383,11 @@ function renderDashboard() {
             </div>`}
         </div>`;
 
-    // Chart — ApexCharts
+    // Chart — ApexCharts (lazy-loaded on demand, ~600KB — no longer a static <script> tag)
     if (Object.keys(katMap).length) {
         if (_chartInst) { try { _chartInst.destroy(); } catch(e){} _chartInst=null; }
         const el = document.getElementById('katChart');
-        if (el && typeof ApexCharts !== 'undefined') {
-            const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-            const textColor = isDark ? '#94a3b8' : '#475569';
-            const katKeys = Object.keys(katMap);
-            _chartInst = new ApexCharts(el, {
-                chart: { type:'bar', height:200, background:'transparent', toolbar:{show:false}, fontFamily:'inherit', animations:{enabled:true,speed:500} },
-                theme: { mode: isDark ? 'dark' : 'light' },
-                series: [{ name:'Summe', data: katKeys.map(k=>+(katMap[k].toFixed(2))) }],
-                colors: katKeys.map(k=>getKat(k).farbe),
-                plotOptions: { bar:{ columnWidth:'55%', borderRadius:3, distributed:true } },
-                xaxis: { categories: katKeys.map(k=>getKat(k).name), labels:{style:{colors:textColor,fontSize:'10px'}}, axisBorder:{show:false}, axisTicks:{show:false} },
-                yaxis: { labels:{style:{colors:textColor,fontSize:'10px'}, formatter:v=>v.toFixed(0)+'€'} },
-                grid: { borderColor: isDark?'#334155':'#e2e8f0', strokeDashArray:4 },
-                legend: { show:false },
-                tooltip: { theme: isDark?'dark':'light', y:{ formatter:v=>euro(v) } },
-                dataLabels: { enabled:false }
-            });
-            _chartInst.render();
-        }
+        if (el) _ensureApexCharts(() => _renderKatChart(el, katMap));
     }
 
     // GSAP stagger animation for stat cards

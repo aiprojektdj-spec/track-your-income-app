@@ -176,9 +176,22 @@ const Euer = {
         // Eigenbelege als Ausgaben (aus eigenbelege/index.html localStorage)
         // Felder: belegDatum (nicht datum), betragNetto (nicht betrag)
         const eigenbelegeRaw = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; const _k = (_ebCo?_ebCo+'__':'')+'eigenbelege_belege'; return (typeof Store !== 'undefined' ? Store._syncReadRaw(_k) : JSON.parse(localStorage.getItem(_k) || '[]')) || []; } catch { return []; } })();
-        const eigenbelegeAusgaben = eigenbelegeRaw
-            .filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, startDate, endDate))
+        const eigenbelegeInPeriod = eigenbelegeRaw
+            .filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, startDate, endDate));
+        const eigenbelegeAusgaben = eigenbelegeInPeriod
             .reduce((sum, b) => sum + (parseFloat(b.betragNetto) || parseFloat(b.betragBrutto) || 0), 0);
+        // Vorsteuer aus Eigenbelegen: pro Beleg aus gespeicherter betragMwst (respektiert
+        // mwstSatz=0). Fallback für Altbelege ohne betragMwst: aus Satz+Netto/Brutto ableiten.
+        const eigenbelegeVorsteuer = eigenbelegeInPeriod.reduce((sum, b) => {
+            const mwst = parseFloat(b.betragMwst);
+            if (!isNaN(mwst)) return sum + mwst;
+            const satz = parseFloat(b.mwstSatz);
+            if (isNaN(satz) || satz === 0) return sum;
+            const netto = parseFloat(b.betragNetto);
+            if (!isNaN(netto)) return sum + netto * satz / 100;
+            const brutto = parseFloat(b.betragBrutto) || 0;
+            return sum + brutto / (1 + satz / 100) * (satz / 100);
+        }, 0);
 
         // Ausgaben gesamt
         // Kleinunternehmer: Brutto-Ausgaben (USt ist echter Kostenfaktor, kein Vorsteuerabzug)
@@ -196,12 +209,14 @@ const Euer = {
             // Sonstige Betriebsausgaben tragen ustSatz (0% gültig, z.B. Versicherung/Porto) —
             // per-Eintrag netten statt pauschal (Fix: war pauschal 19%, ignorierte ustSatz=0).
             const vstExpenses = SteuerBerechnung.nettoExpenses(expenses).ust;
-            // Fahrtkosten, Eigenbelege, Versand, Plattformgebühren, Material: pauschal 19%
+            // Fahrtkosten, Versand, Plattformgebühren, Material: pauschal 19%
             // (keine Satz-Info in diesen Kategorien). AfA NICHT enthalten: die Vorsteuer wurde
             // bereits im Anschaffungsjahr in voller Höhe gezogen, die AfA selbst ist eine
             // vorsteuerfreie (Netto-)Abschreibung.
-            const vstOther = (versandkosten + plattformgebuehren + fahrtkosten + materialKosten + eigenbelegeAusgaben) / 1.19 * 0.19;
-            return vstPurch + vstExpenses + vstOther;
+            const vstOther = (versandkosten + plattformgebuehren + fahrtkosten + materialKosten) / 1.19 * 0.19;
+            // Eigenbelege tragen betragMwst/mwstSatz pro Beleg → echte Vorsteuer statt Pauschale
+            // (Fix: liefen vorher im pauschalen 19%-Block, ignorierten mwstSatz=0).
+            return vstPurch + vstExpenses + vstOther + eigenbelegeVorsteuer;
         })() : 0;
         // Bei Regelbesteuerung zählt nur Netto als abzugsfähige BA; USt ist Durchlaufposten
         const summeAusgaben = isRegel ? (abzugsfaehig - vorsteuer) : abzugsfaehig;

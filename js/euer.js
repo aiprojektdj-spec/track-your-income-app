@@ -11,13 +11,23 @@ const Euer = {
     _lastRenderData: {},
 
     render() {
-        // Kapitalgesellschaften nutzen Bilanz, nicht EÜR
-        if (typeof Rechtsform !== 'undefined' && Rechtsform.isKapitalgesellschaft()) {
+        // Kapitalgesellschaften (immer) sowie gewerbliche EU/GbR/eGbR über der §141-AO-Schwelle
+        // nutzen Bilanz statt EÜR.
+        if (typeof Rechtsform !== 'undefined' && Rechtsform.brauchtBilanzStattEuer(this._selectedYear)) {
+            const istKapges     = Rechtsform.isKapitalgesellschaft();
+            const istHandelsges = !istKapges && Rechtsform.getConfig().bilanzPflicht;
             return `<div class="page-header"><h2><i class="ti ti-file-analytics" style="margin-right:6px;"></i> EÜR</h2></div>
             <div class="card" style="padding:40px;text-align:center;">
                 <div style="font-size:48px;margin-bottom:12px;">📊</div>
                 <div style="font-weight:700;font-size:16px;margin-bottom:8px;">EÜR nicht verfügbar</div>
-                <div style="color:var(--text-muted);margin-bottom:16px;">Als ${Rechtsform.get()} bist du bilanzpflichtig.<br>Nutze stattdessen die Bilanz / GuV.</div>
+                <div style="color:var(--text-muted);margin-bottom:16px;">
+                    ${istKapges
+                        ? `Als ${Rechtsform.get()} bist du bilanzpflichtig.<br>Nutze stattdessen die Bilanz / GuV.`
+                        : istHandelsges
+                        ? `Als ${Rechtsform.get()} bist du kraft HGB Kaufmann und damit bilanzpflichtig — unabhängig von Umsatz oder Gewinn.<br><span style="font-size:12px;">Bilanzierung ist in Stackr in Planung — sprich in der Zwischenzeit mit deinem Steuerberater.</span>`
+                        : `Dein Umsatz oder Gewinn hat die §141-AO-Schwelle (800.000 € Umsatz bzw. 80.000 € Gewinn) überschritten.<br>Du bist voraussichtlich ab dem übernächsten Jahr bilanzierungspflichtig.<br><span style="font-size:12px;">Bilanzierung ist in Stackr in Planung — sprich in der Zwischenzeit mit deinem Steuerberater.</span>`
+                    }
+                </div>
                 <button class="btn btn-primary" data-action="navigate" data-args=\'["bilanz"]\'>→ Bilanz / GuV öffnen</button>
             </div>`;
         }
@@ -93,6 +103,39 @@ const Euer = {
         const wareneinkauf = periodPurchases.filter(p => !p.eigenbeleg_id).reduce((sum, p) => {
             return sum + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
         }, 0);
+
+        // ── §25a UStG Differenzbesteuerung: informative Aufschlüsselung ──────────
+        // Rein informativ — Gewinn bleibt Verkaufspreis−Einkaufspreis wie bei jedem Artikel (kein
+        // Einfluss auf wareneinkauf/bruttoEinnahmen oben, nur ein Subset-Ausweis). Das Flag lebt am
+        // Lager-Purchase (js/lager.js); Sales verlinken via purchaseId(s) (Verkauf-Modul), Rechnungs-
+        // positionen tragen es direkt (rechnungen/js/rechnung.js). Maßgeblich für die tatsächliche
+        // USt-Schuld ist die USt-Voranmeldung (js/ustvoranmeldung.js), nicht dieser EÜR-Ausweis.
+        const purchasesByIdEuer = {};
+        Store.getPurchases(true).forEach(p => { purchasesByIdEuer[p.id] = p; });
+        const diff25aSalesPositionen = sales
+            .map(s => ({ sale: s, purchase: purchasesByIdEuer[s.purchaseId] || (s.purchaseIds && s.purchaseIds[0] ? purchasesByIdEuer[s.purchaseIds[0]] : null) }))
+            .filter(x => x.purchase && x.purchase.differenzbesteuert)
+            .map(x => ({
+                verkaufspreis: (parseFloat(x.sale.verkaufspreis) || 0) + (parseFloat(x.sale.versandkostenKaeufer) || 0),
+                einkaufspreis: parseFloat(x.purchase.einkaufspreis) || 0,
+                warenart: x.purchase.warenart || 'gebraucht'
+            }));
+        const diff25aInvoicePositionen = [];
+        unsyncedInvoices.forEach(inv => (inv.positionen || []).forEach(pos => {
+            if (!pos.differenzbesteuert) return;
+            const linkedPurch = pos.lagerArtikelId ? purchasesByIdEuer[pos.lagerArtikelId] : null;
+            diff25aInvoicePositionen.push({
+                verkaufspreis: (pos.menge || 0) * (pos.einzelpreis || 0),
+                einkaufspreis: linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0),
+                warenart: pos.warenart || (linkedPurch && linkedPurch.warenart) || 'gebraucht'
+            });
+        }));
+        const diff25aPositionen = diff25aSalesPositionen.concat(diff25aInvoicePositionen);
+        const diff25aUmsatz = diff25aPositionen.reduce((sum, p) => sum + p.verkaufspreis, 0);
+        const diff25aWareneinkauf = diff25aPositionen.reduce((sum, p) => sum + p.einkaufspreis, 0);
+        // Vorschau der Bemessungsgrundlage (Einzeldifferenz) — die per Firmeneinstellung gewählte
+        // Methode (Einzel-/Gesamtdifferenz inkl. Vortrag) wird in der USt-Voranmeldung ausgewiesen.
+        const diff25aMargePreview = SteuerBerechnung.margeEinzeldifferenz(diff25aPositionen.map(p => Object.assign({ satz: 19 }, p)));
 
         // Versandkosten (seller's shipping costs)
         const versandkosten = sales.reduce((sum, s) => sum + (parseFloat(s.versandkostenVerkaufer) || 0), 0);
@@ -246,7 +289,7 @@ const Euer = {
         if (sonstigeAusgaben> 0) { donutLabels.push('Betriebsausgaben'); donutValues.push(sonstigeAusgaben); }
         if (eigenbelegeAusgaben>0){ donutLabels.push('Eigenbelege');     donutValues.push(eigenbelegeAusgaben); }
 
-        this._lastRenderData = { sales, periodPurchases, expenses, eigenbelegeRaw, startDate, endDate, periodLabel, summeEinnahmen, summeAusgaben, gewinn, wareneinkauf, versandkosten, plattformgebuehren, fahrtkosten, materialKosten, sonstigeAusgaben, eigenbelegeAusgaben, afaKosten, monthlyData, donutLabels, donutValues, chartYear: year };
+        this._lastRenderData = { sales, periodPurchases, expenses, eigenbelegeRaw, startDate, endDate, periodLabel, summeEinnahmen, summeAusgaben, gewinn, wareneinkauf, versandkosten, plattformgebuehren, fahrtkosten, materialKosten, sonstigeAusgaben, eigenbelegeAusgaben, afaKosten, monthlyData, donutLabels, donutValues, chartYear: year, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview };
 
         // GbR-Gewinnverteilung Block
         const gbrBlock = (typeof GbR !== 'undefined') ? GbR.renderEuerBlock(gewinn) : '';
@@ -404,6 +447,10 @@ const Euer = {
                                 <td style="padding-left:16px;font-size:12px;">↳ Umsatzsteuer vereinnahmt <span style="color:var(--text-muted);">Durchlaufposten</span></td>
                                 <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(ustEinnahmen)}</td>
                             </tr>` : ''}
+                            ${diff25aUmsatz > 0 ? `<tr style="opacity:0.8;">
+                                <td style="padding-left:16px;font-size:12px;">↳ davon differenzbesteuerte Umsätze <span style="color:var(--text-muted);">(§25a UStG)</span></td>
+                                <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(diff25aUmsatz)}</td>
+                            </tr>` : ''}
                             <tr class="euer-total">
                                 <td><strong>Summe Einnahmen</strong>${isRegel ? '' : ' <span style="font-size:11px;font-weight:400;color:var(--text-muted);">§19 UStG – keine Umsatzsteuer</span>'}</td>
                                 <td style="text-align:right"><strong>${Utils.formatCurrency(summeEinnahmen)}</strong></td>
@@ -414,6 +461,10 @@ const Euer = {
                                 <td>Wareneinkauf <span style="font-size:11px;color:var(--text-muted);">(${periodPurchases.length} Artikel im Zeitraum eingekauft)</span></td>
                                 <td style="text-align:right">${Utils.formatCurrency(wareneinkauf)}</td>
                             </tr>
+                            ${diff25aWareneinkauf > 0 ? `<tr style="opacity:0.8;">
+                                <td style="padding-left:16px;font-size:12px;">↳ davon Wareneinkauf §25a <span style="color:var(--text-muted);">(ohne Vorsteuerabzug erworben)</span></td>
+                                <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(diff25aWareneinkauf)}</td>
+                            </tr>` : ''}
                             <tr>
                                 <td>Versandkosten (Verkäufer)</td>
                                 <td style="text-align:right">${Utils.formatCurrency(versandkosten)}</td>
@@ -472,6 +523,11 @@ const Euer = {
                         </tbody>
                     </table>
                 </div>
+                ${diff25aUmsatz > 0 ? `<div class="card" style="margin-top:12px;padding:14px 16px;font-size:12px;color:var(--text-secondary);">
+                    <strong><i class="ti ti-tag" style="margin-right:4px;"></i> Bemessungsgrundlage §25a (Marge)</strong> — nur Anzeige, keine Auswirkung auf den Gewinn oben.<br>
+                    Einzeldifferenz-Vorschau: Marge ${Utils.formatCurrency(diff25aMargePreview.margeBrutto)} · davon USt ${Utils.formatCurrency(diff25aMargePreview.ust)}.
+                    Maßgeblich für die tatsächliche USt-Schuld (inkl. gewählter Methode Einzel-/Gesamtdifferenz) ist die <a href="#" data-action="navigate" data-args='["ustvoranmeldung"]'>USt-Voranmeldung</a>.
+                </div>` : ''}
                 <div style="padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);display:flex;gap:16px;flex-wrap:wrap;">
                     <span><i class="ti ti-clipboard-list"></i> Grundlage: §4 Abs. 3 EStG (Ist-Besteuerung / Zufluss-Abfluss)</span>
                     <span><i class="ti ti-box"></i> ${periodPurchases.length} Einkäufe · ${sales.length} Verkäufe · ${expenses.length} Ausgaben</span>

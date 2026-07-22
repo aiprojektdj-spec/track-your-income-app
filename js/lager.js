@@ -2263,6 +2263,22 @@ const Lager = {
                                 <input type="number" min="1" class="form-input" id="le_anzahl" value="${p.anzahl || 1}">
                             </div>
                         </div>
+                        <!-- Differenzbesteuerung §25a UStG -->
+                        <div class="form-group">
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;font-weight:400;">
+                                <input type="checkbox" id="le_differenzbesteuert" ${p.differenzbesteuert ? 'checked' : ''}>
+                                Ohne Vorsteuerabzug erworben (z.B. von Privatperson) — Differenzbesteuerung §25a möglich
+                            </label>
+                            <div id="le_warenart_wrap" style="display:${p.differenzbesteuert ? '' : 'none'};margin-top:8px;">
+                                <label class="form-label">Warenart (§25a)</label>
+                                <select class="form-select" id="le_warenart">
+                                    <option value="gebraucht" ${p.warenart === 'gebraucht' ? 'selected' : ''}>Gebrauchtgegenstände</option>
+                                    <option value="kunst" ${p.warenart === 'kunst' ? 'selected' : ''}>Kunstgegenstände</option>
+                                    <option value="sammlerstueck" ${p.warenart === 'sammlerstueck' ? 'selected' : ''}>Sammlungsstücke und Antiquitäten</option>
+                                </select>
+                                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Stackr rechnet die Marge v1 pauschal mit 19% USt. Bei bestimmten Kunstgegenständen/Sammlerstücken/Einfuhren kann nach §25a Abs. 3 UStG i.V.m. Anlage 2 UStG auch 7% gelten — bitte im Zweifel mit deinem Steuerberater klären.</div>
+                            </div>
+                        </div>
                         <div class="form-group">
                             <label class="form-label">Tags <span style="font-weight:400;color:var(--text-muted);">(kommagetrennt)</span></label>
                             <input type="text" class="form-input" id="le_tags" value="${Utils.escapeHtml((p.tags || []).join(', '))}" placeholder="z.B. Vintage, Streetwear …">
@@ -2313,6 +2329,15 @@ const Lager = {
                         });
                     }
 
+                    // Differenzbesteuerung §25a: Warenart-Auswahl nur bei aktivem Haken zeigen
+                    const leDiffCheckbox = document.getElementById('le_differenzbesteuert');
+                    const leWarenartWrap = document.getElementById('le_warenart_wrap');
+                    if (leDiffCheckbox && leWarenartWrap) {
+                        leDiffCheckbox.addEventListener('change', () => {
+                            leWarenartWrap.style.display = leDiffCheckbox.checked ? '' : 'none';
+                        });
+                    }
+
                     // Einkaufsquelle "Sonstiges" toggle
                     const leQuelleSelect = document.getElementById('le_einkaufsquelle');
                     const leCustomGroup  = document.getElementById('le_customQuelleGroup');
@@ -2345,6 +2370,8 @@ const Lager = {
                             anzahl:         parseInt(document.getElementById('le_anzahl').value)  || 1,
                             einkaufsquelle,
                             status:         newStatus,
+                            differenzbesteuert: leDiffCheckbox?.checked || false,
+                            warenart:       leDiffCheckbox?.checked ? document.getElementById('le_warenart').value : undefined,
                             tags:           (document.getElementById('le_tags')?.value || '').split(',').map(t=>t.trim()).filter(Boolean),
                             notizen:        document.getElementById('le_notizen').value.trim(),
                             lagerort: {

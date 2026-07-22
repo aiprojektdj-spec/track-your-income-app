@@ -16,38 +16,66 @@ const GbrModul = {
     _saveGewSt(d)   { Store.set('gbr_gewst', d); },
 
     // ── Jahresgewinn berechnen ────────────────────────────────────
+    // Nutzt SteuerBerechnung (Single Source of Truth für USt-Netting, s. js/steuer-berechnung.js),
+    // dieselbe Rechenbasis wie euer.js/bilanz.js. Fixt dabei 3 Bugs der Vorversion:
+    // 0%-Steuersatz fiel fälschlich auf 19% zurück (SteuerBerechnung behandelt 0% als gültig),
+    // Rechnungen/Gutschriften wurden komplett ignoriert, Retouren wurden nicht abgezogen.
     _calcJahresgewinn(year) {
         const y = String(year);
         // GbR ist eigenes USt-Steuersubjekt (§19 UStG-Grenze separat von anderen Companies) —
         // Beträge müssen bei Regelbesteuerung netto in den Gewinn einfließen, USt ist Durchlaufposten.
         const settings = Store.getSettings();
         const isRegel = (settings.ustMode || 'klein') === 'regel';
-        const sales     = (Store.getSales     ? Store.getSales()     : Store.get('sales')     || []).filter(s => (s.datum||'').startsWith(y));
+        const salesRaw  = (Store.getSales     ? Store.getSales(true) : Store.get('sales')     || []);
+        const sales     = salesRaw.filter(s => (s.datum||'').startsWith(y) && !s.storniert);
         const purchases = (Store.getPurchases ? Store.getPurchases() : Store.get('purchases') || []).filter(p => (p.datum||'').startsWith(y) && !p.storniert);
         // Fix: las vorher aus totem Key 'ausgaben' statt 'expenses' → Betriebsausgaben waren immer 0.
         const ausgaben  = (Store.getExpenses ? Store.getExpenses() : Store.get('expenses') || []).filter(a => (a.datum||'').startsWith(y));
-        const einnahmen = sales.reduce((s, v) => {
-            const brutto = (parseFloat(v.verkaufspreis)||0) + (parseFloat(v.versandkostenKaeufer)||0);
-            if (!isRegel) return s + brutto;
-            const rate = parseFloat(v.steuersatz) || 19;
-            return s + brutto / (1 + rate / 100);
-        }, 0);
-        // Fix: Menge (anzahl) fehlte im Wareneinkauf-Multiplikator.
-        const wareneinkauf = purchases.reduce((s, p) => {
-            const brutto = (parseFloat(p.einkaufspreis)||0) * (parseInt(p.anzahl)||1);
-            if (!isRegel) return s + brutto;
-            const rateRaw = (p.ustSatz != null && p.ustSatz !== '') ? parseFloat(p.ustSatz) : 19;
-            const rate = isNaN(rateRaw) ? 19 : rateRaw;
-            return s + brutto / (1 + rate / 100);
-        }, 0);
-        const betriebsausgaben = ausgaben.reduce((s, a) => {
-            const brutto = parseFloat(a.betrag) || 0;
-            if (!isRegel) return s + brutto;
-            const rateRaw = (a.ustSatz != null && a.ustSatz !== '') ? parseFloat(a.ustSatz) : ((a.steuersatz != null && a.steuersatz !== '') ? parseFloat(a.steuersatz) : 19);
-            const rate = isNaN(rateRaw) ? 19 : rateRaw;
-            return rate > 0 ? s + brutto / (1 + rate / 100) : s + brutto;
-        }, 0);
-        return { einnahmen, wareneinkauf, betriebsausgaben, gewinn: einnahmen - wareneinkauf - betriebsausgaben };
+        const retouren  = (Store.getRetouren ? Store.getRetouren() : []).filter(r => (r.datum||'').startsWith(y));
+        const rechInvoices = (Store.getRechInvoices ? Store.getRechInvoices() : []).filter(inv =>
+            (inv.datum||'').startsWith(y) && inv.status === 'bezahlt' && !inv._storniert &&
+            (inv.typ === 'rechnung' || inv.typ === 'gutschrift'));
+
+        const salesNetting = SteuerBerechnung.nettoSales(sales, isRegel);
+        const retNetting   = SteuerBerechnung.nettoRetouren(retouren, salesRaw, isRegel);
+        const invNetting   = SteuerBerechnung.nettoRechnungen(rechInvoices);
+        const purchNetting = SteuerBerechnung.nettoPurchases(purchases);
+        const expNetting   = SteuerBerechnung.nettoExpenses(ausgaben);
+
+        const einnahmen = isRegel
+            ? (salesNetting.netto - retNetting.netto) + invNetting.netto
+            : (salesNetting.brutto - retNetting.brutto) + invNetting.netto; // Rechnungspositionen sind immer netto gespeichert
+        const wareneinkauf = isRegel ? purchNetting.netto : purchNetting.brutto;
+        const betriebsausgaben = isRegel ? expNetting.netto : expNetting.brutto;
+
+        // ── §25a UStG Differenzbesteuerung: informative Aufschlüsselung ──────────
+        // Rein informativ, kein Einfluss auf gewinn oben (s. euer.js für ausführliche Erläuterung
+        // desselben Musters). Maßgeblich für die USt-Schuld ist die USt-Voranmeldung.
+        const purchasesById = {};
+        purchases.forEach(p => { purchasesById[p.id] = p; });
+        (Store.getPurchases ? Store.getPurchases(true) : []).forEach(p => { if (!purchasesById[p.id]) purchasesById[p.id] = p; });
+        const diff25aSalesPositionen = sales
+            .map(s => ({ sale: s, purchase: purchasesById[s.purchaseId] || (s.purchaseIds && s.purchaseIds[0] ? purchasesById[s.purchaseIds[0]] : null) }))
+            .filter(x => x.purchase && x.purchase.differenzbesteuert)
+            .map(x => ({
+                verkaufspreis: (parseFloat(x.sale.verkaufspreis) || 0) + (parseFloat(x.sale.versandkostenKaeufer) || 0),
+                einkaufspreis: parseFloat(x.purchase.einkaufspreis) || 0
+            }));
+        const diff25aInvoicePositionen = [];
+        rechInvoices.forEach(inv => (inv.positionen || []).forEach(pos => {
+            if (!pos.differenzbesteuert) return;
+            const linkedPurch = pos.lagerArtikelId ? purchasesById[pos.lagerArtikelId] : null;
+            diff25aInvoicePositionen.push({
+                verkaufspreis: (pos.menge || 0) * (pos.einzelpreis || 0),
+                einkaufspreis: linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0)
+            });
+        }));
+        const diff25aPositionen = diff25aSalesPositionen.concat(diff25aInvoicePositionen);
+        const diff25aUmsatz = diff25aPositionen.reduce((s, p) => s + p.verkaufspreis, 0);
+        const diff25aWareneinkauf = diff25aPositionen.reduce((s, p) => s + p.einkaufspreis, 0);
+        const diff25aMargePreview = SteuerBerechnung.margeEinzeldifferenz(diff25aPositionen.map(p => Object.assign({ satz: 19 }, p)));
+
+        return { einnahmen, wareneinkauf, betriebsausgaben, gewinn: einnahmen - wareneinkauf - betriebsausgaben, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview };
     },
 
     // ── Haupt-Render ──────────────────────────────────────────────
@@ -57,7 +85,7 @@ const GbrModul = {
         const einst = this._getEinst();
         const gs    = GbR.getGesellschafter();
         const year  = this._year;
-        const { einnahmen, wareneinkauf, betriebsausgaben, gewinn } = this._calcJahresgewinn(year);
+        const { einnahmen, wareneinkauf, betriebsausgaben, gewinn, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview } = this._calcJahresgewinn(year);
 
         const tabs = [
             ['uebersicht',    '📊', 'Übersicht'],
@@ -97,7 +125,7 @@ const GbrModul = {
 
             <!-- Inhalt -->
             <div id="gbrTabContent">
-                ${this._renderTab(gs, { einnahmen, wareneinkauf, betriebsausgaben, gewinn }, year)}
+                ${this._renderTab(gs, { einnahmen, wareneinkauf, betriebsausgaben, gewinn, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview }, year)}
             </div>
         </div>`;
     },
@@ -114,10 +142,19 @@ const GbrModul = {
     },
 
     // ── Übersicht ─────────────────────────────────────────────────
-    _renderUebersicht(gs, { einnahmen, wareneinkauf, betriebsausgaben, gewinn }, year) {
+    _renderUebersicht(gs, { einnahmen, wareneinkauf, betriebsausgaben, gewinn, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview }, year) {
         const verteilung = GbR.berechneVerteilung(gewinn);
         const gewSt      = GbR.berechneGewSt(gewinn);
         const nettoGewinn = gewinn - gewSt;
+
+        // §141-AO-Hinweis: gewerbliche GbR/eGbR über der Schwelle — Zahlen unten bleiben als
+        // Orientierung, tatsächliche Gewinnermittlung läuft dann über Bilanz/GuV, nicht EÜR.
+        const ao141Hinweis = (typeof Rechtsform !== 'undefined' && Rechtsform.istGewerblich() && Rechtsform.ueberschreitetAO141Schwelle(year))
+            ? `<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;">
+                ⚠️ §141-AO-Schwelle überschritten (Umsatz > 800.000 € oder Gewinn > 80.000 €) — voraussichtlich ab dem übernächsten Jahr bilanzierungspflichtig.
+                Bilanzierung ist in Stackr in Planung, die Zahlen unten dienen bis dahin nur der Orientierung. Sprich mit deinem Steuerberater.
+               </div>`
+            : '';
 
         // V2: ausgezahlt korrekt aus gbr_auszahlungen_v2 lesen
         let totalAusz = 0;
@@ -127,6 +164,7 @@ const GbrModul = {
         }
 
         return `
+        ${ao141Hinweis}
         <!-- KPI-Kacheln -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:24px;">
             ${this._kpi('Einnahmen '+year,    Utils.formatCurrency(einnahmen),    'var(--success)', '📈')}
@@ -137,6 +175,12 @@ const GbrModul = {
             ${this._kpi('Netto-Gewinn',        Utils.formatCurrency(nettoGewinn),   nettoGewinn>=0?'var(--success)':'var(--danger)', '✅')}
             ${this._kpi('Auszahlungen YTD',    Utils.formatCurrency(totalAusz),     'var(--accent)', '📤')}
         </div>
+        ${diff25aUmsatz > 0 ? `<div class="card" style="padding:14px 16px;margin-bottom:16px;font-size:12px;color:var(--text-secondary);">
+            <strong><i class="ti ti-tag" style="margin-right:4px;"></i> Differenzbesteuerung §25a UStG</strong> — nur Anzeige, keine Auswirkung auf den Jahresgewinn oben.<br>
+            Davon Umsätze: ${Utils.formatCurrency(diff25aUmsatz)} · davon Wareneinkauf: ${Utils.formatCurrency(diff25aWareneinkauf)} ·
+            Einzeldifferenz-Vorschau Marge: ${Utils.formatCurrency(diff25aMargePreview.margeBrutto)} (USt ${Utils.formatCurrency(diff25aMargePreview.ust)}).
+            Maßgeblich für die tatsächliche USt-Schuld ist die <a href="#" data-action="navigate" data-args='["ustvoranmeldung"]'>USt-Voranmeldung</a>.
+        </div>` : ''}
 
         <!-- Gewinnverteilung -->
         <div class="card" style="padding:20px;margin-bottom:16px;">
@@ -316,6 +360,13 @@ const GbrModul = {
 
     // ── Gewerbesteuer ─────────────────────────────────────────────
     _renderGewerbesteuer(gewinn, year) {
+        if (typeof Rechtsform !== 'undefined' && !Rechtsform.brauchtGewSt()) {
+            return `
+            <div class="card" style="padding:20px;">
+                <div style="font-weight:700;font-size:15px;margin-bottom:8px;">🏛️ Gewerbesteuer</div>
+                <div style="font-size:13px;color:var(--text-secondary);">Keine Gewerbesteuer — als freiberufliche Tätigkeit (§18 EStG) eingestuft, unabhängig von der Rechtsform.</div>
+            </div>`;
+        }
         const einst       = this._getEinst();
         const hebesatz    = parseFloat(einst.hebesatz) || 400;
         const freibetrag  = 24500;

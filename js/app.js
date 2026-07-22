@@ -1527,6 +1527,14 @@ const App = {
                     Dauerfristverlängerung beantragt/genehmigt (verschiebt Abgabefrist um 1 Monat)
                 </label>
             </div>
+            <div class="form-group">
+                <label class="form-label" for="set_differenzMethode">Differenzbesteuerung (§25a UStG) — Marge-Methode</label>
+                <select class="form-select" id="set_differenzMethode">
+                    <option value="einzel" ${(s.differenzMethode || 'einzel') === 'einzel' ? 'selected' : ''}>Einzeldifferenz (Regelfall)</option>
+                    <option value="gesamt" ${s.differenzMethode === 'gesamt' ? 'selected' : ''}>Gesamtdifferenz (Wahlrecht, nur Artikel mit EK ≤750€)</option>
+                </select>
+                <div class="form-hint">Betrifft nur als §25a markierte Lager-Artikel (Gebrauchtgegenstände/Kunstgegenstände/Sammlerstücke). Gesamtdifferenz summiert alle betroffenen Artikel je Voranmeldungszeitraum, negative Summen werden innerhalb desselben Kalenderjahres vorgetragen.</div>
+            </div>
             <hr style="border-color:var(--border);margin:16px 0;">
             <div class="form-row">
                 <div class="form-group">
@@ -1616,6 +1624,7 @@ const App = {
                 ustVersteuerungsart: (document.getElementById('set_ustVersteuerungsart') || {}).value || 'soll',
                 ustVaPeriodenTyp: (document.getElementById('set_ustVaPeriodenTyp') || {}).value || 'quartal',
                 ustDauerfristverlaengerung: !!(document.getElementById('set_ustDauerfrist') || {}).checked,
+                differenzMethode: (document.getElementById('set_differenzMethode') || {}).value || 'einzel',
                 land: 'DE',
                 bankname: document.getElementById('set_bankname').value.trim(),
                 iban: document.getElementById('set_iban').value.trim(),

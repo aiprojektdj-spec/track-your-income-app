@@ -86,6 +86,37 @@ const SteuerBerechnung = {
         });
         return { brutto, netto, ust: brutto - netto, byKategorie };
     },
+
+    // ── §25a UStG Differenzbesteuerung ──────────────────────────────────────
+    // Beide Funktionen sind reine Rechenkerne: Aufrufer filtert vorher nach Periode/Jahr
+    // (wie bei allen anderen Funktionen hier) und, für Gesamtdifferenz, nach EK ≤750€.
+
+    // Einzeldifferenz (Standard, §25a Abs. 3 UStG): jede Position einzeln, negative Marge = 0€ USt,
+    // KEINE Verrechnung zwischen Positionen. satz = Artikel-eigener Regelsteuersatz (Default 19).
+    margeEinzeldifferenz(positionen) {
+        let margeBrutto = 0, margeNetto = 0;
+        (positionen || []).forEach(pos => {
+            const marge = Math.max(0, (parseFloat(pos.verkaufspreis) || 0) - (parseFloat(pos.einkaufspreis) || 0));
+            margeBrutto += marge;
+            margeNetto += this.nettoAusBrutto(marge, pos.satz).netto;
+        });
+        return { margeBrutto, margeNetto, ust: margeBrutto - margeNetto };
+    },
+
+    // Gesamtdifferenz (Wahlrecht, §25a Abs. 4 UStG): Summe über alle Positionen der Periode + Vortrag
+    // aus der Vorperiode (kann negativ sein). Negative Summe → 0€ Bemessungsgrundlage, der negative
+    // Betrag wird als neuerVortrag zurückgegeben (Aufrufer kappt ihn beim Jahreswechsel auf 0 — reiner
+    // Rechenkern kennt kein Kalenderjahr). satz gilt einheitlich für die gesamte Bemessungsgrundlage
+    // (Vereinfachung v1: keine gemischten Steuersätze innerhalb einer Gesamtdifferenz-Periode).
+    margeGesamtdifferenz(positionen, vortragAusVorperiode, satz) {
+        const summe = (positionen || []).reduce((s, pos) =>
+            s + (parseFloat(pos.verkaufspreis) || 0) - (parseFloat(pos.einkaufspreis) || 0), 0
+        ) + (parseFloat(vortragAusVorperiode) || 0);
+        const bemessungsgrundlage = Math.max(0, summe);
+        const neuerVortrag = Math.min(0, summe);
+        const { netto, ust } = this.nettoAusBrutto(bemessungsgrundlage, satz);
+        return { bemessungsgrundlage, netto, ust, neuerVortrag };
+    },
 };
 
 if (typeof window !== 'undefined') window.SteuerBerechnung = SteuerBerechnung;

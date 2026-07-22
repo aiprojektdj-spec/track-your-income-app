@@ -674,6 +674,23 @@ function openNeuArtikelModal() {
                 </div>
             </div>
 
+            <!-- Differenzbesteuerung §25a UStG -->
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;font-weight:400;">
+                    <input type="checkbox" id="neu_differenzbesteuert">
+                    Ohne Vorsteuerabzug erworben (z.B. von Privatperson) — Differenzbesteuerung §25a möglich
+                </label>
+                <div id="neu_warenart_wrap" style="display:none;margin-top:8px;">
+                    <label class="form-label">Warenart (§25a)</label>
+                    <select class="form-select" id="neu_warenart">
+                        <option value="gebraucht">Gebrauchtgegenstände</option>
+                        <option value="kunst">Kunstgegenstände</option>
+                        <option value="sammlerstueck">Sammlungsstücke und Antiquitäten</option>
+                    </select>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Stackr rechnet die Marge v1 pauschal mit 19% USt. Bei bestimmten Kunstgegenständen/Sammlerstücken/Einfuhren kann nach §25a Abs. 3 UStG i.V.m. Anlage 2 UStG auch 7% gelten — bitte im Zweifel mit deinem Steuerberater klären.</div>
+                </div>
+            </div>
+
             <!-- Lagerort + Notizen (einklappbar) -->
             <details style="border:1px solid var(--border);border-radius:8px;">
                 <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-secondary);list-style:none;display:flex;align-items:center;gap:6px;">
@@ -747,6 +764,15 @@ function openNeuArtikelModal() {
         reader.readAsDataURL(file);
     });
 
+    // Differenzbesteuerung §25a: Warenart-Auswahl nur bei aktivem Haken zeigen
+    const neuDiffCheckbox = document.getElementById('neu_differenzbesteuert');
+    const neuWarenartWrap = document.getElementById('neu_warenart_wrap');
+    if (neuDiffCheckbox && neuWarenartWrap) {
+        neuDiffCheckbox.addEventListener('change', () => {
+            neuWarenartWrap.style.display = neuDiffCheckbox.checked ? '' : 'none';
+        });
+    }
+
     // Speichern
     document.getElementById('saveNeuArtikel').addEventListener('click', () => {
         const marke  = document.getElementById('neu_marke').value.trim();
@@ -790,6 +816,8 @@ function openNeuArtikelModal() {
             notizen:       document.getElementById('neu_notizen').value.trim(),
             tags,
             status:        'verfuegbar',
+            differenzbesteuert: neuDiffCheckbox?.checked || false,
+            warenart:      neuDiffCheckbox?.checked ? document.getElementById('neu_warenart').value : undefined,
             lagerort: {
                 bereich: (document.getElementById('neu_lo_bereich') || {}).value?.trim() || '',
                 regal:   (document.getElementById('neu_lo_regal')   || {}).value?.trim() || '',

@@ -19,6 +19,7 @@ const GbR = {
     getEinstellungen() {
         return Store.get(this.KEY_EINST) || {
             firmenform:            'Einzelunternehmen',  // 'Einzelunternehmen' | 'GbR' | 'eGbR'
+            taetigkeitsart:        'gewerblich',          // 'freiberuflich' | 'gewerblich' — §141-AO-relevant
             eGbrRegisternummer:    '',
             eGbrRegistergericht:   '',
             hebesatz:              this.DEFAULT_HEBESATZ,
@@ -102,6 +103,7 @@ const GbR = {
 
     // Gewerbesteuer für die GbR gesamt
     berechneGewSt(gewinn) {
+        if (typeof Rechtsform !== 'undefined' && !Rechtsform.brauchtGewSt()) return 0;
         const einst     = this.getEinstellungen();
         const hebesatz  = parseFloat(einst.hebesatz) || this.DEFAULT_HEBESATZ;
         const gewerbeertrag = Math.max(0, gewinn - this.FREIBETRAG_GBR);
@@ -281,6 +283,23 @@ const GbR = {
                 ${typeof Rechtsform !== 'undefined' ? '<div id="rechtsformPreviewInModal" style="margin-top:8px;"></div>' : ''}
             </div>
 
+            <!-- Tätigkeitsart (nur bei EU/GbR/eGbR relevant — legt fest, ob die §141-AO-Schwelle greift) -->
+            <div class="form-group" id="taetigkeitsart_gruppe" style="${['Einzelunternehmen','GbR','eGbR'].includes(einst.firmenform) ? '' : 'display:none;'}">
+                <label class="form-label" style="font-weight:700;">Tätigkeitsart</label>
+                <div style="font-size:11px;color:var(--text-muted);margin:2px 0 6px;">Entscheidet, ob für dich die §141-AO-Bilanzierungsschwelle (800.000 € Umsatz / 80.000 € Gewinn) gilt.</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;">
+                    ${['freiberuflich','gewerblich'].map(t => `
+                    <div data-action="gbr-select-taetigkeitsart" data-args='["${t}"]' id="gbr_taet_${t}" style="
+                        border:2px solid ${(einst.taetigkeitsart||'gewerblich')===t ? 'var(--accent)' : 'var(--border)'};
+                        background:${(einst.taetigkeitsart||'gewerblich')===t ? 'rgba(99,102,241,.1)' : 'var(--bg-secondary)'};
+                        border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .15s;">
+                        <div style="font-size:18px;">${t==='freiberuflich'?'💼':'🏭'}</div>
+                        <div style="font-weight:700;font-size:12px;margin-top:4px;">${t==='freiberuflich'?'Freiberuflich':'Gewerblich'}</div>
+                    </div>`).join('')}
+                </div>
+                <input type="hidden" id="gbr_taetigkeitsart" value="${einst.taetigkeitsart || 'gewerblich'}">
+            </div>
+
             <!-- eGbR Felder (nur sichtbar wenn eGbR) -->
             <div id="egbr_felder" style="${einst.firmenform==='eGbR' ? '' : 'display:none;'}">
                 <div style="padding:12px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px;margin-bottom:4px;">
@@ -422,11 +441,29 @@ const GbR = {
         if (hr) hr.style.display = ['OHG','KG','GmbH','UG','GmbH & Co. KG'].includes(form) ? '' : 'none';
         const skRow = document.getElementById('stammkapital_row');
         if (skRow) skRow.style.display = ['GmbH','UG'].includes(form) ? '' : 'none';
+        const taetGruppe = document.getElementById('taetigkeitsart_gruppe');
+        if (taetGruppe) taetGruppe.style.display = ['Einzelunternehmen','GbR','eGbR'].includes(form) ? '' : 'none';
         // Rechtsform-Preview im Modal
         const preview = document.getElementById('rechtsformPreviewInModal');
         if (preview && typeof Rechtsform !== 'undefined') {
             preview.innerHTML = Rechtsform.renderPflichtenOverview(form);
         }
+    },
+
+    _selectTaetigkeitsart(t) {
+        ['freiberuflich', 'gewerblich'].forEach(v => {
+            const el = document.getElementById('gbr_taet_' + v);
+            if (!el) return;
+            if (v === t) {
+                el.style.border = '2px solid var(--accent)';
+                el.style.background = 'rgba(99,102,241,.1)';
+            } else {
+                el.style.border = '2px solid var(--border)';
+                el.style.background = 'var(--bg-secondary)';
+            }
+        });
+        const inp = document.getElementById('gbr_taetigkeitsart');
+        if (inp) inp.value = t;
     },
 
     _addGsRow() {
@@ -479,6 +516,7 @@ const GbR = {
 
     _saveSettingsModal() {
         const firmenform = document.getElementById('gbr_firmenform')?.value || 'Einzelunternehmen';
+        const taetigkeitsart = document.getElementById('gbr_taetigkeitsart')?.value || 'gewerblich';
         const hebesatz   = parseFloat(document.getElementById('gbr_hebesatz')?.value) || this.DEFAULT_HEBESATZ;
         const regNr      = document.getElementById('gbr_regnr')?.value?.trim() || '';
         const regGericht = document.getElementById('gbr_reggericht')?.value?.trim() || '';
@@ -521,6 +559,7 @@ const GbR = {
 
         this.saveEinstellungen({
             firmenform,
+            taetigkeitsart,
             eGbrRegisternummer:  regNr,
             eGbrRegistergericht: regGericht,
             handelsregisterNr:   hrNr,
@@ -1364,6 +1403,7 @@ if (window.Actions) Actions.register({
     'gbr-anteil-sum':          function () { GbR._updateAnteilSum(); },
     'gbr-remove-gs':           function (id) { GbR._removeGsRow(id); },
     'gbr-select-form':         function (f) { GbR._selectForm(f); },
+    'gbr-select-taetigkeitsart': function (t) { GbR._selectTaetigkeitsart(t); },
     'gbr-add-gs':              function () { GbR._addGsRow(); },
     'gbr-save-settings':       function () { GbR._saveSettingsModal(); },
     'gbr-close-then-settings': function () { App.closeModal(); setTimeout(function () { GbR.openSettingsModal(); }, 100); },

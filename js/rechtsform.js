@@ -230,6 +230,42 @@ const Rechtsform = {
         return ['GmbH', 'UG'].includes(form);
     },
 
+    // Formen, bei denen Freiberuflich/Gewerblich nicht schon durch die Rechtsform selbst feststeht
+    // (z.B. eine freiberufliche Ärzte-GbR vs. eine gewerbliche Handels-GbR)
+    FORMEN_MIT_TAETIGKEITSART: ['Einzelunternehmen', 'GbR', 'eGbR'],
+
+    getTaetigkeitsart() {
+        const einst = Store.get('gbr_einstellungen') || {};
+        return einst.taetigkeitsart || 'gewerblich'; // Default = bisheriges Verhalten (immer gewerblich)
+    },
+
+    // Ist die Firma gewerblich tätig? Relevant für die §141-AO-Schwellenprüfung.
+    istGewerblich(form) {
+        form = form || this.get();
+        if (this.isKapitalgesellschaft(form) || ['OHG', 'KG', 'GmbH & Co. KG'].includes(form)) return true;
+        if (form === 'Freiberufler') return false;
+        if (this.FORMEN_MIT_TAETIGKEITSART.includes(form)) return this.getTaetigkeitsart() === 'gewerblich';
+        return false;
+    },
+
+    // §141 AO (seit 1.1.2024): Umsatz > 800.000 € ODER Gewinn > 80.000 € → Bilanzierungspflicht
+    // ab dem übernächsten Jahr für gewerbliche Einzelunternehmer/Personengesellschaften.
+    AO141_UMSATZ_GRENZE: 800000,
+    AO141_GEWINN_GRENZE: 80000,
+
+    ueberschreitetAO141Schwelle(year) {
+        if (typeof GbrModul === 'undefined' || !GbrModul._calcJahresgewinn) return false;
+        const { einnahmen, gewinn } = GbrModul._calcJahresgewinn(year);
+        return einnahmen > this.AO141_UMSATZ_GRENZE || gewinn > this.AO141_GEWINN_GRENZE;
+    },
+
+    // Zentrale Weiche für EÜR-Tab & Co.: braucht diese Firma jetzt eine Bilanz statt EÜR?
+    brauchtBilanzStattEuer(year) {
+        if (this.isKapitalgesellschaft()) return true;
+        if (this.getConfig().bilanzPflicht) return true; // OHG/KG/GmbH & Co. KG: Kaufmannseigenschaft kraft HGB
+        return this.istGewerblich() && this.ueberschreitetAO141Schwelle(year || new Date().getFullYear());
+    },
+
     brauchtBilanz(form) {
         return this.getConfig(form).bilanzPflicht;
     },
@@ -239,6 +275,8 @@ const Rechtsform = {
     },
 
     brauchtGewSt(form) {
+        form = form || this.get();
+        if (this.FORMEN_MIT_TAETIGKEITSART.includes(form) && this.getTaetigkeitsart() === 'freiberuflich') return false;
         return this.getConfig(form).gewerbesteuer;
     },
 

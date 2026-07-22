@@ -33,6 +33,18 @@ const UstVoranmeldung = {
         const expenses  = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
         const retouren  = Store.getRetouren().filter(r => Utils.isInPeriod(r.datum, startDate, endDate));
 
+        // §25a UStG Differenzbesteuerung: Lookup für Sales→Purchase-Verknüpfung (Flag lebt am
+        // Lager-Purchase, s. js/lager.js). Positionen/Sales mit differenzbesteuert=true werden unten
+        // aus den normalen bruttoUmsatz19/7-Summen ausgeschlossen und stattdessen über die Marge
+        // (SteuerBerechnung.margeEinzeldifferenz/margeGesamtdifferenz) in Kz. 81 eingerechnet.
+        const purchasesById25a = {};
+        Store.getPurchases(true).forEach(p => { purchasesById25a[p.id] = p; });
+        const _istDiff25aSale = s => {
+            const p = purchasesById25a[s.purchaseId] || (s.purchaseIds && s.purchaseIds[0] ? purchasesById25a[s.purchaseIds[0]] : null);
+            return !!(p && p.differenzbesteuert);
+        };
+        const diff25aPositionenRoh = [];
+
         // Brutto-Umsätze nach Steuersatz aufteilen (Feld: steuersatz, Default: 19 nur wenn nicht gesetzt)
         const _rate = item => {
             const r = parseFloat(item.steuersatz);
@@ -80,6 +92,15 @@ const UstVoranmeldung = {
                         if (isEuB2C) return; // OSS-pflichtig ab Schwellen-Überschreitung — läuft über das BZSt-Portal, nicht über diese UVA
                     }
                     (i.positionen || []).forEach(pos => {
+                        // §25a: kein normaler Steuersatz — Marge wird separat unten in Kz. 81 eingerechnet.
+                        if (pos.differenzbesteuert) {
+                            const linkedPurch = pos.lagerArtikelId ? purchasesById25a[pos.lagerArtikelId] : null;
+                            diff25aPositionenRoh.push({
+                                verkaufspreis: sign * (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0),
+                                einkaufspreis: linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0)
+                            });
+                            return;
+                        }
                         // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
                         const netto = sign * (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0);
                         const rate  = parseInt(pos.mwstSatz);
@@ -98,6 +119,11 @@ const UstVoranmeldung = {
             // Direktverkäufe ohne zugehörige Rechnung (Marktplatz) weiterhin über Verkaufsdatum
             Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate))
                 .forEach(s => {
+                    if (_istDiff25aSale(s)) {
+                        const p = purchasesById25a[s.purchaseId] || purchasesById25a[(s.purchaseIds || [])[0]];
+                        diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: parseFloat(p.einkaufspreis) || 0 });
+                        return;
+                    }
                     const rate = _rate(s);
                     if (rate === 7) bruttoUmsatz7 += _brutto(s);
                     else if (rate !== 0) bruttoUmsatz19 += _brutto(s);
@@ -107,8 +133,13 @@ const UstVoranmeldung = {
             // Zahlungsdatum in Store.getSales() gebucht — anders als bei Soll gibt es hier keinen
             // separaten Rechnungs-Pfad, der Rechnungs-Umsätze schon zählt, also KEIN _invoiceId-Ausschluss.
             const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
-            bruttoUmsatz7  = sales.filter(v => _rate(v) === 7).reduce((s, v) => s + _brutto(v), 0);
-            bruttoUmsatz19 = sales.filter(v => { const r = _rate(v); return r !== 7 && r !== 0; }).reduce((s, v) => s + _brutto(v), 0);
+            sales.filter(_istDiff25aSale).forEach(s => {
+                const p = purchasesById25a[s.purchaseId] || purchasesById25a[(s.purchaseIds || [])[0]];
+                diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: parseFloat(p.einkaufspreis) || 0 });
+            });
+            const salesOhneDiff25a = sales.filter(s => !_istDiff25aSale(s));
+            bruttoUmsatz7  = salesOhneDiff25a.filter(v => _rate(v) === 7).reduce((s, v) => s + _brutto(v), 0);
+            bruttoUmsatz19 = salesOhneDiff25a.filter(v => { const r = _rate(v); return r !== 7 && r !== 0; }).reduce((s, v) => s + _brutto(v), 0);
         }
 
         // Ist-Versteuerung + EU-Geschäft: ig. Lieferung/Leistung (Kz.41/21) und OSS-Erkennung laufen
@@ -151,7 +182,26 @@ const UstVoranmeldung = {
             else if (rate !== 0) retour19 += betrag;
         });
         const bruttoUmsatz7adj  = bruttoUmsatz7  - retour7;
-        const bruttoUmsatz19adj = bruttoUmsatz19 - retour19;
+        let bruttoUmsatz19adj = bruttoUmsatz19 - retour19;
+
+        // §25a UStG Differenzbesteuerung: Marge statt Verkaufspreis in Kz. 81. Vereinfachung v1:
+        // einheitlich Regelsatz 19% (Kunstgegenstände/Sammlerstücke können in Einzelfällen 7%
+        // unterliegen — noch nicht recherchiert, s. plan/session-prompt-differenzbesteuerung.md).
+        // Retouren auf §25a-Positionen werden hier NICHT gesondert behandelt (Edge-Case, v1-Lücke).
+        const differenzMethode = (Store.getSettings().differenzMethode || 'einzel') === 'gesamt' ? 'gesamt' : 'einzel';
+        let diff25a;
+        if (differenzMethode === 'gesamt') {
+            const vortrag = Store.getDifferenzVortrag(this._year);
+            diff25a = SteuerBerechnung.margeGesamtdifferenz(
+                diff25aPositionenRoh.filter(p => p.einkaufspreis <= 750), vortrag, 19
+            );
+            diff25a.margeBrutto = diff25a.bemessungsgrundlage;
+            diff25a.margeNetto = diff25a.netto;
+        } else {
+            diff25a = SteuerBerechnung.margeEinzeldifferenz(diff25aPositionenRoh.map(p => Object.assign({ satz: 19 }, p)));
+        }
+        diff25a.methode = differenzMethode;
+        bruttoUmsatz19adj += diff25a.margeBrutto;
 
         const bruttoUmsatz = bruttoUmsatz19adj + bruttoUmsatz7adj;
 
@@ -220,7 +270,8 @@ const UstVoranmeldung = {
             rcNettoAbs1, rcSteuerAbs1, rcNettoOther, rcSteuerOther,
             erwerbNetto19, erwerbSteuer19, erwerbNetto7, erwerbSteuer7,
             nettoIgLieferung, nettoIgLeistung, nettoAusfuhr,
-            istEuHinweisAnzahl, istEuHinweisBetrag
+            istEuHinweisAnzahl, istEuHinweisBetrag,
+            diff25a
         };
     },
 
@@ -336,6 +387,13 @@ const UstVoranmeldung = {
             </div>
         </div>` : '';
 
+        const kz500Hinweis = calc.diff25a.margeBrutto > 0 ? `
+        <div class="card" style="margin-bottom:16px;border-left:3px solid var(--warning);">
+            <div style="padding:12px 16px;font-size:13px;">
+                ℹ️ <strong>Kennziffer 500 (neu ab Besteuerungszeitraum 2026):</strong> Diese Voranmeldung enthält Umsätze mit abweichender Bemessungsgrundlage (§25a UStG Differenzbesteuerung). Ist Kz. 500 in ELSTER aktiv, nimmt das automatisierte Prüfverfahren die UVA aus der Vorabprüfung heraus — ein Sachbearbeiter prüft dann manuell. Das kann die Bearbeitung verzögern, ist aber kein Fehler.
+            </div>
+        </div>` : '';
+
         const yearOptions = Array.from({ length: 8 }, (_, i) => 2020 + i)
             .map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('');
 
@@ -363,6 +421,7 @@ const UstVoranmeldung = {
         </div>
         ${monatspflichtHinweis}
         ${istEuHinweis}
+        ${kz500Hinweis}
 
         <div class="stats-grid" style="margin-bottom:20px;">
             <div class="card stat-card">
@@ -398,6 +457,11 @@ const UstVoranmeldung = {
                     <tbody>
                         <tr><td><strong>Kz. 81</strong></td><td>Steuerpflichtige Umsätze (19%) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoUmsatz19)}</td></tr>
                         <tr style="opacity:0.75;"><td></td><td style="font-size:12px;">↳ USt darauf (19%) <span style="color:var(--text-muted);">– nur Info, ELSTER berechnet automatisch</span></td><td style="text-align:right;font-size:12px;">${Utils.formatCurrency(calc.ust19)}</td></tr>
+                        ${calc.diff25a.margeBrutto > 0 ? `
+                        <tr style="opacity:0.75;"><td></td><td style="font-size:12px;">↳ davon Differenzbesteuerung §25a UStG <span style="color:var(--text-muted);">(Marge${calc.diff25a.methode === 'gesamt' ? ', Gesamtdifferenz' : ''} statt Verkaufspreis)</span></td><td style="text-align:right;font-size:12px;">${Utils.formatCurrency(calc.diff25a.margeNetto)}</td></tr>
+                        ${calc.diff25a.methode === 'gesamt' && calc.diff25a.neuerVortrag < 0 ? `
+                        <tr style="opacity:0.75;"><td></td><td style="font-size:12px;color:var(--warning);">↳ negative Gesamtdifferenz – Vortrag ins nächste Voranmeldungszeitraum</td><td style="text-align:right;font-size:12px;color:var(--warning);">${Utils.formatCurrency(calc.diff25a.neuerVortrag)}</td></tr>
+                        ` : ''}` : ''}
                         ${calc.nettoUmsatz7 > 0 ? `
                         <tr><td><strong>Kz. 86</strong></td><td>Steuerpflichtige Umsätze (7%) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoUmsatz7)}</td></tr>
                         <tr style="opacity:0.75;"><td></td><td style="font-size:12px;">↳ USt darauf (7%) <span style="color:var(--text-muted);">– nur Info, ELSTER berechnet automatisch</span></td><td style="text-align:right;font-size:12px;">${Utils.formatCurrency(calc.ust7)}</td></tr>
@@ -504,14 +568,20 @@ const UstVoranmeldung = {
         const idx = this._idx();
         const start = this._pStart(this._year, typ, idx);
         const end   = this._pEnd(this._year, typ, idx);
+        const snapshot = this._calcPeriode(start, end);
         Store.saveUstPeriode({
             year: this._year,
             quartal: typ === 'quartal' ? idx : null,
             monat: typ === 'monat' ? idx + 1 : null,
             eingereichtAm: Utils.todayISO(),
             versteuerungsartBeiMeldung: Store.getSettings().ustVersteuerungsart || 'soll',
-            snapshot: this._calcPeriode(start, end)
+            snapshot
         });
+        // §25a Gesamtdifferenz: Vortrag erst beim Einreichen fixieren (nicht bei jedem Live-Render),
+        // sonst würde ein bloßes Öffnen der Seite den Vortrag für die nächste Periode verfälschen.
+        if (snapshot.diff25a && snapshot.diff25a.methode === 'gesamt') {
+            Store.setDifferenzVortrag(this._year, snapshot.diff25a.neuerVortrag);
+        }
         Utils.showToast(`${this._periodeLabel(this._year, typ, idx)} als eingereicht markiert`, 'success');
         this._refresh();
     },

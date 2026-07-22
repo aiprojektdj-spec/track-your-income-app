@@ -1667,6 +1667,21 @@ const Store = {
     },
 
     // ============================================
+    // §25a UStG Differenzbesteuerung — Verlustvortrag Gesamtdifferenz
+    // Negative Gesamtdifferenz ist nur innerhalb desselben Kalenderjahres verrechenbar (nicht
+    // jahresübergreifend) — Vortrag ist daher nur je Jahr gespeichert, kein Jahreswechsel-Carry.
+    // ============================================
+    getDifferenzVortrag(year) {
+        const all = this.get('differenz_vortrag') || {};
+        return all[String(year)] || 0;
+    },
+    setDifferenzVortrag(year, betrag) {
+        const all = this.get('differenz_vortrag') || {};
+        all[String(year)] = betrag;
+        this.set('differenz_vortrag', all);
+    },
+
+    // ============================================
     // KSK — Künstlersozialkasse
     // ============================================
     getKskConfig() { return this.get('ksk_config') || {}; },

@@ -276,13 +276,31 @@ var Rechnung = (function() {
         if (idx === 0) html += '<label class="form-label">Einzelpreis</label>';
         html += '<input class="form-input pos-einzelpreis" type="number" step="0.01" min="0" max="99999999" data-idx="' + idx + '" value="' + (pos.einzelpreis || 0) + '"></div>';
 
-        html += '<div class="form-group" style="flex: 0.7;">';
+        html += '<div class="form-group pos-mwst-wrap" style="flex: 0.7;display:' + (pos.differenzbesteuert ? 'none' : '') + ';">';
         if (idx === 0) html += '<label class="form-label">MwSt</label>';
         html += '<select class="form-select pos-mwst" data-idx="' + idx + '">';
         html += '<option value="19"' + ((pos.mwstSatz === undefined || pos.mwstSatz === 19) ? ' selected' : '') + '>19%</option>';
         html += '<option value="7"'  + (pos.mwstSatz === 7 ? ' selected' : '') + '>7%</option>';
         html += '<option value="0"'  + (pos.mwstSatz === 0 ? ' selected' : '') + '>0%</option>';
         html += '</select></div>';
+        html += '<div class="form-group pos-diff25a-label" style="flex: 0.7;display:' + (pos.differenzbesteuert ? '' : 'none') + ';">';
+        if (idx === 0) html += '<label class="form-label">MwSt</label>';
+        html += '<span style="font-size:12px;color:var(--text-muted);" title="Differenzbesteuerung §25a UStG — kein offener USt-Ausweis">Diff. §25a</span></div>';
+
+        // Differenzbesteuerung §25a UStG — Checkbox pro Position (für manuelle Positionen ohne
+        // Lager-Bezug; bei Lager-Verknüpfung wird das Flag von addPositionFromLagerArt() gesetzt).
+        html += '<div class="form-group pos-diff25a-wrap" style="flex: 1.4;">';
+        if (idx === 0) html += '<label class="form-label">§25a</label>';
+        html += '<label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:400;white-space:nowrap;">';
+        html += '<input type="checkbox" class="pos-diff25a" data-idx="' + idx + '"' + (pos.differenzbesteuert ? ' checked' : '') + '> Diff.';
+        html += '</label>';
+        html += '<select class="form-select pos-warenart" data-idx="' + idx + '" title="v1 rechnet pauschal 19% USt auf die Marge. Bei Kunst/Sammlerstücken kann §25a Abs. 3 UStG i.V.m. Anlage 2 UStG auch 7% vorsehen — im Zweifel Steuerberater konsultieren." style="display:' + (pos.differenzbesteuert ? '' : 'none') + ';font-size:11px;margin-top:2px;">';
+        html += '<option value="gebraucht"' + (pos.warenart === 'gebraucht' ? ' selected' : '') + '>Gebrauchtgeg.</option>';
+        html += '<option value="kunst"' + (pos.warenart === 'kunst' ? ' selected' : '') + '>Kunstgeg.</option>';
+        html += '<option value="sammlerstueck"' + (pos.warenart === 'sammlerstueck' ? ' selected' : '') + '>Sammlerst./Antiq.</option>';
+        html += '</select>';
+        html += '<input type="number" step="0.01" min="0" class="form-input pos-diff-ek" data-idx="' + idx + '" placeholder="EK-Preis" value="' + (pos.einkaufspreis != null ? pos.einkaufspreis : '') + '" style="display:' + ((pos.differenzbesteuert && !lagerArtikelId) ? '' : 'none') + ';font-size:11px;margin-top:2px;">';
+        html += '</div>';
 
         // Nur relevant bei EU-B2B-Reverse-Charge (§13b) — Sichtbarkeit steuert applyReverseChargeCheck().
         // Pro Position statt pro Rechnung, weil eine Rechnung Ware UND Leistung an denselben EU-Kunden
@@ -446,12 +464,19 @@ var Rechnung = (function() {
     }
 
     function addPositionFromLagerArt(art) {
-        var beschreibung = ((art.marke || '') + ' ' + (art.artikeltyp || '') + (art.beschreibung ? ' – ' + art.beschreibung : '') + (art.groesse ? ' (Gr. ' + art.groesse + ')' : '')).trim();
-        // Bei aktivem Reverse Charge (§13b) darf die neue Position nicht mit 19% starten
-        var hint = document.getElementById('reverseChargeHint');
-        var isEuB2B = !!(hint && hint.style.display === 'block');
-        var mwstSatz = isEuB2B ? 0 : 19;
-        var pos = { beschreibung: beschreibung, menge: 1, einheit: 'Stück', einzelpreis: 0, mwstSatz: mwstSatz, lagerArtikelId: art.id };
+        var beschreibung = ((art.artikelNr ? '[' + art.artikelNr + '] ' : '') + (art.marke || '') + ' ' + (art.artikeltyp || '') + (art.beschreibung ? ' – ' + art.beschreibung : '') + (art.groesse ? ' (Gr. ' + art.groesse + ')' : '')).trim();
+        var pos;
+        var isEuB2B = false;
+        if (art.differenzbesteuert) {
+            // §25a UStG: kein offener USt-Ausweis, Regel-Satz für den Ausweis irrelevant.
+            pos = { beschreibung: beschreibung, menge: 1, einheit: 'Stück', einzelpreis: 0, mwstSatz: null, lagerArtikelId: art.id, differenzbesteuert: true, warenart: art.warenart || 'gebraucht' };
+        } else {
+            // Bei aktivem Reverse Charge (§13b) darf die neue Position nicht mit 19% starten
+            var hint = document.getElementById('reverseChargeHint');
+            isEuB2B = !!(hint && hint.style.display === 'block');
+            var mwstSatz = isEuB2B ? 0 : 19;
+            pos = { beschreibung: beschreibung, menge: 1, einheit: 'Stück', einzelpreis: 0, mwstSatz: mwstSatz, lagerArtikelId: art.id };
+        }
 
         var container = document.getElementById('positionenContainer');
         var div = document.createElement('div');
@@ -480,15 +505,26 @@ var Rechnung = (function() {
             var lagerArtikelId = lagerIdEl ? (lagerIdEl.value || null) : null;
             var igArtEl = row.querySelector('.pos-igart');
             var igArt = igArtEl ? igArtEl.value : '';
+            var diff25aEl = row.querySelector('.pos-diff25a');
+            var differenzbesteuert = !!(diff25aEl && diff25aEl.checked);
+            var warenartEl = row.querySelector('.pos-warenart');
+            var warenart = differenzbesteuert && warenartEl ? warenartEl.value : undefined;
+            var diffEkEl = row.querySelector('.pos-diff-ek');
+            var diffEinkaufspreis = differenzbesteuert
+                ? (lagerArtikelId ? undefined : (parseFloat(diffEkEl && diffEkEl.value) || 0))
+                : undefined;
             if (beschreibung || einzelpreis > 0) {
                 positionen.push({
                     beschreibung: beschreibung,
                     menge: menge,
                     einheit: einheit,
                     einzelpreis: einzelpreis,
-                    mwstSatz: mwstSatz,
+                    mwstSatz: differenzbesteuert ? null : mwstSatz,
                     lagerArtikelId: lagerArtikelId,
-                    igArt: igArt || undefined
+                    igArt: igArt || undefined,
+                    differenzbesteuert: differenzbesteuert || undefined,
+                    warenart: warenart,
+                    einkaufspreis: diffEinkaufspreis
                 });
             }
         });
@@ -505,7 +541,7 @@ var Rechnung = (function() {
         positionen.forEach(function(pos) {
             var lineNetto = pos.menge * pos.einzelpreis;
             netto += lineNetto;
-            if (!isKlein && pos.mwstSatz > 0) {
+            if (!isKlein && !pos.differenzbesteuert && pos.mwstSatz > 0) {
                 if (!mwstMap[pos.mwstSatz]) mwstMap[pos.mwstSatz] = 0;
                 mwstMap[pos.mwstSatz] += lineNetto * pos.mwstSatz / 100;
             }
@@ -697,6 +733,26 @@ var Rechnung = (function() {
         row.querySelector('.pos-mwst').addEventListener('change', function() {
             updateSummen();
         });
+
+        // Differenzbesteuerung §25a: Haken blendet MwSt-Auswahl aus (kein offener USt-Ausweis),
+        // zeigt stattdessen Warenart-Auswahl + ggf. EK-Preis-Feld (falls keine Lager-Verknüpfung).
+        var diff25aCheckbox = row.querySelector('.pos-diff25a');
+        if (diff25aCheckbox) {
+            diff25aCheckbox.addEventListener('change', function() {
+                var checked = this.checked;
+                var mwstWrap = row.querySelector('.pos-mwst-wrap');
+                var diffLabel = row.querySelector('.pos-diff25a-label');
+                var warenartSel = row.querySelector('.pos-warenart');
+                var ekInput = row.querySelector('.pos-diff-ek');
+                var lagerIdEl = row.querySelector('.pos-lager-id');
+                var hasLagerLink = !!(lagerIdEl && lagerIdEl.value);
+                if (mwstWrap) mwstWrap.style.display = checked ? 'none' : '';
+                if (diffLabel) diffLabel.style.display = checked ? '' : 'none';
+                if (warenartSel) warenartSel.style.display = checked ? '' : 'none';
+                if (ekInput) ekInput.style.display = (checked && !hasLagerLink) ? '' : 'none';
+                updateSummen();
+            });
+        }
 
         var removeBtn = row.querySelector('.pos-remove');
         if (removeBtn) {
@@ -1147,7 +1203,7 @@ var Rechnung = (function() {
         (inv.positionen || []).forEach(function(pos, idx) {
             var lineNetto = pos.menge * pos.einzelpreis;
             netto += lineNetto;
-            if (!isKlein && pos.mwstSatz > 0) {
+            if (!isKlein && !pos.differenzbesteuert && pos.mwstSatz > 0) {
                 if (!mwstMap[pos.mwstSatz]) mwstMap[pos.mwstSatz] = 0;
                 mwstMap[pos.mwstSatz] += lineNetto * pos.mwstSatz / 100;
             }
@@ -1157,7 +1213,7 @@ var Rechnung = (function() {
             html += '<td class="r">' + Utils.formatNumber(pos.menge) + '</td>';
             html += '<td>' + Utils.escapeHtml(pos.einheit || '') + '</td>';
             html += '<td class="r">' + Utils.formatCurrency(pos.einzelpreis) + '</td>';
-            if (!isKlein) html += '<td class="r">' + pos.mwstSatz + '%</td>';
+            if (!isKlein) html += '<td class="r">' + (pos.differenzbesteuert ? 'Diff. §25a' : (pos.mwstSatz + '%')) + '</td>';
             html += '<td class="r">' + Utils.formatCurrency(lineNetto) + '</td>';
             html += '</tr>';
         });
@@ -1187,6 +1243,21 @@ var Rechnung = (function() {
         var _rcEuLaender = rcEuLaender();
         if (!isKlein && kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && _rcEuLaender.indexOf(kunde.land) !== -1) {
             html += '<div class="inv-klein">Steuerschuldnerschaft des Leistungsempf\u00E4ngers gem\u00E4\u00DF \u00A713b UStG (Reverse Charge). USt-IdNr. Leistungsempf\u00E4nger: ' + Utils.escapeHtml(kunde.ustIdNr) + '</div>';
+        }
+
+        // \u00A725a UStG Differenzbesteuerung \u2014 Pflichthinweis, sobald mind. eine Position betroffen ist.
+        // Je Warenart eigener Pflichttext (\u00A725a Abs. 2/3 UStG); mehrere Warenarten auf einer
+        // Rechnung \u2192 alle zutreffenden Texte anzeigen.
+        var diff25aWarenarten = Array.from(new Set((inv.positionen || []).filter(function(p) { return p.differenzbesteuert; }).map(function(p) { return p.warenart || 'gebraucht'; })));
+        if (diff25aWarenarten.length) {
+            var diff25aLabels = {
+                gebraucht: 'Gebrauchtgegenst\u00E4nde/Sonderregelung',
+                kunst: 'Kunstgegenst\u00E4nde/Sonderregelung',
+                sammlerstueck: 'Sammlungsst\u00FCcke und Antiquit\u00E4ten/Sonderregelung'
+            };
+            diff25aWarenarten.forEach(function(w) {
+                html += '<div class="inv-klein">' + (diff25aLabels[w] || diff25aLabels.gebraucht) + '</div>';
+            });
         }
 
         // Payment terms & notes

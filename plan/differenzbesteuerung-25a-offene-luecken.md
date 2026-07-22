@@ -46,6 +46,33 @@ Marge herausrechnen (Lookup über `r.saleId` → verknüpfter Sale → verknüpf
 differenzbesteuerte Artikel (z.B. Gebrauchtwaren-Händler mit Rückgaberecht) — für reine
 Freelancer-Rechnungsstellung niedrige Eintrittswahrscheinlichkeit.
 
+## Update 2026-07-22: echter Bug gefunden + gefixt (schwerer als Punkt 2 oben)
+
+Bei der Suche nach Punkt 2 fiel auf: `Store.stornoSale()` setzt bei jeder verknüpften Retoure sofort
+`storniert=true`, und `Store.getSales()` filtert Stornierte standardmäßig raus — der in Punkt 2
+beschriebene Fall (Direktverkauf/Marktplatz-Retoure) war also schon vorher korrekt saldiert, nicht wie
+im Text oben unterstellt.
+
+Echtes Problem lag stattdessen bei **§25a-Gutschriften auf Rechnungspositionen**: In
+`js/ustvoranmeldung.js` (Zeile ~96-103) wurde bei einer Gutschrift (`sign = -1`) nur der
+`verkaufspreis` mit dem Vorzeichen multipliziert, der `einkaufspreis` blieb immer positiv. Bei der
+Gesamtdifferenz-Methode (§25a Abs. 4) führte das zu einem doppelten Abzug des Einkaufspreises →
+`neuerVortrag` wurde fälschlich negativ (Testrechnung: Verkauf 100/EK 50 + volle Gutschrift ergab
+`neuerVortrag: -100` statt korrekt `0`) — das ist **Richtung Unterzahlung**, nicht Überzahlung wie bei
+den beiden oben dokumentierten Punkten. Gefixt: `einkaufspreis: sign * (...)` in
+`js/ustvoranmeldung.js`. Gleiches Muster (rein informativ, ohne Steuerwirkung) auch in
+`js/euer.js` und `js/gbr-modul.js` korrigiert (dort verzerrte es nur die §25a-Anzeige-Kachel, nicht
+den tatsächlichen Gewinn/USt).
+
+Verifiziert per Node-Rechenkern-Test (`SteuerBerechnung.margeGesamtdifferenz`): vorher/nachher-Vergleich
+bestätigt Fix.
+
+Bei Einzeldifferenz (Standard-Methode) bleibt die strukturelle Lücke bestehen: eine Gutschrift kann
+die in einer früheren Periode bereits gezählte positive Marge nicht rückwirkend korrigieren (Floor-bei-0
+pro Position verhindert das) — das ist aber immer noch Richtung Überzahlung, kein neuer Risikofall, und
+bräuchte ein Redesign (Korrektur am Ursprungs-Datensatz statt neue Position), nicht nur einen
+Vorzeichen-Fix. Nicht angegangen, gleiche Priorität wie Punkt 1+2 oben.
+
 ## Nicht behandelt (bewusst, kein Blocker)
 
 - Bulk-Einkauf/CSV-Import in `lager/page.js` haben keine §25a-UI bekommen (Flag defaultet auf

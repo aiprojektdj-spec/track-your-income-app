@@ -121,15 +121,18 @@ const Euer = {
                 warenart: x.purchase.warenart || 'gebraucht'
             }));
         const diff25aInvoicePositionen = [];
-        unsyncedInvoices.forEach(inv => (inv.positionen || []).forEach(pos => {
-            if (!pos.differenzbesteuert) return;
-            const linkedPurch = pos.lagerArtikelId ? purchasesByIdEuer[pos.lagerArtikelId] : null;
-            diff25aInvoicePositionen.push({
-                verkaufspreis: (pos.menge || 0) * (pos.einzelpreis || 0),
-                einkaufspreis: linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0),
-                warenart: pos.warenart || (linkedPurch && linkedPurch.warenart) || 'gebraucht'
+        unsyncedInvoices.forEach(inv => {
+            const sign = inv.typ === 'gutschrift' ? -1 : 1;
+            (inv.positionen || []).forEach(pos => {
+                if (!pos.differenzbesteuert) return;
+                const linkedPurch = pos.lagerArtikelId ? purchasesByIdEuer[pos.lagerArtikelId] : null;
+                diff25aInvoicePositionen.push({
+                    verkaufspreis: sign * (pos.menge || 0) * (pos.einzelpreis || 0),
+                    einkaufspreis: sign * (linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0)),
+                    warenart: pos.warenart || (linkedPurch && linkedPurch.warenart) || 'gebraucht'
+                });
             });
-        }));
+        });
         const diff25aPositionen = diff25aSalesPositionen.concat(diff25aInvoicePositionen);
         const diff25aUmsatz = diff25aPositionen.reduce((sum, p) => sum + p.verkaufspreis, 0);
         const diff25aWareneinkauf = diff25aPositionen.reduce((sum, p) => sum + p.einkaufspreis, 0);

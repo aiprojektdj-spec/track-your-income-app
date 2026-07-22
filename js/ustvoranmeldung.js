@@ -97,7 +97,9 @@ const UstVoranmeldung = {
                             const linkedPurch = pos.lagerArtikelId ? purchasesById25a[pos.lagerArtikelId] : null;
                             diff25aPositionenRoh.push({
                                 verkaufspreis: sign * (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0),
-                                einkaufspreis: linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0)
+                                // sign auch hier: Gutschrift muss die Marge spiegeln, nicht nur den Verkaufspreis
+                                // (sonst wird bei Gesamtdifferenz der Einkaufspreis doppelt abgezogen → Vortrag zu negativ → Unterzahlung).
+                                einkaufspreis: sign * (linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0))
                             });
                             return;
                         }

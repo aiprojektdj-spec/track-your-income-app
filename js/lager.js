@@ -432,7 +432,7 @@ const Lager = {
     // Aktions-Buttons je Zeile — GoBD-bewusst (offen vs. festgeschrieben).
     // Annahme: NICHT-stornierte Artikel (storniert behandelt der Aufrufer via _stornoHint).
     _rowActions(p) {
-        const locked = Store.isPeriodLocked(p.datum);
+        const locked = !Store.canEdit(p);
         const saleId = (this._saleByPid || {})[p.id];
         let b = '';
         if (p.status === 'verfuegbar') {
@@ -464,7 +464,7 @@ const Lager = {
     openSaleEditModal(saleId) {
         const s = Store.getSales(true).find(x => x.id === saleId);
         if (!s) { Utils.showToast('Verkauf nicht gefunden', 'warning'); return; }
-        const locked = Store.isLocked(s);
+        const locked = !Store.canEdit(s);
         const platforms = [...new Set([s.verkaufsplattform, ...Store.getPlatforms()].filter(Boolean))];
         const platOpts = platforms.filter(p => p !== 'Sonstiges')
             .map(p => `<option value="${Utils.escapeHtml(p)}" ${s.verkaufsplattform === p ? 'selected' : ''}>${Utils.escapeHtml(p)}</option>`).join('');

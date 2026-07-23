@@ -321,7 +321,7 @@ const Euer = {
                 <div class="page-header-actions no-print">
                     ${unsyncedInvoices.length > 0 ? `<button class="btn btn-warning" id="euerSync" title="${unsyncedInvoices.length} bezahlte Rechnung(en) noch nicht synchronisiert"><i class="ti ti-refresh"></i> ${unsyncedInvoices.length} synchronisieren</button> ` : ''}
                     <button class="btn" id="euerSteuertermine"><i class="ti ti-calendar-event"></i> Steuertermine</button>
-                    <button class="btn" id="euerElsterExport"><i class="ti ti-file-spreadsheet"></i> ELSTER CSV</button>
+                    <button class="btn" id="euerElsterExport" title="Z64 bündelt alle Ausgaben außer Wareneinkauf/AfA/Fahrtkosten (z.B. Personal, Raumkosten, Kfz) in einer Sammelzeile — bei Mitarbeitern/Büromiete bitte mit Steuerberater abstimmen"><i class="ti ti-file-spreadsheet"></i> ELSTER CSV</button>
                     <button class="btn" id="euerPrint"><i class="ti ti-printer"></i> PDF / Drucken</button>
                 </div>
             </div>
@@ -1025,7 +1025,7 @@ const Euer = {
                     ['Z22', 'Wareneinkauf' + nettoHinweis, z22.toFixed(2), 'Einkäufe im Zeitraum'],
                     ['Z46', 'Absetzung für Abnutzung (AfA)', z46.toFixed(2), 'Aus Anlagenverzeichnis §7 EStG'],
                     ['Z50', 'Fahrtkosten' + nettoHinweis, z50.toFixed(2), 'Fahrtenbuch-Einträge'],
-                    ['Z64', 'Sonstige Betriebsausgaben' + nettoHinweis, z64.toFixed(2), 'Plattformgeb. + Versand + Ausgaben'],
+                    ['Z64', 'Sonstige Betriebsausgaben' + nettoHinweis, z64.toFixed(2), 'Plattformgeb. + Versand + Ausgaben — bündelt alle Kategorien außer Wareneinkauf/AfA/Fahrt (z.B. Personal, Raumkosten, Kfz nicht separat abgebildet)'],
                     ['Z91', 'Gewinn (Überschuss)', z91.toFixed(2), 'Z11 - Z22 - Z46 - Z50 - Z64'],
                 ];
                 Utils.downloadCSV(rows, `elster_euer_${y}.csv`);

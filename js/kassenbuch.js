@@ -31,11 +31,27 @@ const Kassenbuch = {
         if (filtered.length === 0) {
             rows = '<tr><td colspan="6" class="table-empty">Keine Kassenbucheinträge vorhanden</td></tr>';
         } else {
-            rows = filtered.map(e => {
+            // Tages-Gruppierung: Trennzeile + Tagessumme, sobald sich das Datum ändert (filtered ist datumssortiert)
+            const dayCloseRow = (datum, ein, aus, endBalance) => `
+                <tr style="background:var(--bg-secondary);">
+                    <td colspan="3" style="font-size:11px;color:var(--text-muted);">Tagessumme ${Utils.formatDate(datum)}: <span style="color:var(--success);">+${Utils.formatCurrency(ein)}</span> / <span style="color:var(--danger);">−${Utils.formatCurrency(aus)}</span></td>
+                    <td></td>
+                    <td style="text-align:right;font-weight:600;font-size:11px;color:${endBalance >= 0 ? 'var(--success)' : 'var(--danger)'};">${Utils.formatCurrency(endBalance)}</td>
+                    <td></td>
+                </tr>`;
+            let lastDatum = null, tagEin = 0, tagAus = 0;
+            const rowParts = [];
+            filtered.forEach(e => {
                 const betrag = parseFloat(e.betrag) || 0;
                 const isEin = e.typ === 'Einnahme' || e.typ === 'Privateinlage';
                 const isSt  = !!e.storniert;
-                if (!isSt) { if (isEin) balance += betrag; else balance -= betrag; }
+                if (e.datum !== lastDatum) {
+                    if (lastDatum !== null) rowParts.push(dayCloseRow(lastDatum, tagEin, tagAus, balance));
+                    lastDatum = e.datum; tagEin = 0; tagAus = 0;
+                }
+                if (!isSt) {
+                    if (isEin) { balance += betrag; tagEin += betrag; } else { balance -= betrag; tagAus += betrag; }
+                }
                 const typBadge = isSt
                     ? '<span class="badge" style="background:rgba(100,116,139,.2);color:#94a3b8;">Storniert</span>'
                     : e.typ === 'Einnahme' ? '<span class="badge badge-success">Einnahme</span>'
@@ -45,7 +61,7 @@ const Kassenbuch = {
                 const rowStyle = isSt ? 'opacity:.45;text-decoration:line-through;' : '';
                 const balanceCell = isSt ? '—' : Utils.formatCurrency(balance);
                 const balanceColor = isSt ? 'var(--text-muted,#888)' : (balance >= 0 ? 'var(--success)' : 'var(--danger)');
-                return `
+                rowParts.push(`
                 <tr style="${rowStyle}">
                     <td>${Utils.formatDate(e.datum)}</td>
                     <td>${typBadge}</td>
@@ -55,8 +71,10 @@ const Kassenbuch = {
                     <td class="table-actions">
                         ${isSt ? '' : `<button class="btn btn-small btn-danger" data-delete-kasse="${e.id}">Stornieren</button>`}
                     </td>
-                </tr>`;
-            }).join('');
+                </tr>`);
+            });
+            if (lastDatum !== null) rowParts.push(dayCloseRow(lastDatum, tagEin, tagAus, balance));
+            rows = rowParts.join('');
         }
 
         return `

@@ -15,6 +15,11 @@ const Afa = {
         const kaufMonat = kaufDatum.getMonth(); // 0-indexed
 
         if (year < kaufJahr) return 0;
+
+        // GWG-Sofortabschreibung (§6 Abs.2 EStG): AK≤800€ netto komplett im Anschaffungsjahr,
+        // keine Monatsregel (anders als linear/degressiv — volle AK unabhängig vom Kaufmonat).
+        if (asset.methode === 'sofort') return year === kaufJahr ? ak : 0;
+
         if (year > kaufJahr + nd) return 0; // vollständig abgeschrieben (inkl. anteiliges Abschlussjahr)
 
         if (asset.methode === 'degressiv') {
@@ -103,7 +108,7 @@ const Afa = {
                 <td>${Utils.formatDate(a.anschaffungsdatum)}</td>
                 <td style="text-align:right">${Utils.formatCurrency(ak)}</td>
                 <td style="text-align:center">${nd} J.</td>
-                <td style="text-align:center">${a.methode === 'degressiv' ? 'Degr.' : 'Linear'}</td>
+                <td style="text-align:center">${a.methode === 'sofort' ? 'Sofort (GWG)' : a.methode === 'degressiv' ? 'Degr.' : 'Linear'}</td>
                 <td style="text-align:right;color:var(--danger)">${afaJahr > 0 ? '−' + Utils.formatCurrency(afaJahr) : '–'}</td>
                 <td style="text-align:right">
                     ${Utils.formatCurrency(bwEnde)}
@@ -113,7 +118,7 @@ const Afa = {
                 </td>
                 <td style="text-align:center;font-size:11px;color:var(--text-muted)">${fertigJahr}</td>
                 <td>
-                    ${Store.isPeriodLocked(a.anschaffungsdatum)
+                    ${!Store.canEdit(a)
                         ? `<span title="Jahr festgeschrieben — nur Storno möglich" style="font-size:11px;opacity:.7;"><i class="ti ti-lock"></i></span>
                            <button class="btn btn-sm btn-danger" data-action="afa-storno" data-args='["${a.id}"]'  title="Stornieren"><i class="ti ti-trash"></i></button>`
                         : `<button class="btn btn-sm" data-action="afa-edit" data-args='["${a.id}"]'  title="Bearbeiten"><i class="ti ti-pencil"></i></button>
@@ -253,7 +258,9 @@ const Afa = {
                     <select class="form-select" id="afa_methode">
                         <option value="linear" ${(existing.methode || 'linear') === 'linear' ? 'selected' : ''}>Linear (gleichmäßig)</option>
                         <option value="degressiv" ${existing.methode === 'degressiv' ? 'selected' : ''}>Degressiv (fallend)</option>
+                        <option value="sofort" ${existing.methode === 'sofort' ? 'selected' : ''}>Sofort (GWG, nur AK≤800€ netto)</option>
                     </select>
+                    <div class="form-hint" id="afa_sofortHint" style="display:none;color:var(--success);">GWG-Sofortabschreibung: volle AK im Anschaffungsjahr, keine Verteilung über Jahre (§6 Abs.2 EStG).</div>
                 </div>
             </div>
             <div class="form-group">
@@ -265,6 +272,28 @@ const Afa = {
                 <button class="btn btn-primary" data-action="afa-save" data-args='["${existing.id || ''}"]' >Speichern</button>
             </div>
         `);
+
+        const methodeSel = document.getElementById('afa_methode');
+        const ndInput = document.getElementById('afa_nd');
+        const akInput = document.getElementById('afa_ak');
+        const sofortHint = document.getElementById('afa_sofortHint');
+        const updateSofortState = () => {
+            const isSofort = methodeSel.value === 'sofort';
+            sofortHint.style.display = isSofort ? '' : 'none';
+            ndInput.disabled = isSofort;
+            if (isSofort) ndInput.value = 1;
+        };
+        methodeSel.addEventListener('change', updateSofortState);
+        // Vorschlag: bei AK≤800€ auf Sofort umschalten, solange der Nutzer die Methode nicht manuell geändert hat
+        let methodeManuellGesetzt = isEdit;
+        methodeSel.addEventListener('change', () => { methodeManuellGesetzt = true; });
+        akInput.addEventListener('input', () => {
+            if (methodeManuellGesetzt) return;
+            const ak = parseFloat(akInput.value) || 0;
+            methodeSel.value = (ak > 0 && ak <= 800) ? 'sofort' : 'linear';
+            updateSofortState();
+        });
+        updateSofortState();
     },
 
     _editAnlage(id) { this._openForm(id); },
@@ -273,13 +302,16 @@ const Afa = {
         const bez = document.getElementById('afa_bez')?.value?.trim();
         const datum = document.getElementById('afa_datum')?.value;
         const ak = parseFloat(document.getElementById('afa_ak')?.value) || 0;
-        const nd = parseInt(document.getElementById('afa_nd')?.value) || 0;
+        let nd = parseInt(document.getElementById('afa_nd')?.value) || 0;
         const methode = document.getElementById('afa_methode')?.value || 'linear';
         const notiz = document.getElementById('afa_notiz')?.value?.trim();
 
         if (!bez) { Utils.showToast('Bezeichnung fehlt', 'error'); return; }
         if (!datum) { Utils.showToast('Datum fehlt', 'error'); return; }
         if (!Number.isFinite(ak) || ak <= 0 || ak > 99999999) { Utils.showToast('Anschaffungskosten ungültig', 'error'); return; }
+        // §6 Abs.2 EStG: Sofortabschreibung nur für GWG bis 800€ netto — sonst Bußgeldrisiko bei Betriebsprüfung
+        if (methode === 'sofort' && ak > 800) { Utils.showToast('Sofortabschreibung (GWG) nur bis 800€ netto AK zulässig (§6 Abs.2 EStG)', 'error'); return; }
+        if (methode === 'sofort') nd = 1; // Nutzungsdauer irrelevant bei Sofortabschreibung
         if (nd < 1) { Utils.showToast('Nutzungsdauer muss ≥ 1 sein', 'error'); return; }
 
         const item = {

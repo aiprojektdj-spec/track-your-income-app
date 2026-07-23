@@ -181,17 +181,35 @@ var RechApp = (function() {
             </div>
             <div class="agb-scroll-box">
                 <h3>§ 1 Geltungsbereich</h3>
-                <p>Diese Nutzungsbedingungen gelten für die Nutzung der Software <strong>„Reselling Tool / Rechnungsbuch"</strong>. Mit der Nutzung erklären Sie sich mit diesen Bedingungen einverstanden.</p>
+                <p>Diese Nutzungsbedingungen gelten für die Nutzung der Software <strong>„Stackr"</strong> (nachfolgend „Software"). Mit der Nutzung der Software erklären Sie sich mit diesen Bedingungen einverstanden.</p>
+
                 <h3>§ 2 Haftungsausschluss</h3>
-                <p>Die Software wird <strong>„wie besehen" (as-is)</strong> bereitgestellt. Der Entwickler übernimmt <strong>keinerlei Haftung</strong> für Fehler in Berechnungen, Datenverluste, steuerliche oder rechtliche Nachteile, Fehlbedienungen oder technische Störungen.</p>
-                <h3>§ 3 Kein steuerlicher Rat</h3>
-                <p>Die Software ersetzt <strong>keinen Steuerberater</strong>. Alle Auswertungen (EÜR etc.) sind unverbindliche Hilfsmittel und müssen vor Abgabe an Finanzbehörden durch einen qualifizierten Steuerberater geprüft werden.</p>
+                <p>Die Software wird <strong>„wie besehen" (as-is)</strong> ohne jegliche ausdrückliche oder stillschweigende Gewährleistung bereitgestellt. Der Entwickler übernimmt <strong>keinerlei Haftung</strong> für:</p>
+                <ul>
+                    <li>Fehler, Ungenauigkeiten oder Auslassungen in Berechnungen (EÜR, Steuerbeträge, Margen, Gewinne)</li>
+                    <li>Datenverluste durch Browserabsturz, Cache-Löschung oder technische Fehler</li>
+                    <li>Steuerliche oder rechtliche Nachteile, die aus der Nutzung der Software entstehen</li>
+                    <li>Fehlbedienungen oder Fehler durch den Nutzer</li>
+                    <li>Ausfälle, Bugs oder sonstige technische Störungen</li>
+                </ul>
+
+                <h3>§ 3 Kein steuerlicher oder rechtlicher Rat</h3>
+                <p>Die Software ersetzt <strong>keinen professionellen Steuerberater</strong> und stellt keine steuerliche oder rechtliche Beratung dar. Alle durch die Software erzeugten Auswertungen (insbesondere EÜR, Gewinnberechnungen) sind <strong>unverbindliche Hilfsmittel</strong> und müssen vor Abgabe an Finanzbehörden durch einen qualifizierten Steuerberater oder Buchhalter geprüft werden.</p>
+
                 <h3>§ 4 Datenspeicherung</h3>
-                <p>Alle Daten werden ausschließlich <strong>lokal im Browser</strong> gespeichert. Keine Übertragung an externe Server. Der Nutzer ist für die Datensicherung verantwortlich.</p>
-                <h3>§ 5 GoBD</h3>
-                <p>Der Entwickler übernimmt <strong>keine Garantie</strong>, dass die Software den jeweils geltenden steuerrechtlichen Anforderungen vollständig entspricht.</p>
+                <p>Daten werden <strong>ausschließlich lokal im Browser</strong> gespeichert (IndexedDB / localStorage) und nicht an Server des Anbieters oder Dritter übertragen. Der Nutzer ist selbst für regelmäßige Backups verantwortlich. Der Entwickler übernimmt keine Haftung für Datenverlust.</p>
+
+                <h3>§ 5 GoBD-Konformität</h3>
+                <p>Die Software enthält Funktionen zur Unterstützung der GoBD-Konformität (Protokollierung, Stornierung, Prüfsummen). Der Entwickler übernimmt jedoch <strong>keine Garantie</strong>, dass die Software den jeweils geltenden steuerrechtlichen Anforderungen vollständig entspricht. Die Prüfung der steuerrechtlichen Anforderungen obliegt dem Nutzer.</p>
+
                 <h3>§ 6 Nutzung auf eigene Gefahr</h3>
-                <p>Die Nutzung erfolgt <strong>vollständig auf eigenes Risiko</strong>. Der Entwickler haftet nicht für direkte oder indirekte Schäden aus der Nutzung.</p>
+                <p>Die Nutzung der Software erfolgt <strong>vollständig auf eigenes Risiko</strong> des Nutzers. Der Entwickler haftet nicht für direkte, indirekte, zufällige, besondere oder Folgeschäden, die aus der Nutzung oder der Unfähigkeit zur Nutzung der Software entstehen.</p>
+
+                <h3>§ 7 Änderungen</h3>
+                <p>Der Entwickler behält sich das Recht vor, diese Nutzungsbedingungen jederzeit zu ändern. Bei wesentlichen Änderungen wird erneut um Zustimmung gebeten.</p>
+
+                <h3>§ 8 Schlussbestimmungen</h3>
+                <p>Es gilt deutsches Recht. Sollten einzelne Bestimmungen dieser Bedingungen unwirksam sein oder werden, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.</p>
             </div>
             <div class="agb-modal-footer">
                 <label class="agb-checkbox-label">

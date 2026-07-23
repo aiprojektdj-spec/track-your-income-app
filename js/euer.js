@@ -3,6 +3,7 @@
 // ============================================
 const Euer = {
     _period: 'jahr',
+    _view: 'report', // 'report' | 'uva' — orthogonal zu _period, steuert Sub-Tab im EÜR-Tab
     _selectedYear: new Date().getFullYear(),
     _selectedMonth: new Date().getMonth(),
     _customStart: '',
@@ -10,13 +11,29 @@ const Euer = {
     _detailView: null,   // 'einnahmen' | 'ausgaben' | 'gewinn' | null
     _lastRenderData: {},
 
+    // Reiter oberhalb des Contents (EÜR-Report | USt-Voranmeldung) — optisch getrennt vom
+    // Zeitraum-Dropdown darunter, da Report-Typ ≠ Zeitraum (zwei verschiedene Konzepte).
+    _renderViewTabs() {
+        return `
+        <div class="no-print" style="display:flex;gap:2px;margin-bottom:16px;border-bottom:1px solid var(--border);">
+            <button class="btn" data-action="euer-set-view" data-args='["report"]' style="border-radius:8px 8px 0 0;border-bottom:none;${this._view !== 'uva' ? 'background:var(--bg-card);font-weight:700;box-shadow:inset 0 2px 0 var(--accent);' : 'opacity:.65;'}">EÜR-Report</button>
+            <button class="btn" data-action="euer-set-view" data-args='["uva"]' style="border-radius:8px 8px 0 0;border-bottom:none;${this._view === 'uva' ? 'background:var(--bg-card);font-weight:700;box-shadow:inset 0 2px 0 var(--accent);' : 'opacity:.65;'}">USt-Voranmeldung</button>
+        </div>`;
+    },
+
     render() {
+        const viewTabs = this._renderViewTabs();
+
+        if (this._view === 'uva') {
+            return viewTabs + (typeof UstVoranmeldung !== 'undefined' ? UstVoranmeldung.render() : '');
+        }
+
         // Kapitalgesellschaften (immer) sowie gewerbliche EU/GbR/eGbR über der §141-AO-Schwelle
         // nutzen Bilanz statt EÜR.
         if (typeof Rechtsform !== 'undefined' && Rechtsform.brauchtBilanzStattEuer(this._selectedYear)) {
             const istKapges     = Rechtsform.isKapitalgesellschaft();
             const istHandelsges = !istKapges && Rechtsform.getConfig().bilanzPflicht;
-            return `<div class="page-header"><h2><i class="ti ti-file-analytics" style="margin-right:6px;"></i> EÜR</h2></div>
+            return `${viewTabs}<div class="page-header"><h2><i class="ti ti-file-analytics" style="margin-right:6px;"></i> EÜR</h2></div>
             <div class="card" style="padding:40px;text-align:center;">
                 <div style="font-size:48px;margin-bottom:12px;">📊</div>
                 <div style="font-weight:700;font-size:16px;margin-bottom:8px;">EÜR nicht verfügbar</div>
@@ -297,7 +314,7 @@ const Euer = {
         // GbR-Gewinnverteilung Block
         const gbrBlock = (typeof GbR !== 'undefined') ? GbR.renderEuerBlock(gewinn) : '';
 
-        return `
+        return `${viewTabs}
             <div class="page-header">
                 <h2>Einnahmen-Überschuss-Rechnung</h2>
                 <p class="text-muted no-print" style="margin:-8px 0 16px;font-size:13px;">Deine Steuer-Zusammenfassung für das Finanzamt — als CSV für ELSTER exportieren oder deinem Steuerberater weitergeben.</p>
@@ -762,6 +779,11 @@ const Euer = {
     },
 
     init() {
+        if (this._view === 'uva') {
+            if (typeof UstVoranmeldung !== 'undefined') UstVoranmeldung.init();
+            return;
+        }
+
         // ── ApexCharts ───────────────────────────────────────────────────────
         if (typeof ApexCharts !== 'undefined') {
             const d = this._lastRenderData;
@@ -1039,5 +1061,6 @@ const Euer = {
 
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
 if (window.Actions) Actions.register({
-    'euer-hebesatz': function (e, el) { Euer._updateHebesatz(el.value); }
+    'euer-hebesatz':  function (e, el) { Euer._updateHebesatz(el.value); },
+    'euer-set-view':  function (view) { Euer._view = view; Euer._refresh(); }
 });

@@ -1002,6 +1002,33 @@ const Store = {
         this._triggerAutoBackup();
     },
 
+    // ---- Wiederkehrende Rechnungen (Regeln) ----
+    // Lagen früher unter globalem (nicht firmen-präfixiertem) Key `rech_recurring_rules`
+    // in localStorage -> Mandanten-Datenleck zwischen Firmen. Jetzt über _rechPrefix
+    // gescoped wie alle anderen Rechnungsbuch-Daten.
+    getRechRecurringRules() {
+        this._migrateRechRecurringRules();
+        return this._rechGet('recurring_rules') || [];
+    },
+
+    saveRechRecurringRules(rules) {
+        this._rechSet('recurring_rules', rules);
+    },
+
+    _migrateRechRecurringRules() {
+        if (localStorage.getItem('oyi_wk_migrated_v1')) return;
+        if (!this._companyId) return; // erst migrieren wenn aktive Firma bekannt ist
+        try {
+            const old = JSON.parse(localStorage.getItem('rech_recurring_rules') || '[]');
+            if (Array.isArray(old) && old.length) {
+                const existing = this._rechGet('recurring_rules') || [];
+                this._rechSet('recurring_rules', existing.concat(old));
+            }
+        } catch (e) {}
+        localStorage.removeItem('rech_recurring_rules');
+        localStorage.setItem('oyi_wk_migrated_v1', new Date().toISOString());
+    },
+
     // ============================================
     // Audit Log (Aenderungsprotokoll) - GoBD
     // ============================================
@@ -2337,10 +2364,12 @@ const Store = {
             const fk = ebPfx + k;
             // Roh-JSON-STRING lesen (Cache hält Strings, _syncReadRaw parst trotz des Namens bereits) —
             // ebData[k] muss ein String bleiben, s. JSON.stringify(ebData) unten (Import remappt auf Ziel-Firma).
+            // Auch leere Keys mitsichern (nicht ueberspringen) — sonst bildet ein Restore den
+            // Zielzustand nicht vollstaendig ab und alte Eigenbeleg-Daten bleiben nach Import stehen.
             const v = this._cache[fk] != null ? this._cache[fk] : localStorage.getItem(fk);
-            if (v && v !== '[]' && v !== '{}') ebData[k] = v;
+            ebData[k] = v != null ? v : '[]';
         });
-        if (Object.keys(ebData).length) data._eigenbelege = JSON.stringify(ebData);
+        data._eigenbelege = JSON.stringify(ebData);
 
         // App-Einstellungen (Theme, Sprache etc.)
         const apData = {};
@@ -2417,6 +2446,16 @@ const Store = {
         keysToDelete.forEach(k => {
             delete this._cache[k];
             this._idbDelete(k);
+        });
+
+        // Eigenbeleg-Keys der aktiven Firma ebenfalls loeschen — sonst ueberschreibt der
+        // Restore unten nur vorhandene Backup-Keys, alte Werte bleiben stehen (Datenmix).
+        const ebPfxCur = this._ebKeyPrefix;
+        this._EIGENBELEG_KEYS.forEach(k => {
+            const fk = ebPfxCur + k;
+            delete this._cache[fk];
+            this._idbDelete(fk);
+            localStorage.removeItem(fk);
         });
 
         // ── Schritt 2: Backup-Keys auf Ziel-Prefix mappen ────────────────────

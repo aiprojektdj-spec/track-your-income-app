@@ -6,18 +6,28 @@ var Wiederkehrend = (function () {
 
     // ── Helpers ─────────────────────────────────────────────────────────
 
+    // Addiert Monate ohne Überlauf: Ziel-Tag wird auf den letzten Tag des Zielmonats
+    // geclampt statt in den Folgemonat zu rutschen (z.B. 31. Jan monatlich -> 28./29. Feb,
+    // nicht 3. März; 29. Feb jährlich -> 28. Feb in Nicht-Schaltjahren, nicht 1. März).
+    function addMonthsClamped(d, n) {
+        var day = d.getDate();
+        var target = new Date(d.getFullYear(), d.getMonth() + n, 1);
+        var daysInTarget = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+        target.setDate(Math.min(day, daysInTarget));
+        return target.toLocaleDateString('sv-SE');
+    }
+
     function addInterval(dateStr, interval) {
         var d = new Date(dateStr);
         if (isNaN(d.getTime())) return dateStr;
         switch (interval) {
-            case 'woechentlich': d.setDate(d.getDate() + 7); break;
-            case 'monatlich':   d.setMonth(d.getMonth() + 1); break;
-            case 'quartal':     d.setMonth(d.getMonth() + 3); break;
-            case 'halbjaehrlich': d.setMonth(d.getMonth() + 6); break;
-            case 'jaehrlich':   d.setFullYear(d.getFullYear() + 1); break;
-            default: d.setMonth(d.getMonth() + 1);
+            case 'woechentlich': d.setDate(d.getDate() + 7); return d.toLocaleDateString('sv-SE');
+            case 'monatlich':     return addMonthsClamped(d, 1);
+            case 'quartal':       return addMonthsClamped(d, 3);
+            case 'halbjaehrlich': return addMonthsClamped(d, 6);
+            case 'jaehrlich':     return addMonthsClamped(d, 12);
+            default:              return addMonthsClamped(d, 1);
         }
-        return d.toLocaleDateString('sv-SE');
     }
 
     function addFaelligkeit(dateStr, interval) {
@@ -45,14 +55,14 @@ var Wiederkehrend = (function () {
     }
 
     // ── Store helpers ───────────────────────────────────────────────────
-    // Recurring rules stored in localStorage as `rech_recurring_rules`
+    // Firmen-gescoped über Store._rechPrefix (wie alle anderen Rechnungsbuch-Daten),
+    // nicht mehr im globalen (firmenübergreifenden) Key `rech_recurring_rules`.
     function getRules() {
-        try { return JSON.parse(localStorage.getItem('rech_recurring_rules') || '[]'); }
-        catch (e) { return []; }
+        return Store.getRechRecurringRules ? Store.getRechRecurringRules() : [];
     }
 
     function saveRules(rules) {
-        localStorage.setItem('rech_recurring_rules', JSON.stringify(rules));
+        if (Store.saveRechRecurringRules) Store.saveRechRecurringRules(rules);
     }
 
     function saveRule(rule) {

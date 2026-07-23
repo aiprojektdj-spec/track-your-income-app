@@ -1206,7 +1206,7 @@ function viewBeleg(id) {
                         <div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Zahlungsdatum</div>
                         <strong>${datum(b.zahlungsDatum)}</strong>
                     </div>
-                    <div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Zahlungsweg</div><strong>${zObj.icon} ${b.zahlungsweg==='sonstiges'?b.zahlungswegSonstig:zObj.name}</strong></div>
+                    <div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Zahlungsweg</div><strong>${zObj.icon} ${b.zahlungsweg==='sonstiges'?esc(b.zahlungswegSonstig):zObj.name}</strong></div>
                     <div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Kategorie</div><span class="badge" style="background:${kObj.farbe}22;color:${kObj.farbe}">${esc(kObj.name)}</span></div>
                 </div>
                 <div style="background:var(--bg-card);border-radius:var(--radius);padding:12px;margin-bottom:14px">
@@ -1474,7 +1474,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:24px;max-
 <!-- 7. ZAHLUNGSART -->
 <div class="section">
     <h3>Zahlungsart</h3>
-    <p><strong>${zObj.icon} ${b.zahlungsweg==='sonstiges'?(b.zahlungswegSonstig||'Sonstiges'):zObj.name}</strong></p>
+    <p><strong>${zObj.icon} ${b.zahlungsweg==='sonstiges'?esc(b.zahlungswegSonstig||'Sonstiges'):zObj.name}</strong></p>
 </div>
 
 <!-- 8. KATEGORIE (EÜR) -->
@@ -1735,9 +1735,17 @@ function importJSON(input) {
 function alleLoeschen() {
     if (!confirm('ALLE Eigenbelege unwiderruflich löschen?')) return;
     if (!confirm('Wirklich? Diese Aktion kann nicht rückgängig gemacht werden!')) return;
-    EB.saveBelege([]);
-    localStorage.removeItem(_ebPrefix()+'eigenbelege_naechste_nummer');
-    toast('Alle Eigenbelege gelöscht','success');
+    // GoBD §147 AO: Belege in festgeschriebener Periode (laufende 10-Jahres-Frist)
+    // bleiben von der Bulk-Löschung ausgenommen — wie bei der Einzel-Löschung (deleteBeleg).
+    const alle = EB.getBelege();
+    const gesperrt = alle.filter(isBelegGesperrt);
+    EB.saveBelege(gesperrt);
+    if (gesperrt.length === 0) {
+        localStorage.removeItem(_ebPrefix()+'eigenbelege_naechste_nummer');
+    }
+    toast(gesperrt.length > 0
+        ? `${alle.length - gesperrt.length} Eigenbelege gelöscht, ${gesperrt.length} GoBD-gesperrte Belege behalten`
+        : 'Alle Eigenbelege gelöscht', 'success');
     navigate('dashboard');
 }
 

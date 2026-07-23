@@ -334,6 +334,16 @@ const App = {
                         el.classList.toggle('active', el.dataset.euerPeriod === period);
                     });
                 }
+
+                // EÜR-Sub-Tab wechseln (Report | UVA)
+                const view = link.dataset.euerView;
+                if (view && typeof Euer !== 'undefined') {
+                    Euer._view = view;
+                    Euer._refresh();
+                    document.querySelectorAll('[data-euer-view]').forEach(el => {
+                        el.classList.toggle('active', el.dataset.euerView === view);
+                    });
+                }
             };
 
             link.addEventListener('click', _activate);
@@ -587,7 +597,9 @@ const App = {
 
         // Steuer & Soziales Sektion ein-/ausblenden
         // (afa + bankimport sind ins Finanzen-Modul gewandert → hier raus)
-        const onSteuer = ['privatbuchungen', 'ustvoranmeldung', 'ksk', 'vorsteuer', 'oss', 'koerperschaftsteuer', 'bilanz', 'rechtsform', 'lohnsteuer', 'gewerbesteuer', 'steuerberater'].includes(page);
+        // onEuer zählt mit: der EÜR/UVA-Tab ist jetzt der Haupt-Einstieg ins Steuer-Sidebar
+        // (Hauptmenü-Link "Steuer & Soziales" bleibt vorerst zusätzlich bestehen, s. plan/session-prompt-euer-uva-merge.md).
+        const onSteuer = onEuer || ['privatbuchungen', 'ustvoranmeldung', 'ksk', 'vorsteuer', 'oss', 'koerperschaftsteuer', 'bilanz', 'rechtsform', 'lohnsteuer', 'gewerbesteuer', 'steuerberater'].includes(page);
         const steuerSection = document.getElementById('steuerSidebarSection');
         const steuerItems   = document.getElementById('steuerSidebarItems');
         if (steuerSection) steuerSection.style.display = (onSteuer && !onGbr) ? '' : 'none';

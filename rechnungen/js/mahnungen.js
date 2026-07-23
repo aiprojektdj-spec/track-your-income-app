@@ -20,6 +20,33 @@ var Mahnungen = (function() {
         return diff > 0 ? diff : 0;
     }
 
+    // ── Verzugszinsen §288 BGB ──────────────────────────────────────────
+    // Basiszinssatz nach §247 BGB (Bundesbank, halbjährlich zum 1.1./1.7. neu festgesetzt).
+    // Aktueller Stand: 1,52% zum 01.07.2026 — als Fallback hinterlegt, in den Rechnungsbuch-
+    // Einstellungen überschreibbar, damit spätere Anpassungen keinen Code-Change brauchen.
+    var BASISZINS_FALLBACK = 1.52;
+
+    function getBasiszinssatz() {
+        var s = Store.getRechSettings ? Store.getRechSettings() : {};
+        var v = parseFloat(s.basiszinssatzPct);
+        return isNaN(v) ? BASISZINS_FALLBACK : v;
+    }
+
+    // B2B (+9 Prozentpunkte) vs. B2C (+5 Prozentpunkte): kein eigenes Kundentyp-Feld
+    // vorhanden, daher Heuristik über Firmenfeld (Firma ausgefüllt = Unternehmer).
+    function isB2BKunde(kunde) {
+        return !!(kunde && kunde.firma && kunde.firma.trim());
+    }
+
+    function calcVerzugszinsen(invoice, kunde) {
+        var days = daysOverdue(invoice.faelligkeit);
+        if (days <= 0) return 0;
+        var zuschlag = isB2BKunde(kunde) ? 9 : 5;
+        var satz = getBasiszinssatz() + zuschlag;
+        var brutto = calcBrutto(invoice);
+        return brutto * (satz / 100) * (days / 365);
+    }
+
     function currentMahnLevel(invoice) {
         var mahnungen = invoice.mahnungen || [];
         if (mahnungen.length === 0) return 0;
@@ -54,6 +81,11 @@ var Mahnungen = (function() {
         });
 
         var html = '<div class="page-header"><h2>Mahnungen</h2></div>';
+
+        html += '<div style="padding:8px 14px;margin-bottom:14px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:8px;">';
+        html += '<span>Basiszinssatz §247 BGB (halbjährlich von der Bundesbank festgesetzt, für Verzugszinsberechnung):</span>';
+        html += '<input type="number" step="0.01" id="mahnBasiszins" value="' + getBasiszinssatz() + '" style="width:70px;padding:2px 6px;">%';
+        html += '</div>';
 
         if (overdue.length === 0) {
             html += '<div class="empty-state">Keine \u00FCberf\u00E4lligen Rechnungen vorhanden.</div>';
@@ -151,6 +183,7 @@ var Mahnungen = (function() {
 
         var brutto = calcBrutto(inv);
         var gebuehren = totalMahngebuehren(inv);
+        var zinsen = calcVerzugszinsen(inv, kunde);
 
         var title, greeting, bodyText, closing;
         if (level === 1) {
@@ -226,7 +259,12 @@ var Mahnungen = (function() {
         html += '<div><strong>Rechnungsbetrag:</strong> ' + Utils.formatCurrency(brutto) + '</div>';
         if (gebuehren > 0) {
             html += '<div><strong>Mahngeb\u00FChren:</strong> ' + Utils.formatCurrency(gebuehren) + '</div>';
-            html += '<div style="font-size: 1.1em; font-weight: bold; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #ccc;"><strong>Gesamtbetrag:</strong> ' + Utils.formatCurrency(brutto + gebuehren) + '</div>';
+        }
+        if (zinsen > 0) {
+            html += '<div><strong>Verzugszinsen</strong> (' + (getBasiszinssatz() + (isB2BKunde(kunde) ? 9 : 5)) + '% p.a. seit F\u00E4lligkeit): ' + Utils.formatCurrency(zinsen) + '</div>';
+        }
+        if (gebuehren > 0 || zinsen > 0) {
+            html += '<div style="font-size: 1.1em; font-weight: bold; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #ccc;"><strong>Gesamtbetrag:</strong> ' + Utils.formatCurrency(brutto + gebuehren + zinsen) + '</div>';
         }
         html += '</div>';
 

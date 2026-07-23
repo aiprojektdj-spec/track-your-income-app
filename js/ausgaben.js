@@ -6,7 +6,20 @@ const Ausgaben = {
     _filterVon: '',
     _filterBis: '',
 
-    _kategorien: ['Versand', 'Verpackung', 'Plattformgebühren', 'Fahrtkosten', 'Büro', 'Equipment', 'Software/Abos', 'Sonstiges'],
+    _kategorien: ['Versand', 'Verpackung', 'Plattformgebühren', 'Fahrtkosten', 'Büro', 'Equipment', 'Software/Abos', 'Honorare an Künstler/Publizisten', 'Sonstiges'],
+
+    // Künstlersozialabgabe (§24-§28 KSVG): Unternehmer, die nicht nur gelegentlich Aufträge an
+    // freie Künstler/Publizisten vergeben (Grafik/Foto/Text für eigene Werbung, §24 Abs.2 KSVG),
+    // sind abgabepflichtig. Bagatellgrenze ist eine FREIGRENZE (§24 Abs.3 KSVG) — bei Überschreiten
+    // im Kalenderjahr wird die GESAMTE Jahressumme abgabepflichtig, nicht nur der übersteigende Teil.
+    _KSA_KATEGORIE: 'Honorare an Künstler/Publizisten',
+    _KSA_SATZ: 0.049,          // 2026, gesunken von 5,0% (2025)
+    _KSA_BAGATELLGRENZE: 1000, // 2026, gestiegen von 700€ (2025)
+
+    _ksaJahressumme(year) {
+        return Store.getExpenses().filter(e => e.kategorie === this._KSA_KATEGORIE && (e.datum || '').startsWith(String(year)))
+            .reduce((s, e) => s + (parseFloat(e.betrag) || 0), 0);
+    },
 
     render() {
         const activeExpenses = Store.getExpenses();      // nur aktive (für Totals/Breakdown)
@@ -51,6 +64,21 @@ const Ausgaben = {
                 </div>
             `;
         });
+
+        const ksaJahr = new Date().getFullYear();
+        const ksaSumme = this._ksaJahressumme(ksaJahr);
+        const ksaPflichtig = ksaSumme > this._KSA_BAGATELLGRENZE;
+        if (ksaSumme > 0) {
+            summaryCards += `
+                <div class="card stat-card ${ksaPflichtig ? 'danger' : ''}">
+                    <div class="card-label">Künstlersozialabgabe ${ksaJahr}</div>
+                    <div class="card-value">${ksaPflichtig ? Utils.formatCurrency(ksaSumme * this._KSA_SATZ) : Utils.formatCurrency(0)}</div>
+                    <div class="card-subtitle">${ksaPflichtig
+                        ? `Freigrenze überschritten (${Utils.formatCurrency(ksaSumme)} Honorare, 4,9%)`
+                        : `${Utils.formatCurrency(ksaSumme)} von ${Utils.formatCurrency(this._KSA_BAGATELLGRENZE)} Freigrenze`}</div>
+                </div>
+            `;
+        }
 
         let rows = '';
         if (filtered.length === 0) {
@@ -117,6 +145,7 @@ const Ausgaben = {
                             <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="exp_betrag" placeholder="0,00">
                         </div>
                     </div>
+                    <div id="exp_ksaHint" style="display:none;margin-bottom:12px;padding:10px 12px;border-radius:var(--radius-sm);font-size:12px;line-height:1.6;"></div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Beschreibung</label>
@@ -234,6 +263,31 @@ const Ausgaben = {
         if (matToggle) matToggle.addEventListener('change', () => {
             if (matDetail) matDetail.style.display = matToggle.checked ? '' : 'none';
         });
+
+        // KSA-Hinweis (Künstlersozialabgabe): live bei Kategorie-/Betrag-/Datumsänderung
+        const ksaHint = document.getElementById('exp_ksaHint');
+        const updateKsaHint = () => {
+            if (!ksaHint) return;
+            const isKsa = katSel && katSel.value === this._KSA_KATEGORIE;
+            ksaHint.style.display = isKsa ? '' : 'none';
+            if (!isKsa) return;
+            const year = (Utils.getDateInputValue('exp_datum') || Utils.todayISO()).slice(0, 4);
+            const neuerBetrag = parseFloat(document.getElementById('exp_betrag')?.value) || 0;
+            const jahressumme = this._ksaJahressumme(year) + neuerBetrag;
+            const ueberGrenze = jahressumme > this._KSA_BAGATELLGRENZE;
+            ksaHint.style.background = ueberGrenze ? 'var(--danger-bg)' : 'var(--info-bg)';
+            ksaHint.style.border = `1px solid var(${ueberGrenze ? '--danger' : '--info'})`;
+            ksaHint.style.color = `var(${ueberGrenze ? '--danger' : '--info'})`;
+            ksaHint.innerHTML = ueberGrenze
+                ? `⚠️ Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> — übersteigt die 1.000€-Freigrenze (§24 Abs.3 KSVG). Dann ist die <strong>gesamte</strong> Jahressumme künstlersozialabgabepflichtig, nicht nur der übersteigende Teil. Voraussichtliche KSA: <strong>${Utils.formatCurrency(jahressumme * this._KSA_SATZ)}</strong> (4,9%), zusätzlich zum Honorar an die Künstlersozialkasse zu melden und zu zahlen.`
+                : `Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> von ${Utils.formatCurrency(this._KSA_BAGATELLGRENZE)} Freigrenze (§24 Abs.3 KSVG). Bemessungsgrundlage ist der Nettobetrag ohne USt. Betrifft nur Leistungen mit gestalterischem/kreativem Charakter (§25 KSVG), z.B. Grafik, Foto, Text — reine technische Ausführung ohne kreativen Spielraum fällt idR nicht darunter.`;
+        };
+        if (katSel) katSel.addEventListener('change', updateKsaHint);
+        const betragInput = document.getElementById('exp_betrag');
+        if (betragInput) betragInput.addEventListener('input', updateKsaHint);
+        const datumInput = document.getElementById('exp_datum');
+        if (datumInput) datumInput.addEventListener('change', updateKsaHint);
+        updateKsaHint();
 
         // Form submit
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {

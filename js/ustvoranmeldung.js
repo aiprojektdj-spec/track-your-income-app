@@ -178,6 +178,7 @@ const UstVoranmeldung = {
         retouren.forEach(r => {
             const linked = r.saleId ? salesById[r.saleId] : null;
             if (linked && linked.storniert) return;
+            if (linked && _istDiff25aSale(linked)) return;
             const rate = _rate(linked || r);
             const betrag = parseFloat(r.erstattungBetrag) || 0;
             if (rate === 7) retour7 += betrag;
@@ -189,16 +190,23 @@ const UstVoranmeldung = {
         // §25a UStG Differenzbesteuerung: Marge statt Verkaufspreis in Kz. 81. Vereinfachung v1:
         // einheitlich Regelsatz 19% (Kunstgegenstände/Sammlerstücke können in Einzelfällen 7%
         // unterliegen — noch nicht recherchiert, s. plan/session-prompt-differenzbesteuerung.md).
-        // Retouren auf §25a-Positionen werden hier NICHT gesondert behandelt (Edge-Case, v1-Lücke).
         const differenzMethode = (Store.getSettings().differenzMethode || 'einzel') === 'gesamt' ? 'gesamt' : 'einzel';
         let diff25a;
         if (differenzMethode === 'gesamt') {
             const vortrag = Store.getDifferenzVortrag(this._year);
+            const ueber750 = diff25aPositionenRoh.filter(p => p.einkaufspreis > 750);
             diff25a = SteuerBerechnung.margeGesamtdifferenz(
                 diff25aPositionenRoh.filter(p => p.einkaufspreis <= 750), vortrag, 19
             );
             diff25a.margeBrutto = diff25a.bemessungsgrundlage;
             diff25a.margeNetto = diff25a.netto;
+            // §25a Abs. 3+4: Gegenstände >750€ sind von der Gesamtdifferenz ausgeschlossen und
+            // müssen zwingend per Einzeldifferenz versteuert werden, sonst fehlt die USt komplett.
+            if (ueber750.length) {
+                const einzel = SteuerBerechnung.margeEinzeldifferenz(ueber750.map(p => Object.assign({ satz: 19 }, p)));
+                diff25a.margeBrutto += einzel.margeBrutto;
+                diff25a.margeNetto += einzel.margeNetto;
+            }
         } else {
             diff25a = SteuerBerechnung.margeEinzeldifferenz(diff25aPositionenRoh.map(p => Object.assign({ satz: 19 }, p)));
         }

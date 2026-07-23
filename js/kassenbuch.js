@@ -158,11 +158,23 @@ const Kassenbuch = {
             e.preventDefault();
             const betrag = parseFloat(document.getElementById('kb_betrag').value) || 0;
             const beschreibung = document.getElementById('kb_beschreibung').value.trim();
+            const typ = document.getElementById('kb_typ').value;
             if (!beschreibung) { Utils.showToast('Bitte Beschreibung eingeben', 'warning'); return; }
             if (betrag <= 0) { Utils.showToast('Betrag muss größer als 0 sein', 'warning'); return; }
+
+            const isEin = typ === 'Einnahme' || typ === 'Privateinlage';
+            const anfangsbestand = parseFloat(Store.getSettings().kassenbuchAnfangsbestand) || 0;
+            const saldo = Store.getKassenbuch().reduce((s, e) => {
+                if (e.storniert) return s;
+                const b = parseFloat(e.betrag) || 0;
+                return s + ((e.typ === 'Einnahme' || e.typ === 'Privateinlage') ? b : -b);
+            }, anfangsbestand) + (isEin ? betrag : -betrag);
+            // ponytail: globaler Saldo, nicht datumsgenau — reicht für Betriebsprüfungs-Warnhinweis
+            if (saldo < 0) Utils.showToast(`Warnung: Kassenbestand würde negativ (${Utils.formatCurrency(saldo)})`, 'warning');
+
             Store.saveKassenEintrag({
                 datum: Utils.getDateInputValue('kb_datum'),
-                typ: document.getElementById('kb_typ').value,
+                typ,
                 betrag,
                 beschreibung,
                 beleg: document.getElementById('kb_beleg').value.trim()

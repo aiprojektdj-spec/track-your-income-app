@@ -1486,10 +1486,16 @@ const Store = {
         let purchasesChanged = false;
         idsToFree.forEach(pid => {
             const p = purchases.find(x => x.id === pid);
-            if (p && !p.storniert && !this.isLocked(p)) {
+            if (p && !p.storniert) {
+                const wasLocked = this.isLocked(p);
+                const oldP = Object.assign({}, p);
                 p.status = 'verfuegbar';
                 this._stampRecord(p);
                 purchasesChanged = true;
+                if (wasLocked) {
+                    this._addAuditEntry('lager-status', 'einkauf', pid, oldP, p,
+                        'Lagerstatus von "verkauft" auf "verfuegbar" zurückgesetzt trotz gesperrtem Einkaufsbeleg, wegen Storno Verkauf ' + id + (grund ? ' (' + grund + ')' : ''));
+                }
             }
         });
         if (purchasesChanged) this.set('purchases', purchases);
@@ -1512,7 +1518,17 @@ const Store = {
             let changed = false;
             pids.forEach(pid => {
                 const p = purchases.find(x => x.id === pid);
-                if (p && !p.storniert && p.status === 'verkauft' && !this.isLocked(p)) { p.status = 'verfuegbar'; this._stampRecord(p); changed = true; }
+                if (p && !p.storniert && p.status === 'verkauft') {
+                    const wasLocked = this.isLocked(p);
+                    const oldP = Object.assign({}, p);
+                    p.status = 'verfuegbar';
+                    this._stampRecord(p);
+                    changed = true;
+                    if (wasLocked) {
+                        this._addAuditEntry('lager-status', 'einkauf', pid, oldP, p,
+                            'Lagerstatus von "verkauft" auf "verfuegbar" zurückgesetzt trotz gesperrtem Einkaufsbeleg, wegen Löschung Verkauf ' + id);
+                    }
+                }
             });
             if (changed) this.set('purchases', purchases);
         }
@@ -1736,6 +1752,59 @@ const Store = {
             quellen.push(quelle);
             this.set('einkaufsquellen', quellen);
         }
+    },
+
+    // ---- Generischer Helfer: company-scoped Schnellauswahl-Liste (Kategorie, Händler, …) ----
+    _getScopedList(key, defaults) {
+        return this.get(key) || defaults;
+    },
+    _addScopedListItem(key, defaults, item) {
+        if (!item) return;
+        const list = this._getScopedList(key, defaults);
+        if (!list.includes(item)) {
+            list.push(item);
+            this.set(key, list);
+        }
+    },
+
+    // ---- Warenkategorien (frei editierbar, 8 Werte als Start-Vorschlag) ----
+    WARENKATEGORIEN_DEFAULT: ['Kleidung', 'Schuhe', 'Elektronik', 'Bücher', 'Haushalt', 'Sport', 'Accessoires', 'Sonstiges'],
+    getWarenkategorien() {
+        return this._getScopedList('warenkategorien', this.WARENKATEGORIEN_DEFAULT);
+    },
+    addWarenkategorie(kat) {
+        this._addScopedListItem('warenkategorien', this.WARENKATEGORIEN_DEFAULT, kat);
+    },
+    renameWarenkategorie(alt, neu) {
+        if (!alt || !neu || alt === neu) return;
+        const list = this.getWarenkategorien();
+        const idx = list.indexOf(alt);
+        if (idx >= 0) { list[idx] = neu; this.set('warenkategorien', list); }
+        else if (!list.includes(neu)) { list.push(neu); this.set('warenkategorien', list); }
+        // Bestehende Artikel auf neuen Namen migrieren (Kategorie ist reiner Anzeigetext, kein System-Key)
+        const purchases = this.getAllPurchasesRaw();
+        let changed = false;
+        purchases.forEach(p => {
+            if (p.warenkategorie === alt) { p.warenkategorie = neu; changed = true; }
+        });
+        if (changed) this.set('purchases', purchases);
+    },
+    deleteWarenkategorie(kat) {
+        const list = this.getWarenkategorien().filter(k => k !== kat);
+        this.set('warenkategorien', list);
+        // Zugeordnete Artikel behalten den Text (keine Datenlöschung), verschwindet nur aus der Vorschlagsliste.
+    },
+
+    // ---- Zielgruppe (fest, keine Verwaltungs-UI) ----
+    ZIELGRUPPEN: ['Herren', 'Damen', 'Unisex', 'Kinder'],
+
+    // ---- Lieferant/Händler (getrennt von Einkaufsquelle = Kanal) ----
+    HAENDLER_DEFAULT: [],
+    getHaendler() {
+        return this._getScopedList('haendler', this.HAENDLER_DEFAULT);
+    },
+    addHaendler(name) {
+        this._addScopedListItem('haendler', this.HAENDLER_DEFAULT, name);
     },
 
     // ---- Reselling Customers ----

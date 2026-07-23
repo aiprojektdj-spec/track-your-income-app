@@ -550,9 +550,15 @@ const Lager = {
             if (f.marke)         filtered = filtered.filter(p => p.marke === f.marke);
             if (f.artikeltyp)    filtered = filtered.filter(p => p.artikeltyp === f.artikeltyp);
             if (f.warenkategorie)filtered = filtered.filter(p => (p.warenkategorie || '') === f.warenkategorie);
+            if (f.zielgruppe)    filtered = filtered.filter(p => (p.zielgruppe || '') === f.zielgruppe);
+            if (f.haendler)      filtered = filtered.filter(p => (p.haendler || '') === f.haendler);
             if (f.status)        filtered = filtered.filter(p => p.status === f.status);
             if (f.filterJahr)    filtered = filtered.filter(p => (p.datum||'').startsWith(f.filterJahr));
             if (f.filterMonat)   filtered = filtered.filter(p => (p.datum||'').slice(5,7) === f.filterMonat);
+            if (f.artikelNr && f.artikelNr.trim()) {
+                const nrTerm = f.artikelNr.trim().toLowerCase();
+                filtered = filtered.filter(p => (p.artikelNr||'').toLowerCase().includes(nrTerm));
+            }
             if (f.search && f.search.trim()) {
                 const term = f.search.trim().toLowerCase();
                 filtered = filtered.filter(p =>
@@ -622,7 +628,7 @@ const Lager = {
 
             const selectedCount = this._selected.size;
 
-            const hasActiveFilters = !!(f.marke || f.artikeltyp || f.warenkategorie || f.status || f.filterJahr || f.filterMonat || f.search || f.showStorniert);
+            const hasActiveFilters = !!(f.marke || f.artikeltyp || f.warenkategorie || f.zielgruppe || f.haendler || f.status || f.filterJahr || f.filterMonat || f.artikelNr || f.search || f.showStorniert);
             const filterBar = `
                 <div class="card no-print" style="padding:14px 16px;margin-bottom:14px;">
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
@@ -656,8 +662,29 @@ const Lager = {
                             <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-category" style="font-size:13px;"></i> Kategorie</label>
                             <select class="form-select" id="lagerFilterKat">
                                 <option value="">Alle</option>
-                                ${['Kleidung','Schuhe','Elektronik','Bücher','Haushalt','Sport','Accessoires','Sonstiges'].map(k => `<option value="${k}" ${f.warenkategorie === k ? 'selected' : ''}>${k}</option>`).join('')}
+                                ${Store.getWarenkategorien().map(k => `<option value="${Utils.escapeHtml(k)}" ${f.warenkategorie === k ? 'selected' : ''}>${Utils.escapeHtml(k)}</option>`).join('')}
                             </select>
+                        </div>
+                        <div class="filter-group">
+                            <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-gender-genderless" style="font-size:13px;"></i> Zielgruppe</label>
+                            <select class="form-select" id="lagerFilterZielgruppe">
+                                <option value="">Alle</option>
+                                ${Store.ZIELGRUPPEN.map(z => `<option value="${z}" ${f.zielgruppe === z ? 'selected' : ''}>${z}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-truck-delivery" style="font-size:13px;"></i> Händler</label>
+                            <select class="form-select" id="lagerFilterHaendler">
+                                <option value="">Alle</option>
+                                ${Store.getHaendler().map(h => `<option value="${Utils.escapeHtml(h)}" ${f.haendler === h ? 'selected' : ''}>${Utils.escapeHtml(h)}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-hash" style="font-size:13px;"></i> Art.-Nr.</label>
+                            <input type="text" class="form-input" id="lagerFilterArtikelnr"
+                                   placeholder="z.B. 2026-042"
+                                   value="${Utils.escapeHtml(f.artikelNr || '')}"
+                                   style="font-size:13px;width:120px;">
                         </div>
                         <div class="filter-group">
                             <label style="display:flex;align-items:center;gap:4px;"><i class="ti ti-circle-dot" style="font-size:13px;"></i> Status</label>
@@ -1864,7 +1891,7 @@ const Lager = {
             const resetBtn = document.getElementById('lagerFilterReset');
             if (resetBtn) {
                 resetBtn.addEventListener('click', () => {
-                    this._filters = { marke:'', artikeltyp:'', warenkategorie:'', status:'', filterJahr:'', filterMonat:'', search:'', showStorniert: false };
+                    this._filters = { marke:'', artikeltyp:'', warenkategorie:'', zielgruppe:'', haendler:'', status:'', filterJahr:'', filterMonat:'', artikelNr:'', search:'', showStorniert: false };
                     this._currentPage = 1;
                     rerender();
                 });
@@ -1876,18 +1903,34 @@ const Lager = {
                     marke:          (document.getElementById('lagerFilterMarke')     || {}).value || '',
                     artikeltyp:     (document.getElementById('lagerFilterTyp')       || {}).value || '',
                     warenkategorie: (document.getElementById('lagerFilterKat')       || {}).value || '',
+                    zielgruppe:     (document.getElementById('lagerFilterZielgruppe')|| {}).value || '',
+                    haendler:       (document.getElementById('lagerFilterHaendler')  || {}).value || '',
                     status:         (document.getElementById('lagerFilterStatus')    || {}).value || '',
                     filterJahr:     (document.getElementById('lagerFilterJahr')      || {}).value || '',
                     filterMonat:    (document.getElementById('lagerFilterMonat')     || {}).value || '',
+                    artikelNr:      (document.getElementById('lagerFilterArtikelnr') || {}).value || '',
+                    search:         this._filters.search || '',
                     showStorniert:  !!(document.getElementById('lagerFilterStorniert') || {}).checked
                 };
                 this._currentPage = 1;
                 rerender();
             };
-            ['lagerFilterMarke','lagerFilterTyp','lagerFilterKat','lagerFilterStatus','lagerFilterJahr','lagerFilterMonat','lagerFilterStorniert'].forEach(id => {
+            ['lagerFilterMarke','lagerFilterTyp','lagerFilterKat','lagerFilterZielgruppe','lagerFilterHaendler','lagerFilterStatus','lagerFilterJahr','lagerFilterMonat','lagerFilterStorniert'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('change', applyFilters);
             });
+            // Art.-Nr.-Filter: Enter oder Debounce (Text-Feld, kein Dropdown)
+            const artikelnrEl = document.getElementById('lagerFilterArtikelnr');
+            if (artikelnrEl) {
+                let nrTimer;
+                artikelnrEl.addEventListener('input', () => {
+                    clearTimeout(nrTimer);
+                    nrTimer = setTimeout(applyFilters, 250);
+                });
+                artikelnrEl.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') { clearTimeout(nrTimer); applyFilters(); }
+                });
+            }
 
             // ── Suchfeld mit Debounce ──────────────────────────────────
             const searchEl = document.getElementById('lagerSearch');
@@ -2161,6 +2204,15 @@ const Lager = {
                     const brandOptions = brands.map(b => `<option value="${Utils.escapeHtml(b)}">`).join('');
                     const einkaufsquellen = Store.getEinkaufsquellen();
                     const quellenOptions = einkaufsquellen.map(q => `<option value="${Utils.escapeHtml(q)}" ${p.einkaufsquelle === q ? 'selected' : ''}>${Utils.escapeHtml(q)}</option>`).join('');
+                    const kategorien = Store.getWarenkategorien();
+                    const katOptions = ['<option value="">– keine –</option>'].concat(
+                        kategorien.map(k => `<option value="${Utils.escapeHtml(k)}" ${p.warenkategorie === k ? 'selected' : ''}>${Utils.escapeHtml(k)}</option>`)
+                    ).join('');
+                    const haendlerListe = Store.getHaendler();
+                    const haendlerOptions = ['<option value="">– keiner –</option>'].concat(
+                        haendlerListe.map(h => `<option value="${Utils.escapeHtml(h)}" ${p.haendler === h ? 'selected' : ''}>${Utils.escapeHtml(h)}</option>`),
+                        [`<option value="Sonstiges" ${p.haendler && !haendlerListe.includes(p.haendler) ? 'selected' : ''}>Sonstiges …</option>`]
+                    ).join('');
                     const lo = p.lagerort || {};
 
                     const statusOptions = Object.entries(this.STATUS_CONFIG).map(([k, v]) =>
@@ -2243,12 +2295,44 @@ const Lager = {
                         </div>
                         <div class="form-row">
                             <div class="form-group">
+                                <label class="form-label">Kategorie</label>
+                                <select class="form-select" id="le_kategorie">
+                                    ${katOptions}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Zielgruppe</label>
+                                <select class="form-select" id="le_zielgruppe">
+                                    <option value="">– keine –</option>
+                                    ${Store.ZIELGRUPPEN.map(z => `<option value="${z}" ${p.zielgruppe === z ? 'selected' : ''}>${z}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Lieferant/Händler</label>
+                                <select class="form-select" id="le_haendler">
+                                    ${haendlerOptions}
+                                </select>
+                                <div id="le_customHaendlerGroup" style="display:${p.haendler && !haendlerListe.includes(p.haendler) ? '' : 'none'};margin-top:6px;">
+                                    <input type="text" class="form-input" id="le_customHaendler" placeholder="Name eingeben..." value="${p.haendler && !haendlerListe.includes(p.haendler) ? Utils.escapeHtml(p.haendler) : ''}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
                                 <label class="form-label">Größe</label>
                                 <input type="text" class="form-input" id="le_groesse" value="${Utils.escapeHtml(p.groesse || '')}">
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Beschreibung</label>
                                 <input type="text" class="form-input" id="le_beschreibung" value="${Utils.escapeHtml(p.beschreibung || '')}">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Artikelnummer</label>
+                                <input type="text" class="form-input" id="le_artikelnr" value="${Utils.escapeHtml(p.artikelNr || '')}">
                             </div>
                         </div>
                         <div class="form-row">
@@ -2347,6 +2431,15 @@ const Lager = {
                         });
                     }
 
+                    // Händler "Sonstiges" toggle
+                    const leHaendlerSelect = document.getElementById('le_haendler');
+                    const leCustomHaendlerGroup = document.getElementById('le_customHaendlerGroup');
+                    if (leHaendlerSelect && leCustomHaendlerGroup) {
+                        leHaendlerSelect.addEventListener('change', () => {
+                            leCustomHaendlerGroup.style.display = leHaendlerSelect.value === 'Sonstiges' ? '' : 'none';
+                        });
+                    }
+
                     // Save button
                     document.getElementById('saveLagerEdit').addEventListener('click', () => {
                         const marke = document.getElementById('le_marke').value.trim();
@@ -2358,6 +2451,13 @@ const Lager = {
                             if (custom) { einkaufsquelle = custom; Store.addEinkaufsquelle(custom); }
                         }
 
+                        let haendler = (leHaendlerSelect || {}).value || '';
+                        if (haendler === 'Sonstiges') {
+                            const customH = (document.getElementById('le_customHaendler') || {}).value?.trim();
+                            haendler = customH || '';
+                            if (customH) Store.addHaendler(customH);
+                        }
+
                         const newStatus = document.getElementById('le_status')?.value || p.status;
                         Store.savePurchase({
                             ...p,
@@ -2366,9 +2466,13 @@ const Lager = {
                             artikeltyp:     (document.getElementById('le_artikeltyp') || {}).value     || p.artikeltyp,
                             groesse:        document.getElementById('le_groesse').value.trim(),
                             beschreibung:   document.getElementById('le_beschreibung').value.trim(),
+                            artikelNr:      document.getElementById('le_artikelnr').value.trim() || p.artikelNr,
                             einkaufspreis:  parseFloat(document.getElementById('le_preis').value) || 0,
                             anzahl:         parseInt(document.getElementById('le_anzahl').value)  || 1,
                             einkaufsquelle,
+                            warenkategorie: (document.getElementById('le_kategorie') || {}).value || '',
+                            zielgruppe:     (document.getElementById('le_zielgruppe') || {}).value || '',
+                            haendler,
                             status:         newStatus,
                             differenzbesteuert: leDiffCheckbox?.checked || false,
                             warenart:       leDiffCheckbox?.checked ? document.getElementById('le_warenart').value : undefined,

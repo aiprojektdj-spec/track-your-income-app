@@ -604,6 +604,8 @@ function openNeuArtikelModal() {
     const brandOpts  = brands.map(b => `<option value="${Utils.escapeHtml(b)}">`).join('');
     const quellen    = Store.getEinkaufsquellen();
     const lastQuelle = localStorage.getItem('lager_last_quelle') || '';
+    const kategorien = Store.getWarenkategorien();
+    const haendlerListe = Store.getHaendler();
 
     const body = `
         <div style="display:flex;flex-direction:column;gap:11px;">
@@ -659,6 +661,37 @@ function openNeuArtikelModal() {
                 </div>
             </div>
 
+            <!-- Kategorie + Zielgruppe -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Kategorie</label>
+                    <select class="form-select" id="neu_kategorie">
+                        <option value="">– keine –</option>
+                        ${kategorien.map(k => `<option value="${Utils.escapeHtml(k)}">${Utils.escapeHtml(k)}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Zielgruppe</label>
+                    <select class="form-select" id="neu_zielgruppe">
+                        <option value="">– keine –</option>
+                        ${Store.ZIELGRUPPEN.map(z => `<option value="${z}">${z}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Lieferant/Händler -->
+            <div class="form-group">
+                <label class="form-label">Lieferant/Händler <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+                <select class="form-select" id="neu_haendler">
+                    <option value="">– keiner –</option>
+                    ${haendlerListe.map(h => `<option value="${Utils.escapeHtml(h)}">${Utils.escapeHtml(h)}</option>`).join('')}
+                    <option value="Sonstiges">Sonstiges …</option>
+                </select>
+                <div id="neu_customHaendlerGroup" style="display:none;margin-top:6px;">
+                    <input type="text" class="form-input" id="neu_customHaendler" placeholder="Name eingeben...">
+                </div>
+            </div>
+
             <!-- EK-Preis + Einkaufsquelle -->
             <div class="form-row">
                 <div class="form-group">
@@ -672,6 +705,12 @@ function openNeuArtikelModal() {
                         ${quellen.map(q => `<option value="${Utils.escapeHtml(q)}" ${q === lastQuelle ? 'selected' : ''}>${Utils.escapeHtml(q)}</option>`).join('')}
                     </select>
                 </div>
+            </div>
+
+            <!-- Artikelnummer (optional, sonst automatisch JAHR-NNN) -->
+            <div class="form-group">
+                <label class="form-label">Artikelnummer <span style="color:var(--text-muted);font-weight:400;">(optional, sonst automatisch)</span></label>
+                <input type="text" class="form-input" id="neu_artikelnr" placeholder="z.B. 2026-042" autocomplete="off">
             </div>
 
             <!-- Differenzbesteuerung §25a UStG -->
@@ -773,6 +812,15 @@ function openNeuArtikelModal() {
         });
     }
 
+    // Händler "Sonstiges" toggle
+    const neuHaendlerSelect = document.getElementById('neu_haendler');
+    const neuCustomHaendlerGroup = document.getElementById('neu_customHaendlerGroup');
+    if (neuHaendlerSelect && neuCustomHaendlerGroup) {
+        neuHaendlerSelect.addEventListener('change', () => {
+            neuCustomHaendlerGroup.style.display = neuHaendlerSelect.value === 'Sonstiges' ? '' : 'none';
+        });
+    }
+
     // Speichern
     document.getElementById('saveNeuArtikel').addEventListener('click', () => {
         const marke  = document.getElementById('neu_marke').value.trim();
@@ -803,6 +851,14 @@ function openNeuArtikelModal() {
 
         const rawTags = document.getElementById('neu_tags')?.value || '';
         const tags = rawTags.split(',').map(t => t.trim()).filter(Boolean);
+        const artikelNr = (document.getElementById('neu_artikelnr')?.value || '').trim();
+
+        let haendler = (neuHaendlerSelect || {}).value || '';
+        if (haendler === 'Sonstiges') {
+            const customH = (document.getElementById('neu_customHaendler') || {}).value?.trim();
+            haendler = customH || '';
+            if (customH) Store.addHaendler(customH);
+        }
 
         const purchase = {
             datum,
@@ -813,6 +869,9 @@ function openNeuArtikelModal() {
             einkaufspreis: preis,
             anzahl:        1,
             einkaufsquelle: quelle,
+            warenkategorie: document.getElementById('neu_kategorie')?.value || '',
+            zielgruppe:     document.getElementById('neu_zielgruppe')?.value || '',
+            haendler,
             notizen:       document.getElementById('neu_notizen').value.trim(),
             tags,
             status:        'verfuegbar',
@@ -825,6 +884,7 @@ function openNeuArtikelModal() {
             }
         };
         if (neuFotoBase64) purchase.foto = neuFotoBase64;
+        if (artikelNr) purchase.artikelNr = artikelNr;
 
         Store.savePurchase(purchase);
         App.closeModal();
@@ -835,6 +895,64 @@ function openNeuArtikelModal() {
         renderPage();
         document.getElementById('mainContent').scrollTop = 0;
     });
+}
+
+// ── Kategorien verwalten (anlegen/umbenennen/löschen) ──────────────────────
+function openKategorienModal() {
+    const render = () => {
+        const kategorien = Store.getWarenkategorien();
+        const body = `
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+                ${kategorien.map(k => `
+                    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;">
+                        <span style="flex:1;font-size:13px;">${Utils.escapeHtml(k)}</span>
+                        <button class="btn btn-small" data-kat-rename="${Utils.escapeHtml(k)}" title="Umbenennen">✏️</button>
+                        <button class="btn btn-small btn-danger" data-kat-delete="${Utils.escapeHtml(k)}" title="Löschen">🗑</button>
+                    </div>
+                `).join('') || '<div style="font-size:13px;color:var(--text-muted);">Keine Kategorien angelegt</div>'}
+            </div>
+            <div style="display:flex;gap:8px;">
+                <input type="text" class="form-input" id="katNeuInput" placeholder="Neue Kategorie …" style="flex:1;">
+                <button class="btn btn-primary" id="katNeuBtn">+ Hinzufügen</button>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:10px;">Löschen entfernt die Kategorie nur aus der Auswahlliste — bereits zugeordnete Artikel behalten ihre Kategorie-Angabe.</div>
+        `;
+        const footer = `<button class="btn btn-primary" id="katModalCloseBtn">Fertig</button>`;
+        App.showModal('🏷️ Kategorien verwalten', body, footer);
+        document.getElementById('katModalCloseBtn').addEventListener('click', () => {
+            App.closeModal();
+            renderPage();
+        });
+
+        document.querySelectorAll('[data-kat-rename]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const alt = btn.dataset.katRename;
+                const neu = prompt('Neuer Name für Kategorie „' + alt + '":', alt);
+                if (!neu || !neu.trim() || neu.trim() === alt) return;
+                Store.renameWarenkategorie(alt, neu.trim());
+                Utils.showToast('Kategorie umbenannt', 'success');
+                render();
+            });
+        });
+        document.querySelectorAll('[data-kat-delete]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const kat = btn.dataset.katDelete;
+                if (!confirm('Kategorie „' + kat + '" aus der Auswahlliste entfernen?')) return;
+                Store.deleteWarenkategorie(kat);
+                Utils.showToast('Kategorie entfernt', 'success');
+                render();
+            });
+        });
+        document.getElementById('katNeuBtn').addEventListener('click', () => {
+            const input = document.getElementById('katNeuInput');
+            const val = input.value.trim();
+            if (!val) return;
+            Store.addWarenkategorie(val);
+            Utils.showToast('Kategorie hinzugefügt', 'success');
+            render();
+        });
+    };
+    render();
 }
 
 // ── Bulk-Einkauf ──────────────────────────────────────────────────────────
@@ -850,7 +968,8 @@ function _bulkNewRow(template) {
         groesse:      (template && template.groesse)      || '',
         beschreibung: (template && template.beschreibung) || '',
         einkaufspreis:(template && template.einkaufspreis)|| '',
-        anzahl:       (template && template.anzahl)       || 1
+        anzahl:       (template && template.anzahl)       || 1,
+        artikelNr:    ''   // optional, manuell — leer = automatisch JAHR-NNN, nie von Duplizieren übernommen
     };
 }
 
@@ -863,6 +982,8 @@ function openBulkArtikelModal() {
     const lastQuelle = localStorage.getItem('lager_last_quelle') || '';
     const brands     = Store.getBrands();
     const brandOpts  = brands.map(b => `<option value="${Utils.escapeHtml(b)}">`).join('');
+    const kategorien = Store.getWarenkategorien();
+    const haendlerListe = Store.getHaendler();
 
     const body = `
         <datalist id="bulkMarkenList">${brandOpts}</datalist>
@@ -878,6 +999,33 @@ function openBulkArtikelModal() {
                 <select class="form-select" id="bulk_quelle">
                     ${quellen.map(q => `<option value="${Utils.escapeHtml(q)}" ${q === lastQuelle ? 'selected' : ''}>${Utils.escapeHtml(q)}</option>`).join('')}
                 </select>
+            </div>
+        </div>
+        <div class="form-row" style="margin-bottom:14px;">
+            <div class="form-group">
+                <label class="form-label">Kategorie <span style="color:var(--text-muted);font-weight:400;">(für alle Zeilen)</span></label>
+                <select class="form-select" id="bulk_kategorie">
+                    <option value="">– keine –</option>
+                    ${kategorien.map(k => `<option value="${Utils.escapeHtml(k)}">${Utils.escapeHtml(k)}</option>`).join('')}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Zielgruppe <span style="color:var(--text-muted);font-weight:400;">(für alle Zeilen)</span></label>
+                <select class="form-select" id="bulk_zielgruppe">
+                    <option value="">– keine –</option>
+                    ${Store.ZIELGRUPPEN.map(z => `<option value="${z}">${z}</option>`).join('')}
+                </select>
+            </div>
+        </div>
+        <div class="form-group" style="margin-bottom:14px;">
+            <label class="form-label">Lieferant/Händler <span style="color:var(--text-muted);font-weight:400;">(optional, für alle Zeilen)</span></label>
+            <select class="form-select" id="bulk_haendler">
+                <option value="">– keiner –</option>
+                ${haendlerListe.map(h => `<option value="${Utils.escapeHtml(h)}">${Utils.escapeHtml(h)}</option>`).join('')}
+                <option value="Sonstiges">Sonstiges …</option>
+            </select>
+            <div id="bulk_customHaendlerGroup" style="display:none;margin-top:6px;">
+                <input type="text" class="form-input" id="bulk_customHaendler" placeholder="Name eingeben...">
             </div>
         </div>
 
@@ -953,6 +1101,7 @@ function openBulkArtikelModal() {
                         <th style="padding:5px 6px;font-size:11px;color:var(--text-muted);font-weight:600;text-align:left;">Beschreibung</th>
                         <th style="padding:5px 6px;font-size:11px;color:var(--text-muted);font-weight:600;text-align:right;" title="Netto-Einkaufspreis pro Stück (ohne MwSt, ohne Versand)">EK Netto (€)</th>
                         <th style="padding:5px 6px;font-size:11px;color:var(--text-muted);font-weight:600;text-align:center;">Anzahl</th>
+                        <th style="padding:5px 6px;font-size:11px;color:var(--text-muted);font-weight:600;text-align:left;" title="Optional, sonst automatisch JAHR-NNN. Bei Anzahl &gt; 1 wird -1, -2 … angehängt.">Art.-Nr.</th>
                         <th style="width:72px;"></th>
                     </tr>
                 </thead>
@@ -1003,6 +1152,15 @@ function openBulkArtikelModal() {
 
     App.showModal('📦 Bulk-Einkauf', body, footer);
 
+    // Händler "Sonstiges" toggle
+    const bulkHaendlerSelect = document.getElementById('bulk_haendler');
+    const bulkCustomHaendlerGroup = document.getElementById('bulk_customHaendlerGroup');
+    if (bulkHaendlerSelect && bulkCustomHaendlerGroup) {
+        bulkHaendlerSelect.addEventListener('change', () => {
+            bulkCustomHaendlerGroup.style.display = bulkHaendlerSelect.value === 'Sonstiges' ? '' : 'none';
+        });
+    }
+
     _renderBulkRows();
     _updateBulkSummary();
 
@@ -1033,6 +1191,7 @@ function _bulkSaveRowValues() {
         if (g(`bulk_beschr_${row.id}`))   row.beschreibung = g(`bulk_beschr_${row.id}`).value.trim();
         if (g(`bulk_preis_${row.id}`))    row.einkaufspreis= g(`bulk_preis_${row.id}`).value;
         if (g(`bulk_anzahl_${row.id}`))   row.anzahl       = parseInt(g(`bulk_anzahl_${row.id}`).value) || 1;
+        if (g(`bulk_artikelnr_${row.id}`))row.artikelNr    = g(`bulk_artikelnr_${row.id}`).value.trim();
     });
 }
 
@@ -1098,6 +1257,11 @@ function _renderBulkRows() {
                        value="${row.anzahl}"
                        style="font-size:14px;font-weight:700;padding:5px 8px;width:68px;text-align:center;"
                        data-action-input="lgp-bulk-summary">
+            </td>
+            <td style="padding:5px 6px;">
+                <input type="text" class="form-input" id="bulk_artikelnr_${row.id}"
+                       value="${Utils.escapeHtml(row.artikelNr || '')}" placeholder="Auto"
+                       style="font-size:13px;padding:5px 8px;width:90px;">
             </td>
             <td style="padding:5px 6px;">
                 <div style="display:flex;gap:3px;">
@@ -1259,6 +1423,14 @@ function _saveBulkArtikel() {
 
     const datum   = (document.getElementById('bulk_datum')      || {}).value || '';
     const quelle  = (document.getElementById('bulk_quelle')     || {}).value || '';
+    const kategorie   = (document.getElementById('bulk_kategorie')  || {}).value || '';
+    const zielgruppe  = (document.getElementById('bulk_zielgruppe') || {}).value || '';
+    let haendler = (document.getElementById('bulk_haendler') || {}).value || '';
+    if (haendler === 'Sonstiges') {
+        const customH = (document.getElementById('bulk_customHaendler') || {}).value?.trim();
+        haendler = customH || '';
+        if (customH) Store.addHaendler(customH);
+    }
     const loB     = (document.getElementById('bulk_lo_bereich') || {}).value?.trim() || '';
     const loR     = (document.getElementById('bulk_lo_regal')   || {}).value?.trim() || '';
     const loF     = (document.getElementById('bulk_lo_fach')    || {}).value?.trim() || '';
@@ -1322,9 +1494,15 @@ function _saveBulkArtikel() {
                 const marke = row.marke.trim();
                 if (marke) Store.addBrand(marke);
 
+                const manualNr = (row.artikelNr || '').trim();
                 for (let j = 0; j < anzahl; j++) {
-                    yearMax[year]++;
-                    const artikelNr = `${year}-${String(yearMax[year]).padStart(3, '0')}`;
+                    let artikelNr;
+                    if (manualNr) {
+                        artikelNr = anzahl > 1 ? `${manualNr}-${j + 1}` : manualNr;
+                    } else {
+                        yearMax[year]++;
+                        artikelNr = `${year}-${String(yearMax[year]).padStart(3, '0')}`;
+                    }
                     const record = {
                         datum,
                         marke,
@@ -1337,6 +1515,9 @@ function _saveBulkArtikel() {
                         versandanteil:      Math.round(versandPerStk * 100) / 100,
                         anzahl:             1,
                         einkaufsquelle:     quelle,
+                        warenkategorie:     kategorie,
+                        zielgruppe,
+                        haendler,
                         status:             'verfuegbar',
                         sessionId,
                         artikelNr,
@@ -2227,6 +2408,7 @@ async function lagerBoot() {
     document.getElementById('sidebarBulkEinkauf').addEventListener('click', wrap(openBulkArtikelModal));
 
     document.getElementById('lagerExportBtn').addEventListener('click', () => Lager.openExportModal());
+    document.getElementById('lagerKategorienBtn').addEventListener('click', openKategorienModal);
 
     document.getElementById('sidebarExcelImport').addEventListener('click', wrap(() => ExcelImport.open()));
     const salesBtn = document.getElementById('sidebarSalesImport');

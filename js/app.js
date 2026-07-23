@@ -7,7 +7,7 @@ const App = {
 
     // Finanzen-Modul: alle transaktionalen Seiten, die sich die Sub-Nav teilen.
     // Reihenfolge = Reihenfolge der Sub-Tabs.
-    FINANZ_PAGES: ['rechnungen', 'eigenbelege', 'buchungen', 'ausgaben', 'bankimport', 'fahrtenbuch', 'afa'],
+    FINANZ_PAGES: ['rechnungen', 'eigenbelege', 'buchungen', 'ausgaben', 'bankimport', 'fahrtenbuch', 'kassenbuch', 'afa'],
 
     pages: {
         dashboard: Dashboard,
@@ -614,6 +614,9 @@ const App = {
             document.querySelectorAll('[data-euer-period]').forEach(el => {
                 el.classList.toggle('active', el.dataset.euerPeriod === Euer._period);
             });
+            document.querySelectorAll('[data-euer-view]').forEach(el => {
+                el.classList.toggle('active', el.dataset.euerView === Euer._view);
+            });
         }
 
         // Render page — mit try-catch damit nie ein leerer schwarzer Screen kommt
@@ -669,6 +672,7 @@ const App = {
             { page: 'ausgaben',    icon: 'ti-cash',            label: 'Ausgaben'     },
             { page: 'bankimport',  icon: 'ti-building-bank',   label: 'Bank-Import'  },
             { page: 'fahrtenbuch', icon: 'ti-car',             label: 'Fahrtenbuch'  },
+            { page: 'kassenbuch',  icon: 'ti-cash-banknote',   label: 'Kassenbuch'   },
             { page: 'afa',         icon: 'ti-trending-down',   label: 'AfA'          },
         ];
 

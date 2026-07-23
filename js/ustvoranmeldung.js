@@ -564,6 +564,9 @@ const UstVoranmeldung = {
     },
 
     _refresh() {
+        // Als Sub-Tab im EÜR-Tab eingebettet: über Euer._refresh() rendern, sonst geht die
+        // Tab-Leiste (EÜR-Report | USt-Voranmeldung) beim Refresh verloren.
+        if (typeof Euer !== 'undefined' && Euer._view === 'uva') { Euer._refresh(); return; }
         const el = document.getElementById('content');
         if (el) { el.innerHTML = this.render(); this.init(); }
     },

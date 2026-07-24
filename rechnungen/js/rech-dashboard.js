@@ -11,13 +11,26 @@ var RechDashboard = (function() {
         return sum;
     }
 
+    // Teilzahlungen (Fund 9) mindern die Restschuld — "Offene Posten" muss den tatsächlich
+    // ausstehenden Betrag zeigen, sonst wird nach einer Teilzahlung der volle Bruttobetrag
+    // weiter als offen ausgewiesen (Session teilzahlung-ratenzahlung, 2026-07-24).
+    function teilzahlungSumme(invoice) {
+        var sum = 0;
+        (invoice.teilzahlungen || []).forEach(function(t) { sum += t.betrag || 0; });
+        return sum;
+    }
+
+    function restbetrag(invoice) {
+        return Math.max(0, calcBrutto(invoice) - teilzahlungSumme(invoice));
+    }
+
     function render() {
         var invoices = Store.getRechInvoices();
         var ud = Store.getRechUnternehmen();
         var hasUd = !!(ud.firmenname);
 
         var offeneRechnungen = invoices.filter(function(i) { return i.typ === 'rechnung' && i.status === 'offen'; });
-        var offeneSum = offeneRechnungen.reduce(function(s, i) { return s + calcBrutto(i); }, 0);
+        var offeneSum = offeneRechnungen.reduce(function(s, i) { return s + restbetrag(i); }, 0);
 
         var today = Utils.todayISO();
         var currentMonth = today.substring(0, 7);
@@ -27,7 +40,7 @@ var RechDashboard = (function() {
         var bezahlteSum = bezahlteRechnungen.reduce(function(s, i) { return s + calcBrutto(i); }, 0);
 
         var ueberfaellige = invoices.filter(function(i) { return i.typ === 'rechnung' && i.status === 'ueberfaellig'; });
-        var ueberfaelligeSum = ueberfaellige.reduce(function(s, i) { return s + calcBrutto(i); }, 0);
+        var ueberfaelligeSum = ueberfaellige.reduce(function(s, i) { return s + restbetrag(i); }, 0);
 
         var offeneAngebote = invoices.filter(function(i) { return i.typ === 'angebot' && i.status === 'offen'; });
         var angeboteSum = offeneAngebote.reduce(function(s, i) { return s + calcBrutto(i); }, 0);
@@ -185,7 +198,11 @@ var RechDashboard = (function() {
                 html += '</td>';
                 html += '<td style="padding:10px 14px;font-size:13px;">' + kundeName + '</td>';
                 html += '<td style="padding:10px 14px;font-size:12px;color:var(--text-muted);">' + Utils.formatDate(inv.datum) + '</td>';
-                html += '<td style="padding:10px 14px;text-align:right;font-weight:700;font-size:13px;">' + Utils.formatCurrency(calcBrutto(inv)) + '</td>';
+                var rest = restbetrag(inv);
+                var teilbezahlt = teilzahlungSumme(inv) > 0 && inv.status !== 'bezahlt' && inv.status !== 'storniert';
+                html += '<td style="padding:10px 14px;text-align:right;font-weight:700;font-size:13px;">' + Utils.formatCurrency(calcBrutto(inv));
+                if (teilbezahlt) html += '<div style="font-weight:400;font-size:10px;color:var(--text-muted);">Rest: ' + Utils.formatCurrency(rest) + '</div>';
+                html += '</td>';
                 html += '<td style="padding:10px 14px;">';
                 html += '<span style="padding:3px 8px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;background:' + st.bg + ';color:' + st.color + ';">' + st.label + '</span>';
                 html += '</td>';

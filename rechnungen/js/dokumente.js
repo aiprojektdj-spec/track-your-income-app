@@ -639,7 +639,11 @@ var Dokumente = (function() {
                 return;
             }
             if (betrag >= rest - 0.001) {
-                Utils.showToast('Betrag deckt die Restschuld — bitte stattdessen „Als bezahlt markieren" nutzen (inkl. Lager-Sync).', 'warning');
+                // Restschuld gedeckt: statt Sackgasse direkt in den bestehenden Bezahlt-Flow
+                // (inkl. Lager-Sync/EK-Erfassung) überleiten, keine zweite Statuslogik pflegen.
+                RechApp.closeModal();
+                showBezahltModal(inv);
+                Utils.showToast('Restbetrag gedeckt — bitte Zahlung final bestätigen.', 'info');
                 return;
             }
             if (!inv.teilzahlungen) inv.teilzahlungen = [];

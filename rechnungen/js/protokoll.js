@@ -86,7 +86,7 @@ var RechProtokoll = (function() {
         html += '</div>';
 
         html += '<div class="table-container"><table class="audit-table"><thead><tr>';
-        html += '<th>Zeitpunkt</th><th>Aktion</th><th>Bereich</th><th>ID</th><th>Details</th><th>Pruefung</th>';
+        html += '<th scope="col">Zeitpunkt</th><th scope="col">Aktion</th><th scope="col">Bereich</th><th scope="col">ID</th><th scope="col">Details</th><th scope="col">Pruefung</th>';
         html += '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 
         return html;

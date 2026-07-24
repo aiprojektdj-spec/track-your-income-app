@@ -126,7 +126,7 @@ var RechApp = (function() {
         var overlay = document.getElementById('modalOverlay');
 
         var html = '<div class="modal-header">';
-        html += '<h3>' + title + '</h3>';
+        html += '<h3 id="modalTitle">' + title + '</h3>';
         html += '<button class="modal-close" id="modalCloseBtn">&times;</button>';
         html += '</div>';
         html += '<div class="modal-body">' + bodyHtml + '</div>';
@@ -141,6 +141,9 @@ var RechApp = (function() {
         overlay.addEventListener('click', function(e) {
             if (e.target === overlay) closeModal();
         });
+
+        var focusable = modal.querySelector('button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])');
+        if (focusable) focusable.focus();
     }
 
     function closeModal() {
@@ -148,6 +151,23 @@ var RechApp = (function() {
         if (overlay) overlay.classList.remove('active');
         document.getElementById('modal').innerHTML = '';
     }
+
+    // Fokus-Trap (Tab bleibt im Modal) + ESC schließt (WCAG 2.4.3/2.1.2)
+    document.addEventListener('keydown', function(e) {
+        var overlay = document.getElementById('modalOverlay');
+        var modalOpen = overlay && overlay.classList.contains('active');
+        if (!modalOpen) return;
+        var modal = document.getElementById('modal');
+        if (e.key === 'Tab') {
+            var focusables = modal.querySelectorAll('button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])');
+            if (!focusables.length) return;
+            var first = focusables[0], last = focusables[focusables.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        } else if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
 
     function closeMobileMenu() {
         var sidebar = document.getElementById('sidebar');
@@ -290,17 +310,10 @@ var RechApp = (function() {
             });
         });
 
-        // Mobile menu
-        var menuBtn = document.getElementById('mobileMenuBtn');
-        var sidebar = document.getElementById('sidebar');
+        // Mobile menu — Toggle-Button selbst wird global von page-shell.js (#sidebarToggleBtn)
+        // gesteuert; hier nur noch das Schließen per Overlay-Klick (legacy #mobileMenuBtn entfernt,
+        // war ein zweiter, redundanter Toggle-Mechanismus, Fund 24 Vollaudit 2026-07-23).
         var mobileOverlay = document.getElementById('mobileOverlay');
-
-        if (menuBtn) {
-            menuBtn.addEventListener('click', function() {
-                sidebar.classList.toggle('sidebar-open');
-                mobileOverlay.classList.toggle('active');
-            });
-        }
 
         if (mobileOverlay) {
             mobileOverlay.addEventListener('click', closeMobileMenu);
@@ -355,10 +368,22 @@ var RechApp = (function() {
             window.App = window.App || {};
             App._continueAfterAuth = boot;
             AuthUI.boot();
-        } else if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', boot);
         } else {
-            boot();
+            // Fail-Closed statt Fail-Open: AuthUI-Script konnte nicht laden (Netzwerk/CDN-Fehler)
+            // -> NICHT ungeprüft booten (Fund 21, Vollaudit 2026-07-23), sondern Fehler anzeigen.
+            var showGateError = function () {
+                document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;padding:40px;font-family:sans-serif;">' +
+                    '<div style="font-size:48px;margin-bottom:16px;">⚠️</div>' +
+                    '<h2>Anmeldung konnte nicht geladen werden</h2>' +
+                    '<p style="color:#888;max-width:420px;">Ein Skript zur Zugriffsprüfung ist nicht geladen. Bitte Seite neu laden oder Internetverbindung prüfen.</p>' +
+                    '<button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;border-radius:8px;border:none;background:#4f46e5;color:#fff;cursor:pointer;">Seite neu laden</button>' +
+                    '</div>';
+            };
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', showGateError);
+            } else {
+                showGateError();
+            }
         }
     }
 

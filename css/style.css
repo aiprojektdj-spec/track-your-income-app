@@ -64,7 +64,7 @@
     /* Text — warm greys */
     --text-primary:   #eef2f0;
     --text-secondary: #9ba8a1;
-    --text-muted:     #71807a;
+    --text-muted:     #7d8c86;
 
     /* Borders — hairlines */
     --border:        #1d2421;
@@ -130,7 +130,7 @@
 
         --text-primary:   #171f1b;
         --text-secondary: #56635d;
-        --text-muted:     #84908a;
+        --text-muted:     #5f6b65;
 
         --border:        #e6e3da;
         --border-light:  #d6d2c6;
@@ -2537,7 +2537,8 @@ tbody tr:last-child td {
             background: var(--bg-input);
             color: var(--text-primary);
         }
-        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        .btn-sm { padding: 5px 10px; font-size: 12px; min-height: 44px; } /* WCAG 2.5.5 */
+        .btn { min-height: 44px; } /* WCAG 2.5.5 — Desktop bleibt kompakt, nur Mobile betroffen */
 
         .stat-value {
             font-size: 26px;

@@ -13,7 +13,7 @@ var Produkte = (function() {
         }
 
         html += '<div class="table-container"><table><thead><tr>';
-        html += '<th>Name</th><th>Beschreibung</th><th>Preis</th><th>Einheit</th><th>MwSt</th><th>Aktionen</th>';
+        html += '<th scope="col">Name</th><th scope="col">Beschreibung</th><th scope="col">Preis</th><th scope="col">Einheit</th><th scope="col">MwSt</th><th scope="col">Aktionen</th>';
         html += '</tr></thead><tbody>';
 
         products.forEach(function(p) {
@@ -39,21 +39,21 @@ var Produkte = (function() {
 
     function showProductForm(product) {
         var isEdit = !!product;
-        var body = '<div class="form-group"><label class="form-label">Name *</label>';
+        var body = '<div class="form-group"><label class="form-label" for="pfName">Name *</label>';
         body += '<input class="form-input" id="pfName" value="' + Utils.escapeHtml(product ? product.name || '' : '') + '"></div>';
-        body += '<div class="form-group"><label class="form-label">Beschreibung</label>';
+        body += '<div class="form-group"><label class="form-label" for="pfBeschr">Beschreibung</label>';
         body += '<textarea class="form-textarea" id="pfBeschr" rows="2">' + Utils.escapeHtml(product ? product.beschreibung || '' : '') + '</textarea></div>';
         body += '<div class="form-row">';
-        body += '<div class="form-group"><label class="form-label">Preis (netto)</label>';
+        body += '<div class="form-group"><label class="form-label" for="pfPreis">Preis (netto)</label>';
         body += '<input class="form-input" type="number" step="0.01" min="0" max="99999999" id="pfPreis" value="' + (product ? product.preis || 0 : 0) + '"></div>';
-        body += '<div class="form-group"><label class="form-label">Einheit</label>';
+        body += '<div class="form-group"><label class="form-label" for="pfEinheit">Einheit</label>';
         body += '<select class="form-select" id="pfEinheit">';
         var einheit = product ? product.einheit || 'St\u00FCck' : 'St\u00FCck';
         body += '<option value="St\u00FCck"' + (einheit === 'St\u00FCck' ? ' selected' : '') + '>St\u00FCck</option>';
         body += '<option value="Std."' + (einheit === 'Std.' ? ' selected' : '') + '>Std.</option>';
         body += '<option value="pauschal"' + (einheit === 'pauschal' ? ' selected' : '') + '>pauschal</option>';
         body += '</select></div>';
-        body += '<div class="form-group"><label class="form-label">MwSt-Satz</label>';
+        body += '<div class="form-group"><label class="form-label" for="pfMwst">MwSt-Satz</label>';
         body += '<select class="form-select" id="pfMwst">';
         var mwst = product ? (product.mwstSatz !== undefined ? product.mwstSatz : 19) : 19;
         body += '<option value="19"' + (mwst === 19 ? ' selected' : '') + '>19%</option>';

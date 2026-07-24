@@ -70,33 +70,33 @@ var Unternehmensdaten = (function() {
 
         html += '<div class="form-row">';
         html += '<div class="form-group" style="flex:2;">';
-        html += '<label class="form-label">Firmenname <span style="color:var(--danger);">*</span></label>';
+        html += '<label class="form-label" for="ud_firmenname">Firmenname <span style="color:var(--danger);">*</span></label>';
         html += '<input class="form-input" id="ud_firmenname" value="' + Utils.escapeHtml(d.firmenname) + '" placeholder="z.B. Max Mustermann Einzelhandel">';
         html += '</div>';
         html += '<div class="form-group">';
-        html += '<label class="form-label">Inhaber / Geschäftsführer</label>';
+        html += '<label class="form-label" for="ud_inhaber">Inhaber / Geschäftsführer</label>';
         html += '<input class="form-input" id="ud_inhaber" value="' + Utils.escapeHtml(d.inhaber) + '" placeholder="Vor- und Nachname">';
         html += '</div>';
         html += '</div>';
 
         html += '<div class="form-row">';
         html += '<div class="form-group" style="flex:3;">';
-        html += '<label class="form-label">Straße & Hausnummer <span style="color:var(--danger);">*</span></label>';
+        html += '<label class="form-label" for="ud_adresse">Straße & Hausnummer <span style="color:var(--danger);">*</span></label>';
         html += '<input class="form-input" id="ud_adresse" value="' + Utils.escapeHtml(d.adresse) + '" placeholder="Musterstraße 1">';
         html += '</div>';
         html += '<div class="form-group">';
-        html += '<label class="form-label">PLZ <span style="color:var(--danger);">*</span></label>';
+        html += '<label class="form-label" for="ud_plz">PLZ <span style="color:var(--danger);">*</span></label>';
         html += '<input class="form-input" id="ud_plz" value="' + Utils.escapeHtml(d.plz) + '" placeholder="12345" style="width:90px;">';
         html += '</div>';
         html += '<div class="form-group" style="flex:2;">';
-        html += '<label class="form-label">Ort <span style="color:var(--danger);">*</span></label>';
+        html += '<label class="form-label" for="ud_ort">Ort <span style="color:var(--danger);">*</span></label>';
         html += '<input class="form-input" id="ud_ort" value="' + Utils.escapeHtml(d.ort) + '" placeholder="Musterstadt">';
         html += '</div>';
         html += '</div>';
 
         html += '<div class="form-row">';
         html += '<div class="form-group" style="max-width:220px;">';
-        html += '<label class="form-label">Land</label>';
+        html += '<label class="form-label" for="ud_land">Land</label>';
         html += '<input class="form-input" id="ud_land" value="' + Utils.escapeHtml(d.land) + '" placeholder="Deutschland">';
         html += '</div>';
         html += '</div>';
@@ -114,22 +114,22 @@ var Unternehmensdaten = (function() {
 
         html += '<div class="form-row">';
         html += '<div class="form-group">';
-        html += '<label class="form-label">Steuernummer <span style="color:var(--danger);">*</span></label>';
+        html += '<label class="form-label" for="ud_steuernummer">Steuernummer <span style="color:var(--danger);">*</span></label>';
         html += '<input class="form-input" id="ud_steuernummer" value="' + Utils.escapeHtml(d.steuernummer) + '" placeholder="z.B. 12/345/67890">';
         html += '</div>';
         html += '<div class="form-group">';
-        html += '<label class="form-label">USt-IdNr. <span style="color:var(--danger);">*</span></label>';
+        html += '<label class="form-label" for="ud_ustId">USt-IdNr. <span style="color:var(--danger);">*</span></label>';
         html += '<input class="form-input" id="ud_ustId" value="' + Utils.escapeHtml(d.ustId) + '" placeholder="z.B. DE123456789" data-uppercase>';
         html += '</div>';
         html += '</div>';
 
         html += '<div class="form-row">';
         html += '<div class="form-group">';
-        html += '<label class="form-label">Finanzamt</label>';
+        html += '<label class="form-label" for="ud_finanzamt">Finanzamt</label>';
         html += '<input class="form-input" id="ud_finanzamt" value="' + Utils.escapeHtml(d.finanzamt) + '" placeholder="z.B. Finanzamt München">';
         html += '</div>';
         html += '<div class="form-group">';
-        html += '<label class="form-label">Handelsregisternummer (optional)</label>';
+        html += '<label class="form-label" for="ud_hrNr">Handelsregisternummer (optional)</label>';
         html += '<input class="form-input" id="ud_hrNr" value="' + Utils.escapeHtml(d.hrNr) + '" placeholder="z.B. HRB 12345">';
         html += '</div>';
         html += '</div>';
@@ -143,15 +143,15 @@ var Unternehmensdaten = (function() {
 
         html += '<div class="form-row">';
         html += '<div class="form-group">';
-        html += '<label class="form-label">Telefon</label>';
+        html += '<label class="form-label" for="ud_telefon">Telefon</label>';
         html += '<input class="form-input" id="ud_telefon" type="tel" value="' + Utils.escapeHtml(d.telefon) + '" placeholder="+49 xxx xxxxxxx">';
         html += '</div>';
         html += '<div class="form-group">';
-        html += '<label class="form-label">E-Mail</label>';
+        html += '<label class="form-label" for="ud_email">E-Mail</label>';
         html += '<input class="form-input" id="ud_email" type="email" value="' + Utils.escapeHtml(d.email) + '" placeholder="info@firma.de">';
         html += '</div>';
         html += '<div class="form-group">';
-        html += '<label class="form-label">Website</label>';
+        html += '<label class="form-label" for="ud_website">Website</label>';
         html += '<input class="form-input" id="ud_website" value="' + Utils.escapeHtml(d.website) + '" placeholder="www.firma.de">';
         html += '</div>';
         html += '</div>';
@@ -160,15 +160,15 @@ var Unternehmensdaten = (function() {
 
         html += '<div class="form-row">';
         html += '<div class="form-group">';
-        html += '<label class="form-label">Bankname</label>';
+        html += '<label class="form-label" for="ud_bankname">Bankname</label>';
         html += '<input class="form-input" id="ud_bankname" value="' + Utils.escapeHtml(d.bankname) + '" placeholder="z.B. Sparkasse München">';
         html += '</div>';
         html += '<div class="form-group" style="flex:2;">';
-        html += '<label class="form-label">IBAN <span style="color:var(--danger);">*</span></label>';
+        html += '<label class="form-label" for="ud_iban">IBAN <span style="color:var(--danger);">*</span></label>';
         html += '<input class="form-input" id="ud_iban" value="' + Utils.escapeHtml(d.iban) + '" placeholder="DE00 0000 0000 0000 0000 00" data-uppercase>';
         html += '</div>';
         html += '<div class="form-group">';
-        html += '<label class="form-label">BIC</label>';
+        html += '<label class="form-label" for="ud_bic">BIC</label>';
         html += '<input class="form-input" id="ud_bic" value="' + Utils.escapeHtml(d.bic) + '" placeholder="z.B. SSKMDEMMXXX" data-uppercase>';
         html += '</div>';
         html += '</div>';
@@ -193,7 +193,7 @@ var Unternehmensdaten = (function() {
 
         html += '<div style="display:flex;flex-direction:column;gap:8px;">';
         html += '<div>';
-        html += '<label class="form-label">Logo hochladen</label>';
+        html += '<label class="form-label" for="ud_logo">Logo hochladen</label>';
         html += '<input type="file" class="form-input" id="ud_logo" accept="image/png,image/jpeg,image/gif,image/svg+xml" style="padding:6px;">';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">PNG, JPG, SVG · max. 2 MB · erscheint oben links auf Rechnungen</div>';
         html += '</div>';
@@ -206,7 +206,7 @@ var Unternehmensdaten = (function() {
         // Colors
         html += '<div class="form-row">';
         html += '<div class="form-group">';
-        html += '<label class="form-label">Rechnungskopf-Farbe</label>';
+        html += '<label class="form-label" for="ud_headerColor">Rechnungskopf-Farbe</label>';
         html += '<div style="display:flex;align-items:center;gap:10px;">';
         html += '<input type="color" id="ud_headerColor" value="' + d.invoiceHeaderColor + '" style="width:40px;height:36px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px;">';
         html += '<div>';
@@ -216,7 +216,7 @@ var Unternehmensdaten = (function() {
         html += '</div></div>';
 
         html += '<div class="form-group">';
-        html += '<label class="form-label">Akzentfarbe</label>';
+        html += '<label class="form-label" for="ud_primaryColor">Akzentfarbe</label>';
         html += '<div style="display:flex;align-items:center;gap:10px;">';
         html += '<input type="color" id="ud_primaryColor" value="' + d.invoicePrimaryColor + '" style="width:40px;height:36px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px;">';
         html += '<div>';

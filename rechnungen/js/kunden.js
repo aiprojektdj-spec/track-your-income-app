@@ -65,7 +65,7 @@ var Kunden = (function() {
         }
 
         html += '<div class="table-container"><table><thead><tr>';
-        html += '<th>Kundennr.</th><th>Firma</th><th>Ansprechpartner</th><th>Ort</th><th>E-Mail</th><th>Telefon</th><th>Umsatz</th><th>Aktionen</th>';
+        html += '<th scope="col">Kundennr.</th><th scope="col">Firma</th><th scope="col">Ansprechpartner</th><th scope="col">Ort</th><th scope="col">E-Mail</th><th scope="col">Telefon</th><th scope="col">Umsatz</th><th scope="col">Aktionen</th>';
         html += '</tr></thead><tbody>';
 
         customers.forEach(function(c) {
@@ -134,7 +134,7 @@ var Kunden = (function() {
             html += '<div class="empty-state">Keine Dokumente vorhanden.</div>';
         } else {
             html += '<div class="table-container"><table><thead><tr>';
-            html += '<th>Nr.</th><th>Typ</th><th>Datum</th><th>Betrag</th><th>Status</th>';
+            html += '<th scope="col">Nr.</th><th scope="col">Typ</th><th scope="col">Datum</th><th scope="col">Betrag</th><th scope="col">Status</th>';
             html += '</tr></thead><tbody>';
             invoices.forEach(function(inv) {
                 var typLabel = inv.typ === 'rechnung' ? 'Rechnung' : inv.typ === 'angebot' ? 'Angebot' : 'Gutschrift';
@@ -163,24 +163,24 @@ var Kunden = (function() {
 
     function showCustomerForm(customer) {
         var isEdit = !!customer;
-        var body = '<div class="form-group"><label class="form-label">Kundennummer</label>';
+        var body = '<div class="form-group"><label class="form-label" for="cfKnr">Kundennummer</label>';
         body += '<input class="form-input" id="cfKnr" value="' + Utils.escapeHtml(customer ? customer.kundennummer : nextKundennummer()) + '" readonly style="opacity: 0.7;"></div>';
         body += '<div class="form-row">';
-        body += '<div class="form-group"><label class="form-label">Firma</label><input class="form-input" id="cfFirma" value="' + Utils.escapeHtml(customer ? customer.firma || '' : '') + '"></div>';
-        body += '<div class="form-group"><label class="form-label">Ansprechpartner</label><input class="form-input" id="cfAnsprech" value="' + Utils.escapeHtml(customer ? customer.ansprechpartner || '' : '') + '"></div>';
+        body += '<div class="form-group"><label class="form-label" for="cfFirma">Firma</label><input class="form-input" id="cfFirma" value="' + Utils.escapeHtml(customer ? customer.firma || '' : '') + '"></div>';
+        body += '<div class="form-group"><label class="form-label" for="cfAnsprech">Ansprechpartner</label><input class="form-input" id="cfAnsprech" value="' + Utils.escapeHtml(customer ? customer.ansprechpartner || '' : '') + '"></div>';
         body += '</div>';
-        body += '<div class="form-group"><label class="form-label">Stra\u00DFe</label><input class="form-input" id="cfStrasse" value="' + Utils.escapeHtml(customer ? customer.strasse || '' : '') + '"></div>';
+        body += '<div class="form-group"><label class="form-label" for="cfStrasse">Stra\u00DFe</label><input class="form-input" id="cfStrasse" value="' + Utils.escapeHtml(customer ? customer.strasse || '' : '') + '"></div>';
         body += '<div class="form-row">';
-        body += '<div class="form-group"><label class="form-label">PLZ</label><input class="form-input" id="cfPlz" value="' + Utils.escapeHtml(customer ? customer.plz || '' : '') + '"></div>';
-        body += '<div class="form-group"><label class="form-label">Ort</label><input class="form-input" id="cfOrt" value="' + Utils.escapeHtml(customer ? customer.ort || '' : '') + '"></div>';
-        body += '</div>';
-        body += '<div class="form-row">';
-        body += '<div class="form-group"><label class="form-label">E-Mail</label><input class="form-input" id="cfEmail" type="email" value="' + Utils.escapeHtml(customer ? customer.email || '' : '') + '"></div>';
-        body += '<div class="form-group"><label class="form-label">Telefon</label><input class="form-input" id="cfTelefon" value="' + Utils.escapeHtml(customer ? customer.telefon || '' : '') + '"></div>';
+        body += '<div class="form-group"><label class="form-label" for="cfPlz">PLZ</label><input class="form-input" id="cfPlz" value="' + Utils.escapeHtml(customer ? customer.plz || '' : '') + '"></div>';
+        body += '<div class="form-group"><label class="form-label" for="cfOrt">Ort</label><input class="form-input" id="cfOrt" value="' + Utils.escapeHtml(customer ? customer.ort || '' : '') + '"></div>';
         body += '</div>';
         body += '<div class="form-row">';
-        body += '<div class="form-group"><label class="form-label">Land</label><input class="form-input" id="cfLand" maxlength="2" placeholder="DE" style="text-transform:uppercase;" value="' + Utils.escapeHtml(customer ? customer.land || 'DE' : 'DE') + '"></div>';
-        body += '<div class="form-group"><label class="form-label">USt-IdNr. (B2B Ausland)</label><input class="form-input" id="cfUstIdNr" placeholder="z.B. FR12345678901" value="' + Utils.escapeHtml(customer ? customer.ustIdNr || '' : '') + '"></div>';
+        body += '<div class="form-group"><label class="form-label" for="cfEmail">E-Mail</label><input class="form-input" id="cfEmail" type="email" value="' + Utils.escapeHtml(customer ? customer.email || '' : '') + '"></div>';
+        body += '<div class="form-group"><label class="form-label" for="cfTelefon">Telefon</label><input class="form-input" id="cfTelefon" value="' + Utils.escapeHtml(customer ? customer.telefon || '' : '') + '"></div>';
+        body += '</div>';
+        body += '<div class="form-row">';
+        body += '<div class="form-group"><label class="form-label" for="cfLand">Land</label><input class="form-input" id="cfLand" maxlength="2" placeholder="DE" style="text-transform:uppercase;" value="' + Utils.escapeHtml(customer ? customer.land || 'DE' : 'DE') + '"></div>';
+        body += '<div class="form-group"><label class="form-label" for="cfUstIdNr">USt-IdNr. (B2B Ausland)</label><input class="form-input" id="cfUstIdNr" placeholder="z.B. FR12345678901" value="' + Utils.escapeHtml(customer ? customer.ustIdNr || '' : '') + '"></div>';
         body += '</div>';
 
         var footer = '<button class="btn btn-primary" id="cfSave">Speichern</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';

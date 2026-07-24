@@ -91,35 +91,35 @@ var Rechnung = (function() {
         html += '<div style="padding: 1rem;">';
 
         html += '<div class="form-row">';
-        html += '<div class="form-group"><label class="form-label">Dokumenttyp</label>';
+        html += '<div class="form-group"><label class="form-label" for="invTyp">Dokumenttyp</label>';
         html += '<select class="form-select" id="invTyp">';
         html += '<option value="rechnung"' + (currentTyp === 'rechnung' ? ' selected' : '') + '>Rechnung</option>';
         html += '<option value="angebot"' + (currentTyp === 'angebot' ? ' selected' : '') + '>Angebot</option>';
         html += '<option value="gutschrift"' + (currentTyp === 'gutschrift' ? ' selected' : '') + '>Gutschrift</option>';
         html += '</select></div>';
 
-        html += '<div class="form-group"><label class="form-label">Nummer</label>';
+        html += '<div class="form-group"><label class="form-label" for="invNummer">Nummer</label>';
         html += '<input class="form-input" id="invNummer" value="' + Utils.escapeHtml(nummer) + '" placeholder="Wird automatisch generiert"></div>';
 
-        html += '<div class="form-group"><label class="form-label">Datum</label>';
+        html += '<div class="form-group"><label class="form-label" for="invDatum">Datum</label>';
         html += '<input class="form-input" type="date" id="invDatum" value="' + datum + '"></div>';
 
-        html += '<div class="form-group" id="invFaelligkeitGroup"' + (datumsOption !== 'faelligkeit' ? ' style="display:none;"' : '') + '><label class="form-label">F\u00E4lligkeitsdatum</label>';
+        html += '<div class="form-group" id="invFaelligkeitGroup"' + (datumsOption !== 'faelligkeit' ? ' style="display:none;"' : '') + '><label class="form-label" for="invFaelligkeit">F\u00E4lligkeitsdatum</label>';
         html += '<input class="form-input" type="date" id="invFaelligkeit" value="' + faelligkeit + '"></div>';
-        html += '<div class="form-group" id="invLieferdatumGroup"' + (datumsOption !== 'lieferdatum' ? ' style="display:none;"' : '') + '><label class="form-label">Lieferdatum</label>';
+        html += '<div class="form-group" id="invLieferdatumGroup"' + (datumsOption !== 'lieferdatum' ? ' style="display:none;"' : '') + '><label class="form-label" for="invLieferdatum">Lieferdatum</label>';
         html += '<input class="form-input" type="date" id="invLieferdatum" value="' + lieferdatum + '"></div>';
-        html += '<div class="form-group" id="invLieferzeitraumGroup"' + (datumsOption !== 'lieferzeitraum' ? ' style="display:none;"' : '') + '><label class="form-label">Lieferzeitraum Von</label>';
+        html += '<div class="form-group" id="invLieferzeitraumGroup"' + (datumsOption !== 'lieferzeitraum' ? ' style="display:none;"' : '') + '><label class="form-label" for="invLieferVon">Lieferzeitraum Von</label>';
         html += '<input class="form-input" type="date" id="invLieferVon" value="' + lieferVon + '" style="margin-bottom:4px;">';
-        html += '<label class="form-label">bis</label>';
+        html += '<label class="form-label" for="invLieferBis">bis</label>';
         html += '<input class="form-input" type="date" id="invLieferBis" value="' + lieferBis + '"></div>';
-        html += '<div class="form-group"><label class="form-label">Datumsoptionen</label>';
+        html += '<div class="form-group"><label class="form-label" for="invDatumsOption">Datumsoptionen</label>';
         html += '<select class="form-select" id="invDatumsOption">';
         html += '<option value="nur_datum"' + (datumsOption === 'nur_datum' ? ' selected' : '') + '>Nur Rechnungsdatum</option>';
         html += '<option value="faelligkeit"' + (datumsOption === 'faelligkeit' ? ' selected' : '') + '>Rechnungsdatum + F\u00E4lligkeitsdatum</option>';
         html += '<option value="lieferdatum"' + (datumsOption === 'lieferdatum' ? ' selected' : '') + '>Rechnungsdatum + Lieferdatum</option>';
         html += '<option value="lieferzeitraum"' + (datumsOption === 'lieferzeitraum' ? ' selected' : '') + '>Rechnungsdatum + Lieferzeitraum</option>';
         html += '</select></div>';
-        html += '<div class="form-group"><label class="form-label">Verkaufsplattform</label>';
+        html += '<div class="form-group"><label class="form-label" for="invPlattform">Verkaufsplattform</label>';
         html += '<select class="form-select" id="invPlattform">';
         var plattformen = Store.getPlatforms();
         plattformen.forEach(function(pl) {
@@ -130,7 +130,8 @@ var Rechnung = (function() {
         html += '</div>';
 
         html += '<div class="form-row">';
-        html += '<div class="form-group" style="flex:2"><label class="form-label">Kunde</label>';
+        html += '<div class="form-group" style="flex:2"><label class="form-label" for="invKundeSearch">Kunde</label>';
+        html += '<input class="form-input" type="text" id="invKundeSearch" placeholder="Kunde suchen…" autocomplete="off" style="margin-bottom:4px;">';
         html += '<select class="form-select" id="invKunde">';
         html += '<option value="">-- Kunde w\u00E4hlen --</option>';
         customers.forEach(function(c) {
@@ -154,17 +155,17 @@ var Rechnung = (function() {
         html += '<div id="newCustomerFields" style="display:none; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">';
         html += '<div class="section-title">Neuer Kunde</div>';
         html += '<div class="form-row">';
-        html += '<div class="form-group"><label class="form-label">Firma</label><input class="form-input" id="ncFirma"></div>';
-        html += '<div class="form-group"><label class="form-label">Ansprechpartner</label><input class="form-input" id="ncAnsprech"></div>';
+        html += '<div class="form-group"><label class="form-label" for="ncFirma">Firma</label><input class="form-input" id="ncFirma"></div>';
+        html += '<div class="form-group"><label class="form-label" for="ncAnsprech">Ansprechpartner</label><input class="form-input" id="ncAnsprech"></div>';
         html += '</div>';
         html += '<div class="form-row">';
-        html += '<div class="form-group"><label class="form-label">Stra\u00DFe</label><input class="form-input" id="ncStrasse"></div>';
-        html += '<div class="form-group"><label class="form-label">PLZ</label><input class="form-input" id="ncPlz"></div>';
-        html += '<div class="form-group"><label class="form-label">Ort</label><input class="form-input" id="ncOrt"></div>';
+        html += '<div class="form-group"><label class="form-label" for="ncStrasse">Stra\u00DFe</label><input class="form-input" id="ncStrasse"></div>';
+        html += '<div class="form-group"><label class="form-label" for="ncPlz">PLZ</label><input class="form-input" id="ncPlz"></div>';
+        html += '<div class="form-group"><label class="form-label" for="ncOrt">Ort</label><input class="form-input" id="ncOrt"></div>';
         html += '</div>';
         html += '<div class="form-row">';
-        html += '<div class="form-group"><label class="form-label">E-Mail</label><input class="form-input" id="ncEmail" type="email"></div>';
-        html += '<div class="form-group"><label class="form-label">Telefon</label><input class="form-input" id="ncTelefon"></div>';
+        html += '<div class="form-group"><label class="form-label" for="ncEmail">E-Mail</label><input class="form-input" id="ncEmail" type="email"></div>';
+        html += '<div class="form-group"><label class="form-label" for="ncTelefon">Telefon</label><input class="form-input" id="ncTelefon"></div>';
         html += '</div>';
         html += '</div>';
 
@@ -203,9 +204,9 @@ var Rechnung = (function() {
         // Footer fields
         html += '<div class="card"><div class="card-header"><div class="card-title">Zus\u00E4tzliche Angaben</div></div>';
         html += '<div style="padding: 1rem;">';
-        html += '<div class="form-group"><label class="form-label">Zahlungsbedingungen</label>';
+        html += '<div class="form-group"><label class="form-label" for="invZahlung">Zahlungsbedingungen</label>';
         html += '<textarea class="form-textarea" id="invZahlung" rows="2">' + Utils.escapeHtml(zahlungsbedingungen) + '</textarea></div>';
-        html += '<div class="form-group"><label class="form-label">Notizen</label>';
+        html += '<div class="form-group"><label class="form-label" for="invNotizen">Notizen</label>';
         html += '<textarea class="form-textarea" id="invNotizen" rows="2" maxlength="1000">' + Utils.escapeHtml(notizen) + '</textarea></div>';
         html += '</div></div>';
 
@@ -247,7 +248,7 @@ var Rechnung = (function() {
         html += '<div class="form-group" style="flex: 1.5;">';
         if (idx === 0) html += '<label class="form-label">Produkt</label>';
         html += '<div style="display:flex;align-items:center;">';
-        html += '<select class="form-select pos-product" data-idx="' + idx + '" style="flex:1;">';
+        html += '<select class="form-select pos-product" data-idx="' + idx + '" aria-label="Produkt" style="flex:1;">';
         html += '<option value="">Manuell</option>';
         products.forEach(function(p) {
             html += '<option value="' + p.id + '">' + Utils.escapeHtml(p.name) + '</option>';
@@ -258,15 +259,15 @@ var Rechnung = (function() {
 
         html += '<div class="form-group" style="flex: 2;">';
         if (idx === 0) html += '<label class="form-label">Beschreibung</label>';
-        html += '<input class="form-input pos-beschreibung" maxlength="500" data-idx="' + idx + '" value="' + Utils.escapeHtml(pos.beschreibung || '') + '"></div>';
+        html += '<input class="form-input pos-beschreibung" maxlength="500" data-idx="' + idx + '" aria-label="Beschreibung" value="' + Utils.escapeHtml(pos.beschreibung || '') + '"></div>';
 
         html += '<div class="form-group" style="flex: 0.7;">';
         if (idx === 0) html += '<label class="form-label">Menge</label>';
-        html += '<input class="form-input pos-menge" type="number" step="0.01" min="0" max="999999" data-idx="' + idx + '" value="' + (pos.menge || 1) + '"></div>';
+        html += '<input class="form-input pos-menge" type="number" step="0.01" min="0" max="999999" data-idx="' + idx + '" aria-label="Menge" value="' + (pos.menge || 1) + '"></div>';
 
         html += '<div class="form-group" style="flex: 0.8;">';
         if (idx === 0) html += '<label class="form-label">Einheit</label>';
-        html += '<select class="form-select pos-einheit" data-idx="' + idx + '">';
+        html += '<select class="form-select pos-einheit" data-idx="' + idx + '" aria-label="Einheit">';
         html += '<option value="St\u00FCck"' + ((pos.einheit || 'St\u00FCck') === 'St\u00FCck' ? ' selected' : '') + '>St\u00FCck</option>';
         html += '<option value="Std."' + (pos.einheit === 'Std.' ? ' selected' : '') + '>Std.</option>';
         html += '<option value="pauschal"' + (pos.einheit === 'pauschal' ? ' selected' : '') + '>pauschal</option>';
@@ -274,11 +275,11 @@ var Rechnung = (function() {
 
         html += '<div class="form-group" style="flex: 1;">';
         if (idx === 0) html += '<label class="form-label">Einzelpreis</label>';
-        html += '<input class="form-input pos-einzelpreis" type="number" step="0.01" min="0" max="99999999" data-idx="' + idx + '" value="' + (pos.einzelpreis || 0) + '"></div>';
+        html += '<input class="form-input pos-einzelpreis" type="number" step="0.01" min="0" max="99999999" data-idx="' + idx + '" aria-label="Einzelpreis" value="' + (pos.einzelpreis || 0) + '"></div>';
 
         html += '<div class="form-group pos-mwst-wrap" style="flex: 0.7;display:' + (pos.differenzbesteuert ? 'none' : '') + ';">';
         if (idx === 0) html += '<label class="form-label">MwSt</label>';
-        html += '<select class="form-select pos-mwst" data-idx="' + idx + '">';
+        html += '<select class="form-select pos-mwst" data-idx="' + idx + '" aria-label="MwSt-Satz">';
         html += '<option value="19"' + ((pos.mwstSatz === undefined || pos.mwstSatz === 19) ? ' selected' : '') + '>19%</option>';
         html += '<option value="7"'  + (pos.mwstSatz === 7 ? ' selected' : '') + '>7%</option>';
         html += '<option value="0"'  + (pos.mwstSatz === 0 ? ' selected' : '') + '>0%</option>';
@@ -307,7 +308,7 @@ var Rechnung = (function() {
         // mischen kann (Kz. 41 vs. Kz. 21 sind pro Position zu ermitteln).
         html += '<div class="form-group pos-igart-wrap" style="flex: 1.3;display:none;">';
         if (idx === 0) html += '<label class="form-label">Art (EU)</label>';
-        html += '<select class="form-select pos-igart" data-idx="' + idx + '">';
+        html += '<select class="form-select pos-igart" data-idx="' + idx + '" aria-label="Art (EU)">';
         html += '<option value=""' + (pos.igArt ? '' : ' selected') + ' disabled>-- wählen --</option>';
         html += '<option value="ware"' + (pos.igArt === 'ware' ? ' selected' : '') + '>Ware (Kz.41)</option>';
         html += '<option value="leistung"' + (pos.igArt === 'leistung' ? ' selected' : '') + '>Leistung (Kz.21)</option>';
@@ -316,7 +317,7 @@ var Rechnung = (function() {
         html += '<div class="form-group" style="flex: 1;">';
         if (idx === 0) html += '<label class="form-label">Gesamt</label>';
         var gesamt = (pos.menge || 1) * (pos.einzelpreis || 0);
-        html += '<input class="form-input pos-gesamt" data-idx="' + idx + '" value="' + gesamt.toFixed(2) + '" readonly style="opacity: 0.7;"></div>';
+        html += '<input class="form-input pos-gesamt" data-idx="' + idx + '" aria-label="Gesamtbetrag" value="' + gesamt.toFixed(2) + '" readonly style="opacity: 0.7;"></div>';
 
         // Lager-Verknüpfungs-Spalte
         html += '<div class="form-group" style="flex: 0.5;">';
@@ -395,7 +396,7 @@ var Rechnung = (function() {
             ? 'Wähle einen oder mehrere verfügbare Lagerartikel aus – für jeden wird eine neue Position angelegt.'
             : 'Wähle einen verfügbaren Lagerartikel für diese Position aus.';
         var body = '<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary);">' + introText + ' Der Artikel wird sofort als <em>Verkauft</em> markiert, damit er nicht versehentlich in einer zweiten Rechnung verwendet wird.</div>';
-        body += '<div style="overflow-x:auto;"><table style="width:100%;font-size:12px;"><thead><tr><th>Art.-Nr.</th><th>Artikel</th><th>Beschreibung</th><th>Größe</th><th>EK-Preis</th><th></th></tr></thead><tbody id="lagerPickerBody">' + renderRows(available) + '</tbody></table></div>';
+        body += '<div style="overflow-x:auto;"><table style="width:100%;font-size:12px;"><thead><tr><th scope="col">Art.-Nr.</th><th scope="col">Artikel</th><th scope="col">Beschreibung</th><th scope="col">Größe</th><th scope="col">EK-Preis</th><th scope="col"></th></tr></thead><tbody id="lagerPickerBody">' + renderRows(available) + '</tbody></table></div>';
 
         var footer = clearBtn + ' <button class="btn" data-action="rech-close-modal">' + (isNewMode ? 'Fertig' : 'Schließen') + '</button>';
         RechApp.showModal('Lagerartikel ' + (isNewMode ? 'hinzufügen' : 'verknüpfen'), body, footer);
@@ -494,6 +495,7 @@ var Rechnung = (function() {
     function collectPositionen() {
         var rows = document.querySelectorAll('.position-row');
         var positionen = [];
+        var skipped = 0;
         rows.forEach(function(row) {
             var idx = row.getAttribute('data-idx');
             var beschreibung = row.querySelector('.pos-beschreibung').value.trim();
@@ -526,8 +528,18 @@ var Rechnung = (function() {
                     warenart: warenart,
                     einkaufspreis: diffEinkaufspreis
                 });
+            } else if (menge !== 1 || lagerArtikelId) {
+                // Zeile wurde erkennbar bearbeitet (Menge geändert / Lagerartikel verknüpft),
+                // aber ohne Beschreibung+Preis beim Speichern still verworfen — Nutzer warnen
+                // statt kommentarlos zu löschen (Fund 19, Vollaudit 2026-07-23).
+                skipped++;
             }
         });
+        if (skipped > 0) {
+            Utils.showToast(skipped === 1
+                ? 'Eine leere Position (ohne Beschreibung/Preis) wurde nicht übernommen.'
+                : skipped + ' leere Positionen (ohne Beschreibung/Preis) wurden nicht übernommen.', 'warning');
+        }
         return positionen;
     }
 
@@ -539,7 +551,10 @@ var Rechnung = (function() {
         var netto = 0;
         var mwstMap = {};
         positionen.forEach(function(pos) {
-            var lineNetto = pos.menge * pos.einzelpreis;
+            // Auf Cent gerundet akkumulieren, nicht mit voller Gleitkomma-Präzision — sonst
+            // kann die Gesamtsumme um 1 Cent von der Summe der einzeln angezeigten (gerundeten)
+            // Positionsbeträge abweichen (Fund 18, Vollaudit 2026-07-23).
+            var lineNetto = Math.round(pos.menge * pos.einzelpreis * 100) / 100;
             netto += lineNetto;
             if (!isKlein && !pos.differenzbesteuert && pos.mwstSatz > 0) {
                 if (!mwstMap[pos.mwstSatz]) mwstMap[pos.mwstSatz] = 0;
@@ -626,6 +641,20 @@ var Rechnung = (function() {
                 });
                 updateSummen();
             }
+        }
+
+        // Kunden-Autocomplete: filtert die vorhandenen <option>-Elemente per Textsuche,
+        // ohne das bestehende <select>-Verhalten (.value, change-Event, __new__-Sentinel) an
+        // den übrigen Stellen anzufassen (Fund 22, Vollaudit 2026-07-23).
+        var invKundeSearchEl = document.getElementById('invKundeSearch');
+        if (invKundeSearchEl) {
+            invKundeSearchEl.addEventListener('input', function() {
+                var q = this.value.trim().toLowerCase();
+                document.querySelectorAll('#invKunde option').forEach(function(opt) {
+                    if (!opt.value || opt.value === '__new__') return;
+                    opt.style.display = (!q || opt.textContent.toLowerCase().indexOf(q) !== -1) ? '' : 'none';
+                });
+            });
         }
 
         document.getElementById('invKunde').addEventListener('change', function() {
@@ -781,12 +810,12 @@ var Rechnung = (function() {
         if (newProdBtn) {
             newProdBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-                var modalBody = '<div class="form-group"><label class="form-label">Name <span style="color:red;">*</span></label><input class="form-input" id="npName"></div>';
-                modalBody += '<div class="form-group"><label class="form-label">Beschreibung</label><textarea class="form-textarea" id="npBeschreibung" rows="2"></textarea></div>';
+                var modalBody = '<div class="form-group"><label class="form-label" for="npName">Name <span style="color:red;">*</span></label><input class="form-input" id="npName"></div>';
+                modalBody += '<div class="form-group"><label class="form-label" for="npBeschreibung">Beschreibung</label><textarea class="form-textarea" id="npBeschreibung" rows="2"></textarea></div>';
                 modalBody += '<div class="form-row">';
-                modalBody += '<div class="form-group"><label class="form-label">Preis</label><input class="form-input" id="npPreis" type="number" step="0.01" min="0" max="99999999" value="0"></div>';
-                modalBody += '<div class="form-group"><label class="form-label">Einheit</label><select class="form-select" id="npEinheit"><option value="St\u00FCck">St\u00FCck</option><option value="Std.">Std.</option><option value="pauschal">pauschal</option></select></div>';
-                modalBody += '<div class="form-group"><label class="form-label">MwSt-Satz</label><select class="form-select" id="npMwst"><option value="19">19%</option><option value="7">7%</option><option value="0">0%</option></select></div>';
+                modalBody += '<div class="form-group"><label class="form-label" for="npPreis">Preis</label><input class="form-input" id="npPreis" type="number" step="0.01" min="0" max="99999999" value="0"></div>';
+                modalBody += '<div class="form-group"><label class="form-label" for="npEinheit">Einheit</label><select class="form-select" id="npEinheit"><option value="St\u00FCck">St\u00FCck</option><option value="Std.">Std.</option><option value="pauschal">pauschal</option></select></div>';
+                modalBody += '<div class="form-group"><label class="form-label" for="npMwst">MwSt-Satz</label><select class="form-select" id="npMwst"><option value="19">19%</option><option value="7">7%</option><option value="0">0%</option></select></div>';
                 modalBody += '</div>';
 
                 var modalFooter = '<button class="btn btn-primary" id="npSave">Speichern</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
@@ -966,7 +995,11 @@ var Rechnung = (function() {
             typ: typ,
             nummer: nummer,
             datum: datum,
-            faelligkeit: faelligkeit,
+            // Fälligkeitsdatum nur speichern, wenn dieser Modus aktiv gewählt wurde — sonst
+            // hält das Feld einen versteckten Default-Wert (+14 Tage), gegen den mahnungen.js
+            // trotzdem prüft und Lieferdatum-Rechnungen fälschlich als überfällig markiert
+            // (Fund 14, Vollaudit 2026-07-23).
+            faelligkeit: datumsOption === 'faelligkeit' ? faelligkeit : '',
             datumsOption: datumsOption,
             lieferdatum: lieferdatum,
             lieferVon: lieferVon,
@@ -1092,6 +1125,11 @@ var Rechnung = (function() {
             + '.inv-tbl td{padding:9px 10px;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:top;}'
             + '.inv-tbl tbody tr:last-child td{border-bottom:2px solid #e2e8f0;}'
             + '.inv-tbl .pos{width:34px;color:#94a3b8;font-size:11.5px;}'
+            // Fund 25 (Vollaudit 2026-07-23): Kopfzeile wiederholt sich auf Folgeseiten,
+            // Zeilen/Summenblock werden nicht mitten durch einen Seitenumbruch zerschnitten.
+            + '.inv-tbl thead{display:table-header-group;}'
+            + '.inv-tbl tr{page-break-inside:avoid;break-inside:avoid;}'
+            + '.inv-totals,.inv-bank,.inv-footer{page-break-inside:avoid;break-inside:avoid;}'
             + '.inv-totals{margin-left:auto;width:255px;padding-top:6px;margin-bottom:24px;}'
             + '.inv-tr{display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px;color:#334155;}'
             + '.inv-tr.grand{border-top:2px solid #1e293b;margin-top:8px;padding-top:10px;font-size:15px;font-weight:700;color:#0f172a;}'
@@ -1189,19 +1227,22 @@ var Rechnung = (function() {
 
         // Positions table
         html += '<table class="inv-tbl"><thead><tr>';
-        html += '<th class="pos r">Pos.</th>';
-        html += '<th>Beschreibung</th>';
-        html += '<th class="r">Menge</th>';
-        html += '<th>Einheit</th>';
-        html += '<th class="r">Einzelpreis</th>';
-        if (!isKlein) html += '<th class="r">MwSt</th>';
-        html += '<th class="r">Gesamt (netto)</th>';
+        html += '<th scope="col" class="pos r">Pos.</th>';
+        html += '<th scope="col">Beschreibung</th>';
+        html += '<th scope="col" class="r">Menge</th>';
+        html += '<th scope="col">Einheit</th>';
+        html += '<th scope="col" class="r">Einzelpreis</th>';
+        if (!isKlein) html += '<th scope="col" class="r">MwSt</th>';
+        html += '<th scope="col" class="r">Gesamt (netto)</th>';
         html += '</tr></thead><tbody>';
 
         var netto = 0;
         var mwstMap = {};
         (inv.positionen || []).forEach(function(pos, idx) {
-            var lineNetto = pos.menge * pos.einzelpreis;
+            // Auf Cent gerundet akkumulieren, nicht mit voller Gleitkomma-Präzision — sonst
+            // kann die Gesamtsumme um 1 Cent von der Summe der einzeln angezeigten (gerundeten)
+            // Positionsbeträge abweichen (Fund 18, Vollaudit 2026-07-23).
+            var lineNetto = Math.round(pos.menge * pos.einzelpreis * 100) / 100;
             netto += lineNetto;
             if (!isKlein && !pos.differenzbesteuert && pos.mwstSatz > 0) {
                 if (!mwstMap[pos.mwstSatz]) mwstMap[pos.mwstSatz] = 0;

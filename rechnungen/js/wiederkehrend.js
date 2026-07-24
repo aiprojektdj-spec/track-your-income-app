@@ -212,7 +212,7 @@ var Wiederkehrend = (function () {
         }
 
         html += '<div class="table-container"><table><thead><tr>';
-        html += '<th>Kunde</th><th>Intervall</th><th>Nächste Rechnung</th><th>Letzter Lauf</th><th>Status</th><th>Aktionen</th>';
+        html += '<th scope="col">Kunde</th><th scope="col">Intervall</th><th scope="col">Nächste Rechnung</th><th scope="col">Letzter Lauf</th><th scope="col">Status</th><th scope="col">Aktionen</th>';
         html += '</tr></thead><tbody>';
 
         rules.forEach(function (rule) {
@@ -317,12 +317,12 @@ var Wiederkehrend = (function () {
         }
 
         var body = '';
-        body += '<div class="form-group"><label class="form-label">Vorlage (Rechnung) <span style="color:var(--danger)">*</span></label>';
+        body += '<div class="form-group"><label class="form-label" for="wkTemplate">Vorlage (Rechnung) <span style="color:var(--danger)">*</span></label>';
         body += '<select class="form-select" id="wkTemplate"><option value="">-- Rechnung wählen --</option>' + invOptions + '</select>';
         body += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Positionen, Kunde und Konditionen werden aus dieser Rechnung übernommen.</div></div>';
 
         body += '<div class="form-row">';
-        body += '<div class="form-group"><label class="form-label">Intervall</label>';
+        body += '<div class="form-group"><label class="form-label" for="wkInterval">Intervall</label>';
         body += '<select class="form-select" id="wkInterval">';
         body += '<option value="woechentlich">Wöchentlich</option>';
         body += '<option value="monatlich" selected>Monatlich</option>';
@@ -331,10 +331,10 @@ var Wiederkehrend = (function () {
         body += '<option value="jaehrlich">Jährlich</option>';
         body += '</select></div>';
 
-        body += '<div class="form-group"><label class="form-label">Erste Ausführung</label>';
+        body += '<div class="form-group"><label class="form-label" for="wkStartDate">Erste Ausführung</label>';
         body += '<input type="date" class="form-input" id="wkStartDate" value="' + Utils.todayISO() + '"></div>';
 
-        body += '<div class="form-group"><label class="form-label">Enddatum (optional)</label>';
+        body += '<div class="form-group"><label class="form-label" for="wkEndDate">Enddatum (optional)</label>';
         body += '<input type="date" class="form-input" id="wkEndDate"></div>';
         body += '</div>';
 

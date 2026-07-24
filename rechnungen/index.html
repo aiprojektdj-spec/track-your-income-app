@@ -90,13 +90,12 @@
     <div class="app-container">
         <div class="mobile-overlay" id="mobileOverlay"></div>
         <main class="main-content">
-            <button class="btn btn-icon mobile-menu-btn" id="mobileMenuBtn" style="display:none;">☰</button>
             <div id="content"></div>
         </main>
     </div>
 
-    <div class="modal-overlay" id="modalOverlay">
-        <div class="modal" id="modal"></div>
+    <div class="modal-overlay" id="modalOverlay" role="presentation">
+        <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
     </div>
 
     <script src="../js/cookie-banner.js"></script>

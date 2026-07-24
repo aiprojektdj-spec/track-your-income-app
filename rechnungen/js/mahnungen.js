@@ -2,6 +2,16 @@ var Mahnungen = (function() {
 
     var highlightInvoiceId = null;
 
+    // Zahlungsfrist je Mahnstufe — echte Werte statt in Fließtext hartcodierter Zahlen
+    // (Fund 20, Vollaudit 2026-07-23), damit Text und gespeicherte Frist nie auseinanderlaufen.
+    var MAHNFRIST_TAGE = { 1: 14, 2: 10, 3: 7 };
+
+    function addTage(isoDatum, tage) {
+        var d = new Date(isoDatum);
+        d.setDate(d.getDate() + tage);
+        return d.toLocaleDateString('sv-SE');
+    }
+
     function calcBrutto(invoice) {
         var isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (Store.getSettings().ustMode === 'klein');
         var sum = 0;
@@ -11,6 +21,18 @@ var Mahnungen = (function() {
             sum += netto + mwst;
         });
         return sum;
+    }
+
+    // Teilzahlungen (Fund 9) mindern die Mahn-/Zinsgrundlage — sonst wird auf den vollen
+    // Ursprungsbetrag gemahnt/verzinst, obwohl der Kunde schon teilweise gezahlt hat.
+    function teilzahlungSumme(invoice) {
+        var sum = 0;
+        (invoice.teilzahlungen || []).forEach(function(t) { sum += t.betrag || 0; });
+        return sum;
+    }
+
+    function restbetrag(invoice) {
+        return Math.max(0, calcBrutto(invoice) - teilzahlungSumme(invoice));
     }
 
     function daysOverdue(faelligkeit) {
@@ -43,8 +65,7 @@ var Mahnungen = (function() {
         if (days <= 0) return 0;
         var zuschlag = isB2BKunde(kunde) ? 9 : 5;
         var satz = getBasiszinssatz() + zuschlag;
-        var brutto = calcBrutto(invoice);
-        return brutto * (satz / 100) * (days / 365);
+        return restbetrag(invoice) * (satz / 100) * (days / 365);
     }
 
     function currentMahnLevel(invoice) {
@@ -73,7 +94,7 @@ var Mahnungen = (function() {
         customers.forEach(function(c) { customerMap[c.id] = c; });
 
         var overdue = invoices.filter(function(i) {
-            return i.typ === 'rechnung' && (i.status === 'ueberfaellig' || (i.status === 'offen' && i.faelligkeit < Utils.todayISO()));
+            return i.typ === 'rechnung' && (i.status === 'ueberfaellig' || (i.status === 'offen' && !!i.faelligkeit && i.faelligkeit < Utils.todayISO()));
         });
 
         overdue.sort(function(a, b) {
@@ -93,7 +114,7 @@ var Mahnungen = (function() {
         }
 
         html += '<div class="table-container"><table><thead><tr>';
-        html += '<th>Rechnungsnr.</th><th>Kunde</th><th>F\u00E4llig am</th><th>Betrag</th><th>Tage \u00FCberf\u00E4llig</th><th>Mahnstufe</th><th>Mahngeb\u00FChren</th><th>Aktionen</th>';
+        html += '<th scope="col">Rechnungsnr.</th><th scope="col">Kunde</th><th scope="col">F\u00E4llig am</th><th scope="col">Betrag</th><th scope="col">Tage \u00FCberf\u00E4llig</th><th scope="col">Mahnstufe</th><th scope="col">Mahngeb\u00FChren</th><th scope="col">Aktionen</th>';
         html += '</tr></thead><tbody>';
 
         overdue.forEach(function(inv) {
@@ -115,7 +136,7 @@ var Mahnungen = (function() {
             html += '<td>' + Utils.escapeHtml(inv.nummer || '') + '</td>';
             html += '<td>' + kundeName + '</td>';
             html += '<td>' + Utils.formatDate(inv.faelligkeit) + '</td>';
-            html += '<td>' + Utils.formatCurrency(calcBrutto(inv)) + '</td>';
+            html += '<td>' + Utils.formatCurrency(restbetrag(inv)) + (teilzahlungSumme(inv) > 0 ? ' <span style="font-size:10px;color:var(--text-muted);">(Rest)</span>' : '') + '</td>';
             html += '<td>' + days + ' Tage</td>';
             html += '<td>' + levelBadge + '</td>';
             html += '<td>' + Utils.formatCurrency(gebuehren) + '</td>';
@@ -145,7 +166,7 @@ var Mahnungen = (function() {
 
         var body = '<div class="form-group"><strong>Rechnung:</strong> ' + Utils.escapeHtml(inv.nummer || '') + '</div>';
         body += '<div class="form-group"><strong>Mahnstufe:</strong> ' + levelLabel + '</div>';
-        body += '<div class="form-group"><label class="form-label">Mahngeb\u00FChr (\u20AC)</label>';
+        body += '<div class="form-group"><label class="form-label" for="mahnGebuehr">Mahngeb\u00FChr (\u20AC)</label>';
         body += '<input class="form-input" type="number" step="0.01" min="0" max="99999999" id="mahnGebuehr" value="' + (nextLevel === 1 ? '0' : nextLevel === 2 ? '5' : '10') + '"></div>';
 
         var footer = '<button class="btn btn-warning" id="mahnSave">Mahnung erstellen</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
@@ -154,10 +175,14 @@ var Mahnungen = (function() {
         document.getElementById('mahnSave').addEventListener('click', function() {
             var gebuehr = parseFloat(document.getElementById('mahnGebuehr').value) || 0;
             if (!inv.mahnungen) inv.mahnungen = [];
+            var heute = Utils.todayISO();
+            var fristTage = MAHNFRIST_TAGE[nextLevel] || 14;
             inv.mahnungen.push({
                 stufe: nextLevel,
-                datum: Utils.todayISO(),
-                gebuehr: gebuehr
+                datum: heute,
+                gebuehr: gebuehr,
+                frist: fristTage,
+                fristDatum: addTage(heute, fristTage)
             });
             inv.status = 'ueberfaellig';
             Store.saveRechInvoice(inv);
@@ -181,25 +206,33 @@ var Mahnungen = (function() {
             if (m.stufe === level) lastMahnung = m;
         });
 
-        var brutto = calcBrutto(inv);
+        // Restbetrag statt vollem Rechnungsbetrag — Teilzahlungen (Fund 9) mindern die
+        // Mahngrundlage, sonst würde auf einen bereits teilweise beglichenen Betrag gemahnt.
+        var brutto = restbetrag(inv);
         var gebuehren = totalMahngebuehren(inv);
         var zinsen = calcVerzugszinsen(inv, kunde);
+
+        // Frist aus der gespeicherten Mahnung lesen (echte Berechnung statt hartcodierter
+        // Textzahl, Fund 20) \u2014 Fallback f\u00FCr Altdaten ohne frist-Feld.
+        var fristTage = (lastMahnung && lastMahnung.frist) || MAHNFRIST_TAGE[level] || 14;
+        var fristDatum = (lastMahnung && lastMahnung.fristDatum) || addTage(Utils.todayISO(), fristTage);
+        var fristDatumFmt = Utils.formatDate(fristDatum);
 
         var title, greeting, bodyText, closing;
         if (level === 1) {
             title = 'Zahlungserinnerung';
             greeting = 'Sehr geehrte Damen und Herren,';
-            bodyText = 'bei der \u00DCberpr\u00FCfung unserer Buchhaltung ist uns aufgefallen, dass die nachstehend aufgef\u00FChrte Rechnung noch nicht beglichen wurde. Sicherlich handelt es sich nur um ein Versehen. Wir m\u00F6chten Sie daher freundlich bitten, den ausstehenden Betrag innerhalb der n\u00E4chsten 14 Tage zu \u00FCberweisen.';
+            bodyText = 'bei der \u00DCberpr\u00FCfung unserer Buchhaltung ist uns aufgefallen, dass die nachstehend aufgef\u00FChrte Rechnung noch nicht beglichen wurde. Sicherlich handelt es sich nur um ein Versehen. Wir m\u00F6chten Sie daher freundlich bitten, den ausstehenden Betrag innerhalb der n\u00E4chsten ' + fristTage + ' Tage (bis zum ' + fristDatumFmt + ') zu \u00FCberweisen.';
             closing = 'Sollte sich Ihre Zahlung mit diesem Schreiben gekreuzt haben, betrachten Sie diese Erinnerung bitte als gegenstandslos.';
         } else if (level === 2) {
             title = '2. Mahnung';
             greeting = 'Sehr geehrte Damen und Herren,';
-            bodyText = 'trotz unserer ersten Zahlungserinnerung konnten wir leider noch keinen Zahlungseingang f\u00FCr die nachstehend aufgef\u00FChrte Rechnung feststellen. Wir bitten Sie nachdr\u00FCcklich, den offenen Betrag zzgl. anfallender Mahngeb\u00FChren innerhalb von 10 Tagen zu begleichen.';
+            bodyText = 'trotz unserer ersten Zahlungserinnerung konnten wir leider noch keinen Zahlungseingang f\u00FCr die nachstehend aufgef\u00FChrte Rechnung feststellen. Wir bitten Sie nachdr\u00FCcklich, den offenen Betrag zzgl. anfallender Mahngeb\u00FChren innerhalb von ' + fristTage + ' Tagen (bis zum ' + fristDatumFmt + ') zu begleichen.';
             closing = 'Bitte nehmen Sie diese Mahnung ernst und veranlassen Sie die Zahlung umgehend.';
         } else {
             title = 'Letzte Mahnung';
             greeting = 'Sehr geehrte Damen und Herren,';
-            bodyText = 'wir haben Sie bereits zweimal erfolglos zur Zahlung der unten aufgef\u00FChrten Rechnung aufgefordert. Wir fordern Sie hiermit letztmalig auf, den Gesamtbetrag inklusive aller Mahngeb\u00FChren innerhalb von 7 Tagen zu \u00FCberweisen. Sollte die Zahlung nicht fristgerecht eingehen, sehen wir uns gezwungen, die Angelegenheit ohne weitere Ank\u00FCndigung an unseren Rechtsanwalt bzw. ein Inkassounternehmen zu \u00FCbergeben.';
+            bodyText = 'wir haben Sie bereits zweimal erfolglos zur Zahlung der unten aufgef\u00FChrten Rechnung aufgefordert. Wir fordern Sie hiermit letztmalig auf, den Gesamtbetrag inklusive aller Mahngeb\u00FChren innerhalb von ' + fristTage + ' Tagen (bis zum ' + fristDatumFmt + ') zu \u00FCberweisen. Sollte die Zahlung nicht fristgerecht eingehen, sehen wir uns gezwungen, die Angelegenheit ohne weitere Ank\u00FCndigung an unseren Rechtsanwalt bzw. ein Inkassounternehmen zu \u00FCbergeben.';
             closing = 'Wir hoffen, dass Sie es nicht soweit kommen lassen und die Zahlung umgehend veranlassen.';
         }
 
@@ -344,6 +377,19 @@ var Mahnungen = (function() {
         params = params || {};
         if (params.invoiceId) highlightInvoiceId = params.invoiceId;
 
+        var basiszinsInput = document.getElementById('mahnBasiszins');
+        if (basiszinsInput) {
+            basiszinsInput.addEventListener('change', function() {
+                var v = parseFloat(this.value);
+                if (isNaN(v)) return;
+                var s = Store.getRechSettings ? Store.getRechSettings() : {};
+                s.basiszinssatzPct = v;
+                if (Store.saveRechSettings) Store.saveRechSettings(s);
+                Utils.showToast('Basiszinssatz gespeichert', 'success');
+                RechApp.navigate('mahnungen');
+            });
+        }
+
         document.querySelectorAll('.mahn-create').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 showCreateMahnungModal(this.getAttribute('data-id'));
@@ -361,7 +407,13 @@ var Mahnungen = (function() {
                 var id = this.getAttribute('data-id');
                 var invoices = Store.getRechInvoices();
                 var inv = invoices.find(function(i) { return i.id === id; });
-                if (inv) {
+                if (!inv) return;
+                // Gleicher Pfad wie im Dokumente-Modul: Lager-/Verkaufs-Sync-Modal statt
+                // Status direkt zu setzen — sonst synct ein aus Mahnungen bezahlter
+                // Verkauf keine Lagerartikel (Fund 13, Vollaudit 2026-07-23).
+                if (typeof Dokumente !== 'undefined' && Dokumente.showBezahltModal) {
+                    Dokumente.showBezahltModal(inv);
+                } else {
                     inv.status = 'bezahlt';
                     Store.saveRechInvoice(inv);
                     Utils.showToast('Als bezahlt markiert', 'success');

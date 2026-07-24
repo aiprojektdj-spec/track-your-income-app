@@ -11,6 +11,20 @@ var Dokumente = (function() {
         return sum;
     }
 
+    // Teilzahlungen (Fund 9, Vollaudit 2026-07-23): additiv, ändert bewusst NICHT den
+    // bestehenden Status-Enum (offen/bezahlt/ueberfaellig/storniert/versendet) — eine
+    // Rechnung mit Teilzahlung bleibt "offen"/"ueberfaellig" (zählt weiter korrekt in
+    // Dashboard/Mahnwesen als ausstehend), zeigt aber zusätzlich den Restbetrag an.
+    function teilzahlungSumme(invoice) {
+        var sum = 0;
+        (invoice.teilzahlungen || []).forEach(function(t) { sum += t.betrag || 0; });
+        return sum;
+    }
+
+    function restbetrag(invoice) {
+        return Math.max(0, calcBrutto(invoice) - teilzahlungSumme(invoice));
+    }
+
     function render() {
         var invoices = Store.getRechInvoices();
         var customers = Store.getRechCustomers();
@@ -27,20 +41,20 @@ var Dokumente = (function() {
 
         // Search
         html += '<div class="filter-group filter-search">';
-        html += '<label class="form-label"><i class="ti ti-search"></i> Suche</label>';
+        html += '<label class="form-label" for="filterSearch"><i class="ti ti-search"></i> Suche</label>';
         html += '<div class="filter-search-wrap"><i class="ti ti-search"></i>';
         html += '<input class="form-input" type="text" id="filterSearch" placeholder="Nr., Kunde, Betrag\u2026" autocomplete="off">';
         html += '</div></div>';
 
         // Typ
-        html += '<div class="filter-group"><label class="form-label">Typ</label>';
+        html += '<div class="filter-group"><label class="form-label" for="filterTyp">Typ</label>';
         html += '<select class="form-select" id="filterTyp"><option value="">Alle Typen</option>';
         html += '<option value="rechnung">Rechnung</option><option value="angebot">Angebot</option>';
         html += '<option value="gutschrift">Gutschrift</option><option value="stornorechnung">Stornorechnung</option>';
         html += '</select></div>';
 
         // Status
-        html += '<div class="filter-group"><label class="form-label">Status</label>';
+        html += '<div class="filter-group"><label class="form-label" for="filterStatus">Status</label>';
         html += '<select class="form-select" id="filterStatus"><option value="">Alle Status</option>';
         html += '<option value="offen">Offen</option><option value="versendet">Versendet</option>';
         html += '<option value="bezahlt">Bezahlt</option><option value="ueberfaellig">\u00DCberf\u00E4llig</option>';
@@ -48,15 +62,15 @@ var Dokumente = (function() {
         html += '</select></div>';
 
         // Von
-        html += '<div class="filter-group"><label class="form-label">Von</label>';
+        html += '<div class="filter-group"><label class="form-label" for="filterVon">Von</label>';
         html += '<input class="form-input" type="date" id="filterVon" style="min-width:130px;"></div>';
 
         // Bis
-        html += '<div class="filter-group"><label class="form-label">Bis</label>';
+        html += '<div class="filter-group"><label class="form-label" for="filterBis">Bis</label>';
         html += '<input class="form-input" type="date" id="filterBis" style="min-width:130px;"></div>';
 
         // Kunde
-        html += '<div class="filter-group"><label class="form-label">Kunde</label>';
+        html += '<div class="filter-group"><label class="form-label" for="filterKunde">Kunde</label>';
         html += '<select class="form-select" id="filterKunde"><option value="">Alle Kunden</option>';
         customers.forEach(function(c) {
             html += '<option value="' + c.id + '">' + Utils.escapeHtml(c.firma || c.ansprechpartner) + '</option>';
@@ -73,7 +87,7 @@ var Dokumente = (function() {
 
         // Table
         html += '<div class="table-container"><table><thead><tr>';
-        html += '<th>Nr.</th><th>Typ</th><th>Kunde</th><th>Datum</th><th>F\u00E4lligkeit</th><th>Betrag</th><th>Status</th><th>Aktionen</th>';
+        html += '<th scope="col">Nr.</th><th scope="col">Typ</th><th scope="col">Kunde</th><th scope="col">Datum</th><th scope="col">F\u00E4lligkeit</th><th scope="col">Betrag</th><th scope="col">Status</th><th scope="col">Aktionen</th>';
         html += '</tr></thead><tbody id="docTableBody">';
 
         var sorted = invoices.slice().sort(function(a, b) {
@@ -123,7 +137,11 @@ var Dokumente = (function() {
         html += '<td>' + kundeName + '</td>';
         html += '<td>' + Utils.formatDate(inv.datum) + '</td>';
         html += '<td>' + Utils.formatDate(inv.faelligkeit) + '</td>';
-        html += '<td>' + Utils.formatCurrency(calcBrutto(inv)) + '</td>';
+        html += '<td>' + Utils.formatCurrency(calcBrutto(inv));
+        if (teilzahlungSumme(inv) > 0 && inv.status !== 'bezahlt' && inv.status !== 'storniert') {
+            html += '<div style="font-size:11px;color:var(--text-muted);">davon gezahlt: ' + Utils.formatCurrency(teilzahlungSumme(inv)) + ' — Rest: <strong style="color:var(--text-secondary);">' + Utils.formatCurrency(restbetrag(inv)) + '</strong></div>';
+        }
+        html += '</td>';
         html += '<td><span class="badge ' + statusClass + '">' + statusLabel + '</span>';
         if (inv.versendet && inv.versandDatum) {
             html += ' <span style="font-size:11px;color:var(--text-muted);"><i class="ti ti-send"></i> ' + Utils.formatDate(inv.versandDatum) + '</span>';
@@ -136,6 +154,9 @@ var Dokumente = (function() {
         }
         if (ebIds > 0) {
             html += ' <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(124,58,237,0.12);color:var(--accent);" title="' + ebIds + ' Eigenbelege verknüpft"><i class="ti ti-receipt"></i> ' + ebIds + '</span>';
+        }
+        if (inv.typ === 'angebot' && inv._convertedToInvoiceId) {
+            html += ' <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(16,185,129,0.15);color:var(--success,#10b981);" title="Bereits in Rechnung umgewandelt"><i class="ti ti-arrow-right"></i> Rechnung erstellt</span>';
         }
         html += '</td>';
         html += '<td class="table-actions" style="white-space:nowrap;">';
@@ -150,8 +171,17 @@ var Dokumente = (function() {
             html += '<button class="action-btn action-btn-success doc-paid" data-id="' + inv.id + '" title="Als bezahlt markieren"><i class="ti ti-check"></i></button> ';
         }
         if (inv.typ === 'rechnung' && (inv.status === 'offen' || inv.status === 'ueberfaellig' || inv.status === 'versendet')) {
+            html += '<button class="action-btn doc-teilzahlung" data-id="' + inv.id + '" title="Teilzahlung erfassen"><i class="ti ti-cash"></i></button> ';
+        }
+        if (inv.typ === 'rechnung' && (inv.status === 'offen' || inv.status === 'ueberfaellig' || inv.status === 'versendet')) {
             html += '<button class="action-btn action-btn-warning doc-mahnung" data-id="' + inv.id + '" title="Mahnung erstellen"><i class="ti ti-bell-ringing"></i></button> ';
             html += '<button class="action-btn doc-send" data-id="' + inv.id + '" title="Versenden"><i class="ti ti-send"></i></button> ';
+        }
+        if (inv.typ === 'angebot' && inv.status === 'offen' && !inv._convertedToInvoiceId) {
+            html += '<button class="action-btn action-btn-accent doc-convert" data-id="' + inv.id + '" title="In Rechnung umwandeln"><i class="ti ti-arrow-right"></i></button> ';
+        }
+        if (inv.typ === 'rechnung' || inv.typ === 'angebot') {
+            html += '<button class="action-btn doc-duplicate" data-id="' + inv.id + '" title="Duplizieren"><i class="ti ti-copy"></i></button> ';
         }
         html += '<button class="action-btn doc-pdf" data-id="' + inv.id + '" title="PDF / Drucken"><i class="ti ti-file-download"></i></button> ';
         if (inv.typ === 'rechnung' || inv.typ === 'gutschrift') {
@@ -249,7 +279,7 @@ var Dokumente = (function() {
         body += '<p style="color:var(--text-secondary);font-size:13px;margin-top:6px;">Es wird automatisch eine Stornorechnung <strong>' + Utils.escapeHtml(previewNr) + '</strong> mit negativen Betr\u00E4gen erstellt. Die urspr\u00FCngliche Rechnung wird als <em>storniert</em> markiert.</p>';
         body += '</div>';
 
-        body += '<div class="form-group"><label class="form-label">Stornogrund <span style="color:var(--danger,#dc2626)">*</span></label>';
+        body += '<div class="form-group"><label class="form-label" for="stornoGrund">Stornogrund <span style="color:var(--danger,#dc2626)">*</span></label>';
         body += '<select class="form-select" id="stornoGrund">';
         body += '<option value="">-- Bitte w\u00E4hlen --</option>';
         body += '<option value="fehler">Falsche Angaben / Tippfehler</option>';
@@ -260,7 +290,7 @@ var Dokumente = (function() {
         body += '<option value="sonstiges">Sonstiges</option>';
         body += '</select></div>';
 
-        body += '<div class="form-group" id="stornoFreitextGroup" style="display:none;"><label class="form-label">Freitext Begr\u00FCndung</label>';
+        body += '<div class="form-group" id="stornoFreitextGroup" style="display:none;"><label class="form-label" for="stornoFreitext">Freitext Begr\u00FCndung</label>';
         body += '<input class="form-input" type="text" id="stornoFreitext" placeholder="Bitte Grund eingeben..."></div>';
 
         body += '<div style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.3);border-radius:6px;padding:10px 14px;margin-top:8px;font-size:12px;color:#b91c1c;">';
@@ -370,9 +400,21 @@ var Dokumente = (function() {
 
         RechApp.showModal('Rechnung versenden', body, footer);
 
+        // Versand-Checkbox nach jeder Versandaktion automatisch vorbelegen — sonst bleibt der
+        // Status trotz tatsächlichem Versand auf "Offen", wenn die separate Checkbox vergessen
+        // wird (Fund 12, Vollaudit 2026-07-23). Nutzer kann sie weiterhin manuell abwählen.
+        function markSendConfirmed() {
+            var check = document.getElementById('sendConfirmCheck');
+            if (check && !alreadySent) check.checked = true;
+        }
+
         document.getElementById('sendOptPdf').addEventListener('click', function() {
             Rechnung.printInvoiceWindow(Rechnung.generatePreviewHtml(inv), false);
+            markSendConfirmed();
         });
+
+        var sendOptMailEl = document.getElementById('sendOptMail');
+        if (sendOptMailEl) sendOptMailEl.addEventListener('click', markSendConfirmed);
 
         document.getElementById('sendOptCopy').addEventListener('click', function() {
             var ta = document.getElementById('sendCopyText');
@@ -381,6 +423,7 @@ var Dokumente = (function() {
                 navigator.clipboard.writeText(ta.value).catch(function() { document.execCommand('copy'); });
             } catch(e) { document.execCommand('copy'); }
             Utils.showToast('Text kopiert!', 'success');
+            markSendConfirmed();
         });
 
         document.getElementById('confirmSendStatus').addEventListener('click', function() {
@@ -436,10 +479,10 @@ var Dokumente = (function() {
             body += '</div>';
         }
 
-        body += '<div class="form-group"><label class="form-label">Verkaufsplattform</label>';
+        body += '<div class="form-group"><label class="form-label" for="bezahltPlattform">Verkaufsplattform</label>';
         body += '<select class="form-select" id="bezahltPlattform">' + platOptions + '</select></div>';
 
-        body += '<div class="form-group"><label class="form-label">Einkaufspreis (fuer Marge)</label>';
+        body += '<div class="form-group"><label class="form-label" for="bezahltEkTyp">Einkaufspreis (fuer Marge)</label>';
         body += '<select class="form-select" id="bezahltEkTyp">';
         if (posLinkedArts.length > 0) {
             body += '<option value="keine" selected>Automatisch aus Lager-Verknüpfung</option>';
@@ -450,10 +493,10 @@ var Dokumente = (function() {
         body += '<option value="manuell">Manuell eingeben</option>';
         body += '</select></div>';
 
-        body += '<div class="form-group" id="bezahltLagerGroup" style="display:none;"><label class="form-label">Lagerartikel auswaehlen</label>';
+        body += '<div class="form-group" id="bezahltLagerGroup" style="display:none;"><label class="form-label" for="bezahltPurchaseId">Lagerartikel auswaehlen</label>';
         body += '<select class="form-select" id="bezahltPurchaseId">' + lagerOptions + '</select></div>';
 
-        body += '<div class="form-group" id="bezahltManualGroup" style="display:none;"><label class="form-label">Einkaufspreis (\u20AC)</label>';
+        body += '<div class="form-group" id="bezahltManualGroup" style="display:none;"><label class="form-label" for="bezahltManualEK">Einkaufspreis (\u20AC)</label>';
         body += '<input type="number" step="0.01" min="0" max="99999999" class="form-input" id="bezahltManualEK" placeholder="0,00"></div>';
 
         var footer = '<button class="btn btn-success" id="confirmBezahlt">Bezahlt markieren &amp; Verkauf eintragen</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
@@ -497,6 +540,125 @@ var Dokumente = (function() {
         });
     }
 
+    // Baut aus einem bestehenden Dokument eine neue Kopie (neue Nummer/ID, heutiges Datum,
+    // Status "offen"). Mahnungen/Teilzahlungen/Eigenbeleg-Verknüpfungen werden NICHT übernommen
+    // (gehören zum Original). Lager-Verknüpfungen werden gekappt, sonst würde ein bereits
+    // verkaufter Artikel auf der Kopie erneut als verfügbar/verkauft geführt.
+    // Für: Fund 22 (Duplizieren) und Fund 15 (Angebot→Rechnung), Vollaudit 2026-07-23.
+    async function buildDocumentCopy(orig, targetTyp) {
+        var nummer = await Store.nextRechInvoiceNumber(targetTyp);
+        var heute = Utils.todayISO();
+        var faelligkeit = '';
+        if (orig.datumsOption === 'faelligkeit') {
+            var d = new Date(heute);
+            d.setDate(d.getDate() + 14);
+            faelligkeit = d.toLocaleDateString('sv-SE');
+        }
+        return {
+            id: Store.generateId(),
+            typ: targetTyp,
+            isKlein: orig.isKlein,
+            nummer: nummer,
+            datum: heute,
+            faelligkeit: faelligkeit,
+            datumsOption: orig.datumsOption,
+            lieferdatum: orig.lieferdatum,
+            lieferVon: orig.lieferVon,
+            lieferBis: orig.lieferBis,
+            kundeId: orig.kundeId,
+            positionen: (orig.positionen || []).map(function(p) {
+                var c = Object.assign({}, p);
+                c.lagerArtikelId = null;
+                return c;
+            }),
+            zahlungsbedingungen: orig.zahlungsbedingungen,
+            notizen: orig.notizen,
+            verkaufsplattform: orig.verkaufsplattform,
+            status: 'offen',
+            mahnungen: [],
+            teilzahlungen: [],
+            verknuepfteEigenbelege: [],
+            createdAt: new Date().toISOString()
+        };
+    }
+
+    async function duplicateInvoice(id) {
+        var invoices = Store.getRechInvoices();
+        var orig = invoices.find(function(i) { return i.id === id; });
+        if (!orig) return;
+
+        var copy = await buildDocumentCopy(orig, orig.typ);
+        Store.saveRechInvoice(copy);
+        Utils.showToast((orig.typ === 'angebot' ? 'Angebot' : 'Rechnung') + ' ' + copy.nummer + ' als Kopie erstellt', 'success');
+        RechApp.navigate('rechnung-edit', { invoiceId: copy.id });
+    }
+
+    // Angebot → Rechnung, 1-Klick (Fund 15). Angebot bleibt bestehen, bekommt aber einen
+    // Verweis auf die erzeugte Rechnung (_convertedToInvoiceId) für die Anzeige.
+    async function convertAngebotToRechnung(id) {
+        var invoices = Store.getRechInvoices();
+        var orig = invoices.find(function(i) { return i.id === id; });
+        if (!orig || orig.typ !== 'angebot') return;
+
+        var rechnung = await buildDocumentCopy(orig, 'rechnung');
+        Store.saveRechInvoice(rechnung);
+
+        orig._convertedToInvoiceId = rechnung.id;
+        Store.saveRechInvoice(orig);
+
+        Utils.showToast('Rechnung ' + rechnung.nummer + ' aus Angebot erstellt', 'success');
+        RechApp.navigate('rechnung-edit', { invoiceId: rechnung.id });
+    }
+
+    function showTeilzahlungModal(id) {
+        var invoices = Store.getRechInvoices();
+        var inv = invoices.find(function(i) { return i.id === id; });
+        if (!inv) return;
+
+        var brutto = calcBrutto(inv);
+        var bezahltBisher = teilzahlungSumme(inv);
+        var rest = restbetrag(inv);
+
+        var body = '<div class="form-group"><p style="color:var(--text-secondary);font-size:13px;">Rechnung <strong>' + Utils.escapeHtml(inv.nummer || '') + '</strong> — Gesamtbetrag ' + Utils.formatCurrency(brutto) + '</p></div>';
+        if (bezahltBisher > 0) {
+            body += '<div class="form-group"><p style="color:var(--text-secondary);font-size:13px;">Bisher gezahlt: ' + Utils.formatCurrency(bezahltBisher) + ' — Rest: <strong>' + Utils.formatCurrency(rest) + '</strong></p></div>';
+        }
+        body += '<div class="form-group"><label class="form-label" for="teilzBetrag">Zahlungseingang (€)</label>';
+        body += '<input class="form-input" type="number" step="0.01" min="0.01" max="' + rest.toFixed(2) + '" id="teilzBetrag" placeholder="0,00"></div>';
+        body += '<div class="form-group"><label class="form-label" for="teilzDatum">Zahlungsdatum</label>';
+        body += '<input class="form-input" type="date" id="teilzDatum" value="' + Utils.todayISO() + '"></div>';
+
+        var footer = '<button class="btn btn-success" id="confirmTeilzahlung">Zahlungseingang erfassen</button> <button class="btn" data-action="rech-close-modal">Abbrechen</button>';
+        RechApp.showModal('Teilzahlung erfassen', body, footer);
+
+        document.getElementById('confirmTeilzahlung').addEventListener('click', function() {
+            var betrag = parseFloat(document.getElementById('teilzBetrag').value);
+            var datum = document.getElementById('teilzDatum').value || Utils.todayISO();
+            if (!betrag || betrag <= 0) {
+                Utils.showToast('Bitte einen gültigen Betrag angeben.', 'warning');
+                return;
+            }
+            if (betrag >= rest - 0.001) {
+                Utils.showToast('Betrag deckt die Restschuld — bitte stattdessen „Als bezahlt markieren" nutzen (inkl. Lager-Sync).', 'warning');
+                return;
+            }
+            if (!inv.teilzahlungen) inv.teilzahlungen = [];
+            inv.teilzahlungen.push({ datum: datum, betrag: betrag });
+            // Rückgabewert prüfen statt blind Erfolg zu melden — saveRechInvoice liefert null,
+            // wenn die Rechnung GoBD-gesperrt ist (versendet-Status oder abgeschlossene Periode),
+            // sonst würde die Teilzahlung still verworfen und trotzdem "erfasst" gemeldet.
+            var saved = Store.saveRechInvoice(inv);
+            if (!saved) {
+                inv.teilzahlungen.pop();
+                Utils.showToast('⛔ Konnte nicht gespeichert werden — Rechnung ist GoBD-gesperrt (versendet oder Periode abgeschlossen).', 'error');
+                return;
+            }
+            Utils.showToast('Teilzahlung erfasst — Rest: ' + Utils.formatCurrency(restbetrag(inv)), 'success');
+            RechApp.closeModal();
+            RechApp.navigate('dokumente');
+        });
+    }
+
     function init() {
         document.getElementById('docNewInvoice').addEventListener('click', function() { RechApp.navigate('rechnung-neu'); });
         document.getElementById('docNewOffer').addEventListener('click', function() { RechApp.navigate('angebot-neu'); });
@@ -532,6 +694,25 @@ var Dokumente = (function() {
                     return;
                 }
                 RechApp.navigate('rechnung-edit', { invoiceId: id });
+            });
+        });
+
+        document.querySelectorAll('.doc-duplicate').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                duplicateInvoice(this.getAttribute('data-id'));
+            });
+        });
+
+        document.querySelectorAll('.doc-convert').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                if (!confirm('Angebot in eine neue Rechnung umwandeln?')) return;
+                convertAngebotToRechnung(this.getAttribute('data-id'));
+            });
+        });
+
+        document.querySelectorAll('.doc-teilzahlung').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                showTeilzahlungModal(this.getAttribute('data-id'));
             });
         });
 
@@ -591,5 +772,5 @@ var Dokumente = (function() {
         });
     }
 
-    return { render: render, init: init, showPreview: showPreview, showStornoModal: showStornoModal, showSendModal: showSendModal };
+    return { render: render, init: init, showPreview: showPreview, showStornoModal: showStornoModal, showSendModal: showSendModal, showBezahltModal: showBezahltModal };
 })();

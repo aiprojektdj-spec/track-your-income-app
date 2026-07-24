@@ -524,7 +524,7 @@ async function showLagerAuswahl(idx) {
     syncWarenFromDOM();
     const artikel = await EB.getLagerArtikelAsync();
     if (!artikel.length) {
-        alert('Keine verfügbaren Artikel im Lager gefunden.\nArtikel werden aus der Reselling & EÜR App gelesen.');
+        toast('Keine verfügbaren Artikel im Lager gefunden. Artikel werden aus der Reselling & EÜR App gelesen.', 'warning');
         return;
     }
     const rows = artikel.map(a => `
@@ -537,7 +537,7 @@ async function showLagerAuswahl(idx) {
             <td><span style="font-size:11px;color:var(--success)">${a.status==='verfuegbar'?'● Verfügbar':'◐ Reserviert'}</span></td>
         </tr>`).join('');
     document.getElementById('modal').innerHTML = `
-        <div class="modal-header"><h3><i class="ti ti-link"></i> Lager-Artikel verknüpfen</h3><button class="modal-close" data-action="eb-close">✕</button></div>
+        <div class="modal-header"><h3 id="modalTitle"><i class="ti ti-link"></i> Lager-Artikel verknüpfen</h3><button class="modal-close" data-action="eb-close">✕</button></div>
         <div class="modal-body" style="padding:0">
             <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-muted)">
                 Klicke auf einen Artikel um ihn mit Position ${idx+1} zu verknüpfen.
@@ -617,22 +617,18 @@ function renderNeu(editId=null) {
             <div class="card-section-title"><i class="ti ti-file-description"></i> Grunddaten</div>
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">Datum *</label>
-                    <input class="form-control" type="date" id="eb-datum" value="${b?.belegDatum||today()}" required>
+                    <label class="form-label" for="eb-datum">Datum *</label><input class="form-control" type="date" id="eb-datum" value="${b?.belegDatum||today()}">
                 </div>
                 <div class="form-group" style="flex:2">
-                    <label class="form-label">Verkäufer / Absender *</label>
-                    <input class="form-control" id="eb-vk-name" value="${esc(vkName)}" placeholder="Name des Verkäufers" required>
+                    <label class="form-label" for="eb-vk-name">Verkäufer / Absender *</label><input class="form-control" id="eb-vk-name" value="${esc(vkName)}" placeholder="Name des Verkäufers">
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group" style="flex:2">
-                    <label class="form-label">Zweck / Betriebliche Veranlassung *</label>
-                    <input class="form-control" id="eb-zweck" value="${esc(b?.zweck||'')}" placeholder="z.B. Verpackungsmaterial für Onlineverkäufe" required>
+                    <label class="form-label" for="eb-zweck">Zweck / Betriebliche Veranlassung *</label><input class="form-control" id="eb-zweck" value="${esc(b?.zweck||'')}" placeholder="z.B. Verpackungsmaterial für Onlineverkäufe">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Kategorie *</label>
-                    <select class="form-control" id="eb-kat" required>
+                    <label class="form-label" for="eb-kat">Kategorie *</label><select class="form-control" id="eb-kat">
                         <option value="" disabled ${!b?.kategorie?'selected':''}>Wählen…</option>
                         ${kat.map(k=>`<option value="${k.id}" ${b?.kategorie===k.id?'selected':''}>${esc(k.name)}</option>`).join('')}
                     </select>
@@ -655,21 +651,18 @@ function renderNeu(editId=null) {
             <div class="card-section-title"><i class="ti ti-coin-euro"></i> Betrag &amp; Zahlung</div>
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">Bruttobetrag * (€)</label>
-                    <input class="form-control" type="number" step="0.01" min="0" id="eb-brutto"
-                        value="${b?.betragBrutto||''}" placeholder="0,00" data-action="eb-recalc" required>
+                    <label class="form-label" for="eb-brutto">Bruttobetrag * (€)</label><input class="form-control" type="number" step="0.01" min="0" id="eb-brutto"
+                        value="${b?.betragBrutto||''}" placeholder="0,00" data-action="eb-recalc">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">MwSt-Satz</label>
-                    <select class="form-control" id="eb-mwst" data-action="eb-recalc">
+                    <label class="form-label" for="eb-mwst">MwSt-Satz</label><select class="form-control" id="eb-mwst" data-action="eb-recalc">
                         <option value="0"  ${defMwst===0 ?'selected':''}>0 % (Kleinunternehmer §19)</option>
                         <option value="7"  ${defMwst===7 ?'selected':''}>7 %</option>
                         <option value="19" ${defMwst===19?'selected':''}>19 %</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Zahlungsweg</label>
-                    <select class="form-control" id="eb-zahlungsweg">
+                    <label class="form-label" for="eb-zahlungsweg">Zahlungsweg</label><select class="form-control" id="eb-zahlungsweg">
                         ${ZAHLUNGSWEGE.map(z=>`<option value="${z.id}" ${b?.zahlungsweg===z.id?'selected':''}>${z.name}</option>`).join('')}
                     </select>
                 </div>
@@ -682,14 +675,12 @@ function renderNeu(editId=null) {
             <div class="card-section-title"><i class="ti ti-message-question"></i> Begründung &amp; Notizen</div>
             <div class="form-row">
                 <div class="form-group" style="flex:2">
-                    <label class="form-label">Grund für fehlenden Originalbeleg *</label>
-                    <select class="form-control" id="eb-begr" required>
+                    <label class="form-label" for="eb-begr">Grund für fehlenden Originalbeleg *</label><select class="form-control" id="eb-begr">
                         ${BEGRUENDUNGEN.map(x=>`<option value="${x.id}" ${b?.begruendung===x.id?'selected':''}>${x.name}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group" style="flex:2">
-                    <label class="form-label">Notizen <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
-                    <input class="form-control" id="eb-notizen" value="${esc(b?.notizen||'')}" placeholder="Interne Notizen…">
+                    <label class="form-label" for="eb-notizen">Notizen <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label><input class="form-control" id="eb-notizen" value="${esc(b?.notizen||'')}" placeholder="Interne Notizen…">
                 </div>
             </div>
         </div>
@@ -723,7 +714,20 @@ async function saveBeleg(e, editId) {
     const hasArtikel = syncedPos.some(p => (p.artikel||'').trim());
     if (!hasArtikel) { toast('Bitte mindestens eine Artikelbezeichnung angeben.', 'warning'); return; }
 
-    const brutto   = parseFloat(document.getElementById('eb-brutto').value || 0);
+    // Pflichtfelder per Toast statt nativem HTML5-Popup prüfen — konsistent mit dem
+    // hasArtikel-Check oben und dem Rest der App (Fund 29, Vollaudit 2026-07-23).
+    const belegDatum = document.getElementById('eb-datum').value;
+    const vkName     = document.getElementById('eb-vk-name').value.trim();
+    const zweck      = document.getElementById('eb-zweck').value.trim();
+    const kategorie  = document.getElementById('eb-kat').value;
+    const bruttoRaw  = document.getElementById('eb-brutto').value;
+    if (!belegDatum) { toast('Bitte ein Datum angeben.', 'warning'); return; }
+    if (!vkName) { toast('Bitte Verkäufer/Absender angeben.', 'warning'); return; }
+    if (!zweck) { toast('Bitte Zweck / betriebliche Veranlassung angeben.', 'warning'); return; }
+    if (!kategorie) { toast('Bitte eine Kategorie wählen.', 'warning'); return; }
+    if (!bruttoRaw || parseFloat(bruttoRaw) <= 0) { toast('Bitte einen Bruttobetrag größer 0 angeben.', 'warning'); return; }
+
+    const brutto   = parseFloat(bruttoRaw || 0);
     const mwstSatz = parseInt(document.getElementById('eb-mwst').value || 0);
     const { netto, mwst } = calcMwst(brutto, mwstSatz);
     const id  = editId || EB.genId();
@@ -732,8 +736,6 @@ async function saveBeleg(e, editId) {
         toast('Dieser Eigenbeleg liegt in einer GoBD-festgeschriebenen Periode und kann nicht mehr bearbeitet werden.', 'warning');
         return;
     }
-    const belegDatum = document.getElementById('eb-datum').value;
-    const vkName     = document.getElementById('eb-vk-name').value.trim();
     const s = EB.getEinstellungen();
 
     const beleg = {
@@ -930,39 +932,33 @@ function showProduktForm(editIdx = null) {
     const p = editIdx !== null ? EB.getProdukte()[editIdx] : {};
     document.getElementById('modal').innerHTML = `
         <div class="modal-header">
-            <h3>${editIdx !== null ? '<i class="ti ti-pencil"></i> Vorlage bearbeiten' : '<i class="ti ti-plus"></i> Neue Produktvorlage'}</h3>
+            <h3 id="modalTitle">${editIdx !== null ? '<i class="ti ti-pencil"></i> Vorlage bearbeiten' : '<i class="ti ti-plus"></i> Neue Produktvorlage'}</h3>
             <button class="modal-close" data-action="eb-close">✕</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
-                <label class="form-label">Name der Vorlage *</label>
-                <input class="form-control" id="pv-name" value="${esc(p.name||'')}" placeholder="z.B. Nike Hoodie, Vintage Jeans …" required>
+                <label class="form-label" for="pv-name">Name der Vorlage *</label><input class="form-control" id="pv-name" value="${esc(p.name||'')}" placeholder="z.B. Nike Hoodie, Vintage Jeans …">
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div class="form-group">
-                    <label class="form-label">Marke</label>
-                    <input class="form-control" id="pv-marke" value="${esc(p.marke||'')}" placeholder="z.B. Nike">
+                    <label class="form-label" for="pv-marke">Marke</label><input class="form-control" id="pv-marke" value="${esc(p.marke||'')}" placeholder="z.B. Nike">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Standardpreis (€)</label>
-                    <input class="form-control" type="number" step="0.01" min="0" id="pv-preis" value="${p.standardPreis||''}" placeholder="0.00">
+                    <label class="form-label" for="pv-preis">Standardpreis (€)</label><input class="form-control" type="number" step="0.01" min="0" id="pv-preis" value="${p.standardPreis||''}" placeholder="0.00">
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div class="form-group">
-                    <label class="form-label">Zustand</label>
-                    <select class="form-control" id="pv-zustand">
+                    <label class="form-label" for="pv-zustand">Zustand</label><select class="form-control" id="pv-zustand">
                         ${ZUSTANDE.map(z=>`<option value="${z}" ${(p.zustand||'Nicht beurteilt')===z?'selected':''}>${z}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Kategorie</label>
-                    <input class="form-control" id="pv-kat" value="${esc(p.kategorie||'')}" placeholder="z.B. Kleidung, Schuhe …">
+                    <label class="form-label" for="pv-kat">Kategorie</label><input class="form-control" id="pv-kat" value="${esc(p.kategorie||'')}" placeholder="z.B. Kleidung, Schuhe …">
                 </div>
             </div>
             <div class="form-group" style="margin:0">
-                <label class="form-label">Notiz</label>
-                <input class="form-control" id="pv-notiz" value="${esc(p.notiz||'')}" placeholder="Optional …">
+                <label class="form-label" for="pv-notiz">Notiz</label><input class="form-control" id="pv-notiz" value="${esc(p.notiz||'')}" placeholder="Optional …">
             </div>
         </div>
         <div class="modal-footer">
@@ -974,7 +970,7 @@ function showProduktForm(editIdx = null) {
 
 function saveProdukt(editIdx) {
     const name = document.getElementById('pv-name').value.trim();
-    if (!name) { alert('Name ist Pflichtfeld'); return; }
+    if (!name) { toast('Name ist Pflichtfeld', 'warning'); return; }
     const produkt = {
         name,
         marke:         document.getElementById('pv-marke').value.trim(),
@@ -1024,33 +1020,28 @@ function renderAlle() {
         <div class="card" style="padding:14px;margin-bottom:14px">
             <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:flex-end">
                 <div class="form-group" style="margin:0">
-                    <label class="form-label">Suche</label>
-                    <input class="form-control" id="f-suche" placeholder="Zweck, Verkäufer …" data-action="eb-filter">
+                    <label class="form-label" for="f-suche">Suche</label><input class="form-control" id="f-suche" placeholder="Zweck, Verkäufer …" data-action="eb-filter">
                 </div>
                 <div class="form-group" style="margin:0">
-                    <label class="form-label">Kategorie</label>
-                    <select class="form-control" id="f-kat" data-action="eb-filter">
+                    <label class="form-label" for="f-kat">Kategorie</label><select class="form-control" id="f-kat" data-action="eb-filter">
                         <option value="">Alle</option>
                         ${kat.map(k=>`<option value="${k.id}">${esc(k.name)}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group" style="margin:0">
-                    <label class="form-label">Zahlungsweg</label>
-                    <select class="form-control" id="f-zw" data-action="eb-filter">
+                    <label class="form-label" for="f-zw">Zahlungsweg</label><select class="form-control" id="f-zw" data-action="eb-filter">
                         <option value="">Alle</option>
                         ${ZAHLUNGSWEGE.map(z=>`<option value="${z.id}">${z.name}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group" style="margin:0">
-                    <label class="form-label">Von</label>
-                    <input class="form-control" type="date" id="f-von" data-action="eb-filter">
+                    <label class="form-label" for="f-von">Von</label><input class="form-control" type="date" id="f-von" data-action="eb-filter">
                 </div>
                 <div class="form-group" style="margin:0">
-                    <label class="form-label">Bis</label>
-                    <input class="form-control" type="date" id="f-bis" data-action="eb-filter">
+                    <label class="form-label" for="f-bis">Bis</label><input class="form-control" type="date" id="f-bis" data-action="eb-filter">
                 </div>
                 <div style="padding-bottom:1px">
-                    <button class="btn btn-secondary btn-sm" data-action="eb-reset-filter" title="Filter zurücksetzen"><i class="ti ti-filter-off"></i></button>
+                    <button class="btn btn-secondary btn-sm" data-action="eb-reset-filter" title="Filter zurücksetzen" aria-label="Filter zurücksetzen"><i class="ti ti-filter-off" aria-hidden="true"></i></button>
                 </div>
             </div>
         </div>
@@ -1172,7 +1163,7 @@ function viewBeleg(id) {
                         <td style="padding:6px 10px">${esc(p.artikel)}</td>
                         <td style="padding:6px 10px;color:var(--text-muted)">${esc(p.marke||'—')}</td>
                         <td style="padding:6px 10px;color:var(--text-muted)">${esc(p.zustand||'—')}</td>
-                        <td style="padding:6px 10px;text-align:right">${p.menge}</td>
+                        <td style="padding:6px 10px;text-align:right">${esc(String(p.menge))}</td>
                         <td style="padding:6px 10px;text-align:right">${euro(p.einzelpreis)}</td>
                         <td style="padding:6px 10px;text-align:right;font-weight:600;color:var(--accent-light)">${euro(g)}</td>
                     </tr>`;
@@ -1187,7 +1178,7 @@ function viewBeleg(id) {
             <div style="background:var(--accent);color:#fff;padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start">
                 <div>
                     <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:.8">Eigenbeleg</div>
-                    <div style="font-size:22px;font-weight:700;margin-top:2px">${b.id}</div>
+                    <div id="modalTitle" style="font-size:22px;font-weight:700;margin-top:2px">${b.id}</div>
                     <div style="font-size:12px;opacity:.8;margin-top:4px">${esc(s.firmenname||s.inhaberName||'')}</div>
                 </div>
                 <div style="text-align:right;font-size:12px;opacity:.9;line-height:1.7">
@@ -1340,7 +1331,7 @@ function printBeleg(id) {
                     <td><strong>${esc(p.artikel||'—')}</strong></td>
                     <td>${esc(p.marke||'—')}</td>
                     <td>${esc(p.zustand||'—')}</td>
-                    <td style="text-align:right">${p.menge}</td>
+                    <td style="text-align:right">${esc(String(p.menge))}</td>
                     <td style="text-align:right">${euro(p.einzelpreis)}</td>
                     <td style="text-align:right;font-weight:600">${euro(g)}</td>
                 </tr>`;
@@ -1534,12 +1525,10 @@ function renderKategorien() {
             <div class="card-section-title">Neue Kategorie hinzufügen</div>
             <div style="display:flex;gap:12px;align-items:flex-end">
                 <div class="form-group" style="margin:0;flex:1">
-                    <label class="form-label">Name</label>
-                    <input class="form-control" id="kat-name" placeholder="z.B. Werkzeug, Reinigungsmittel …">
+                    <label class="form-label" for="kat-name">Name</label><input class="form-control" id="kat-name" placeholder="z.B. Werkzeug, Reinigungsmittel …">
                 </div>
                 <div class="form-group" style="margin:0">
-                    <label class="form-label">Farbe</label>
-                    <input type="color" id="kat-farbe" value="#0f8a64"
+                    <label class="form-label" for="kat-farbe">Farbe</label><input type="color" id="kat-farbe" value="#0f8a64"
                         style="width:42px;height:38px;border:1px solid var(--border);border-radius:var(--radius-sm);background:none;cursor:pointer;padding:2px">
                 </div>
                 <button class="btn btn-primary" data-action="eb-add-kategorie"><i class="ti ti-plus"></i> Hinzufügen</button>
@@ -1601,24 +1590,20 @@ function renderEinstellungen() {
             <div class="card" style="padding:18px">
                 <div class="card-section-title"><i class="ti ti-building"></i> Firmendaten</div>
                 <div class="form-group">
-                    <label class="form-label">Firmenname</label>
-                    <input class="form-control" id="s-firm" value="${esc(s.firmenname||'')}">
+                    <label class="form-label" for="s-firm">Firmenname</label><input class="form-control" id="s-firm" value="${esc(s.firmenname||'')}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Name des Inhabers</label>
-                    <input class="form-control" id="s-name" value="${esc(s.inhaberName||'')}">
+                    <label class="form-label" for="s-name">Name des Inhabers</label><input class="form-control" id="s-name" value="${esc(s.inhaberName||'')}">
                 </div>
                 <div class="form-group" style="margin:0">
-                    <label class="form-label">Adresse (für Beleg-Ausdruck)</label>
-                    <textarea class="form-control" id="s-adresse" rows="2">${esc(s.adresse||'')}</textarea>
+                    <label class="form-label" for="s-adresse">Adresse (für Beleg-Ausdruck)</label><textarea class="form-control" id="s-adresse" rows="2">${esc(s.adresse||'')}</textarea>
                 </div>
             </div>
 
             <div class="card" style="padding:18px">
                 <div class="card-section-title"><i class="ti ti-hash"></i> Belegnummern &amp; MwSt</div>
                 <div class="form-group">
-                    <label class="form-label">Präfix (Standard: EB)</label>
-                    <input class="form-control" id="s-prefix" value="${esc(s.prefix||'EB')}" style="max-width:120px">
+                    <label class="form-label" for="s-prefix">Präfix (Standard: EB)</label><input class="form-control" id="s-prefix" value="${esc(s.prefix||'EB')}" style="max-width:120px">
                 </div>
                 <div class="form-group">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
@@ -1627,8 +1612,7 @@ function renderEinstellungen() {
                     </label>
                 </div>
                 <div class="form-group" style="margin:0">
-                    <label class="form-label">MwSt-Modus</label>
-                    <select class="form-control" id="s-mwst">
+                    <label class="form-label" for="s-mwst">MwSt-Modus</label><select class="form-control" id="s-mwst">
                         <option value="kleinunternehmer" ${s.mwstModus==='kleinunternehmer'?'selected':''}>Kleinunternehmer (§19 UStG) – Standard 0%</option>
                         <option value="regelbesteuerung" ${s.mwstModus==='regelbesteuerung'?'selected':''}>Regelbesteuerung – Standard 19%</option>
                     </select>
@@ -1641,8 +1625,7 @@ function renderEinstellungen() {
             <div class="card" style="padding:18px">
                 <div class="card-section-title"><i class="ti ti-notes"></i> Standard-Erläuterung</div>
                 <div class="form-group" style="margin:0">
-                    <label class="form-label">Wird beim neuen Eigenbeleg vorausgefüllt</label>
-                    <textarea class="form-control" id="s-erkl" rows="3"
+                    <label class="form-label" for="s-erkl">Wird beim neuen Eigenbeleg vorausgefüllt</label><textarea class="form-control" id="s-erkl" rows="3"
                         placeholder="z.B. Ausgabe im Rahmen des gewerblichen Resellings …">${esc(s.standardErlaeuterung||'')}</textarea>
                 </div>
             </div>
@@ -1759,9 +1742,31 @@ function dlBlob(blob, name) {
 // ═══════════════════════════════════════════════════════════════════
 // MODAL
 // ═══════════════════════════════════════════════════════════════════
-function openModal()  { document.getElementById('modalOverlay').classList.add('active'); }
+function openModal() {
+    document.getElementById('modalOverlay').classList.add('active');
+    const modal = document.getElementById('modal');
+    const focusable = modal.querySelector('button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])');
+    if (focusable) focusable.focus();
+}
 function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); }
 document.getElementById('modalOverlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+
+// Fokus-Trap (Tab bleibt im Modal) + ESC schließt (WCAG 2.4.3/2.1.2)
+document.addEventListener('keydown', e => {
+    const overlay = document.getElementById('modalOverlay');
+    const modalOpen = overlay && overlay.classList.contains('active');
+    if (!modalOpen) return;
+    const modal = document.getElementById('modal');
+    if (e.key === 'Tab') {
+        const focusables = modal.querySelectorAll('button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])');
+        if (!focusables.length) return;
+        const first = focusables[0], last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    } else if (e.key === 'Escape') {
+        closeModal();
+    }
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // NAVIGATION
@@ -1850,7 +1855,14 @@ if (!document.getElementById('moduleSubnav')) {
         App._continueAfterAuth = _ebStandaloneBoot;
         AuthUI.boot();
     } else {
-        _ebStandaloneBoot();
+        // Fail-Closed statt Fail-Open: AuthUI-Script konnte nicht laden (Netzwerk/CDN-Fehler)
+        // -> NICHT ungeprüft booten (Fund 21, Vollaudit 2026-07-23), sondern Fehler anzeigen.
+        document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;padding:40px;font-family:sans-serif;">' +
+            '<div style="font-size:48px;margin-bottom:16px;">⚠️</div>' +
+            '<h2>Anmeldung konnte nicht geladen werden</h2>' +
+            '<p style="color:#888;max-width:420px;">Ein Skript zur Zugriffsprüfung ist nicht geladen. Bitte Seite neu laden oder Internetverbindung prüfen.</p>' +
+            '<button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;border-radius:8px;border:none;background:#4f46e5;color:#fff;cursor:pointer;">Seite neu laden</button>' +
+            '</div>';
     }
 }
 

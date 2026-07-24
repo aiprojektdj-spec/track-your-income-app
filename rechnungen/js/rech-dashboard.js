@@ -32,6 +32,14 @@ var RechDashboard = (function() {
         var offeneAngebote = invoices.filter(function(i) { return i.typ === 'angebot' && i.status === 'offen'; });
         var angeboteSum = offeneAngebote.reduce(function(s, i) { return s + calcBrutto(i); }, 0);
 
+        // Vor-Fälligkeits-Hinweis: offene Rechnungen die in <=3 Tagen fällig werden (noch nicht
+        // überfällig) — kein eigenes Mahnwesen davor, nur ein Dashboard-Hinweis (Fund 28,
+        // Vollaudit 2026-07-23, dort explizit als geringe Priorität eingestuft).
+        var in3TageISO = new Date(Date.now() + 3 * 86400000).toISOString().substring(0, 10);
+        var baldFaellig = offeneRechnungen.filter(function(i) {
+            return i.faelligkeit && i.faelligkeit >= today && i.faelligkeit <= in3TageISO;
+        }).sort(function(a, b) { return (a.faelligkeit || '').localeCompare(b.faelligkeit || ''); });
+
         var recent = invoices.slice().sort(function(a, b) {
             return (b.createdAt || '').localeCompare(a.createdAt || '');
         }).slice(0, 10);
@@ -102,6 +110,24 @@ var RechDashboard = (function() {
             html += '</div>';
         });
         html += '</div>';
+
+        // ── Vor-Fälligkeits-Hinweis ──────────────────────────────────────
+        if (baldFaellig.length > 0) {
+            html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;margin-bottom:20px;';
+            html += 'background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:var(--radius);">';
+            html += '<i class="ti ti-clock" style="font-size:20px;color:var(--info,#3b82f6);flex-shrink:0;"></i>';
+            html += '<div style="flex:1;">';
+            html += '<div style="font-weight:700;font-size:13px;">' + baldFaellig.length + ' Rechnung(en) werden in den nächsten 3 Tagen fällig</div>';
+            html += '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">';
+            html += baldFaellig.slice(0, 3).map(function(i) {
+                var k = customerMap[i.kundeId];
+                var kName = k ? Utils.escapeHtml(k.firma || k.ansprechpartner || '') : '';
+                return Utils.escapeHtml(i.nummer || '') + ' (' + kName + ', fällig ' + Utils.formatDate(i.faelligkeit) + ')';
+            }).join(' · ');
+            html += '</div></div>';
+            html += '<button class="btn btn-small btn-outline" id="dashGoBaldFaellig" style="white-space:nowrap;">Dokumente →</button>';
+            html += '</div>';
+        }
 
         // ── Letzte Dokumente ──────────────────────────────────────────────
         html += '<div style="background:var(--bg-card,var(--bg-secondary));border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">';
@@ -189,6 +215,9 @@ var RechDashboard = (function() {
 
         var btnDoc = document.getElementById('dashGoDoc');
         if (btnDoc) btnDoc.addEventListener('click', function() { RechApp.navigate('dokumente'); });
+
+        var btnBaldFaellig = document.getElementById('dashGoBaldFaellig');
+        if (btnBaldFaellig) btnBaldFaellig.addEventListener('click', function() { RechApp.navigate('dokumente'); });
 
         var e1 = document.getElementById('emptyNewInvoice');
         if (e1) e1.addEventListener('click', function() { RechApp.navigate('rechnung-neu'); });

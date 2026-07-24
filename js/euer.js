@@ -243,9 +243,14 @@ const Euer = {
             .filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, startDate, endDate));
         const eigenbelegeAusgaben = eigenbelegeInPeriod
             .reduce((sum, b) => sum + (parseFloat(b.betragNetto) || parseFloat(b.betragBrutto) || 0), 0);
-        // Vorsteuer aus Eigenbelegen: pro Beleg aus gespeicherter betragMwst (respektiert
-        // mwstSatz=0). Fallback für Altbelege ohne betragMwst: aus Satz+Netto/Brutto ableiten.
+        // Vorsteuer aus Eigenbelegen: §15 Abs.1 UStG verlangt grundsätzlich eine Rechnung
+        // eines Dritten (§14/14a UStG) — ein Eigenbeleg begründet KEINEN Vorsteuerabzug,
+        // außer im engen Ausnahmefall §33 UStDV (verlorener Kleinbetragsbeleg mit offenem
+        // USt-Ausweis). Nutzer bestätigt das explizit per Checkbox im Formular; Altbelege
+        // ohne das Feld (vstAbzugsfaehig undefined) werden konservativ ausgeschlossen.
+        // s. plan/session-prompt-eigenbeleg-vorsteuer-begruendung.md
         const eigenbelegeVorsteuer = eigenbelegeInPeriod.reduce((sum, b) => {
+            if (b.vstAbzugsfaehig !== true) return sum;
             const mwst = parseFloat(b.betragMwst);
             if (!isNaN(mwst)) return sum + mwst;
             const satz = parseFloat(b.mwstSatz);

@@ -205,7 +205,8 @@ var Rechnung = (function() {
         html += '<div class="card"><div class="card-header"><div class="card-title">Zus\u00E4tzliche Angaben</div></div>';
         html += '<div style="padding: 1rem;">';
         html += '<div class="form-group"><label class="form-label" for="invZahlung">Zahlungsbedingungen</label>';
-        html += '<textarea class="form-textarea" id="invZahlung" rows="2">' + Utils.escapeHtml(zahlungsbedingungen) + '</textarea></div>';
+        html += '<textarea class="form-textarea" id="invZahlung" rows="2" placeholder="z.B. Zahlbar innerhalb 14 Tagen. 2% Skonto bei Zahlung innerhalb 7 Tagen.">' + Utils.escapeHtml(zahlungsbedingungen) + '</textarea>';
+        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Vereinbarte Skontobedingungen hier angeben (§14 Abs. 4 Nr. 7 UStG) – nur wenn beim Vertragsschluss vereinbart, nicht als nachträgliche Zahlungserinnerung.</div></div>';
         html += '<div class="form-group"><label class="form-label" for="invNotizen">Notizen</label>';
         html += '<textarea class="form-textarea" id="invNotizen" rows="2" maxlength="1000">' + Utils.escapeHtml(notizen) + '</textarea></div>';
         html += '</div></div>';
@@ -295,12 +296,12 @@ var Rechnung = (function() {
         html += '<label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:400;white-space:nowrap;">';
         html += '<input type="checkbox" class="pos-diff25a" data-idx="' + idx + '"' + (pos.differenzbesteuert ? ' checked' : '') + '> Diff.';
         html += '</label>';
-        html += '<select class="form-select pos-warenart" data-idx="' + idx + '" title="v1 rechnet pauschal 19% USt auf die Marge. Bei Kunst/Sammlerstücken kann §25a Abs. 3 UStG i.V.m. Anlage 2 UStG auch 7% vorsehen — im Zweifel Steuerberater konsultieren." style="display:' + (pos.differenzbesteuert ? '' : 'none') + ';font-size:11px;margin-top:2px;">';
+        html += '<select class="form-select pos-warenart" data-idx="' + idx + '" aria-label="Warenart (§25a)" title="v1 rechnet pauschal 19% USt auf die Marge. Bei Kunst/Sammlerstücken kann §25a Abs. 3 UStG i.V.m. Anlage 2 UStG auch 7% vorsehen — im Zweifel Steuerberater konsultieren." style="display:' + (pos.differenzbesteuert ? '' : 'none') + ';font-size:11px;margin-top:2px;">';
         html += '<option value="gebraucht"' + (pos.warenart === 'gebraucht' ? ' selected' : '') + '>Gebrauchtgeg.</option>';
         html += '<option value="kunst"' + (pos.warenart === 'kunst' ? ' selected' : '') + '>Kunstgeg.</option>';
         html += '<option value="sammlerstueck"' + (pos.warenart === 'sammlerstueck' ? ' selected' : '') + '>Sammlerst./Antiq.</option>';
         html += '</select>';
-        html += '<input type="number" step="0.01" min="0" class="form-input pos-diff-ek" data-idx="' + idx + '" placeholder="EK-Preis" value="' + (pos.einkaufspreis != null ? pos.einkaufspreis : '') + '" style="display:' + ((pos.differenzbesteuert && !lagerArtikelId) ? '' : 'none') + ';font-size:11px;margin-top:2px;">';
+        html += '<input type="number" step="0.01" min="0" class="form-input pos-diff-ek" data-idx="' + idx + '" aria-label="Einkaufspreis" placeholder="EK-Preis" value="' + (pos.einkaufspreis != null ? pos.einkaufspreis : '') + '" style="display:' + ((pos.differenzbesteuert && !lagerArtikelId) ? '' : 'none') + ';font-size:11px;margin-top:2px;">';
         html += '</div>';
 
         // Nur relevant bei EU-B2B-Reverse-Charge (§13b) — Sichtbarkeit steuert applyReverseChargeCheck().
@@ -1025,7 +1026,7 @@ var Rechnung = (function() {
             var _ebCo = localStorage.getItem('oyi_active_company') || '';
             var _ebKey = (_ebCo?_ebCo+'__':'')+'eigenbelege_belege';
             // Eigenbelege liegen jetzt im IDB-Cache (Store), localStorage nur noch Fallback
-            belege = (typeof Store !== 'undefined' ? Store._syncReadRaw(_ebKey) : JSON.parse(localStorage.getItem(_ebKey) || '[]')) || [];
+            belege = ((typeof Store !== 'undefined' ? Store._syncReadRaw(_ebKey) : JSON.parse(localStorage.getItem(_ebKey) || '[]')) || []).filter(function(b){ return !b.storniert; });
         } catch(e) {}
 
         if (belege.length === 0) {

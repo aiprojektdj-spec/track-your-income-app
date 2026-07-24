@@ -40,7 +40,7 @@ const Protokoll = {
         };
         const entityLabel = (t) => {
             const map = { einkauf: 'Einkauf', verkauf: 'Verkauf', ausgabe: 'Ausgabe',
-                dokument: 'Dokument', kunde: 'Kunde', produkt: 'Produkt', system: 'System' };
+                dokument: 'Dokument', kunde: 'Kunde', produkt: 'Produkt', system: 'System', eigenbeleg: 'Eigenbeleg' };
             return map[t] || t;
         };
 

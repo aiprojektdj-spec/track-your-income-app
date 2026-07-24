@@ -349,6 +349,7 @@ const GbR = {
                             <label class="form-label">Geschäftsführer / Vertretungsberechtigte</label>
                             <input type="text" class="form-input" id="gbr_gf" value="${Utils.escapeHtml(einst.geschaeftsfuehrer || '')}"
                                    placeholder="z.B. Max Mustermann">
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Bei mehreren Geschäftsführern alle nennen (§35a GmbHG), z.B. durch Komma getrennt.</div>
                         </div>
                     </div>
                     <div class="form-row" style="gap:10px;margin-top:8px;" id="stammkapital_row" style="${['GmbH','UG'].includes(einst.firmenform) ? '' : 'display:none;'}">

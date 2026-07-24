@@ -191,8 +191,12 @@ const BEGRUENDUNGEN = [
     { id:'barzahlung_flohmarkt',   name:'Barzahlung ohne Quittung (z.B. Flohmarkt)' },
     { id:'onlinekauf',             name:'Onlinekauf ohne Beleg-Option' },
     { id:'unleserlich',            name:'Beleg unleserlich / beschädigt' },
+    { id:'verloren_ust_rekonstruiert', name:'Kleinbetragsbeleg verloren, offener USt-Ausweis glaubhaft rekonstruierbar (§33 UStDV)' },
     { id:'sonstiges',              name:'Sonstiges' },
 ];
+// §33-UStDV-Ausnahmefälle: einzige Begründungen, die einen Vorsteuerabzug aus einem
+// Eigenbeleg rechtfertigen (enge Ausnahme, s. plan/session-prompt-eigenbeleg-vorsteuer-begruendung.md)
+const VST_AUSNAHME_BEGRUENDUNGEN = ['verloren_ust_rekonstruiert'];
 
 const ZUSTANDE = [
     'Neu mit Etikett',
@@ -668,6 +672,12 @@ function renderNeu(editId=null) {
                 </div>
             </div>
             <div id="betragInfo" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;font-size:13px;color:var(--text-secondary);display:flex;gap:24px;flex-wrap:wrap"></div>
+            <label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:13px;color:var(--text-secondary);cursor:pointer">
+                <input type="checkbox" id="eb-vst-abzug" style="margin-top:3px" ${b?.vstAbzugsfaehig?'checked':''}>
+                <span>Vorsteuerabzug aus diesem Eigenbeleg geltend machen — nur im engen Ausnahmefall §33 UStDV zulässig
+                (nachweislich verlorener Kleinbetragsbeleg mit offenem USt-Ausweis). Ein Eigenbeleg ersetzt normalerweise
+                <strong>keine</strong> Rechnung i.S.d. §14 UStG und begründet ohne diese Ausnahme keinen Vorsteuerabzug.</span>
+            </label>
         </div>
 
         <!-- Begründung -->
@@ -727,6 +737,13 @@ async function saveBeleg(e, editId) {
     if (!kategorie) { toast('Bitte eine Kategorie wählen.', 'warning'); return; }
     if (!bruttoRaw || parseFloat(bruttoRaw) <= 0) { toast('Bitte einen Bruttobetrag größer 0 angeben.', 'warning'); return; }
 
+    const begruendung     = document.getElementById('eb-begr').value;
+    const vstAbzugsfaehig = document.getElementById('eb-vst-abzug')?.checked || false;
+    if (vstAbzugsfaehig && !VST_AUSNAHME_BEGRUENDUNGEN.includes(begruendung)) {
+        toast('Vorsteuerabzug nur mit passender §33-UStDV-Begründung möglich. Bitte "Kleinbetragsbeleg verloren, offener USt-Ausweis rekonstruierbar" wählen.', 'warning');
+        return;
+    }
+
     const brutto   = parseFloat(bruttoRaw || 0);
     const mwstSatz = parseInt(document.getElementById('eb-mwst').value || 0);
     const { netto, mwst } = calcMwst(brutto, mwstSatz);
@@ -734,6 +751,10 @@ async function saveBeleg(e, editId) {
     const old = editId ? EB.getBelege().find(b=>b.id===editId) : null;
     if (editId && isBelegGesperrt(old)) {
         toast('Dieser Eigenbeleg liegt in einer GoBD-festgeschriebenen Periode und kann nicht mehr bearbeitet werden.', 'warning');
+        return;
+    }
+    if (editId && old?.storniert) {
+        toast('Dieser Eigenbeleg ist storniert und kann nicht mehr bearbeitet werden.', 'warning');
         return;
     }
     const s = EB.getEinstellungen();
@@ -760,8 +781,9 @@ async function saveBeleg(e, editId) {
             adresseUnbekannt: false,
         },
         warenPositionen:    syncedPos,
-        begruendung:        document.getElementById('eb-begr').value,
+        begruendung,
         begruendungText:    '',
+        vstAbzugsfaehig,
         erlaeuterung:       old?.erlaeuterung || s.standardErlaeuterung || '',
         verknuepfteArtikel: old?.verknuepfteArtikel || [],
         foto:               old?.foto || _foto || null,
@@ -778,6 +800,11 @@ async function saveBeleg(e, editId) {
         belege.push(beleg);
     }
     EB.saveBelege(belege);
+    // GoBD-Audit-Log: analog zu Store._addAuditEntry bei Rechnungen/Ausgaben (js/store.js)
+    if (typeof Store !== 'undefined') {
+        Store._addAuditEntry(editId ? 'bearbeitet' : 'erstellt', 'eigenbeleg', id, old || null, beleg,
+            editId ? 'Eigenbeleg bearbeitet' : 'Eigenbeleg erstellt: ' + id);
+    }
     if (!editId && typeof Webhooks !== 'undefined') Webhooks.fire('eigenbeleg', beleg);
     toast(editId ? 'Eigenbeleg aktualisiert' : `Eigenbeleg ${id} gespeichert`, 'success');
     await _syncPositionenToLager(beleg); // warten bis IDB-Schreibvorgang abgeschlossen
@@ -1074,8 +1101,10 @@ function applyFilter() {
 
     const tbl   = document.getElementById('belege-table');
     const foot  = document.getElementById('belege-footer');
-    const total = res.reduce((a,x)=>a+(x.betragBrutto||0), 0);
-    const bar   = res.filter(x=>x.zahlungsweg==='bar').reduce((a,x)=>a+(x.betragBrutto||0), 0);
+    // Stornierte Belege bleiben sichtbar (GoBD), zaehlen aber nicht in die Summen mit.
+    const aktiv = res.filter(x=>!x.storniert);
+    const total = aktiv.reduce((a,x)=>a+(x.betragBrutto||0), 0);
+    const bar   = aktiv.filter(x=>x.zahlungsweg==='bar').reduce((a,x)=>a+(x.betragBrutto||0), 0);
 
     if (!res.length) {
         tbl.innerHTML  = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Keine Eigenbelege gefunden.</div>';
@@ -1094,8 +1123,9 @@ function applyFilter() {
                 const kObj = getKat(x.kategorie);
                 const zObj = getZw(x.zahlungsweg);
                 const vName = x.verkäufer?.name || x.empfaenger || '—';
-                return `<tr>
-                    <td><span style="font-family:monospace;font-size:11px;color:var(--accent-light)">${x.id}</span></td>
+                const storniert = !!x.storniert;
+                return `<tr${storniert ? ' style="opacity:.5"' : ''}>
+                    <td><span style="font-family:monospace;font-size:11px;color:var(--accent-light)">${x.id}</span>${storniert ? ' <span class="badge" style="background:#dc262622;color:#dc2626">Storniert</span>' : ''}</td>
                     <td style="white-space:nowrap">${datum(x.belegDatum)}</td>
                     <td>${esc(vName)}</td>
                     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.zweck||'')}">${esc(x.zweck||'—')}</td>
@@ -1104,9 +1134,9 @@ function applyFilter() {
                     <td style="text-align:right;font-weight:600;white-space:nowrap">${euro(x.betragBrutto)}</td>
                     <td style="white-space:nowrap">
                         <button class="action-btn" data-action="eb-view" data-id="${x.id}"   title="Ansehen"><i class="ti ti-eye"></i></button>
-                        <button class="action-btn action-btn-accent" data-action="eb-edit" data-id="${x.id}"   title="Bearbeiten"><i class="ti ti-pencil"></i></button>
+                        ${storniert ? '' : `<button class="action-btn action-btn-accent" data-action="eb-edit" data-id="${x.id}"   title="Bearbeiten"><i class="ti ti-pencil"></i></button>`}
                         <button class="action-btn" data-action="eb-print" data-id="${x.id}"  title="PDF / Drucken"><i class="ti ti-file-download"></i></button>
-                        <button class="action-btn action-btn-danger" data-action="eb-delete" data-id="${x.id}" title="Löschen"><i class="ti ti-trash"></i></button>
+                        ${storniert ? '' : `<button class="action-btn action-btn-danger" data-action="eb-delete" data-id="${x.id}" title="Löschen"><i class="ti ti-trash"></i></button>`}
                     </td>
                 </tr>`;
             }).join('')}
@@ -1249,18 +1279,30 @@ function editBeleg(id) {
     renderNeu(id);
 }
 
+// GoBD §146 Abs.4 HGB: kein physisches Löschen mehr — Storno-Flag, Beleg bleibt
+// erhalten (Hash-Chain-Audit-Log, wie deleteRechInvoice/stornoExpense in js/store.js).
 function deleteBeleg(id) {
-    const b = EB.getBelege().find(x=>x.id===id);
+    const belege = EB.getBelege();
+    const b = belege.find(x=>x.id===id);
+    if (!b) return;
     if (isBelegGesperrt(b)) {
         toast('Dieser Eigenbeleg liegt in einer GoBD-festgeschriebenen Periode und kann nicht mehr gelöscht werden (GoBD-Unveränderbarkeit).', 'warning');
         return;
     }
-    if (!confirm(`Eigenbeleg ${id} wirklich löschen?\nDer Beleg wird in ALLEN Unternehmen entfernt (inkl. EÜR & Rechnungs-Auswahl).\nDieser Vorgang kann nicht rückgängig gemacht werden.`)) return;
-    const n = purgeEigenbelegEverywhere(id);
-    toast(n > 1 ? `Eigenbeleg in ${n} Unternehmen gelöscht` : 'Eigenbeleg gelöscht', 'success');
+    if (b.storniert) { toast('Eigenbeleg ist bereits storniert.', 'warning'); return; }
+    if (!confirm(`Eigenbeleg ${id} stornieren?\nDer Beleg bleibt GoBD-konform erhalten (als storniert markiert) statt gelöscht zu werden.\nDieser Vorgang kann nicht rückgängig gemacht werden.`)) return;
+    const old = Object.assign({}, b);
+    b.storniert = true;
+    b.storniertAm = new Date().toISOString();
+    b.stornoGrund = 'Storniert';
+    EB.saveBelege(belege);
+    if (typeof Store !== 'undefined') Store._addAuditEntry('storniert', 'eigenbeleg', id, old, b, 'Eigenbeleg storniert');
+    toast('Eigenbeleg storniert', 'success');
     applyFilter();
 }
 
+// Nur für manuelle Altlast-Bereinigung (Konsole/Migration) — NICHT mehr über den
+// Lösch-Button erreichbar, da physisches Löschen von Buchungsbelegen GoBD-widrig ist.
 // Entfernt einen Eigenbeleg (per id) aus ALLEN firmen-präfixierten Keys + dem
 // globalen Alt-Key. Behebt Altlasten, bei denen derselbe Beleg in mehreren
 // Unternehmen lag. Gibt die Anzahl bereinigter Keys zurück.
@@ -1715,21 +1757,30 @@ function importJSON(input) {
     reader.readAsText(file);
 }
 
+// GoBD: "Alle löschen" vernichtet keine Buchungsbelege mehr und setzt den Belegnummer-
+// Zähler NICHT mehr zurück (kompletter Bruch der lückenlosen Nummernfolge war der
+// schärfste Einzelfund im Audit) — stattdessen Massenstorno mit einem Audit-Eintrag.
 function alleLoeschen() {
-    if (!confirm('ALLE Eigenbelege unwiderruflich löschen?')) return;
+    if (!confirm('ALLE offenen Eigenbelege stornieren?\nBereits stornierte und GoBD-gesperrte Belege bleiben unberührt.')) return;
     if (!confirm('Wirklich? Diese Aktion kann nicht rückgängig gemacht werden!')) return;
-    // GoBD §147 AO: Belege in festgeschriebener Periode (laufende 10-Jahres-Frist)
-    // bleiben von der Bulk-Löschung ausgenommen — wie bei der Einzel-Löschung (deleteBeleg).
     const alle = EB.getBelege();
-    const gesperrt = alle.filter(isBelegGesperrt);
-    EB.saveBelege(gesperrt);
-    if (gesperrt.length === 0) {
-        localStorage.removeItem(_ebPrefix()+'eigenbelege_naechste_nummer');
+    const jetzt = new Date().toISOString();
+    let n = 0;
+    alle.forEach(b => {
+        if (!isBelegGesperrt(b) && !b.storniert) {
+            b.storniert = true;
+            b.storniertAm = jetzt;
+            b.stornoGrund = 'Massenstorno';
+            n++;
+        }
+    });
+    EB.saveBelege(alle);
+    if (n > 0 && typeof Store !== 'undefined') {
+        Store._addAuditEntry('storniert', 'eigenbeleg', 'massenstorno', null, { anzahl: n },
+            `Massenstorno: ${n} Eigenbelege storniert`);
     }
-    toast(gesperrt.length > 0
-        ? `${alle.length - gesperrt.length} Eigenbelege gelöscht, ${gesperrt.length} GoBD-gesperrte Belege behalten`
-        : 'Alle Eigenbelege gelöscht', 'success');
-    navigate('dashboard');
+    toast(n > 0 ? `${n} Eigenbelege storniert` : 'Keine offenen Eigenbelege zum Stornieren', 'success');
+    navigate('alle');
 }
 
 function dlBlob(blob, name) {

@@ -71,18 +71,18 @@ var RechProtokoll = (function() {
         html += '</div></div>';
 
         html += '<div class="filter-bar no-print">';
-        html += '<div class="filter-group"><label>Aktion</label><select class="form-select" id="rechAuditAction"><option value="">Alle</option>';
+        html += '<div class="filter-group"><label for="rechAuditAction">Aktion</label><select class="form-select" id="rechAuditAction"><option value="">Alle</option>';
         actions.forEach(function(a) {
             html += '<option value="' + a + '"' + (filterAction === a ? ' selected' : '') + '>' + (actionLabels[a] || a) + '</option>';
         });
         html += '</select></div>';
-        html += '<div class="filter-group"><label>Bereich</label><select class="form-select" id="rechAuditEntity"><option value="">Alle</option>';
+        html += '<div class="filter-group"><label for="rechAuditEntity">Bereich</label><select class="form-select" id="rechAuditEntity"><option value="">Alle</option>';
         entities.forEach(function(t) {
             html += '<option value="' + t + '"' + (filterEntity === t ? ' selected' : '') + '>' + (entityLabels[t] || t) + '</option>';
         });
         html += '</select></div>';
-        html += '<div class="filter-group"><label>Von</label><input type="date" class="form-input" id="rechAuditVon" value="' + filterVon + '"></div>';
-        html += '<div class="filter-group"><label>Bis</label><input type="date" class="form-input" id="rechAuditBis" value="' + filterBis + '"></div>';
+        html += '<div class="filter-group"><label for="rechAuditVon">Von</label><input type="date" class="form-input" id="rechAuditVon" value="' + filterVon + '"></div>';
+        html += '<div class="filter-group"><label for="rechAuditBis">Bis</label><input type="date" class="form-input" id="rechAuditBis" value="' + filterBis + '"></div>';
         html += '</div>';
 
         html += '<div class="table-container"><table class="audit-table"><thead><tr>';

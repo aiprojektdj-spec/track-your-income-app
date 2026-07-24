@@ -191,12 +191,15 @@ const BEGRUENDUNGEN = [
     { id:'barzahlung_flohmarkt',   name:'Barzahlung ohne Quittung (z.B. Flohmarkt)' },
     { id:'onlinekauf',             name:'Onlinekauf ohne Beleg-Option' },
     { id:'unleserlich',            name:'Beleg unleserlich / beschädigt' },
-    { id:'verloren_ust_rekonstruiert', name:'Kleinbetragsbeleg verloren, offener USt-Ausweis glaubhaft rekonstruierbar (§33 UStDV)' },
+    { id:'verloren_ust_rekonstruiert', name:'Kleinbetragsbeleg (max. 250 €) verloren, offener USt-Ausweis glaubhaft rekonstruierbar (§162 AO)' },
     { id:'sonstiges',              name:'Sonstiges' },
 ];
-// §33-UStDV-Ausnahmefälle: einzige Begründungen, die einen Vorsteuerabzug aus einem
-// Eigenbeleg rechtfertigen (enge Ausnahme, s. plan/session-prompt-eigenbeleg-vorsteuer-begruendung.md)
+// §162-AO-Ausnahmefälle: einzige Begründungen, die einen Vorsteuerabzug aus einem
+// Eigenbeleg rechtfertigen (enge Ausnahme über allgemeines Beweis-/Schätzungsrecht,
+// NICHT §33 UStDV — der regelt nur die Pflichtangaben einer Kleinbetragsrechnung,
+// s. plan/session-prompt-eigenbeleg-vorsteuer-begruendung.md + legal-reviewer-Gegenprüfung)
 const VST_AUSNAHME_BEGRUENDUNGEN = ['verloren_ust_rekonstruiert'];
+const VST_AUSNAHME_GRENZE = 250; // Kleinbetragsgrenze §33 UStDV, Bezugsgröße für die §162-AO-Ausnahme
 
 const ZUSTANDE = [
     'Neu mit Etikett',
@@ -674,9 +677,10 @@ function renderNeu(editId=null) {
             <div id="betragInfo" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;font-size:13px;color:var(--text-secondary);display:flex;gap:24px;flex-wrap:wrap"></div>
             <label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;font-size:13px;color:var(--text-secondary);cursor:pointer">
                 <input type="checkbox" id="eb-vst-abzug" style="margin-top:3px" ${b?.vstAbzugsfaehig?'checked':''}>
-                <span>Vorsteuerabzug aus diesem Eigenbeleg geltend machen — nur im engen Ausnahmefall §33 UStDV zulässig
-                (nachweislich verlorener Kleinbetragsbeleg mit offenem USt-Ausweis). Ein Eigenbeleg ersetzt normalerweise
-                <strong>keine</strong> Rechnung i.S.d. §14 UStG und begründet ohne diese Ausnahme keinen Vorsteuerabzug.</span>
+                <span>Vorsteuerabzug aus diesem Eigenbeleg geltend machen — nur im engsten Ausnahmefall zulässig
+                (nachweislich verlorener Kleinbetragsbeleg bis 250 € mit offenem USt-Ausweis, Nachweis über §162 AO).
+                Ein Eigenbeleg ersetzt normalerweise <strong>keine</strong> Rechnung i.S.d. §14 UStG und begründet
+                ohne diese Ausnahme keinen Vorsteuerabzug.</span>
             </label>
         </div>
 
@@ -740,7 +744,11 @@ async function saveBeleg(e, editId) {
     const begruendung     = document.getElementById('eb-begr').value;
     const vstAbzugsfaehig = document.getElementById('eb-vst-abzug')?.checked || false;
     if (vstAbzugsfaehig && !VST_AUSNAHME_BEGRUENDUNGEN.includes(begruendung)) {
-        toast('Vorsteuerabzug nur mit passender §33-UStDV-Begründung möglich. Bitte "Kleinbetragsbeleg verloren, offener USt-Ausweis rekonstruierbar" wählen.', 'warning');
+        toast('Vorsteuerabzug nur mit passender Begründung möglich. Bitte "Kleinbetragsbeleg verloren, offener USt-Ausweis rekonstruierbar" wählen.', 'warning');
+        return;
+    }
+    if (vstAbzugsfaehig && parseFloat(bruttoRaw) > VST_AUSNAHME_GRENZE) {
+        toast(`Vorsteuerabzug aus Eigenbelegen nur bis ${VST_AUSNAHME_GRENZE} € Brutto zulässig (Kleinbetragsgrenze). Bitte Checkbox entfernen.`, 'warning');
         return;
     }
 

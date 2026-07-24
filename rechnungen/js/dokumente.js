@@ -672,7 +672,10 @@ var Dokumente = (function() {
             if (el) el.addEventListener('change', applyFilters);
         });
         var searchEl = document.getElementById('filterSearch');
-        if (searchEl) searchEl.addEventListener('input', applyFilters);
+        if (searchEl) searchEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') applyFilters();
+            else if (e.key === 'Escape') { searchEl.value = ''; applyFilters(); }
+        });
 
         var resetBtn = document.getElementById('filterReset');
         if (resetBtn) resetBtn.addEventListener('click', function() {

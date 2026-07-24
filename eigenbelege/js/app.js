@@ -1960,9 +1960,17 @@ document.addEventListener('submit', function (e) {
 function _ebInputDispatch(e) {
     var a = e.target && e.target.dataset ? e.target.dataset.action : '';
     if (a === 'eb-recalc') recalcBetrag();
-    else if (a === 'eb-filter') applyFilter();
+    // Freitext-Suche (f-suche) löst nicht mehr live bei jedem Tastendruck aus (Klick-Suche,
+    // s. keydown-Handler unten) — Dropdowns/Datumsfelder mit eb-filter bleiben live.
+    else if (a === 'eb-filter' && e.target.id !== 'f-suche') applyFilter();
 }
 document.addEventListener('input', _ebInputDispatch);
+document.addEventListener('keydown', function (e) {
+    if (e.target && e.target.id === 'f-suche') {
+        if (e.key === 'Enter') applyFilter();
+        else if (e.key === 'Escape') { e.target.value = ''; applyFilter(); }
+    }
+});
 document.addEventListener('change', function (e) {
     _ebInputDispatch(e);
     var el = e.target;

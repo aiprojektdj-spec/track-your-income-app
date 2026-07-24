@@ -367,9 +367,30 @@ var Rechnung = (function() {
         });
         var currentId = isNewMode ? '' : row.querySelector('.pos-lager-id').value;
 
+        // Volle Filter wie in der Lager-Übersicht (nur Werte zeigen, die unter den
+        // verfügbaren Artikeln tatsächlich vorkommen) + Vorschaubild pro Zeile.
+        var pickerFilters = { search: '', kategorie: '', zielgruppe: '', haendler: '' };
+        var kategorienOpts = Array.from(new Set(available.map(function(a){ return a.warenkategorie; }).filter(Boolean))).sort();
+        var haendlerOpts   = Array.from(new Set(available.map(function(a){ return a.haendler; }).filter(Boolean))).sort();
+        var zielgruppenOpts = (typeof Store !== 'undefined' && Store.ZIELGRUPPEN) || [];
+
+        function filterAvailable() {
+            var s = pickerFilters.search.toLowerCase();
+            return available.filter(function(a) {
+                if (pickerFilters.kategorie && a.warenkategorie !== pickerFilters.kategorie) return false;
+                if (pickerFilters.zielgruppe && a.zielgruppe !== pickerFilters.zielgruppe) return false;
+                if (pickerFilters.haendler && a.haendler !== pickerFilters.haendler) return false;
+                if (s) {
+                    var hay = [a.artikelNr, a.marke, a.artikeltyp, a.beschreibung, a.groesse].join(' ').toLowerCase();
+                    if (hay.indexOf(s) === -1) return false;
+                }
+                return true;
+            });
+        }
+
         function renderRows(list) {
             if (list.length === 0) {
-                return '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">Keine verfügbaren Lagerartikel</td></tr>';
+                return '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:20px;">Keine verfügbaren Lagerartikel</td></tr>';
             }
             return list.map(function(a) {
                 var isSelected = !isNewMode && a.id === currentId;
@@ -379,7 +400,11 @@ var Rechnung = (function() {
                 } else {
                     actionCell = '<button class="btn btn-small btn-primary lp-select" data-id="' + a.id + '">' + (isNewMode ? '+ Hinzufügen' : 'Auswählen') + '</button>';
                 }
+                var photoCell = a.foto
+                    ? '<img src="' + a.foto + '" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:4px;">'
+                    : '<div style="width:32px;height:32px;border-radius:4px;background:var(--bg-secondary,rgba(255,255,255,.05));"></div>';
                 return '<tr data-art-id="' + a.id + '" class="lager-picker-row">' +
+                    '<td>' + photoCell + '</td>' +
                     '<td><span style="font-family:monospace;font-size:11px;color:var(--accent);">' + Utils.escapeHtml(a.artikelNr || '—') + '</span></td>' +
                     '<td>' + Utils.escapeHtml((a.marke || '') + ' ' + (a.artikeltyp || '')) + '</td>' +
                     '<td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;">' + Utils.escapeHtml(a.beschreibung || '') + '</td>' +
@@ -397,10 +422,32 @@ var Rechnung = (function() {
             ? 'Wähle einen oder mehrere verfügbare Lagerartikel aus – für jeden wird eine neue Position angelegt.'
             : 'Wähle einen verfügbaren Lagerartikel für diese Position aus.';
         var body = '<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary);">' + introText + ' Der Artikel wird sofort als <em>Verkauft</em> markiert, damit er nicht versehentlich in einer zweiten Rechnung verwendet wird.</div>';
-        body += '<div style="overflow-x:auto;"><table style="width:100%;font-size:12px;"><thead><tr><th scope="col">Art.-Nr.</th><th scope="col">Artikel</th><th scope="col">Beschreibung</th><th scope="col">Größe</th><th scope="col">EK-Preis</th><th scope="col"></th></tr></thead><tbody id="lagerPickerBody">' + renderRows(available) + '</tbody></table></div>';
+        body += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">' +
+            '<input type="text" class="form-input" id="lpFilterSearch" placeholder="Suche… (Enter)" style="max-width:150px;">' +
+            '<select class="form-select" id="lpFilterKategorie" style="max-width:140px;"><option value="">Alle Kategorien</option>' + kategorienOpts.map(function(k){ return '<option value="' + Utils.escapeHtml(k) + '">' + Utils.escapeHtml(k) + '</option>'; }).join('') + '</select>' +
+            '<select class="form-select" id="lpFilterZielgruppe" style="max-width:130px;"><option value="">Alle Zielgruppen</option>' + zielgruppenOpts.map(function(z){ return '<option value="' + Utils.escapeHtml(z) + '">' + Utils.escapeHtml(z) + '</option>'; }).join('') + '</select>' +
+            '<select class="form-select" id="lpFilterHaendler" style="max-width:140px;"><option value="">Alle Händler</option>' + haendlerOpts.map(function(h){ return '<option value="' + Utils.escapeHtml(h) + '">' + Utils.escapeHtml(h) + '</option>'; }).join('') + '</select>' +
+            '</div>';
+        body += '<div style="overflow-x:auto;"><table style="width:100%;font-size:12px;"><thead><tr><th scope="col"></th><th scope="col">Art.-Nr.</th><th scope="col">Artikel</th><th scope="col">Beschreibung</th><th scope="col">Größe</th><th scope="col">EK-Preis</th><th scope="col"></th></tr></thead><tbody id="lagerPickerBody">' + renderRows(available) + '</tbody></table></div>';
 
         var footer = clearBtn + ' <button class="btn" data-action="rech-close-modal">' + (isNewMode ? 'Fertig' : 'Schließen') + '</button>';
         RechApp.showModal('Lagerartikel ' + (isNewMode ? 'hinzufügen' : 'verknüpfen'), body, footer);
+
+        function applyPickerFilter() {
+            var tbody = document.getElementById('lagerPickerBody');
+            if (tbody) tbody.innerHTML = renderRows(filterAvailable());
+            bindSelectButtons();
+        }
+        var lpSearchEl = document.getElementById('lpFilterSearch');
+        var lpKatEl    = document.getElementById('lpFilterKategorie');
+        var lpZgEl     = document.getElementById('lpFilterZielgruppe');
+        var lpHdEl     = document.getElementById('lpFilterHaendler');
+        if (lpSearchEl) lpSearchEl.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { pickerFilters.search = lpSearchEl.value.trim(); applyPickerFilter(); }
+        });
+        if (lpKatEl) lpKatEl.addEventListener('change', function() { pickerFilters.kategorie = lpKatEl.value; applyPickerFilter(); });
+        if (lpZgEl)  lpZgEl.addEventListener('change',  function() { pickerFilters.zielgruppe = lpZgEl.value; applyPickerFilter(); });
+        if (lpHdEl)  lpHdEl.addEventListener('change',  function() { pickerFilters.haendler = lpHdEl.value; applyPickerFilter(); });
 
         function bindSelectButtons() {
             document.querySelectorAll('.lp-select').forEach(function(btn) {
@@ -412,10 +459,8 @@ var Rechnung = (function() {
                     if (isNewMode) {
                         addPositionFromLagerArt(art);
                         available = available.filter(function(a) { return a.id !== artId; });
-                        var tbody = document.getElementById('lagerPickerBody');
-                        if (tbody) tbody.innerHTML = renderRows(available);
+                        applyPickerFilter();
                         Utils.showToast('Position aus Lagerartikel angelegt: ' + (art.artikelNr || art.marke), 'success');
-                        bindSelectButtons();
                         return;
                     }
 

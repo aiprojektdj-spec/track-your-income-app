@@ -387,12 +387,19 @@ const LagerPage = {
     },
 
     _initBuchungenEvents(filtered, available) {
-        // Suche — vollständiges Re-Render nötig (Seite zurück auf 1)
+        // Suche — Klick-Suche (Enter/Escape), kein Live-Filter bei jedem Tastendruck
         const searchEl = document.getElementById('buchSearch');
-        if (searchEl) searchEl.addEventListener('input', () => {
-            this._buchSearchTerm = searchEl.value;
-            this._buchPage = 1;
-            this.renderBuchungen();
+        if (searchEl) searchEl.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                this._buchSearchTerm = searchEl.value;
+                this._buchPage = 1;
+                this.renderBuchungen();
+            } else if (e.key === 'Escape') {
+                searchEl.value = '';
+                this._buchSearchTerm = '';
+                this._buchPage = 1;
+                this.renderBuchungen();
+            }
         });
 
         // Alle auswählen
@@ -692,6 +699,8 @@ function openNeuArtikelModal() {
                 </div>
             </div>
 
+            ${Lager._farbenFieldHtml('neu')}
+
             <!-- EK-Preis + Einkaufsquelle -->
             <div class="form-row">
                 <div class="form-group">
@@ -765,6 +774,7 @@ function openNeuArtikelModal() {
     `;
 
     App.showModal('Neuer Artikel', body, footer);
+    Lager._bindFarbenPicker('neu');
 
     // Foto-Logik
     let neuFotoBase64 = null;
@@ -872,6 +882,7 @@ function openNeuArtikelModal() {
             warenkategorie: document.getElementById('neu_kategorie')?.value || '',
             zielgruppe:     document.getElementById('neu_zielgruppe')?.value || '',
             haendler,
+            farben:        Lager._getFarben('neu'),
             notizen:       document.getElementById('neu_notizen').value.trim(),
             tags,
             status:        'verfuegbar',
@@ -1029,6 +1040,10 @@ function openBulkArtikelModal() {
             </div>
         </div>
 
+        <div style="margin-bottom:14px;">
+            ${Lager._farbenFieldHtml('bulk', [], '(für alle Zeilen)')}
+        </div>
+
         <!-- Lagerort gemeinsam -->
         <details style="border:1px solid var(--border);border-radius:8px;margin-bottom:14px;">
             <summary style="padding:9px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-secondary);list-style:none;display:flex;align-items:center;gap:6px;">
@@ -1151,6 +1166,7 @@ function openBulkArtikelModal() {
     `;
 
     App.showModal('📦 Bulk-Einkauf', body, footer);
+    Lager._bindFarbenPicker('bulk');
 
     // Händler "Sonstiges" toggle
     const bulkHaendlerSelect = document.getElementById('bulk_haendler');
@@ -1431,6 +1447,7 @@ function _saveBulkArtikel() {
         haendler = customH || '';
         if (customH) Store.addHaendler(customH);
     }
+    const farben  = Lager._getFarben('bulk');
     const loB     = (document.getElementById('bulk_lo_bereich') || {}).value?.trim() || '';
     const loR     = (document.getElementById('bulk_lo_regal')   || {}).value?.trim() || '';
     const loF     = (document.getElementById('bulk_lo_fach')    || {}).value?.trim() || '';
@@ -1518,6 +1535,7 @@ function _saveBulkArtikel() {
                         warenkategorie:     kategorie,
                         zielgruppe,
                         haendler,
+                        farben,
                         status:             'verfuegbar',
                         sessionId,
                         artikelNr,

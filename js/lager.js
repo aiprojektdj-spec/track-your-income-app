@@ -34,6 +34,86 @@ const Lager = {
     },
     ZONE_COLORS: ['#10b981','#2563eb','#8b93f8','#d97706','#dc2626','#0891b2','#9333ea','#16a34a','#ea580c','#be185d'],
 
+    // ── Artikel-Farben (Mehrfachauswahl pro Artikel, Kunden-Wunschliste Punkt 3) ──
+    ARTIKEL_FARBEN: [
+        ['#000000','Schwarz'], ['#ffffff','Weiß'],  ['#6b7280','Grau'],
+        ['#78350f','Braun'],   ['#1d4ed8','Blau'],  ['#15803d','Grün'],
+        ['#dc2626','Rot'],     ['#ea580c','Orange'],['#ca8a04','Gelb'],
+        ['#db2777','Pink'],    ['#7c3aed','Lila'],  ['#0891b2','Türkis']
+    ],
+
+    // HTML für ein Farben-Multiselect-Feld (Label + verstecktes CSV-Feld + Chip-Container).
+    // prefix = eindeutiges ID-Präfix des Formulars (z.B. 'le', 'neu', 'bulk').
+    _farbenFieldHtml(prefix, selected, labelSuffix) {
+        const sel = (selected || []).join(',');
+        return `
+            <div class="form-group">
+                <label class="form-label">Farben${labelSuffix ? ' <span style="color:var(--text-muted);font-weight:400;">' + labelSuffix + '</span>' : ''}</label>
+                <input type="hidden" id="${prefix}_farben" value="${Utils.escapeHtml(sel)}">
+                <div id="${prefix}_farbenChips" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;"></div>
+            </div>`;
+    },
+
+    // Rendert die Farb-Chips (Palette + eigene Auswahl) und verdrahtet Klick-Toggle.
+    // Muss nach App.showModal(...) einmalig pro Formular aufgerufen werden.
+    _bindFarbenPicker(prefix) {
+        const hidden    = document.getElementById(`${prefix}_farben`);
+        const container = document.getElementById(`${prefix}_farbenChips`);
+        if (!hidden || !container) return;
+        const norm = h => (h || '').toLowerCase();
+        const render = () => {
+            const selected = hidden.value ? hidden.value.split(',').filter(Boolean) : [];
+            const paletteHtml = this.ARTIKEL_FARBEN.map(([hex, name]) => {
+                const isSel = selected.some(s => norm(s) === norm(hex));
+                return `<div data-farbe="${hex}" title="${Utils.escapeHtml(name)}"
+                    style="width:24px;height:24px;border-radius:50%;background:${hex};cursor:pointer;
+                    border:2px solid ${isSel ? 'var(--accent)' : 'var(--border)'};
+                    box-shadow:${isSel ? '0 0 0 2px var(--accent)' : 'none'};"></div>`;
+            }).join('');
+            const customSel = selected.filter(s => !this.ARTIKEL_FARBEN.some(([hex]) => norm(hex) === norm(s)));
+            const customHtml = customSel.map(hex => `
+                <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:10px;background:${hex}22;border:1px solid ${hex};font-size:11px;">
+                    <span style="width:10px;height:10px;border-radius:50%;background:${hex};display:inline-block;"></span>
+                    <span data-farbe-remove="${hex}" style="cursor:pointer;" title="Entfernen">×</span>
+                </span>`).join('');
+            container.innerHTML = paletteHtml +
+                `<input type="color" id="${prefix}_farbeCustom" title="Eigene Farbe hinzufügen"
+                    style="width:24px;height:24px;border:none;background:none;cursor:pointer;padding:0;">` +
+                customHtml;
+
+            container.querySelectorAll('[data-farbe]').forEach(el => {
+                el.addEventListener('click', () => {
+                    const hex = el.getAttribute('data-farbe');
+                    let sel = hidden.value ? hidden.value.split(',').filter(Boolean) : [];
+                    sel = sel.some(s => norm(s) === norm(hex)) ? sel.filter(s => norm(s) !== norm(hex)) : sel.concat(hex);
+                    hidden.value = sel.join(',');
+                    render();
+                });
+            });
+            container.querySelectorAll('[data-farbe-remove]').forEach(el => {
+                el.addEventListener('click', () => {
+                    const hex = el.getAttribute('data-farbe-remove');
+                    hidden.value = (hidden.value ? hidden.value.split(',').filter(Boolean) : []).filter(s => norm(s) !== norm(hex)).join(',');
+                    render();
+                });
+            });
+            const customInput = document.getElementById(`${prefix}_farbeCustom`);
+            if (customInput) customInput.addEventListener('change', () => {
+                const hex = customInput.value;
+                let sel = hidden.value ? hidden.value.split(',').filter(Boolean) : [];
+                if (!sel.some(s => norm(s) === norm(hex))) sel.push(hex);
+                hidden.value = sel.join(',');
+                render();
+            });
+        };
+        render();
+    },
+
+    _getFarben(prefix) {
+        const hidden = document.getElementById(`${prefix}_farben`);
+        return hidden && hidden.value ? hidden.value.split(',').filter(Boolean) : [];
+    },
+
     STATUS_CONFIG: {
         verfuegbar:  { label: 'Verfügbar',   color: '#22c55e', bg: 'rgba(34,197,94,.15)',   icon: '●', badge: 'badge-success' },
         reserviert:  { label: 'Reserviert',  color: '#3b82f6', bg: 'rgba(59,130,246,.15)',  icon: '◐', badge: 'badge-info'    },
@@ -1919,34 +1999,19 @@ const Lager = {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('change', applyFilters);
             });
-            // Art.-Nr.-Filter: Enter oder Debounce (Text-Feld, kein Dropdown)
+            // Art.-Nr.-Filter: Klick-Suche (Enter), kein Live-Filter mehr bei jedem Tastendruck
             const artikelnrEl = document.getElementById('lagerFilterArtikelnr');
             if (artikelnrEl) {
-                let nrTimer;
-                artikelnrEl.addEventListener('input', () => {
-                    clearTimeout(nrTimer);
-                    nrTimer = setTimeout(applyFilters, 250);
-                });
                 artikelnrEl.addEventListener('keydown', e => {
-                    if (e.key === 'Enter') { clearTimeout(nrTimer); applyFilters(); }
+                    if (e.key === 'Enter') applyFilters();
                 });
             }
 
-            // ── Suchfeld mit Debounce ──────────────────────────────────
+            // ── Suchfeld: Klick-Suche (Enter/Escape), kein Live-Filter mehr ──────
             const searchEl = document.getElementById('lagerSearch');
             if (searchEl) {
-                let searchTimer;
-                searchEl.addEventListener('input', () => {
-                    clearTimeout(searchTimer);
-                    searchTimer = setTimeout(() => {
-                        this._filters.search = searchEl.value;
-                        this._currentPage = 1;
-                        rerender();
-                    }, 250);
-                });
                 searchEl.addEventListener('keydown', e => {
                     if (e.key === 'Enter') {
-                        clearTimeout(searchTimer);
                         this._filters.search = searchEl.value;
                         this._currentPage = 1;
                         rerender();
@@ -2319,6 +2384,7 @@ const Lager = {
                                 </div>
                             </div>
                         </div>
+                        ${this._farbenFieldHtml('le', p.farben)}
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label">Größe</label>
@@ -2377,6 +2443,7 @@ const Lager = {
                         <button class="btn btn-primary" id="saveLagerEdit">Speichern</button>
                     `;
                     App.showModal('Artikel bearbeiten', body, footer);
+                    this._bindFarbenPicker('le');
 
                     // Photo upload button in edit modal
                     const uploadBtn = document.getElementById(`lagerPhotoUploadBtn_${id}`);
@@ -2473,6 +2540,7 @@ const Lager = {
                             warenkategorie: (document.getElementById('le_kategorie') || {}).value || '',
                             zielgruppe:     (document.getElementById('le_zielgruppe') || {}).value || '',
                             haendler,
+                            farben:         this._getFarben('le'),
                             status:         newStatus,
                             differenzbesteuert: leDiffCheckbox?.checked || false,
                             warenart:       leDiffCheckbox?.checked ? document.getElementById('le_warenart').value : undefined,

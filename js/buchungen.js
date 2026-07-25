@@ -62,6 +62,8 @@ const Buchungen = {
         const sessionDatum = meta ? meta.datum : Utils.todayISO();
         const sessionQuelle = meta ? meta.einkaufsquelle : 'Flohmarkt';
         const sessionBudget = meta ? (meta.budget || '') : '';
+        const sessionLieferant  = meta ? (meta.lieferantName || '') : '';
+        const sessionLiefSteuer = meta ? (meta.lieferantSteuerId || '') : '';
 
         const quellenOptions = einkaufsquellen.map(q =>
             `<option value="${Utils.escapeHtml(q)}" ${q === sessionQuelle ? 'selected' : ''}>${Utils.escapeHtml(q)}</option>`
@@ -117,6 +119,16 @@ const Buchungen = {
                     <div class="form-group">
                         <label class="form-label">Gesamtbudget (optional)</label>
                         <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="sess_budget" placeholder="0,00" value="${Utils.escapeHtml(String(sessionBudget))}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="sess_lieferant">Lieferant / Rechnungsaussteller</label>
+                        <input type="text" class="form-input" id="sess_lieferant" maxlength="200" placeholder="für Vorsteuerabzug §14 UStG" value="${Utils.escapeHtml(sessionLieferant)}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="sess_lieferantSteuerId">Steuernr. / USt-IdNr. des Lieferanten</label>
+                        <input type="text" class="form-input" id="sess_lieferantSteuerId" maxlength="50" placeholder="nur bei Rechnung >250€ Pflicht" value="${Utils.escapeHtml(sessionLiefSteuer)}">
                     </div>
                 </div>
             </div>
@@ -298,6 +310,9 @@ const Buchungen = {
                 }
                 const datum = Utils.getDateInputValue('sess_datum') || Utils.todayISO();
                 const budget = parseFloat(document.getElementById('sess_budget') ? document.getElementById('sess_budget').value : 0) || 0;
+                // §14 UStG: Aussteller-Angaben gelten für die ganze Einkaufs-Session (eine Quelle = ein Beleg)
+                const lieferantName    = (document.getElementById('sess_lieferant') || {}).value?.trim() || '';
+                const lieferantSteuerId = (document.getElementById('sess_lieferantSteuerId') || {}).value?.trim() || '';
 
                 if (!this._sessionMeta) {
                     this._sessionMeta = { datum, einkaufsquelle: quelle, budget, sessionId: Store.generateId() };
@@ -306,6 +321,8 @@ const Buchungen = {
                     this._sessionMeta.einkaufsquelle = quelle;
                     this._sessionMeta.budget = budget;
                 }
+                this._sessionMeta.lieferantName = lieferantName;
+                this._sessionMeta.lieferantSteuerId = lieferantSteuerId;
 
                 const { datum: sDatum, einkaufsquelle: sQuelle, sessionId } = this._sessionMeta;
                 const count = this._sessionItems.length;
@@ -328,6 +345,8 @@ const Buchungen = {
                             anzahl: 1,
                             einkaufsquelle: sQuelle,
                             sessionId: sessionId,
+                            lieferantName,
+                            lieferantSteuerId,
                             status: 'verfuegbar'
                         });
                         savedCount++;

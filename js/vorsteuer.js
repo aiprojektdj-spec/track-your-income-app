@@ -82,7 +82,9 @@ const Vorsteuer = {
     // nicht strukturiert erfasst — reine Namens-/Steuer-ID-Prüfung ist eine Annäherung, kein
     // vollständiger §14-Check, aber deckt den häufigsten Lückenfall ab).
     _belegCheck(record, brutto) {
-        const name = ((record.lieferantName || record.lieferant || '')).trim();
+        // `haendler` ist das Lager-Feld für denselben Sachverhalt (Verkäufer/Aussteller) — mitzählen,
+        // sonst meldet der Check bei Lager-Artikeln fälschlich einen fehlenden Aussteller-Namen.
+        const name = ((record.lieferantName || record.lieferant || record.haendler || '')).trim();
         const steuerId = (record.lieferantSteuerId || '').trim();
         const kleinbetrag = brutto <= 250;
         const missing = [];

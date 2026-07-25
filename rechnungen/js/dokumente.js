@@ -646,17 +646,16 @@ var Dokumente = (function() {
                 Utils.showToast('Restbetrag gedeckt — bitte Zahlung final bestätigen.', 'info');
                 return;
             }
-            if (!inv.teilzahlungen) inv.teilzahlungen = [];
-            inv.teilzahlungen.push({ datum: datum, betrag: betrag });
-            // Rückgabewert prüfen statt blind Erfolg zu melden — saveRechInvoice liefert null,
-            // wenn die Rechnung GoBD-gesperrt ist (versendet-Status oder abgeschlossene Periode),
-            // sonst würde die Teilzahlung still verworfen und trotzdem "erfasst" gemeldet.
-            var saved = Store.saveRechInvoice(inv);
+            // addRechTeilzahlung() statt saveRechInvoice(): eigener Save-Pfad, der NICHT durch
+            // die §14-Inhaltssperre blockiert wird (die Sperre gilt für Rechnungsinhalte, eine
+            // Teilzahlung ändert nur die Zahlungsverfolgung) — sonst wäre die Erfassung bei
+            // status 'versendet' (Normalfall) dauerhaft unmöglich.
+            var saved = Store.addRechTeilzahlung(inv.id, betrag, datum);
             if (!saved) {
-                inv.teilzahlungen.pop();
-                Utils.showToast('⛔ Konnte nicht gespeichert werden — Rechnung ist GoBD-gesperrt (versendet oder Periode abgeschlossen).', 'error');
+                Utils.showToast('⛔ Konnte nicht gespeichert werden — Rechnung ist bereits bezahlt oder storniert.', 'error');
                 return;
             }
+            inv.teilzahlungen = saved.teilzahlungen;
             Utils.showToast('Teilzahlung erfasst — Rest: ' + Utils.formatCurrency(restbetrag(inv)), 'success');
             RechApp.closeModal();
             RechApp.navigate('dokumente');

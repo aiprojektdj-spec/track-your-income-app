@@ -2088,6 +2088,27 @@ const Store = {
         return invoice;
     },
 
+    // Eigener Save-Pfad statt saveRechInvoice(): eine Teilzahlung ändert keine §14-UStG-
+    // Pflichtangaben (Positionen/Beträge/Datum), sondern nur die Zahlungsverfolgung — daher
+    // NICHT durch _isRechInvoiceLocked blockieren. Sonst ist die Teilzahlungserfassung für
+    // jede versendete Rechnung (der Normalfall: verschickt, dann in Raten bezahlt) dauerhaft
+    // unbenutzbar, da saveRechInvoice() bei status 'versendet' immer null zurückgibt.
+    addRechTeilzahlung(invoiceId, betrag, datum) {
+        const invoices = this._rechGet('dokumente') || [];
+        const idx = invoices.findIndex(i => i.id === invoiceId);
+        if (idx < 0) return null;
+        const inv = invoices[idx];
+        if (inv.status === 'bezahlt' || inv.status === 'storniert') return null;
+        const old = Object.assign({}, inv);
+        if (!inv.teilzahlungen) inv.teilzahlungen = [];
+        inv.teilzahlungen.push({ datum, betrag });
+        invoices[idx] = this._stampRecord(inv);
+        this._rechSet('dokumente', invoices);
+        this._addAuditEntry('teilzahlung_erfasst', 'dokument', invoiceId, old, invoices[idx],
+            `Teilzahlung erfasst: ${betrag} EUR am ${datum}`);
+        return invoices[idx];
+    },
+
     stornoRechInvoice(id, grund) {
         const invoices = this._rechGet('dokumente') || [];
         const inv = invoices.find(x => x.id === id);

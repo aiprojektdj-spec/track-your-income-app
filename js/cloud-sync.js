@@ -38,6 +38,10 @@ var CloudSync = (function () {
     var HEALTHY_MAX_AGE_MS = 7 * 86400000;   // älter → lokale Backup-Hinweise NICHT unterdrücken (Sync könnte hängen)
     var LS_CODE_REMIND = 'oyi_sync_code_remind_last';                         // Timestamp der letzten Wiederherstellungscode-Erinnerung
     var CODE_REMIND_INTERVAL_MS = 90 * 86400000;   // alle 90 Tage — Code-Verlust ist das eine Risiko, das isHealthy() nicht erkennen kann
+    var LS_ANCHORED = function (scope) { return 'oyi_sync_anchored_' + scope; };   // bereits an den Server gemeldete Audit-Entry-IDs (Set)
+    var ANCHOR_BATCH = 500;   // muss <= Server-Limit (1000, siehe api/sync.js) sein
+    var LS_ANCHOR_CHECK = 'oyi_sync_anchor_check_last';                       // Timestamp der letzten automatischen Anker-Pruefung
+    var ANCHOR_CHECK_INTERVAL_MS = 24 * 3600000;   // taeglich reicht — kein manueller Klick noetig, um eine Abweichung zu bemerken
 
     var _cryptoKeyCache = null;   // importierter CryptoKey (für aktuellen User)
     var _cryptoKeyUid   = null;
@@ -177,6 +181,29 @@ var CloudSync = (function () {
         var list = Object.keys(seen).map(function (k) { return seen[k]; });
         try { localStorage.setItem(LS_CONFLICTS, JSON.stringify(list)); } catch (e) {}
         return list;
+    }
+
+    // ── Audit-Log-Anker: neue Einträge (Content-Hash) an die append-only Server-Liste melden ──
+    // Best-effort — ein Fehlschlag darf den eigentlichen Sync nicht stören. Bereits gemeldete
+    // IDs werden lokal gemerkt, damit nicht bei jedem Sync alles erneut gesendet wird.
+    function _loadAnchored(scope) { try { return JSON.parse(localStorage.getItem(LS_ANCHORED(scope)) || '[]'); } catch (e) { return []; } }
+    function _saveAnchored(scope, ids) { try { localStorage.setItem(LS_ANCHORED(scope), JSON.stringify(ids)); } catch (e) {} }
+    async function _pushAuditAnchors(scope, auditLog) {
+        if (!Array.isArray(auditLog) || !auditLog.length) return;
+        var already = new Set(_loadAnchored(scope));
+        var pending = auditLog.filter(function (e) { return e && e.id != null && !already.has(e.id); });
+        if (!pending.length) return;
+        try {
+            for (var i = 0; i < pending.length; i += ANCHOR_BATCH) {
+                var batch = pending.slice(i, i + ANCHOR_BATCH);
+                var entries = [];
+                for (var j = 0; j < batch.length; j++) entries.push({ id: batch[j].id, h: await Store._auditContentHash(batch[j]) });
+                var res = await _api({ action: 'anchor', scope: scope, entries: entries });
+                if (res.status !== 200) return;   // Rate-Limit o.ä. — nächster Sync versucht es erneut
+                batch.forEach(function (e) { already.add(e.id); });
+            }
+            _saveAnchored(scope, Array.from(already));
+        } catch (e) { console.warn('[CloudSync] Audit-Anker fehlgeschlagen (nicht kritisch):', e && e.message); }
     }
 
     // Nach erfolgreichem Sync: neuen gemeinsamen Stand als Basis für die nächste Kollisionsprüfung merken
@@ -375,6 +402,7 @@ var CloudSync = (function () {
             _conflicts.push({ scope: scope, key: c.key, id: c.id, mine: c.mine, theirs: c.theirs });
         });
         _updateBase(scope, merged);
+        await _pushAuditAnchors(scope, merged.keys[scope + '__audit_log']);
     }
 
     var _needReload    = false;
@@ -398,6 +426,7 @@ var CloudSync = (function () {
             }
             _setDot('ok');
             try { localStorage.setItem(LS_LAST_OK, String(Date.now())); } catch (e) {}
+            _maybeAutoVerifyAnchors();   // fire-and-forget, taeglich throttled
             if (_conflicts.length) {
                 console.warn('[CloudSync] Parallel-Konflikte erkannt (beide Fassungen gesichert):', _conflicts);
                 var pending = _persistConflicts(_conflicts);
@@ -724,10 +753,11 @@ var CloudSync = (function () {
             } catch (e) { console.warn('[CloudSync] Anhang-Cleanup vor Löschung fehlgeschlagen:', e && e.message); }
 
             await _api({ action: 'delete', scope: scope });
-            // lokale Sync-Metadaten + Konflikt-Basis für diesen Scope ebenfalls verwerfen
+            // lokale Sync-Metadaten + Konflikt-Basis + Anker-Merkliste für diesen Scope ebenfalls verwerfen
             localStorage.removeItem(LS_META(scope));
             localStorage.removeItem(LS_BASE(scope));
             localStorage.removeItem(LS_BLOBCACHE(scope));
+            localStorage.removeItem(LS_ANCHORED(scope));
             return true;
         } catch (e) {
             console.warn('[CloudSync] deleteRemote error:', e && e.message);
@@ -826,6 +856,46 @@ var CloudSync = (function () {
         return (Date.now() - last) < HEALTHY_MAX_AGE_MS;
     }
 
+    // ── Audit-Trail gegen den externen Server-Anker prüfen (aktive Firma) ────
+    // Ergebnis dient protokoll.js: enabled=false → kein Cloud-Sync aktiv, keine
+    // externe Beweisführung möglich (nur die reine In-Memory-Kette prüfbar).
+    async function verifyAuditAnchors() {
+        if (!_enabled() || !_hasKey() || !_isPro() || !_token()) return { enabled: false };
+        var scope = _activeScope();
+        if (!scope) return { enabled: false };
+        var res = await _api({ action: 'anchor_pull', scope: scope });
+        if (res.status !== 200) return { enabled: true, error: true };
+        var byId = {};
+        (res.json.anchors || []).forEach(function (a) { (byId[a.id] = byId[a.id] || []).push(a.h); });
+        var log = (typeof Store !== 'undefined') ? Store.getAuditLog() : [];
+        var okCount = 0, notAnchored = 0, mismatches = [];
+        for (var i = 0; i < log.length; i++) {
+            var e = log[i], hashes = byId[e.id];
+            if (!hashes) { notAnchored++; continue; }
+            var uniq = Array.from(new Set(hashes));
+            var h = await Store._auditContentHash(e);
+            if (uniq.length === 1 && uniq[0] === h) okCount++; else mismatches.push(e.id);
+        }
+        return { enabled: true, total: log.length, ok: okCount, notAnchored: notAnchored, mismatches: mismatches };
+    }
+
+    // Taegliche automatische Anker-Pruefung (statt nur auf Klick im Protokoll-Modul) —
+    // damit eine Abweichung auffaellt, auch wenn niemand aktiv "Integritaet pruefen" klickt.
+    async function _maybeAutoVerifyAnchors() {
+        var last = parseInt(localStorage.getItem(LS_ANCHOR_CHECK) || '0', 10);
+        if (last && (Date.now() - last) < ANCHOR_CHECK_INTERVAL_MS) return;
+        try { localStorage.setItem(LS_ANCHOR_CHECK, String(Date.now())); } catch (e) {}
+        try {
+            var res = await verifyAuditAnchors();
+            if (res.enabled && !res.error && res.mismatches && res.mismatches.length && typeof Utils !== 'undefined') {
+                Utils.showToast(
+                    '⚠ Audit-Log: ' + res.mismatches.length + ' Eintrag/Einträge weichen vom Cloud-Anker ab (Manipulationsverdacht) — Details im Modul „Protokoll“.',
+                    'error', 12000
+                );
+            }
+        } catch (e) { /* best-effort, keine Fehlermeldung noetig */ }
+    }
+
     function disableFlow() {
         var body =
           '<div style="display:flex;flex-direction:column;gap:14px;">' +
@@ -863,6 +933,7 @@ var CloudSync = (function () {
         openConflicts: openConflicts,
         keyBytes: keyBytes,
         isHealthy: isHealthy,
+        verifyAuditAnchors: verifyAuditAnchors,
         foreignLoad: foreignLoad,
         foreignUnload: foreignUnload,
         deleteRemote: deleteRemote,

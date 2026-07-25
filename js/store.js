@@ -1116,6 +1116,22 @@ const Store = {
         return { valid: broken === 0, broken, total: log.length };
     },
 
+    // Stabiler Inhalts-Hash eines Audit-Eintrags (SHA-256) — unabhängig von prevHash/checksum,
+    // die beim Merge re-berechnet werden (siehe cloud-sync.js _mergeAudit). Dient als externer
+    // Anker (siehe CloudSync.anchor*): einmal an den Server gemeldet, kann ein späteres lokales
+    // Verändern desselben Eintrags erkannt werden, weil der neu berechnete Hash abweicht.
+    async _auditContentHash(entry) {
+        var stable = {
+            id: entry.id, timestamp: entry.timestamp, action: entry.action,
+            entityType: entry.entityType, entityId: entry.entityId,
+            oldValues: entry.oldValues || null, newValues: entry.newValues || null,
+            details: entry.details || '', _dev: entry._dev || ''
+        };
+        var bytes = new TextEncoder().encode(JSON.stringify(stable));
+        var digest = await crypto.subtle.digest('SHA-256', bytes);
+        return Array.from(new Uint8Array(digest)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    },
+
     _calcChecksum(str) {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {

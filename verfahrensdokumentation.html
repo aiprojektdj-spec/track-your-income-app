@@ -94,13 +94,24 @@
             Klartext-Hinweis.
         </p>
         <p>
-            Die Einträge sind über eine <strong>Hash-Kette</strong> gegen nachträgliche Manipulation
-            gesichert: jeder Eintrag enthält eine Prüfsumme über seinen eigenen Inhalt sowie eine Referenz
-            (<code>prevHash</code>) auf die Prüfsumme des vorherigen Eintrags — beginnend bei einem
-            definierten Startwert („GENESIS“). Wird ein Eintrag nachträglich verändert, ändert sich seine
-            Prüfsumme, wodurch die Verkettung zu allen nachfolgenden Einträgen bricht. Diese Kette lässt
-            sich jederzeit mit einer internen Prüffunktion verifizieren; ein Bruch wird im Protokoll-Modul
-            angezeigt.
+            Die Einträge sind zusätzlich über eine <strong>Hash-Kette</strong> verknüpft: jeder Eintrag enthält
+            eine Prüfsumme über seinen eigenen Inhalt sowie eine Referenz (<code>prevHash</code>) auf die
+            Prüfsumme des vorherigen Eintrags — beginnend bei einem definierten Startwert („GENESIS“). Diese
+            Kette erkennt zuverlässig unbeabsichtigte Datenkorruption sowie Inkonsistenzen beim Zusammenführen
+            mehrerer Geräte und lässt sich jederzeit mit einer internen Prüffunktion verifizieren
+            (Protokoll-Modul, Schaltfläche „Integrität prüfen“). Da Prüfformel und Daten auf demselben Gerät
+            liegen, bietet die Kette für sich genommen keinen Schutz gegen einen Nutzer, der mit Kenntnis der
+            Berechnungsformel gezielt sowohl einen Eintrag als auch die nachfolgende Kette manipuliert.
+        </p>
+        <p>
+            Geräteunabhängige Nachweisbarkeit liefert der optionale <strong>Cloud-Anker</strong>: Ist Cloud-Sync
+            aktiviert, wird für jeden neuen Audit-Eintrag ein kryptografischer SHA-256-Inhalts-Hash (keine
+            Klardaten) an eine reine Anhänge-Liste auf dem Sync-Server übermittelt, die vom Endgerät aus nicht
+            nachträglich verändert werden kann. Die Integritätsprüfung gleicht den lokal neu berechneten
+            Inhalts-Hash jedes Eintrags gegen diesen externen Stand ab; eine Abweichung wird als
+            Manipulationsverdacht gemeldet. Diese externe Absicherung gilt ausschließlich für Einträge, die
+            bereits mindestens einmal synchronisiert wurden — bei deaktiviertem Cloud-Sync sowie für noch nicht
+            synchronisierte Einträge besteht nur der oben beschriebene, geräteinterne Schutz.
         </p>
     </div>
 
@@ -157,6 +168,8 @@
         <h2>9. Änderungshistorie dieses Dokuments</h2>
         <ul>
             <li>Juli 2026 — Ersterstellung</li>
+            <li>25.07.2026 — Abschnitt 4 präzisiert: Reichweite der lokalen Hash-Kette klargestellt,
+                optionaler Cloud-Anker (externer SHA-256-Inhalts-Hash je Audit-Eintrag) ergänzt</li>
         </ul>
     </div>
 

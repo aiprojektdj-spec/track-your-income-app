@@ -204,10 +204,10 @@ const Protokoll = {
             });
         }
 
-        // Integrity check — now also verifies audit log hash-chain
+        // Integrity check — hash-chain (lokal) + optional Cloud-Anker (extern, faelschungssicherer)
         const verifyBtn = document.getElementById('auditVerifyBtn');
         if (verifyBtn) {
-            verifyBtn.addEventListener('click', () => {
+            verifyBtn.addEventListener('click', async () => {
                 let issues = 0;
                 const checks = [
                     { name: 'Einkaeufe', items: Store.getAllPurchasesRaw() },
@@ -220,7 +220,8 @@ const Protokoll = {
                     });
                 });
 
-                // Verify audit log hash chain (new — detects retroactive tampering)
+                // Verify audit log hash chain (erkennt Datenkorruption; eine EIN-Geraet-Manipulation
+                // mit Kenntnis der Formel kann die Kette selbst konsistent neu berechnen — siehe Cloud-Anker unten)
                 const chainResult = Store.verifyAuditChain();
                 if (!chainResult.valid) {
                     Utils.showToast(
@@ -230,9 +231,32 @@ const Protokoll = {
                     return;
                 }
 
+                // Cloud-Anker: externer, vom Gerät nicht rückwirkend veränderbarer Referenzpunkt.
+                // Nur aussagekräftig, wenn Cloud-Sync aktiv ist — sonst gibt es keinen externen Zeugen.
+                let anchorMsg = ' · kein Cloud-Anker (Cloud-Sync aus)';
+                if (typeof CloudSync !== 'undefined') {
+                    try {
+                        const anchor = await CloudSync.verifyAuditAnchors();
+                        if (anchor.enabled && !anchor.error) {
+                            if (anchor.mismatches.length) {
+                                Utils.showToast(
+                                    `⚠ Cloud-Anker: ${anchor.mismatches.length} Eintrag/Einträge weichen vom extern gespeicherten Stand ab (Manipulationsverdacht)!`,
+                                    'error'
+                                );
+                                return;
+                            }
+                            anchorMsg = anchor.notAnchored
+                                ? ` · Cloud-Anker: ${anchor.ok} bestätigt, ${anchor.notAnchored} noch nicht verankert`
+                                : ` · Cloud-Anker: alle ${anchor.ok} Einträge bestätigt`;
+                        } else if (anchor.enabled && anchor.error) {
+                            anchorMsg = ' · Cloud-Anker-Prüfung fehlgeschlagen (Server nicht erreichbar)';
+                        }
+                    } catch (e) { /* best-effort, blockiert die lokale Prüfung nicht */ }
+                }
+
                 if (issues === 0) {
                     Utils.showToast(
-                        `✓ Integritätsprüfung bestanden — ${chainResult.total} Log-Einträge, Hash-Kette intakt`,
+                        `✓ Integritätsprüfung bestanden — ${chainResult.total} Log-Einträge, Hash-Kette intakt${anchorMsg}`,
                         'success'
                     );
                 } else {

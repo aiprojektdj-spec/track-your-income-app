@@ -229,12 +229,15 @@ module.exports = async function handler(req, res) {
     }
 
     // ── 5. Request validieren ─────────────────────────────────────────────────
-    // scope nur für scope-gebundene Aktionen (pull/push/delete) verlangen;
+    // scope nur für scope-gebundene Aktionen (pull/push/delete/anchor*) verlangen;
     // pubkey-/grant-Aktionen brauchen keinen scope.
-    var isScopeAction = (action === 'pull' || action === 'push' || action === 'delete');
+    var isScopeAction = (action === 'pull' || action === 'push' || action === 'delete' ||
+                          action === 'anchor' || action === 'anchor_pull');
     if (isScopeAction && !SCOPE_RE.test(String(scope || ''))) return res.status(400).json({ error: 'bad_scope' });
 
-    var key = 'sync:' + userId + ':' + scope;
+    var key       = 'sync:' + userId + ':' + scope;
+    var anchorKey = 'syncanchor:' + userId + ':' + scope;
+    var ANCHOR_MAX = 20000;   // LTRIM-Deckel — Hash+ID pro Eintrag ist winzig, das deckt Jahre ab
 
     try {
         if (action === 'pull') {
@@ -288,9 +291,40 @@ module.exports = async function handler(req, res) {
         }
 
         if (action === 'delete') {
-            // Art. 17 DSGVO — löscht den verschlüsselten Snapshot dieses Scopes unwiderruflich.
+            // Art. 17 DSGVO — löscht den verschlüsselten Snapshot UND die Anker-Liste dieses Scopes unwiderruflich.
             await redisCmd(['DEL', key]);
+            await redisCmd(['DEL', anchorKey]);
             return res.status(200).json({ ok: true });
+        }
+
+        // ── Audit-Log-Anker: append-only Beweisliste für Manipulationserkennung ──
+        // Speichert NUR {id, h(Content-SHA-256), ts} — keine Klardaten. Einmal
+        // angehängte Einträge werden nie überschrieben (nur per Art.-17-delete
+        // komplett entfernt) → liefert einen externen, vom Client nicht rückwirkend
+        // veränderbaren Referenzpunkt für GoBD Rz. 64 (Unveränderbarkeit).
+        if (action === 'anchor') {
+            if (body.owner) return res.status(403).json({ error: 'readonly' });
+            var items = Array.isArray(body.entries) ? body.entries : [];
+            if (!items.length) return res.status(400).json({ error: 'bad_payload' });
+            if (items.length > 1000) return res.status(400).json({ error: 'too_many' });
+            var ID_RE = /^[A-Za-z0-9_-]{1,64}$/, HASH_RE = /^[A-Fa-f0-9]{64}$/;
+            var rows = [];
+            for (var ai = 0; ai < items.length; ai++) {
+                var it = items[ai];
+                if (!it || !ID_RE.test(String(it.id || '')) || !HASH_RE.test(String(it.h || '')))
+                    return res.status(400).json({ error: 'bad_entry' });
+                rows.push(JSON.stringify({ id: it.id, h: it.h, ts: Date.now() }));
+            }
+            await redisCmd(['RPUSH', anchorKey].concat(rows));
+            await redisCmd(['LTRIM', anchorKey, String(-ANCHOR_MAX), '-1']);
+            return res.status(200).json({ ok: true, added: rows.length });
+        }
+
+        if (action === 'anchor_pull') {
+            if (body.owner) return res.status(403).json({ error: 'readonly' });   // StB-Sync ruht ohnehin (siehe cloud-sync.js) — kein Bedarf
+            var rawRows = (await redisCmd(['LRANGE', anchorKey, '0', '-1'])) || [];
+            var anchors = rawRows.map(function (r) { try { return JSON.parse(r); } catch (e) { return null; } }).filter(Boolean);
+            return res.status(200).json({ ok: true, anchors: anchors });
         }
 
         // ── Steuerberater-Freigabe (Envelope-Key, siehe js/stb-share.js) ──────

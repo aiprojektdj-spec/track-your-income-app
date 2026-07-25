@@ -9,18 +9,26 @@ process.env.UPSTASH_REDIS_REST_TOKEN = 'x';
 process.env.WHOP_API_KEY             = 'test_app_key';
 
 // ── In-Memory-Redis ───────────────────────────────────────────────────────────
-const store = new Map(), sets = new Map();
+const store = new Map(), sets = new Map(), lists = new Map();
 function redisExec(cmd) {
     const op = cmd[0];
     if (op === 'GET')      return store.has(cmd[1]) ? store.get(cmd[1]) : null;
     if (op === 'SET')      { store.set(cmd[1], cmd[2]); return 'OK'; }
-    if (op === 'DEL')      { store.delete(cmd[1]); return 1; }
+    if (op === 'DEL')      { store.delete(cmd[1]); lists.delete(cmd[1]); return 1; }
     if (op === 'INCR')     { const v = parseInt(store.get(cmd[1]) || '0', 10) + 1; store.set(cmd[1], String(v)); return v; }
     if (op === 'EXPIRE')   return 1;
     if (op === 'EVAL')     return 'OK';
     if (op === 'SADD')     { const s = sets.get(cmd[1]) || new Set(); s.add(cmd[2]); sets.set(cmd[1], s); return 1; }
     if (op === 'SREM')     { const s = sets.get(cmd[1]); if (s) s.delete(cmd[2]); return 1; }
     if (op === 'SMEMBERS') { const s = sets.get(cmd[1]); return s ? Array.from(s) : []; }
+    if (op === 'RPUSH')    { const l = lists.get(cmd[1]) || []; for (let i = 2; i < cmd.length; i++) l.push(cmd[i]); lists.set(cmd[1], l); return l.length; }
+    if (op === 'LTRIM' || op === 'LRANGE') {
+        const l = lists.get(cmd[1]) || []; let s = parseInt(cmd[2], 10), e = parseInt(cmd[3], 10);
+        s = s < 0 ? Math.max(l.length + s, 0) : s; e = e < 0 ? l.length + e : e;
+        const sliced = l.slice(s, e + 1);
+        if (op === 'LTRIM') { lists.set(cmd[1], sliced); return 'OK'; }
+        return sliced;
+    }
     return null;
 }
 
@@ -95,5 +103,31 @@ async function call(token, body) { const res = mkRes(); await handler({ method: 
     r = await call('tok_stb', { action: 'pull', scope: '__account' });   // eigener Scope, StB ohne Pro
     assert.strictEqual(r.code, 403); assert.strictEqual(r.body.error, 'pro_required', 'eigener Scope braucht Pro'); pass++; console.log('✓ eigener pull ohne Pro → pro_required');
 
-    console.log('\n' + pass + '/11 API-Tests bestanden ✅');
+    // ── Audit-Log-Anker (Manipulationserkennung via externe append-only Liste) ──
+    const H = 'a'.repeat(64);
+    r = await call('tok_owner', { action: 'anchor', scope: '__account', entries: [{ id: 'e1', h: H }] });
+    assert.strictEqual(r.code, 200); assert.strictEqual(r.body.added, 1); pass++; console.log('✓ anchor (Content-Hash angehaengt)');
+
+    r = await call('tok_owner', { action: 'anchor_pull', scope: '__account' });
+    assert.strictEqual(r.code, 200); assert.strictEqual(r.body.anchors.length, 1);
+    assert.strictEqual(r.body.anchors[0].id, 'e1'); assert.strictEqual(r.body.anchors[0].h, H); pass++; console.log('✓ anchor_pull (Liste zurück)');
+
+    r = await call('tok_owner', { action: 'anchor', scope: '__account', entries: [{ id: 'bad id!', h: H }] });
+    assert.strictEqual(r.code, 400); assert.strictEqual(r.body.error, 'bad_entry', 'ungültige ID abgelehnt'); pass++; console.log('✓ anchor mit ungültiger ID → 400 bad_entry');
+
+    r = await call('tok_owner', { action: 'anchor', scope: '__account', entries: [{ id: 'e2', h: 'zu-kurz' }] });
+    assert.strictEqual(r.code, 400); assert.strictEqual(r.body.error, 'bad_entry', 'ungültiger Hash abgelehnt'); pass++; console.log('✓ anchor mit ungültigem Hash → 400 bad_entry');
+
+    r = await call('tok_owner', { action: 'anchor', scope: '__account', owner: 'someoneElse', entries: [{ id: 'e3', h: H }] });
+    assert.strictEqual(r.code, 403); assert.strictEqual(r.body.error, 'readonly', 'nie in fremden Owner-Scope anchoren'); pass++; console.log('✓ anchor mit owner-Param → 403 readonly');
+
+    r = await call('tok_owner', { action: 'anchor_pull', scope: '__account', owner: 'someoneElse' });
+    assert.strictEqual(r.code, 403); assert.strictEqual(r.body.error, 'readonly'); pass++; console.log('✓ anchor_pull mit owner-Param → 403 readonly');
+
+    r = await call('tok_owner', { action: 'delete', scope: '__account' });
+    assert.strictEqual(r.code, 200);
+    r = await call('tok_owner', { action: 'anchor_pull', scope: '__account' });
+    assert.strictEqual(r.code, 200); assert.strictEqual(r.body.anchors.length, 0, 'Art. 17: delete räumt auch die Anker-Liste mit auf'); pass++; console.log('✓ delete löscht auch Anker-Liste (Art. 17 DSGVO)');
+
+    console.log('\n' + pass + '/18 API-Tests bestanden ✅');
 })().catch(e => { console.error('✗ FAIL', e); process.exit(1); });

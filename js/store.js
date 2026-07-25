@@ -2106,6 +2106,13 @@ const Store = {
         this._rechSet('dokumente', invoices);
         this._addAuditEntry('teilzahlung_erfasst', 'dokument', invoiceId, old, invoices[idx],
             `Teilzahlung erfasst: ${betrag} EUR am ${datum}`);
+        // §11 EStG Zufluss-Prinzip: die Teilzahlung selbst ist bereits ein steuerlich relevanter
+        // Zufluss zum tatsächlichen Zahlungsdatum — nicht erst die Schlusszahlung. Ohne diesen
+        // anteiligen Sale-Eintrag verschwindet eine z.B. im Dezember zugeflossene Teilzahlung
+        // komplett aus EÜR/Ist-UVA des Dezember-Zeitraums, wenn die Rechnung erst im Januar
+        // vollständig beglichen wird (siehe plan/session-prompt-zufluss-teilzahlung-steuermodule.md).
+        this.createSaleFromInvoice(invoices[idx], invoices[idx].verkaufsplattform || '', null, null,
+            { teilzahlungBetrag: betrag, teilzahlungDatum: datum });
         return invoices[idx];
     },
 
@@ -2121,11 +2128,14 @@ const Store = {
         this._stampRecord(inv);
         this._rechSet('dokumente', invoices);
         this._addAuditEntry('storniert', 'dokument', id, old, inv, grund || 'Dokument storniert: ' + (inv.nummer || ''));
-        // Cascade: storniere verknüpften Verkauf falls bereits synchronisiert
-        const linkedSale = this.getAllSalesRaw().find(s => s._invoiceId === id && !s.storniert);
-        if (linkedSale) {
-            this.stornoSale(linkedSale.id, 'Automatisch: Rechnung ' + (inv.nummer || id) + ' storniert', true);
-        }
+        // Cascade: alle verknuepften Verkaeufe stornieren — nicht nur den ersten (find()), da eine
+        // teilbezahlte Rechnung mehrere Sales haben kann (je ein anteiliger pro Teilzahlung plus
+        // ggf. der Schlusszahlungs-Sale). Sonst bleiben teilzahlungsbezogene Sales unstorniert als
+        // Einnahme in EÜR/Bilanz stehen, obwohl die Rechnung selbst storniert ist.
+        const linkedSales = this.getAllSalesRaw().filter(s => s._invoiceId === id && !s.storniert);
+        linkedSales.forEach(ls => {
+            this.stornoSale(ls.id, 'Automatisch: Rechnung ' + (inv.nummer || id) + ' storniert', true);
+        });
     },
 
     deleteRechInvoice(id) {
@@ -2270,7 +2280,8 @@ const Store = {
     // Invoice → Sale Connector (Rechnungsbuch → Reselling)
     // ============================================
 
-    createSaleFromInvoice(invoice, platform, purchaseId, manualEK) {
+    createSaleFromInvoice(invoice, platform, purchaseId, manualEK, opts) {
+        opts = opts || {};
         const settings = this.getSettings();
         const isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (settings.ustMode === 'klein');
         const isGutschrift = invoice.typ === 'gutschrift';
@@ -2284,6 +2295,21 @@ const Store = {
         // Änderung der Bemessungsgrundlage) — als Sale daher mit negativem Betrag verbucht.
         if (isGutschrift) brutto = -brutto;
 
+        const isTeilzahlung = opts.teilzahlungBetrag !== undefined && opts.teilzahlungBetrag !== null;
+        if (isTeilzahlung) {
+            // Anteiliger Sale fuer eine einzelne Teilzahlung: eigenes Zufluss-Datum, kein EK-Bezug
+            // (Wareneinkauf wird in EÜR/Bilanz unabhaengig ueber den Einkaufs-Bezahlzeitpunkt
+            // abgezogen, nicht ueber diese Sale-Verknuepfung).
+            brutto = (isGutschrift ? -1 : 1) * Math.abs(opts.teilzahlungBetrag);
+        } else {
+            // Schlusszahlung: bereits per Teilzahlung erfasste Betraege abziehen, sonst wird der
+            // schon verbuchte Teil hier nochmal mitgezaehlt (Doppelzaehlung als Einnahme).
+            const bereitsErfasst = this.getSales(true)
+                .filter(s => s._invoiceId === invoice.id && s._teilzahlung && !s.storniert)
+                .reduce((sum, s) => sum + (parseFloat(s.verkaufspreis) || 0), 0);
+            brutto -= bereitsErfasst;
+        }
+
         const customers = this.getRechCustomers();
         const kunde = customers.find(c => c.id === invoice.kundeId);
         const kundeName = kunde ? (kunde.firma || kunde.ansprechpartner || '') : '';
@@ -2291,7 +2317,7 @@ const Store = {
         let linkedPurchaseId = purchaseId || null;
 
         // Manueller EK: eigenen Einkaufseintrag anlegen
-        if (!linkedPurchaseId && manualEK !== null && manualEK !== undefined && manualEK !== '') {
+        if (!isTeilzahlung && !linkedPurchaseId && manualEK !== null && manualEK !== undefined && manualEK !== '') {
             const ekBetrag = parseFloat(manualEK) || 0;
             if (ekBetrag > 0) {
                 const purchase = {
@@ -2311,19 +2337,20 @@ const Store = {
         }
 
         const sale = {
-            datum: invoice.bezahltAm || invoice.datum,
+            datum: isTeilzahlung ? (opts.teilzahlungDatum || invoice.datum) : (invoice.bezahltAm || invoice.datum),
             marke: 'Rechnung',
             artikeltyp: 'Rechnung',
-            beschreibung: (invoice.nummer || '') + (kundeName ? ' – ' + kundeName : ''),
+            beschreibung: (invoice.nummer || '') + (kundeName ? ' – ' + kundeName : '') + (isTeilzahlung ? ' (Teilzahlung)' : ''),
             verkaufsplattform: platform || invoice.verkaufsplattform || '',
             verkaufspreis: brutto,
             versandkostenKaeufer: 0,
             plattformgebuehrProzent: 0,
             versandkostenVerkaufer: 0,
-            purchaseId: linkedPurchaseId,
+            purchaseId: isTeilzahlung ? null : linkedPurchaseId,
             _invoiceId: invoice.id,
             _typ: isGutschrift ? 'gutschrift' : 'rechnung'
         };
+        if (isTeilzahlung) sale._teilzahlung = true;
 
         // Steuersatz der Rechnung mitgeben, sonst zählt die Ist-UVA den Sale mit dem
         // 19%-Default — falsch bei 0% (Reverse Charge / ig. Lieferung) und 7%-Rechnungen.
@@ -2580,7 +2607,10 @@ const Store = {
         try {
             const invoices = this.getRechInvoices ? this.getRechInvoices() : [];
             const allSales = this.getAllSalesRaw();
-            const syncedIds = new Set(allSales.filter(s => s._invoiceId).map(s => s._invoiceId));
+            // _teilzahlung-Sales bewusst ausgeschlossen: die zaehlen nur den anteiligen Zufluss,
+            // nicht die vollstaendige Schlusszahlungs-Synchronisation — sonst wird der finale
+            // Restbetrag-Sale nie nachgeholt, sobald eine Rechnung mind. eine Teilzahlung hatte.
+            const syncedIds = new Set(allSales.filter(s => s._invoiceId && !s._teilzahlung).map(s => s._invoiceId));
             invoices.forEach(inv => {
                 if (inv.status === 'bezahlt' && (inv.typ === 'rechnung' || inv.typ === 'gutschrift') && !inv._storniert && !syncedIds.has(inv.id)) {
                     this.createSaleFromInvoice(inv, inv.verkaufsplattform || '', null, null);

@@ -181,7 +181,11 @@ var RechApp = (function() {
         var today = Utils.todayISO();
         var changed = false;
         invoices.forEach(function(inv) {
-            if (inv.status === 'offen' && inv.faelligkeit && inv.faelligkeit < today && inv.typ === 'rechnung') {
+            // 'versendet' zaehlt hier mit (nicht nur 'offen'): der Normalfall ist Rechnung
+            // erstellt -> verschickt -> bezahlt. Ohne diesen Zweig blieb eine verschickte,
+            // ueberfaellige Rechnung fuer immer auf 'versendet' stehen und tauchte nie im
+            // Mahnwesen auf (gefunden vom legal-reviewer-Agent, 2026-07-25).
+            if ((inv.status === 'offen' || inv.status === 'versendet') && inv.faelligkeit && inv.faelligkeit < today && inv.typ === 'rechnung') {
                 inv.status = 'ueberfaellig';
                 Store.saveRechInvoice(inv);
                 changed = true;

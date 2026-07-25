@@ -413,8 +413,57 @@ const Utils = {
         this._dateObserver.observe(document.body, { childList: true, subtree: true });
         // Bestehende konvertieren
         this.initSmartDates(document);
+    },
+
+    // ── A11y: verwaiste Formular-Labels nachträglich verknüpfen (WCAG 1.3.1 / 4.1.2) ──
+    // Die App rendert durchgehend `<label class="form-label">Text</label><input id="x">`
+    // ohne `for=`. Ohne Verknüpfung liest ein Screenreader das Feld unbenannt vor und der
+    // Klick aufs Label fokussiert nichts. Statt ~1000 Render-Stellen einzeln anzufassen
+    // wird die Verknüpfung zur Laufzeit nachgezogen.
+    // ponytail: nimmt das erste Formularelement, das dem Label im DOM folgt (max. 4
+    // Geschwister weit, stoppt am nächsten Label). Verschachtelte Sonderfälle, in denen
+    // Label und Feld in getrennten Wrappern liegen, bleiben ungelabelt — dort direkt ein
+    // `aria-label` am Feld setzen.
+    _a11ySeq: 0,
+    linkOrphanLabels(root) {
+        const FIELD = 'input:not([type="hidden"]),select,textarea';
+        (root || document).querySelectorAll('label:not([for])').forEach(lab => {
+            if (lab.querySelector(FIELD)) return; // Label umschließt das Feld bereits
+            let node = lab.nextElementSibling, field = null, hops = 0;
+            while (node && hops++ < 4) {
+                if (node.tagName === 'LABEL') break;
+                field = node.matches(FIELD) ? node : node.querySelector(FIELD);
+                if (field) break;
+                node = node.nextElementSibling;
+            }
+            if (!field || field.closest('label')) return;
+            if (field.getAttribute('aria-label') || field.getAttribute('aria-labelledby')) return;
+            if (field.labels && field.labels.length) return; // schon anderweitig verknüpft
+            if (!field.id) field.id = 'a11y-f' + (++Utils._a11ySeq);
+            lab.setAttribute('for', field.id);
+        });
+    },
+
+    // Einmalig beim App-Start: bestehende Labels verknüpfen + neu gerenderte nachziehen.
+    startLabelObserver() {
+        if (this._labelObserver) return;
+        this._labelObserver = new MutationObserver(() => {
+            clearTimeout(this._labelTimer);
+            this._labelTimer = setTimeout(() => this.linkOrphanLabels(document), 60);
+        });
+        this._labelObserver.observe(document.body, { childList: true, subtree: true });
+        this.linkOrphanLabels(document);
     }
 };
+
+// A11y-Label-Verknüpfung automatisch starten (alle 4 App-Seiten laden utils.js).
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => Utils.startLabelObserver());
+    } else {
+        Utils.startLabelObserver();
+    }
+}
 
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
 if (window.Actions) Actions.register({

@@ -204,7 +204,7 @@ const Buchungen = {
                     </div>
                     <div class="form-group" style="max-width:80px;">
                         <label class="form-label">Anzahl</label>
-                        <input type="number" min="1" class="form-input" id="item_anzahl" value="1">
+                        <input type="number" min="1" max="9999" class="form-input" id="item_anzahl" value="1">
                     </div>
                     <div class="form-group" style="align-self:flex-end;">
                         <button type="button" class="btn btn-primary" id="addItemBtn">+ Hinzufügen</button>
@@ -258,8 +258,15 @@ const Buchungen = {
                     Utils.showToast('Bitte mindestens Marke oder Beschreibung eingeben', 'warning');
                     return;
                 }
-                if (!Number.isFinite(preis) || !Number.isFinite(anzahl) || preis < 0 || anzahl < 0 || preis > 99999999) {
-                    Utils.showToast('Preis und Anzahl müssen gültige, nicht-negative Zahlen sein', 'warning');
+                if (!Number.isFinite(preis) || preis < 0 || preis > 99999999) {
+                    Utils.showToast('Einkaufspreis muss eine gültige, nicht-negative Zahl sein', 'warning');
+                    return;
+                }
+                // Obergrenze nicht kosmetisch: beim Speichern wird die Menge in Einzeldatensätze
+                // aufgeteilt (ein Store.savePurchase pro Stück), eine sehr große Zahl würde den
+                // Browser blockieren.
+                if (!Number.isFinite(anzahl) || anzahl < 1 || anzahl > 9999) {
+                    Utils.showToast('Anzahl muss zwischen 1 und 9999 liegen', 'warning');
                     return;
                 }
 

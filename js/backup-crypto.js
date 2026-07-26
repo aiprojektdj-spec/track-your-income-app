@@ -75,12 +75,16 @@ var BackupCrypto = (function () {
     }
 
     // ── Welche Keys gehören zu einem Scope ────────────────────────────────────
-    function _companyIds(onlyLand) {
+    function _companyRegistry(onlyLand) {
         try {
             var list = JSON.parse(localStorage.getItem('oyi_companies') || '[]');
-            if (onlyLand) list = list.filter(function (c) { return (c.land || 'DE') === onlyLand; });
-            return list.map(function (c) { return c.id; }).filter(Boolean);
+            if (!Array.isArray(list)) return [];
+            if (onlyLand) list = list.filter(function (c) { return c && (c.land || 'DE') === onlyLand; });
+            return list.filter(function (c) { return c && c.id; });
         } catch (e) { return []; }
+    }
+    function _companyIds(onlyLand) {
+        return _companyRegistry(onlyLand).map(function (c) { return c.id; });
     }
     function _scopeKeys(scope) {
         if (scope === '__account') return ['oyi_companies'];
@@ -95,20 +99,29 @@ var BackupCrypto = (function () {
     }
 
     // ── Klartext-Bundle bauen (Export) ────────────────────────────────────────
-    // onlyLand: z.B. 'DE' — Wechsel-Export enthält nur Firmen dieses Sitzlands
-    // (Web 1.7 hat kein CH/AT-UI mehr, siehe ch-at-removal-web); normales
-    // Komplett-Backup ruft ohne Filter auf und sichert weiterhin alles.
-    function _buildBundle(onlyLand) {
+    // onlyLand:   z.B. 'DE' — Wechsel-Export enthält nur Firmen dieses Sitzlands
+    //             (Web 1.7 hat kein CH/AT-UI mehr, siehe ch-at-removal-web); normales
+    //             Komplett-Backup ruft ohne Filter auf und sichert weiterhin alles.
+    // companyIds: optionale Whitelist von Firmen-IDs (Firmen-Auswahl im Wechsel-
+    //             Dialog). Wirkt ZUSÄTZLICH zum Land-Filter, ersetzt ihn nie —
+    //             CH/AT-Firmen bleiben also auch dann draußen, wenn sie angehakt wären.
+    function _buildBundle(onlyLand, companyIds) {
+        var only = null;
+        if (Array.isArray(companyIds)) {
+            only = {};
+            companyIds.forEach(function (id) { if (id) only[id] = 1; });
+        }
+        function keep(c) { return c && (!onlyLand || (c.land || 'DE') === onlyLand) && (!only || only[c.id]); }
         var bundle = {};
         _scopeKeys('__account').forEach(function (k) {
             var v = _read(k);
             if (v !== undefined) {
-                if (k === 'oyi_companies' && onlyLand && Array.isArray(v)) v = v.filter(function (c) { return (c.land || 'DE') === onlyLand; });
+                if (k === 'oyi_companies' && (onlyLand || only) && Array.isArray(v)) v = v.filter(keep);
                 (bundle.__account = bundle.__account || {})[k] = v;
             }
         });
-        _companyIds(onlyLand).forEach(function (id) {
-            var sc = {};
+        _companyRegistry(onlyLand).filter(keep).forEach(function (c) {
+            var id = c.id, sc = {};
             _scopeKeys(id).forEach(function (k) { var v = _read(k); if (v !== undefined) sc[k] = v; });
             if (Object.keys(sc).length) bundle[id] = sc;
         });
@@ -239,12 +252,88 @@ var BackupCrypto = (function () {
         App.showModal('Komplett-Backup (alle Firmen, verschlüsselt)', body, '');
     }
 
+    // ── Wechsel-Import (Web 1.7): eigener, sichtbarer Einstiegspunkt ──────────
+    // Gleiche Merge-Logik wie der Komplett-Backup-Dialog — nutzt denselben
+    // doImport() (Formaterkennung inklusive), nur ohne Passphrase-Feld, weil
+    // stackr-migration-Dateien unverschlüsselt sind.
+    function openMigrationImportModal() {
+        var body =
+          '<div style="display:flex;flex-direction:column;gap:16px;">' +
+            '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
+              'Lade hier die <strong>Wechsel-Datei</strong> hoch, die du in Local 1.7 unter ' +
+              '„Zu Web wechseln" exportiert hast (<code>stackr-wechsel-….json</code>).' +
+            '</div>' +
+            '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;">' +
+              '<input type="file" id="bkpImpFile" accept=".json,application/json" class="form-input">' +
+              '<div style="font-size:12px;color:var(--text-muted);">' +
+                'Die Daten werden mit deinen vorhandenen <strong>zusammengeführt</strong> (neuere Einträge gewinnen), ' +
+                'nichts wird überschrieben oder gelöscht. Anschließend lädt die Seite neu.' +
+              '</div>' +
+              '<button class="btn btn-primary" data-action="bc-import" style="width:100%;"><i class="ti ti-upload"></i> Daten importieren</button>' +
+            '</div>' +
+            '<div style="font-size:12px;color:var(--text-muted);">' +
+              'Verschlüsselte <code>.stackrbak</code>-Backups gehören nicht hierher — die importierst du über ' +
+              '„Komplett-Backup öffnen" mit Passphrase.' +
+            '</div>' +
+          '</div>';
+        App.showModal('Daten aus Local 1.7 importieren', body, '');
+    }
+
+    // ── Wechsel-Export: Firmen-Auswahl (Local 1.7 → Web 1.7) ──────────────────
+    // Vorschaltdialog zu doExportPlain(): Checkbox-Liste aller DE-Firmen, alle
+    // vorausgewählt. Nutzer kann Test-/Dummy-Firmen abwählen. Eine Filterung
+    // INNERHALB einer Firma (nach Datum o.ä.) gibt es bewusst nicht.
+    function openExportPlainModal() {
+        var cos = _companyRegistry('DE');
+        if (!cos.length) { _toast('Keine Firma mit Sitzland Deutschland gefunden — nichts zu exportieren.', 'warning', 6000); return; }
+        var rows = cos.map(function (c) {
+            return '<label style="display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;cursor:pointer;">' +
+                     '<input type="checkbox" class="bc-co-check" value="' + _esc(c.id) + '" checked>' +
+                     '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + _esc(c.farbe || '#10b981') + ';flex:0 0 auto;"></span>' +
+                     '<span style="font-size:13px;">' + _esc(c.name || c.id) + '</span>' +
+                   '</label>';
+        }).join('');
+        var body =
+          '<div style="display:flex;flex-direction:column;gap:14px;">' +
+            '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
+              'Wähle die Firmen, die nach Web 1.7 mitgenommen werden sollen. Nicht angehakte Firmen ' +
+              '(z.B. Test-Firmen) landen <strong>nicht</strong> in der Datei. Firmen mit Sitzland CH/AT ' +
+              'werden generell nicht exportiert — Web 1.7 hat dafür kein UI mehr.' +
+            '</div>' +
+            '<div style="display:flex;flex-direction:column;gap:8px;">' + rows + '</div>' +
+            '<div style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:11px;font-size:12px;">' +
+              '⚠️ <strong>Die Datei ist unverschlüsselt</strong> — sie enthält alle Finanzdaten im Klartext. ' +
+              'Sicher aufbewahren und nach erfolgreichem Import löschen.' +
+            '</div>' +
+            '<div id="bcExpPlainCount" style="font-size:12px;color:var(--text-muted);"></div>' +
+            '<button class="btn btn-primary" id="bcExpPlainBtn" data-action="bc-export-plain-run" style="width:100%;">' +
+              '<i class="ti ti-package-export"></i> Wechsel-Datei exportieren</button>' +
+          '</div>';
+        App.showModal('Zu Web wechseln — Firmen auswählen', body, '');
+        function sync() {
+            var n = _selectedCompanyIds().length;
+            var btn = document.getElementById('bcExpPlainBtn'), lbl = document.getElementById('bcExpPlainCount');
+            if (btn) btn.disabled = (n === 0);
+            if (lbl) lbl.textContent = n ? (n + ' von ' + cos.length + ' Firmen ausgewählt') : 'Keine Firma ausgewählt — bitte mindestens eine anhaken.';
+        }
+        Array.prototype.forEach.call(document.querySelectorAll('.bc-co-check'), function (cb) { cb.addEventListener('change', sync); });
+        sync();
+    }
+    // null = kein Auswahl-Dialog offen (→ Aufrufer nimmt alle DE-Firmen)
+    function _selectedCompanyIds() {
+        var boxes = document.querySelectorAll('.bc-co-check');
+        if (!boxes.length) return null;
+        return Array.prototype.filter.call(boxes, function (cb) { return cb.checked; }).map(function (cb) { return cb.value; });
+    }
+
     // ── Export (unverschlüsselt, Wechsel-Datei Local→Web) ─────────────────────
     // Nur Firmen mit Sitzland DE: Web 1.7 hat kein CH/AT-UI mehr, CH/AT-Firmen
     // würden sonst unsichtbar im Bundle landen (siehe ch-at-removal-web-Memo).
     function doExportPlain() {
         try {
-            var bundle = _buildBundle('DE');
+            var sel = _selectedCompanyIds();
+            if (sel && !sel.length) { _toast('Keine Firma ausgewählt — bitte mindestens eine anhaken.', 'warning', 5000); return; }
+            var bundle = _buildBundle('DE', sel || undefined);
             var deCount = ((bundle.__account || {}).oyi_companies || []).length;
             if (!deCount) { _toast('Keine Firma mit Sitzland Deutschland gefunden — nichts zu exportieren.', 'warning', 6000); return; }
             var file = { format: 'stackr-migration', version: 1, app: 'stackr', createdAt: new Date().toISOString(), bundle: bundle };
@@ -254,7 +343,8 @@ var BackupCrypto = (function () {
             a.download = name;
             document.body.appendChild(a); a.click();
             setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
-            _toast('✅ Wechsel-Datei gespeichert: ' + name, 'success', 5000);
+            if (sel && typeof App !== 'undefined' && App.closeModal) App.closeModal();
+            _toast('✅ Wechsel-Datei gespeichert (' + deCount + ' Firma' + (deCount === 1 ? '' : 'en') + '): ' + name, 'success', 5000);
         } catch (e) {
             console.error('[Backup] exportPlain', e);
             _toast('Export fehlgeschlagen: ' + (e && e.message || e), 'error');
@@ -298,11 +388,19 @@ var BackupCrypto = (function () {
                 if (parsed && parsed.format === 'stackr-migration') {
                     bundle = parsed.bundle || {};
                 } else {
-                    if (!pass) { _toast('Bitte Passphrase eingeben.', 'warning'); return; }
+                    if (!pass) {
+                        // Im Wechsel-Import-Dialog gibt es kein Passphrase-Feld — dann klar auf den richtigen Dialog verweisen.
+                        _toast(document.getElementById('bkpImpPass')
+                            ? 'Bitte Passphrase eingeben.'
+                            : 'Das ist ein verschlüsseltes Komplett-Backup — bitte über „Komplett-Backup öffnen" mit Passphrase importieren.',
+                            'warning', 7000);
+                        return;
+                    }
                     bundle = await _decryptFile(parsed, pass);
                 }
                 await _restore(bundle);
-                var maxCo = (typeof Companies !== 'undefined' && Companies.MAX_COMPANIES) || 5;
+                var maxCo = (typeof CompanyManager !== 'undefined' && CompanyManager.MAX_COMPANIES)
+                         || (typeof Companies !== 'undefined' && Companies.MAX_COMPANIES) || 5;
                 if (_companyIds().length > maxCo) {
                     _toast('⚠️ Mehr als ' + maxCo + ' Firmen vorhanden — „Neue Firma anlegen" bleibt gesperrt, bis eine gelöscht wird. Bestehende Firmen funktionieren normal.', 'warning', 8000);
                 }
@@ -339,6 +437,8 @@ var BackupCrypto = (function () {
 
     return {
         openModal: openModal,
+        openExportPlainModal: openExportPlainModal,
+        openMigrationImportModal: openMigrationImportModal,
         doExport: doExport,
         doExportPlain: doExportPlain,
         doImport: doImport,
@@ -351,8 +451,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = BackupCryp
 
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
 if (window.Actions) Actions.register({
-    'bc-open-modal':   function () { BackupCrypto.openModal(); },
-    'bc-export':       function () { BackupCrypto.doExport(); },
-    'bc-export-plain': function () { BackupCrypto.doExportPlain(); },
-    'bc-import':       function () { BackupCrypto.doImport(); }
+    'bc-open-modal':      function () { BackupCrypto.openModal(); },
+    'bc-export':          function () { BackupCrypto.doExport(); },
+    'bc-export-plain':    function () { BackupCrypto.openExportPlainModal(); },   // Firmen-Auswahl vorschalten
+    'bc-export-plain-run':function () { BackupCrypto.doExportPlain(); },          // aus dem Auswahl-Dialog heraus
+    'bc-migration-import':function () { BackupCrypto.openMigrationImportModal(); },
+    'bc-import':          function () { BackupCrypto.doImport(); }
 });

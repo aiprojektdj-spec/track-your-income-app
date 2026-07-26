@@ -1823,6 +1823,14 @@ const App = {
                 <button class="btn btn-primary" data-action="bc-open-modal"><i class="ti ti-shield-lock"></i> Komplett-Backup öffnen</button>
             </div>
             <div class="section" style="border:2px solid var(--accent);border-radius:8px;padding:14px;background:rgba(124,58,237,0.04);">
+                <div class="section-title" style="color:var(--accent);"><i class="ti ti-arrow-down"></i> Daten aus Local 1.7 importieren</div>
+                <p style="color:var(--text-secondary);font-size:12px;margin-bottom:10px;">
+                    Übernimmt die <strong>Wechsel-Datei</strong> aus Local 1.7 (dort unter „Zu Web wechseln" exportiert, Dateiname <code>stackr-wechsel-….json</code>).
+                    Die Daten werden mit den vorhandenen <strong>zusammengeführt</strong> — nichts wird überschrieben oder gelöscht.
+                </p>
+                <button class="btn btn-primary" data-action="bc-migration-import"><i class="ti ti-upload"></i> Wechsel-Datei importieren</button>
+            </div>
+            <div class="section" style="border:2px solid var(--accent);border-radius:8px;padding:14px;background:rgba(124,58,237,0.04);">
                 <div class="section-title" style="color:var(--accent);"><i class="ti ti-brush"></i> Speicher aufräumen</div>
                 <p style="color:var(--text-secondary);font-size:12px;margin-bottom:10px;">
                     Speicherplatz freigeben durch Komprimierung und Foto-Bereinigung. <strong>Daten bleiben GoBD-konform erhalten.</strong>

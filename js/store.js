@@ -1838,6 +1838,62 @@ const Store = {
         // Zugeordnete Artikel behalten den Text (keine Datenlöschung), verschwindet nur aus der Vorschlagsliste.
     },
 
+    // ---- Lager-Status (frei editierbar, 7 Werte als Start-Vorschlag) ----
+    // 'verfuegbar'/'verkauft' sind System-Keys: an mehreren Stellen als Business-Logik-
+    // String-Literal verdrahtet (Storno-/Verkaufslogik hier, Statusprüfungen in js/lager.js) —
+    // deshalb system:true und weder umbenennbar noch löschbar. Die übrigen 5 Vorschläge plus
+    // vom Nutzer angelegte Status sind frei editierbar/löschbar.
+    LAGER_STATUS_DEFAULT: [
+        { key: 'verfuegbar',  label: 'Verfügbar',   color: '#22c55e', bg: 'rgba(34,197,94,.15)',   icon: '●',  badge: 'badge-success', system: true },
+        { key: 'reserviert',  label: 'Reserviert',  color: '#3b82f6', bg: 'rgba(59,130,246,.15)',  icon: '◐',  badge: 'badge-info' },
+        { key: 'verkauft',    label: 'Verkauft',    color: '#6b7280', bg: 'rgba(107,114,128,.15)', icon: '○',  badge: 'badge-neutral', system: true },
+        { key: 'beschadigt',  label: 'Beschädigt',  color: '#ef4444', bg: 'rgba(239,68,68,.15)',   icon: '⚠',  badge: 'badge-danger' },
+        { key: 'reinigung',   label: 'Reinigung',   color: '#f59e0b', bg: 'rgba(245,158,11,.15)',  icon: '🧺', badge: 'badge-warning' },
+        { key: 'reparatur',   label: 'Reparatur',   color: '#f97316', bg: 'rgba(249,115,22,.15)',  icon: '🔧', badge: 'badge-warning' },
+        { key: 'ausgelistet', label: 'Ausgelistet', color: '#9ca3af', bg: 'rgba(156,163,175,.15)', icon: '🚫', badge: 'badge-neutral' }
+    ],
+    getLagerStatusListe() {
+        const list = this.get('lager_status');
+        return list && list.length ? list : this.LAGER_STATUS_DEFAULT.map(s => Object.assign({}, s));
+    },
+    _slugifyStatusKey(label, existingList) {
+        var base = String(label).toLowerCase()
+            .replace(/[äöüß]/g, c => ({ ä: 'ae', ö: 'oe', ü: 'ue', ß: 'ss' }[c]))
+            .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'status';
+        var key = base, n = 2;
+        while (existingList.some(s => s.key === key)) key = base + '_' + (n++);
+        return key;
+    },
+    addLagerStatus(label, color, icon) {
+        if (!label || !label.trim()) return null;
+        const list = this.getLagerStatusListe();
+        const key = this._slugifyStatusKey(label.trim(), list);
+        list.push({
+            key: key, label: label.trim(), color: color || '#6b7280',
+            bg: (color || '#6b7280') + '26', icon: icon || '●', badge: 'badge-neutral', system: false
+        });
+        this.set('lager_status', list);
+        return key;
+    },
+    renameLagerStatus(key, neuLabel) {
+        if (!neuLabel || !neuLabel.trim()) return false;
+        const list = this.getLagerStatusListe();
+        const s = list.find(x => x.key === key);
+        if (!s || s.system) return false;
+        s.label = neuLabel.trim();
+        this.set('lager_status', list);
+        return true; // Key bleibt stabil → an Artikeln gespeicherter status-Wert braucht keine Migration
+    },
+    deleteLagerStatus(key) {
+        const list = this.getLagerStatusListe();
+        const s = list.find(x => x.key === key);
+        if (!s || s.system) return { ok: false, reason: 'system' };
+        const inUse = this.getAllPurchasesRaw().some(p => p.status === key);
+        if (inUse) return { ok: false, reason: 'in_use' };
+        this.set('lager_status', list.filter(x => x.key !== key));
+        return { ok: true };
+    },
+
     // ---- Zielgruppe (fest, keine Verwaltungs-UI) ----
     ZIELGRUPPEN: ['Herren', 'Damen', 'Unisex', 'Kinder'],
 

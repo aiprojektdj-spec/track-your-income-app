@@ -966,6 +966,78 @@ function openKategorienModal() {
     render();
 }
 
+// ── Status verwalten (anlegen/umbenennen/löschen) ───────────────────────────
+function openStatusModal() {
+    const render = () => {
+        const liste = Store.getLagerStatusListe();
+        const body = `
+            <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+                ${liste.map(s => `
+                    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;">
+                        <span style="font-size:15px;">${s.icon}</span>
+                        <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${s.color};"></span>
+                        <span style="flex:1;font-size:13px;">${Utils.escapeHtml(s.label)}</span>
+                        ${s.system
+                            ? '<span class="badge badge-neutral" style="font-size:10px;" title="System-Status, nicht änderbar">System</span>'
+                            : `<button class="btn btn-small" data-status-rename="${s.key}" title="Umbenennen">✏️</button>
+                               <button class="btn btn-small btn-danger" data-status-delete="${s.key}" title="Löschen">🗑</button>`}
+                    </div>
+                `).join('')}
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input type="color" id="statusNeuFarbe" value="#6b7280" style="width:38px;height:38px;padding:2px;border-radius:6px;cursor:pointer;">
+                <input type="text" class="form-input" id="statusNeuIcon" placeholder="Icon (z.B. ★)" maxlength="4" style="width:70px;">
+                <input type="text" class="form-input" id="statusNeuInput" placeholder="Neuer Status …" style="flex:1;">
+                <button class="btn btn-primary" id="statusNeuBtn">+ Hinzufügen</button>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:10px;">Umbenennen ändert nur die Anzeige, bestehende Artikel bleiben zugeordnet. Löschen ist nur möglich, wenn kein Artikel mehr diesen Status hat.</div>
+        `;
+        const footer = `<button class="btn btn-primary" id="statusModalCloseBtn">Fertig</button>`;
+        App.showModal('Status verwalten', body, footer);
+        document.getElementById('statusModalCloseBtn').addEventListener('click', () => {
+            App.closeModal();
+            renderPage();
+        });
+
+        document.querySelectorAll('[data-status-rename]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.statusRename;
+                const alt = liste.find(s => s.key === key);
+                const neu = prompt('Neuer Name für Status „' + (alt ? alt.label : key) + '":', alt ? alt.label : '');
+                if (!neu || !neu.trim()) return;
+                Store.renameLagerStatus(key, neu.trim());
+                Utils.showToast('Status umbenannt', 'success');
+                render();
+            });
+        });
+        document.querySelectorAll('[data-status-delete]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.statusDelete;
+                const s = liste.find(x => x.key === key);
+                if (!confirm('Status „' + (s ? s.label : key) + '" löschen?')) return;
+                const res = Store.deleteLagerStatus(key);
+                if (!res.ok) {
+                    Utils.showToast(res.reason === 'in_use' ? 'Noch Artikel mit diesem Status vorhanden — erst umsortieren' : 'System-Status kann nicht gelöscht werden', 'error');
+                    return;
+                }
+                Utils.showToast('Status gelöscht', 'success');
+                render();
+            });
+        });
+        document.getElementById('statusNeuBtn').addEventListener('click', () => {
+            const input = document.getElementById('statusNeuInput');
+            const val = input.value.trim();
+            if (!val) return;
+            const farbe = document.getElementById('statusNeuFarbe').value;
+            const icon = document.getElementById('statusNeuIcon').value.trim() || '●';
+            Store.addLagerStatus(val, farbe, icon);
+            Utils.showToast('Status hinzugefügt', 'success');
+            render();
+        });
+    };
+    render();
+}
+
 // ── Bulk-Einkauf ──────────────────────────────────────────────────────────
 let _bulkRows   = [];
 let _bulkPhotos = {};   // rowId → base64
@@ -2427,6 +2499,7 @@ async function lagerBoot() {
 
     document.getElementById('lagerExportBtn').addEventListener('click', () => Lager.openExportModal());
     document.getElementById('lagerKategorienBtn').addEventListener('click', openKategorienModal);
+    document.getElementById('lagerStatusBtn').addEventListener('click', openStatusModal);
 
     document.getElementById('sidebarExcelImport').addEventListener('click', wrap(() => ExcelImport.open()));
     const salesBtn = document.getElementById('sidebarSalesImport');

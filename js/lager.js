@@ -114,14 +114,12 @@ const Lager = {
         return hidden && hidden.value ? hidden.value.split(',').filter(Boolean) : [];
     },
 
-    STATUS_CONFIG: {
-        verfuegbar:  { label: 'Verfügbar',   color: '#22c55e', bg: 'rgba(34,197,94,.15)',   icon: '●', badge: 'badge-success' },
-        reserviert:  { label: 'Reserviert',  color: '#3b82f6', bg: 'rgba(59,130,246,.15)',  icon: '◐', badge: 'badge-info'    },
-        verkauft:    { label: 'Verkauft',    color: '#6b7280', bg: 'rgba(107,114,128,.15)', icon: '○', badge: 'badge-neutral' },
-        beschadigt:  { label: 'Beschädigt',  color: '#ef4444', bg: 'rgba(239,68,68,.15)',   icon: '⚠', badge: 'badge-danger'  },
-        reinigung:   { label: 'Reinigung',   color: '#f59e0b', bg: 'rgba(245,158,11,.15)',  icon: '🧺', badge: 'badge-warning' },
-        reparatur:   { label: 'Reparatur',   color: '#f97316', bg: 'rgba(249,115,22,.15)',  icon: '🔧', badge: 'badge-warning' },
-        ausgelistet: { label: 'Ausgelistet', color: '#9ca3af', bg: 'rgba(156,163,175,.15)', icon: '🚫', badge: 'badge-neutral' }
+    // Dynamisch aus Store.getLagerStatusListe() (frei editierbar, s. lager/page.js openStatusModal) —
+    // Vorschlagswerte in Store.LAGER_STATUS_DEFAULT. 'verfuegbar'/'verkauft' bleiben System-Keys.
+    get STATUS_CONFIG() {
+        const cfg = {};
+        Store.getLagerStatusListe().forEach(s => { cfg[s.key] = s; });
+        return cfg;
     },
 
     SORT_OPTIONS: [

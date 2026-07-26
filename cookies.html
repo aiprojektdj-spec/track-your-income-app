@@ -53,8 +53,14 @@
         <h2>2. Welche Cookies nutzt Stackr?</h2>
         <p>
             Stackr setzt ausschließlich technisch notwendige Cookies und lokale Speicherung ein,
-            die für den Betrieb der Anwendung unerlässlich sind. Alle eingesetzten Technologien
-            sind im Folgenden vollständig aufgelistet.
+            die für den Betrieb der Anwendung unerlässlich sind.
+        </p>
+        <p>
+            Die folgenden Tabellen beschreiben <strong style="color:var(--text);">alle Kategorien</strong>
+            von Speicherzugriffen vollständig. Die genannten Schlüsselnamen sind die derzeit
+            verwendeten Bezeichner der jeweiligen Kategorie und können sich mit neuen App-Versionen
+            ändern, ohne dass sich Zweck, Kategorie oder Speicherdauer ändern. Eine darüber
+            hinausgehende Speicherung findet nicht statt.
         </p>
 
         <h3>Anmelde-Session (Whop Login)</h3>
@@ -89,26 +95,62 @@
             </thead>
             <tbody>
                 <tr>
-                    <td>stackr_*</td>
-                    <td>Speichert deine Buchhaltungsdaten (Einnahmen, Ausgaben, Rechnungen) lokal im Browser</td>
+                    <td>oyi_companies / oyi_active_company</td>
+                    <td>Liste deiner angelegten Firmen bzw. Mandanten und die aktuell ausgewählte Firma — ohne sie kann die App die richtigen Daten nicht zuordnen</td>
                     <td>Dauerhaft (bis zum manuellen Löschen)</td>
                     <td><span class="badge badge-required">Notwendig</span></td>
                 </tr>
                 <tr>
-                    <td>stackr_settings</td>
-                    <td>Speichert App-Einstellungen (z. B. aktivierte Features, UI-Präferenzen)</td>
+                    <td>purchases / &lt;firma&gt;_… (z.&nbsp;B. &lt;firma&gt;_eigenbelege) / rech_recurring_rules</td>
+                    <td>Deine Buchhaltungsdaten: Einkäufe und Verkäufe, Eigenbelege sowie Regeln für wiederkehrende Rechnungen. Umfangreichere Datenbestände liegen in der IndexedDB (siehe unten)</td>
                     <td>Dauerhaft (bis zum manuellen Löschen)</td>
                     <td><span class="badge badge-required">Notwendig</span></td>
                 </tr>
                 <tr>
-                    <td>stackr_plan</td>
-                    <td>Speichert den aktuellen Abo-Status (Free/Pro) zur Anzeige der richtigen Funktionen</td>
-                    <td>Sitzungsbasiert / synchronisiert</td>
+                    <td>app_einstellungen / app_theme / stackr_lang / stackr_lang_chosen</td>
+                    <td>App- und Firmeneinstellungen (einschließlich Altbestand aus früheren Versionen) sowie deine Anzeigeeinstellungen für Design und Sprache</td>
+                    <td>Dauerhaft (bis zum manuellen Löschen)</td>
                     <td><span class="badge badge-required">Notwendig</span></td>
                 </tr>
                 <tr>
-                    <td>oyi_sync_enabled / oyi_sync_key_… / oyi_device_id</td>
-                    <td>Nur bei aktiviertem optionalen Cloud-Sync: Status, dein geheimer Verschlüsselungsschlüssel (bleibt ausschließlich auf dem Gerät) und eine geräteinterne Kennung zur Zusammenführung</td>
+                    <td>lager_layout / lager_prefs / lager_last_platform / lager_last_quelle / eb_sidebar_collapsed / sidebar_sec_…</td>
+                    <td>Bedienkomfort: gemerkte Ansichten und Spalteneinstellungen, zuletzt genutzte Plattform bzw. Bezugsquelle und der Zustand ein- oder ausgeklappter Menübereiche</td>
+                    <td>Dauerhaft (bis zum manuellen Löschen)</td>
+                    <td><span class="badge badge-required">Notwendig</span></td>
+                </tr>
+                <tr>
+                    <td>agb_accepted / dsgvo_notice_shown / app_last_version / backup_banner_dismissed</td>
+                    <td>Nachweis, dass du AGB und Datenschutzhinweis bestätigt hast, sowie der Status einmaliger Hinweise (Versionsinfo, Backup-Erinnerung), damit diese nicht wiederholt erscheinen</td>
+                    <td>Dauerhaft (bis zum manuellen Löschen)</td>
+                    <td><span class="badge badge-required">Notwendig</span></td>
+                </tr>
+                <tr>
+                    <td>last_backup_date / _fs_backup_last / _fs_backup_last_file</td>
+                    <td>Zeitpunkt und Dateiname deiner letzten Datensicherung — Grundlage für die Erinnerung, erneut zu sichern. Die Sicherungsdatei selbst wird hier nicht gespeichert</td>
+                    <td>Dauerhaft (bis zum manuellen Löschen)</td>
+                    <td><span class="badge badge-required">Notwendig</span></td>
+                </tr>
+                <tr>
+                    <td>_oyi_lsmirror / _oyi_lsmirror_ts / _oyi_sentinel / oyi_wk_migrated_v1</td>
+                    <td>Schutz vor Datenverlust: eine lokale Spiegelkopie samt Zeitstempel, eine Kennzahl zur Erkennung unerwarteter Datenverluste (zusätzlich im sessionStorage) und ein Marker für bereits ausgeführte Datenmigrationen</td>
+                    <td>Spiegelkopie bis zur nächsten Speicherung; Sentinel im sessionStorage bis zum Schließen des Tabs</td>
+                    <td><span class="badge badge-required">Notwendig</span></td>
+                </tr>
+                <tr>
+                    <td>stackr_error_log</td>
+                    <td>Die letzten Programmfehler (Fehlermeldung, Skript, Zeitpunkt, Browserkennung) ausschließlich auf deinem Gerät, damit du bei Bedarf selbst einen Diagnosebericht exportieren kannst. Eine automatische Übermittlung an uns findet nicht statt</td>
+                    <td>Ringspeicher, maximal 50 Einträge</td>
+                    <td><span class="badge badge-required">Notwendig</span></td>
+                </tr>
+                <tr>
+                    <td>akademie_progress / akademie_flag_eur_exported</td>
+                    <td>Dein Fortschritt in der integrierten Akademie (abgeschlossene Lektionen, erreichte Meilensteine)</td>
+                    <td>Dauerhaft (bis zum manuellen Löschen)</td>
+                    <td><span class="badge badge-required">Notwendig</span></td>
+                </tr>
+                <tr>
+                    <td>oyi_sync_enabled / oyi_sync_key_… / oyi_device_id / oyi_sync_anchored_… / oyi_sync_anchor_check_last / oyi_sync_code_remind_last</td>
+                    <td>Nur bei aktiviertem optionalen Cloud-Sync: Status, dein geheimer Verschlüsselungsschlüssel (bleibt ausschließlich auf dem Gerät), eine geräteinterne Kennung zur Zusammenführung sowie Merkposten, welche Protokolleinträge bereits extern abgesichert wurden und wann zuletzt geprüft bzw. an den Wiederherstellungscode erinnert wurde</td>
                     <td>Bis zur Deaktivierung des Cloud-Sync</td>
                     <td><span class="badge badge-required">Notwendig (opt-in)</span></td>
                 </tr>

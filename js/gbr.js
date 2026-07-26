@@ -214,20 +214,34 @@ const GbR = {
         this._renderSettingsModal();
     },
 
+    // Rollen-Spalte der Gesellschafter-Tabelle. Header, bestehende Zeilen und neu hinzugefügte
+    // Zeilen (_addGsRow) müssen dieselbe Entscheidung treffen — sonst verschiebt sich die Tabelle
+    // um eine Spalte. Deshalb alles aus dieser einen Quelle, statt an drei Stellen dupliziert.
+    _showRolleSpalte(firmenform) {
+        const form = firmenform || this.getEinstellungen().firmenform;
+        return ['KG', 'OHG', 'GmbH & Co. KG', 'GmbH', 'UG'].includes(form);
+    },
+    _rolleOptions(firmenform) {
+        const form = firmenform || this.getEinstellungen().firmenform;
+        if (['KG', 'GmbH & Co. KG'].includes(form)) return [['komplementaer','Komplementär'],['kommanditist','Kommanditist']];
+        if (['GmbH','UG'].includes(form)) return [['gesellschafter','Gesellschafter'],['geschaeftsfuehrer','Geschäftsführer']];
+        return [['gesellschafter','Gesellschafter']];
+    },
+    _rolleCellHtml(rowId, current, firmenform) {
+        if (!this._showRolleSpalte(firmenform)) return '';
+        const opts = this._rolleOptions(firmenform)
+            .map(([v,l]) => `<option value="${v}" ${(current||'gesellschafter')===v?'selected':''}>${l}</option>`).join('');
+        return `<td style="padding:6px 8px;width:130px;">
+                    <select class="form-select" id="gs_rolle_${rowId}" style="font-size:11px;padding:4px 6px;">${opts}</select>
+                </td>`;
+    },
+
     _renderSettingsModal() {
         const einst = this.getEinstellungen();
         const list  = this.getGesellschafter();
         const sumPct = this.sumAnteile();
 
-        const isKG = ['KG', 'GmbH & Co. KG'].includes(einst.firmenform);
-        const showRolle = ['KG', 'OHG', 'GmbH & Co. KG', 'GmbH', 'UG'].includes(einst.firmenform);
-        const rolleOptions = isKG
-            ? [['komplementaer','Komplementär'],['kommanditist','Kommanditist']]
-            : einst.firmenform === 'OHG'
-                ? [['gesellschafter','Gesellschafter']]
-                : ['GmbH','UG'].includes(einst.firmenform)
-                    ? [['gesellschafter','Gesellschafter'],['geschaeftsfuehrer','Geschäftsführer']]
-                    : [['gesellschafter','Gesellschafter']];
+        const showRolle = this._showRolleSpalte(einst.firmenform);
 
         const gsRows = list.map(g => `
             <tr id="gs_row_${g.id}">
@@ -239,11 +253,7 @@ const GbR = {
                     <input type="text" class="form-input" id="gs_adresse_${g.id}" value="${Utils.escapeHtml(g.adresse || '')}"
                            style="font-size:12px;padding:5px 8px;" placeholder="Adresse (optional)">
                 </td>
-                ${showRolle ? `<td style="padding:6px 8px;width:130px;">
-                    <select class="form-select" id="gs_rolle_${g.id}" style="font-size:11px;padding:4px 6px;">
-                        ${rolleOptions.map(([v,l]) => `<option value="${v}" ${(g.rolle||'gesellschafter')===v?'selected':''}>${l}</option>`).join('')}
-                    </select>
-                </td>` : ''}
+                ${this._rolleCellHtml(g.id, g.rolle, einst.firmenform)}
                 <td style="padding:6px 8px;width:90px;">
                     <div style="display:flex;align-items:center;gap:4px;">
                         <input type="number" class="form-input" id="gs_anteil_${g.id}" value="${g.anteil}"
@@ -397,6 +407,7 @@ const GbR = {
                             <tr style="background:var(--bg-secondary);">
                                 <th style="padding:6px 8px;font-size:11px;text-align:left;">Name *</th>
                                 <th style="padding:6px 8px;font-size:11px;text-align:left;">Adresse</th>
+                                ${showRolle ? '<th style="padding:6px 8px;font-size:11px;text-align:left;">Rolle</th>' : ''}
                                 <th style="padding:6px 8px;font-size:11px;text-align:left;">Anteil %</th>
                                 <th style="padding:6px 8px;font-size:11px;text-align:left;">Eingetreten</th>
                                 <th></th>
@@ -481,6 +492,7 @@ const GbR = {
             <td style="padding:6px 8px;">
                 <input type="text" class="form-input" id="gs_adresse_${tempId}" style="font-size:12px;padding:5px 8px;" placeholder="Adresse">
             </td>
+            ${this._rolleCellHtml(tempId, null)}
             <td style="padding:6px 8px;width:90px;">
                 <div style="display:flex;align-items:center;gap:4px;">
                     <input type="number" class="form-input" id="gs_anteil_${tempId}" value="0" min="0" max="100" step="0.1"

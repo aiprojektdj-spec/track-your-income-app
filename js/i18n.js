@@ -79,7 +79,7 @@ var I18n = (function () {
             'ob.done.toast':             'Einrichtung abgeschlossen! 🎉',
 
             // ── Onboarding form fields ──
-            'field.company':             'Firmenname (optional)',
+            'field.company':             'Firmenname *',
             'field.name':                'Dein Name',
             'field.name.req':            'Dein Name *',
             'field.address':             'Strasse & Hausnummer',
@@ -510,7 +510,7 @@ var I18n = (function () {
             'ob.done.toast':             'Setup complete! 🎉',
 
             // ── Onboarding form fields ──
-            'field.company':             'Company name (optional)',
+            'field.company':             'Company name *',
             'field.name':                'Your name',
             'field.name.req':            'Your name *',
             'field.address':             'Street & house number',

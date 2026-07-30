@@ -27,6 +27,7 @@ Sie fasst alle offenen Session-Prompts, Referenz-/Spec-/Backlog-Dokumente, die m
 - [session-prompt-vercel-blob-empfaenger.md](#session-prompt-vercel-blob-empfaenger-md)
 - [session-prompt-vollaudit-a11y-rest.md](#session-prompt-vollaudit-a11y-rest-md)
 - [session-prompt-vollaudit-runde2-nacharbeiten.md](#session-prompt-vollaudit-runde2-nacharbeiten-md)
+- [session-prompt-whop-checkout-nachpruefung.md](#session-prompt-whop-checkout-nachpruefung-md) — NEU 2026-07-27
 - [session-prompt-whop-dpa-anfrage.md](#session-prompt-whop-dpa-anfrage-md)
 - [session-prompt-zufluss-teilzahlung-steuermodule.md](#session-prompt-zufluss-teilzahlung-steuermodule-md)
 
@@ -117,6 +118,14 @@ nicht neu erfinden):
    haltbar oder zu vage?
 3. §11-Haftungsbegrenzung: konkret aus dem AGB-Text zitieren und fragen, ob die
    Formulierung Verbraucherschutz-konform ist.
+4. Whop-Checkout §312j Abs. 3 BGB (Nachtrag aus Checkout-Nachprüfung 2026-07-30, siehe
+   `## whop-checkout-spotcheck.md` weiter oben): Bestell-Button „Beitreten"/„Zugang
+   erhalten" statt „zahlungspflichtig bestellen" — legal-reviewer stuft als 🟡 GELB ein
+   (OLG Köln spricht dagegen, KG-Berlin-Ausnahme passt nicht, da finaler Button ohne
+   Zwischenschritt). Zusätzlich: Stackr-AGB im Checkout nicht verlinkt (nur Fließtext-
+   Erwähnung), kein Widerrufsverzicht-Hinweis vorhanden. Alle drei Punkte sind Whop-
+   Template-seitig, nicht in Stackr-Code fixbar — Frage an Anwalt: eigenes Haftungsrisiko
+   für Stackr als Vermittler/Nutznießer trotz fremdem Checkout-Template?
 
 **(c) Fakten-Steckbrief** (damit der Anwalt nicht erst recherchieren muss):
 - Preis: 15 €/Monat, 135 €/Jahr, inkl. MwSt.
@@ -2899,7 +2908,74 @@ diese Woche, falls Kapazität knapp ist:
 
 ## local-sync-backlog-2026-07-25.md
 
-# Local-1.7-Sync-Backlog (Stand 2026-07-25)
+**⚡ Update 2026-07-27 (diese Session):** Verifiziert, dass frühere Parallel-Sessions bereits fast
+alles aus Section B über Nacht/am Vormittag erledigt hatten (`js/euer.js`, `js/ustvoranmeldung.js`,
+`js/oss.js`, `js/dashboard.js`, `js/ausgaben.js`, `js/kassenbuch.js`, `js/vorsteuer.js`,
+`js/buchungen.js`, `js/rechtsform.js`, `js/afa.js`, `js/datev.js`, `js/gbr-modul.js`, `js/gbr.js`,
+`rechnungen/js/rechnung.js`, `rechnungen/js/mahnungen.js`, `rechnungen/js/kunden.js`,
+`rechnungen/js/rech-dashboard.js`, `rechnungen/js/xrechnung.js`, `rechnungen/js/wiederkehrend.js`,
+`eigenbelege/js/app.js` B6, `js/companies.js` B29) — Rest-Diffs sind ausschließlich CH/AT (D1,
+gewollt), CloudSync/`_syncReadRaw` (D2, Web-exklusiv) oder Eigenbelege-IndexedDB-Migration (D3,
+"nicht akut"). Diese Session hat zusätzlich neu gemacht:
+- `js/companies.js`: `migrateEigenbelegeToCompanies()` Kollisions-Hardening portiert (erste Firma
+  gewinnt bei id-Kollision, bidirektionaler Link) — kleiner, echter Fund abseits der Backlog-Liste.
+- `js/app.js`: **§25a-Einstellung (`differenzMethode` Einzel-/Gesamtdifferenz) fehlte komplett** im
+  Local-Settings-Formular — `js/ustvoranmeldung.js` liest den Wert bereits, aber Nutzer konnten ihn
+  nie setzen. UI-Block + Save-Handler ergänzt (B1 damit erst jetzt wirklich end-to-end).
+- `js/app.js` restliche B21/B23/B24-Punkte (Diagnose-Export, Logo-500KB-Limit, Kassenbuch im
+  Finanzen-Subnav, Teilzahlung) alle bereits vorhanden — keine weitere Aktion nötig.
+- `css/style.css` (D8): Chart-Höhe/Legend/Touch-Targets bereits gefixt. Zwei Reste geprüft:
+  (a) **Korrektur (Folge-Session 2026-07-27):** die hier notierte „`.mobile-menu-btn`-Media-Queries
+  in Web sind vertauscht"-Beobachtung stimmt nicht — live getestet (375px → `flex`, 1280px →
+  `none`), die zwei `@media`-Blöcke haben disjunkte Breakpoints (`max-width:768px` vs.
+  `min-width:769px`), die Reihenfolge im Stylesheet ist damit für das Ergebnis irrelevant. Web ist
+  nicht kaputt, der dafür angelegte Spawn-Task kann verworfen werden; Details unter Punkt 18/20;
+  (b) `js/stb-share.js` (Steuerberater-Read-Only-Freigabe) existiert nur in Web, ganzes neues
+  Feature, nicht im 29-Punkte-Backlog — bewusst nicht mitgezogen, eigener Punkt falls gewünscht.
+- Section C (`js/steuer-berechnung.js`) + B2 (`js/bilanz.js` 0%-Satz-Bug) — bereits in dieser Session
+  vorher erledigt (siehe Änderungsvermerk weiter unten im Originaltext).
+
+**Folge-Session 2026-07-27 (nach diesem Update-Block): zwei echte Bugs in `js/app.js` gefunden und
+gefixt**, unabhängig von B21/23/24 — `gewerbesteuer`/`lohnsteuer` fehlten komplett in der
+`pages`-Map (Sidebar-Link auf diese Seiten war tot trotz vollständig portierter Module aus Punkt
+14) und `GbR.isGbR()` statt `GbR.isPersonengesellschaft()` blendete den GbR-Tab für OHG/KG/GmbH &
+Co. KG aus. Details + Browserverifikation unter Punkt 18 der Liste unten.
+
+**Korrektur (Parallel-Session 2026-07-27, cross-session-message, verifiziert): B17 / Punkt 17 ist
+KEIN offener Punkt und braucht KEINEN Rebuild.** Die obige Einschätzung („struktureller Rebuild,
+eigene Session nötig") beruhte auf Vermutung, nicht auf Marker-Vergleich — der zeigt: `js/lager.js`
+ist bis auf eine Härtungszeile (in Web gefixt, s. Punkt 17 unten) vollständig synchron, 0 CH-Marker,
+0 Local-exklusive Zeilen. `lager/index.html` bleibt bewusst der 2667-Zeilen-Monolith (Locals CSP
+erlaubt `'unsafe-inline'`, die Seite funktioniert) — der 2540→225-Split in Web ist reine
+Architektur-Härtung ohne funktionalen Gewinn, kein Sync-Punkt.
+
+**Alle 20 modul-/dateiweisen Punkte (1–21, B28 inklusive) sind damit abgeschlossen.** Einzig
+Punkt 22 (D6 Rechtstext-Inhalt + zwei neue Nebenfunde: fehlendes `js/cookie-banner.js`, Paddle-
+Live-Token in `lager/index.html`) bleibt offen — Details dort.
+
+**Erledigt 2026-07-30: Local committet.** User hat den Commit freigegeben — `95c43d4` "Web-1.7-Sync:
+Steuer-Berechnung, §25a-Settings, GoBD/USt-Fixes, Companies-Härtung" (52 Dateien, alle vorher per
+`node --check` syntaxgeprüft). HEAD war `fba3222`, drei Tage 48+ Dateien uncommitted — das Risiko
+ist damit weg.
+
+**Neuer Punkt 23 (User-Entscheidung 2026-07-30: aufnehmen) — `js/stb-share.js` fehlt in Local.**
+Steuerberater-Read-Only-Freigabe (Share-Link, externer Lesezugriff für den StB). Existiert nur in
+Web, war nie Teil der ursprünglichen 29-Punkte-Liste, weil es kein Drift-Fund ist, sondern ein
+komplettes Feature, das in Local nie gebaut wurde. Geprüft 2026-07-30: `body.stb-readonly` fehlt
+in Locals `css/style.css` komplett (0 Treffer) — kein Teil-Rest, ganz sauber ungebaut. Braucht:
+`js/stb-share.js` selbst, die CSS-Klasse `body.stb-readonly`, plus Wiring
+in `app.html`/`js/app.js` (Read-Only-Banner, Share-Link-Erzeugung, Zugriffsprüfung beim Laden).
+Umfang unklar, noch nicht gescoped — eigene Session zum Ausmessen des Diffs, dann entscheiden ob
+1:1-Port sinnvoll ist oder Local-Anpassungen nötig sind (z.B. kein CloudSync-Backend für den
+Share-Link-Transport, s. D2-Ausnahme — Web nutzt dafür vermutlich Vercel Blob/Upstash).
+
+Verbleibend aus der ursprünglichen Liste: Punkt 21 (B28 Input-Härtung Local→**Web**, Gegenrichtung,
+läuft nebenher), Punkt 22 (D6 Datenschutz/Impressum, Rechtstext-Problem, braucht `legal-reviewer`),
+Punkt 23 (neu, `js/stb-share.js`, s. oben).
+
+---
+
+# Local-1.7-Sync-Backlog (Stand 2026-07-25, Original-Text unten unverändert als Referenz)
 
 Vollständiger Drift-Audit Web 1.7 → Local 1.7 (Explore-Agent, `diff --strip-trailing-cr` über alle
 geteilten Dateien + `git log -- <pfad>`-Zuordnung). Praktisch jede geteilte Datei unterscheidet
@@ -3281,9 +3357,51 @@ Abhängigkeit: Fundament zuerst (store.js, steuer-berechnung.js), dann Module, d
     `Paddle.Checkout.open()`. Paddle gilt laut [[whop-stack-migration]] als tot, ist in Local aber
     noch verdrahtet — `user-plan.js` steht zudem oben explizit auf der Ausnahmeliste. Gehört zu D6,
     nicht zu diesem Sync-Punkt. Betrifft auch `lager/index.html` und `rechnungen/index.html`.
-17. **`js/lager.js`** (Rest) + **`lager/index.html`** — wartet auf Web-Refactor-Commit (Section A)
-18. **`js/app.js`** — B21, B23, B24
-19. **`js/companies.js`** — B29
+17. ~~**`js/lager.js`** (Rest)~~ — ERLEDIGT/synchron, per Marker-Vergleich bestätigt (Parallel-
+    Session 2026-07-27, cross-session-message): 0 CH-Marker, 0 Local-exklusive Zeilen, die 347
+    Diffzeilen waren komplett Härtung. Web-Fund dabei: die einzige Härtung, die Local voraus war
+    und Web fehlte — `isNaN(newVal)` statt `!Number.isFinite(newVal)` in `Web 1.7/js/lager.js:2223`
+    (`isNaN(Infinity) === false`, ließ `Infinity` als EK-Wert durch) — in Web gefixt, verifiziert.
+    **`lager/index.html` bewusst NICHT umgebaut:** Locals CSP hat `'unsafe-inline'` in
+    `script-src`, die 4 Inline-Blöcke laufen, die Seite ist nicht kaputt. Der 2540→225-Zeilen-Split
+    (Shell + `page.js`) in Web ist reine Architektur-Härtung ohne funktionalen Gewinn — kein
+    struktureller Rebuild nötig, damit auch keine eigene Session mehr erforderlich (widerspricht
+    der Einschätzung zweier Vorsessions weiter oben, die von einem nötigen Rebuild ausgingen).
+18. ~~**`js/app.js`**~~ — B21, B23, B24 bereits von Vorsession bestätigt vorhanden (s. Update-Block
+    2026-07-27 oben). **Zusätzlicher Fund + Fix in dieser Fortsetzungs-Session (2026-07-27,
+    unabhängig von B21/23/24):** Zwei echte, bis dahin unentdeckte Bugs in der Rechtsform-
+    basierten Sidebar/Navigation, aufgefallen beim Live-Testen (nicht aus dem ursprünglichen
+    29-Punkte-Katalog):
+    (a) `_updateGbrTabVisibility()` blendete nur `kstSidebarLink`/`bilanzSidebarLink` nach
+    `Rechtsform.getConfig()` ein — `lohnsteuerSidebarLink` und `gewstSidebarLink` stehen in
+    `app.html` per Default auf `display:none` und wurden **nie** wieder eingeblendet. Jede
+    Rechtsform mit Gewerbesteuer- oder Lohnsteuerpflicht (z.B. GmbH) hatte dadurch keinen
+    erreichbaren Menüpunkt zu diesen Modulen, obwohl `js/gewerbesteuer.js`/`js/lohnsteuer.js`
+    seit Punkt 14 vollständig portiert vorliegen. Auf den vollen `show()`-Helfer mit allen
+    sechs Links umgestellt (kst/bilanz/lohnsteuer/gewst/privatbuchungen/ksk).
+    (b) **Schwerer:** `gewerbesteuer`/`lohnsteuer` fehlten komplett in der `pages`-Map von
+    `js/app.js` — `App.navigate('gewerbesteuer')` traf sofort auf `if (!this.pages[page]) return;`
+    und tat gar nichts. Der Sidebar-Link wäre also selbst nach Fix (a) tot geblieben. Beide
+    Page-Objekte ergänzt (`lohnsteuer: Lohnsteuer, gewerbesteuer: Gewerbesteuer,`).
+    Nebenbei: `GbR.isGbR()` (nur GbR/eGbR) → `GbR.isPersonengesellschaft()` (GbR/eGbR/OHG/KG/
+    GmbH & Co. KG, an beiden Call-Sites) — Personengesellschaften jenseits der reinen GbR
+    konnten den GbR-Tab bisher gar nicht öffnen, obwohl `js/gbr-modul.js` sie seit Punkt 6
+    schon inhaltlich unterstützt. Zusätzlich das fehlende Rechtsform-Navigations-Gate ergänzt
+    (blockt Direktnavigation zu gesperrten Seiten, analog zum bestehenden AT-Land-Gate).
+    **Browserverifiziert** (Port 3344, `fetch(...+Date.now())` gegen den `http.server`-Cache):
+    Einzelunternehmen sperrt `gewerbesteuer`/`koerperschaftsteuer`/`lohnsteuer` korrekt zurück auf
+    Dashboard; GmbH erreicht alle drei; OHG zeigt jetzt den GbR-Tab. Keine Konsolenfehler.
+    **Korrektur zur Notiz oben:** die dort erwähnte „Web-Queries sind vertauscht"-Beobachtung zu
+    `.mobile-menu-btn` stimmt nicht — live in Chrome/Browser-Pane getestet (375px → `flex`, 1280px
+    → `none`), die beiden `@media`-Blöcke haben disjunkte Breakpoints (`max-width:768px` vs.
+    `min-width:769px`), die reine Reihenfolge im Stylesheet ist für das Ergebnis irrelevant. Web ist
+    nicht kaputt; der zuvor dafür angelegte Spawn-Task für Web kann verworfen werden.
+19. ~~**`js/companies.js`**~~ — B29 bereits von Vorsession erledigt (s. Update-Block 2026-07-27 oben).
+    **Ergänzt (Parallel-Session 2026-07-27, cross-session-message, verifiziert):** Cleanup-Schleife
+    beim Firmen-Löschen (`localStorage.key(i)` rückwärts, alle Keys mit Firmen-Präfix entfernen) —
+    fehlte bisher, in Local schwerer als in Web, weil Eigenbelege dort direkt im localStorage
+    liegen statt in IndexedDB: Belegdaten einer gelöschten Firma blieben sonst dauerhaft erhalten
+    (Art. 17 DSGVO). `CloudSync.deleteRemote` bewusst nicht mitportiert (Web-exklusiv).
 20. ~~**`css/style.css`**~~ — D8 ERLEDIGT 2026-07-27. Portiert: WCAG-Kontrastwerte für
     `--text-muted` (dark `#71807a`→`#7d8c86`, light `#84908a`→`#5f6b65` — beides die in Web
     auditierten Werte), Chart-Höhe 300px→220px, ApexCharts-Legend-Fix (Marker sprengte sonst die
@@ -3301,8 +3419,53 @@ Abhängigkeit: Fundament zuerst (store.js, steuer-berechnung.js), dann Module, d
     Browserverifiziert über `fetch('css/style.css?cb=…')` (Cache-Buster, da `http.server` keine
     No-Cache-Header schickt): alle fünf Änderungen im ausgelieferten Stylesheet, `stb-readonly`
     korrekt abwesend.
-21. B28 (Input-Härtung) läuft nebenbei mit, wo Dateien ohnehin angefasst werden
-22. D6 (Datenschutz/Impressum) — eigenständiges Rechtstext-Problem, separat/mit legal-reviewer
+21. ~~B28 (Input-Härtung)~~ — laut Marker-Vergleich (Parallel-Session 2026-07-27) über alle 11
+    betroffenen Dateien ausgeglichen (maxlength/Number.isFinite gleichauf zwischen Web und Local),
+    bis auf die eine `lager.js`-Zeile, die jetzt unter Punkt 17 gefixt ist. Kein offener Rest.
+22. D6 (Datenschutz/Impressum) — Inhaltsteil weiterhin offen (eigenständiges Rechtstext-Problem,
+    Local beschreibt Supabase+LemonSqueezy, nutzt real Trial+Offline-Lizenz; Anwalts-/User-
+    entscheidung, mit `legal-reviewer` angehen). Der Sicherheitsfund (fehlender CSP-Meta-Tag) ist
+    **erledigt** — Parallel-Session 2026-07-27 hat `datenschutz.html`/`impressum.html` einen CSP
+    ergänzt (`script-src 'self'` statt Webs `'none'`, weil beide Seiten `js/cookie-banner.js`
+    laden), verifiziert.
+    **Cookie-Banner — ERLEDIGT 2026-07-28 (Local soll mit Web-Import-Button gelauncht werden,
+    User-Entscheidung: mirror statt Script-Tag entfernen, da die Rechtsseiten sonst ganz ohne
+    Consent-Mechanismus dastünden):** `js/cookie-banner.js` war der ursprüngliche Fund — existierte
+    in Local gar nicht, obwohl beide Rechtsseiten es luden (toter `<script>`-Tag). Byte-identisch
+    aus Web gespiegelt (CRLF wie der Rest von Local, sonst identisch). Dabei einen **zweiten,
+    schwereren Bug in derselben Kette gefunden**: `js/actions.js` (der zentrale `data-action`-
+    Click-Router) fehlte auf `datenschutz.html`/`impressum.html` komplett — selbst mit der Datei
+    an Ort und Stelle hätte der "Verstanden ✓"-Button nie reagiert, weil nichts den Klick auf
+    `data-action="cb-accept"` abgefangen hätte. `js/actions.js` vor `js/cookie-banner.js` ergänzt
+    (beide Dateien). **Browserverifiziert** (Port 3344): Banner erscheint auf `datenschutz.html`,
+    Klick auf „Verstanden ✓" setzt `oyi_cookie_consent=necessary`, Banner bleibt auf `impressum.html`
+    danach korrekt weg, keine Konsolenfehler.
+    **Paddle-Live-Token — kein Bug, sondern Fehlalarm:** vor dem Ändern geprüft, ob Paddle in Local
+    wirklich tot ist (wie zuerst angenommen) — ist es nicht. `js/user-plan.js` `openCheckout()` ist
+    Locals tatsächlicher, aktiver Trial→Pro-Zahlungsweg (bewusst getrennt von Webs Whop, s.
+    Ausnahmeliste oben). Löschen hätte echte Bezahlfunktion zerstört.
+    **Dabei aber einen echten, launch-relevanten Bug gefunden:** das Trial-Lock-Modal (wichtigster
+    Conversion-Punkt, „Testphase abgelaufen") wird über `js/companies.js` **im Haupt-`app.html`**
+    ausgelöst — aber `app.html` lud Paddle nirgends. Der referenzierte Lazy-Loader
+    (`js/paddle-init.js`/`PaddleLoader`) existierte nirgends im Code, nur ein Kommentar dazu. Jeder
+    Klick auf „Upgrade" im Haupt-App zeigte „Paddle nicht geladen. Bitte Seite neu laden." und tat
+    sonst nichts — nur die 3 Unterseiten (`lager`/`eigenbelege`/`rechnungen/index.html`), die Paddle
+    eager laden, hatten einen funktionierenden Checkout. **Fix:** `app.html`s CSP um
+    `cdn.paddle.com`/`*.paddle.com`/`buy.paddle.com`/`checkout.paddle.com` ergänzt (fehlte komplett)
+    und dieselben zwei `<script>`-Tags wie in den 3 Unterseiten ergänzt (kein neuer Lazy-Loader —
+    bewusst der einfachste, bereits nachweislich funktionierende Weg). **Browserverifiziert**
+    (Port 3344, `app.html`): `Paddle`/`Paddle.Checkout` jetzt definiert, keine CSP-Fehler in der
+    Konsole; echten Live-Checkout absichtlich nicht ausgelöst (Live-Token, kein Test-Trigger).
+    **Bewusst nicht angefasst:** `successUrl` in `openCheckout()` zeigt auf
+    `track-your-income-app.vercel.app` (Webs Produktions-URL) statt auf Local — wirkt wie Copy-
+    Paste-Rest, aber ob das Absicht ist (z.B. Lizenzfreischaltung läuft zentral über Web), ist eine
+    Architekturfrage, keine mechanische — nicht Teil dieses Auftrags.
+
+**Für den Abschluss dieser Runde offen: nur noch der Rechtstext-Inhalt selbst** (Local beschreibt
+weiterhin Supabase+LemonSqueezy statt Trial+Offline-Lizenz — braucht `legal-reviewer`/Anwalt) **und
+die Commit-Frage für Local** (48+ geänderte Dateien, HEAD auf `fba3222`, Local-Git eigenständig/
+verwaist — User-Entscheidung, bewusst nicht committet in dieser Runde). Alle 21 vorherigen Punkte
+sind damit abgeschlossen.
 
 Nach jedem Modul: Web-Code lesen → nach Local portieren → wo möglich Browser-Smoke-Test in Local.
 Nach Abschluss eines Punktes hier den Eintrag streichen/abhaken.
@@ -3788,8 +3951,11 @@ laufen teils parallel im selben Ordner.
 
 ## 🔴 Blockiert auf andere (nicht von einer Coding-Session lösbar)
 
-> **Abarbeitbare Checklisten dafür:** `plan/user-live-checks.md` (alle Live-Tests, DPA-Dashboards,
-> Lighthouse-Baseline) und `plan/whop-checkout-spotcheck.md` (Checkout gegen AGB §4 / refund.html).
+> **Abarbeitbare Checklisten dafür** (jetzt Abschnitte in dieser Datei, nicht mehr eigene Dateien):
+> [user-live-checks.md](#user-live-checks-md) (alle Live-Tests, DPA-Dashboards, Lighthouse-Baseline)
+> und [whop-checkout-spotcheck.md](#whop-checkout-spotcheck-md) (Checkout gegen AGB §4 /
+> refund.html — Teil 1 am 2026-07-27 durchgeführt, Fortsetzung in
+> [session-prompt-whop-checkout-nachpruefung.md](#session-prompt-whop-checkout-nachpruefung-md)).
 
 - **Anwalts-Freigabe §11 AGB-Haftung + §356 Abs.5 BGB Trial-Klausel** — beauftragt, Antwort offen.
   `plan/session-prompt-anwalt-briefing.md`.
@@ -4290,7 +4456,7 @@ Kein Hinweis auf neue Regressionen in den hier untersuchten WIP-Dateien.
 | 🔴 NEU | Vercel Blob nirgends als Empfänger genannt, "ausschließlich Upstash (Frankfurt, EU)" ist falsch | Offen — eigener Session-Prompt: `plan/session-prompt-vercel-blob-empfaenger.md`. Braucht vorab die Blob-Region aus der Vercel-Konsole |
 | 🟢 NICE | CSP nur als Meta-Tag, nicht als HTTP-Header | ✅ erledigt 2026-07-26 (`f687a51`) — 14 routenspezifische Einträge in `vercel.json`, statisch + im Browser gegengeprüft |
 | 🟢 NICE | `ui-lab.html` fehlt SRI-Hash auf CSS-Import | ✅ erledigt 2026-07-26 (`7364ba4`) |
-| 🟢 NICE | Whop-Checkout-Flow selbst nicht einsehbar | Einmal manuell prüfen ob volle AGB/Trial-Bedingungen vor Zahlungspflicht sichtbar sind |
+| 🟡 BALD | Whop-Checkout-Flow — geprüft 2026-07-30, echter Befund: Stackr-AGB nicht verlinkt, kein Widerrufsverzicht-Hinweis, Button-Text „Beitreten"/„Zugang erhalten" §312j-fragwürdig (legal-reviewer: 🟡 GELB) | ✅ Prüfung erledigt, Fund offen — Whop-Eskalation (Entwurf in `## whop-checkout-spotcheck.md` Nachtrag) durch User verschicken, zusätzlich in Anwalts-Briefing Punkt (b)4 |
 | 🟢 NICE | `ANCHOR_MAX`-Skalierungsgrenze bei sehr langjährigen Firmen | Nur beobachten, kein aktueller Fix |
 | 🟢 NICE | `cookies.html` — 5 Kleinfunde (Stand-Datum, §25-Zitat, Abschnitt 5 rät Cookies statt Website-Daten zu löschen, jsDelivr-Wording, IndexedDB) | Offen — mit im Session-Prompt `plan/session-prompt-vercel-blob-empfaenger.md` |
 
@@ -4407,29 +4573,29 @@ Für **beide** Pläne durchgehen.
 
 ### A — Preis und Laufzeit vor dem Button
 
-- [ ] Der Preis **nach** der Testphase steht sichtbar auf der Checkout-Seite (nicht erst nach dem Klick)
-- [ ] Der Betrag stimmt exakt mit `agb.html` §4 überein: **15,00 €/Monat** bzw. **135,00 €/Jahr**
-- [ ] **inkl. MwSt.** ist erkennbar (unsere AGB sagen „inkl. MwSt.")
-- [ ] Testphasenlänge = **7 Tage** (nicht 3, nicht 14 — AGB und Landing sagen beide 7)
-- [ ] Erkennbar, dass sich das Abo **automatisch verlängert**
-- [ ] Erkennbar, **wann** die erste Abbuchung erfolgt (Datum oder „nach 7 Tagen")
+- [x] Der Preis **nach** der Testphase steht sichtbar auf der Checkout-Seite (nicht erst nach dem Klick) — **✅ bestätigt 2026-07-27**: „Dann 15,00 €, beginnend am August 3, 2026." Sogar mit konkretem Datum, strenger als gefordert.
+- [x] Der Betrag stimmt exakt mit `agb.html` §4 überein — **✅ 15,00 €/Monat bestätigt** (Screenshot Monats-Plan). Jahres-Plan (135 €) noch nicht separat gegengeprüft.
+- [ ] **inkl. MwSt.** ist erkennbar — **⚠️ auf dem Checkout-Screen selbst NICHT sichtbar** (nur auf der Landing-Page davor). Weiter unten scrollen/prüfen, ob es doch noch auftaucht.
+- [x] Testphasenlänge = **7 Tage** — **✅ bestätigt**: „7 Tage kostenlos"
+- [x] Erkennbar, dass sich das Abo automatisch verlängert — **✅** „Gesamt nach Testlauf: 15,00 € pro Monat" impliziert Wiederkehr
+- [x] Erkennbar, wann die erste Abbuchung erfolgt — **✅ sogar mit Datum**, s.o.
 
 ### B — Button-Beschriftung (§312j Abs. 3 BGB)
 
-- [ ] Button ist eindeutig als zahlungspflichtig erkennbar
-- [ ] Notiere die **exakte Beschriftung**: `____________________________`
-- [ ] Falls nur „Start trial" / „Get access" o. ä. **ohne** Preis daneben → **Risiko notieren**, das ist die häufigste Abmahnursache bei Trial-Abos
+- [ ] Button ist eindeutig als zahlungspflichtig erkennbar — **⚠️ fraglich.** Exakte Beschriftung: **„Beitreten"** (nicht „zahlungspflichtig bestellen" o.ä.)
+- [x] Notiere die **exakte Beschriftung**: `Beitreten`
+- [ ] Da kein Preis *direkt am/im* Button steht, sondern nur darüber („Gesamt fällig heute: 0,00 € / Gesamt nach Testlauf: 15,00 € pro Monat") — **Risiko notiert, s. „Ergebnis" unten.** Nicht durch uns änderbar (Whops Formular), nur zu dokumentieren.
 
 ### C — Verlinkung unserer Bedingungen
 
-- [ ] Unsere **AGB** sind vom Checkout aus erreichbar (verlinkt oder eingeblendet)
-- [ ] Unsere **Widerrufsbelehrung / refund.html** ist erreichbar
+- [ ] Unsere **AGB** sind vom Checkout aus erreichbar (verlinkt oder eingeblendet) — **noch nicht geprüft**, im Screenshot nur der obere Teil der Seite sichtbar (Google Pay + Kartenformular). Weiter runterscrollen vor dem Abbrechen.
+- [ ] Unsere **Widerrufsbelehrung / refund.html** ist erreichbar — **noch nicht geprüft**, dito
 - [ ] Falls nur Whops eigene `buyer-terms` verlinkt sind: prüfen, ob dort auf die Verkäufer-Bedingungen verwiesen wird
 - [ ] Notiere, **welche** Links tatsächlich da sind: `____________________________`
 
 ### D — Widerrufsrecht (§356 Abs. 5 BGB)
 
-- [ ] Gibt es eine Checkbox/Zustimmung zum sofortigen Ausführungsbeginn?
+- [ ] Gibt es eine Checkbox/Zustimmung zum sofortigen Ausführungsbeginn? — **noch nicht geprüft**, evtl. weiter unten auf der Seite oder erst nach Karteneingabe sichtbar
 - [ ] Wird auf den **Verlust des Widerrufsrechts** hingewiesen?
 - [ ] Falls **nein**: notieren. `refund.html` §1 behauptet aktuell, der Nutzer erkläre das „durch die Aktivierung des Pro-Plans" — wenn der Checkout diese Erklärung gar nicht einholt, trägt der Text nicht.
 
@@ -4472,18 +4638,161 @@ bei einer Abmahnung als Erstes zitiert wird.
 Nach dem Durchgang hier vermerken und in `plan/vollaudit-runde2-2026-07-25.md` die entsprechende
 Zeile in der Prioritäten-Tabelle mit „✅ erledigt <Datum>" ergänzen.
 
-**Datum des Checks:** ____________
+**Datum des Checks:** 2026-07-27 (Monats-Plan, Teil 1 — bis zum Kartenformular, nicht abgeschlossen)
 
 **Ergebnis:**
 
 - [ ] Alles sauber — keine Abweichung zwischen Checkout und unseren Rechtstexten
-- [ ] Abweichungen gefunden (unten notieren) → gehören in das Anwalts-Briefing
-      (`plan/session-prompt-anwalt-briefing.md`), zusammen mit der ohnehin offenen §11-/§356-Frage
+- [x] Abweichungen/offene Fragen gefunden (s.u.) → **weiter in eigener Session, siehe
+      `## session-prompt-whop-checkout-nachpruefung.md`** weiter unten in dieser Datei
 
-**Notizen:**
+**Notizen (Stand 2026-07-27):**
 
 ```
+Screenshot 1 (Landing-Page, Preiskarte): 15,00 €/Monat, „inkl. MwSt. · Jederzeit kündbar",
+„Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung", Button „Jetzt 7 Tage kostenlos
+testen →".
+
+Screenshot 2 (echter Whop-Checkout, whop.com/checkout/1wRLkZJFqiCtyCwQfL-...):
+- „7 Tage kostenlos" / „Dann 15,00 €, beginnend am August 3, 2026."
+- „Gesamt fällig heute: 0,00 €" / „Gesamt nach Testlauf: 15,00 € pro Monat"
+- Zahlungsformular (Google Pay, Karte, Rechnungsdetails inkl. Land)
+- Button: „Beitreten"
+- User ist an dieser Stelle ausgestiegen (nicht abgeschlossen) — Rest der Seite
+  (AGB-Link, Widerrufs-Checkbox, MwSt.-Vermerk) nicht mehr gesehen.
+
+Bewertung: Preis/Datum/Laufzeit vorbildlich transparent (A komplett grün, sogar über
+Soll-Anforderung hinaus). Zwei offene Punkte:
+1. Button „Beitreten" statt einer Formulierung, die die Zahlungspflicht selbst benennt
+   (§312j Abs. 3 BGB) — Whops Standardformular, von uns nicht änderbar.
+2. C/D (AGB-/Widerrufs-Verlinkung, Zustimmungs-Checkbox) schlicht noch nicht gesehen,
+   nicht negativ festgestellt — Seite muss weiter gescrollt werden.
+Kein akuter Befund, zwei Fragen für den nächsten Durchlauf bzw. eine rechtliche Einordnung.
 ```
+
+**Nachtrag 2026-07-30 (Nachprüfungs-Session, per Browser-Pane, kein Login/Kauf):**
+
+```
+1. Button-Text „Beitreten"/„Zugang erhalten" — legal-reviewer-Ergebnis: 🟡 GELB, Tendenz Rot.
+   OLG Köln: Preistext neben Button heilt Mangel nicht, Wortlaut AUF dem Button zählt.
+   KG-Berlin-Ausnahme (Blinkist „starten") greift nicht, da unser Button finaler Auslöser ist,
+   kein Zwischenschritt. Bei Verstoß: §312j Abs. 4 BGB — Vertrag ggf. unwirksam. Trifft auch
+   Stackr (UWG-Mitstörerhaftung + Umsatz-Rückabwicklung über Whop-MoR). Quellen/Details siehe
+   Anwalts-Briefing-Ergänzung unten.
+
+2. Checkout C/D geprüft (Monats- UND Jahres-Plan, identisches Bild):
+   - C: „Stackr's Allgemeine Geschäftsbedingungen" nur Fließtext, KEIN Link (per DOM-Check
+     bestätigt: kein href). Verlinkt sind nur Whops eigene „Bedingungen"/„Datenschutz"
+     (whop.com/tos, whop.com/privacy) — nicht Stackrs AGB, nicht Stackrs Datenschutz, kein
+     Widerruf-Link. Kunde kann Stackr-AGB vom Checkout aus nicht erreichen.
+   - D: Kein Widerrufsverzicht-Checkbox/-Hinweis — Wort „Widerruf" kommt auf der Checkout-Seite
+     gar nicht vor (per DOM-Check bestätigt: 0 Checkbox-Inputs, kein Treffer für „widerruf").
+   - Bonus-Fund: Button-Text ist plan-abhängig unterschiedlich — Monatsplan „Beitreten",
+     Jahresplan „Zugang erhalten". Beide gleiches §312j-Problem, nicht nur ein Plan betroffen.
+   - E (Kündigungsweg im Whop-Konto) und F (Seller-Dashboard: Trial-Länge/Preise/Terms-URL je
+     Plan) NICHT geprüft — brauchen User-eigenen Whop-Login bzw. Seller-Zugang.
+
+3. Jahres-Plan gegengecheckt: 135,00 €/Jahr bestätigt, 7 Tage Trial, „Gesamt fällig heute
+   0,00 €", Ablaufdatum genannt — Abschnitt A auch hier komplett grün.
+
+Einschätzung: Fehlender AGB-Link + fehlender Widerrufsverzicht-Hinweis sind der dickere Fund,
+nicht nur die Button-Text-Frage — beides Whop-Template-seitig, nicht in Stackr-Code fixbar.
+Nächste Schritte: (1) an Anwalts-Briefing anhängen (unten ergänzt), (2) Whop-Eskalation
+(Entwurftext unten) durch User verschicken, (3) E/F durch User selbst nachprüfen.
+```
+
+**Whop-Eskalation (Entwurf, durch User zu verschicken — Claude verschickt nichts selbst):**
+
+```
+Betreff: EU-Compliance-Lücken im Checkout-Template (Merchant: Stackr)
+
+Hallo Whop-Team,
+
+beim Checkout unserer Pläne (plan_iR6YIKLcychSZ, plan_b5IBQ1lecggOT) sind uns drei
+EU-Verbraucherschutz-Lücken aufgefallen, die wir als Merchant nicht selbst anpassen können:
+
+1. Der Bestell-Button ist mit „Beitreten" (Monatsplan) bzw. „Zugang erhalten" (Jahresplan)
+   beschriftet. §312j Abs. 3 BGB (DE) verlangt für den finalen, zahlungsauslösenden Button
+   eine eindeutige Formulierung wie „zahlungspflichtig bestellen" — der Preis-Hinweis direkt
+   über dem Button reicht laut deutscher Rechtsprechung (OLG Köln) nicht aus, wenn der
+   Button-Text selbst keinen Zahlungsbezug herstellt.
+2. Auf der Checkout-Seite wird „Stackr's Allgemeine Geschäftsbedingungen" nur als Fließtext
+   erwähnt, aber nicht verlinkt — Kund:innen können unsere AGB vor Vertragsschluss nicht
+   erreichen.
+3. Es gibt keinen Hinweis/keine Checkbox zum Widerrufsverzicht bei sofortigem
+   Ausführungsbeginn digitaler Leistungen — für EU/DE-Kund:innen rechtlich relevant.
+
+Könnt ihr das Checkout-Template für EU/DE-Merchants anpassen (button-Text konfigurierbar
+machen, Merchant-eigene AGB/Widerruf-Links einbindbar machen, Widerrufsverzicht-Checkbox
+optional aktivierbar)? Für Rückfragen stehen wir zur Verfügung.
+
+Danke, Stackr-Team
+```
+
+---
+
+## ~~session-prompt-whop-checkout-nachpruefung.md~~ (erledigt 2026-07-30)
+
+# Prompt für neue Session (copy-paste) — Whop-Checkout: offene Fragen aus dem ersten Durchlauf
+
+Kontext: Der Whop-Checkout-Spotcheck (`## whop-checkout-spotcheck.md` weiter oben in dieser Datei)
+wurde am 2026-07-27 vom User teilweise durchgeführt (Screenshots, Monats-Plan, bis zum
+Kartenformular — nicht abgeschlossen/gekauft). Abschnitt A (Preis/Laufzeit/Datum) ist **komplett
+grün**, sogar über die Mindestanforderung hinaus. Zwei Punkte sind offen:
+
+## 1. Rechtliche Einordnung: Button-Text „Beitreten"
+
+Der Bestell-Button auf dem echten Whop-Checkout heißt **„Beitreten"**, nicht z. B.
+„zahlungspflichtig bestellen". §312j Abs. 3 BGB verlangt eine Beschriftung, die die
+Zahlungspflicht erkennbar macht. Direkt über dem Button steht aber unmissverständlich:
+
+> Gesamt fällig heute: 0,00 €
+> Gesamt nach Testlauf: 15,00 € pro Monat
+
+**Aufgabe:** `legal-reviewer`-Agent einsetzen mit der konkreten Frage: Reicht diese
+Preis-Auszeichnung unmittelbar über dem Button, um die §312j-Abs.-3-Anforderung zu erfüllen, auch
+wenn der Button-Text selbst („Beitreten") die Zahlungspflicht nicht benennt? Es gibt
+einschlägige Rechtsprechung zu Trial-Buttons bei SaaS-Abos (z. B. LG-Entscheidungen zu
+„kostenlos testen"-Buttons ohne Preis) — der Agent soll das einordnen, nicht neu erfinden.
+
+**Wichtig:** Das ist Whops Checkout-Formular, nicht unser Code — wir können den Button-Text nicht
+ändern. Ergebnis ist eine **Risikoeinschätzung**, keine Code-Änderung. Bei echtem Risiko: Punkt für
+das Anwalts-Briefing (`## session-prompt-anwalt-briefing.md` weiter oben) vormerken, dort steht
+ohnehin die §11-/§356-Frage an.
+
+## 2. Rest der Checkliste durchgehen (Abschnitte C, D, E, F)
+
+Der User ist vor dem Kartenformular ausgestiegen — noch nicht gesehen:
+
+- **C** — sind AGB/Widerrufsbelehrung vom Checkout aus verlinkt? (weiter runterscrollen, bevor
+  abgebrochen wird)
+- **D** — gibt es eine Checkbox/einen Hinweis zum Widerrufsverzicht bei sofortigem
+  Ausführungsbeginn?
+- **E** — Kündigungsweg im Whop-Konto
+- **F** — Whop-Seller-Dashboard: Trial-Länge/Preise pro Plan, eigene Terms-URLs hinterlegt?
+
+Diese Session sollte den User **anleiten**, den Check zu Ende zu führen (privates Fenster, gleicher
+Checkout-Link `https://whop.com/checkout/plan_iR6YIKLcychSZ`, diesmal bis kurz vor „Beitreten"
+durchscrollen) — nicht selbst einloggen oder kaufen.
+
+## 3. Jahres-Plan gegenprüfen
+
+Bisher nur der **Monats-Plan** (15 €) verifiziert. `https://whop.com/checkout/plan_b5IBQ1lecggOT`
+sollte 135,00 €/Jahr zeigen — kurzer Gegencheck, kein neuer Themenblock.
+
+## Abschluss
+
+- Ergebnis in den „Notizen"-Block von `## whop-checkout-spotcheck.md` (oben in dieser Datei)
+  nachtragen, nicht überschreiben — anhängen.
+- Bei echtem Befund: Zeile in der Prioritäten-Tabelle von `## vollaudit-runde2-2026-07-25.md`
+  aktualisieren.
+- Diesen Abschnitt (`session-prompt-whop-checkout-nachpruefung.md`) nach Abschluss als erledigt
+  markieren (Überschrift durchstreichen), nicht löschen.
+
+---
+
+**Modell-Empfehlung: Sonnet 5** für den organisatorischen Teil (Checkliste anleiten), aber der
+`legal-reviewer`-Agent-Call in Punkt 1 ist der eigentliche Kern der Session.
 
 ---
 

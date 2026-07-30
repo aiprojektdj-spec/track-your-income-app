@@ -378,11 +378,11 @@ const Bilanz = {
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div class="form-group">
                     <label class="form-label">Bezeichnung *</label>
-                    <input type="text" class="form-input" id="gk_bez" placeholder="z.B. Zinserträge, a.o. Aufwand">
+                    <input type="text" class="form-input" id="gk_bez" placeholder="z.B. Zinserträge, a.o. Aufwand" maxlength="300">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Betrag (€) *</label>
-                    <input type="number" step="0.01" class="form-input" id="gk_betrag" placeholder="Positiv = Ertrag, Negativ = Aufwand">
+                    <input type="number" step="0.01" min="-99999999" max="99999999" class="form-input" id="gk_betrag" placeholder="Positiv = Ertrag, Negativ = Aufwand">
                 </div>
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>
@@ -391,7 +391,7 @@ const Bilanz = {
         document.getElementById('saveGkBtn').addEventListener('click', () => {
             const bez = document.getElementById('gk_bez').value.trim();
             const betrag = parseFloat(document.getElementById('gk_betrag').value);
-            if (!bez || isNaN(betrag)) { Utils.showToast('Pflichtfelder', 'warning'); return; }
+            if (!bez || !Number.isFinite(betrag)) { Utils.showToast('Pflichtfelder', 'warning'); return; }
             const yd = this._getYearData(this._year);
             if (!yd.guv_korrekturen) yd.guv_korrekturen = [];
             yd.guv_korrekturen.push({ id: Store.generateId(), bezeichnung: bez, betrag });
@@ -408,15 +408,15 @@ const Bilanz = {
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div class="form-group">
                     <label class="form-label">Stammkapital (€)</label>
-                    <input type="number" step="0.01" class="form-input" id="ek_stamm" value="${p.eigenkapital || ''}" placeholder="z.B. 25000">
+                    <input type="number" step="0.01" min="-99999999" max="99999999" class="form-input" id="ek_stamm" value="${p.eigenkapital || ''}" placeholder="z.B. 25000">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Rücklagen (€)</label>
-                    <input type="number" step="0.01" class="form-input" id="ek_rueck" value="${p.ruecklagen || ''}">
+                    <input type="number" step="0.01" min="-99999999" max="99999999" class="form-input" id="ek_rueck" value="${p.ruecklagen || ''}">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Gewinnvortrag (€)</label>
-                    <input type="number" step="0.01" class="form-input" id="ek_gv" value="${p.gewinnvortrag || ''}">
+                    <input type="number" step="0.01" min="-99999999" max="99999999" class="form-input" id="ek_gv" value="${p.gewinnvortrag || ''}">
                 </div>
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>
@@ -441,7 +441,7 @@ const Bilanz = {
         App.showModal('Kasse / Bank', `
             <div class="form-group">
                 <label class="form-label">Kasse + Bank Saldo (€)</label>
-                <input type="number" step="0.01" class="form-input" id="kb_val" value="${a.kasseBank || ''}" placeholder="Gesamtsaldo">
+                <input type="number" step="0.01" min="-99999999" max="99999999" class="form-input" id="kb_val" value="${a.kasseBank || ''}" placeholder="Gesamtsaldo">
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>
          <button class="btn btn-primary" id="saveKbBtn">Speichern</button>`);
@@ -461,7 +461,7 @@ const Bilanz = {
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div class="form-group">
                     <label class="form-label">Bezeichnung *</label>
-                    <input type="text" class="form-input" id="ap_bez" placeholder="z.B. Forderungen, Vorräte">
+                    <input type="text" class="form-input" id="ap_bez" placeholder="z.B. Forderungen, Vorräte" maxlength="300">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Betrag (€) *</label>
@@ -474,7 +474,7 @@ const Bilanz = {
         document.getElementById('saveApBtn').addEventListener('click', () => {
             const bez = document.getElementById('ap_bez').value.trim();
             const betrag = parseFloat(document.getElementById('ap_betrag').value);
-            if (!bez || isNaN(betrag)) { Utils.showToast('Pflichtfelder', 'warning'); return; }
+            if (!bez || !Number.isFinite(betrag) || betrag < 0) { Utils.showToast('Bitte gültigen Betrag (≥ 0) eingeben', 'warning'); return; }
             const yd = this._getYearData(this._year);
             if (!yd.aktiva) yd.aktiva = {};
             if (!yd.aktiva.posten) yd.aktiva.posten = [];
@@ -490,7 +490,7 @@ const Bilanz = {
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div class="form-group">
                     <label class="form-label">Bezeichnung *</label>
-                    <input type="text" class="form-input" id="vb_bez" placeholder="z.B. Bankdarlehen, Lieferanten">
+                    <input type="text" class="form-input" id="vb_bez" placeholder="z.B. Bankdarlehen, Lieferanten" maxlength="300">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Betrag (€) *</label>
@@ -503,7 +503,7 @@ const Bilanz = {
         document.getElementById('saveVbBtn').addEventListener('click', () => {
             const bez = document.getElementById('vb_bez').value.trim();
             const betrag = parseFloat(document.getElementById('vb_betrag').value);
-            if (!bez || isNaN(betrag)) { Utils.showToast('Pflichtfelder', 'warning'); return; }
+            if (!bez || !Number.isFinite(betrag) || betrag < 0) { Utils.showToast('Bitte gültigen Betrag (≥ 0) eingeben', 'warning'); return; }
             const yd = this._getYearData(this._year);
             if (!yd.passiva) yd.passiva = {};
             if (!yd.passiva.verbindlichkeiten) yd.passiva.verbindlichkeiten = [];

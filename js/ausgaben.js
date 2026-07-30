@@ -193,7 +193,7 @@ const Ausgaben = {
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label">Menge (Stück)</label>
-                                    <input type="number" step="1" min="1" class="form-input" id="exp_matMenge" placeholder="50">
+                                    <input type="number" step="1" min="1" max="9999999" class="form-input" id="exp_matMenge" placeholder="50">
                                 </div>
                             </div>
                             <div class="form-hint" style="font-size:12px;color:var(--text-muted);">
@@ -377,16 +377,16 @@ const Ausgaben = {
                     </div>
                     <div class="form-group">
                         <label class="form-label">Beschreibung</label>
-                        <input type="text" class="form-input" id="ee_beschreibung" value="${Utils.escapeHtml(exp.beschreibung || '')}">
+                        <input type="text" class="form-input" id="ee_beschreibung" maxlength="300" value="${Utils.escapeHtml(exp.beschreibung || '')}">
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Betrag</label>
-                            <input type="number" step="0.01" class="form-input" id="ee_betrag" value="${exp.betrag || 0}">
+                            <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="ee_betrag" value="${exp.betrag || 0}">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Beleg-Nr.</label>
-                            <input type="text" class="form-input" id="ee_belegNr" value="${Utils.escapeHtml(exp.belegNr || '')}">
+                            <input type="text" class="form-input" id="ee_belegNr" maxlength="300" value="${Utils.escapeHtml(exp.belegNr || '')}">
                         </div>
                     </div>
                     <div class="form-row">
@@ -422,12 +422,17 @@ const Ausgaben = {
                         try { belegFoto = await Utils.sanitizeImageFile(newFotoFile); }
                         catch (err) { Utils.showToast(err.message || 'Beleg-Foto konnte nicht gelesen werden', 'error'); return; }
                     }
+                    const eeBetragVal = parseFloat(document.getElementById('ee_betrag').value) || 0;
+                    if (eeBetragVal < 0) {
+                        Utils.showToast('Betrag darf nicht negativ sein', 'warning');
+                        return;
+                    }
                     Store.saveExpense({
                         id: exp.id,
                         datum: Utils.getDateInputValue('ee_datum'),
                         kategorie: document.getElementById('ee_kategorie').value,
                         beschreibung: document.getElementById('ee_beschreibung').value.trim(),
-                        betrag: parseFloat(document.getElementById('ee_betrag').value) || 0,
+                        betrag: eeBetragVal,
                         belegNr: document.getElementById('ee_belegNr').value.trim(),
                         lieferant: document.getElementById('ee_lieferant').value.trim(),
                         lieferantSteuerId: document.getElementById('ee_lieferantSteuerId').value.trim(),

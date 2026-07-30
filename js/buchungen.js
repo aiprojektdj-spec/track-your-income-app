@@ -114,7 +114,7 @@ const Buchungen = {
                     </div>
                     <div class="form-group" id="sess_customQuelleGroup" style="display:none;">
                         <label class="form-label">Eigene Quelle</label>
-                        <input type="text" class="form-input" id="sess_customQuelle" placeholder="Quelle eingeben...">
+                        <input type="text" class="form-input" id="sess_customQuelle" maxlength="300" placeholder="Quelle eingeben...">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Gesamtbudget (optional)</label>
@@ -163,7 +163,7 @@ const Buchungen = {
                 <div class="form-row" style="align-items:flex-end;">
                     <div class="form-group">
                         <label class="form-label">Marke</label>
-                        <input type="text" class="form-input" id="item_marke" list="markenList" placeholder="z.B. Nike">
+                        <input type="text" class="form-input" id="item_marke" list="markenList" maxlength="300" placeholder="z.B. Nike">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Artikeltyp</label>
@@ -179,7 +179,7 @@ const Buchungen = {
                     </div>
                     <div class="form-group">
                         <label class="form-label">Größe</label>
-                        <input type="text" class="form-input" id="item_groesse" placeholder="z.B. M, 42">
+                        <input type="text" class="form-input" id="item_groesse" maxlength="300" placeholder="z.B. M, 42">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Beschreibung</label>
@@ -478,15 +478,15 @@ const Buchungen = {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Marke</label>
-                        <input type="text" class="form-input" id="vk_marke">
+                        <input type="text" class="form-input" id="vk_marke" maxlength="300">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Artikeltyp</label>
-                        <input type="text" class="form-input" id="vk_artikeltyp">
+                        <input type="text" class="form-input" id="vk_artikeltyp" maxlength="300">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Größe</label>
-                        <input type="text" class="form-input" id="vk_groesse">
+                        <input type="text" class="form-input" id="vk_groesse" maxlength="300">
                     </div>
                 </div>
                 <div class="form-group">
@@ -573,11 +573,11 @@ const Buchungen = {
                     </div>
                     <div class="form-group" id="vk_customPlattformGroup" style="display:none;">
                         <label class="form-label">Eigene Plattform</label>
-                        <input type="text" class="form-input" id="vk_customPlattform" placeholder="Plattform eingeben...">
+                        <input type="text" class="form-input" id="vk_customPlattform" maxlength="300" placeholder="Plattform eingeben...">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Käufer (optional)</label>
-                        <input type="text" class="form-input" id="vk_kaeufer">
+                        <input type="text" class="form-input" id="vk_kaeufer" maxlength="300">
                     </div>
                 </div>
                 <div class="form-row">
@@ -797,14 +797,23 @@ const Buchungen = {
                 // Pre-generate ID so we can link material usage
                 const saleId = Store.generateId();
 
+                const vkPreisVal = parseFloat(document.getElementById('vk_preis').value) || 0;
+                const vkVersandKVal = parseFloat(document.getElementById('vk_versandKaeufer').value) || 0;
+                const vkGebuehrVal = parseFloat(document.getElementById('vk_gebuehr').value) || 0;
+                const vkVersandVkVal = parseFloat(document.getElementById('vk_versandVk').value) || 0;
+                if (vkPreisVal < 0 || vkVersandKVal < 0 || vkGebuehrVal < 0 || vkVersandVkVal < 0) {
+                    Utils.showToast('Beträge dürfen nicht negativ sein', 'warning');
+                    return;
+                }
+
                 const saleData = {
                     id: saleId,
                     datum: Utils.getDateInputValue('vk_datum'),
                     verkaufsplattform: plattform,
-                    verkaufspreis: parseFloat(document.getElementById('vk_preis').value) || 0,
-                    versandkostenKaeufer: parseFloat(document.getElementById('vk_versandKaeufer').value) || 0,
-                    plattformgebuehrProzent: parseFloat(document.getElementById('vk_gebuehr').value) || 0,
-                    versandkostenVerkaufer: parseFloat(document.getElementById('vk_versandVk').value) || 0,
+                    verkaufspreis: vkPreisVal,
+                    versandkostenKaeufer: vkVersandKVal,
+                    plattformgebuehrProzent: vkGebuehrVal,
+                    versandkostenVerkaufer: vkVersandVkVal,
                     kaeufer: document.getElementById('vk_kaeufer') ? document.getElementById('vk_kaeufer').value.trim() : '',
                     notizen: document.getElementById('vk_notizen').value.trim()
                 };
@@ -1235,7 +1244,7 @@ const Buchungen = {
                         </div>
                         <div class="form-group">
                             <label class="form-label">Marke</label>
-                            <input type="text" class="form-input" id="ep_marke" list="epMarkenList" value="${Utils.escapeHtml(p.marke || '')}">
+                            <input type="text" class="form-input" id="ep_marke" list="epMarkenList" maxlength="300" value="${Utils.escapeHtml(p.marke || '')}">
                             <datalist id="epMarkenList">${brandOptions}</datalist>
                         </div>
                         <div class="form-group">
@@ -1254,25 +1263,25 @@ const Buchungen = {
                         </div>
                         <div class="form-group" id="ep_customQuelleGroup" style="display:none;">
                             <label class="form-label">Eigene Quelle</label>
-                            <input type="text" class="form-input" id="ep_customQuelle" placeholder="Quelle eingeben...">
+                            <input type="text" class="form-input" id="ep_customQuelle" maxlength="300" placeholder="Quelle eingeben...">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Größe</label>
-                            <input type="text" class="form-input" id="ep_groesse" value="${Utils.escapeHtml(p.groesse || '')}">
+                            <input type="text" class="form-input" id="ep_groesse" maxlength="300" value="${Utils.escapeHtml(p.groesse || '')}">
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Beschreibung</label>
-                        <input type="text" class="form-input" id="ep_beschreibung" value="${Utils.escapeHtml(p.beschreibung || '')}">
+                        <input type="text" class="form-input" id="ep_beschreibung" maxlength="300" value="${Utils.escapeHtml(p.beschreibung || '')}">
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="ep_preis">Einkaufspreis (Brutto)</label>
-                            <input type="number" step="0.01" class="form-input" id="ep_preis" value="${p.einkaufspreis || 0}">
+                            <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="ep_preis" value="${p.einkaufspreis || 0}">
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="ep_anzahl">Anzahl</label>
-                            <input type="number" min="1" class="form-input" id="ep_anzahl" value="${p.anzahl || 1}">
+                            <input type="number" min="1" max="9999999" class="form-input" id="ep_anzahl" value="${p.anzahl || 1}">
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="ep_ustSatz">USt-Satz</label>
@@ -1300,7 +1309,7 @@ const Buchungen = {
                     </div>
                     <div class="form-group">
                         <label class="form-label">Notizen</label>
-                        <textarea class="form-textarea" id="ep_notizen">${Utils.escapeHtml(p.notizen || '')}</textarea>
+                        <textarea class="form-textarea" id="ep_notizen" maxlength="1000">${Utils.escapeHtml(p.notizen || '')}</textarea>
                     </div>
                 </form>
             `;
@@ -1343,6 +1352,17 @@ const Buchungen = {
                     catch (err) { Utils.showToast(err.message || 'Beleg-Foto konnte nicht gelesen werden', 'error'); return; }
                 }
 
+                const epPreisVal = parseFloat(document.getElementById('ep_preis').value) || 0;
+                const epAnzahlVal = parseInt(document.getElementById('ep_anzahl').value) || 1;
+                if (epPreisVal < 0) {
+                    Utils.showToast('Einkaufspreis darf nicht negativ sein', 'warning');
+                    return;
+                }
+                if (epAnzahlVal < 1) {
+                    Utils.showToast('Anzahl muss mindestens 1 sein', 'warning');
+                    return;
+                }
+
                 Store.savePurchase({
                     id: p.id,
                     datum: Utils.getDateInputValue('ep_datum'),
@@ -1350,8 +1370,8 @@ const Buchungen = {
                     artikeltyp: document.getElementById('ep_artikeltyp').value,
                     groesse: document.getElementById('ep_groesse').value.trim(),
                     beschreibung: document.getElementById('ep_beschreibung').value.trim(),
-                    einkaufspreis: parseFloat(document.getElementById('ep_preis').value) || 0,
-                    anzahl: parseInt(document.getElementById('ep_anzahl').value) || 1,
+                    einkaufspreis: epPreisVal,
+                    anzahl: epAnzahlVal,
                     ustSatz: parseInt(document.getElementById('ep_ustSatz').value) ?? 19,
                     einkaufsquelle: einkaufsquelle,
                     lieferantName: document.getElementById('ep_lieferant').value.trim(),
@@ -1387,56 +1407,56 @@ const Buchungen = {
                         </div>
                         <div class="form-group" id="es_customPlattformGroup" style="${!platforms.includes(s.verkaufsplattform) && s.verkaufsplattform ? '' : 'display:none'}">
                             <label class="form-label">Eigene Plattform</label>
-                            <input type="text" class="form-input" id="es_customPlattform" value="${!platforms.includes(s.verkaufsplattform) && s.verkaufsplattform ? Utils.escapeHtml(s.verkaufsplattform) : ''}">
+                            <input type="text" class="form-input" id="es_customPlattform" maxlength="300" value="${!platforms.includes(s.verkaufsplattform) && s.verkaufsplattform ? Utils.escapeHtml(s.verkaufsplattform) : ''}">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Marke</label>
-                            <input type="text" class="form-input" id="es_marke" value="${Utils.escapeHtml(s.marke || '')}">
+                            <input type="text" class="form-input" id="es_marke" maxlength="300" value="${Utils.escapeHtml(s.marke || '')}">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Artikeltyp</label>
-                            <input type="text" class="form-input" id="es_artikeltyp" value="${Utils.escapeHtml(s.artikeltyp || '')}">
+                            <input type="text" class="form-input" id="es_artikeltyp" maxlength="300" value="${Utils.escapeHtml(s.artikeltyp || '')}">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Größe</label>
-                            <input type="text" class="form-input" id="es_groesse" value="${Utils.escapeHtml(s.groesse || '')}">
+                            <input type="text" class="form-input" id="es_groesse" maxlength="300" value="${Utils.escapeHtml(s.groesse || '')}">
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Beschreibung</label>
-                        <input type="text" class="form-input" id="es_beschreibung" value="${Utils.escapeHtml(s.beschreibung || '')}">
+                        <input type="text" class="form-input" id="es_beschreibung" maxlength="300" value="${Utils.escapeHtml(s.beschreibung || '')}">
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Verkaufspreis</label>
-                            <input type="number" step="0.01" class="form-input" id="es_preis" value="${s.verkaufspreis || 0}">
+                            <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="es_preis" value="${s.verkaufspreis || 0}">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Versandkosten (Käufer)</label>
-                            <input type="number" step="0.01" class="form-input" id="es_versandK" value="${s.versandkostenKaeufer || 0}">
+                            <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="es_versandK" value="${s.versandkostenKaeufer || 0}">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Plattformgebühr (%)</label>
-                            <input type="number" step="0.01" class="form-input" id="es_gebuehr" value="${s.plattformgebuehrProzent || 0}">
+                            <input type="number" step="0.01" min="0" max="100" class="form-input" id="es_gebuehr" value="${s.plattformgebuehrProzent || 0}">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Versandkosten (meine)</label>
-                            <input type="number" step="0.01" class="form-input" id="es_versandV" value="${s.versandkostenVerkaufer || 0}">
+                            <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="es_versandV" value="${s.versandkostenVerkaufer || 0}">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Käufer</label>
-                            <input type="text" class="form-input" id="es_kaeufer" value="${Utils.escapeHtml(s.kaeufer || '')}">
+                            <input type="text" class="form-input" id="es_kaeufer" maxlength="300" value="${Utils.escapeHtml(s.kaeufer || '')}">
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Notizen</label>
-                        <textarea class="form-textarea" id="es_notizen">${Utils.escapeHtml(s.notizen || '')}</textarea>
+                        <textarea class="form-textarea" id="es_notizen" maxlength="1000">${Utils.escapeHtml(s.notizen || '')}</textarea>
                     </div>
                 </form>
             `;
@@ -1465,6 +1485,15 @@ const Buchungen = {
                     Store.addPlatform(plat);
                 }
 
+                const esPreisVal = parseFloat(document.getElementById('es_preis').value) || 0;
+                const esVersandKVal = parseFloat(document.getElementById('es_versandK').value) || 0;
+                const esGebuehrVal = parseFloat(document.getElementById('es_gebuehr').value) || 0;
+                const esVersandVVal = parseFloat(document.getElementById('es_versandV').value) || 0;
+                if (esPreisVal < 0 || esVersandKVal < 0 || esGebuehrVal < 0 || esVersandVVal < 0) {
+                    Utils.showToast('Beträge dürfen nicht negativ sein', 'warning');
+                    return;
+                }
+
                 Store.saveSale({
                     id: s.id,
                     datum: Utils.getDateInputValue('es_datum'),
@@ -1475,10 +1504,10 @@ const Buchungen = {
                     groesse: document.getElementById('es_groesse').value.trim(),
                     beschreibung: document.getElementById('es_beschreibung').value.trim(),
                     verkaufsplattform: plat,
-                    verkaufspreis: parseFloat(document.getElementById('es_preis').value) || 0,
-                    versandkostenKaeufer: parseFloat(document.getElementById('es_versandK').value) || 0,
-                    plattformgebuehrProzent: parseFloat(document.getElementById('es_gebuehr').value) || 0,
-                    versandkostenVerkaufer: parseFloat(document.getElementById('es_versandV').value) || 0,
+                    verkaufspreis: esPreisVal,
+                    versandkostenKaeufer: esVersandKVal,
+                    plattformgebuehrProzent: esGebuehrVal,
+                    versandkostenVerkaufer: esVersandVVal,
                     kaeufer: document.getElementById('es_kaeufer').value.trim(),
                     notizen: document.getElementById('es_notizen').value.trim(),
                     createdAt: s.createdAt

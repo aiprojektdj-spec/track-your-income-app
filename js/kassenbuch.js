@@ -134,7 +134,7 @@ const Kassenbuch = {
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="kb_beleg">Beleg-Nr. (optional)</label>
-                            <input type="text" class="form-input" id="kb_beleg" placeholder="z.B. B-001">
+                            <input type="text" class="form-input" id="kb_beleg" maxlength="300" placeholder="z.B. B-001">
                         </div>
                     </div>
                     <div class="form-actions">
@@ -224,7 +224,11 @@ const Kassenbuch = {
                 const val = prompt('Anfangsbestand (€):', (s.kassenbuchAnfangsbestand || 0).toString());
                 if (val === null) return;
                 const n = parseFloat(val.replace(',', '.'));
-                s.kassenbuchAnfangsbestand = Number.isFinite(n) ? n : 0;
+                if (!Number.isFinite(n) || n < 0) {
+                    Utils.showToast('Ungültiger Anfangsbestand — bitte eine gültige, nicht-negative Zahl eingeben', 'warning');
+                    return;
+                }
+                s.kassenbuchAnfangsbestand = n;
                 Store.saveSettings(s);
                 this._refresh();
             });

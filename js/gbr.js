@@ -246,11 +246,11 @@ const GbR = {
         const gsRows = list.map(g => `
             <tr id="gs_row_${g.id}">
                 <td style="padding:6px 8px;">
-                    <input type="text" class="form-input" id="gs_name_${g.id}" value="${Utils.escapeHtml(g.name)}"
+                    <input type="text" maxlength="300" class="form-input" id="gs_name_${g.id}" value="${Utils.escapeHtml(g.name)}"
                            style="font-size:13px;padding:5px 8px;" placeholder="Name">
                 </td>
                 <td style="padding:6px 8px;">
-                    <input type="text" class="form-input" id="gs_adresse_${g.id}" value="${Utils.escapeHtml(g.adresse || '')}"
+                    <input type="text" maxlength="300" class="form-input" id="gs_adresse_${g.id}" value="${Utils.escapeHtml(g.adresse || '')}"
                            style="font-size:12px;padding:5px 8px;" placeholder="Adresse (optional)">
                 </td>
                 ${this._rolleCellHtml(g.id, g.rolle, einst.firmenform)}
@@ -319,12 +319,12 @@ const GbR = {
                     <div class="form-row" style="gap:10px;">
                         <div class="form-group">
                             <label class="form-label">Registernummer</label>
-                            <input type="text" class="form-input" id="gbr_regnr" value="${Utils.escapeHtml(einst.eGbrRegisternummer || '')}"
+                            <input type="text" maxlength="300" class="form-input" id="gbr_regnr" value="${Utils.escapeHtml(einst.eGbrRegisternummer || '')}"
                                    placeholder="z.B. GbR 12345">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Registergericht</label>
-                            <input type="text" class="form-input" id="gbr_reggericht" value="${Utils.escapeHtml(einst.eGbrRegistergericht || '')}"
+                            <input type="text" maxlength="300" class="form-input" id="gbr_reggericht" value="${Utils.escapeHtml(einst.eGbrRegistergericht || '')}"
                                    placeholder="z.B. Amtsgericht München">
                         </div>
                     </div>
@@ -340,33 +340,33 @@ const GbR = {
                     <div class="form-row" style="gap:10px;">
                         <div class="form-group">
                             <label class="form-label">Registernummer (HRA/HRB)</label>
-                            <input type="text" class="form-input" id="gbr_hrnr" value="${Utils.escapeHtml(einst.handelsregisterNr || '')}"
+                            <input type="text" maxlength="300" class="form-input" id="gbr_hrnr" value="${Utils.escapeHtml(einst.handelsregisterNr || '')}"
                                    placeholder="z.B. HRB 12345">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Registergericht</label>
-                            <input type="text" class="form-input" id="gbr_hrgericht" value="${Utils.escapeHtml(einst.handelsregisterGericht || '')}"
+                            <input type="text" maxlength="300" class="form-input" id="gbr_hrgericht" value="${Utils.escapeHtml(einst.handelsregisterGericht || '')}"
                                    placeholder="z.B. Amtsgericht München">
                         </div>
                     </div>
                     <div class="form-row" style="gap:10px;margin-top:8px;">
                         <div class="form-group">
                             <label class="form-label">Sitz der Gesellschaft</label>
-                            <input type="text" class="form-input" id="gbr_sitz" value="${Utils.escapeHtml(einst.sitz || '')}"
+                            <input type="text" maxlength="300" class="form-input" id="gbr_sitz" value="${Utils.escapeHtml(einst.sitz || '')}"
                                    placeholder="z.B. München">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Geschäftsführer / Vertretungsberechtigte</label>
-                            <input type="text" class="form-input" id="gbr_gf" value="${Utils.escapeHtml(einst.geschaeftsfuehrer || '')}"
+                            <input type="text" maxlength="300" class="form-input" id="gbr_gf" value="${Utils.escapeHtml(einst.geschaeftsfuehrer || '')}"
                                    placeholder="z.B. Max Mustermann">
                             <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Bei mehreren Geschäftsführern alle nennen (§35a GmbHG), z.B. durch Komma getrennt.</div>
                         </div>
                     </div>
-                    <div class="form-row" style="gap:10px;margin-top:8px;" id="stammkapital_row" style="${['GmbH','UG'].includes(einst.firmenform) ? '' : 'display:none;'}">
+                    <div class="form-row" style="gap:10px;margin-top:8px;${['GmbH','UG'].includes(einst.firmenform) ? '' : 'display:none;'}" id="stammkapital_row">
                         <div class="form-group" style="max-width:200px;">
                             <label class="form-label">Stammkapital (€)</label>
                             <input type="number" class="form-input" id="gbr_stammkapital" value="${einst.stammkapital || ''}"
-                                   placeholder="${einst.firmenform === 'UG' ? '1' : '25000'}" min="1" step="1">
+                                   placeholder="${einst.firmenform === 'UG' ? '1' : '25000'}" min="1" max="99999999" step="1">
                         </div>
                     </div>
                 </div>
@@ -487,10 +487,10 @@ const GbR = {
         tr.id = 'gs_row_' + tempId;
         tr.innerHTML = `
             <td style="padding:6px 8px;">
-                <input type="text" class="form-input" id="gs_name_${tempId}" style="font-size:13px;padding:5px 8px;" placeholder="Name">
+                <input type="text" maxlength="300" class="form-input" id="gs_name_${tempId}" style="font-size:13px;padding:5px 8px;" placeholder="Name">
             </td>
             <td style="padding:6px 8px;">
-                <input type="text" class="form-input" id="gs_adresse_${tempId}" style="font-size:12px;padding:5px 8px;" placeholder="Adresse">
+                <input type="text" maxlength="300" class="form-input" id="gs_adresse_${tempId}" style="font-size:12px;padding:5px 8px;" placeholder="Adresse">
             </td>
             ${this._rolleCellHtml(tempId, null)}
             <td style="padding:6px 8px;width:90px;">
@@ -529,8 +529,13 @@ const GbR = {
 
     _saveSettingsModal() {
         const firmenform = document.getElementById('gbr_firmenform')?.value || 'Einzelunternehmen';
+        const hebesatzRaw = parseFloat(document.getElementById('gbr_hebesatz')?.value);
+        if (!Number.isFinite(hebesatzRaw) || hebesatzRaw < 0) {
+            Utils.showToast('Ungültiger Hebesatz', 'warning');
+            return;
+        }
+        const hebesatz   = hebesatzRaw;
         const taetigkeitsart = document.getElementById('gbr_taetigkeitsart')?.value || 'gewerblich';
-        const hebesatz   = parseFloat(document.getElementById('gbr_hebesatz')?.value) || this.DEFAULT_HEBESATZ;
         const regNr      = document.getElementById('gbr_regnr')?.value?.trim() || '';
         const regGericht = document.getElementById('gbr_reggericht')?.value?.trim() || '';
         const hrNr       = document.getElementById('gbr_hrnr')?.value?.trim() || '';
@@ -541,15 +546,19 @@ const GbR = {
 
         // Gesellschafter aus Tabelle lesen
         const newList = [];
+        let anteilInvalid = false;
         document.querySelectorAll('[id^="gs_row_"]').forEach(row => {
             const rowId   = row.id.replace('gs_row_', '');
             const name    = document.getElementById('gs_name_' + rowId)?.value?.trim();
             const adresse = document.getElementById('gs_adresse_' + rowId)?.value?.trim() || '';
-            const anteil  = parseFloat(document.getElementById('gs_anteil_' + rowId)?.value) || 0;
+            const anteilRaw = parseFloat(document.getElementById('gs_anteil_' + rowId)?.value);
+            const anteil  = Number.isFinite(anteilRaw) ? anteilRaw : 0;
+            if (!Number.isFinite(anteilRaw) || anteilRaw < 0) anteilInvalid = true;
             const rolleEl = document.getElementById('gs_rolle_' + rowId);
             const rolle   = rolleEl ? rolleEl.value : 'gesellschafter';
             const eintritt = document.getElementById('gs_eintritt_' + rowId)?.value || '';
-            if (!name) return;
+            if (!name) return;  // leere Zeilen überspringen
+            // Bestehende ID behalten oder neue vergeben
             const existing = this.getGesellschafter().find(g => g.id === rowId);
             newList.push({
                 id:          existing ? existing.id : Store.generateId(),
@@ -560,6 +569,11 @@ const GbR = {
                 rolle,
             });
         });
+
+        if (anteilInvalid) {
+            Utils.showToast('⚠️ Ungültiger Anteil — muss eine positive Zahl sein', 'warning');
+            return;
+        }
 
         // Validierung: Anteile-Summe prüfen (Personengesellschaften)
         if (['GbR', 'eGbR', 'OHG', 'KG', 'GmbH & Co. KG', 'GmbH', 'UG'].includes(firmenform) && newList.length > 0) {
@@ -1082,7 +1096,7 @@ const GbR = {
             </div>
             <div class="form-group">
                 <label class="form-label">Notiz (optional)</label>
-                <input type="text" class="form-input" id="nausz_notiz" placeholder="z.B. Überweisung IBAN …">
+                <input type="text" maxlength="1000" class="form-input" id="nausz_notiz" placeholder="z.B. Überweisung IBAN …">
             </div>
         </div>`;
 
@@ -1098,7 +1112,7 @@ const GbR = {
         const typ    = document.querySelector('input[name="nausz_typ"]:checked')?.value || 'gewinnvorauszahlung';
         const notiz  = document.getElementById('nausz_notiz')?.value?.trim() || '';
         if (!datum) { Utils.showToast('Bitte Datum angeben', 'warning'); return; }
-        if (isNaN(betrag) || betrag <= 0) { Utils.showToast('Bitte gültigen Betrag eingeben', 'warning'); return; }
+        if (!Number.isFinite(betrag) || betrag <= 0) { Utils.showToast('Bitte gültigen Betrag eingeben', 'warning'); return; }
         const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
         this.addAuszahlungEntry(monthKey, gsId, { datum, betrag, typ, notiz });
         Utils.showToast('✅ Auszahlung gebucht', 'success');
@@ -1142,7 +1156,7 @@ const GbR = {
                     <tr>
                         <td style="padding:5px 8px;font-size:12px;color:var(--text-muted);">${monatNamen[mIdx]}</td>
                         <td style="padding:5px 8px;font-size:12px;">${Utils.formatDate(e.datum)}</td>
-                        <td style="padding:5px 8px;font-size:12px;">${typLabel[e.typ] || e.typ}</td>
+                        <td style="padding:5px 8px;font-size:12px;">${typLabel[e.typ] || Utils.escapeHtml(e.typ)}</td>
                         <td style="padding:5px 8px;font-weight:700;text-align:right;color:var(--success);">${fmt(e.betrag)}</td>
                         <td style="padding:5px 8px;font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(e.notiz || '')}</td>
                         <td style="padding:5px 8px;text-align:center;">

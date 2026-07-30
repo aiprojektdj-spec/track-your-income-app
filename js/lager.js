@@ -2220,7 +2220,7 @@ const Lager = {
                         if (committed) return;
                         committed = true;
                         const newVal = parseFloat(inp.value);
-                        if (isNaN(newVal) || newVal < 0) {
+                        if (!Number.isFinite(newVal) || newVal < 0) {
                             Utils.showToast('Ungültiger EK-Wert', 'warning');
                             rerender();
                             return;

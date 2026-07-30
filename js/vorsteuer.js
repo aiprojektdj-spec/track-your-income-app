@@ -415,7 +415,7 @@ const Vorsteuer = {
                             const vst = brutto - netto;
                             const beleg = rate > 0 ? this._belegCheck(p, brutto) : null;
                             return `<tr>
-                                <td style="white-space:nowrap;">${p.datum || '—'}</td>
+                                <td style="white-space:nowrap;">${Utils.escapeHtml(p.datum || '—')}</td>
                                 <td>${Utils.escapeHtml((p.titel || p.name || '').substring(0, 40))}</td>
                                 <td style="text-align:right">${Utils.formatCurrency(brutto)}</td>
                                 <td style="text-align:center">${rate}%</td>
@@ -460,7 +460,7 @@ const Vorsteuer = {
                             const vst = rate > 0 ? brutto - (brutto / (1 + rate / 100)) : 0;
                             const beleg = rate > 0 ? this._belegCheck(e, brutto) : null;
                             return `<tr>
-                                <td style="white-space:nowrap;">${e.datum || '—'}</td>
+                                <td style="white-space:nowrap;">${Utils.escapeHtml(e.datum || '—')}</td>
                                 <td>${Utils.escapeHtml((e.beschreibung || e.name || '').substring(0, 40))}</td>
                                 <td style="font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(e.kategorie || '—')}</td>
                                 <td style="text-align:right">${Utils.formatCurrency(brutto)}</td>
@@ -504,7 +504,7 @@ const Vorsteuer = {
                         </tr></thead>
                         <tbody>
                             ${entries.map(e => `<tr>
-                                <td style="white-space:nowrap;">${e.datum}</td>
+                                <td style="white-space:nowrap;">${Utils.escapeHtml(e.datum || '—')}</td>
                                 <td>${Utils.escapeHtml(e.lieferant || '—')}</td>
                                 <td>${Utils.escapeHtml(e.beschreibung || '—')}</td>
                                 <td>${Utils.escapeHtml(e.paragraph || '—')}</td>
@@ -548,7 +548,7 @@ const Vorsteuer = {
                         </tr></thead>
                         <tbody>
                             ${entries.map(e => `<tr>
-                                <td style="white-space:nowrap;">${e.datum}</td>
+                                <td style="white-space:nowrap;">${Utils.escapeHtml(e.datum || '—')}</td>
                                 <td>${Utils.escapeHtml(e.lieferant || '—')}</td>
                                 <td>${Utils.escapeHtml(e.euLand || '—')}</td>
                                 <td style="font-family:monospace;font-size:11px;">${Utils.escapeHtml(e.ustIdNr || '—')}</td>
@@ -594,8 +594,8 @@ const Vorsteuer = {
                             ${entries.map(e => {
                                 const typLabels = { reverse_charge: '§13b RC', ig_erwerb: 'EU-Erwerb', sonstige: 'Sonstige' };
                                 return `<tr>
-                                    <td style="white-space:nowrap;">${e.datum}</td>
-                                    <td><span class="badge">${typLabels[e.typ] || e.typ}</span></td>
+                                    <td style="white-space:nowrap;">${Utils.escapeHtml(e.datum || '—')}</td>
+                                    <td><span class="badge">${Utils.escapeHtml(typLabels[e.typ] || e.typ || '')}</span></td>
                                     <td>${Utils.escapeHtml(e.beschreibung || '—')}</td>
                                     <td>${Utils.escapeHtml(e.lieferant || '—')}</td>
                                     <td style="text-align:right">${Utils.formatCurrency(parseFloat(e.nettoBetrag) || 0)}</td>
@@ -633,7 +633,7 @@ const Vorsteuer = {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Lieferant / Dienstleister</label>
-                        <input type="text" class="form-input" id="rc_lieferant" placeholder="Firma XY">
+                        <input type="text" class="form-input" id="rc_lieferant" placeholder="Firma XY" maxlength="300">
                     </div>
                     <div class="form-group">
                         <label class="form-label">USt-Satz (%)</label>
@@ -650,7 +650,7 @@ const Vorsteuer = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Beschreibung</label>
-                    <input type="text" class="form-input" id="rc_beschr" placeholder="z.B. Bauleistung Dachsanierung">
+                    <input type="text" class="form-input" id="rc_beschr" placeholder="z.B. Bauleistung Dachsanierung" maxlength="300">
                 </div>
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>
@@ -660,7 +660,7 @@ const Vorsteuer = {
             const datum   = Utils.getDateInputValue('rc_datum');
             const netto   = parseFloat(document.getElementById('rc_netto').value);
             const ustSatz = parseInt(document.getElementById('rc_ust').value);
-            if (!datum || isNaN(netto) || netto <= 0) { Utils.showToast('Pflichtfelder ausfüllen', 'warning'); return; }
+            if (!datum || !Number.isFinite(netto) || netto <= 0) { Utils.showToast('Pflichtfelder ausfüllen', 'warning'); return; }
 
             const vst = netto * (ustSatz / 100);
             const entries = this._getEntries();
@@ -704,11 +704,11 @@ const Vorsteuer = {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Lieferant</label>
-                        <input type="text" class="form-input" id="ig_lieferant" placeholder="EU-Unternehmen">
+                        <input type="text" class="form-input" id="ig_lieferant" placeholder="EU-Unternehmen" maxlength="300">
                     </div>
                     <div class="form-group">
                         <label class="form-label">USt-IdNr. Lieferant</label>
-                        <input type="text" class="form-input" id="ig_ustid" placeholder="z.B. ATU12345678">
+                        <input type="text" class="form-input" id="ig_ustid" placeholder="z.B. ATU12345678" maxlength="300">
                     </div>
                 </div>
                 <div class="form-row">
@@ -726,7 +726,7 @@ const Vorsteuer = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Beschreibung</label>
-                    <input type="text" class="form-input" id="ig_beschr" placeholder="z.B. Ware aus Österreich">
+                    <input type="text" class="form-input" id="ig_beschr" placeholder="z.B. Ware aus Österreich" maxlength="300">
                 </div>
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>
@@ -736,7 +736,7 @@ const Vorsteuer = {
             const datum = Utils.getDateInputValue('ig_datum');
             const netto = parseFloat(document.getElementById('ig_netto').value);
             const ustSatz = parseInt(document.getElementById('ig_ust').value);
-            if (!datum || isNaN(netto) || netto <= 0) { Utils.showToast('Pflichtfelder ausfüllen', 'warning'); return; }
+            if (!datum || !Number.isFinite(netto) || netto <= 0) { Utils.showToast('Pflichtfelder ausfüllen', 'warning'); return; }
 
             const erwerbsteuer = netto * (ustSatz / 100);
             const entries = this._getEntries();
@@ -791,11 +791,11 @@ const Vorsteuer = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Lieferant</label>
-                    <input type="text" class="form-input" id="mv_lieferant">
+                    <input type="text" class="form-input" id="mv_lieferant" maxlength="300">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Beschreibung</label>
-                    <input type="text" class="form-input" id="mv_beschr">
+                    <input type="text" class="form-input" id="mv_beschr" maxlength="300">
                 </div>
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>
@@ -805,14 +805,15 @@ const Vorsteuer = {
             const datum = Utils.getDateInputValue('mv_datum');
             const netto = parseFloat(document.getElementById('mv_netto').value);
             const vst   = parseFloat(document.getElementById('mv_vst').value);
-            if (!datum || isNaN(vst) || vst <= 0) { Utils.showToast('Pflichtfelder ausfüllen', 'warning'); return; }
+            if (!datum || !Number.isFinite(vst) || vst <= 0) { Utils.showToast('Pflichtfelder ausfüllen', 'warning'); return; }
+            if (Number.isFinite(netto) && netto < 0) { Utils.showToast('Netto-Betrag darf nicht negativ sein', 'warning'); return; }
 
             const entries = this._getEntries();
             const entry = {
                 id: Store.generateId(),
                 typ: document.getElementById('mv_typ').value,
                 datum,
-                nettoBetrag: isNaN(netto) ? 0 : netto,
+                nettoBetrag: Number.isFinite(netto) ? netto : 0,
                 vorsteuerBetrag: vst,
                 lieferant: document.getElementById('mv_lieferant').value.trim(),
                 beschreibung: document.getElementById('mv_beschr').value.trim(),

@@ -281,7 +281,7 @@ const Koerperschaftsteuer = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Notiz</label>
-                    <input type="text" class="form-input" id="kvz_notiz">
+                    <input type="text" class="form-input" id="kvz_notiz" maxlength="300">
                 </div>
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>
@@ -290,7 +290,7 @@ const Koerperschaftsteuer = {
         document.getElementById('saveKvzBtn').addEventListener('click', () => {
             const datum  = Utils.getDateInputValue('kvz_datum');
             const betrag = parseFloat(document.getElementById('kvz_betrag').value);
-            if (!datum || isNaN(betrag) || betrag <= 0) { Utils.showToast('Pflichtfelder', 'warning'); return; }
+            if (!datum || !Number.isFinite(betrag) || betrag <= 0) { Utils.showToast('Pflichtfelder', 'warning'); return; }
 
             const data = this._getData();
             const y = this._year;
@@ -325,6 +325,7 @@ const Koerperschaftsteuer = {
 
     _saveVerlustvortrag() {
         const val = parseFloat(document.getElementById('kstVerlust').value) || 0;
+        if (val < 0) { Utils.showToast('Verlustvortrag darf nicht negativ sein', 'warning'); return; }
         const data = this._getData();
         const y = this._year;
         if (!data[y]) data[y] = {};

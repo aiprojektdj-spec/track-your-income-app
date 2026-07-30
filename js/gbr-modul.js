@@ -283,7 +283,7 @@ const GbrModul = {
                             <tr style="border-bottom:1px solid var(--border);">
                                 <td style="padding:7px 12px;font-size:12px;white-space:nowrap;">${b.datum}</td>
                                 <td style="padding:7px 12px;font-size:12px;">
-                                    <span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:${isPos(b.typ)?'var(--success-bg)':'var(--danger-bg)'};color:${isPos(b.typ)?'var(--success)':'var(--danger)'};">${typen[b.typ]||b.typ}</span>
+                                    <span style="padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:${isPos(b.typ)?'var(--success-bg)':'var(--danger-bg)'};color:${isPos(b.typ)?'var(--success)':'var(--danger)'};">${typen[b.typ]||Utils.escapeHtml(b.typ)}</span>
                                 </td>
                                 <td style="padding:7px 12px;font-size:12px;color:var(--text-secondary);">${Utils.escapeHtml(b.beschreibung||'—')}</td>
                                 <td style="padding:7px 12px;font-size:12px;font-weight:700;text-align:right;white-space:nowrap;color:${isPos(b.typ)?'var(--success)':'var(--danger)'};">${isPos(b.typ)?'+':'−'} ${Utils.formatCurrency(Math.abs(parseFloat(b.betrag)||0))}</td>
@@ -326,12 +326,12 @@ const GbrModul = {
                     </div>
                     <div class="form-group">
                         <label class="form-label">Betrag (€) *</label>
-                        <input type="number" step="0.01" min="0" class="form-input" id="verr_betrag" placeholder="0,00">
+                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="verr_betrag" placeholder="0,00">
                     </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Beschreibung</label>
-                    <input type="text" class="form-input" id="verr_beschr" placeholder="z.B. Monatliche Entnahme Mai ${this._year}">
+                    <input type="text" maxlength="1000" class="form-input" id="verr_beschr" placeholder="z.B. Monatliche Entnahme Mai ${this._year}">
                 </div>
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>
@@ -481,11 +481,11 @@ const GbrModul = {
                 </div>
                 <div class="form-group">
                     <label class="form-label">Betrag (€) *</label>
-                    <input type="number" step="0.01" min="0" class="form-input" id="vz_betrag" placeholder="0,00">
+                    <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="vz_betrag" placeholder="0,00">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Notizen</label>
-                    <input type="text" class="form-input" id="vz_notizen" placeholder="Optional">
+                    <input type="text" maxlength="1000" class="form-input" id="vz_notizen" placeholder="Optional">
                 </div>
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>
@@ -639,7 +639,7 @@ const GbrModul = {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">GbR-Name *</label>
-                        <input type="text" class="form-input" id="st_name" value="${Utils.escapeHtml(e.gbr_name||'')}" placeholder="z.B. Müller & Schmidt GbR">
+                        <input type="text" maxlength="300" class="form-input" id="st_name" value="${Utils.escapeHtml(e.gbr_name||'')}" placeholder="z.B. Müller & Schmidt GbR">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Rechtsform</label>
@@ -653,12 +653,12 @@ const GbrModul = {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Steuernummer der GbR</label>
-                        <input type="text" class="form-input" id="st_stnr" value="${Utils.escapeHtml(e.steuernummer||'')}" placeholder="z.B. 12/345/67890">
+                        <input type="text" maxlength="300" class="form-input" id="st_stnr" value="${Utils.escapeHtml(e.steuernummer||'')}" placeholder="z.B. 12/345/67890">
                         <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Separate StNr der GbR – nicht die der Gesellschafter</div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Zuständiges Finanzamt</label>
-                        <input type="text" class="form-input" id="st_fa" value="${Utils.escapeHtml(e.finanzamt||'')}" placeholder="z.B. Finanzamt München">
+                        <input type="text" maxlength="300" class="form-input" id="st_fa" value="${Utils.escapeHtml(e.finanzamt||'')}" placeholder="z.B. Finanzamt München">
                     </div>
                 </div>
 
@@ -676,7 +676,7 @@ const GbrModul = {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">IBAN Geschäftskonto GbR</label>
-                        <input type="text" class="form-input" id="st_iban" value="${Utils.escapeHtml(e.iban||'')}" placeholder="DE00 0000 0000 0000 0000 00">
+                        <input type="text" maxlength="300" class="form-input" id="st_iban" value="${Utils.escapeHtml(e.iban||'')}" placeholder="DE00 0000 0000 0000 0000 00">
                         <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Eigenes Konto auf GbR-Namen (Pflicht)</div>
                     </div>
                     <div class="form-group">
@@ -690,11 +690,11 @@ const GbrModul = {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">eGbR Registernummer</label>
-                        <input type="text" class="form-input" id="st_regnr" value="${Utils.escapeHtml(e.eGbrRegisternummer||'')}">
+                        <input type="text" maxlength="300" class="form-input" id="st_regnr" value="${Utils.escapeHtml(e.eGbrRegisternummer||'')}">
                     </div>
                     <div class="form-group">
                         <label class="form-label">eGbR Registergericht</label>
-                        <input type="text" class="form-input" id="st_regg" value="${Utils.escapeHtml(e.eGbrRegistergericht||'')}">
+                        <input type="text" maxlength="300" class="form-input" id="st_regg" value="${Utils.escapeHtml(e.eGbrRegistergericht||'')}">
                     </div>
                 </div>`:''}
 
@@ -719,7 +719,12 @@ const GbrModul = {
         e.gruendungsdatum = Utils.getDateInputValue('st_gruend') || '';
         e.vertragsdatum   = Utils.getDateInputValue('st_vertrag') || '';
         e.iban            = (g('st_iban')     ||'').trim();
-        e.hebesatz        = parseFloat(g('st_hebesatz')) || 400;
+        const hebesatzVal = parseFloat(g('st_hebesatz'));
+        if (g('st_hebesatz') !== null && g('st_hebesatz') !== '' && (!Number.isFinite(hebesatzVal) || hebesatzVal < 0)) {
+            Utils.showToast('Ungültiger Hebesatz', 'warning');
+            return;
+        }
+        e.hebesatz        = Number.isFinite(hebesatzVal) ? hebesatzVal : (e.hebesatz || 400);
         if (g('st_regnr') !== null) e.eGbrRegisternummer  = g('st_regnr').trim();
         if (g('st_regg')  !== null) e.eGbrRegistergericht = g('st_regg').trim();
         this._saveEinst(e);

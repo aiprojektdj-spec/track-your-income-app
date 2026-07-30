@@ -235,7 +235,7 @@ const Afa = {
         App.showModal(isEdit ? 'Anlage bearbeiten' : '+ Neue Anlage erfassen', `
             <div class="form-group">
                 <label class="form-label">Bezeichnung *</label>
-                <input type="text" class="form-input" id="afa_bez" value="${Utils.escapeHtml(existing.bezeichnung || '')}" placeholder="z.B. Laptop, Kamera, PKW ...">
+                <input type="text" class="form-input" id="afa_bez" maxlength="300" value="${Utils.escapeHtml(existing.bezeichnung || '')}" placeholder="z.B. Laptop, Kamera, PKW ...">
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -265,7 +265,7 @@ const Afa = {
             </div>
             <div class="form-group">
                 <label class="form-label">Kategorie / Notiz</label>
-                <input type="text" class="form-input" id="afa_notiz" value="${Utils.escapeHtml(existing.notiz || '')}" placeholder="z.B. Büroausstattung, Fahrzeug, IT-Equipment ...">
+                <input type="text" class="form-input" id="afa_notiz" maxlength="1000" value="${Utils.escapeHtml(existing.notiz || '')}" placeholder="z.B. Büroausstattung, Fahrzeug, IT-Equipment ...">
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
                 <button class="btn" data-action="close-modal">Abbrechen</button>
@@ -312,7 +312,7 @@ const Afa = {
         // §6 Abs.2 EStG: Sofortabschreibung nur für GWG bis 800€ netto — sonst Bußgeldrisiko bei Betriebsprüfung
         if (methode === 'sofort' && ak > 800) { Utils.showToast('Sofortabschreibung (GWG) nur bis 800€ netto AK zulässig (§6 Abs.2 EStG)', 'error'); return; }
         if (methode === 'sofort') nd = 1; // Nutzungsdauer irrelevant bei Sofortabschreibung
-        if (nd < 1) { Utils.showToast('Nutzungsdauer muss ≥ 1 sein', 'error'); return; }
+        if (!Number.isFinite(nd) || nd < 1) { Utils.showToast('Nutzungsdauer muss ≥ 1 sein', 'error'); return; }
 
         const item = {
             id: existingId || undefined,

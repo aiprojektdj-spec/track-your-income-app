@@ -25,6 +25,22 @@ var Dokumente = (function() {
         return Math.max(0, calcBrutto(invoice) - teilzahlungSumme(invoice));
     }
 
+    // v1-Einschränkung (siehe plan/session-prompt-zufluss-teilzahlung-steuermodule.md, Punkt 3):
+    // Store.createSaleFromInvoice() kann einer Teilzahlung nur EINEN Steuersatz mitgeben (für
+    // die Ist-UVA). Bei gemischten Sätzen über die Positionen ist der anteilige Satz nicht
+    // eindeutig, daher werden Teilzahlungen bei solchen Rechnungen abgelehnt statt falsch verbucht.
+    function hasMixedVatRates(invoice) {
+        var isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (Store.getSettings().ustMode === 'klein');
+        if (isKlein) return false; // §19 UStG: Store.createSaleFromInvoice setzt steuersatz immer fix auf 0, keine Mehrdeutigkeit
+        var saetze = [];
+        (invoice.positionen || []).forEach(function(pos) {
+            if ((pos.menge || 0) * (pos.einzelpreis || 0) === 0) return;
+            var satz = parseInt(pos.mwstSatz) || 0;
+            if (saetze.indexOf(satz) < 0) saetze.push(satz);
+        });
+        return saetze.length > 1;
+    }
+
     function render() {
         var invoices = Store.getRechInvoices();
         var customers = Store.getRechCustomers();
@@ -638,6 +654,10 @@ var Dokumente = (function() {
                 Utils.showToast('Bitte einen gültigen Betrag angeben.', 'warning');
                 return;
             }
+            if (hasMixedVatRates(inv)) {
+                Utils.showToast('⛔ Teilzahlungen bei gemischten MwSt-Sätzen (7%/19%) werden aktuell nicht unterstützt — bitte Schlusszahlung abwarten oder Rechnung mit einheitlichem Steuersatz stellen.', 'error');
+                return;
+            }
             if (betrag >= rest - 0.001) {
                 // Restschuld gedeckt: statt Sackgasse direkt in den bestehenden Bezahlt-Flow
                 // (inkl. Lager-Sync/EK-Erfassung) überleiten, keine zweite Statuslogik pflegen.
@@ -656,7 +676,11 @@ var Dokumente = (function() {
                 return;
             }
             inv.teilzahlungen = saved.teilzahlungen;
-            Utils.showToast('Teilzahlung erfasst — Rest: ' + Utils.formatCurrency(restbetrag(inv)), 'success');
+            if (saved._teilzahlungSaleBooked === false) {
+                Utils.showToast('⚠️ Teilzahlung erfasst, aber Buchungslimit erreicht — dieser Zahlungseingang zählt erst bei der Schlusszahlung als Einnahme. Für sofortige Verbuchung zum richtigen Zufluss-Datum bitte auf Pro upgraden.', 'warning');
+            } else {
+                Utils.showToast('Teilzahlung erfasst — Rest: ' + Utils.formatCurrency(restbetrag(inv)), 'success');
+            }
             RechApp.closeModal();
             RechApp.navigate('dokumente');
         });

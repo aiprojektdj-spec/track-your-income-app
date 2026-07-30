@@ -2183,8 +2183,14 @@ const Store = {
         // anteiligen Sale-Eintrag verschwindet eine z.B. im Dezember zugeflossene Teilzahlung
         // komplett aus EÜR/Ist-UVA des Dezember-Zeitraums, wenn die Rechnung erst im Januar
         // vollständig beglichen wird (siehe plan/session-prompt-zufluss-teilzahlung-steuermodule.md).
-        this.createSaleFromInvoice(invoices[idx], invoices[idx].verkaufsplattform || '', null, null,
+        const sale = this.createSaleFromInvoice(invoices[idx], invoices[idx].verkaufsplattform || '', null, null,
             { teilzahlungBetrag: betrag, teilzahlungDatum: datum });
+        // saveSale() verweigert bei erreichtem Free-Tier-Buchungslimit den Eintrag (kein sale.id),
+        // gibt aber trotzdem ein truthy Objekt zurück — die Teilzahlung bleibt dann zwar in
+        // invoice.teilzahlungen erfasst, hat aber keinen eigenen Zufluss-Datum-Sale bekommen.
+        // Transientes Flag (nicht Teil des gespeicherten Dokuments) fürs UI, damit der Nutzer
+        // nicht denkt, der Zahlungseingang sei schon steuerlich im richtigen Zeitraum gebucht.
+        invoices[idx]._teilzahlungSaleBooked = !!(sale && sale.id);
         return invoices[idx];
     },
 

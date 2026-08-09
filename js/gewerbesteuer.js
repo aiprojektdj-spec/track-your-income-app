@@ -21,7 +21,10 @@ const Gewerbesteuer = {
 
     _hatFreibetrag() {
         if (typeof Rechtsform === 'undefined') return true;
-        return Rechtsform.getConfig().gewStFreibetrag === true;
+        // Fix 2026-07-30: gewStFreibetrag ist in js/rechtsform.js IMMER numerisch (24500 oder 0),
+        // nie boolean — der vorherige `=== true`-Vergleich war für JEDE Rechtsform false, der
+        // Freibetrag griff nie (auch nicht für Einzelunternehmer/GbR mit gesetzlichem Anspruch).
+        return (parseFloat(Rechtsform.getConfig().gewStFreibetrag) || 0) > 0;
     },
 
     _calcGewinn(year) {
@@ -48,9 +51,14 @@ const Gewerbesteuer = {
         const messbetrag = gewerbeertrag * this.MESSZAHL;
         const gewSt = messbetrag * (hebesatz / 100);
 
-        // §35 EStG Anrechnung (nur Personengesellschaften/EU)
-        // Max. Anrechnung = 3,8 × Messbetrag (seit VZ 2008), begrenzt auf tatsächliche ESt
-        const anrechnung35 = hatFreibetrag ? messbetrag * 3.8 : 0;
+        // §35 EStG Anrechnung (nur Personengesellschaften/EU natürliche Personen).
+        // Faktor seit VZ 2020 (2. Corona-Steuerhilfegesetz) 4,0 — vorher fälschlich 3,8 (Stand
+        // VZ 2008-2019). Gesetzliche Doppel-Deckelung: begrenzt auf (a) 4×Messbetrag UND (b) die
+        // tatsächlich gezahlte Gewerbesteuer (§35 Abs.1 S.2 EStG) — der zusätzliche, hier NICHT
+        // abgebildete Ermäßigungshöchstbetrag (anteilige tarifliche ESt auf die gewerblichen
+        // Einkünfte, §35 Abs.1 S.4-5 EStG) kann die tatsächliche Anrechnung weiter senken; dieser
+        // Wert ist daher eine OBERGRENZE, keine exakte ESt-Anrechnung.
+        const anrechnung35 = hatFreibetrag ? Math.min(messbetrag * 4, gewSt) : 0;
 
         const effektiverSatz = gewinn > 0 ? (gewSt / gewinn * 100) : 0;
 
@@ -135,9 +143,9 @@ const Gewerbesteuer = {
 
                 ${c.hatFreibetrag ? `
                 <div style="grid-column:1/-1;border-top:1px solid var(--border);margin:6px 0;"></div>
-                <span style="color:var(--success);">§35 EStG Anrechnung (max. 4×Messbetrag)</span>
+                <span style="color:var(--success);">§35 EStG Anrechnung (max. 4×Messbetrag, gedeckelt auf gezahlte GewSt)</span>
                 <span style="text-align:right;color:var(--success);font-weight:600;">bis ${Utils.formatCurrency(c.anrechnung35)}</span>
-                <span style="grid-column:1/-1;font-size:11px;color:var(--text-muted);">Anrechnung auf Einkommensteuer — effektive GewSt-Belastung oft nahe 0 € bei Hebesatz ≤ 400 %</span>` : ''}
+                <span style="grid-column:1/-1;font-size:11px;color:var(--text-muted);">Anrechnung auf Einkommensteuer — Obergrenze, die tatsächliche Anrechnung kann durch den Ermäßigungshöchstbetrag (anteilige tarifliche ESt) niedriger ausfallen. Effektive GewSt-Belastung oft nahe 0 € bei Hebesatz ≤ 400 %</span>` : ''}
             </div>
         </div>
 

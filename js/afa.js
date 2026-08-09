@@ -43,9 +43,17 @@ const Afa = {
             const thisYearAfa = year === kaufJahr
                 ? bw * degRate * ((12 - kaufMonat) / 12)
                 : bw * degRate;
-            // Wechsel zu linear wenn linear höher (Optimierung)
+            // Wechsel zu linear wenn linear höher (Optimierung).
+            // WICHTIG: Im Anschaffungsjahr muss der lineare Vergleichswert ebenfalls
+            // zeitanteilig (gleicher Monatsanteil wie die degressive Berechnung) sein —
+            // sonst wird der volle lineare Jahresbetrag gegen die zeitanteilige degressive
+            // AfA verglichen (Vergleich auf ungleicher Grundlage) und im Anschaffungsjahr
+            // systematisch zu früh/fälschlich auf linear gewechselt.
             const verbleibend = (kaufJahr + nd) - year;
-            const linearNow = verbleibend > 0 ? bw / verbleibend : 0;
+            const linearVoll = verbleibend > 0 ? bw / verbleibend : 0;
+            const linearNow = year === kaufJahr
+                ? linearVoll * ((12 - kaufMonat) / 12)
+                : linearVoll;
             return Math.max(thisYearAfa, linearNow);
         } else {
             // Lineare AfA: gleichmäßig über Nutzungsdauer
@@ -363,10 +371,12 @@ const Afa = {
 };
 
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
-if (window.Actions) Actions.register({
+if (typeof window !== 'undefined' && window.Actions) Actions.register({
     'afa-storno': function (id) { Afa._stornoAnlage(id); },
     'afa-edit':   function (id) { Afa._editAnlage(id); },
     'afa-export': function () { Afa._exportCSV(); },
     'afa-form':   function () { Afa._openForm(); },
     'afa-save':   function (id) { Afa._saveForm(id); }
 });
+// Node-Export für Regressionstests (siehe test-afa-degressiv-linear.js) — im Browser wirkungslos.
+if (typeof module !== 'undefined' && module.exports) module.exports = Afa;

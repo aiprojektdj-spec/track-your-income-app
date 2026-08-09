@@ -9,6 +9,7 @@ const GbR = {
     KEY_GS:       'gbr_gesellschafter',
     KEY_AUSZ:     'gbr_auszahlungen',      // legacy (V1: ausgezahlt bool)
     KEY_AUSZ_V2:  'gbr_auszahlungen_v2',   // V2: Array von Einzeleinträgen pro GS/Monat
+    KEY_SBE_SBA:  'gbr_sbe_sba',           // Sonderbetriebseinnahmen/-ausgaben pro Jahr/Gesellschafter
 
     // Standard-Hebesatz (bundesweiter Durchschnitt ~400%)
     DEFAULT_HEBESATZ: 400,
@@ -129,16 +130,68 @@ const GbR = {
         });
     },
 
+    // ── Sonderbetriebseinnahmen/-ausgaben (SBE/SBA) ────────────────────────
+    // §15 Abs. 1 Nr. 2 EStG: Tätigkeitsvergütungen, Miete für an die GbR überlassene
+    // Wirtschaftsgüter, Zinsen für Gesellschafterdarlehen etc. fließen NICHT in den
+    // Gesamthandsgewinn (und damit nicht in berechneVerteilung), sondern werden dem jeweiligen
+    // Gesellschafter individuell zugerechnet — additiv zu seinem Anteil am Gesamthandsgewinn.
+    // Minimal-invasiv: freier Betrag + Bezeichnung pro Gesellschafter und Jahr, keine eigene
+    // Buchhaltung (keine Belege/Perioden — reicht für die Feststellungserklärung).
+    getSbeSbaData() {
+        return Store.get(this.KEY_SBE_SBA) || {};
+    },
+
+    saveSbeSbaData(data) {
+        Store.set(this.KEY_SBE_SBA, data);
+    },
+
+    getSbeSba(year, gsId) {
+        const d  = this.getSbeSbaData();
+        const yd = d[year] || {};
+        return yd[gsId] || { sbe: 0, sbeBezeichnung: '', sba: 0, sbaBezeichnung: '' };
+    },
+
+    saveSbeSba(year, gsId, data) {
+        const d = this.getSbeSbaData();
+        if (!d[year]) d[year] = {};
+        d[year][gsId] = {
+            sbe:            parseFloat(data.sbe) || 0,
+            sbeBezeichnung: (data.sbeBezeichnung || '').trim(),
+            sba:            parseFloat(data.sba) || 0,
+            sbaBezeichnung: (data.sbaBezeichnung || '').trim(),
+        };
+        this.saveSbeSbaData(d);
+    },
+
+    // Gewinnverteilung inkl. Sonderbetriebseinnahmen/-ausgaben. Gesamtgewinn des Gesellschafters
+    // = Anteil am Gesamthandsgewinn (gewinnanteil) + eigene SBE − eigene SBA.
+    berechneVerteilungMitSonder(gewinn, year) {
+        return this.berechneVerteilung(gewinn).map(v => {
+            const s   = this.getSbeSba(year, v.id);
+            const sbe = parseFloat(s.sbe) || 0;
+            const sba = parseFloat(s.sba) || 0;
+            return {
+                ...v,
+                sbe, sba,
+                sbeBezeichnung: s.sbeBezeichnung,
+                sbaBezeichnung: s.sbaBezeichnung,
+                gesamtgewinn:   v.gewinnanteil + sbe - sba,
+            };
+        });
+    },
+
     // ── EÜR-Block: Gewinnverteilung ────────────────────────────────────────
-    renderEuerBlock(gewinn) {
+    renderEuerBlock(gewinn, year) {
         if (!this.isGbR()) return '';
+        year = year || new Date().getFullYear();
         const einst       = this.getEinstellungen();
         const gesellsch   = this.getGesellschafter();
         const hebesatz    = parseFloat(einst.hebesatz) || this.DEFAULT_HEBESATZ;
         const gewSt       = this.berechneGewSt(gewinn);
-        const verteilung  = this.berechneVerteilung(gewinn);
+        const verteilung  = this.berechneVerteilungMitSonder(gewinn, year);
         const sumPct      = this.sumAnteile();
         const pctWarning  = Math.abs(sumPct - 100) > 0.01;
+        const hatSonder   = verteilung.some(v => v.sbe || v.sba);
         const fmt         = v => Utils.formatCurrency(v);
 
         const rows = verteilung.map(v => `
@@ -146,9 +199,13 @@ const GbR = {
                 <td style="padding:8px 12px;font-weight:600;">${Utils.escapeHtml(v.name)}</td>
                 <td style="padding:8px 12px;text-align:right;">${v.anteil.toFixed(1)} %</td>
                 <td style="padding:8px 12px;text-align:right;font-weight:700;color:${v.gewinnanteil >= 0 ? 'var(--success)' : 'var(--danger)'};">${fmt(v.gewinnanteil)}</td>
+                ${hatSonder ? `
+                <td style="padding:8px 12px;text-align:right;color:var(--success);">${v.sbe ? '+ ' + fmt(v.sbe) : '—'}</td>
+                <td style="padding:8px 12px;text-align:right;color:var(--danger);">${v.sba ? '− ' + fmt(v.sba) : '—'}</td>
+                <td style="padding:8px 12px;text-align:right;font-weight:700;">${fmt(v.gesamtgewinn)}</td>` : ''}
                 <td style="padding:8px 12px;text-align:right;color:var(--text-secondary);">${fmt(v.gewStAnteil)}</td>
                 <td style="padding:8px 12px;text-align:right;color:var(--text-muted);font-size:12px;">
-                    ${fmt(v.gewinnanteil - v.gewStAnteil)}
+                    ${fmt(v.gesamtgewinn - v.gewStAnteil)}
                 </td>
             </tr>`).join('');
 
@@ -183,6 +240,10 @@ const GbR = {
                             <th style="padding:8px 12px;">Gesellschafter</th>
                             <th style="padding:8px 12px;text-align:right;">Anteil</th>
                             <th style="padding:8px 12px;text-align:right;">Gewinnanteil</th>
+                            ${hatSonder ? `
+                            <th style="padding:8px 12px;text-align:right;font-size:11px;">SBE</th>
+                            <th style="padding:8px 12px;text-align:right;font-size:11px;">SBA</th>
+                            <th style="padding:8px 12px;text-align:right;">Gesamtgewinn</th>` : ''}
                             <th style="padding:8px 12px;text-align:right;">GewSt-Anteil</th>
                             <th style="padding:8px 12px;text-align:right;font-size:11px;">Nach GewSt</th>
                         </tr>
@@ -193,8 +254,12 @@ const GbR = {
                             <td style="padding:8px 12px;">Gesamt</td>
                             <td style="padding:8px 12px;text-align:right;">${sumPct.toFixed(1)} %</td>
                             <td style="padding:8px 12px;text-align:right;">${fmt(gewinn)}</td>
+                            ${hatSonder ? `
+                            <td style="padding:8px 12px;text-align:right;">${fmt(verteilung.reduce((s,v)=>s+v.sbe,0))}</td>
+                            <td style="padding:8px 12px;text-align:right;">${fmt(verteilung.reduce((s,v)=>s+v.sba,0))}</td>
+                            <td style="padding:8px 12px;text-align:right;">${fmt(verteilung.reduce((s,v)=>s+v.gesamtgewinn,0))}</td>` : ''}
                             <td style="padding:8px 12px;text-align:right;">${fmt(gewSt)}</td>
-                            <td style="padding:8px 12px;text-align:right;">${fmt(gewinn - gewSt)}</td>
+                            <td style="padding:8px 12px;text-align:right;">${fmt(verteilung.reduce((s,v)=>s+v.gesamtgewinn,0) - gewSt)}</td>
                         </tr>
                     </tfoot>
                 </table>

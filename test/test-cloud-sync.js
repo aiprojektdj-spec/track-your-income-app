@@ -16,6 +16,8 @@ global.window = {};
 function calcChecksum(str) { let h = 0; for (let i = 0; i < str.length; i++) { h = ((h << 5) - h) + str.charCodeAt(i); h = h & h; } return Math.abs(h).toString(36); }
 global.Store = {
     _calcChecksum: calcChecksum,
+    _tombstones: new Set(),   // Test-Hilfsstruktur, s. Fix-39-Tests unten
+    isTombstoned(entityType, id) { return this._tombstones.has(entityType + ':' + id); },
     verifyAuditChain(log) {
         let broken = 0;
         for (let i = 0; i < log.length; i++) {
@@ -97,4 +99,32 @@ let pass = 0;
     pass++; console.log('✓ parallel-edit conflict detection (keep-both)');
 })();
 
-console.log('\n' + pass + '/5 Tests bestanden ✅');
+// 6) Fix 39: physisch gelöschter Datensatz (Tombstone) wird beim Merge NICHT wiederbelebt
+(() => {
+    Store._tombstones = new Set(['einkauf:gone']);
+    // remote hat einen Datensatz, der lokal (mangels Tombstone-Kenntnis anderer Geräte) längst
+    // physisch gelöscht wurde — ohne Tombstone-Check würde er hier zurückkommen (localDirty=true, val enthält ihn).
+    const r = T.mergeRecords([], [{ id: 'gone', v: 1, updatedAt: 500 }], null, 'einkauf');
+    assert.strictEqual(r.val.length, 0, 'tombstoned remote record NICHT übernommen');
+    assert.ok(r.remoteDirty, 'remoteDirty gesetzt, damit der nächste Push die Remote-Kopie ebenfalls entfernt');
+    // Kontrolltest: OHNE Tombstone (anderer Datensatz) wird normal übernommen
+    const r2 = T.mergeRecords([], [{ id: 'still-here', v: 1, updatedAt: 500 }], null, 'einkauf');
+    assert.strictEqual(r2.val.length, 1, 'nicht-tombstoned Datensatz wird normal übernommen');
+    Store._tombstones = new Set();
+    pass++; console.log('✓ Fix 39: tombstoned record wird beim Cloud-Merge nicht wiederbelebt');
+})();
+
+// 7) Fix 40: Retry-Queue für fehlgeschlagene Löschungen (Redis/Blob)
+(() => {
+    const CS = require('../js/cloud-sync.js');
+    let list = CS._test.loadPendingDeletions();
+    assert.strictEqual(list.length, 0, 'Queue startet leer');
+    CS._test.queuePendingDeletion({ kind: 'redis', scope: 'co_test' });
+    CS._test.queuePendingDeletion({ kind: 'blob', scope: 'co_test', urls: ['https://x.example/f'] });
+    list = CS._test.loadPendingDeletions();
+    assert.strictEqual(list.length, 2, 'beide fehlgeschlagenen Löschungen wurden vermerkt');
+    assert.ok(list.every(e => e.ts), 'jeder Eintrag hat einen Zeitstempel');
+    pass++; console.log('✓ Fix 40: fehlgeschlagene Löschungen landen in der Retry-Queue');
+})();
+
+console.log('\n' + pass + '/7 Tests bestanden ✅');

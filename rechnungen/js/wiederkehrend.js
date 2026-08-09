@@ -123,6 +123,24 @@ var Wiederkehrend = (function () {
 
     // ── Create invoice from rule ────────────────────────────────────────
     async function createInvoiceFromRule(rule) {
+        // §14 UStG Pflichtangaben-Gate — lief bisher NUR im manuellen Rechnungsformular
+        // (buildInvoiceObject), wiederkehrende Rechnungen umgingen ihn vollständig. Bei fehlenden
+        // Pflichtangaben wird die Generierung übersprungen (nicht: eine unvollständige Rechnung
+        // trotzdem erstellt) — die Regel bleibt fällig und wird beim nächsten App-Start erneut
+        // versucht, sobald die Stammdaten ergänzt wurden.
+        var kdCheck = Store.getRechCustomers().find(function (c) { return c.id === rule.kundeId; });
+        var s14Check = Store.getRechUnternehmen ? Store.getRechUnternehmen() : {};
+        var missing14 = [];
+        if (!kdCheck || !kdCheck.strasse || !kdCheck.plz || !kdCheck.ort) missing14.push('Kundenadresse (Straße/PLZ/Ort)');
+        if (!s14Check.steuernummer && !s14Check.ustId) missing14.push('Steuernummer/USt-IdNr. des Ausstellers');
+        if (missing14.length) {
+            if (typeof Utils !== 'undefined') {
+                Utils.showToast('⚠️ Wiederkehrende Rechnung für "' + (kdCheck ? (kdCheck.firma || kdCheck.ansprechpartner) : rule.kundeId) +
+                    '" übersprungen — §14 UStG Pflichtangabe fehlt: ' + missing14.join(', '), 'error', 9000);
+            }
+            return null;
+        }
+
         var nummer = await Store.nextRechInvoiceNumber('rechnung');
         var invoice = {
             id:              Store.generateId(),
@@ -167,7 +185,7 @@ var Wiederkehrend = (function () {
             var rule = rules[i];
             if (isDue(rule)) {
                 var inv = await createInvoiceFromRule(rule);
-                created.push({ invoice: inv, rule: rule });
+                if (inv) created.push({ invoice: inv, rule: rule }); // null = wegen fehlender §14-Pflichtangaben übersprungen
             }
         }
         if (created.length > 0 && typeof Utils !== 'undefined') {
@@ -220,7 +238,7 @@ var Wiederkehrend = (function () {
             var kundeName = kunde ? Utils.escapeHtml(kunde.firma || kunde.ansprechpartner || '') : '—';
             var isActive  = rule.enabled;
             var isDueNow  = isDue(rule);
-            var nettoSum  = (rule.positionen || []).reduce(function (s, p) { return s + (p.menge || 1) * (p.einzelpreis || 0); }, 0);
+            var nettoSum  = (rule.positionen || []).reduce(function (s, p) { return s + (p.menge != null ? p.menge : 1) * (p.einzelpreis || 0); }, 0);
 
             html += '<tr>';
             html += '<td><strong>' + kundeName + '</strong><br><span style="font-size:11px;color:var(--text-muted);">' + Utils.formatCurrency(nettoSum) + ' netto</span></td>';
@@ -270,7 +288,7 @@ var Wiederkehrend = (function () {
                 var rule = rules.find(function (r) { return r.id === id; });
                 if (!rule) return;
                 var inv = await createInvoiceFromRule(rule);
-                Utils.showToast('Rechnung ' + inv.nummer + ' erstellt!', 'success');
+                if (inv) Utils.showToast('Rechnung ' + inv.nummer + ' erstellt!', 'success');
                 RechApp.navigate('wiederkehrend');
             });
         });

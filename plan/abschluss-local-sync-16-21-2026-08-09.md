@@ -20,7 +20,10 @@ das verifiziert statt es nochmal zu bauen, und drei Nebenpunkte erledigt.
 - **Local `js/app.js`** (uncommittet) — ebenfalls fremde Arbeit.
 - **`local-spiegeln`** — von dieser Session als erledigt verifiziert, aber nicht in
   `plan/OFFEN.md`s Erledigt-Tabelle nachgetragen, da `plan/OFFEN.md` zum Zeitpunkt der Prüfung
-  gerade von einer anderen Session bearbeitet wurde. Kleine Lücke, keine Dringlichkeit.
+  gerade von einer anderen Session bearbeitet wurde. **Lücke geschlossen 2026-08-09:** die
+  parallele Session hat `plan/OFFEN.md` §6 inzwischen selbst ergänzt (Zeile
+  „`local-sync-fortsetzung`, `local-sync-punkte-16-22`, `local-sync-backlog` — alle 21 Punkte
+  fertig, nur D6-Text offen"). Geprüft, deckt sich mit dieser Session — keine weitere Aktion nötig.
 
 ## Echte offene Punkte (nicht Teil dieser Session, nur zur Einordnung)
 

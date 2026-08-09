@@ -218,6 +218,25 @@ const Store = {
         } catch(e) {}
     },
 
+    // ── Promise-basierter Lesevorgang, UMGEHT this._cache (frischer IDB-Read) ──
+    // Nötig für Mehrtab-Betrieb: this._cache wird nur beim Boot befüllt und bei EIGENEN
+    // Schreibvorgängen aktualisiert — Schreibvorgänge eines ANDEREN Tabs bleiben im Cache dieses
+    // Tabs unsichtbar (kein storage-Event/BroadcastChannel). Ein reiner navigator.locks-Schutz
+    // serialisiert zwar die Ausführung cross-tab, verhindert aber nicht, dass beide Tabs denselben
+    // (jeweils eigenen, veralteten) Cache-Stand lesen — genau das führte zu doppelt vergebenen
+    // Rechnungsnummern. Vor jeder Nummernvergabe muss der Counter deshalb frisch aus IDB gelesen werden.
+    _idbGetAsync(key) {
+        return new Promise((resolve) => {
+            if (!this._mainIdbReady || !this._mainIdb) return resolve(undefined);
+            try {
+                const tx = this._mainIdb.transaction(this.MAIN_IDB_KV, 'readonly');
+                const req = tx.objectStore(this.MAIN_IDB_KV).get(key);
+                req.onsuccess = () => resolve(req.result ? req.result.v : undefined);
+                req.onerror = () => resolve(undefined);
+            } catch (e) { resolve(undefined); }
+        });
+    },
+
     // ── Promise-basierter Schreibvorgang (für Bulk-Saves & Verifizierung) ──
     _idbPutAsync(key, valueStr) {
         return new Promise((resolve, reject) => {
@@ -1299,6 +1318,29 @@ const Store = {
         this.set('settings', settings);
     },
 
+    // ---- Tombstones ----
+    // Physisches Löschen in der offenen Periode (deletePurchase/deleteSale/deleteExpense) hinterlässt
+    // sonst KEINE Spur, die der Cloud-Merge erkennen könnte — ein älterer Cloud-Snapshot (anderes
+    // Gerät, noch nicht synct) bringt den gelöschten Datensatz beim nächsten Merge unbemerkt zurück
+    // (js/cloud-sync.js _mergeRecords: `if (!ex) { byId[r.id]=r; ... }`). Der Tombstone-Key liegt im
+    // selben `reselling_`-Präfix wie purchases/sales/expenses und wird darum automatisch mitsynct
+    // (s. cloud-sync.js _scopeKeys) — als ganz normales Record-Array mit `id`-Feld gemergt (Union
+    // über alle Geräte, nie geklemmt), _mergeRecords bekommt zusätzlich Tombstone-Awareness (s. dort).
+    _TOMBSTONE_KEY: 'tombstones',
+    _TOMBSTONE_RETENTION_MS: 180 * 86400000, // 180 Tage — deutlich länger als jede realistische Offline-Dauer eines Geräts
+    getTombstones() {
+        return this.get(this._TOMBSTONE_KEY) || [];
+    },
+    _addTombstone(entityType, entityId) {
+        const cutoff = Date.now() - this._TOMBSTONE_RETENTION_MS;
+        const list = this.getTombstones().filter(t => (t.deletedAt || 0) >= cutoff);
+        list.push({ id: entityType + ':' + entityId, entityType, entityId, deletedAt: Date.now(), updatedAt: Date.now() });
+        this.set(this._TOMBSTONE_KEY, list);
+    },
+    isTombstoned(entityType, entityId) {
+        return this.getTombstones().some(t => t.entityType === entityType && t.entityId === entityId);
+    },
+
     // ---- Purchases ----
     getPurchases(includeStorniert) {
         const all = this.get('purchases') || [];
@@ -1401,6 +1443,7 @@ const Store = {
             return { storno: true };
         }
         this._addAuditEntry('loeschung', 'einkauf', id, p, null, 'Einkauf gelöscht (offene Periode)');
+        this._addTombstone('einkauf', id);
         const purchases = this.getAllPurchasesRaw();
         const idx = purchases.findIndex(x => x.id === id);
         if (idx >= 0) { purchases.splice(idx, 1); this.set('purchases', purchases); }
@@ -1554,6 +1597,7 @@ const Store = {
             return { storno: true };
         }
         this._addAuditEntry('loeschung', 'verkauf', id, s, null, 'Verkauf gelöscht (offene Periode)');
+        this._addTombstone('verkauf', id);
         // verknüpfte Einkäufe wieder freigeben — gesperrte (festgeschriebene) Einkäufe bleiben unangetastet
         const pids = s.purchaseIds ? s.purchaseIds : (s.purchaseId ? [s.purchaseId] : []);
         if (pids.length > 0) {
@@ -1641,6 +1685,7 @@ const Store = {
             return { storno: true };
         }
         this._addAuditEntry('loeschung', 'ausgabe', id, e, null, 'Ausgabe gelöscht (offene Periode)');
+        this._addTombstone('ausgabe', id);
         const expenses = this.getAllExpensesRaw();
         const idx = expenses.findIndex(x => x.id === id);
         if (idx >= 0) { expenses.splice(idx, 1); this.set('expenses', expenses); }
@@ -2130,26 +2175,29 @@ const Store = {
     },
 
     saveRechInvoice(invoice) {
-        const isNew = !invoice.id;
         const invoices = this._rechGet('dokumente') || [];
-        if (invoice.id) {
-            const idx = invoices.findIndex(i => i.id === invoice.id);
-            if (idx >= 0) {
-                const old = Object.assign({}, invoices[idx]);
-                const action = invoice.status !== old.status ? 'status_geaendert' : 'bearbeitet';
-                // GoBD §14: gestellte Rechnung nicht mehr inhaltlich änderbar — null statt invoice
-                // zurückgeben, damit Aufrufer den No-Op erkennen (Fix: saveInvoice() im UI meldete
-                // vorher "Dokument gespeichert!" auch wenn die Änderung hier still verworfen wurde).
-                if (action === 'bearbeitet' && this._isRechInvoiceLocked(old)) return null;
-                this._addAuditEntry(action, 'dokument', invoice.id, old, invoice,
-                    action === 'status_geaendert' ? `Status: ${old.status} -> ${invoice.status}` : 'Dokument bearbeitet');
-                invoices[idx] = this._stampRecord(invoice);
-            } else {
-                invoices.push(this._stampRecord(invoice));
-            }
+        // "Neu" MUSS anhand des persistierten Bestands bestimmt werden (idx<0), nicht anhand von
+        // !invoice.id — der Aufrufer (buildInvoiceObject in rechnungen/js/rechnung.js) vergibt die
+        // ID bereits VOR dem Speichern (`id: editingInvoice ? editingInvoice.id : Store.generateId()`),
+        // daher hatte invoice.id auch bei brandneuen Rechnungen immer schon einen Wert. Die alte
+        // `isNew = !invoice.id`-Prüfung war dadurch für JEDE neu erstellte Rechnung/Angebot/
+        // Gutschrift false — der komplette "erstellt"-Audit-Zweig (und der Webhook) wurde nie
+        // erreicht (Fix 2026-07-30, größter Einzelfund im GoBD-Audit).
+        const idx = invoice.id ? invoices.findIndex(i => i.id === invoice.id) : -1;
+        const isNew = idx < 0;
+        if (!isNew) {
+            const old = Object.assign({}, invoices[idx]);
+            const action = invoice.status !== old.status ? 'status_geaendert' : 'bearbeitet';
+            // GoBD §14: gestellte Rechnung nicht mehr inhaltlich änderbar — null statt invoice
+            // zurückgeben, damit Aufrufer den No-Op erkennen (Fix: saveInvoice() im UI meldete
+            // vorher "Dokument gespeichert!" auch wenn die Änderung hier still verworfen wurde).
+            if (action === 'bearbeitet' && this._isRechInvoiceLocked(old)) return null;
+            this._addAuditEntry(action, 'dokument', invoice.id, old, invoice,
+                action === 'status_geaendert' ? `Status: ${old.status} -> ${invoice.status}` : 'Dokument bearbeitet');
+            invoices[idx] = this._stampRecord(invoice);
         } else {
-            invoice.id = this.generateId();
-            invoice.createdAt = new Date().toISOString();
+            if (!invoice.id) invoice.id = this.generateId();
+            if (!invoice.createdAt) invoice.createdAt = new Date().toISOString();
             this._stampRecord(invoice);
             invoices.push(invoice);
             this._addAuditEntry('erstellt', 'dokument', invoice.id, null, invoice, 'Dokument erstellt: ' + (invoice.nummer || ''));
@@ -2337,7 +2385,15 @@ const Store = {
     },
 
     async nextRechInvoiceNumber(typ) {
-        return this._withLock(this._rechPrefix + 'invoice_counter', () => {
+        return this._withLock(this._rechPrefix + 'invoice_counter', async () => {
+            // Frischer IDB-Read statt this._cache — s. Kommentar bei _idbGetAsync (Mehrtab-Race-Fix).
+            const [freshCounterRaw, freshDocsRaw] = await Promise.all([
+                this._idbGetAsync(this._rechPrefix + 'invoice_counter'),
+                this._idbGetAsync(this._rechPrefix + 'dokumente')
+            ]);
+            if (freshCounterRaw !== undefined) this._cache[this._rechPrefix + 'invoice_counter'] = freshCounterRaw;
+            if (freshDocsRaw !== undefined) this._cache[this._rechPrefix + 'dokumente'] = freshDocsRaw;
+
             const counter = this.getRechInvoiceCounter();
             const prefix = typ === 'rechnung' ? 'RE' : typ === 'angebot' ? 'AN' : 'GU';
             const year = new Date().getFullYear();
@@ -2349,7 +2405,11 @@ const Store = {
                 counter[prefix] = (counter[prefix] || 0) + 1;
                 candidate = `${prefix}-${year}-${String(counter[prefix]).padStart(3, '0')}`;
             } while (existingNrs.has(candidate));
+            // Synchron (this._cache) UND awaited async in IDB schreiben — der Lock darf erst
+            // freigegeben werden, NACHDEM der neue Counter-Stand tatsächlich in IDB angekommen ist,
+            // sonst kann der nächste (wartende) Tab wieder einen veralteten Stand lesen.
             this._rechSet('invoice_counter', counter);
+            try { await this._idbPutAsync(this._rechPrefix + 'invoice_counter', this._cache[this._rechPrefix + 'invoice_counter']); } catch (e) {}
             return candidate;
         });
     },
@@ -2364,28 +2424,62 @@ const Store = {
         const isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (settings.ustMode === 'klein');
         const isGutschrift = invoice.typ === 'gutschrift';
         let brutto = 0;
+        // Bruttoumsatz PRO Steuersatz mitführen (nicht nur die Gesamtsumme) — sonst geht bei
+        // Rechnungen mit gemischten 7%/19%-Positionen die Aufteilung verloren, sobald daraus
+        // ein einzelner Sale-Datensatz wird (s. Fix Ist-UVA gemischte Sätze).
+        const perRateBrutto = {};
         (invoice.positionen || []).forEach(p => {
             const netto = (p.menge || 0) * (p.einzelpreis || 0);
-            const mwst = isKlein ? 0 : netto * (p.mwstSatz || 0) / 100;
-            brutto += netto + mwst;
+            const satz  = isKlein ? 0 : (parseFloat(p.mwstSatz) || 0);
+            const mwst  = isKlein ? 0 : netto * satz / 100;
+            const posBrutto = netto + mwst;
+            brutto += posBrutto;
+            perRateBrutto[satz] = (perRateBrutto[satz] || 0) + posBrutto;
         });
         // Gutschrift (Kreditnote) mindert den Umsatz statt ihn zu erhöhen (§17 UStG
         // Änderung der Bemessungsgrundlage) — als Sale daher mit negativem Betrag verbucht.
-        if (isGutschrift) brutto = -brutto;
+        if (isGutschrift) {
+            brutto = -brutto;
+            Object.keys(perRateBrutto).forEach(k => { perRateBrutto[k] = -perRateBrutto[k]; });
+        }
 
         const isTeilzahlung = opts.teilzahlungBetrag !== undefined && opts.teilzahlungBetrag !== null;
+        let steuersaetzeGroups = null; // { [satz]: brutto } für DIESEN Sale-Datensatz (Teil- oder Restbetrag)
         if (isTeilzahlung) {
             // Anteiliger Sale fuer eine einzelne Teilzahlung: eigenes Zufluss-Datum, kein EK-Bezug
             // (Wareneinkauf wird in EÜR/Bilanz unabhaengig ueber den Einkaufs-Bezahlzeitpunkt
             // abgezogen, nicht ueber diese Sale-Verknuepfung).
-            brutto = (isGutschrift ? -1 : 1) * Math.abs(opts.teilzahlungBetrag);
+            const totalAbs = Math.abs(brutto);
+            const teilAbs  = Math.abs(opts.teilzahlungBetrag);
+            brutto = (isGutschrift ? -1 : 1) * teilAbs;
+            // Ohne positionsgenaue Zuordnung wird die Teilzahlung proportional zum Anteil
+            // jedes Steuersatzes an der Gesamtrechnung aufgeteilt (Standardannahme mangels
+            // expliziter Positions-Auswahl im Teilzahlungs-Dialog).
+            steuersaetzeGroups = {};
+            if (totalAbs > 0) {
+                const scale = teilAbs / totalAbs;
+                Object.keys(perRateBrutto).forEach(k => { steuersaetzeGroups[k] = perRateBrutto[k] * scale; });
+            }
         } else {
             // Schlusszahlung: bereits per Teilzahlung erfasste Betraege abziehen, sonst wird der
             // schon verbuchte Teil hier nochmal mitgezaehlt (Doppelzaehlung als Einnahme).
-            const bereitsErfasst = this.getSales(true)
-                .filter(s => s._invoiceId === invoice.id && s._teilzahlung && !s.storniert)
+            const bereitsErfasstSales = this.getSales(true)
+                .filter(s => s._invoiceId === invoice.id && s._teilzahlung && !s.storniert);
+            const bereitsErfasst = bereitsErfasstSales
                 .reduce((sum, s) => sum + (parseFloat(s.verkaufspreis) || 0), 0);
             brutto -= bereitsErfasst;
+            // Pro Satz ebenfalls das schon per Teilzahlung Erfasste abziehen, damit die satzgenaue
+            // Restsumme stimmt (Alt-Teilzahlungen ohne eigene Satz-Aufteilung fallen mangels Zuordnung
+            // nur in den Gesamtbetrag, s. bereitsErfasst oben — bekannte Einschränkung für Altdaten).
+            const bereitsErfasstPerRate = {};
+            bereitsErfasstSales.forEach(s => {
+                const groups = (s.steuersaetze && Object.keys(s.steuersaetze).length)
+                    ? s.steuersaetze
+                    : { [s.steuersatz != null ? s.steuersatz : 19]: parseFloat(s.verkaufspreis) || 0 };
+                Object.keys(groups).forEach(k => { bereitsErfasstPerRate[k] = (bereitsErfasstPerRate[k] || 0) + groups[k]; });
+            });
+            steuersaetzeGroups = {};
+            Object.keys(perRateBrutto).forEach(k => { steuersaetzeGroups[k] = perRateBrutto[k] - (bereitsErfasstPerRate[k] || 0); });
         }
 
         const customers = this.getRechCustomers();
@@ -2432,14 +2526,20 @@ const Store = {
 
         // Steuersatz der Rechnung mitgeben, sonst zählt die Ist-UVA den Sale mit dem
         // 19%-Default — falsch bei 0% (Reverse Charge / ig. Lieferung) und 7%-Rechnungen.
-        // Nur bei einheitlichem Satz über alle Positionen eindeutig ableitbar.
+        // Bei gemischten Sätzen (7%+19% auf derselben Rechnung) bleibt die satzgenaue
+        // Aufteilung über sale.steuersaetze erhalten, statt auf einen einzigen Wert zu kollabieren.
         if (isKlein) {
             sale.steuersatz = 0;
-        } else {
-            const saetze = [...new Set((invoice.positionen || [])
-                .filter(p => (p.menge || 0) * (p.einzelpreis || 0) !== 0)
-                .map(p => parseInt(p.mwstSatz) || 0))];
-            if (saetze.length === 1) sale.steuersatz = saetze[0];
+        } else if (steuersaetzeGroups) {
+            const nonZero = Object.keys(steuersaetzeGroups)
+                .filter(k => Math.abs(steuersaetzeGroups[k]) > 0.004)
+                .reduce((o, k) => { o[k] = steuersaetzeGroups[k]; return o; }, {});
+            const distinctRates = Object.keys(nonZero);
+            if (distinctRates.length === 1) {
+                sale.steuersatz = parseFloat(distinctRates[0]);
+            } else if (distinctRates.length > 1) {
+                sale.steuersaetze = nonZero; // { "7": 107.00, "19": 119.00, ... }
+            }
         }
 
         return this.saveSale(sale);
@@ -2776,13 +2876,19 @@ const Store = {
 
     saveKassenEintrag(e) {
         const all = this.getKassenbuch();
-        if (!e.id) { e.id = this.generateId(); e.createdAt = new Date().toISOString(); }
+        const isNew = !e.id;
+        if (isNew) { e.id = this.generateId(); e.createdAt = new Date().toISOString(); }
         const idx = all.findIndex(x => x.id === e.id);
         if (idx >= 0 && this.isLocked(all[idx])) return e; // GoBD: festgeschriebener/stornierter Kasseneintrag nicht bearbeitbar
+        const old = idx >= 0 ? Object.assign({}, all[idx]) : null;
         if (idx >= 0) all[idx] = e; else all.push(e);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'kassenbuch'] = str;
         this._idbPut(this._prefix + 'kassenbuch', str);
+        // GoBD: jede Erstellung UND Änderung muss protokolliert werden (bisher fehlte das komplett —
+        // nur die Stornierung in deleteKassenEintrag wurde geloggt).
+        this._addAuditEntry(isNew ? 'erstellt' : 'bearbeitet', 'kassenbuch', e.id, old, e,
+            isNew ? 'Kassenbucheintrag erstellt' : 'Kassenbucheintrag bearbeitet');
         this._triggerAutoBackup();
         return e;
     },

@@ -45,27 +45,55 @@ const Vorsteuer = {
         return { vst19, vst7, netto19, netto7, count: purchases.length };
     },
 
+    // Roher USt-Satz-Wert einer Ausgabe: 'unklar' | 'rc' | number. Fehlt das Feld komplett
+    // (Altbestand vor dem ustSatz-Pflichtfeld, s. js/ausgaben.js) oder ist es leer, gilt der
+    // Eintrag als 'unklar' — NIE automatisch als 19% behandeln (Fix 2026-07-30: vorher fiel ein
+    // fehlender Satz per ||-Fallback auf 19%, was einen unbelegten Vorsteuerabzug erzeugte).
+    _expenseUstRaw(e) {
+        if (e.ustSatz !== undefined && e.ustSatz !== null && e.ustSatz !== '') return e.ustSatz;
+        if (e.steuersatz !== undefined && e.steuersatz !== null && e.steuersatz !== '') return e.steuersatz;
+        return 'unklar';
+    },
+
     // ── Vorsteuer aus Betriebsausgaben ──
     _calcFromExpenses(startDate, endDate) {
         const expenses = (Store.getExpenses ? Store.getExpenses() : Store.get('ausgaben') || [])
             .filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
 
         let vst19 = 0, vst7 = 0, vst0 = 0, netto19 = 0, netto7 = 0;
+        let unklarCount = 0, unklarBetrag = 0;
         expenses.forEach(e => {
-            // 0 ist ein gültiger Satz (steuerfreie Ausgaben: Versicherung, Porto, Bankgebühren) —
-            // die ||-Kette machte den 0%-Zweig unerreichbar und kreditierte immer 19/119
-            const rawVal = (e.ustSatz != null && e.ustSatz !== '') ? e.ustSatz
-                         : ((e.steuersatz != null && e.steuersatz !== '') ? e.steuersatz : 19);
-            const rateRaw = parseFloat(rawVal);
-            const rate = isNaN(rateRaw) ? 19 : rateRaw;
+            const raw = this._expenseUstRaw(e);
             const brutto = parseFloat(e.betrag) || 0;
-            if (rate === 0) {
+
+            if (raw === 'unklar') {
+                // Kein Satz hinterlegt → kein Vorsteuerabzug (§15 UStG verlangt eine ordnungsgemäße
+                // Rechnung mit ausgewiesenem Satz). Wird separat als "unklar" ausgewiesen, s. UI.
+                unklarCount++;
+                unklarBetrag += brutto;
+                return;
+            }
+            if (raw === 'rc') {
+                // Reverse Charge wird über eigene §13b-Einträge (s. _calcManualEntries) verrechnet,
+                // nicht hier — sonst würde die Vorsteuer doppelt gezählt.
+                return;
+            }
+
+            const rateRaw = parseFloat(raw);
+            if (isNaN(rateRaw)) {
+                // Unbekannter/kaputter Wert — konservativ wie 'unklar' behandeln statt zu raten.
+                unklarCount++;
+                unklarBetrag += brutto;
+                return;
+            }
+            // 0 ist ein gültiger Satz (steuerfreie Ausgaben: Versicherung, Porto, Bankgebühren)
+            if (rateRaw === 0) {
                 vst0 += brutto; // kein Vorsteuerabzug
                 return;
             }
-            const netto = brutto / (1 + rate / 100);
+            const netto = brutto / (1 + rateRaw / 100);
             const vst = brutto - netto;
-            if (rate === 7) {
+            if (rateRaw === 7) {
                 vst7 += vst;
                 netto7 += netto;
             } else {
@@ -73,7 +101,7 @@ const Vorsteuer = {
                 netto19 += netto;
             }
         });
-        return { vst19, vst7, vst0, netto19, netto7, count: expenses.length };
+        return { vst19, vst7, vst0, netto19, netto7, count: expenses.length, unklarCount, unklarBetrag };
     },
 
     // ── §14 UStG / §33 UStDV Beleg-Vollständigkeit ──
@@ -101,7 +129,7 @@ const Vorsteuer = {
             .filter(p => { const r = (p.ustSatz != null && p.ustSatz !== '') ? parseFloat(p.ustSatz) : 19; return !isNaN(r) && r > 0; });
         const expenses = (Store.getExpenses ? Store.getExpenses() : Store.get('ausgaben') || [])
             .filter(e => Utils.isInPeriod(e.datum, startDate, endDate))
-            .filter(e => { const raw = (e.ustSatz != null && e.ustSatz !== '') ? e.ustSatz : ((e.steuersatz != null && e.steuersatz !== '') ? e.steuersatz : 19); const r = parseFloat(raw); return !isNaN(r) && r > 0; });
+            .filter(e => { const raw = this._expenseUstRaw(e); const r = parseFloat(raw); return !isNaN(r) && r > 0; });
 
         let complete = 0;
         purchases.forEach(p => {
@@ -233,10 +261,10 @@ const Vorsteuer = {
                 <div class="card-value">${Utils.formatCurrency(calc.purch.vst19 + calc.purch.vst7)}</div>
                 <div class="card-subtitle">${calc.purch.count} Einkäufe</div>
             </div>
-            <div class="card stat-card">
+            <div class="card stat-card${calc.exp.unklarCount > 0 ? ' warning' : ''}">
                 <div class="card-label">Vorsteuer Ausgaben</div>
                 <div class="card-value">${Utils.formatCurrency(calc.exp.vst19 + calc.exp.vst7)}</div>
-                <div class="card-subtitle">${calc.exp.count} Ausgaben</div>
+                <div class="card-subtitle">${calc.exp.count} Ausgaben${calc.exp.unklarCount > 0 ? ` · <span style="color:var(--warning);">${calc.exp.unklarCount} unklar</span>` : ''}</div>
             </div>
             <div class="card stat-card">
                 <div class="card-label">§13b + EU-Erwerbe</div>
@@ -338,6 +366,12 @@ const Vorsteuer = {
                         <tr><td colspan="4" style="font-weight:700;padding-top:12px;color:var(--text-muted);">Betriebsausgaben</td></tr>
                         <tr><td>Kz. 66</td><td>Vorsteuer 19% (Ausgaben)</td><td style="text-align:right">${Utils.formatCurrency(e.netto19)}</td><td style="text-align:right;color:var(--success)">${Utils.formatCurrency(e.vst19)}</td></tr>
                         <tr><td>Kz. 66</td><td>Vorsteuer 7% (Ausgaben)</td><td style="text-align:right">${Utils.formatCurrency(e.netto7)}</td><td style="text-align:right;color:var(--success)">${Utils.formatCurrency(e.vst7)}</td></tr>
+                        ${e.unklarCount > 0 ? `<tr>
+                            <td></td>
+                            <td style="color:var(--warning);">⚠️ ${e.unklarCount} Ausgabe(n) unklar — kein Vorsteuerabzug, bitte USt-Satz nachpflegen</td>
+                            <td style="text-align:right;color:var(--warning);">${Utils.formatCurrency(e.unklarBetrag)}</td>
+                            <td style="text-align:right;color:var(--warning);">${Utils.formatCurrency(0)}</td>
+                        </tr>` : ''}
 
                         ${m.reverseCharge > 0 || m.igErwerb > 0 ? `
                         <tr><td colspan="4" style="font-weight:700;padding-top:12px;color:var(--text-muted);">§13b / EU-Erwerbe</td></tr>
@@ -356,6 +390,18 @@ const Vorsteuer = {
             </div>
         </div>
         ${monthlyRows}
+
+        ${e.unklarCount > 0 ? `
+        <div class="card" style="margin-top:16px;padding:14px 16px;border:1px solid var(--warning);">
+            <div style="font-weight:700;font-size:13px;color:var(--warning);margin-bottom:4px;">
+                ⚠️ ${e.unklarCount} Betriebsausgabe(n) ohne USt-Satz — unklar, kein Vorsteuerabzug
+            </div>
+            <div style="font-size:12px;color:var(--text-muted);">
+                Summe betroffener Brutto-Beträge: ${Utils.formatCurrency(e.unklarBetrag)}. Bitte in
+                <a href="#" data-action="navigate" data-args='["ausgaben"]'>Ausgaben</a> den USt-Satz nachpflegen — erst
+                dann wird für diese Buchungen Vorsteuer berücksichtigt. Details auch im Tab „Betriebsausgaben" oben.
+            </div>
+        </div>` : ''}
 
         ${(() => {
             const bs = this._belegSummary(this._periodStart(this._year, this._month), this._periodEnd(this._year, this._month));
@@ -455,18 +501,24 @@ const Vorsteuer = {
                     </tr></thead>
                     <tbody>
                         ${expenses.map(e => {
-                            const rate = parseFloat(e.ustSatz || e.steuersatz) || 19;
+                            const raw = this._expenseUstRaw(e);
                             const brutto = parseFloat(e.betrag) || 0;
-                            const vst = rate > 0 ? brutto - (brutto / (1 + rate / 100)) : 0;
-                            const beleg = rate > 0 ? this._belegCheck(e, brutto) : null;
-                            return `<tr>
+                            const isUnklar = raw === 'unklar' || (raw !== 'rc' && isNaN(parseFloat(raw)));
+                            const isRC = raw === 'rc';
+                            const rate = (!isUnklar && !isRC) ? parseFloat(raw) : null;
+                            const vst = (rate !== null && rate > 0) ? brutto - (brutto / (1 + rate / 100)) : 0;
+                            const beleg = (rate !== null && rate > 0) ? this._belegCheck(e, brutto) : null;
+                            const rateLabel = isUnklar
+                                ? '<span style="color:var(--warning);font-weight:600;" title="Kein Vorsteuerabzug — USt-Satz nachpflegen">unklar</span>'
+                                : (isRC ? '<span title="Reverse Charge §13b UStG">RC</span>' : `${rate}%`);
+                            return `<tr${isUnklar ? ' style="background:rgba(245,158,11,.06);"' : ''}>
                                 <td style="white-space:nowrap;">${Utils.escapeHtml(e.datum || '—')}</td>
                                 <td>${Utils.escapeHtml((e.beschreibung || e.name || '').substring(0, 40))}</td>
                                 <td style="font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(e.kategorie || '—')}</td>
                                 <td style="text-align:right">${Utils.formatCurrency(brutto)}</td>
-                                <td style="text-align:center">${rate}%</td>
+                                <td style="text-align:center">${rateLabel}</td>
                                 <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(vst)}</td>
-                                <td style="text-align:center;" title="${beleg ? Utils.escapeHtml(beleg.missing.join(', ') || 'vollständig') : 'kein Vorsteuerabzug'}">${beleg ? (beleg.complete ? '✅' : '⚠️') : '—'}</td>
+                                <td style="text-align:center;" title="${beleg ? Utils.escapeHtml(beleg.missing.join(', ') || 'vollständig') : (isUnklar ? 'USt-Satz unklar — kein Vorsteuerabzug, bitte nachpflegen' : 'kein Vorsteuerabzug')}">${beleg ? (beleg.complete ? '✅' : '⚠️') : (isUnklar ? '❓' : '—')}</td>
                             </tr>`;
                         }).join('')}
                     </tbody>

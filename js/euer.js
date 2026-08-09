@@ -129,11 +129,18 @@ const Euer = {
         // USt-Schuld ist die USt-Voranmeldung (js/ustvoranmeldung.js), nicht dieser EÜR-Ausweis.
         const purchasesByIdEuer = {};
         Store.getPurchases(true).forEach(p => { purchasesByIdEuer[p.id] = p; });
+        // §25a-Retouren: Erstattungsbetrag mindert den Verkaufspreis der zurückgegebenen Position vor
+        // der Margenbildung — sonst bleibt eine zurückgegebene §25a-Position fälschlich in dieser
+        // Vorschau-Kachel stehen (analog zum retour19/retour7-Mechanismus, s. plan/OFFEN.md §2.1b).
+        const diff25aRetourenBySaleId = {};
+        Store.getRetouren()
+            .filter(r => Utils.isInPeriod(r.datum, startDate, endDate) && r.saleId)
+            .forEach(r => { diff25aRetourenBySaleId[r.saleId] = (diff25aRetourenBySaleId[r.saleId] || 0) + (parseFloat(r.erstattungBetrag) || 0); });
         const diff25aSalesPositionen = sales
             .map(s => ({ sale: s, purchase: purchasesByIdEuer[s.purchaseId] || (s.purchaseIds && s.purchaseIds[0] ? purchasesByIdEuer[s.purchaseIds[0]] : null) }))
             .filter(x => x.purchase && x.purchase.differenzbesteuert)
             .map(x => ({
-                verkaufspreis: (parseFloat(x.sale.verkaufspreis) || 0) + (parseFloat(x.sale.versandkostenKaeufer) || 0),
+                verkaufspreis: Math.max(0, ((parseFloat(x.sale.verkaufspreis) || 0) + (parseFloat(x.sale.versandkostenKaeufer) || 0)) - (diff25aRetourenBySaleId[x.sale.id] || 0)),
                 einkaufspreis: parseFloat(x.purchase.einkaufspreis) || 0,
                 warenart: x.purchase.warenart || 'gebraucht'
             }));
@@ -274,14 +281,31 @@ const Euer = {
             // ist bereits ohne storniert, der zusätzliche Filter hier ist ein No-Op, aber bewusst
             // beibehalten um exakt das vorherige Verhalten zu spiegeln, s. wareneinkauf-Kommentar oben)
             const vstPurch = SteuerBerechnung.nettoPurchases(periodPurchases.filter(p => !p.storniert)).ust;
-            // Sonstige Betriebsausgaben tragen ustSatz (0% gültig, z.B. Versicherung/Porto) —
-            // per-Eintrag netten statt pauschal (Fix: war pauschal 19%, ignorierte ustSatz=0).
-            const vstExpenses = SteuerBerechnung.nettoExpenses(expenses).ust;
-            // Fahrtkosten, Versand, Plattformgebühren, Material: pauschal 19%
-            // (keine Satz-Info in diesen Kategorien). AfA NICHT enthalten: die Vorsteuer wurde
-            // bereits im Anschaffungsjahr in voller Höhe gezogen, die AfA selbst ist eine
-            // vorsteuerfreie (Netto-)Abschreibung.
-            const vstOther = (versandkosten + plattformgebuehren + fahrtkosten + materialKosten) / 1.19 * 0.19;
+            // Sonstige Betriebsausgaben tragen jetzt ein Pflicht-ustSatz-Feld (19|7|0|'rc'|'unklar',
+            // s. js/ausgaben.js). Absichtlich NICHT über SteuerBerechnung.nettoExpenses berechnet:
+            // dessen genereller Fallback zieht bei nicht-numerischen Sätzen (u.a. 'unklar') noch
+            // 19% — das würde exakt den Vorsteuer-Überabzug reproduzieren, den js/vorsteuer.js für
+            // 'unklar' gerade ausschließt (§15 UStG: kein Abzug ohne ausgewiesenen Satz). 'rc'
+            // (Reverse Charge) wird separat über §13b-Einträge verrechnet, nicht hier.
+            const vstExpenses = expenses.reduce((sum, ex) => {
+                const raw = (ex.ustSatz != null && ex.ustSatz !== '') ? ex.ustSatz : ex.steuersatz;
+                if (raw === undefined || raw === null || raw === '' || raw === 'unklar' || raw === 'rc') return sum;
+                const rate = parseFloat(raw);
+                if (isNaN(rate) || rate === 0) return sum;
+                const brutto = parseFloat(ex.betrag) || 0;
+                return sum + (brutto - brutto / (1 + rate / 100));
+            }, 0);
+            // Fahrtkosten sind die Kilometerpauschale (§9 EStG, 0,30 €/km je Fahrtenbuch) — eine
+            // Pauschale ohne Rechnung, NIE USt-belastet. Gehörte NIE in die Vorsteuer (Fix
+            // 2026-07-30: vorher fälschlich pauschal mit 19% verrechnet). Versandkosten/
+            // Plattformgebühren/Materialverbrauch tragen (Stand 2026-07-30) kein eigenes ustSatz-
+            // Feld — die liegen auf Sale/Materiallager, nicht in js/ausgaben.js (Fix 1). Eine
+            // geratene 19%-Pauschale wäre ein unbelegter Vorsteuerabzug (§15 UStG verlangt eine
+            // ordnungsgemäße Rechnung mit ausgewiesenem Satz) — deshalb hier bewusst 0€ statt
+            // Pauschale, bis diese Module ein eigenes ustSatz-Feld bekommen. Nutzer kann Versand/
+            // Plattformgebühren/Verpackungsmaterial alternativ als Betriebsausgabe mit korrektem
+            // ustSatz erfassen (dann korrekt oben in vstExpenses berücksichtigt).
+            const vstOther = 0;
             // Eigenbelege tragen betragMwst/mwstSatz pro Beleg → echte Vorsteuer statt Pauschale
             // (Fix: liefen vorher im pauschalen 19%-Block, ignorierten mwstSatz=0).
             return vstPurch + vstExpenses + vstOther + eigenbelegeVorsteuer;
@@ -317,7 +341,7 @@ const Euer = {
         this._lastRenderData = { sales, periodPurchases, expenses, eigenbelegeRaw, startDate, endDate, periodLabel, summeEinnahmen, summeAusgaben, gewinn, wareneinkauf, versandkosten, plattformgebuehren, fahrtkosten, materialKosten, sonstigeAusgaben, eigenbelegeAusgaben, afaKosten, monthlyData, donutLabels, donutValues, chartYear: year, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview };
 
         // GbR-Gewinnverteilung Block
-        const gbrBlock = (typeof GbR !== 'undefined') ? GbR.renderEuerBlock(gewinn) : '';
+        const gbrBlock = (typeof GbR !== 'undefined') ? GbR.renderEuerBlock(gewinn, year) : '';
 
         return `${viewTabs}
             <div class="page-header">
@@ -572,8 +596,16 @@ const Euer = {
     },
 
     // ── Gewerbesteuer-Rechner (nur für Jahresansicht) ──────────────────────
+    // Nur für tatsächlich gewerbesteuerpflichtige Rechtsformen anzeigen (Fix 2026-07-30: lief
+    // vorher unconditional, suggerierte Freiberuflern fälschlich eine GewSt-Pflicht — Freiberufler
+    // haben laut js/rechtsform.js gewerbesteuer:false). Freibetrag nur für natürliche
+    // Personen/Personengesellschaften (gewStFreibetrag>0 in rechtsform.js), NICHT für
+    // Kapitalgesellschaften (GmbH/UG: gewStFreibetrag=0).
     _renderGewerbesteuerBlock(gewinn) {
-        const freibetrag = 24500; // §11 GewStG
+        const cfg = (typeof Rechtsform !== 'undefined') ? Rechtsform.getConfig() : { gewerbesteuer: true, gewStFreibetrag: 24500 };
+        if (cfg.gewerbesteuer !== true) return '';
+        const hatFreibetrag = (parseFloat(cfg.gewStFreibetrag) || 0) > 0;
+        const freibetrag = hatFreibetrag ? 24500 : 0;
         const gewerbeertrag = Math.max(0, gewinn - freibetrag);
         const messzahl = 0.035; // §11 Abs. 2 GewStG
         const steuermessbetrag = gewerbeertrag * messzahl;
@@ -582,19 +614,20 @@ const Euer = {
         const hebesatz = parseInt(settings.gewerbesteuerHebesatz) || 400;
         const gewerbesteuer = steuermessbetrag * (hebesatz / 100);
         const istGewPflichtig = gewinn > freibetrag;
+        const rechtsformLabel = typeof Rechtsform !== 'undefined' ? Rechtsform.get() : 'Einzelunternehmen';
 
         return `
         <div class="card" style="margin-top:20px;" id="euerGewStCard">
             <div class="card-header">
                 <div class="card-title"><i class="ti ti-building-bank"></i> Gewerbesteuer-Rechner</div>
-                <div style="font-size:12px;color:var(--text-muted);">§11 GewStG · Einzelunternehmen</div>
+                <div style="font-size:12px;color:var(--text-muted);">§11 GewStG · ${Utils.escapeHtml(rechtsformLabel)}</div>
             </div>
             <div class="table-container" style="border:none;">
                 <table class="euer-table">
                     <thead><tr><th style="width:60%">Position</th><th style="text-align:right">Betrag</th></tr></thead>
                     <tbody>
                         <tr><td>Gewinn aus Gewerbebetrieb (EÜR)</td><td style="text-align:right">${Utils.formatCurrency(gewinn)}</td></tr>
-                        <tr><td>Freibetrag §11 GewStG (Einzelunternehmen)</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(freibetrag)}</td></tr>
+                        ${hatFreibetrag ? `<tr><td>Freibetrag §11 GewStG (natürl. Person/Personenges.)</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(freibetrag)}</td></tr>` : `<tr><td>Freibetrag §11 GewStG</td><td style="text-align:right;color:var(--text-muted)">— (Kapitalgesellschaft)</td></tr>`}
                         <tr><td><strong>Gewerbeertrag (Bemessungsgrundlage)</strong></td><td style="text-align:right"><strong>${Utils.formatCurrency(gewerbeertrag)}</strong></td></tr>
                         <tr><td>Steuermesszahl §11 Abs. 2 GewStG (3,5%)</td><td style="text-align:right">${Utils.formatCurrency(steuermessbetrag)}</td></tr>
                         <tr>
@@ -610,7 +643,7 @@ const Euer = {
                         </tr>
                         <tr class="euer-result">
                             <td><strong><i class="ti ${istGewPflichtig ? 'ti-alert-circle' : 'ti-circle-check'}" style="color:${istGewPflichtig ? 'var(--danger)' : 'var(--success)'}"></i> ${istGewPflichtig ? 'Gewerbesteuer (geschätzt)' : 'Keine Gewerbesteuer'}</strong>
-                                ${!istGewPflichtig ? `<span style="font-size:11px;font-weight:400;color:var(--success);">(Gewinn unter Freibetrag ${Utils.formatCurrency(freibetrag)})</span>` : ''}
+                                ${!istGewPflichtig && hatFreibetrag ? `<span style="font-size:11px;font-weight:400;color:var(--success);">(Gewinn unter Freibetrag ${Utils.formatCurrency(freibetrag)})</span>` : ''}
                             </td>
                             <td style="text-align:right;font-size:1.15rem;color:${istGewPflichtig ? 'var(--danger)' : 'var(--success)'}">
                                 <strong id="gewstBetrag">${Utils.formatCurrency(gewerbesteuer)}</strong>
@@ -621,7 +654,7 @@ const Euer = {
             </div>
             <div style="padding:10px 16px;font-size:11px;color:var(--text-muted);">
                 ⚠️ Schätzung ohne GewSt-Hinzurechnungen/Kürzungen (§§8–9 GewStG) · Freibetrag nur für natürl. Personen/Personenges.
-                · Gewerbesteuer ist nach §35 EStG auf die ESt anrechenbar (bis 3,8 × Steuermessbetrag) ·
+                ${hatFreibetrag ? `· Gewerbesteuer ist nach §35 EStG auf die ESt anrechenbar (max. 4 × Steuermessbetrag, begrenzt auf die tatsächlich anfallende ESt — seit VZ 2020, s. Gewerbesteuer-Modul für Details) ·` : ''}
                 Prüfung durch Steuerberater empfohlen.
             </div>
         </div>`;
@@ -634,7 +667,8 @@ const Euer = {
         Store.saveSettings(settings);
         // Neuberechnung ohne Full-Refresh (nur Betrag aktualisieren)
         const gewinn = this._lastGewinn || 0;
-        const freibetrag = 24500;
+        const cfg = (typeof Rechtsform !== 'undefined') ? Rechtsform.getConfig() : { gewStFreibetrag: 24500 };
+        const freibetrag = (parseFloat(cfg.gewStFreibetrag) || 0) > 0 ? 24500 : 0;
         const gewerbeertrag = Math.max(0, gewinn - freibetrag);
         const steuermessbetrag = gewerbeertrag * 0.035;
         const gewerbesteuer = steuermessbetrag * (hs / 100);

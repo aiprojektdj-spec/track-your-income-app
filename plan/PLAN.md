@@ -154,7 +154,7 @@ sauber aufbereitet, nicht neu bewertet.
 
 ---
 
-## session-prompt-blob-sync.md
+## ~~session-prompt-blob-sync.md~~ (erledigt, siehe plan/OFFEN.md §6)
 
 # Prompt für neue Session (copy-paste)
 
@@ -247,7 +247,7 @@ bei der ein zu flaches Review reale Datenverluste für Kunden riskiert.
 
 ---
 
-## session-prompt-ch-at-entfernen.md
+## ~~session-prompt-ch-at-entfernen.md~~ (erledigt 2026-07-16, siehe plan/OFFEN.md §6)
 
 # Prompt für neue Session (copy-paste) — W2: Schweiz/Österreich aus Web 1.7 entfernen
 
@@ -300,7 +300,7 @@ committet mit klarer Message ("Web 1.7: CH/AT vorerst deaktiviert, Local 1.7 unb
 
 ---
 
-## session-prompt-lager-feature-batch.md
+## ~~session-prompt-lager-feature-batch.md~~ (fertig bis auf Live-Test durch User, siehe plan/OFFEN.md §4)
 
 **Status: Punkt 6, 4, 7, 1, 5, 3, 8, 9 gebaut + browserverifiziert (2026-07-23/24).** Rest (2, 10)
 noch offen, siehe Fortschritts-Notiz am Dateiende. **Punkt 2 hat jetzt eine eigene Datei:**
@@ -605,7 +605,7 @@ Rechnungen — baut auf 1+5 auf, jetzt möglich), Punkt 10 (USt-ID-Diagnose — 
 
 ---
 
-## session-prompt-landing-seo.md
+## ~~session-prompt-landing-seo.md~~ (erledigt, siehe plan/OFFEN.md §6)
 
 # Prompt für neue Session (copy-paste) — P1-2: Landing-Copy + SEO
 
@@ -761,7 +761,7 @@ jeder Git-Operation, nicht nur Pattern-Matching gg. Web 1.7.
 
 ---
 
-## session-prompt-local-sync-fortsetzung.md
+## ~~session-prompt-local-sync-fortsetzung.md~~ (alle Punkte fertig, nur D6-Rechtstext offen, siehe plan/OFFEN.md §2.2/§6)
 
 # Session-Prompt — Local-1.7-Sync fortsetzen (Modul 2 von 20)
 
@@ -854,7 +854,7 @@ die rein technischen/UI-Punkte weiter hinten in der Liste (ab Punkt 15 aufwärts
 
 ---
 
-## session-prompt-local-sync-punkte-16-22.md
+## ~~session-prompt-local-sync-punkte-16-22.md~~ (alle Punkte fertig, nur D6-Rechtstext offen, siehe plan/OFFEN.md §2.2/§6)
 
 # Session-Prompt — Local-Sync-Backlog Punkte 16–22 (Rest)
 
@@ -984,7 +984,7 @@ sehr restriktiv `script-src 'none'`). Das sollte unabhängig vom Textinhalt nach
 
 ---
 
-## session-prompt-makecom-webhook.md
+## ~~session-prompt-makecom-webhook.md~~ (committet 4cbd40d, nur Live-Test durch User offen, siehe plan/OFFEN.md §4)
 
 # Prompt für neue Session (copy-paste) — W3: Make.com-Webhook-API
 
@@ -1034,7 +1034,7 @@ Architektur-Doc-Abschluss ist besser als ein halbfertiger Endpoint im Code.
 
 ---
 
-## session-prompt-offline-grace-stb.md
+## ~~session-prompt-offline-grace-stb.md~~ (erledigt, siehe plan/OFFEN.md §6)
 
 Prompt für neue Session (copy-paste):
 
@@ -1065,7 +1065,7 @@ Danach: Memory aktualisieren mit dem, was gebaut wurde und was (falls Feature 2 
 
 ---
 
-## session-prompt-onboarding-rebuild.md
+## ~~session-prompt-onboarding-rebuild.md~~ (Firmenname-Label committet 4949b31, siehe plan/OFFEN.md §6)
 
 # Prompt für neue Session (copy-paste)
 
@@ -1154,7 +1154,7 @@ einzeln abgenickt. Reines Ausführen + Browser-Verifikation.
 
 ---
 
-## session-prompt-performance-a11y.md
+## ~~session-prompt-performance-a11y.md~~ (erledigt, siehe plan/OFFEN.md §6)
 
 # Prompt für neue Session (copy-paste) — P2-2: Performance + Accessibility Audit
 
@@ -1246,7 +1246,7 @@ Opus wäre hier over-provisioned.
 
 ---
 
-## session-prompt-persona-cta-touch-target.md
+## ~~session-prompt-persona-cta-touch-target.md~~ (erledigt, siehe plan/OFFEN.md §6)
 
 # Prompt für neue Session (copy-paste) — Touch-Target-Fix `.persona-cta`
 
@@ -1307,7 +1307,7 @@ Sicherheitsrelevanz — kein Fall für Opus-Reasoning.
 
 ---
 
-## session-prompt-rechnung-eigenbeleg-vollaudit-2026-07-23.md
+## ~~session-prompt-rechnung-eigenbeleg-vollaudit-2026-07-23.md~~ (alle 29 Funde abgearbeitet, siehe plan/OFFEN.md §6)
 
 # Prompt für neue Session (copy-paste) — Vollaudit Rechnungen + Eigenbelege: Lücken-Sweep über alle Dimensionen
 
@@ -1498,7 +1498,7 @@ mit Datum ergänzen, damit der Fortschritt sichtbar bleibt (wie bei den anderen
 
 ---
 
-## session-prompt-stb-gate-revoke.md
+## ~~session-prompt-stb-gate-revoke.md~~ (erledigt, Revoke-Logik in js/stb-share.js, siehe plan/OFFEN.md §6)
 
 Prompt für neue Session (copy-paste):
 
@@ -1598,7 +1598,7 @@ Lücke 2 allein wäre Sonnet-tauglich, hängt aber am selben Kontext — fürs B
 
 ---
 
-## session-prompt-stb-luecken.md
+## ~~session-prompt-stb-luecken.md~~ (erledigt, siehe plan/OFFEN.md §6)
 
 # Prompt für neue Session (copy-paste)
 
@@ -1676,7 +1676,7 @@ macht. Lücke 2 allein wäre Sonnet-tauglich, hängt aber am selben Multi-Datei-
 
 ---
 
-## session-prompt-teilzahlung-ratenzahlung.md
+## ~~session-prompt-teilzahlung-ratenzahlung.md~~ (committet e771cdb, siehe plan/OFFEN.md §6)
 
 # Prompt für neue Session (copy-paste) — Teilzahlung/Ratenzahlung im Rechnungsmodul
 
@@ -1780,7 +1780,7 @@ Screenshot verifiziert, committet mit Liste in Commit-Message.
 
 ---
 
-## session-prompt-vercel-blob-empfaenger.md
+## ~~session-prompt-vercel-blob-empfaenger.md~~ (erledigt, siehe plan/OFFEN.md §6)
 
 # Prompt für neue Session (copy-paste) — Vercel Blob als Empfänger nachtragen + cookies.html-Kleinfunde
 
@@ -1894,7 +1894,7 @@ echte Abwägung (Formulierung bei ungeklärter Blob-Region) gehört an den `lega
 
 ---
 
-## session-prompt-vollaudit-a11y-rest.md
+## ~~session-prompt-vollaudit-a11y-rest.md~~ (erledigt, siehe plan/OFFEN.md §6)
 
 # Prompt für neue Session (copy-paste) — Vollaudit-Rest: Accessibility (Modals, Labels, Touch-Targets, Kontrast)
 
@@ -2162,7 +2162,7 @@ werden — Sonnet reicht, wenn dieser Agent die rechtliche Einordnung übernimmt
 
 ---
 
-## session-prompt-zufluss-teilzahlung-steuermodule.md
+## ~~session-prompt-zufluss-teilzahlung-steuermodule.md~~ (committet e771cdb, siehe plan/OFFEN.md §6)
 
 # Prompt für neue Session (copy-paste) — Zufluss-Prinzip: Teilzahlungen fehlen in Steuermodulen
 
@@ -2906,7 +2906,7 @@ diese Woche, falls Kapazität knapp ist:
 
 ---
 
-## local-sync-backlog-2026-07-25.md
+## ~~local-sync-backlog-2026-07-25.md~~ (alle 21 Punkte fertig, nur D6-Rechtstext offen, siehe plan/OFFEN.md §2.2/§6)
 
 **⚡ Update 2026-07-27 (diese Session):** Verifiziert, dass frühere Parallel-Sessions bereits fast
 alles aus Section B über Nacht/am Vormittag erledigt hatten (`js/euer.js`, `js/ustvoranmeldung.js`,

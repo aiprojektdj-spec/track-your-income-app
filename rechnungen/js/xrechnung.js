@@ -27,24 +27,62 @@ var XRechnung = (function () {
         return map[einheit] || 'C62';
     }
 
+    function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+
+    // EU-Mitgliedstaaten (ohne DE) — für ig. Lieferung/Leistung vs. Ausfuhr (Drittland) nötig.
+    var EU_LAENDER = ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'GR', 'HU', 'IE', 'IT',
+        'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK', 'ES'];
+
+    // EN 16931 Steuerkategorie + Befreiungsgrund je Position ermitteln. Unterscheidet Ware
+    // (§6a UStG ig. Lieferung, steuerfrei) von Leistung (§13b UStG Reverse Charge) statt beide
+    // pauschal auf einen Wert zu kollabieren — die Rechtsfolgen unterscheiden sich (Steuerschuldner!).
+    function taxCategoryFor(rate, isKlein, pos, inv, kunde) {
+        if (isKlein) return { code: 'E', reasonCode: 'VATEX-EU-O', reason: 'Umsatzsteuerbefreiung nach §19 UStG (Kleinunternehmer)' };
+        if (rate > 0) return { code: 'S', reasonCode: null, reason: null };
+        var kundeLand = kunde && kunde.land;
+        var istEU = !!(kundeLand && kundeLand !== 'DE' && EU_LAENDER.indexOf(kundeLand) !== -1);
+        var hatUstId = !!(kunde && kunde.ustIdNr);
+        if (istEU && hatUstId) {
+            var art = pos.igArt || inv.igArt || 'ware';
+            if (art === 'leistung') {
+                return { code: 'AE', reasonCode: 'VATEX-EU-AE', reason: 'Steuerschuldnerschaft des Leistungsempfängers gemäß §13b UStG' };
+            }
+            return { code: 'K', reasonCode: 'VATEX-EU-IC', reason: 'Steuerfreie innergemeinschaftliche Lieferung gemäß §4 Nr. 1b i.V.m. §6a UStG' };
+        }
+        var istDrittland = !!(kundeLand && kundeLand !== 'DE' && !istEU);
+        if (istDrittland) return { code: 'G', reasonCode: 'VATEX-EU-G', reason: 'Steuerfreie Ausfuhrlieferung gemäß §4 Nr. 1a i.V.m. §6 UStG' };
+        return { code: 'E', reasonCode: null, reason: 'Steuerfreier Umsatz' };
+    }
+
     /**
      * Build line-item & tax totals from invoice positionen.
-     * Returns { lineItems, nettoGesamt, mwstMap, totalMwst, bruttoGesamt }
+     * Returns { lineItems, nettoGesamt, mwstMap, totalMwst, bruttoGesamt, catMap }
      */
-    function calcTotals(positionen, isKlein) {
+    function calcTotals(positionen, isKlein, inv, kunde) {
         var lineItems = [];
         var nettoGesamt = 0;
-        var mwstMap = {};
+        var mwstMap = {};   // rate -> gerundete USt-Summe (nur rate>0)
+        var catMap  = {};   // Kategorie-Code (K/AE/G/E) -> { basis, reasonCode, reason } (nur rate===0)
 
         (positionen || []).forEach(function (pos, idx) {
-            var menge   = parseFloat(pos.menge  || 1);
+            // Menge explizit auf undefined/null/'' prüfen statt `|| 1` — eine bewusste Menge 0
+            // (z.B. Korrekturzeile) darf nicht stillschweigend zu 1 werden (EN 16931 BR-Konsistenz).
+            var mengeRaw = (pos.menge !== undefined && pos.menge !== null && pos.menge !== '') ? parseFloat(pos.menge) : 1;
+            var menge   = isNaN(mengeRaw) ? 1 : mengeRaw;
             var preis   = parseFloat(pos.einzelpreis || 0);
-            var line    = menge * preis;
+            // BR-CO-10: Zeilenbeträge werden EINZELN gerundet, dann summiert — nicht die
+            // ungerundete Summe separat runden (sonst Differenz zwischen Kopf- und Zeilensumme).
+            var line    = round2(menge * preis);
             var rate    = isKlein ? 0 : (parseInt(pos.mwstSatz) || 0);
-            var lineMwst = line * rate / 100;
+            var lineMwst = round2(line * rate / 100);
             nettoGesamt += line;
+            var cat = taxCategoryFor(rate, isKlein, pos, inv || {}, kunde);
             if (rate > 0) {
-                mwstMap[rate] = (mwstMap[rate] || 0) + lineMwst;
+                mwstMap[rate] = round2((mwstMap[rate] || 0) + lineMwst);
+            } else {
+                var cm = catMap[cat.code] || { basis: 0, reasonCode: cat.reasonCode, reason: cat.reason };
+                cm.basis = round2(cm.basis + line);
+                catMap[cat.code] = cm;
             }
             lineItems.push({
                 pos:         idx + 1,
@@ -53,17 +91,22 @@ var XRechnung = (function () {
                 einheit:     pos.einheit || 'Stück',
                 einzelpreis: preis,
                 lineNetto:   line,
-                mwstRate:    rate
+                mwstRate:    rate,
+                catCode:     cat.code,
+                exemptionReason: cat.reason,
+                exemptionReasonCode: cat.reasonCode
             });
         });
 
-        var totalMwst = Object.keys(mwstMap).reduce(function (s, k) { return s + mwstMap[k]; }, 0);
+        var totalMwst = round2(Object.keys(mwstMap).reduce(function (s, k) { return s + mwstMap[k]; }, 0));
+        nettoGesamt = round2(nettoGesamt);
         return {
             lineItems:    lineItems,
             nettoGesamt:  nettoGesamt,
             mwstMap:      mwstMap,
+            catMap:       catMap,
             totalMwst:    totalMwst,
-            bruttoGesamt: nettoGesamt + totalMwst
+            bruttoGesamt: round2(nettoGesamt + totalMwst)
         };
     }
 
@@ -76,7 +119,7 @@ var XRechnung = (function () {
      */
     function generate(inv, settings, kunde) {
         var isKlein = inv.isKlein !== undefined ? inv.isKlein : (settings.ustMode === 'klein');
-        var t = calcTotals(inv.positionen, isKlein);
+        var t = calcTotals(inv.positionen, isKlein, inv, kunde);
 
         var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
         xml += '<rsm:CrossIndustryInvoice\n'
@@ -116,7 +159,6 @@ var XRechnung = (function () {
 
         // ── Line items ────────────────────────────────────────────────────
         t.lineItems.forEach(function (li) {
-            var catCode = (isKlein || li.mwstRate === 0) ? 'E' : 'S';
             xml += '    <ram:IncludedSupplyChainTradeLineItem>\n'
                  + '      <ram:AssociatedDocumentLineDocument>\n'
                  + '        <ram:LineID>' + li.pos + '</ram:LineID>\n'
@@ -135,11 +177,11 @@ var XRechnung = (function () {
                  + '      <ram:SpecifiedLineTradeSettlement>\n'
                  + '        <ram:ApplicableTradeTax>\n'
                  + '          <ram:TypeCode>VAT</ram:TypeCode>\n';
-            if (isKlein) {
-                xml += '          <ram:ExemptionReason>Umsatzsteuerbefreiung nach §19 UStG (Kleinunternehmer)</ram:ExemptionReason>\n'
-                     + '          <ram:ExemptionReasonCode>VATEX-EU-O</ram:ExemptionReasonCode>\n';
+            if (li.exemptionReason) {
+                xml += '          <ram:ExemptionReason>' + esc(li.exemptionReason) + '</ram:ExemptionReason>\n'
+                     + (li.exemptionReasonCode ? '          <ram:ExemptionReasonCode>' + li.exemptionReasonCode + '</ram:ExemptionReasonCode>\n' : '');
             }
-            xml += '          <ram:CategoryCode>' + catCode + '</ram:CategoryCode>\n'
+            xml += '          <ram:CategoryCode>' + li.catCode + '</ram:CategoryCode>\n'
                  + '          <ram:RateApplicablePercent>' + li.mwstRate.toFixed(2) + '</ram:RateApplicablePercent>\n'
                  + '        </ram:ApplicableTradeTax>\n'
                  + '        <ram:SpecifiedTradeSettlementLineMonetarySummation>\n'
@@ -203,9 +245,9 @@ var XRechnung = (function () {
                      + '          <ram:URIID schemeID="EM">' + esc(kunde.email) + '</ram:URIID>\n'
                      + '        </ram:URIUniversalCommunication>\n';
             }
-            if (kunde.ustId) {
+            if (kunde.ustIdNr) {
                 xml += '        <ram:SpecifiedTaxRegistration>\n'
-                     + '          <ram:ID schemeID="VA">' + esc(kunde.ustId) + '</ram:ID>\n'
+                     + '          <ram:ID schemeID="VA">' + esc(kunde.ustIdNr) + '</ram:ID>\n'
                      + '        </ram:SpecifiedTaxRegistration>\n';
             }
             xml += '      </ram:BuyerTradeParty>\n';
@@ -252,10 +294,8 @@ var XRechnung = (function () {
             xml += '      </ram:SpecifiedTradeSettlementPaymentMeans>\n';
         }
 
-        // Tax breakdown per rate
-        var hasTax = false;
+        // Tax breakdown per rate (Regelsatz-Positionen, Kategorie S)
         Object.keys(t.mwstMap).sort(function (a, b) { return a - b; }).forEach(function (rate) {
-            hasTax = true;
             var mwstAmt = t.mwstMap[rate];
             var taxBase = t.lineItems
                 .filter(function (li) { return li.mwstRate == rate; })
@@ -269,20 +309,24 @@ var XRechnung = (function () {
                  + '      </ram:ApplicableTradeTax>\n';
         });
 
-        // Exempt / Kleinunternehmer tax entry (always needed)
-        if (isKlein || !hasTax) {
+        // 0%-Kategorien getrennt nach tatsächlichem Steuertatbestand (Kleinunternehmer E, ig.
+        // Lieferung K, Reverse Charge AE, Ausfuhr G, sonstige Befreiung E) — NICHT mehr pauschal
+        // eine einzige "E"-Zeile für alles, was 0% ist (BR-E-10/BR-AE-10/BR-K-10/BR-G-10 verlangen
+        // je Kategorie einen eigenen ExemptionReason).
+        Object.keys(t.catMap).sort().forEach(function (code) {
+            var cm = t.catMap[code];
             xml += '      <ram:ApplicableTradeTax>\n'
                  + '        <ram:CalculatedAmount>0.00</ram:CalculatedAmount>\n'
                  + '        <ram:TypeCode>VAT</ram:TypeCode>\n';
-            if (isKlein) {
-                xml += '        <ram:ExemptionReason>Umsatzsteuerbefreiung nach §19 UStG (Kleinunternehmer)</ram:ExemptionReason>\n'
-                     + '        <ram:ExemptionReasonCode>VATEX-EU-O</ram:ExemptionReasonCode>\n';
+            if (cm.reason) {
+                xml += '        <ram:ExemptionReason>' + esc(cm.reason) + '</ram:ExemptionReason>\n'
+                     + (cm.reasonCode ? '        <ram:ExemptionReasonCode>' + cm.reasonCode + '</ram:ExemptionReasonCode>\n' : '');
             }
-            xml += '        <ram:BasisAmount>' + amt(t.nettoGesamt) + '</ram:BasisAmount>\n'
-                 + '        <ram:CategoryCode>E</ram:CategoryCode>\n'
+            xml += '        <ram:BasisAmount>' + amt(cm.basis) + '</ram:BasisAmount>\n'
+                 + '        <ram:CategoryCode>' + code + '</ram:CategoryCode>\n'
                  + '        <ram:RateApplicablePercent>0.00</ram:RateApplicablePercent>\n'
                  + '      </ram:ApplicableTradeTax>\n';
-        }
+        });
 
         // Billing period
         if (inv.lieferVon && inv.lieferBis) {
@@ -335,6 +379,25 @@ var XRechnung = (function () {
         return merged;
     }
 
+    // Pflichtfeld-Check vor dem Export (§14 Abs.4/§14a UStG) — der XML-Generator selbst würde
+    // fehlende Felder klaglos als leere Tags ausgeben statt zu warnen. Prüft nur, was für die
+    // Rechtsgültigkeit zwingend ist; ersetzt keine vollständige KoSIT-/Schematron-Validierung.
+    function validatePflichtfelder(inv, settings, kunde) {
+        var missing = [];
+        if (!inv.nummer) missing.push('Rechnungsnummer');
+        if (!inv.datum) missing.push('Rechnungsdatum');
+        if (!(settings.firmenname || settings.name)) missing.push('Ausstellername');
+        if (!settings.adresse) missing.push('Ausstelleradresse');
+        if (!settings.steuernummer && !settings.ustId) missing.push('Steuernummer oder USt-IdNr. des Ausstellers');
+        if (!kunde) missing.push('Empfänger (Kunde)');
+        else {
+            if (!(kunde.firma || kunde.ansprechpartner)) missing.push('Empfängername');
+            if (!kunde.strasse && !kunde.plz) missing.push('Empfängeradresse');
+        }
+        if (!(inv.positionen && inv.positionen.length)) missing.push('mindestens eine Rechnungsposition');
+        return missing;
+    }
+
     /** Download XRechnung XML for the given invoice */
     function download(inv) {
         if (!inv) { Utils.showToast('Keine Rechnung ausgewählt', 'warning'); return; }
@@ -342,12 +405,18 @@ var XRechnung = (function () {
         var customers = Store.getRechCustomers ? Store.getRechCustomers() : [];
         var kunde = customers.find(function (c) { return c.id === inv.kundeId; }) || null;
 
+        var missing = validatePflichtfelder(inv, settings, kunde);
+        if (missing.length) {
+            Utils.showToast('XRechnung unvollständig — es fehlen: ' + missing.join(', '), 'error', 8000);
+            return;
+        }
+
         var xml = generate(inv, settings, kunde);
         var safeNr = (inv.nummer || inv.id).replace(/[^a-zA-Z0-9_\-]/g, '_');
         var filename = 'XRechnung_' + safeNr + '.xml';
         Utils.downloadFile(xml, filename, 'application/xml; charset=utf-8');
-        Utils.showToast('XRechnung exportiert: ' + filename, 'success');
+        Utils.showToast('XRechnung exportiert: ' + filename + ' — Pflichtfelder geprüft, aber KEINE vollständige KoSIT-/Schematron-Validierung. Vor produktivem Versand mit dem offiziellen KoSIT-Validator prüfen.', 'success', 7000);
     }
 
-    return { generate: generate, download: download };
+    return { generate: generate, download: download, validatePflichtfelder: validatePflichtfelder };
 })();

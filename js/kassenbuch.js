@@ -4,12 +4,31 @@
 const Kassenbuch = {
     _filterYear: String(new Date().getFullYear()),
 
+    // Jahresanfangsbestand = Basis-Anfangsbestand (frühester, manuell gesetzter Wert) + Summe aller
+    // NICHT stornierten Buchungen vor dem 1.1. des betrachteten Jahres. Ersetzt einen manuellen
+    // Jahreswechsel-Schritt (leicht vergessbar/driftanfällig) durch eine aus den echten Buchungen
+    // abgeleitete, immer konsistente Fortschreibung — entspricht dem Vorjahresendbestand, sofern
+    // keine Buchungen fehlen.
+    _anfangsbestandFuerJahr(year, eintraege, basisAnfangsbestand) {
+        if (year === 'all') return basisAnfangsbestand;
+        const grenze = year + '-01-01';
+        return eintraege
+            .filter(e => !e.storniert && (e.datum || '') < grenze)
+            .reduce((sum, e) => {
+                const b = parseFloat(e.betrag) || 0;
+                if (e.typ === 'Einnahme' || e.typ === 'Privateinlage') return sum + b;
+                if (e.typ === 'Ausgabe' || e.typ === 'Privatentnahme') return sum - b;
+                return sum;
+            }, basisAnfangsbestand);
+    },
+
     render() {
         const eintraege = Store.getKassenbuch();
         const settings = Store.getSettings();
-        const anfangsbestand = parseFloat(settings.kassenbuchAnfangsbestand) || 0;
+        const basisAnfangsbestand = parseFloat(settings.kassenbuchAnfangsbestand) || 0;
 
         const year = this._filterYear;
+        const anfangsbestand = this._anfangsbestandFuerJahr(year, eintraege, basisAnfangsbestand);
         const filtered = year === 'all' ? [...eintraege] : eintraege.filter(e => (e.datum || '').startsWith(year));
         filtered.sort((a, b) => (a.datum || '').localeCompare(b.datum || ''));
 
@@ -84,9 +103,9 @@ const Kassenbuch = {
 
             <div class="stats-grid">
                 <div class="card stat-card info">
-                    <div class="card-label">Anfangsbestand</div>
+                    <div class="card-label">Anfangsbestand ${year === 'all' ? '' : year}</div>
                     <div class="card-value">${Utils.formatCurrency(anfangsbestand)}</div>
-                    <div class="card-subtitle" style="cursor:pointer;" id="editAnfangsbestand">✏️ Ändern</div>
+                    <div class="card-subtitle" style="cursor:pointer;" id="editAnfangsbestand" title="Ändert den Basis-Anfangsbestand (Startwert vor der ersten Buchung)">✏️ Basiswert ändern</div>
                 </div>
                 <div class="card stat-card success">
                     <div class="card-label">Einnahmen ${year === 'all' ? '' : year}</div>
@@ -221,7 +240,13 @@ const Kassenbuch = {
         if (editAnfang) {
             editAnfang.addEventListener('click', () => {
                 const s = Store.getSettings();
-                const val = prompt('Anfangsbestand (€):', (s.kassenbuchAnfangsbestand || 0).toString());
+                // Bearbeitet IMMER den Basis-Anfangsbestand (frühester Startwert) — der für spätere
+                // Jahre angezeigte Anfangsbestand wird daraus + den tatsächlichen Buchungen abgeleitet
+                // (s. _anfangsbestandFuerJahr) und ist hier NICHT direkt editierbar.
+                const hinweis = this._filterYear !== 'all' && this._filterYear !== (Array.from(new Set(Store.getKassenbuch().map(e => (e.datum||'').substring(0,4)).filter(Boolean))).sort()[0] || this._filterYear)
+                    ? '\n\n⚠️ Dies ändert den BASIS-Anfangsbestand (Startwert vor der ersten Buchung), nicht nur den für ' + this._filterYear + ' angezeigten Wert — der Jahreswert wird automatisch aus Basis + bisherigen Buchungen berechnet.'
+                    : '';
+                const val = prompt('Basis-Anfangsbestand (€) — Startwert vor der ersten Buchung:' + hinweis, (s.kassenbuchAnfangsbestand || 0).toString());
                 if (val === null) return;
                 const n = parseFloat(val.replace(',', '.'));
                 if (!Number.isFinite(n) || n < 0) {

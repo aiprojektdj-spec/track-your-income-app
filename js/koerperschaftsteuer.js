@@ -16,6 +16,12 @@ const Koerperschaftsteuer = {
     _saveData(d) { Store.set('kst_data', d); },
 
     // ── Gewinn berechnen (vereinfacht aus Buchungen) ──
+    // ⚠️ WICHTIG: Dies ist eine reine Cash-EÜR-Näherung (Einnahmen − Wareneinkauf − Ausgaben),
+    // KEINE bilanzielle Gewinnermittlung. GmbH/UG sind gem. §8 Abs. 1 KStG i.V.m. §5 Abs. 1 EStG
+    // bilanzierungspflichtig (Betriebsvermögensvergleich mit Rückstellungen, Abgrenzungen,
+    // Forderungen/Verbindlichkeiten zum Bilanzstichtag statt reiner Zahlungsströme). Eine
+    // vollständige Bilanzierung ist in Stackr nicht abgebildet — die Zahlen hier dienen nur der
+    // Orientierung. Siehe UI-Hinweis in render() und §141-AO-Hinweis-Vorlage in js/gbr-modul.js.
     _calcGewinn(year) {
         const y = String(year);
         const sales     = (Store.getSales ? Store.getSales() : Store.get('sales') || []).filter(s => (s.datum || '').startsWith(y));
@@ -105,9 +111,14 @@ const Koerperschaftsteuer = {
         const vz = yd.vorauszahlungen || [];
         const vzSum = vz.reduce((s, v) => s + (parseFloat(v.betrag) || 0), 0);
 
-        // Thesaurierungspflicht UG
+        // Jahresüberschuss NACH Steuern (KSt + SolZ + GewSt) — maßgeblich für die UG-Rücklage
+        const jahresueberschussNachSteuern = fin.gewinn - calc.steuerGesamt;
+
+        // Thesaurierungspflicht UG (§5a Abs. 3 GmbHG): 25% des JAHRESÜBERSCHUSSES NACH STEUERN,
+        // nicht des zu versteuernden Einkommens vor Steuern. Bei negativem Jahresüberschuss gibt
+        // es nichts zu thesaurieren.
         const isUG = rf === 'UG';
-        const thesaurierung = isUG ? calc.zvE * 0.25 : 0;
+        const thesaurierung = isUG ? Math.max(0, jahresueberschussNachSteuern) * 0.25 : 0;
 
         return `
         <div class="page-header">
@@ -116,6 +127,15 @@ const Koerperschaftsteuer = {
                 <select class="form-select" id="kstYear" style="width:90px;">${yearOpts}</select>
                 <button class="btn" data-action="kst-export">CSV Export</button>
             </div>
+        </div>
+
+        <!-- ⚠️ Pflichthinweis: Cash-EÜR-Näherung, keine bilanzielle Gewinnermittlung -->
+        <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;">
+            ⚠️ <strong>Vereinfachte Berechnung — keine bilanzielle Gewinnermittlung.</strong>
+            ${rf} ist gem. §8 Abs. 1 KStG i.V.m. §5 Abs. 1 EStG bilanzierungspflichtig. Die Zahlen auf dieser Seite basieren auf einer
+            reinen <strong>Cash-EÜR-Näherung</strong> (Einnahmen − Wareneinkauf − Ausgaben) und berücksichtigen <strong>keine</strong> Rückstellungen,
+            Abgrenzungen, Forderungen/Verbindlichkeiten oder sonstigen bilanziellen Anpassungen zum Stichtag. Der tatsächliche steuerliche Gewinn
+            kann erheblich abweichen. Für die verbindliche Bilanz/GuV bitte Steuerberater hinzuziehen.
         </div>
 
         <!-- KPI Cards -->
@@ -171,7 +191,7 @@ const Koerperschaftsteuer = {
                             <td style="text-align:right;font-size:1.1rem;color:var(--danger);font-weight:800;">${Utils.formatCurrency(calc.steuerGesamt)}</td>
                         </tr>
                         <tr><td><strong>Gewinn nach Steuern</strong></td><td></td>
-                            <td style="text-align:right;font-size:1.1rem;color:var(--success);font-weight:800;">${Utils.formatCurrency(fin.gewinn - calc.steuerGesamt)}</td>
+                            <td style="text-align:right;font-size:1.1rem;color:var(--success);font-weight:800;">${Utils.formatCurrency(jahresueberschussNachSteuern)}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -183,10 +203,11 @@ const Koerperschaftsteuer = {
         <div class="card" style="margin-bottom:16px;padding:16px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.3);">
             <div style="font-weight:700;font-size:14px;color:var(--warning);margin-bottom:6px;">⚠️ UG-Thesaurierungspflicht (§5a GmbHG)</div>
             <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;">
-                <strong>25% des Jahresüberschusses</strong> müssen als Rücklage einbehalten werden,
+                <strong>25% des Jahresüberschusses nach Steuern</strong> müssen als Rücklage einbehalten werden,
                 bis Stammkapital von <strong>25.000 €</strong> erreicht ist.<br>
-                Pflicht-Rücklage ${year}: <strong>${Utils.formatCurrency(thesaurierung)}</strong><br>
-                Maximal ausschüttbar: <strong>${Utils.formatCurrency(Math.max(0, fin.gewinn - calc.steuerGesamt - thesaurierung))}</strong>
+                Jahresüberschuss nach Steuern ${year}: <strong>${Utils.formatCurrency(jahresueberschussNachSteuern)}</strong><br>
+                Pflicht-Rücklage ${year} (25% davon): <strong>${Utils.formatCurrency(thesaurierung)}</strong><br>
+                Maximal ausschüttbar: <strong>${Utils.formatCurrency(Math.max(0, jahresueberschussNachSteuern - thesaurierung))}</strong>
             </div>
         </div>` : ''}
 

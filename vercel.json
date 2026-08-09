@@ -2,6 +2,10 @@
   "rewrites": [
     { "source": "/app", "destination": "/app.html" }
   ],
+  "redirects": [
+    { "source": "/stackr-broschuere.html", "destination": "/", "permanent": false },
+    { "source": "/stackr-onepager.html", "destination": "/", "permanent": false }
+  ],
   "crons": [
     { "path": "/api/blob-cleanup", "schedule": "0 4 * * *" }
   ],

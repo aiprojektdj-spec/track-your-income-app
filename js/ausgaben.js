@@ -21,6 +21,38 @@ const Ausgaben = {
             .reduce((s, e) => s + (parseFloat(e.betrag) || 0), 0);
     },
 
+    // USt-Satz einer Ausgabe: 19 | 7 | 0 | 'rc' (Reverse Charge) | 'unklar' (nicht klassifiziert).
+    // Altbestand vor diesem Feld (2026-07-30) hat gar kein ustSatz-Feld gespeichert — MUSS als
+    // 'unklar' gelesen werden, NIE automatisch als 19% (sonst droht ein unbelegter Vorsteuerabzug,
+    // s. js/vorsteuer.js). Diese Normalisierung ist die einzige Quelle der Wahrheit dafür.
+    _normUstSatz(v) {
+        if (v === undefined || v === null || v === '') return 'unklar';
+        if (v === 'rc' || v === 'unklar') return v;
+        const n = parseFloat(v);
+        return isNaN(n) ? 'unklar' : n;
+    },
+
+    _ustSatzOptions(selected) {
+        const sel = this._normUstSatz(selected);
+        const opts = [
+            ['unklar', 'Unklar / nicht klassifiziert'],
+            [19, '19% (Regelsteuersatz)'],
+            [7, '7% (ermäßigt)'],
+            [0, '0% (steuerfrei / nicht steuerbar)'],
+            ['rc', 'Reverse Charge (§13b UStG)']
+        ];
+        return opts.map(([v, label]) =>
+            `<option value="${v}" ${sel === v ? 'selected' : ''}>${label}</option>`
+        ).join('');
+    },
+
+    _ustSatzBadge(v) {
+        const norm = this._normUstSatz(v);
+        if (norm === 'unklar') return `<span class="badge badge-warning" title="USt-Satz nicht klassifiziert — kein automatischer Vorsteuerabzug, bitte nachpflegen">USt: unklar</span>`;
+        if (norm === 'rc') return `<span class="badge badge-neutral" title="Reverse Charge §13b UStG">RC</span>`;
+        return `<span class="badge badge-neutral" title="USt-Satz">${norm}%</span>`;
+    },
+
     render() {
         const activeExpenses = Store.getExpenses();      // nur aktive (für Totals/Breakdown)
         const expenses = Store.getExpenses(true);        // inkl. stornierte (für Tabellenansicht)
@@ -87,7 +119,7 @@ const Ausgaben = {
             rows = filtered.map(e => `
                 <tr${e.storniert ? ' class="row-storniert"' : ''}>
                     <td>${Utils.formatDate(e.datum)}</td>
-                    <td><span class="badge badge-info">${Utils.escapeHtml(e.kategorie || '')}</span> <span class="badge badge-neutral" title="SKR03-Konto (DATEV)" style="font-family:monospace;">${typeof DatevExport !== 'undefined' ? DatevExport.kontoForKategorie(e.kategorie, 'SKR03') : ''}</span></td>
+                    <td><span class="badge badge-info">${Utils.escapeHtml(e.kategorie || '')}</span> <span class="badge badge-neutral" title="SKR03-Konto (DATEV)" style="font-family:monospace;">${typeof DatevExport !== 'undefined' ? DatevExport.kontoForKategorie(e.kategorie, 'SKR03') : ''}</span> ${this._ustSatzBadge(e.ustSatz)}</td>
                     <td>${Utils.escapeHtml(e.beschreibung || '')}</td>
                     <td style="text-align:right">${Utils.formatCurrency(e.betrag)}</td>
                     <td>${Utils.escapeHtml(e.belegNr || '')}</td>
@@ -143,6 +175,15 @@ const Ausgaben = {
                         <div class="form-group">
                             <label class="form-label">Betrag</label>
                             <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="exp_betrag" placeholder="0,00">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">USt-Satz *</label>
+                            <select class="form-select" id="exp_ustSatz">${this._ustSatzOptions('unklar')}</select>
+                            <div class="form-hint" style="font-size:12px;color:var(--text-muted);">
+                                Bestimmt den Vorsteuerabzug (Vorsteuer-Übersicht). „Unklar" = kein automatischer Abzug, bis nachgepflegt — wird NIE automatisch als 19% behandelt.
+                            </div>
                         </div>
                     </div>
                     <div id="exp_ksaHint" style="display:none;margin-bottom:12px;padding:10px 12px;border-radius:var(--radius-sm);font-size:12px;line-height:1.6;"></div>
@@ -309,6 +350,7 @@ const Ausgaben = {
                 kategorie: document.getElementById('exp_kategorie').value,
                 beschreibung: document.getElementById('exp_beschreibung').value.trim(),
                 betrag,
+                ustSatz: this._normUstSatz(document.getElementById('exp_ustSatz')?.value),
                 belegNr: document.getElementById('exp_belegNr').value.trim(),
                 lieferant: document.getElementById('exp_lieferant').value.trim(),
                 lieferantSteuerId: document.getElementById('exp_lieferantSteuerId').value.trim(),
@@ -391,6 +433,13 @@ const Ausgaben = {
                     </div>
                     <div class="form-row">
                         <div class="form-group">
+                            <label class="form-label">USt-Satz *</label>
+                            <select class="form-select" id="ee_ustSatz">${this._ustSatzOptions(exp.ustSatz)}</select>
+                            <div class="form-hint" style="font-size:12px;color:var(--text-muted);">„Unklar" = kein automatischer Vorsteuerabzug, bis nachgepflegt.</div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
                             <label class="form-label">Lieferant / Aussteller</label>
                             <input type="text" class="form-input" id="ee_lieferant" maxlength="200" value="${Utils.escapeHtml(exp.lieferant || '')}">
                         </div>
@@ -433,6 +482,7 @@ const Ausgaben = {
                         kategorie: document.getElementById('ee_kategorie').value,
                         beschreibung: document.getElementById('ee_beschreibung').value.trim(),
                         betrag: eeBetragVal,
+                        ustSatz: this._normUstSatz(document.getElementById('ee_ustSatz')?.value),
                         belegNr: document.getElementById('ee_belegNr').value.trim(),
                         lieferant: document.getElementById('ee_lieferant').value.trim(),
                         lieferantSteuerId: document.getElementById('ee_lieferantSteuerId').value.trim(),
@@ -473,8 +523,8 @@ const Ausgaben = {
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
                 const expenses = Store.getExpenses();
-                const rows = [['Datum', 'Kategorie', 'Beschreibung', 'Betrag', 'Beleg-Nr.']];
-                expenses.forEach(e => rows.push([e.datum, e.kategorie, e.beschreibung, e.betrag, e.belegNr || '']));
+                const rows = [['Datum', 'Kategorie', 'Beschreibung', 'Betrag', 'USt-Satz', 'Beleg-Nr.']];
+                expenses.forEach(e => rows.push([e.datum, e.kategorie, e.beschreibung, e.betrag, this._normUstSatz(e.ustSatz), e.belegNr || '']));
                 Utils.downloadCSV(rows, 'ausgaben_export.csv');
                 Utils.showToast('CSV exportiert', 'success');
             });

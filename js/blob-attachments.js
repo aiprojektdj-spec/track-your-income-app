@@ -77,17 +77,24 @@ var BlobAttachments = (function () {
         return new Uint8Array(await r.arrayBuffer());
     }
 
-    // ── Löschen (Ersetzen/Art. 17 DSGVO) — best-effort, wirft nicht ───────────
-    async function deleteUrls(urls) {
+    // ── Löschen (Ersetzen/Art. 17 DSGVO) — best-effort, wirft nicht, meldet aber ──
+    // scope ist Pflicht: der Server prüft serverseitig, dass jede URL zum
+    // Namespace (userId+scope) des aufrufenden Nutzers gehört (Ownership-Check).
+    // Rückgabe: true nur bei bestätigtem Erfolg (HTTP 2xx) — der Aufrufer (cloud-sync.js
+    // deleteRemote) nutzt das, um eine fehlgeschlagene Löschung in eine Retry-Queue
+    // einzureihen, statt Erfolg zu melden, obwohl der Blob noch existiert (Art. 17 DSGVO).
+    async function deleteUrls(scope, urls) {
         var list = (urls || []).filter(Boolean);
-        if (!list.length) return;
+        if (!list.length) return true;
         try {
-            await fetch(API + '?action=delete', {
+            var r = await fetch(API + '?action=delete&scope=' + encodeURIComponent(scope), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _token() },
                 body: JSON.stringify({ urls: list })
             });
-        } catch (e) { console.warn('[BlobAttachments] delete failed:', e && e.message); }
+            if (!r.ok) { console.warn('[BlobAttachments] delete failed: HTTP ' + r.status); return false; }
+            return true;
+        } catch (e) { console.warn('[BlobAttachments] delete failed:', e && e.message); return false; }
     }
 
     // ── Base64-Data-URL ↔ rohe Bytes ───────────────────────────────────────────

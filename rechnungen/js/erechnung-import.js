@@ -280,7 +280,10 @@ var ERechnungImport = (function () {
         } else if (!r.valid) {
             statusBadge = badge('E-Rechnung erkannt — mit Mängeln', '#f59e0b'); borderCol = '#f59e0b';
         } else {
-            statusBadge = badge('Gültige E-Rechnung (EN 16931)', '#10b981'); borderCol = '#10b981';
+            // Nur die Pflichtfelder BT-1/BT-2/BT-27 + ZUGFeRD-Profil wurden geprüft — das ist eine
+            // Plausibilitätsprüfung, KEINE vollständige Schematron-/KoSIT-Validierung (BR-*-Regeln
+            // wie Summenkonsistenz, Steuersatz-Kategorien etc. werden hier nicht geprüft).
+            statusBadge = badge('Pflichtfelder vorhanden (keine KoSIT-Validierung)', '#10b981'); borderCol = '#10b981';
         }
 
         var html = '<div class="card" style="border:1px solid ' + borderCol + '55;padding:0;overflow:hidden;">';

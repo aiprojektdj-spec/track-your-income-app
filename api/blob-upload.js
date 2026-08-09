@@ -93,9 +93,24 @@ var MAX_CHUNK       = 4 * 1024 * 1024;    // pro Request, Sicherheitsmarge unter
 var MAX_TOTAL_BYTES  = 200 * 1024 * 1024; // Deckel je Anhang/Ledger-Blob (großzügig, aber nicht unbegrenzt — s. Chat)
 var RATE_MAX         = 120;               // Requests/Minute/Nutzer — Chunk-Uploads brauchen mehr als sync.js' 40
 var SCOPE_RE         = /^(__account|co_[a-z0-9_]+)$/;
+// Realistischer Deckel statt willkürlicher 4000: mehr Chunks als für MAX_TOTAL_BYTES nötig
+// sind nur für einen DoS-Versuch (viele sequentielle Fetches) gut, nicht für legitime Uploads.
+var MAX_CHUNKS_PER_COMMIT = Math.ceil(MAX_TOTAL_BYTES / MAX_CHUNK) + 8; // 200MB/4MB=50 → 58
+var BLOB_HOST_RE     = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i;
 
 function pathFor(userId, scope, kind, name) {
     return 'stackr/' + kind + '/' + userId + '/' + scope + '/' + name;
+}
+function escapeRegex(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+// Eigentumsprüfung: eine Blob-URL darf nur committed/gelöscht werden, wenn ihr Pfad
+// exakt zum Namespace (Host + stackr/<kind>/<userId>/<scope>/) des aufrufenden,
+// authentifizierten Nutzers gehört — nie allein aus der Client-URL selbst ableiten.
+function isOwnedBlobUrl(u, userId, scope) {
+    if (typeof u !== 'string' || !BLOB_HOST_RE.test(u)) return false;
+    var pathname;
+    try { pathname = new URL(u).pathname; } catch (e) { return false; }
+    var prefixRe = new RegExp('^/stackr/(?:attachments|tmp)/' + escapeRegex(userId) + '/' + escapeRegex(scope) + '/');
+    return prefixRe.test(pathname);
 }
 
 module.exports = async function handler(req, res) {
@@ -178,41 +193,64 @@ module.exports = async function handler(req, res) {
             if (!SCOPE_RE.test(scope)) return res.status(400).json({ error: 'bad_scope' });
             var b = req.body || {};
             var chunkUrls = Array.isArray(b.chunkUrls) ? b.chunkUrls : [];
-            if (!chunkUrls.length || chunkUrls.length > 4000) return res.status(400).json({ error: 'bad_chunks' }); // Deckel ~ MAX_TOTAL_BYTES/MAX_CHUNK
+            if (!chunkUrls.length || chunkUrls.length > MAX_CHUNKS_PER_COMMIT) return res.status(400).json({ error: 'bad_chunks' });
             var finalName = String(b.name || 'f').replace(/[^a-zA-Z0-9_.-]/g, '');
             if (!finalName) return res.status(400).json({ error: 'bad_name' });
 
-            // ponytail: Host auf Vercel-Blob-Storage eingeschraenkt (nicht nur https://) —
-            // sonst SSRF, da chunkUrls vom Client kommen und der Server sie blind fetcht.
-            var BLOB_HOST_RE = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i;
-            var parts = [], total = 0;
-            for (var i = 0; i < chunkUrls.length; i++) {
-                var u = String(chunkUrls[i] || '');
-                if (!BLOB_HOST_RE.test(u)) return res.status(400).json({ error: 'bad_chunk_url' });
-                var r = await fetch(u, { signal: AbortSignal.timeout(15000) });
-                if (!r.ok) return res.status(502).json({ error: 'chunk_fetch_failed', index: i });
-                var buf = Buffer.from(await r.arrayBuffer());
-                total += buf.length;
-                if (total > MAX_TOTAL_BYTES) return res.status(413).json({ error: 'too_large', maxTotal: MAX_TOTAL_BYTES });
-                parts.push(buf);
+            // Eigentumsprüfung: jede Chunk-URL muss ein temporäres Chunk-Objekt
+            // DIESES Nutzers/Scopes sein — nie fremde/erratene Blob-URLs blind fetchen.
+            for (var i0 = 0; i0 < chunkUrls.length; i0++) {
+                if (!isOwnedBlobUrl(chunkUrls[i0], userId, scope)) return res.status(403).json({ error: 'not_owner', index: i0 });
             }
-            var assembled = Buffer.concat(parts, total);
-            var finalBlob = await put(pathFor(userId, scope, 'attachments', finalName), assembled, {
-                access: 'public', addRandomSuffix: true, contentType: 'application/octet-stream',
-                token: process.env.BLOB_READ_WRITE_TOKEN
-            });
-            // Best-effort: temporäre Teile aufräumen (Fehler hier sind nicht kritisch — Cron räumt Reste)
-            try { await del(chunkUrls, { token: process.env.BLOB_READ_WRITE_TOKEN }); } catch (e) { console.warn('[blob-upload] chunk cleanup failed:', e && e.message); }
-            return res.status(200).json({ ok: true, url: finalBlob.url, size: total });
+
+            // Concurrency-Deckel pro Nutzer: verhindert, dass ein einzelner Account viele
+            // parallele 200-MB-Commits anstößt (Ressourcen-/Kosten-DoS trotz Rate-Limit).
+            var lockKey = 'blob:commitlock:' + userId, lockHeld = false;
+            if (REDIS_URL && REDIS_TOKEN) {
+                try {
+                    var lockRes = await redisCmd(['SET', lockKey, '1', 'NX', 'EX', '30']);
+                    if (!lockRes) return res.status(429).json({ error: 'commit_busy' });
+                    lockHeld = true;
+                } catch (e) { console.warn('[blob-upload] lock error:', e && e.message); }
+            }
+
+            try {
+                var parts = [], total = 0;
+                for (var i = 0; i < chunkUrls.length; i++) {
+                    var u = String(chunkUrls[i] || '');
+                    var r = await fetch(u, { signal: AbortSignal.timeout(15000) });
+                    if (!r.ok) return res.status(502).json({ error: 'chunk_fetch_failed', index: i });
+                    var buf = Buffer.from(await r.arrayBuffer());
+                    total += buf.length;
+                    if (total > MAX_TOTAL_BYTES) return res.status(413).json({ error: 'too_large', maxTotal: MAX_TOTAL_BYTES });
+                    parts.push(buf);
+                }
+                var assembled = Buffer.concat(parts, total);
+                var finalBlob = await put(pathFor(userId, scope, 'attachments', finalName), assembled, {
+                    access: 'public', addRandomSuffix: true, contentType: 'application/octet-stream',
+                    token: process.env.BLOB_READ_WRITE_TOKEN
+                });
+                // Best-effort: temporäre Teile aufräumen (Fehler hier sind nicht kritisch — Cron räumt Reste)
+                try { await del(chunkUrls, { token: process.env.BLOB_READ_WRITE_TOKEN }); } catch (e) { console.warn('[blob-upload] chunk cleanup failed:', e && e.message); }
+                return res.status(200).json({ ok: true, url: finalBlob.url, size: total });
+            } finally {
+                if (lockHeld) { try { await redisCmd(['DEL', lockKey]); } catch (e) { /* TTL räumt ohnehin nach 30s auf */ } }
+            }
         }
 
         if (action === 'delete') {
+            if (!SCOPE_RE.test(scope)) return res.status(400).json({ error: 'bad_scope' });
             var bd = req.body || {};
-            var urls = Array.isArray(bd.urls) ? bd.urls.filter(function (u) { return typeof u === 'string' && u.indexOf('https://') === 0; }) : [];
-            if (!urls.length) return res.status(200).json({ ok: true, deleted: 0 });
-            if (urls.length > 500) return res.status(400).json({ error: 'too_many' });
-            await del(urls, { token: process.env.BLOB_READ_WRITE_TOKEN });
-            return res.status(200).json({ ok: true, deleted: urls.length });
+            var rawUrls = Array.isArray(bd.urls) ? bd.urls : [];
+            if (!rawUrls.length) return res.status(200).json({ ok: true, deleted: 0 });
+            if (rawUrls.length > 500) return res.status(400).json({ error: 'too_many' });
+            // Löschberechtigung folgt NIE allein aus der Client-URL: jede URL muss zum
+            // Namespace des authentifizierten Nutzers/Scopes gehören.
+            for (var j = 0; j < rawUrls.length; j++) {
+                if (!isOwnedBlobUrl(rawUrls[j], userId, scope)) return res.status(403).json({ error: 'not_owner', index: j });
+            }
+            await del(rawUrls, { token: process.env.BLOB_READ_WRITE_TOKEN });
+            return res.status(200).json({ ok: true, deleted: rawUrls.length });
         }
 
         return res.status(400).json({ error: 'bad_action' });

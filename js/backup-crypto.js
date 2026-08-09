@@ -61,13 +61,16 @@ var BackupCrypto = (function () {
         var r = k.replace(/^co_[a-z0-9_]+__/, '');
         return r.indexOf('reselling_') === 0 || r.indexOf('rechnungsbuch_') === 0 || r === 'audit_log' || r.indexOf('eigenbelege_') === 0;
     }
-    // gibt ein Promise zurück (IDB-Schreibvorgang) — Aufrufer kann auf Flush warten
+    // gibt ein Promise zurück (IDB-Schreibvorgang) — Aufrufer kann auf Flush warten. Fehler werden
+    // NICHT mehr verschluckt (Fix 2026-07-30): ein fehlgeschlagener IDB-Write muss dem Aufrufer
+    // (_restore) sichtbar bleiben, sonst kann "✅ Daten importiert" gemeldet werden, obwohl der
+    // Schreibvorgang (z.B. QuotaExceededError) tatsächlich fehlschlug.
     function _write(fullKey, value) {
         var str = JSON.stringify(value);
         if (_isCacheKey(fullKey)) {
             Store._cache[fullKey] = str;
-            if (typeof Store._idbPutAsync === 'function') return Store._idbPutAsync(fullKey, str).catch(function () {});
-            if (typeof Store._idbPut === 'function') Store._idbPut(fullKey, str);
+            if (typeof Store._idbPutAsync === 'function') return Store._idbPutAsync(fullKey, str);
+            if (typeof Store._idbPut === 'function') { Store._idbPut(fullKey, str); return Promise.resolve(); }
             return Promise.resolve();
         }
         try { localStorage.setItem(fullKey, str); return Promise.resolve(); }
@@ -172,12 +175,17 @@ var BackupCrypto = (function () {
     }
 
     // ── Export ────────────────────────────────────────────────────────────────
+    // AAD bindet das Chiffrat an Format+Version — verhindert, dass eine umbenannte/
+    // manipulierte Datei anderen Ursprungs stillschweigend als gültiges Backup akzeptiert
+    // wird. Alte, vor diesem Fix erzeugte Dateien haben keine AAD — s. Fallback in _decryptFile.
+    var BACKUP_AAD = new TextEncoder().encode('stackr-backup|v1');
+
     async function _export(pass) {
         var salt = crypto.getRandomValues(new Uint8Array(16));
         var iv   = crypto.getRandomValues(new Uint8Array(12));
         var key  = await _deriveKey(pass, salt);
         var pt   = new TextEncoder().encode(JSON.stringify(_buildBundle()));
-        var ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, pt);
+        var ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: BACKUP_AAD }, key, pt);
         return {
             format: 'stackr-backup', version: 1, app: 'stackr', createdAt: new Date().toISOString(),
             kdf:    { algo: 'PBKDF2', hash: 'SHA-256', iterations: ITER, salt: _b64(salt) },
@@ -190,23 +198,37 @@ var BackupCrypto = (function () {
         if (!file || file.format !== 'stackr-backup') throw new Error('Keine gültige Stackr-Backup-Datei.');
         var k = file.kdf || {}, c = file.cipher || {};
         var key = await _deriveKey(pass, _unb64(k.salt));
+        var ctBytes = _unb64(c.ciphertext), ivBytes = _unb64(c.iv);
         var pt;
-        try { pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: _unb64(c.iv) }, key, _unb64(c.ciphertext)); }
-        catch (e) { throw new Error('Falsche Passphrase oder beschädigte Datei.'); }
+        try { pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes, additionalData: BACKUP_AAD }, key, ctBytes); }
+        catch (e) {
+            try { pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes }, key, ctBytes); } // Alt-Backups ohne AAD
+            catch (e2) { throw new Error('Falsche Passphrase oder beschädigte Datei.'); }
+        }
         return JSON.parse(new TextDecoder().decode(pt));
     }
 
     // ── Restore: Bundle mergen + persistieren ─────────────────────────────────
+    // Wirft bei mindestens einem fehlgeschlagenen Schreibvorgang (statt stillschweigend
+    // Teilerfolg als vollen Erfolg zu meldeng) — der Aufrufer (doImport) zeigt die betroffenen
+    // Keys dann explizit an, statt pauschal "✅ Daten importiert".
     async function _restore(bundle) {
-        var writes = [];
+        var keys = [], writes = [];
         Object.keys(bundle).forEach(function (scope) {
             var remoteKeys = bundle[scope] || {};
             Object.keys(remoteKeys).forEach(function (fullKey) {
                 var merged = _mergeKey(fullKey, _read(fullKey), remoteKeys[fullKey]);
+                keys.push(fullKey);
                 writes.push(_write(fullKey, merged));
             });
         });
-        await Promise.all(writes);
+        var results = await Promise.allSettled(writes);
+        var failed = results.map(function (r, i) { return r.status === 'rejected' ? keys[i] : null; }).filter(Boolean);
+        if (failed.length) {
+            throw new Error('Import unvollständig — ' + failed.length + ' von ' + keys.length +
+                ' Datensatz-Gruppen konnten nicht gespeichert werden (evtl. Speicherplatz voll). Betroffen: ' +
+                failed.slice(0, 5).join(', ') + (failed.length > 5 ? ', …' : ''));
+        }
         // Frisches Gerät ohne aktive Firma → erste vorhandene Firma aktivieren
         try {
             var ids = _companyIds();

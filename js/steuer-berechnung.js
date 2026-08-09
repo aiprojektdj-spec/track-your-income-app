@@ -108,9 +108,12 @@ const SteuerBerechnung = {
     // Betrag wird als neuerVortrag zurückgegeben (Aufrufer kappt ihn beim Jahreswechsel auf 0 — reiner
     // Rechenkern kennt kein Kalenderjahr). satz gilt einheitlich für die gesamte Bemessungsgrundlage
     // (Vereinfachung v1: keine gemischten Steuersätze innerhalb einer Gesamtdifferenz-Periode).
+    // pos.margeKorrektur: nachträgliche Korrektur ohne eigenes vk/ek-Paar (Retoure/Gutschrift auf eine
+    // Position aus einer früheren Periode, §17 UStG) — bei Gesamtdifferenz unproblematisch direkt in
+    // die Summe einrechenbar, da hier (anders als Einzeldifferenz) kein Floor pro Position existiert.
     margeGesamtdifferenz(positionen, vortragAusVorperiode, satz) {
         const summe = (positionen || []).reduce((s, pos) =>
-            s + (parseFloat(pos.verkaufspreis) || 0) - (parseFloat(pos.einkaufspreis) || 0), 0
+            s + (parseFloat(pos.verkaufspreis) || 0) - (parseFloat(pos.einkaufspreis) || 0) + (parseFloat(pos.margeKorrektur) || 0), 0
         ) + (parseFloat(vortragAusVorperiode) || 0);
         const bemessungsgrundlage = Math.max(0, summe);
         const neuerVortrag = Math.min(0, summe);

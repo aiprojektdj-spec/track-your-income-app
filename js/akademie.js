@@ -225,8 +225,8 @@ const Akademie = {
 
                         <h4>Voraussetzungen (Stand 2026)</h4>
                         <ul>
-                            <li>Vorjahresumsatz unter <strong>22.000 €</strong></li>
-                            <li>Erwarteter Umsatz im laufenden Jahr unter <strong>50.000 €</strong></li>
+                            <li>Vorjahresumsatz unter <strong>25.000 €</strong></li>
+                            <li>Erwarteter Umsatz im laufenden Jahr unter <strong>100.000 €</strong></li>
                         </ul>
 
                         <h4>Vorteile</h4>
@@ -284,7 +284,7 @@ const Akademie = {
                         <p>Auch Ware die <em>noch im Lager liegt</em> ist Wareneinkauf in dem Jahr in dem du sie gekauft hast! Das senkt deinen Gewinn — aber bedeutet auch: Beim Verkauf später hast du den Einkaufspreis schon abgeschrieben.</p>
                         <p>Im EÜR-Modus dieser App wird das automatisch korrekt behandelt: Einkauf wirkt sofort als Ausgabe, Verkauf wirkt als Einnahme.</p>
 
-                        <div class="akademie-tip">⚠️ <strong>GoBD-Pflicht:</strong> Du musst <strong>jeden</strong> Einkauf und Verkauf belegen können. Plattform-Auszüge, Banktransaktionen, Quittungen, Eigenbelege bei Privatkäufen — alles 10 Jahre aufheben.</div>
+                        <div class="akademie-tip">⚠️ <strong>GoBD-Pflicht:</strong> Du musst <strong>jeden</strong> Einkauf und Verkauf belegen können. Plattform-Auszüge, Banktransaktionen, Quittungen, Eigenbelege bei Privatkäufen sind Buchungsbelege — nach § 147 AO 8 Jahre aufheben.</div>
 
                         <p style="margin-top:14px;">→ <strong>Probier's aus:</strong> Öffne den EÜR-Tab und schau dir an wie sich deine bisherigen Einkäufe + Verkäufe automatisch zur EÜR aggregieren.</p>
                     `
@@ -680,7 +680,7 @@ const Akademie = {
                         <p>Eine der wichtigsten strategischen Steuer-Entscheidungen.</p>
 
                         <h4>Zwingender Wechsel</h4>
-                        <p>Wenn dein Vorjahres-Umsatz <strong>22.000 €</strong> überschritten hat ODER der laufende Umsatz <strong>50.000 €</strong> übersteigt, <em>musst</em> du wechseln.</p>
+                        <p>Wenn dein Vorjahres-Umsatz <strong>25.000 €</strong> überschritten hat ODER der laufende Umsatz <strong>100.000 €</strong> übersteigt, <em>musst</em> du wechseln.</p>
 
                         <h4>Freiwilliger Wechsel — wann lohnt's?</h4>
                         <p>Rechne durch: <strong>Vorsteuer-Volumen vs. USt-Last</strong>.</p>
@@ -801,7 +801,7 @@ const Akademie = {
                             <li>Bei Bar-Einkäufen: Kassenbuch lückenlos</li>
                         </ol>
 
-                        <div class="akademie-tip">⚠️ <strong>Aufbewahrungsfrist:</strong> 10 Jahre für alles Steuerliche! Lege jährlich ein Backup-Archiv weg (verschlüsselt + offline kopiert auf USB-Stick = robust).</div>
+                        <div class="akademie-tip">⚠️ <strong>Aufbewahrungsfrist (§ 147 AO):</strong> Rechnungen und Buchungsbelege 8 Jahre, Bücher/Aufzeichnungen/Jahresabschlüsse 10 Jahre. Lege jährlich ein Backup-Archiv weg (verschlüsselt + offline kopiert auf USB-Stick = robust).</div>
                     `
                 }
             ]
@@ -1777,7 +1777,7 @@ const Akademie = {
         { id: 'sammler_500',     icon: '🏬', title: 'Lager-Profi (500)',       desc: 'Beachtlich! 500 Artikel im aktiven Lagerbestand.',       tier: 'gold',   check: d => d.activeStock >= 500 },
         { id: 'umsatz_1k',       icon: '💵', title: '1.000 € Umsatz',          desc: 'Der erste Vier-Stellige-Umsatz ist da.',                  tier: 'silver', check: d => d.totalRevenue >= 1000 },
         { id: 'umsatz_5k',       icon: '💸', title: '5.000 € Umsatz',          desc: 'Du machst ernst. 5.000 € Umsatz erreicht.',              tier: 'gold',   check: d => d.totalRevenue >= 5000 },
-        { id: 'umsatz_22k',      icon: '👑', title: 'Kleinunternehmer-Limit',  desc: 'Achtung: Du kratzt an der 25.000-€-Grenze (§19 UStG).', tier: 'gold',   check: d => d.totalRevenue >= 22000 },
+        { id: 'umsatz_25k',      icon: '👑', title: 'Kleinunternehmer-Limit',  desc: 'Achtung: Du kratzt an der 25.000-€-Grenze (§19 UStG).', tier: 'gold',   check: d => d.totalRevenue >= 25000 },
         { id: 'invoice_first',   icon: '🧾', title: 'Erste Rechnung',          desc: 'Du hast eine Rechnung im Rechnungsbuch erstellt.',       tier: 'bronze', check: d => d.invoices >= 1 },
         { id: 'eur_export',      icon: '📋', title: 'Steuer-Bewusst',          desc: 'Du hast deine erste EÜR exportiert / gedruckt.',         tier: 'silver', check: d => d.flags.eurExported },
         { id: 'backup_hero',     icon: '💾', title: 'Backup-Held',             desc: 'Dein erstes Backup ist gespeichert. Schlauer Move!',     tier: 'bronze', check: d => d.flags.hasBackup },

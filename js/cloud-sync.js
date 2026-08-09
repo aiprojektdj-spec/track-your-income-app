@@ -101,6 +101,15 @@ var CloudSync = (function () {
     function _groupCode(code) { return code.match(/.{1,5}/g).join(' '); }
 
     // ── Crypto (AES-GCM, Roh-Schlüssel — KEINE Passphrase-Ableitung) ──────────
+    // AAD bindet jedes Chiffrat an (Daten-Eigentümer, Scope, Schema-Version): ein vom
+    // Server (oder Redis/Blob-Zugriff) vertauschtes Chiffrat eines anderen Scopes/Owners
+    // wird beim Entschlüsseln erkannt (AES-GCM-Tag-Prüfung schlägt fehl) statt still
+    // akzeptiert zu werden. ownerId ist bei Selbst-Sync == _userId(), bei StB-Fremdzugriff
+    // (foreignLoad) explizit der Mandanten-Owner — deshalb NIE hart _userId() annehmen.
+    var AAD_VERSION = 'sync-v1';
+    function _aad(ownerId, scope) {
+        return new TextEncoder().encode(String(ownerId || '') + '|' + String(scope || '') + '|' + AAD_VERSION);
+    }
     function _importKey(bytes) {
         return crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
     }
@@ -113,32 +122,45 @@ var CloudSync = (function () {
         _cryptoKeyUid   = uid;
         return _cryptoKeyCache;
     }
-    async function _encrypt(obj) {
+    async function _encrypt(obj, scope, ownerId) {
         var key = await _cryptoKey();
         var iv  = crypto.getRandomValues(new Uint8Array(12));
         var pt  = new TextEncoder().encode(JSON.stringify(obj));
-        var ct  = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, pt);
+        var ct  = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: _aad(ownerId || _userId(), scope) }, key, pt);
         return { ct: _b64(new Uint8Array(ct)), iv: _b64(iv) };
     }
-    async function _decrypt(blob, overrideBytes) {
+    async function _decrypt(blob, scope, ownerId, overrideBytes) {
         var key = overrideBytes ? await _importKey(overrideBytes) : await _cryptoKey();
         var iv  = _unb64(blob.iv);
         // Übergroßes Ledger-Chiffrat liegt als eigenes Blob-Objekt (siehe push unten) —
         // erst herunterladen, dann wie gewohnt entschlüsseln.
         var ct  = blob.blobUrl ? await BlobAttachments.get(blob.blobUrl) : _unb64(blob.ciphertext);
-        var pt  = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, ct);
+        var pt;
+        try {
+            pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv, additionalData: _aad(ownerId || _userId(), scope) }, key, ct);
+        } catch (e) {
+            // Migrations-Fallback: Chiffrat von vor der AAD-Einführung hat keine additionalData.
+            // Nächster Push dieses Scopes verschlüsselt automatisch wieder mit AAD (selbstheilend).
+            pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, ct);
+        }
         return JSON.parse(new TextDecoder().decode(pt));
     }
     // ── Roh-Byte-Ver-/Entschlüsselung — für ausgelagerte Anhänge (BlobAttachments) ──
-    async function _encryptBytes(bytes) {
+    async function _encryptBytes(bytes, scope, ownerId) {
         var key = await _cryptoKey();
         var iv  = crypto.getRandomValues(new Uint8Array(12));
-        var ct  = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, bytes);
+        var ct  = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: _aad(ownerId || _userId(), scope) }, key, bytes);
         return { ct: _b64(new Uint8Array(ct)), iv: _b64(iv) };
     }
-    async function _decryptBytes(ctBytes, ivB64, overrideBytes) {
+    async function _decryptBytes(ctBytes, ivB64, scope, ownerId, overrideBytes) {
         var key = overrideBytes ? await _importKey(overrideBytes) : await _cryptoKey();
-        var pt  = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: _unb64(ivB64) }, key, ctBytes);
+        var iv  = _unb64(ivB64);
+        var pt;
+        try {
+            pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv, additionalData: _aad(ownerId || _userId(), scope) }, key, ctBytes);
+        } catch (e) {
+            pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, ctBytes); // Migrations-Fallback, s. _decrypt
+        }
         return new Uint8Array(pt);
     }
 
@@ -246,14 +268,24 @@ var CloudSync = (function () {
     // LWW nach updatedAt; Tombstones (storniert/gesperrt) sind reguläre Felder → gewinnen via neuerem updatedAt.
     // base (optional): updatedAt je Record beim letzten Sync → echte Parallel-Konflikte erkennen
     //   (nur wenn BEIDE Seiten seit base geändert → conflicts). Sequentielle Updates sind kein Konflikt.
-    function _mergeRecords(localArr, remoteArr, base) {
+    // entityType (optional): 'einkauf'|'verkauf'|'ausgabe' — wenn gesetzt, wird Store.isTombstoned()
+    //   konsultiert, damit ein physisch gelöschter Datensatz (offene Periode, s. store.js
+    //   deletePurchase/deleteSale/deleteExpense) nicht durch einen älteren Cloud-Snapshot eines
+    //   anderen Geräts unbemerkt wieder auftaucht.
+    function _mergeRecords(localArr, remoteArr, base, entityType) {
         var byId = {}, localDirty = false, remoteDirty = false, remoteIds = {}, conflicts = [];
         (localArr || []).forEach(function (r) { if (r && r.id != null) byId[r.id] = r; });
         var localIds = Object.keys(byId);
         (remoteArr || []).forEach(function (r) {
             if (!r || r.id == null) return;
-            remoteIds[r.id] = 1;
             var ex = byId[r.id];
+            if (!ex && entityType && typeof Store !== 'undefined' && Store.isTombstoned && Store.isTombstoned(entityType, r.id)) {
+                // Lokal bewusst gelöscht (Tombstone vorhanden) — NICHT wieder aufnehmen. remoteDirty,
+                // damit der nächste Push die veraltete Remote-Kopie ebenfalls entfernt.
+                remoteDirty = true;
+                return;
+            }
+            remoteIds[r.id] = 1;
             if (!ex) { byId[r.id] = r; localDirty = true; }
             else {
                 var ru = r.updatedAt || 0, lu = ex.updatedAt || 0;
@@ -305,7 +337,10 @@ var CloudSync = (function () {
                 var ra = _mergeAudit(lv, rv);
                 mergedKeys[k] = ra.val; if (ra.localDirty) localDirty = true; if (ra.remoteDirty) remoteDirty = true;
             } else if (_isRecArr(lv, rv)) {
-                var rr = _mergeRecords(lv, rv, base[k]);
+                var entityType = /__reselling_purchases$/.test(k) ? 'einkauf'
+                    : /__reselling_sales$/.test(k) ? 'verkauf'
+                    : /__reselling_expenses$/.test(k) ? 'ausgabe' : null;
+                var rr = _mergeRecords(lv, rv, base[k], entityType);
                 mergedKeys[k] = rr.val; if (rr.localDirty) localDirty = true; if (rr.remoteDirty) remoteDirty = true;
                 if (rr.conflicts.length) rr.conflicts.forEach(function (c) { conflicts.push({ key: k, id: c.id, mine: c.mine, theirs: c.theirs }); });
             } else {
@@ -357,10 +392,10 @@ var CloudSync = (function () {
         var remote = null, remoteVer = 0;
         if (pull.json.blob) {
             remoteVer = pull.json.blob.version || 0;
-            remote = await _decrypt(pull.json.blob);   // { keys, meta }
+            remote = await _decrypt(pull.json.blob, scope);   // { keys, meta }
             // Ausgelagerte große Felder (Logo/Foto/PDF) wieder zu voller "data:"-URL machen,
             // BEVOR gemerged wird — der Merge kennt nur echte Werte, keine Blob-Referenzen.
-            if (remote) await BlobAttachments.hydrateFields(remote.keys, _decryptBytes);
+            if (remote) await BlobAttachments.hydrateFields(remote.keys, function (ct, iv) { return _decryptBytes(ct, iv, scope); });
         }
         var local  = _buildLocal(scope);
         var merged = _merge(scope, local, remote);
@@ -375,9 +410,9 @@ var CloudSync = (function () {
             // unabhängig von Anzahl/Größe der Anhänge klein (siehe blob-attachments.js).
             // Cache verhindert Doppel-Upload unveränderter Anhänge bei jedem Scope-Sync.
             var blobCache = _getBlobCache(scope);
-            await BlobAttachments.offloadLargeFields(scope, merged.keys, _encryptBytes, blobCache);
+            await BlobAttachments.offloadLargeFields(scope, merged.keys, function (b) { return _encryptBytes(b, scope); }, blobCache);
             _saveBlobCache(scope, blobCache);
-            var enc  = await _encrypt({ v: 1, keys: merged.keys, meta: merged.meta });
+            var enc  = await _encrypt({ v: 1, keys: merged.keys, meta: merged.meta }, scope);
             var pushBody = { action: 'push', scope: scope, version: remoteVer, iv: enc.iv, deviceId: Store._deviceId() };
             // Auch nach dem Auslagern von Feldern kann das Ledger selbst (viele tausend
             // Textbuchungen) noch zu groß fürs Inline-Limit sein — dann ebenfalls als
@@ -418,6 +453,7 @@ var CloudSync = (function () {
         _running = true; _needReload = false; _changedActive = false; _conflicts = [];
         _setDot('sync');
         try {
+            retryPendingDeletions().catch(function (e) { console.warn('[CloudSync] retryPendingDeletions:', e && e.message); }); // fire-and-forget, blockiert den Sync nicht
             await _syncScope('__account', isStartup);   // zuerst Registry → Firmen-IDs angleichen
             var companies = (typeof CompanyManager !== 'undefined') ? CompanyManager.getAll() : [];
             for (var i = 0; i < companies.length; i++) {
@@ -645,7 +681,7 @@ var CloudSync = (function () {
             if (pull.status === 403) { Utils.showToast('Cloud-Sync ist ein Pro-Feature.', 'warning'); throw 0; }
             if (pull.status !== 200) { Utils.showToast('Server nicht erreichbar (' + pull.status + ').', 'error'); throw 0; }
             if (pull.json.blob) {
-                try { await _decrypt(pull.json.blob, bytes); }
+                try { await _decrypt(pull.json.blob, '__account', _userId(), bytes); }
                 catch (e) { Utils.showToast('❌ Code falsch — Entschlüsselung fehlgeschlagen.', 'error'); throw 0; }
             } else {
                 Utils.showToast('Keine bestehenden Cloud-Daten gefunden — Sync wird neu aufgebaut.', 'info');
@@ -732,11 +768,46 @@ var CloudSync = (function () {
         _syncAll(false);
     }
 
+    // ── Retry-Queue für fehlgeschlagene Löschungen (Redis + Blob) ─────────────
+    // Art. 17 DSGVO verlangt eine BESTÄTIGTE Löschung — ein HTTP-Fehler beim Löschen darf nie
+    // stillschweigend als Erfolg durchgehen. Fehlgeschlagene Löschungen werden hier vermerkt und
+    // bei jedem CloudSync.init()/_syncAll() automatisch erneut versucht.
+    var LS_PENDING_DEL = 'oyi_sync_pending_deletions';
+    function _loadPendingDeletions() { try { return JSON.parse(localStorage.getItem(LS_PENDING_DEL) || '[]'); } catch (e) { return []; } }
+    function _savePendingDeletions(list) { try { localStorage.setItem(LS_PENDING_DEL, JSON.stringify(list)); } catch (e) {} }
+    function _queuePendingDeletion(entry) {
+        var list = _loadPendingDeletions();
+        list.push(Object.assign({ ts: Date.now() }, entry));
+        _savePendingDeletions(list);
+    }
+    async function retryPendingDeletions() {
+        if (!_token()) return;
+        var list = _loadPendingDeletions();
+        if (!list.length) return;
+        var remaining = [];
+        for (var i = 0; i < list.length; i++) {
+            var e = list[i], ok = false;
+            try {
+                if (e.kind === 'redis') {
+                    var res = await _api({ action: 'delete', scope: e.scope });
+                    ok = (res.status === 200 || res.status === 404);
+                } else if (e.kind === 'blob') {
+                    ok = await BlobAttachments.deleteUrls(e.scope, e.urls);
+                }
+            } catch (err) { ok = false; }
+            if (!ok) remaining.push(e);
+        }
+        if (remaining.length !== list.length) _savePendingDeletions(remaining);
+    }
+
     // ── Art. 17 DSGVO: verschlüsselten Cloud-Snapshot eines Scopes löschen ────
     // Wird von "Geschäftsdaten löschen" aufgerufen, damit gelöschte Daten nicht
     // beim nächsten Sync aus der Cloud zurückgeholt werden (sonst LWW-Merge-Falle).
+    // Rückgabe true bedeutet: Redis-Snapshot UND alle Blob-Anhänge bestätigt gelöscht. Bei
+    // false wurde die Löschung in die Retry-Queue eingereiht (kein stiller "Erfolg" trotz Fehler).
     async function deleteRemote(scope) {
         if (!_enabled() || !_hasKey() || !_token()) return true; // Cloud-Sync nicht aktiv → nichts zu löschen
+        var blobOk = true;
         try {
             // Art. 17 DSGVO muss auch ausgelagerte Anhänge (Blob-Objekte) erfassen —
             // vor dem Löschen des Redis-Keys den aktuellen Stand pullen und alle
@@ -746,21 +817,35 @@ var CloudSync = (function () {
                 if (cur.status === 200 && cur.json.blob) {
                     var urls = [];
                     if (cur.json.blob.blobUrl) urls.push(cur.json.blob.blobUrl);
-                    var data = await _decrypt(cur.json.blob).catch(function () { return null; });
+                    var data = await _decrypt(cur.json.blob, scope).catch(function () { return null; });
                     if (data && data.keys) _collectBlobRefs(data.keys, urls);
-                    if (urls.length) await BlobAttachments.deleteUrls(urls);
+                    if (urls.length) {
+                        blobOk = await BlobAttachments.deleteUrls(scope, urls);
+                        if (!blobOk) _queuePendingDeletion({ kind: 'blob', scope: scope, urls: urls });
+                    }
                 }
-            } catch (e) { console.warn('[CloudSync] Anhang-Cleanup vor Löschung fehlgeschlagen:', e && e.message); }
+            } catch (e) {
+                console.warn('[CloudSync] Anhang-Cleanup vor Löschung fehlgeschlagen:', e && e.message);
+                blobOk = false;
+            }
 
-            await _api({ action: 'delete', scope: scope });
-            // lokale Sync-Metadaten + Konflikt-Basis + Anker-Merkliste für diesen Scope ebenfalls verwerfen
+            var redisOk;
+            try {
+                var delRes = await _api({ action: 'delete', scope: scope });
+                redisOk = (delRes.status === 200 || delRes.status === 404);
+            } catch (e) { redisOk = false; }
+            if (!redisOk) _queuePendingDeletion({ kind: 'redis', scope: scope });
+
+            // Lokale Sync-Metadaten IMMER aufräumen (auch bei Fehlschlag) — die Retry-Queue sorgt
+            // fürs Nachholen server-seitig, lokale Reste dürfen den nächsten Sync nicht blockieren.
             localStorage.removeItem(LS_META(scope));
             localStorage.removeItem(LS_BASE(scope));
             localStorage.removeItem(LS_BLOBCACHE(scope));
             localStorage.removeItem(LS_ANCHORED(scope));
-            return true;
+            return redisOk && blobOk;
         } catch (e) {
             console.warn('[CloudSync] deleteRemote error:', e && e.message);
+            _queuePendingDeletion({ kind: 'redis', scope: scope });
             return false;
         }
     }
@@ -787,7 +872,7 @@ var CloudSync = (function () {
         var reg = await _api({ action: 'pull', scope: '__account', owner: ownerId });
         if (reg.status === 403) throw new Error('no_grant');
         if (reg.status !== 200) throw new Error('pull_' + reg.status);
-        var regObj = reg.json.blob ? await _decrypt(reg.json.blob, kb) : null;
+        var regObj = reg.json.blob ? await _decrypt(reg.json.blob, '__account', ownerId, kb) : null;
         var ownerCos = (regObj && regObj.keys && regObj.keys.oyi_companies) ? regObj.keys.oyi_companies : [];
         // Kollisionsschutz: IDs eigener (Nicht-Readonly-)Firmen nie überschreiben
         var ownIds = {}; try { JSON.parse(localStorage.getItem('oyi_companies') || '[]').forEach(function (c) { if (c && c.id && !c._readonly) ownIds[c.id] = 1; }); } catch (e) {}
@@ -797,8 +882,8 @@ var CloudSync = (function () {
             if (ownIds[co.id]) { skipped++; continue; }   // ID-Kollision mit eigener Firma → auslassen
             var p = await _api({ action: 'pull', scope: co.id, owner: ownerId });
             if (p.status !== 200 || !p.json.blob) continue;
-            var data = await _decrypt(p.json.blob, kb);   // { keys, meta }
-            await BlobAttachments.hydrateFields(data.keys, function (ct, iv) { return _decryptBytes(ct, iv, kb); });
+            var data = await _decrypt(p.json.blob, co.id, ownerId, kb);   // { keys, meta }
+            await BlobAttachments.hydrateFields(data.keys, function (ct, iv) { return _decryptBytes(ct, iv, co.id, ownerId, kb); });
             var toCache = {};
             Object.keys(data.keys || {}).forEach(function (k) {
                 var ser = JSON.stringify(data.keys[k]);
@@ -937,6 +1022,7 @@ var CloudSync = (function () {
         foreignLoad: foreignLoad,
         foreignUnload: foreignUnload,
         deleteRemote: deleteRemote,
+        retryPendingDeletions: retryPendingDeletions,
         _finishEnable: _finishEnable,
         _finishConnect: _finishConnect,
         _finishDisable: _finishDisable,
@@ -944,7 +1030,8 @@ var CloudSync = (function () {
         _copyCode: _copyCode,
         _downloadCode: _downloadCode,
         // Test-Oberfläche für reine Merge-/Code-Logik (siehe test-cloud-sync.js)
-        _test: { mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, merge: _merge, toB32: _toB32, fromB32: _fromB32 }
+        _test: { mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, merge: _merge, toB32: _toB32, fromB32: _fromB32,
+            loadPendingDeletions: _loadPendingDeletions, queuePendingDeletion: _queuePendingDeletion }
     };
 })();
 if (typeof window !== 'undefined') window.CloudSync = CloudSync;

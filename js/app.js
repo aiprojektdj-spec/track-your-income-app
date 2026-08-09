@@ -733,6 +733,9 @@ const App = {
 
     showModal(title, bodyHtml, footerHtml) {
         const modal = document.getElementById('modal');
+        // Fokus-Rückgabe beim Schließen (WCAG 2.4.3) — sonst landet der Fokus nach dem Schließen
+        // unsichtbar auf <body>, Tastatur-/Screenreader-Nutzer verlieren die Orientierung.
+        this._modalTriggerEl = document.activeElement;
         let titleText = String(title);
         let iconClass = null;
         const emojiMatch = titleText.match(/^(\p{Emoji_Presentation}️?|\p{Extended_Pictographic}️?)\s*/u);
@@ -750,7 +753,10 @@ const App = {
             <div class="modal-body">${bodyHtml}</div>
             ${footerHtml ? `<div class="modal-footer">${footerHtml}</div>` : ''}
         `;
-        modal.setAttribute('aria-label', titleText);
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-labelledby', 'modalTitle');
+        modal.removeAttribute('aria-label'); // aria-labelledby ersetzt aria-label (Titel-Element existiert bereits)
         document.getElementById('modalOverlay').classList.add('active');
         // Focus first focusable element (WCAG 2.1.2)
         const focusable = modal.querySelector('button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])');
@@ -762,6 +768,11 @@ const App = {
         const modal = document.getElementById('modal');
         if (overlay) overlay.classList.remove('active');
         if (modal) modal.innerHTML = '';
+        // Fokus zurück auf das auslösende Element (WCAG 2.4.3)
+        if (this._modalTriggerEl && typeof this._modalTriggerEl.focus === 'function' && document.contains(this._modalTriggerEl)) {
+            this._modalTriggerEl.focus();
+        }
+        this._modalTriggerEl = null;
     },
 
     // ---- Onboarding ----
@@ -792,7 +803,7 @@ const App = {
                 <p>Alle Daten werden <strong>standardmäßig ausschließlich lokal auf Ihrem Gerät</strong> gespeichert – in <code>IndexedDB</code> und <code>localStorage</code> Ihres Browsers. Es findet keine Übertragung an externe Server statt, <strong>es sei denn</strong>, Sie aktivieren den optionalen Cloud-Sync (Ende-zu-Ende-verschlüsselt, EU-Server) — Details in der Datenschutzerklärung.</p>
 
                 <h3>Wie lange werden Daten gespeichert?</h3>
-                <p>Daten bleiben bis zur aktiven Löschung durch Sie erhalten. Steuerrelevante Unterlagen (GoBD) müssen gemäß <strong>§ 147 AO 10 Jahre</strong> aufbewahrt werden – das Audit-Log ist daher aus rechtlichen Gründen nicht löschbar.</p>
+                <p>Daten bleiben bis zur aktiven Löschung durch Sie erhalten. Steuerrelevante Unterlagen müssen nach <strong>§ 147 AO</strong> aufbewahrt werden — Rechnungen/Buchungsbelege 8 Jahre, Bücher und Aufzeichnungen (dazu zählt das Audit-Log) 10 Jahre; das Audit-Log ist daher aus rechtlichen Gründen nicht löschbar.</p>
 
                 <h3>Ihre Rechte (DSGVO Art. 15–22)</h3>
                 <ul>
@@ -1018,30 +1029,43 @@ const App = {
             .reduce((sum, s) => sum + (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0), 0);
     },
 
+    // §19 UStG Schwellenwerte waren historisch nicht immer 25.000 €/100.000 € — die Grenzen wurden
+    // mehrfach gesetzlich angehoben. Damit die Prüfung für ein beliebiges Jahr (nicht nur das laufende)
+    // korrekt bleibt, wählt diese Funktion die im jeweiligen Jahr geltende Fassung:
+    //   ab 2025      → 25.000 € / 100.000 € (JStG 2024, unionsrechtliche Neufassung §19 UStG)
+    //   2020–2024    → 22.000 € /  50.000 € (Bürokratieentlastungsgesetz III, ab 1.1.2020)
+    //   vor 2020     → 17.500 € /  50.000 € (ursprüngliche Fassung §19 Abs.1 UStG)
+    _getUstGrenzen(year) {
+        if (year >= 2025) return { vj: 25000, lfd: 100000 };
+        if (year >= 2020) return { vj: 22000, lfd: 50000 };
+        return { vj: 17500, lfd: 50000 };
+    },
+
     _checkUstThreshold() {
         const settings = Store.getSettings();
         if ((settings.ustMode || 'klein') !== 'klein') return; // nur für Kleinunternehmer
         const year       = new Date().getFullYear();
-        const GRENZE_VJ  = 25000;    // Vorjahresgrenze (§19 UStG ab 2025) → entscheidet Folgejahr
-        const GRENZE_LFD = 100000;   // obere Grenze lfd. Jahr → SOFORTIGER Wegfall der Kleinunternehmer-Eigenschaft
+        const { vj: GRENZE_VJ, lfd: GRENZE_LFD } = this._getUstGrenzen(year);
         const umsatz     = this._calcJahresumsatz(year);
         const hardKey    = 'ust_threshold_hard_' + year;    // 100k Sofort-Modal
         const warnKey    = 'ust_threshold_warned_' + year;  // 25k Folgejahr-Modal
         const preWarnKey = 'ust_prewarn_' + year;
 
-        // 1) Obere Grenze: 100.000 € im laufenden Jahr → Status entfällt SOFORT ab überschreitendem Umsatz
+        // 1) Obere Grenze: 100.000 € im laufenden Jahr → Status entfällt SOFORT sobald der Umsatz die
+        // Grenze ÜBERSCHREITET (§19 Abs.1 UStG: "übersteigt" → strikt >, nicht >=; bei exakt 100.000,00 €
+        // bleibt der Kleinunternehmerstatus für diesen Umsatz noch bestehen).
         // Fix: Dismiss-Flags liefen vorher über rohes, NICHT company-gescoptes localStorage — bei zwei
         // Companies (z.B. Einzelunternehmen + GbR) konnte das Bestätigen der Warnung in einer Company
         // die Warnung der anderen Company unterdrücken. Store.get/set scoped automatisch pro Company.
-        if (umsatz >= GRENZE_LFD) {
+        if (umsatz > GRENZE_LFD) {
             if (!Store.get(hardKey)) {
                 setTimeout(() => this._showUstThresholdModal(umsatz, year, hardKey, 'sofort'), 400);
             }
             return;
         }
 
-        // 2) Vorjahresgrenze 25.000 € im lfd. Jahr überschritten → ab Folgejahr regelbesteuert
-        if (umsatz >= GRENZE_VJ) {
+        // 2) Vorjahresgrenze im lfd. Jahr überschritten (strikt >, s.o.) → ab Folgejahr regelbesteuert
+        if (umsatz > GRENZE_VJ) {
             if (!Store.get(warnKey)) {
                 setTimeout(() => this._showUstThresholdModal(umsatz, year, warnKey, 'folgejahr'), 400);
             }
@@ -1049,10 +1073,12 @@ const App = {
             // 90 % Vorwarnung (ab 22.500 €) — einmalige Toast-Meldung
             if (!Store.get(preWarnKey) && !Store.get(warnKey)) {
                 Store.set(preWarnKey, '1');
+                const grenzeFmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
+                    .format(GRENZE_VJ);
                 const rest = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
                     .format(GRENZE_VJ - umsatz);
                 setTimeout(() => Utils.showToast(
-                    `⚠️ Kleinunternehmer: Noch ${rest} bis zur 25.000 €-Grenze`, 'warning'), 800);
+                    `⚠️ Kleinunternehmer: Noch ${rest} bis zur ${grenzeFmt}-Grenze`, 'warning'), 800);
             }
         }
     },
@@ -1737,7 +1763,7 @@ const App = {
         // Backup-Modal rendern, dann async Speicher-Status nachladen
         const body = `
             <div style="padding:10px 14px;border-radius:8px;background:rgba(59,130,246,0.08);border:1px solid var(--info);font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:10px;">
-                <i class="ti ti-info-circle"></i> <strong>Gesetzliche Aufbewahrungspflicht: 10 Jahre</strong> (§147 AO / GoBD). Deine Buchhaltungsdaten liegen ausschließlich lokal auf diesem Gerät — es gibt kein automatisches Server-Backup. Richte unten einen Datei-Backup-Ordner ein und bewahre Backups über die gesamte Frist auf.
+                <i class="ti ti-info-circle"></i> <strong>Gesetzliche Aufbewahrungspflicht (§147 AO / GoBD):</strong> Rechnungen/Buchungsbelege 8 Jahre, Bücher/Aufzeichnungen 10 Jahre. Deine Buchhaltungsdaten liegen ausschließlich lokal auf diesem Gerät — es gibt kein automatisches Server-Backup. Richte unten einen Datei-Backup-Ordner ein und bewahre Backups über die jeweilige Frist auf.
             </div>
             <div id="persistStorageBlock" style="margin-bottom:4px;">
                 <div style="padding:12px 14px;border-radius:8px;background:rgba(251,191,36,0.12);border:1px solid var(--warning);font-size:13px;display:flex;align-items:center;gap:10px;">

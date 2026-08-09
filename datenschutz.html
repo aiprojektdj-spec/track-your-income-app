@@ -183,6 +183,32 @@
             Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) bzw. Art. 6 Abs. 1 lit. a DSGVO
             (deine Einwilligung durch Aktivierung). Zur Auftragsverarbeitung siehe Ziffer 7.
         </p>
+
+        <h3>4.2 Optionale Webhooks (z.B. Make.com)</h3>
+        <p>
+            Du kannst optional eigene Webhook-URLs (z.B. von Make.com) hinterlegen, an die Stackr bei bestimmten
+            Ereignissen (neue Einnahme, neue Rechnung, neuer Eigenbeleg) automatisch die betroffenen Daten sendet
+            — inklusive personenbezogener Angaben, die darin enthalten sind (z.B. Kundenname, Betrag, Rechnungsdaten).
+            Diese Funktion ist <strong>standardmäßig deaktiviert</strong> und wird nur aktiv, wenn du selbst eine
+            URL hinterlegst. Anders als beim Cloud-Sync (Ziffer 4.1) wird der Inhalt hierbei <strong>unverschlüsselt
+            im Klartext</strong> direkt aus deinem Browser an die von dir eingetragene URL übertragen — Stackr
+            selbst sieht diese Übertragung nicht und kann sie nicht protokollieren oder absichern. Trägst du eine
+            URL bei einem Drittanbieter außerhalb der EU/des EWR ein, kann darin ein Drittlandtransfer liegen, für
+            den <strong>du selbst als datenschutzrechtlich Verantwortlicher</strong> gegenüber deinen Kunden
+            verantwortlich bist (z.B. für eine eigene Auftragsverarbeitungsvereinbarung mit dem Webhook-Anbieter).
+            Nutze diese Funktion nur mit vertrauenswürdigen, von dir selbst geprüften Zielen.
+        </p>
+
+        <h3>4.3 Steuerberater-Freigabe (optional)</h3>
+        <p>
+            Wenn du einem Steuerberater Lesezugriff auf deine Daten gewährst, werden dazu dein öffentlicher
+            Schlüssel (Public Key), der Freigabe-Status (Grant) sowie — bei jeder API-Anfrage zum Schutz vor
+            Missbrauch — deine IP-Adresse kurzzeitig (Rate-Limit-Zähler, 60 Sekunden) serverseitig bei Upstash
+            verarbeitet. Der Steuerberater erhält ausschließlich Lesezugriff auf einen mit seinem eigenen
+            Schlüssel entschlüsselbaren Datenauszug; ohne aktive Freigabe hat er keinen Zugriff.
+            Rechtsgrundlage: Art. 6 Abs. 1 lit. a DSGVO (Einwilligung durch Aktivierung) bzw. lit. f (berechtigtes
+            Interesse an Missbrauchsschutz bei der IP-Verarbeitung).
+        </p>
     </div>
 
     <!-- ── 5. Login & Zahlung (Whop) ── -->
@@ -252,8 +278,9 @@
             <strong>Bei aktiviertem Cloud-Sync (Ziffer 4)</strong> tritt <strong>Upstash, Inc.</strong> hinsichtlich
             der Speicherung der verschlüsselten Daten als <strong>Auftragsverarbeiter</strong> nach Art. 28 DSGVO
             auf; Gleiches gilt für <strong>Vercel Inc.</strong> bezüglich des Betriebs der Transport-Funktion.
-            Die Speicherung erfolgt in der EU (Frankfurt). Mit beiden Anbietern wird ein
-            Auftragsverarbeitungsvertrag (Data Processing Agreement) geschlossen. Da beide Anbieter US-Gesellschaften
+            Die Speicherung erfolgt in der EU (Frankfurt). Mit beiden Anbietern ist der Abschluss eines
+            Auftragsverarbeitungsvertrags (Data Processing Agreement) vorgesehen bzw. wird über die jeweiligen
+            Standard-AVV der Anbieter abgedeckt. Da beide Anbieter US-Gesellschaften
             sind, kann ein Drittlandbezug bestehen; als Transfermechanismus dienen die EU-Standardvertragsklauseln
             (Art. 46 DSGVO) bzw. das EU-US Data Privacy Framework. Da ausschließlich Ende-zu-Ende-verschlüsseltes,
             für die Anbieter unlesbares Chiffrat übertragen wird, ist das Risiko entsprechend minimiert.
@@ -276,7 +303,9 @@
         <ul>
             <li>Session-Daten: automatisch nach Ablauf der Session</li>
             <li>Account-Daten: auf Anfrage oder bei Kontolöschung sofort</li>
-            <li>Buchhaltungsdaten: auf Anfrage — beachte steuerliche Aufbewahrungsfristen (10 Jahre)</li>
+            <li>Buchhaltungsdaten: auf Anfrage — beachte die steuerlichen Aufbewahrungsfristen nach § 147 AO:
+                Rechnungen und sonstige Buchungsbelege grundsätzlich 8 Jahre, Bücher, Aufzeichnungen und
+                Jahresabschlüsse 10 Jahre (jeweils ab Schluss des Kalenderjahres der letzten Eintragung)</li>
         </ul>
     </div>
 

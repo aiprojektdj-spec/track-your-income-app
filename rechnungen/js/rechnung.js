@@ -264,7 +264,7 @@ var Rechnung = (function() {
 
         html += '<div class="form-group" style="flex: 0.7;">';
         if (idx === 0) html += '<label class="form-label">Menge</label>';
-        html += '<input class="form-input pos-menge" type="number" step="0.01" min="0" max="999999" data-idx="' + idx + '" aria-label="Menge" value="' + (pos.menge || 1) + '"></div>';
+        html += '<input class="form-input pos-menge" type="number" step="0.01" min="0" max="999999" data-idx="' + idx + '" aria-label="Menge" value="' + (pos.menge != null ? pos.menge : 1) + '"></div>';
 
         html += '<div class="form-group" style="flex: 0.8;">';
         if (idx === 0) html += '<label class="form-label">Einheit</label>';
@@ -317,7 +317,7 @@ var Rechnung = (function() {
 
         html += '<div class="form-group" style="flex: 1;">';
         if (idx === 0) html += '<label class="form-label">Gesamt</label>';
-        var gesamt = (pos.menge || 1) * (pos.einzelpreis || 0);
+        var gesamt = (pos.menge != null ? pos.menge : 1) * (pos.einzelpreis || 0);
         html += '<input class="form-input pos-gesamt" data-idx="' + idx + '" aria-label="Gesamtbetrag" value="' + gesamt.toFixed(2) + '" readonly style="opacity: 0.7;"></div>';
 
         // Lager-Verknüpfungs-Spalte
@@ -963,7 +963,9 @@ var Rechnung = (function() {
         // (Fix: Toast allein verhinderte das Speichern nicht \u2014 eine Rechnung ohne
         // vollst\u00E4ndige Empf\u00E4ngeranschrift oder ohne Steuernummer/USt-IdNr. des Ausstellers
         // konnte bisher vollst\u00E4ndig erstellt, exportiert und versendet werden).
-        if (typ === 'rechnung') {
+        if (typ === 'rechnung' || typ === 'gutschrift') {
+            // \u00A714a UStG verlangt dieselben Pflichtangaben auch f\u00FCr Gutschriften (Kreditnoten) \u2014
+            // der Gate lief vorher nur f\u00FCr typ==='rechnung', Gutschriften konnten ihn umgehen.
             var kd = Store.getRechCustomers().find(function(c) { return c.id === kundeId; });
             if (kd && (!kd.strasse || !kd.plz || !kd.ort)) {
                 Utils.showToast('\u26A0\uFE0F Kundenadresse unvollst\u00E4ndig (Stra\u00DFe, PLZ, Ort) \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Kundendaten erg\u00E4nzen.', 'error');
@@ -1326,10 +1328,21 @@ var Rechnung = (function() {
             html += '<div class="inv-klein">Gem\u00E4\u00DF \u00A719 UStG wird keine Umsatzsteuer berechnet.</div>';
         }
 
-        // \u00A713b UStG Reverse Charge notice
+        // ig. Lieferung (\u00A76a UStG, Ware) vs. \u00A713b UStG Reverse Charge (Leistung) \u2014 getrennte
+        // Pflichttexte statt pauschal \u00A713b f\u00FCr alles: bei Warenlieferungen ins EU-Ausland gilt die
+        // steuerfreie innergemeinschaftliche Lieferung, NICHT die Steuerschuldnerschaft des Empf\u00E4ngers.
         var _rcEuLaender = rcEuLaender();
-        if (!isKlein && kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && _rcEuLaender.indexOf(kunde.land) !== -1) {
-            html += '<div class="inv-klein">Steuerschuldnerschaft des Leistungsempf\u00E4ngers gem\u00E4\u00DF \u00A713b UStG (Reverse Charge). USt-IdNr. Leistungsempf\u00E4nger: ' + Utils.escapeHtml(kunde.ustIdNr) + '</div>';
+        var _istIgKunde = !isKlein && kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && _rcEuLaender.indexOf(kunde.land) !== -1;
+        if (_istIgKunde) {
+            var _igPositionen = (inv.positionen || []).filter(function (p) { return parseInt(p.mwstSatz) === 0; });
+            var _hatWare     = _igPositionen.some(function (p) { return (p.igArt || inv.igArt || 'ware') === 'ware'; });
+            var _hatLeistung = _igPositionen.some(function (p) { return (p.igArt || inv.igArt || 'ware') === 'leistung'; });
+            if (_hatWare) {
+                html += '<div class="inv-klein">Steuerfreie innergemeinschaftliche Lieferung gem\u00E4\u00DF \u00A74 Nr. 1b i.V.m. \u00A76a UStG. USt-IdNr. Empf\u00E4nger: ' + Utils.escapeHtml(kunde.ustIdNr) + '</div>';
+            }
+            if (_hatLeistung) {
+                html += '<div class="inv-klein">Steuerschuldnerschaft des Leistungsempf\u00E4ngers gem\u00E4\u00DF \u00A713b UStG (Reverse Charge). USt-IdNr. Leistungsempf\u00E4nger: ' + Utils.escapeHtml(kunde.ustIdNr) + '</div>';
+            }
         }
 
         // \u00A725a UStG Differenzbesteuerung \u2014 Pflichthinweis, sobald mind. eine Position betroffen ist.

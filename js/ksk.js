@@ -5,11 +5,18 @@
 const Ksk = {
     _selectedYear: new Date().getFullYear(),
 
-    // Aktuelle Beitragssätze (werden jährlich festgesetzt)
+    // Aktuelle Beitragssätze (werden jährlich festgesetzt) — jeweils AN-Anteil, den das KSK-Mitglied selbst trägt
+    // (die KSK übernimmt den anderen ~50%-Anteil aus dem Künstlersozialabgabe-Aufkommen).
+    // 2026: kv/pv nach Sozialversicherungsrechengrößen-Verordnung 2026 (BMAS, verkündet 26.11.2025,
+    // in Kraft 01.01.2026), recherchiert 2026-07-30 — siehe auch js/lohnsteuer.js.
+    // kv = 7,3% allgemeiner Satz + hälftiger Ø-Zusatzbeitrag (2,9%/2 = 1,45%) = 8,75%
+    // pv = 3,6% Basissatz, AN-Anteil hälftig = 1,8% (§55 Abs.1 SGB XI); Kinderlosenzuschlag §55 Abs.3 SGB XI
+    //      (0,6%) kommt separat oben drauf, siehe pvKinderlos + _hatKinder-Flag in _calcBeitrag.
+    // rv = 18,6% paritätisch, KSK-Mitglied zahlt AN-Anteil 9,3% (§163 SGB VI)
     _beitragssaetze: {
-        2024: { kv: 0.073, pv: 0.0170, rv: 0.093 }, // KSK-Mitglied zahlt AN-Anteil RV 9,3% (§163 SGB VI)
-        2025: { kv: 0.075, pv: 0.0180, rv: 0.093 },
-        2026: { kv: 0.075, pv: 0.0180, rv: 0.093 }
+        2024: { kv: 0.073, pv: 0.0170, pvKinderlos: 0.0035, rv: 0.093 },
+        2025: { kv: 0.075, pv: 0.0180, pvKinderlos: 0.0060, rv: 0.093 },
+        2026: { kv: 0.0875, pv: 0.0180, pvKinderlos: 0.0060, rv: 0.093 }
     },
 
     _getSaetze(year) {
@@ -17,11 +24,12 @@ const Ksk = {
             || this._beitragssaetze[Math.max(...Object.keys(this._beitragssaetze).map(Number))];
     },
 
-    // BBG (Beitragsbemessungsgrenzen) nach Jahr — jährlich anpassen
+    // BBG (Beitragsbemessungsgrenzen) nach Jahr — jährlich anpassen, Monatswerte
+    // 2026 = Lohnsteuer.BBG (jährlich) / 12: kvpv 69.750/12, rv 101.400/12 — bundeseinheitlich, siehe js/lohnsteuer.js
     _BBG: {
         2024: { kvpv: 5175.00, rv: 7550.00 },
         2025: { kvpv: 5512.50, rv: 8050.00 },
-        2026: { kvpv: 5512.50, rv: 8050.00 }  // vorläufig bis Bekanntgabe
+        2026: { kvpv: 5812.50, rv: 8450.00 }
     },
 
     _getBBG(year) {
@@ -29,15 +37,17 @@ const Ksk = {
             || this._BBG[Math.max(...Object.keys(this._BBG).map(Number))];
     },
 
-    _calcBeitrag(jahreseinkommen, year) {
+    _calcBeitrag(jahreseinkommen, year, hatKinder) {
         const s   = this._getSaetze(year);
         const bbg = this._getBBG(year);
         const monatl = jahreseinkommen / 12;
+        // Kinderlosenzuschlag §55 Abs. 3 SGB XI: wer keine Kinder hat, zahlt den PV-Zuschlag zusätzlich.
+        const pvSatz = s.pv + (hatKinder ? 0 : (s.pvKinderlos || 0));
         // KSK trägt 50% — Künstler zahlt 50% der gesetzlichen Sätze
-        const kvBeitrag = Math.min(monatl, bbg.kvpv) * s.kv * 12;
-        const pvBeitrag = Math.min(monatl, bbg.kvpv) * s.pv * 12;
-        const rvBeitrag = Math.min(monatl, bbg.rv)   * s.rv * 12;
-        return { kv: kvBeitrag, pv: pvBeitrag, rv: rvBeitrag, gesamt: kvBeitrag + pvBeitrag + rvBeitrag };
+        const kvBeitrag = Math.min(monatl, bbg.kvpv) * s.kv  * 12;
+        const pvBeitrag = Math.min(monatl, bbg.kvpv) * pvSatz * 12;
+        const rvBeitrag = Math.min(monatl, bbg.rv)   * s.rv  * 12;
+        return { kv: kvBeitrag, pv: pvBeitrag, rv: rvBeitrag, gesamt: kvBeitrag + pvBeitrag + rvBeitrag, pvSatz };
     },
 
     render() {
@@ -61,7 +71,8 @@ const Ksk = {
         // Gemeldetes oder geschätztes Einkommen
         const gemeldetes = parseFloat(cfg.gemeldetesEinkommen) || 0;
         const grundlage  = gemeldetes > 0 ? gemeldetes : gewinnEuer;
-        const beitrag    = this._calcBeitrag(grundlage, year);
+        const hatKinder  = cfg.hatKinder === true || cfg.hatKinder === 'true';
+        const beitrag    = this._calcBeitrag(grundlage, year, hatKinder);
         const saetze     = this._getSaetze(year);
 
         const yearOptions = Array.from({ length: 8 }, (_, i) => 2020 + i)
@@ -111,9 +122,9 @@ const Ksk = {
                 <div class="card-subtitle">${Utils.formatCurrency(beitrag.kv / 12)}/Monat</div>
             </div>
             <div class="card stat-card danger">
-                <div class="card-label">PV-Beitrag (${(saetze.pv * 100).toFixed(1)}%)</div>
+                <div class="card-label">PV-Beitrag (${(beitrag.pvSatz * 100).toFixed(2)}%)</div>
                 <div class="card-value">${Utils.formatCurrency(beitrag.pv)}</div>
-                <div class="card-subtitle">${Utils.formatCurrency(beitrag.pv / 12)}/Monat</div>
+                <div class="card-subtitle">${Utils.formatCurrency(beitrag.pv / 12)}/Monat${hatKinder ? '' : ' · inkl. Kinderlosenzuschlag'}</div>
             </div>
             <div class="card stat-card danger">
                 <div class="card-label">Gesamt-Beitrag ${year}</div>
@@ -147,7 +158,7 @@ const Ksk = {
                     <thead><tr><th>Versicherung</th><th>Satz (Arbeitnehmer)</th><th style="text-align:right">Jahresbeitrag</th><th style="text-align:right">Monatsbeitrag</th></tr></thead>
                     <tbody>
                         <tr><td>Krankenversicherung</td><td>${(saetze.kv * 100).toFixed(1)}%</td><td style="text-align:right">${Utils.formatCurrency(beitrag.kv)}</td><td style="text-align:right">${Utils.formatCurrency(beitrag.kv/12)}</td></tr>
-                        <tr><td>Pflegeversicherung</td><td>${(saetze.pv * 100).toFixed(1)}%</td><td style="text-align:right">${Utils.formatCurrency(beitrag.pv)}</td><td style="text-align:right">${Utils.formatCurrency(beitrag.pv/12)}</td></tr>
+                        <tr><td>Pflegeversicherung${hatKinder ? '' : ' (inkl. Kinderlosenzuschlag)'}</td><td>${(beitrag.pvSatz * 100).toFixed(2)}%</td><td style="text-align:right">${Utils.formatCurrency(beitrag.pv)}</td><td style="text-align:right">${Utils.formatCurrency(beitrag.pv/12)}</td></tr>
                         <tr><td>Rentenversicherung</td><td>${(saetze.rv * 100).toFixed(1)}%</td><td style="text-align:right">${Utils.formatCurrency(beitrag.rv)}</td><td style="text-align:right">${Utils.formatCurrency(beitrag.rv/12)}</td></tr>
                         <tr style="font-weight:600;background:var(--bg-secondary);">
                             <td colspan="2">Gesamt</td>
@@ -200,7 +211,9 @@ const Ksk = {
 
     _updateCalc() {
         const val = parseFloat(document.getElementById('kskCalcEin')?.value) || 0;
-        const b   = this._calcBeitrag(val, this._selectedYear);
+        const cfg = Store.getKskConfig();
+        const hatKinder = cfg.hatKinder === true || cfg.hatKinder === 'true';
+        const b   = this._calcBeitrag(val, this._selectedYear, hatKinder);
         const res = document.getElementById('kskCalcResult');
         if (res) res.textContent = Utils.formatCurrency(b.gesamt / 12) + '/Monat';
         // Store temp value for save button
@@ -244,6 +257,13 @@ const Ksk = {
                 <input type="number" class="form-input" id="ksk_ein" step="100" value="${cfg.gemeldetesEinkommen || ''}" placeholder="0">
                 <div class="form-hint">Das bei der KSK gemeldete voraussichtliche Arbeitseinkommen</div>
             </div>
+            <div class="form-group">
+                <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="checkbox" id="ksk_hatKinder" ${cfg.hatKinder === true || cfg.hatKinder === 'true' ? 'checked' : ''} style="width:16px;height:16px;">
+                    Ich habe (versicherungsrechtlich berücksichtigte) Kinder
+                </label>
+                <div class="form-hint">Ohne Häkchen wird der Pflegeversicherungs-Kinderlosenzuschlag (§ 55 Abs. 3 SGB XI) auf den PV-Beitrag aufgeschlagen.</div>
+            </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
                 <button class="btn" data-action="close-modal">Abbrechen</button>
                 <button class="btn btn-primary" data-action="ksk-save-config">💾 Speichern</button>
@@ -256,7 +276,8 @@ const Ksk = {
             mitglied: document.getElementById('ksk_mitglied')?.value === 'true',
             taetigkeit: document.getElementById('ksk_taetigkeit')?.value,
             nummer: document.getElementById('ksk_nr')?.value?.trim(),
-            gemeldetesEinkommen: parseFloat(document.getElementById('ksk_ein')?.value) || 0
+            gemeldetesEinkommen: parseFloat(document.getElementById('ksk_ein')?.value) || 0,
+            hatKinder: document.getElementById('ksk_hatKinder')?.checked === true
         };
         Store.saveKskConfig(cfg);
         App.closeModal();

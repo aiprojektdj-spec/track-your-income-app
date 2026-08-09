@@ -304,7 +304,7 @@ function renderDashboard() {
             <div class="wb-title"><i class="ti ti-alert-triangle"></i> Wichtiger Hinweis zu Eigenbelegen</div>
             Eigenbelege sollten <strong>nur erstellt werden, wenn kein Originalbeleg erhältlich ist</strong>.
             Bei Betriebsprüfungen können übermäßig viele Eigenbelege zu Nachfragen führen.
-            Alle Eigenbelege sind <strong>10 Jahre aufzubewahren</strong> (GoBD-Pflicht).
+            Eigenbelege sind Buchungsbelege und nach § 147 AO <strong>8 Jahre aufzubewahren</strong> (GoBD-Pflicht).
         </div>
 
         <div class="stats-grid-primary" style="margin-bottom:20px">
@@ -368,15 +368,15 @@ function renderDashboard() {
                     const k=getKat(b.kategorie);
                     const vName = b.verkäufer?.name || b.empfaenger || '—';
                     return `<tr>
-                        <td><span style="font-family:monospace;font-size:12px;color:var(--accent-light)">${b.id}</span></td>
+                        <td><span style="font-family:monospace;font-size:12px;color:var(--accent-light)">${esc(b.id)}</span></td>
                         <td style="white-space:nowrap">${datum(b.belegDatum)}</td>
                         <td>${esc(vName)}</td>
                         <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.zweck||'—')}</td>
                         <td><span class="badge" style="background:${k.farbe}22;color:${k.farbe}">${esc(k.name)}</span></td>
                         <td style="text-align:right;font-weight:600">${euro(b.betragBrutto)}</td>
                         <td style="white-space:nowrap">
-                            <button class="action-btn" data-action="eb-view" data-id="${b.id}" title="Ansehen"><i class="ti ti-eye"></i></button>
-                            <button class="action-btn action-btn-accent" data-action="eb-edit" data-id="${b.id}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
+                            <button class="action-btn" data-action="eb-view" data-id="${esc(b.id)}" title="Ansehen"><i class="ti ti-eye"></i></button>
+                            <button class="action-btn action-btn-accent" data-action="eb-edit" data-id="${esc(b.id)}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
                         </td>
                     </tr>`;
                 }).join('')}
@@ -1216,7 +1216,7 @@ function viewBeleg(id) {
             <div style="background:var(--accent);color:#fff;padding:20px 24px;display:flex;justify-content:space-between;align-items:flex-start">
                 <div>
                     <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:.8">Eigenbeleg</div>
-                    <div id="modalTitle" style="font-size:22px;font-weight:700;margin-top:2px">${b.id}</div>
+                    <div id="modalTitle" style="font-size:22px;font-weight:700;margin-top:2px">${esc(b.id)}</div>
                     <div style="font-size:12px;opacity:.8;margin-top:4px">${esc(s.firmenname||s.inhaberName||'')}</div>
                 </div>
                 <div style="text-align:right;font-size:12px;opacity:.9;line-height:1.7">
@@ -1394,7 +1394,7 @@ function printBeleg(id) {
 
     const pw = window.open('','_blank','width=820,height=920');
     pw.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>${b.id} – Eigenbeleg</title>
+<title>${esc(b.id)} – Eigenbeleg</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:24px;max-width:800px;margin:0 auto}
@@ -1448,7 +1448,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:24px;max-
 </style></head><body>
 
 <div class="no-print">
-    <strong>Druckvorschau: ${b.id}</strong>
+    <strong>Druckvorschau: ${esc(b.id)}</strong>
     <button class="btn-print" id="pwPrintBtn">Drucken / Als PDF speichern</button>
     <button class="btn-close" id="pwCloseBtn">Schließen</button>
 </div>
@@ -1458,7 +1458,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:24px;max-
     <div class="h-left">
         <h2>Eigenbeleg (Ersatzbeleg · GoBD)</h2>
         <h1>EIGENBELEG</h1>
-        <div class="firm"><strong>Nr.: ${b.id}</strong></div>
+        <div class="firm"><strong>Nr.: ${esc(b.id)}</strong></div>
     </div>
     <div class="h-right">
         <div><strong>Belegdatum:</strong> ${datum(b.belegDatum)}</div>
@@ -1553,7 +1553,7 @@ ${b.foto&&!b.foto.startsWith('data:application')?`
     <img src="${b.foto}" style="max-width:100%;max-height:260px;border-radius:8px;border:1px solid #eee">
 </div>`:''}
 
-<div class="footer">Eigenbeleg gemäß GoBD – Aufbewahrungspflicht 10 Jahre | Erstellt: ${datum(b.erstelltAm)} | ${esc(s.firmenname||'')}</div>
+<div class="footer">Eigenbeleg gemäß GoBD – Aufbewahrungspflicht 8 Jahre (§ 147 AO) | Erstellt: ${datum(b.erstelltAm)} | ${esc(s.firmenname||'')}</div>
 </body></html>`);
     pw.document.close();
     // Popup-Buttons ohne Inline-Handler verdrahten (CSP wird an about:blank vererbt)
@@ -1743,20 +1743,36 @@ function exportJSON() {
     dlBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}), `eigenbelege_backup_${today()}.json`);
 }
 
+// Strikte ID-Whitelist für importierte Datensätze — verhindert, dass eine präparierte
+// Backup-Datei über id-Felder HTML/Script in spätere Render-/Druck-Ansichten schleust
+// (die IDs werden an mehreren Stellen ungeprüft in Titel/DOM ausgegeben).
+const _ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+function _safeImportId(rawId, fallbackPrefix) {
+    return (typeof rawId === 'string' && _ID_RE.test(rawId)) ? rawId
+        : fallbackPrefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
 function importJSON(input) {
     const file = input.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = e => {
         try {
             const data = JSON.parse(e.target.result);
-            if (!data.belege) { toast('Ungültiges Backup-Format','danger'); return; }
+            if (!data.belege || !Array.isArray(data.belege)) { toast('Ungültiges Backup-Format','danger'); return; }
             if (!confirm(`${data.belege.length} Eigenbelege importieren? Bereits vorhandene werden übersprungen.`)) return;
             const ex = new Set(EB.getBelege().map(b=>b.id));
-            const neu = data.belege.filter(b=>!ex.has(b.id));
+            // IDs strikt validieren/neu vergeben, statt fremde Werte roh zu übernehmen (Stored-XSS-Schutz)
+            const sanitized = data.belege
+                .filter(b => b && typeof b === 'object')
+                .map(b => ({ ...b, id: _safeImportId(b.id, 'EB') }));
+            const neu = sanitized.filter(b=>!ex.has(b.id));
             EB.saveBelege([...EB.getBelege(),...neu]);
             if (data.kategorien?.length) {
                 const exk = new Set([...STD_KAT.map(k=>k.id),...EB.getKategorien().map(k=>k.id)]);
-                EB.saveKategorien([...EB.getKategorien(),...data.kategorien.filter(k=>!exk.has(k.id))]);
+                const katSan = data.kategorien
+                    .filter(k => k && typeof k === 'object')
+                    .map(k => ({ ...k, id: _safeImportId(k.id, 'KAT') }));
+                EB.saveKategorien([...EB.getKategorien(),...katSan.filter(k=>!exk.has(k.id))]);
             }
             toast(`${neu.length} neue Belege importiert`,'success');
             navigate('alle');

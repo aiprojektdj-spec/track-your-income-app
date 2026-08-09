@@ -63,6 +63,9 @@ a:hover { text-decoration:underline; }
 .badge-required {
     background:rgba(16,185,129,.15); color:#34d399;
 }
+.badge-functional {
+    background:rgba(245,158,11,.15); color:#fbbf24;
+}
 footer {
     border-top:1px solid var(--border); padding:24px;
     text-align:center; font-size:13px; color:var(--muted);

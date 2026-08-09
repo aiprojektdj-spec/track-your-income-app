@@ -57,10 +57,14 @@ var StbShare = (function () {
     }
 
     // ── Gemeinsamen AES-GCM-Schlüssel aus eigenem Private + fremdem Public ─────
-    async function _sharedKey(privJwk, pubJwk) {
-        var priv = await subtle.importKey('jwk', privJwk, EC, false, ['deriveBits']);
+    // priv darf ein JWK-Objekt (Alt-Installationen, Ephemeral-Keys, Node-Tests) ODER
+    // bereits ein importierter (ggf. nicht-extrahierbarer) CryptoKey sein — s. _ensureKeys.
+    async function _sharedKey(priv, pubJwk) {
+        var privKey = (priv && typeof priv === 'object' && priv.type === 'private')
+            ? priv
+            : await subtle.importKey('jwk', priv, EC, false, ['deriveBits']);
         var pub  = await subtle.importKey('jwk', pubJwk,  EC, false, []);
-        var bits = await subtle.deriveBits({ name: 'ECDH', public: pub }, priv, 256);
+        var bits = await subtle.deriveBits({ name: 'ECDH', public: pub }, privKey, 256);
         return subtle.importKey('raw', bits, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
     }
 
@@ -103,14 +107,56 @@ var StbShare = (function () {
         return { status: res.status, json: json };
     }
 
-    // Eigenes ECDH-Schlüsselpaar (einmalig erzeugt, lokal gehalten)
+    // ── IndexedDB (nur für den nicht-extrahierbaren eigenen Private-Key) ──────
+    var STBKEY_DB = 'oyi_stbkeys', STBKEY_STORE = 'keys';
+    function _idbOpen() {
+        return new Promise(function (resolve, reject) {
+            var req = indexedDB.open(STBKEY_DB, 1);
+            req.onupgradeneeded = function (e) { e.target.result.createObjectStore(STBKEY_STORE); };
+            req.onsuccess = function (e) { resolve(e.target.result); };
+            req.onerror   = function () { reject(req.error); };
+        });
+    }
+    function _idbGet(key) {
+        return _idbOpen().then(function (db) { return new Promise(function (resolve, reject) {
+            var req = db.transaction(STBKEY_STORE, 'readonly').objectStore(STBKEY_STORE).get(key);
+            req.onsuccess = function () { resolve(req.result); };
+            req.onerror   = function () { reject(req.error); };
+        }); });
+    }
+    function _idbPut(key, value) {
+        return _idbOpen().then(function (db) { return new Promise(function (resolve, reject) {
+            var tx = db.transaction(STBKEY_STORE, 'readwrite');
+            tx.objectStore(STBKEY_STORE).put(value, key);
+            tx.oncomplete = function () { resolve(); };
+            tx.onerror    = function () { reject(tx.error); };
+        }); });
+    }
+
+    // Eigenes ECDH-Schlüsselpaar (einmalig erzeugt, lokal gehalten).
+    // Neue Accounts: Private-Key wird NICHT extrahierbar erzeugt und nur als CryptoKey-
+    // Objekt in IndexedDB gehalten (kein Klartext-Export mehr möglich, auch nicht per
+    // XSS/DevTools-Zugriff auf localStorage). Alt-Installationen mit bereits vorhandenem
+    // JWK-Private-Key in localStorage bleiben unverändert, damit bestehende StB-Freigaben
+    // (an den ALTEN Public-Key verpackt) gültig bleiben — ein Schlüsselwechsel würde sie brechen.
     async function _ensureKeys() {
         if (localStorage.getItem(LS_PRIV) && localStorage.getItem(LS_PUB)) return;
-        var kp = await genKeyPair();
-        localStorage.setItem(LS_PRIV, JSON.stringify(kp.priv));
-        localStorage.setItem(LS_PUB,  JSON.stringify(kp.pub));
+        if (localStorage.getItem(LS_PUB)) {
+            var existing = await _idbGet('priv').catch(function () { return null; });
+            if (existing) return;
+        }
+        var kp     = await subtle.generateKey(EC, false, ['deriveBits']); // private: nicht extrahierbar
+        var pubJwk = await subtle.exportKey('jwk', kp.publicKey);
+        await _idbPut('priv', kp.privateKey);
+        localStorage.setItem(LS_PUB, JSON.stringify(pubJwk));
     }
-    function _privJwk() { try { return JSON.parse(localStorage.getItem(LS_PRIV) || 'null'); } catch (e) { return null; } }
+    // Liefert den eigenen Private-Key zum Entpacken: JWK (Alt-Installation) oder
+    // CryptoKey (neue, gehärtete Installation) — beides von _sharedKey() akzeptiert.
+    async function _ownPrivKey() {
+        var legacy = localStorage.getItem(LS_PRIV);
+        if (legacy) { try { return JSON.parse(legacy); } catch (e) { return null; } }
+        return await _idbGet('priv').catch(function () { return null; });
+    }
     function _pubJwk()  { try { return JSON.parse(localStorage.getItem(LS_PUB)  || 'null'); } catch (e) { return null; } }
 
     // Beim Login aufrufen: Schlüsselpaar sicherstellen + Public-Key registrieren
@@ -217,7 +263,7 @@ var StbShare = (function () {
             var r = await _api({ action: 'list_grants' });
             var g = (r.json.grants || []).filter(function (x) { return x.ownerId === ownerId; })[0];
             if (!g) { _toast('Freigabe nicht gefunden.', 'error'); return; }
-            var priv = _privJwk();
+            var priv = await _ownPrivKey();
             if (!priv) { _toast('Kein lokaler Schlüssel — bitte neu anmelden.', 'error'); return; }
             var kb = await unwrapKey(g.envelope, priv);
             _toast('Lade Mandantendaten…', 'info');

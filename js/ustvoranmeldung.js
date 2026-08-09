@@ -39,18 +39,40 @@ const UstVoranmeldung = {
         // (SteuerBerechnung.margeEinzeldifferenz/margeGesamtdifferenz) in Kz. 81 eingerechnet.
         const purchasesById25a = {};
         Store.getPurchases(true).forEach(p => { purchasesById25a[p.id] = p; });
-        const _istDiff25aSale = s => {
-            const p = purchasesById25a[s.purchaseId] || (s.purchaseIds && s.purchaseIds[0] ? purchasesById25a[s.purchaseIds[0]] : null);
-            return !!(p && p.differenzbesteuert);
+        // Sammelverkauf (mehrere Einkauf-IDs, s. purchaseIds): ALLE verknüpften Einkäufe berücksichtigen,
+        // nicht nur den ersten — sonst fehlt bei Bündelverkäufen mit mehreren §25a-Artikeln der Großteil
+        // des Einkaufspreises in der Margenermittlung.
+        const _linkedPurchases25a = s => {
+            const ids = (s.purchaseIds && s.purchaseIds.length) ? s.purchaseIds : (s.purchaseId ? [s.purchaseId] : []);
+            return ids.map(id => purchasesById25a[id]).filter(Boolean);
         };
+        const _istDiff25aSale = s => _linkedPurchases25a(s).some(p => p.differenzbesteuert);
+        const _sumEk25a = s => _linkedPurchases25a(s).reduce((sum, p) => sum + (parseFloat(p.einkaufspreis) || 0), 0);
         const diff25aPositionenRoh = [];
 
         // Brutto-Umsätze nach Steuersatz aufteilen (Feld: steuersatz, Default: 19 nur wenn nicht gesetzt)
         const _rate = item => {
+            // Gemischte Rechnung (js/store.js createSaleFromInvoice): dominanten Satz (größter
+            // Anteil) liefern — nur für Stellen relevant, die zwingend EINEN Satz brauchen
+            // (z.B. Retouren-Zuordnung); die eigentliche Summenbildung nutzt _perRateGroups().
+            if (item && item.steuersaetze && Object.keys(item.steuersaetze).length) {
+                var keys = Object.keys(item.steuersaetze);
+                var best = keys[0];
+                keys.forEach(function (k) { if (Math.abs(item.steuersaetze[k]) > Math.abs(item.steuersaetze[best])) best = k; });
+                return parseFloat(best);
+            }
             const r = parseFloat(item.steuersatz);
             return isNaN(r) ? 19 : r;
         };
         const _brutto = item => (parseFloat(item.verkaufspreis) || 0) + (parseFloat(item.versandkostenKaeufer) || 0);
+        // Liefert [{satz, brutto}] — bei einem Sale mit gemischten Sätzen (sale.steuersaetze,
+        // s. store.js createSaleFromInvoice) satzgenau, sonst ein einzelner Eintrag über _rate()/_brutto().
+        const _perRateGroups = item => {
+            if (item && item.steuersaetze && Object.keys(item.steuersaetze).length) {
+                return Object.keys(item.steuersaetze).map(function (k) { return { satz: parseFloat(k), brutto: item.steuersaetze[k] }; });
+            }
+            return [{ satz: _rate(item), brutto: _brutto(item) }];
+        };
 
         let bruttoUmsatz19 = 0, bruttoUmsatz7 = 0;
         let nettoIgLieferung = 0, nettoIgLeistung = 0, nettoAusfuhr = 0;
@@ -95,12 +117,17 @@ const UstVoranmeldung = {
                         // §25a: kein normaler Steuersatz — Marge wird separat unten in Kz. 81 eingerechnet.
                         if (pos.differenzbesteuert) {
                             const linkedPurch = pos.lagerArtikelId ? purchasesById25a[pos.lagerArtikelId] : null;
-                            diff25aPositionenRoh.push({
-                                verkaufspreis: sign * (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0),
-                                // sign auch hier: Gutschrift muss die Marge spiegeln, nicht nur den Verkaufspreis
-                                // (sonst wird bei Gesamtdifferenz der Einkaufspreis doppelt abgezogen → Vortrag zu negativ → Unterzahlung).
-                                einkaufspreis: sign * (linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0))
-                            });
+                            const vk = (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0);
+                            const ek = linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0);
+                            if (sign === -1) {
+                                // Gutschrift auf einen §25a-Artikel (§17 UStG Korrektur): die URSPRÜNGLICH
+                                // versteuerte Marge (max(0,vk-ek)) zurücknehmen. NICHT die negierten vk/ek
+                                // erneut auf 0 klemmen lassen — sonst verschwindet die Korrektur bei
+                                // vollständiger Stornierung spurlos (die schon gezahlte USt bliebe stehen).
+                                diff25aPositionenRoh.push({ margeKorrektur: -Math.max(0, vk - ek), satz: 19 });
+                            } else {
+                                diff25aPositionenRoh.push({ verkaufspreis: vk, einkaufspreis: ek });
+                            }
                             return;
                         }
                         // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
@@ -122,13 +149,13 @@ const UstVoranmeldung = {
             Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate))
                 .forEach(s => {
                     if (_istDiff25aSale(s)) {
-                        const p = purchasesById25a[s.purchaseId] || purchasesById25a[(s.purchaseIds || [])[0]];
-                        diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: parseFloat(p.einkaufspreis) || 0 });
+                        diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s) });
                         return;
                     }
-                    const rate = _rate(s);
-                    if (rate === 7) bruttoUmsatz7 += _brutto(s);
-                    else if (rate !== 0) bruttoUmsatz19 += _brutto(s);
+                    _perRateGroups(s).forEach(function (g) {
+                        if (g.satz === 7) bruttoUmsatz7 += g.brutto;
+                        else if (g.satz !== 0) bruttoUmsatz19 += g.brutto;
+                    });
                 });
         } else {
             // Ist: alle Verkäufe (Direktverkäufe + aus bezahlten Rechnungen synchronisiert) zum
@@ -136,12 +163,18 @@ const UstVoranmeldung = {
             // separaten Rechnungs-Pfad, der Rechnungs-Umsätze schon zählt, also KEIN _invoiceId-Ausschluss.
             const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
             sales.filter(_istDiff25aSale).forEach(s => {
-                const p = purchasesById25a[s.purchaseId] || purchasesById25a[(s.purchaseIds || [])[0]];
-                diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: parseFloat(p.einkaufspreis) || 0 });
+                diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s) });
             });
             const salesOhneDiff25a = sales.filter(s => !_istDiff25aSale(s));
-            bruttoUmsatz7  = salesOhneDiff25a.filter(v => _rate(v) === 7).reduce((s, v) => s + _brutto(v), 0);
-            bruttoUmsatz19 = salesOhneDiff25a.filter(v => { const r = _rate(v); return r !== 7 && r !== 0; }).reduce((s, v) => s + _brutto(v), 0);
+            // Satzgenau summieren (_perRateGroups) statt pro Sale nur EINEN Satz anzunehmen —
+            // sonst geht bei Rechnungen mit gemischten 7%/19%-Positionen die Aufteilung verloren
+            // und der komplette Betrag faellt auf den 19%-Default (s. Fix Ist-UVA gemischte Sätze).
+            salesOhneDiff25a.forEach(v => {
+                _perRateGroups(v).forEach(function (g) {
+                    if (g.satz === 7) bruttoUmsatz7 += g.brutto;
+                    else if (g.satz !== 0) bruttoUmsatz19 += g.brutto;
+                });
+            });
         }
 
         // Ist-Versteuerung + EU-Geschäft: ig. Lieferung/Leistung (Kz.41/21) und OSS-Erkennung laufen
@@ -178,7 +211,18 @@ const UstVoranmeldung = {
         retouren.forEach(r => {
             const linked = r.saleId ? salesById[r.saleId] : null;
             if (linked && linked.storniert) return;
-            if (linked && _istDiff25aSale(linked)) return;
+            if (linked && _istDiff25aSale(linked)) {
+                // §25a-Verkauf: Erstattung läuft NICHT über retour7/retour19 (dort ausgeschlossen,
+                // s. Zeile oben), sonst verschwindet sie spurlos statt die versteuerte Marge zu
+                // mindern. Anteilig zur ursprünglichen Marge zurücknehmen (§17 UStG).
+                const originalVk = parseFloat(linked.verkaufspreis) || 0;
+                const originalEk = _sumEk25a(linked);
+                const originalMarge = Math.max(0, originalVk - originalEk);
+                const erstattung = parseFloat(r.erstattungBetrag) || 0;
+                const anteil = originalVk !== 0 ? Math.min(1, erstattung / Math.abs(originalVk)) : 0;
+                diff25aPositionenRoh.push({ margeKorrektur: -(originalMarge * anteil), satz: 19 });
+                return;
+            }
             const rate = _rate(linked || r);
             const betrag = parseFloat(r.erstattungBetrag) || 0;
             if (rate === 7) retour7 += betrag;
@@ -195,8 +239,11 @@ const UstVoranmeldung = {
         if (differenzMethode === 'gesamt') {
             const vortrag = Store.getDifferenzVortrag(this._year);
             const ueber750 = diff25aPositionenRoh.filter(p => p.einkaufspreis > 750);
+            // margeKorrektur-Einträge (Retouren-/Gutschrift-Korrekturen ohne eigenes einkaufspreis-Feld,
+            // s. Zeile ~127/223) müssen in die Gesamtdifferenz-Bemessungsgrundlage einfließen — nicht in
+            // beiden Filtern durchfallen (undefined > 750 UND undefined <= 750 sind beide false).
             diff25a = SteuerBerechnung.margeGesamtdifferenz(
-                diff25aPositionenRoh.filter(p => p.einkaufspreis <= 750), vortrag, 19
+                diff25aPositionenRoh.filter(p => !(p.einkaufspreis > 750)), vortrag, 19
             );
             diff25a.margeBrutto = diff25a.bemessungsgrundlage;
             diff25a.margeNetto = diff25a.netto;

@@ -7,19 +7,31 @@ const Lohnsteuer = {
 
     _year: new Date().getFullYear(),
 
-    // SV-Beitragssätze 2025 (AG-Anteil)
+    // SV-Beitragssätze 2026 (AG-Anteil)
+    // Quelle: Sozialversicherungsrechengrößen-Verordnung 2026 (BMAS/BGBl., verkündet 26.11.2025,
+    // in Kraft seit 01.01.2026) — https://www.bmas.de/DE/Service/Gesetze-und-Gesetzesvorhaben/sozialversicherungs-rechengroessenverordnung-2026.html
+    // Recherchiert am 2026-07-30. KV/RV/AV/PV-Beitragssätze sind ggü. 2025 unverändert,
+    // nur die Bemessungsgrenzen (BBG) steigen.
     SV: {
-        kv:      0.0765,   // Krankenversicherung 7,3% + Zusatzbeitrag ~0,65% → AG zahlt 7,65%
-        rv:      0.093,    // Rentenversicherung 9,3%
-        av:      0.013,    // Arbeitslosenversicherung 1,3%
-        pv:      0.018,    // Pflegeversicherung 1,8% (AG-Anteil 2025, §55 Abs. 1 SGB XI)
+        kv:      0.0875,   // Krankenversicherung: 7,3% allgemeiner Satz + hälftiger Ø-Zusatzbeitrag (2,9% / 2 = 1,45%) → AG zahlt 8,75%
+        rv:      0.093,    // Rentenversicherung 18,6% paritätisch → AG-Anteil 9,3%
+        av:      0.013,    // Arbeitslosenversicherung 2,6% paritätisch → AG-Anteil 1,3%
+        pv:      0.018,    // Pflegeversicherung 3,6% Basissatz paritätisch → AG-Anteil 1,8% (§55 Abs. 1 SGB XI).
+                            // Kinderlosenzuschlag §55 Abs. 3 SGB XI (0,6%) wird ausschließlich vom AN getragen,
+                            // hier NICHT modelliert (kein Kinderstatus je Mitarbeiter erfasst) — bekannte Näherung.
     },
 
-    // BBG 2025
+    // BBG 2026 (bundeseinheitlich, jährlich)
     BBG: {
-        kv: 66150,   // Beitragsbemessungsgrenze KV/PV (jährlich)
-        rv: 96600,   // Beitragsbemessungsgrenze RV/AV (jährlich, West)
+        kv: 69750,   // Beitragsbemessungsgrenze KV/PV (bundeseinheitlich, 5.812,50 €/Monat)
+        rv: 101400,  // Beitragsbemessungsgrenze RV/AV (bundeseinheitlich seit 2025, 8.450 €/Monat)
     },
+
+    // Solidaritätszuschlag-Freigrenze 2026 nach § 3 SolzG (tarifliche Jahres-Lohn-/Einkommensteuer)
+    // Quelle: siehe SV-Quelle oben, recherchiert 2026-07-30.
+    SOLI_FREIGRENZE_SINGLE:  20350,  // Steuerklasse I/II/IV/V/VI im Lohnsteuerabzugsverfahren
+    SOLI_FREIGRENZE_SPLIT:   40700,  // Steuerklasse III (unterstellte Zusammenveranlagung beim Lohnsteuerabzug)
+    SOLI_MILDERUNGSSATZ:     0.119, // Milderungszone: Soli max. 11,9% des Betrags über der Freigrenze
 
     _getEmployees()   { return Store.get('lohnsteuer_employees') || []; },
     _saveEmployees(d) { Store.set('lohnsteuer_employees', d); },
@@ -45,7 +57,24 @@ const Lohnsteuer = {
         if (steuerklasse === 6) lstSatz *= 1.1;
 
         const lohnsteuer = brutto * lstSatz;
-        const solz = lohnsteuer > 0 ? lohnsteuer * 0.055 : 0;
+
+        // Soli nur, wenn die JAHRES-Lohnsteuer die Freigrenze nach § 3 SolzG übersteigt.
+        // Im Lohnsteuerabzugsverfahren gilt die VERDOPPELTE Freigrenze nur für Steuerklasse III
+        // (dort wird die gemeinsame Veranlagung unterstellt); StKl I/II/IV/V/VI nutzen die einfache
+        // Freigrenze — StKl IV ist zwar auch "verheiratet", aber ohne Splitting-Vorteil beim
+        // Lohnsteuerabzug, und StKl V/VI werden ohnehin mit dem hohen Grenzsteuersatz belastet.
+        const jahresLohnsteuer = lohnsteuer * 12;
+        const soliFreigrenze = (steuerklasse === 3)
+            ? this.SOLI_FREIGRENZE_SPLIT
+            : this.SOLI_FREIGRENZE_SINGLE;
+        let solzJahres = 0;
+        if (jahresLohnsteuer > soliFreigrenze) {
+            // Milderungszone: Soli max. 11,9% des Betrags über der Freigrenze, sonst 5,5% der ESt.
+            const milderungsSoli = (jahresLohnsteuer - soliFreigrenze) * this.SOLI_MILDERUNGSSATZ;
+            const vollerSoli = jahresLohnsteuer * 0.055;
+            solzJahres = Math.min(milderungsSoli, vollerSoli);
+        }
+        const solz = solzJahres / 12;
         const kirchensteuer = 0; // optional, default aus
 
         // SV-Beiträge AN (gleich wie AG)
@@ -102,6 +131,20 @@ const Lohnsteuer = {
             <h2><i class="ti ti-users" style="margin-right:6px;"></i> Lohnsteuer & Personalkosten</h2>
             <div class="page-header-actions no-print">
                 <button class="btn btn-primary" id="addEmployeeBtn">+ Mitarbeiter</button>
+            </div>
+        </div>
+
+        <div class="card no-print" style="margin-bottom:16px;padding:14px 16px;border:1px solid var(--warning);background:rgba(245,158,11,.08);">
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+                <i class="ti ti-alert-triangle" style="color:var(--warning);font-size:20px;flex-shrink:0;margin-top:1px;"></i>
+                <div style="font-size:12.5px;line-height:1.6;">
+                    <strong style="color:var(--warning);">Grobe Näherung — KEINE echte Lohnsteuerberechnung.</strong>
+                    Dieser Rechner nutzt einen vereinfachten 4-Stufen-Pauschaltarif statt der amtlichen Tarifformel
+                    nach § 32a EStG und ohne Vorsorgepauschale (§ 39b Abs. 2 Nr. 3 EStG). Ergebnisse dienen nur der
+                    groben Orientierung und dürfen <u>nicht</u> für die offizielle Lohnabrechnung, Lohnsteuer-Anmeldung
+                    oder ELSTER-Meldung verwendet werden. Nutze für echte Lohnabrechnungen zertifizierte Lohnsoftware
+                    (z. B. DATEV) oder einen Steuerberater/Lohnbüro.
+                </div>
             </div>
         </div>
 
@@ -210,8 +253,8 @@ const Lohnsteuer = {
                     </div>`).join('')}
             </div>
             <div style="margin-top:10px;font-size:11px;color:var(--text-muted);">
-                BBG KV/PV: ${Utils.formatCurrency(this.BBG.kv)}/Jahr · BBG RV/AV: ${Utils.formatCurrency(this.BBG.rv)}/Jahr (West)<br>
-                ⚠️ Vereinfachte Berechnung — exakte Werte über DATEV/Lohnsoftware. Keine Lohnsteuerberatung.
+                BBG KV/PV: ${Utils.formatCurrency(this.BBG.kv)}/Jahr · BBG RV/AV: ${Utils.formatCurrency(this.BBG.rv)}/Jahr (bundeseinheitlich)<br>
+                ⚠️ <strong>Vereinfachte Näherung, keine amtliche Lohnsteuerberechnung</strong> — exakte Werte über DATEV/Lohnsoftware oder Steuerberater. Keine Lohnsteuerberatung.
             </div>
         </div>`;
     },

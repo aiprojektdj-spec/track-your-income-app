@@ -54,11 +54,17 @@ const GbrModul = {
         const purchasesById = {};
         purchases.forEach(p => { purchasesById[p.id] = p; });
         (Store.getPurchases ? Store.getPurchases(true) : []).forEach(p => { if (!purchasesById[p.id]) purchasesById[p.id] = p; });
+        // §25a-Retouren: Erstattungsbetrag mindert den Verkaufspreis der zurückgegebenen Position vor
+        // der Margenbildung (analog zu euer.js/ustvoranmeldung.js, s. plan/OFFEN.md §2.1b).
+        const diff25aRetourenBySaleId = {};
+        retouren.filter(r => r.saleId).forEach(r => {
+            diff25aRetourenBySaleId[r.saleId] = (diff25aRetourenBySaleId[r.saleId] || 0) + (parseFloat(r.erstattungBetrag) || 0);
+        });
         const diff25aSalesPositionen = sales
             .map(s => ({ sale: s, purchase: purchasesById[s.purchaseId] || (s.purchaseIds && s.purchaseIds[0] ? purchasesById[s.purchaseIds[0]] : null) }))
             .filter(x => x.purchase && x.purchase.differenzbesteuert)
             .map(x => ({
-                verkaufspreis: (parseFloat(x.sale.verkaufspreis) || 0) + (parseFloat(x.sale.versandkostenKaeufer) || 0),
+                verkaufspreis: Math.max(0, ((parseFloat(x.sale.verkaufspreis) || 0) + (parseFloat(x.sale.versandkostenKaeufer) || 0)) - (diff25aRetourenBySaleId[x.sale.id] || 0)),
                 einkaufspreis: parseFloat(x.purchase.einkaufspreis) || 0
             }));
         const diff25aInvoicePositionen = [];
@@ -146,7 +152,7 @@ const GbrModul = {
 
     // ── Übersicht ─────────────────────────────────────────────────
     _renderUebersicht(gs, { einnahmen, wareneinkauf, betriebsausgaben, gewinn, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview }, year) {
-        const verteilung = GbR.berechneVerteilung(gewinn);
+        const verteilung = GbR.berechneVerteilungMitSonder(gewinn, year);
         const gewSt      = GbR.berechneGewSt(gewinn);
         const nettoGewinn = gewinn - gewSt;
 
@@ -193,8 +199,11 @@ const GbrModul = {
                 ${gs.map(g => {
                     const v = verteilung.find(x=>x.id===g.id) || {};
                     const brutto  = parseFloat(v.gewinnanteil)||0;
-                    const gst     = parseFloat(v.gewSt)||0;
-                    const netto   = brutto - gst;
+                    const sbe     = parseFloat(v.sbe)||0;
+                    const sba     = parseFloat(v.sba)||0;
+                    const gesamt  = v.gesamtgewinn != null ? v.gesamtgewinn : brutto;
+                    const gst     = parseFloat(v.gewStAnteil)||0;
+                    const netto   = gesamt - gst;
                     let ausgezahlt = 0;
                     for (let mIdx = 0; mIdx < 12; mIdx++) {
                         const mk = `${year}-${String(mIdx+1).padStart(2,'0')}`;
@@ -209,8 +218,16 @@ const GbrModul = {
                             <span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:10px;background:var(--accent-glow);color:var(--accent);">${g.anteil}%</span>
                         </div>
                         <div style="display:grid;grid-template-columns:1fr auto;gap:4px 8px;font-size:12px;">
-                            <span style="color:var(--text-muted);">Bruttoanteil</span>
+                            <span style="color:var(--text-muted);">Anteil Gesamthandsgewinn</span>
                             <span style="text-align:right;font-weight:600;">${Utils.formatCurrency(brutto)}</span>
+                            ${(sbe || sba) ? `
+                            <span style="color:var(--text-muted);">+ Sonderbetriebseinnahmen</span>
+                            <span style="text-align:right;color:var(--success);">+ ${Utils.formatCurrency(sbe)}</span>
+                            <span style="color:var(--text-muted);">− Sonderbetriebsausgaben</span>
+                            <span style="text-align:right;color:var(--danger);">− ${Utils.formatCurrency(sba)}</span>
+                            <span style="color:var(--text-muted);font-weight:600;">= Gesamtgewinn</span>
+                            <span style="text-align:right;font-weight:700;">${Utils.formatCurrency(gesamt)}</span>
+                            ` : ''}
                             <span style="color:var(--text-muted);">− Gewerbesteuer</span>
                             <span style="text-align:right;color:var(--warning);">− ${Utils.formatCurrency(gst)}</span>
                             <span style="color:var(--text-muted);font-weight:700;padding-top:4px;border-top:1px solid var(--border);">Nettoanteil</span>
@@ -520,7 +537,7 @@ const GbrModul = {
     // ── Feststellungserklärung ────────────────────────────────────
     _renderFeststellung(gs, gewinn, year) {
         const einst      = this._getEinst();
-        const verteilung = GbR.berechneVerteilung(gewinn);
+        const verteilung = GbR.berechneVerteilungMitSonder(gewinn, year);
         const gewSt      = GbR.berechneGewSt(gewinn);
         const anteilSum  = gs.reduce((s,g)=>s+(parseFloat(g.anteil)||0),0);
 
@@ -556,6 +573,46 @@ const GbrModul = {
             </div>
         </div>
 
+        <!-- Sonderbetriebseinnahmen/-ausgaben (§15 Abs. 1 Nr. 2 EStG) -->
+        <div class="card" style="padding:20px;margin-bottom:16px;">
+            <div style="font-weight:700;font-size:15px;margin-bottom:4px;">➕ Sonderbetriebseinnahmen / -ausgaben</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">
+                §15 Abs. 1 Nr. 2 EStG — z.B. Tätigkeitsvergütungen, Miete für an die GbR überlassene Wirtschaftsgüter, Zinsen für Gesellschafterdarlehen.
+                Fließen additiv (nicht anteilig) in den Gesamtgewinn des jeweiligen Gesellschafters ein.
+            </div>
+            ${gs.length === 0 ? `<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:13px;">Erst Gesellschafter anlegen</div>` : `
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                ${gs.map(g => {
+                    const s = GbR.getSbeSba(year, g.id);
+                    return `
+                    <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+                        <div style="font-weight:700;font-size:13px;margin-bottom:10px;">👤 ${Utils.escapeHtml(g.name)}</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Sonderbetriebseinnahmen (€)</label>
+                                <input type="number" step="0.01" min="0" max="99999999" class="form-input sbesba-input" id="sbesba_sbe_${g.id}" value="${s.sbe || ''}" placeholder="0,00">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Bezeichnung</label>
+                                <input type="text" maxlength="300" class="form-input sbesba-input" id="sbesba_sbeb_${g.id}" value="${Utils.escapeHtml(s.sbeBezeichnung||'')}" placeholder="z.B. Tätigkeitsvergütung">
+                            </div>
+                        </div>
+                        <div class="form-row" style="margin-top:8px;">
+                            <div class="form-group">
+                                <label class="form-label">Sonderbetriebsausgaben (€)</label>
+                                <input type="number" step="0.01" min="0" max="99999999" class="form-input sbesba-input" id="sbesba_sba_${g.id}" value="${s.sba || ''}" placeholder="0,00">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Bezeichnung</label>
+                                <input type="text" maxlength="300" class="form-input sbesba-input" id="sbesba_sbab_${g.id}" value="${Utils.escapeHtml(s.sbaBezeichnung||'')}" placeholder="z.B. Sonderabschreibung">
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('')}
+                <button class="btn btn-primary" id="saveSbeSbaBtn" style="align-self:flex-start;">💾 Sonderbereich speichern</button>
+            </div>`}
+        </div>
+
         <!-- Datenübersicht -->
         <div class="card" style="padding:20px;margin-bottom:16px;">
             <div style="font-weight:700;font-size:15px;margin-bottom:16px;">📊 Datenübersicht für ELSTER / Steuerberater</div>
@@ -567,14 +624,17 @@ const GbrModul = {
                 <div><strong>Wirtschaftsjahr:</strong>&nbsp;&nbsp; ${year}</div>
                 <div><strong>Gewinnermittlung:</strong>&nbsp; EÜR gem. §4 Abs. 3 EStG</div>
                 <div style="border-top:1px solid var(--border);margin:6px 0;"></div>
-                <div><strong>Gesamtgewinn:</strong>&nbsp;&nbsp;&nbsp;&nbsp; ${Utils.formatCurrency(gewinn)}</div>
+                <div><strong>Gesamthandsgewinn:</strong>&nbsp; ${Utils.formatCurrency(gewinn)}</div>
                 <div><strong>Gewerbesteuer:</strong>&nbsp;&nbsp;&nbsp; ${Utils.formatCurrency(gewSt)}</div>
                 <div><strong>Netto-Gewinn:</strong>&nbsp;&nbsp;&nbsp;&nbsp; ${Utils.formatCurrency(gewinn-gewSt)}</div>
                 <div style="border-top:1px solid var(--border);margin:6px 0;"></div>
                 ${gs.map(g=>{
                     const v = verteilung.find(x=>x.id===g.id)||{};
                     const rolleLabel = g.rolle && g.rolle !== 'gesellschafter' ? ` [${g.rolle}]` : '';
-                    return `<div><strong>${Utils.escapeHtml(g.name)}${rolleLabel} (${g.anteil}%):</strong>&nbsp; Brutto ${Utils.formatCurrency(v.gewinnanteil||0)} · Netto ${Utils.formatCurrency((v.gewinnanteil||0)-(v.gewSt||0))}</div>`;
+                    const sbeSbaLine = (v.sbe || v.sba)
+                        ? ` · SBE ${Utils.formatCurrency(v.sbe||0)} − SBA ${Utils.formatCurrency(v.sba||0)}`
+                        : '';
+                    return `<div><strong>${Utils.escapeHtml(g.name)}${rolleLabel} (${g.anteil}%):</strong>&nbsp; Anteil Gesamthandsgewinn ${Utils.formatCurrency(v.gewinnanteil||0)}${sbeSbaLine} · <strong>Gesamtgewinn ${Utils.formatCurrency(v.gesamtgewinn!=null?v.gesamtgewinn:(v.gewinnanteil||0))}</strong> (netto ${Utils.formatCurrency((v.gesamtgewinn!=null?v.gesamtgewinn:(v.gewinnanteil||0))-(v.gewStAnteil||0))})</div>`;
                 }).join('')}
             </div>
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
@@ -599,7 +659,7 @@ const GbrModul = {
         const einst      = this._getEinst();
         const gs         = GbR.getGesellschafter();
         const { gewinn } = this._calcJahresgewinn(year);
-        const verteilung = GbR.berechneVerteilung(gewinn);
+        const verteilung = GbR.berechneVerteilungMitSonder(gewinn, year);
         const gewSt      = GbR.berechneGewSt(gewinn);
         const rows = [
             ['Feststellungserklärung Export',`Stand: ${new Date().toLocaleDateString('de-DE')}`],
@@ -612,14 +672,18 @@ const GbrModul = {
             ['Gewinnermittlung', 'EÜR §4 Abs. 3 EStG'],
             [''],
             ['GEWINNERMITTLUNG','',''],
-            ['Gesamtgewinn', gewinn.toFixed(2),'€'],
+            ['Gesamthandsgewinn', gewinn.toFixed(2),'€'],
             ['Gewerbesteuer', gewSt.toFixed(2),'€'],
             ['Netto-Gewinn', (gewinn-gewSt).toFixed(2),'€'],
             [''],
-            ['GESELLSCHAFTER','Rolle','Anteil %','Bruttoanteil €','GewSt-Anteil €','Nettoanteil €'],
+            ['GESELLSCHAFTER','Rolle','Anteil %','Anteil Gesamthandsgewinn €','SBE §15 I Nr.2 EStG €','SBA §15 I Nr.2 EStG €','Gesamtgewinn €','GewSt-Anteil €','Nettoanteil €'],
             ...gs.map(g=>{
                 const v = verteilung.find(x=>x.id===g.id)||{};
-                return [g.name, g.rolle||'gesellschafter', g.anteil, (v.gewinnanteil||0).toFixed(2), (v.gewSt||0).toFixed(2), ((v.gewinnanteil||0)-(v.gewSt||0)).toFixed(2)];
+                const gewinnanteil = v.gewinnanteil||0;
+                const sbe = v.sbe||0, sba = v.sba||0;
+                const gesamtgewinn = v.gesamtgewinn != null ? v.gesamtgewinn : gewinnanteil;
+                const gewStAnteil  = v.gewStAnteil||0;
+                return [g.name, g.rolle||'gesellschafter', g.anteil, gewinnanteil.toFixed(2), sbe.toFixed(2), sba.toFixed(2), gesamtgewinn.toFixed(2), gewStAnteil.toFixed(2), (gesamtgewinn-gewStAnteil).toFixed(2)];
             })
         ];
         if (typeof Utils.downloadCSV === 'function') {
@@ -780,6 +844,24 @@ const GbrModul = {
         // Feststellung exportieren
         const exportBtn = document.getElementById('exportFestBtn');
         if (exportBtn) exportBtn.addEventListener('click', () => this._exportFeststellung(this._year));
+
+        // Sonderbetriebseinnahmen/-ausgaben speichern
+        const saveSbeSbaBtn = document.getElementById('saveSbeSbaBtn');
+        if (saveSbeSbaBtn) saveSbeSbaBtn.addEventListener('click', () => this._saveSbeSba(this._year));
+    },
+
+    // Liest alle SBE/SBA-Eingabefelder pro Gesellschafter aus dem Feststellung-Tab und speichert sie.
+    _saveSbeSba(year) {
+        const gs = GbR.getGesellschafter();
+        gs.forEach(g => {
+            const sbe  = document.getElementById(`sbesba_sbe_${g.id}`)?.value;
+            const sbeb = document.getElementById(`sbesba_sbeb_${g.id}`)?.value || '';
+            const sba  = document.getElementById(`sbesba_sba_${g.id}`)?.value;
+            const sbab = document.getElementById(`sbesba_sbab_${g.id}`)?.value || '';
+            GbR.saveSbeSba(year, g.id, { sbe, sbeBezeichnung: sbeb, sba, sbaBezeichnung: sbab });
+        });
+        Utils.showToast('✅ Sonderbereich gespeichert', 'success');
+        this._refresh();
     }
 };
 

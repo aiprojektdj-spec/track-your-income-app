@@ -43,6 +43,10 @@ var AuthUI = (function () {
 
     var LS_TOKEN = 'whop_access_token';
     var LS_USER  = 'whop_user';
+    // Gerätesperre: lokale Unternehmensdaten (companies.js REGISTRY_KEY etc.) sind NICHT an die
+    // Whop-User-ID gebunden. Ohne diesen Marker würde nach einem Logout jeder andere Whop-Account
+    // im selben Browserprofil sofort die vollen Geschäftsdaten des vorherigen Nutzers sehen.
+    var LS_DEVICE_OWNER = 'oyi_device_owner_uid';
     var LS_GRACE = 'whop_grace_token';           // Offline-Grace: server-signiertes Token (ECDSA P-256)
     var GRACE_MS = 4 * 60 * 60 * 1000;           // 4 h ohne erneuten Whop-Server-Check (muss zu api/whop-access.js passen)
 
@@ -311,8 +315,95 @@ var AuthUI = (function () {
         }
     }
 
+    // ── Gerätesperre: gehören die bereits vorhandenen lokalen Daten diesem Nutzer? ──
+    // true  = ok (gleicher Eigentümer, oder Gerät war leer/vor-Fix → aktueller Nutzer wird Eigentümer)
+    // false = Sperre (andere Whop-User-ID hat hier bereits Daten hinterlassen)
+    function _checkDeviceOwner(userId) {
+        var stored = null;
+        try { stored = localStorage.getItem(LS_DEVICE_OWNER); } catch (e) { return true; }
+        if (stored) return stored === userId;
+        // Kein Marker gesetzt: entweder ein frisches Gerät, oder eine Installation von vor
+        // diesem Fix. In beiden Fällen bleibt der aktuelle Nutzer der Eigentümer ab jetzt —
+        // eine rückwirkende Zuordnung für Alt-Installationen ist ohne weitere Information
+        // nicht möglich, aber ab hier greift die Sperre für jeden ANDEREN Account.
+        try { localStorage.setItem(LS_DEVICE_OWNER, userId); } catch (e) {}
+        return true;
+    }
+
+    // ── Gerätesperre: Blockbildschirm bei fremdem Konto ────────
+    function _showDeviceLockedScreen(user) {
+        var existing = document.getElementById('whopDeviceLockOverlay');
+        if (existing) existing.remove();
+        var overlay = document.createElement('div');
+        overlay.id = 'whopDeviceLockOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px;';
+        overlay.innerHTML = [
+            '<div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e2e42);border-radius:16px;padding:32px 28px;max-width:460px;width:100%;text-align:left;box-shadow:0 32px 80px rgba(0,0,0,.8);">',
+            '<div style="font-size:34px;margin-bottom:10px;line-height:1;">🔒</div>',
+            '<h2 style="color:var(--text-primary,#fff);font-size:19px;margin:0 0 10px;font-weight:800;">Gerät gesperrt — anderes Konto erkannt</h2>',
+            '<p style="color:var(--text-muted,#aaa);font-size:13.5px;margin:0 0 14px;line-height:1.6;">',
+            'Dieser Browser enthält bereits lokale Geschäftsdaten eines <strong>anderen</strong> Stackr-Kontos als <strong style="color:var(--text-secondary,#ddd);">' + _esc(user && (user.username || user.email) || 'dieses Konto') + '</strong>. ',
+            'Aus Datenschutzgründen zeigt Stackr diese Daten keinem anderen Konto an.',
+            '</p>',
+            '<p style="color:var(--text-muted,#888);font-size:12.5px;margin:0 0 20px;line-height:1.6;">Melde dich mit dem ursprünglichen Konto an, oder nutze ein anderes Gerät/einen anderen Browser. ',
+            'Falls du sicher bist, dass hier niemand mehr Zugriff auf die alten Daten braucht, kannst du dieses Gerät zurücksetzen — die lokalen Daten des vorherigen Kontos werden dabei unwiderruflich gelöscht.</p>',
+            '<button data-action="wa-logout" style="width:100%;padding:12px;background:var(--accent,#10b981);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;margin-bottom:10px;">Abmelden</button>',
+            '<button data-action="wa-device-reset-start" style="width:100%;padding:10px;background:none;border:1px solid rgba(239,68,68,.4);color:#f87171;border-radius:10px;cursor:pointer;font-size:12.5px;">Gerät zurücksetzen (löscht alte lokale Daten unwiderruflich)</button>',
+            '<div id="waDeviceResetConfirm" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border,#2e2e42);">',
+            '<p style="color:#f87171;font-size:12px;margin:0 0 8px;line-height:1.5;">Tippe zur Bestätigung <strong>LÖSCHEN</strong> ein. Diese Aktion kann nicht rückgängig gemacht werden.</p>',
+            '<input id="waDeviceResetInput" type="text" autocomplete="off" style="width:100%;padding:9px 10px;margin-bottom:8px;background:var(--surface-2,rgba(255,255,255,.04));border:1px solid var(--border,#2e2e42);border-radius:8px;color:var(--text-primary,#fff);font-size:13px;box-sizing:border-box;">',
+            '<button id="waDeviceResetConfirmBtn" data-action="wa-device-reset-confirm" disabled style="width:100%;padding:10px;background:#ef4444;color:#fff;border:none;border-radius:8px;cursor:not-allowed;font-size:13px;font-weight:700;opacity:.5;">Endgültig löschen und neu starten</button>',
+            '</div>',
+            '</div>'
+        ].join('');
+        document.body.appendChild(overlay);
+
+        var input = document.getElementById('waDeviceResetInput');
+        if (input) {
+            input.addEventListener('input', function () {
+                var btn = document.getElementById('waDeviceResetConfirmBtn');
+                var ok  = input.value.trim().toUpperCase() === 'LÖSCHEN';
+                btn.disabled = !ok;
+                btn.style.opacity = ok ? '1' : '.5';
+                btn.style.cursor  = ok ? 'pointer' : 'not-allowed';
+            });
+        }
+    }
+    function _startDeviceReset() {
+        var box = document.getElementById('waDeviceResetConfirm');
+        if (box) box.style.display = 'block';
+    }
+    async function _confirmDeviceReset() {
+        var input = document.getElementById('waDeviceResetInput');
+        if (!input || input.value.trim().toUpperCase() !== 'LÖSCHEN') return;
+        var btn = document.getElementById('waDeviceResetConfirmBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Lösche…'; }
+        try {
+            // Alle bekannten App-Datenbanken + sämtlichen localStorage dieses Ursprungs löschen —
+            // NICHT vorher exportieren: die Daten gehören dem vorherigen Konto, nicht dem neuen.
+            var dbNames = ['oyi_maindata', 'oyi_autobackup', 'oyi_fs_handles'];
+            await Promise.all(dbNames.map(function (name) {
+                return new Promise(function (resolve) {
+                    try {
+                        var req = indexedDB.deleteDatabase(name);
+                        req.onsuccess = req.onerror = req.onblocked = function () { resolve(); };
+                    } catch (e) { resolve(); }
+                });
+            }));
+            localStorage.clear();
+        } catch (e) { console.error('[WhopAuth] Device-Reset fehlgeschlagen:', e); }
+        location.replace('/app.html');
+    }
+
     // ── Autorisiert: App starten ──────────────────────────────
     async function _onAuthorized(user) {
+        var uid = user && (user.id || user.sub);
+        if (!_checkDeviceOwner(uid)) {
+            _hideLoader();
+            var _lo0 = document.getElementById('whopLoginOverlay'); if (_lo0) _lo0.remove();
+            _showDeviceLockedScreen(user);
+            return;
+        }
         _updateLoader('Lade Stackr...');
         // Autorisiert → alle Gate-Overlays weg. Sonst bleibt ein Rest-Overlay (z. B. das
         // Login-Overlay aus dem Callback-Pfad hinter dem Kein-Abo-Screen) nach dem Kauf
@@ -609,7 +700,7 @@ var AuthUI = (function () {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    return { boot, openUserMenu, openReferral, _logout, _loginWithWhop };
+    return { boot, openUserMenu, openReferral, _logout, _loginWithWhop, _startDeviceReset, _confirmDeviceReset };
 })();
 
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
@@ -619,6 +710,8 @@ if (window.Actions) Actions.register({
     'wa-user-menu':      function (e, el) { AuthUI.openUserMenu(el); },
     'wa-referral':       function () { AuthUI.openReferral(); },
     'wa-close-referral': function () { var o = document.getElementById('referralOverlay'); if (o) o.remove(); },
+    'wa-device-reset-start':   function () { AuthUI._startDeviceReset(); },
+    'wa-device-reset-confirm': function () { AuthUI._confirmDeviceReset(); },
     'wa-copy-ref':       function () {
         navigator.clipboard.writeText(document.getElementById('refLinkInput').value).then(function () {
             var b = document.getElementById('refCopyBtn');

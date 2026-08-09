@@ -211,14 +211,14 @@ const Fahrtenbuch = {
                                 style="background:var(--bg-card);font-weight:600;color:var(--info);">
                         </div>
                         <div class="form-group">
-                            <label class="form-label">km-Stand Abfahrt</label>
-                            <input type="number" step="1" class="form-input" id="fb_km_ab"
-                                value="${f?.kmstandAbfahrt || ''}" placeholder="optional">
+                            <label class="form-label">km-Stand Abfahrt *</label>
+                            <input type="number" step="1" min="0" class="form-input" id="fb_km_ab"
+                                value="${f?.kmstandAbfahrt || ''}" placeholder="z.B. 42150" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">km-Stand Ankunft</label>
-                            <input type="number" step="1" class="form-input" id="fb_km_an"
-                                value="${f?.kmstandAnkunft || ''}" placeholder="optional">
+                            <label class="form-label">km-Stand Ankunft *</label>
+                            <input type="number" step="1" min="0" class="form-input" id="fb_km_an"
+                                value="${f?.kmstandAnkunft || ''}" placeholder="z.B. 42175" required>
                         </div>
                     </div>
 
@@ -526,6 +526,26 @@ const Fahrtenbuch = {
 
             if (!zweck) { Utils.showToast('Bitte Fahrtzweck wählen', 'warning'); return; }
 
+            // km-Stand ist GoBD-relevante Pflichtangabe eines ordnungsgemäßen Fahrtenbuchs
+            // (fortlaufende, lückenlose Kilometerstände) — nicht mehr optional.
+            const kmAbRaw = get('fb_km_ab').value, kmAnRaw = get('fb_km_an').value;
+            if (kmAbRaw === '' || kmAnRaw === '') { Utils.showToast('Bitte km-Stand Abfahrt und Ankunft eintragen (Pflichtangabe)', 'warning'); return; }
+            const kmstandAbfahrt = parseInt(kmAbRaw, 10), kmstandAnkunft = parseInt(kmAnRaw, 10);
+            if (kmstandAnkunft <= kmstandAbfahrt) { Utils.showToast('km-Stand Ankunft muss größer sein als km-Stand Abfahrt', 'error'); return; }
+            const kmstandDiff = kmstandAnkunft - kmstandAbfahrt;
+            if (Math.abs(kmstandDiff - gesamtKm) > Math.max(2, gesamtKm * 0.05)) {
+                if (!confirm(`km-Stand-Differenz (${kmstandDiff} km) weicht deutlich von der eingetragenen Strecke (${gesamtKm.toFixed(1)} km) ab. Trotzdem speichern?`)) return;
+            }
+            // Lückenlosigkeit: warnt bei größerer Differenz zur letzten Fahrt desselben Fahrzeugs
+            // (nicht blockierend — private, nicht im Fahrtenbuch erfasste Fahrten sind normal).
+            const fahrzeugVal = get('fb_fahrzeug').value;
+            const vorherigeFahrten = Store.getFahrten()
+                .filter(x => !x.storniert && x.id !== this._editId && (x.fahrzeug || 'PKW') === fahrzeugVal && x.kmstandAnkunft != null && x.datum <= Utils.getDateInputValue('fb_datum'))
+                .sort((a, b) => (b.datum || '').localeCompare(a.datum || '') || (b.createdAt || '').localeCompare(a.createdAt || ''));
+            if (vorherigeFahrten.length && vorherigeFahrten[0].kmstandAnkunft > kmstandAbfahrt) {
+                if (!confirm(`km-Stand Abfahrt (${kmstandAbfahrt}) liegt unter dem km-Stand Ankunft der letzten erfassten Fahrt dieses Fahrzeugs (${vorherigeFahrten[0].kmstandAnkunft}). Trotzdem speichern?`)) return;
+            }
+
             Store.addFahrtOrt(von);
             Store.addFahrtOrt(nach);
 
@@ -539,8 +559,7 @@ const Fahrtenbuch = {
                 abfahrtszeit: get('fb_abfahrt').value || null,
                 ankunftszeit: get('fb_ankunft').value || null,
                 von, nach, hinUndRueck: hr, km, gesamtKm,
-                kmstandAbfahrt: get('fb_km_ab').value ? parseInt(get('fb_km_ab').value) : null,
-                kmstandAnkunft: get('fb_km_an').value ? parseInt(get('fb_km_an').value) : null,
+                kmstandAbfahrt, kmstandAnkunft,
                 fahrzeug: get('fb_fahrzeug').value,
                 berechnungsart: art,
                 tatsaechlicheKosten: art === 'tatsaechlich' ? tk : null,

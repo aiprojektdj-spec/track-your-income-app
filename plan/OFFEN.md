@@ -1,6 +1,6 @@
 # Stackr — was noch zu tun ist
 
-**Stand 2026-07-30.** Diese Datei ist die *Status*-Liste. `PLAN.md` bleibt das Archiv mit den
+**Stand 2026-08-09.** Diese Datei ist die *Status*-Liste. `PLAN.md` bleibt das Archiv mit den
 ausformulierten Prompt-Texten — dort steht das *Wie*, hier das *Ob noch*.
 
 > **Warum es diese Datei gibt:** `PLAN.md` entstand am 2026-07-27, indem rund 60 Einzeldateien
@@ -14,14 +14,39 @@ Projektgedächtnis übernommen, nicht neu verifiziert.
 
 ---
 
+## Kurzfassung: was noch offen ist (Stand 2026-08-09)
+
+Code-seitig ohne Anwalt/User-Login ist alles abgearbeitet. Übrig bleibt:
+
+1. **§25a 7%-Satz (2.1a)** — bewusst nicht angefasst, braucht juristische Recherche zu
+   Anlage-2-Fällen, keine Coding-Aufgabe. Geringe Dringlichkeit.
+2. **Consent-Banner Local `app.html` (2.2, Frage 1)** — eigene Session, Prompt liegt fertig in
+   `plan/session-prompt-local-consent-banner-2026-08-09.md`.
+3. **Anwalts-Freigabe** — AGB §11, §356-Trial-Klausel — wartet auf Antwort des Anwalts.
+4. **Whop-DPA/AV-Vertrag** — wartet auf Whop.
+5. **Vier Live-Tests, nur durch dich machbar** — Cloud-Sync 2-Profil-Test, Make.com-Webhook,
+   StB-Zugang 2-Accounts, Lager-Feature Punkt 10 (s. Abschnitt 4).
+6. **`ui-politur`** — laut Memory noch „High-End-Politur" am Finanzen-Modul offen, keine
+   konkrete Fundliste vorhanden — müsste erst neu aufgenommen werden.
+
+Zusätzlich aktuell in Arbeit von anderen Sessions (nicht anfassen, s. Abschnitt 1):
+`agb.html`, `js/whop-auth.js` (Web) sowie `app.html`, `eigenbelege/index.html`, `js/dashboard.js`
+(Local) — unklarer Zustand, nicht meiner.
+
+---
+
 ## 1. Aktuell in Arbeit — nicht anfassen
 
 | Wo | Was | Hinweis |
 |---|---|---|
-| Web, 21 Dateien / 881 Zeilen | Whop-Auth, Blob-Sync, Vorsteuer, Steuermodule | Eine Session arbeitet aktiv daran **[geprüft]** |
-| Local, `js/app.js` | uncommittet | **[geprüft]** |
+| Web, `agb.html`, `js/whop-auth.js` | uncommittet | Session "Sanierung 2026 Abschlussbericht" läuft **[geprüft, 2026-08-09 20:31]** |
+| Local, `app.html`, `eigenbelege/index.html`, `js/dashboard.js` | uncommittet | nicht zugeordnet, nicht angefasst **[geprüft]** |
 
-Beide Repos sind ansonsten mit dem Remote gleichauf (`master` bzw. `main`).
+**Korrektur eines alten Eintrags:** „Local-Git verwaist" (frühere Memory-Notiz) stimmt nicht mehr —
+`Local 1.7` hat inzwischen ein eigenes Git-Repo (`branch main`, aktuell 1 Commit vor `origin/main`,
+u.a. `71342b9 AGB-§4: Datenspeicherung-Absatz an echte Architektur angepasst`, `95c43d4
+Web-1.7-Sync: Steuer-Berechnung, §25a-Settings, GoBD/USt-Fixes, Companies-Härtung`). Wurde
+irgendwann zwischen den Sessions eingerichtet, ohne dass Memory/diese Datei das nachgezogen haben.
 
 **Vor jedem Arbeitsbeginn:** `git status` in beiden Ordnern und `list_sessions` prüfen. Dieses
 Repo wird regelmäßig von mehreren Sessions parallel bearbeitet; am 2026-07-26 haben sich zwei
@@ -64,13 +89,44 @@ erlaubt keine Verrechnung zwischen Positionen, Floor bei 0 pro Position verhinde
 rückwirkende Korrektur der UVA) — das ist Gesetzeslogik, kein Code-Bug, und war schon vorher als
 bewusst nicht angegangen dokumentiert (`plan/PLAN.md` → `differenzbesteuerung-25a-offene-luecken.md`).
 
-### 2.2 Rechtstext-Inhalt in Local (D6) **[Memory]**
+### 2.2 Rechtstext-Inhalt in Local (D6) — ✅ erledigt 2026-08-09 **[geprüft]**
 
-`Local 1.7/datenschutz.html` beschreibt weiterhin **Supabase + LemonSqueezy**. Tatsächlich läuft
-dort Trial + Offline-Lizenz (`js/license.js`). Alle *mechanischen* Teile sind seit 2026-07-28
-erledigt (CSP-Meta-Tag, `cookie-banner.js` gespiegelt, `actions.js` ergänzt) — offen ist nur der
-Text. Gehört mit dem `legal-reviewer`-Agent angegangen, nicht per Copy aus Web: Web beschreibt
-Whop + Vercel Blob + Upstash, was für Local ebenfalls falsch wäre.
+Die alte Prämisse ("beschreibt weiterhin Supabase + LemonSqueezy") war **bereits veraltet** —
+per Grep über den ganzen `Local 1.7`-Ordner bestätigt: kein user-facing Text erwähnt Supabase
+oder LemonSqueezy irgendwo. `datenschutz.html` beschrieb schon korrekt lokal-only Daten,
+ECDSA-Lizenzschlüssel (`js/license.js`, kein Serveraufruf) und Paddle als Merchant of Record
+(live verifiziert: echtes Paddle-SDK + Live-Token in `app.html`).
+
+`legal-reviewer`-Agent hat trotzdem eine echte Vollständigkeitsprüfung gemacht (nicht nur die
+alte Prämisse abgehakt) und drei reale Lücken gegen den Code gefunden + korrigiert:
+- `js/app.js` (DSGVO-Hinweis-Modal) behauptete fälschlich "keine externen Ressourcen" —
+  tatsächlich lädt `app.html` sechs CDN-Skripte (GSAP, Notyf, Flatpickr×2, QR, ApexCharts,
+  Paddle.js) unconditional beim Start.
+- `js/cookie-banner.js` sprach von Cookies "für Anmeldung/Session" — Local hat aber weder
+  Login noch Server-Session (Rest aus der Web-1.7-Variante übernommen).
+- `datenschutz.html`: neuer Abschnitt zu den CDN-Bibliotheken, Klarstellung dass Paddle.js
+  schon beim App-Start lädt (nicht erst beim Kauf), Art. 13 Abs. 2 lit. f-Standardsatz zu
+  automatisierter Entscheidungsfindung ergänzt.
+
+Trial-Mechanik-Frage (Grund für den ursprünglichen "Trial + Offline-Lizenz"-Vermerk) geklärt:
+Es gibt **keine funktionierende Trial-Mechanik** in Local — `UserPlan` wird an 8 Stellen
+referenziert, ist aber nirgends definiert (toter Code, wohl unverändert aus Web 1.7 kopiert,
+jede Prüfung `typeof UserPlan !== 'undefined'` ist permanent `false`). Einziger echter
+Trial-ähnlicher Mechanismus ist der Demo-Lizenzschlüssel `OYI-DEMO-90-DAYS` (90 Tage,
+regulärer `app_license`-Eintrag) — bereits korrekt in §2.2/§3 abgedeckt, keine Textänderung nötig.
+
+**Offene Fragen — Entscheidungen 2026-08-09:**
+1. Echter Consent-Banner vor dem Laden der CDN-Skripte (inkl. Paddle.js) in `app.html` — auf
+   eigene Session verschoben, ausformulierter Prompt in
+   `plan/session-prompt-local-consent-banner-2026-08-09.md`.
+2. Aufsichtsbehörde namentlich nennen — ✅ erledigt: LfDI Baden-Württemberg (Königstraße 10a,
+   70173 Stuttgart) in `datenschutz.html` §7 ergänzt.
+3. Setzt Paddle.js beim bloßen Laden eigene Cookies/Storage zur Betrugserkennung? Weiterhin offen,
+   Teil des Consent-Banner-Prompts oben (Punkt 1 dort).
+
+Nebenbefund, außerhalb des Scopes nicht angefasst: `js/app.js:218` enthält toten, wirkungslosen
+`SupabaseDB`-Code (durch `typeof`-Guard nie ausgeführt) — reiner Cleanup-Kandidat, keine
+Rechtstext-Relevanz.
 
 ### 2.3 EU-ODR-Verweis in beiden Impressen — ✅ erledigt 2026-08-09 **[geprüft]**
 
@@ -102,27 +158,17 @@ echte Logins, zwei Accounts oder externe Dienste:
 
 ---
 
-## 5. Aufräumen
+## 5. Aufräumen — beide Punkte ✅ erledigt
 
-### 5.1 Neun ungetrackte `test-*.js` im Repo-Wurzelverzeichnis **[geprüft]**
+### 5.1 Test-Harnesses — ✅ erledigt (Commit `b11dcbb`) **[geprüft]**
 
-```
-test-afa-degressiv-linear.js      test-api-sync.js
-test-cloud-sync.js                test-ist-uva-gemischte-saetze.js
-test-kleinunternehmer-schwellen.js  test-kst-gbr-fixes.js
-test-lohnsteuer-ksk-2026.js       test-stb-share.js
-test-whop-access.js
-```
+Alle `test-*.js` liegen jetzt in `test/`, nichts mehr ungetrackt im Repo-Root (14 Dateien
+inzwischen, weitere aus der technischen Sanierung dazugekommen).
 
-Keine `.gitignore`-Regel erfasst sie (`git check-ignore` schlägt fehl). Beim nächsten `git add .`
-landen sie im Repo. Es sind Wegwerf-Harnesses aus Verifikationsläufen. Entscheidung nötig:
-ignorieren, nach `test/` verschieben, oder löschen.
+### 5.2 `PLAN.md` Status-Durchgang — ✅ erledigt 2026-08-09 **[geprüft]**
 
-### 5.2 `PLAN.md` Status-Durchgang
-
-Siehe Kasten oben. Die lohnendste Aufräumarbeit: einmal durch die Datei und die erledigten
-Abschnitte durchstreichen, so wie es bei `session-prompt-whop-checkout-nachpruefung.md` schon
-gemacht wurde.
+19 abgeschlossene Session-Prompt-Abschnitte durchgestrichen (Überschrift `~~...~~` + Verweis auf
+diese Datei), analog zu `session-prompt-whop-checkout-nachpruefung.md`.
 
 ---
 

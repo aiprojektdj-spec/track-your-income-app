@@ -1,4 +1,4 @@
-// Handler-Test für die StB-Grant-Autorisierung:  node test-api-sync.js
+// Handler-Test für die StB-Grant-Autorisierung:  node test/test-api-sync.js
 // Mockt Upstash-Redis (in-memory) + Whop (userinfo + v2/me/has_access + company/memberships) und fährt den echten
 // api/sync.js-Handler. Prüft: Grant-gated pull, read-only push-Sperre, Pro-Ausnahme
 // für Grantee-Reads, echter Revoke.
@@ -58,7 +58,7 @@ global.fetch = async (url, opts) => {
     return { ok: false };
 };
 
-const handler = require('./api/sync.js');
+const handler = require('../api/sync.js');
 function mkRes() { const r = { code: 0, body: null }; r.setHeader = () => {}; r.status = (c) => { r.code = c; return { json: (b) => { r.body = b; return r; }, end: () => r }; }; return r; }
 async function call(token, body) { const res = mkRes(); await handler({ method: 'POST', headers: { authorization: 'Bearer ' + token }, body }, res); return res; }
 

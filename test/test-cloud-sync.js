@@ -1,4 +1,4 @@
-// Self-Test der reinen Sync-Logik:  node test-cloud-sync.js
+// Self-Test der reinen Sync-Logik:  node test/test-cloud-sync.js
 // Prüft: Base32-Roundtrip, LWW-Record-Merge, Audit-Re-Chaining (verifyAuditChain gültig).
 'use strict';
 const assert = require('assert');
@@ -29,7 +29,7 @@ global.Store = {
     }
 };
 
-const T = require('./js/cloud-sync.js')._test;
+const T = require('../js/cloud-sync.js')._test;
 let pass = 0;
 
 // 1) Base32 roundtrip für 32-Byte-Schlüssel

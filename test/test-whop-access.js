@@ -1,8 +1,8 @@
-// Self-Test der parallelen has_access-Logik:  node test-whop-access.js
+// Self-Test der parallelen has_access-Logik:  node test/test-whop-access.js
 // Stubt global.fetch, prüft die grant/ok/reject/5xx-Semantik von _hasAccessViaToken.
 // ACCESS_IDS default = 3 IDs (prod_,prod_,biz_) — der Stub antwortet je nach Map.
 
-const { _hasAccessViaToken } = require('./api/whop-access.js')._test;
+const { _hasAccessViaToken } = require('../api/whop-access.js')._test;
 
 // stub: map { '<id-suffix>': {status, body} } — id-Suffix = Teil nach letztem '/'
 function stubFetch(map) {

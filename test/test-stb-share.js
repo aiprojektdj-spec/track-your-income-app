@@ -1,9 +1,9 @@
-// Self-Test des Envelope-Key-Kerns:  node test-stb-share.js
+// Self-Test des Envelope-Key-Kerns:  node test/test-stb-share.js
 // Prüft: ECDH-Wrap für Empfänger-Pubkey → Empfänger entpackt denselben Datenschlüssel;
 //        fremder Private-Key entpackt NICHT (AES-GCM-Auth schlägt fehl).
 'use strict';
 const assert = require('assert');
-const S = require('./js/stb-share.js');
+const S = require('../js/stb-share.js');
 
 (async () => {
     let pass = 0;

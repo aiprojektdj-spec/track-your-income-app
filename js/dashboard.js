@@ -62,12 +62,14 @@ const Dashboard = {
             inv.typ === 'rechnung' && !inv._storniert &&
             ['offen', 'versendet', 'ueberfaellig'].includes(inv.status)
         );
-        const offeneSumme = offeneRechnungen.reduce((sum, inv) =>
-            sum + (inv.positionen || []).reduce((s2, p) => {
+        const offeneSumme = offeneRechnungen.reduce((sum, inv) => {
+            const brutto = (inv.positionen || []).reduce((s2, p) => {
                 const n = (p.menge || 0) * (p.einzelpreis || 0);
                 return s2 + n + (isKlein ? 0 : n * (p.mwstSatz || 0) / 100);
-            }, 0), 0
-        );
+            }, 0);
+            const geleistet = (inv.teilzahlungen || []).reduce((s2, t) => s2 + (parseFloat(t.betrag) || 0), 0);
+            return sum + Math.max(0, brutto - geleistet);
+        }, 0);
         const ueberfaelligCount = offeneRechnungen.filter(inv => inv.status === 'ueberfaellig').length;
 
         // Year totals

@@ -124,10 +124,19 @@ async function call(token, body) { const res = mkRes(); await handler({ method: 
     r = await call('tok_owner', { action: 'anchor_pull', scope: '__account', owner: 'someoneElse' });
     assert.strictEqual(r.code, 403); assert.strictEqual(r.body.error, 'readonly'); pass++; console.log('✓ anchor_pull mit owner-Param → 403 readonly');
 
+    // delete löscht die Geschäftsdaten, aber NICHT die GoBD-Anker-Kette (Security-Fix a4ade79,
+    // 2026-08-10): sonst könnte ein Nutzer, der Buchungen nachträglich manipuliert hat, seine
+    // eigene Tamper-Evidence per "Geschäftsdaten löschen" mit entfernen. Die Anker enthalten
+    // keine personenbezogenen Klardaten (nur Hash + ID + Timestamp), Art. 17 DSGVO greift dort
+    // nicht. Dieser Test forderte bis 2026-08-10 noch das alte Verhalten und schlug seither fehl.
     r = await call('tok_owner', { action: 'delete', scope: '__account' });
     assert.strictEqual(r.code, 200);
+    r = await call('tok_owner', { action: 'pull', scope: '__account' });
+    assert.ok(r.code === 404 || !r.body.data, 'Geschäftsdaten sind weg');
     r = await call('tok_owner', { action: 'anchor_pull', scope: '__account' });
-    assert.strictEqual(r.code, 200); assert.strictEqual(r.body.anchors.length, 0, 'Art. 17: delete räumt auch die Anker-Liste mit auf'); pass++; console.log('✓ delete löscht auch Anker-Liste (Art. 17 DSGVO)');
+    assert.strictEqual(r.code, 200);
+    assert.ok(r.body.anchors.length > 0, 'Anker-Kette überlebt delete (GoBD Rz. 64, Tamper-Evidence)');
+    pass++; console.log('✓ delete löscht Geschäftsdaten, Anker-Kette bleibt (GoBD Rz. 64)');
 
     console.log('\n' + pass + '/18 API-Tests bestanden ✅');
 })().catch(e => { console.error('✗ FAIL', e); process.exit(1); });

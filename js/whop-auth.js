@@ -28,6 +28,9 @@ var AuthUI = (function () {
     // Referral/Affiliate-Basislink — {ref} wird durch den Whop-Username ersetzt. Direkter
     // Checkout-Link (NICHT der Company-Hub), ?a= funktioniert dort ebenso (verifiziert):
     var WHOP_REFERRAL_BASE = 'https://whop.com/checkout/plan_iR6YIKLcychSZ?a={ref}'; // Whop-Affiliate: ?a=<username> (bestätigt, docs.whop.com/developer/guides/affiliates)
+    // §312k BGB Kündigungsbutton: Whops eigener Self-Service-Weg (nicht der Company-Hub, siehe
+    // Kommentar oben zu WHOP_PURCHASE_URL) — verifiziert per docs.whop.com/.../cancel-a-subscription.
+    var WHOP_MANAGE_URL = 'https://whop.com/@me/settings/orders/';
     // Preise (nur für die Ersparnis-Anzeige):
     var PRICE_MONTHLY = 15;   // €/Monat
     var PRICE_YEARLY  = 135;  // €/Jahr
@@ -599,6 +602,8 @@ var AuthUI = (function () {
             '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-clients">📂 Mandanten (als Steuerberater)</button>' +
             '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-my-code">🔑 Mein Freigabe-Code</button>' +
             '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-manage">🔒 Freigaben verwalten</button>' +
+            '<hr style="border:none;border-top:1px solid var(--border,#2e2e42);margin:2px 0;">' +
+            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-manage-membership">🧾 Abo verwalten / kündigen</button>' +
             '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:#ef4444;cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-logout">🚪 Abmelden</button>';
 
         document.body.appendChild(menu);
@@ -613,6 +618,9 @@ var AuthUI = (function () {
             });
         }, 100);
     }
+
+    // ── §312k Kündigungsbutton: direkt zu Whops Self-Service-Kündigung ──
+    function _openManageMembership() { window.open(WHOP_MANAGE_URL, '_blank', 'noopener'); }
 
     // ── Referral: „Stackr empfehlen" ──────────────────────────
     // LEGAL: „Kunden werben Kunden"/Prämien haben in DE steuer-/AGB-Implikationen.
@@ -700,7 +708,7 @@ var AuthUI = (function () {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    return { boot, openUserMenu, openReferral, _logout, _loginWithWhop, _startDeviceReset, _confirmDeviceReset };
+    return { boot, openUserMenu, openReferral, _logout, _loginWithWhop, _startDeviceReset, _confirmDeviceReset, _openManageMembership };
 })();
 
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
@@ -712,6 +720,7 @@ if (window.Actions) Actions.register({
     'wa-close-referral': function () { var o = document.getElementById('referralOverlay'); if (o) o.remove(); },
     'wa-device-reset-start':   function () { AuthUI._startDeviceReset(); },
     'wa-device-reset-confirm': function () { AuthUI._confirmDeviceReset(); },
+    'wa-manage-membership':    function () { AuthUI._openManageMembership(); },
     'wa-copy-ref':       function () {
         navigator.clipboard.writeText(document.getElementById('refLinkInput').value).then(function () {
             var b = document.getElementById('refCopyBtn');

@@ -89,7 +89,7 @@ const Privatbuchungen = {
         </div>
 
         ${entnahmen > gewinn && gewinn > 0 ? `
-        <div style="background:rgba(var(--warning-rgb,255,193,7),0.12);border:1px solid var(--warning,#ffc107);border-radius:8px;padding:12px 16px;margin-bottom:16px;color:var(--text-primary);">
+        <div style="background:var(--warning-bg);border:1px solid var(--warning);border-radius:8px;padding:12px 16px;margin-bottom:16px;color:var(--text-primary);">
             ⚠️ <strong>Hinweis:</strong> Die Privatentnahmen (${Utils.formatCurrency(entnahmen)}) übersteigen den Betriebsgewinn (${Utils.formatCurrency(gewinn)}).
             Das kann zu einer Überschuldung des Betriebsvermögens führen.
         </div>` : ''}

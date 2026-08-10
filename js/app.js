@@ -261,7 +261,7 @@ const App = {
         `;
 
         const footer = `
-            ${hasData ? `<button class="btn" id="updateBackupNow">💾 Backup jetzt herunterladen</button>` : ''}
+            ${hasData ? `<button class="btn" id="updateBackupNow"><i class="ti ti-device-floppy"></i> Backup jetzt herunterladen</button>` : ''}
             <button class="btn btn-primary" data-action="close-modal">Verstanden</button>
         `;
 

@@ -131,6 +131,79 @@ var AuthUI = (function () {
         return _base64url(new Uint8Array(hash));
     }
 
+    // ── Fokus-Trap für Gate-Overlays (Tastatur-Bypass-Fix, WCAG 2.4.3) ──
+    // Sperrt alle Body-Geschwister des Overlays (Topnav, Sidebar, Sidebar-Toggle …) per
+    // `inert` (+ aria-hidden-Fallback für ältere Browser), solange ein Gate aktiv ist, und
+    // fängt Tab im Overlay ein. `closable:true` fügt einen ESC-Handler hinzu — Login-Pflicht-
+    // Screens bleiben bewusst ohne ESC, aber Tab darf trotzdem nie aus dem Overlay entkommen.
+    var _trapStack = [];
+    function _lockBackground(overlay) {
+        Array.prototype.forEach.call(document.body.children, function (el) {
+            if (el === overlay || el.hasAttribute('data-wa-locked') ||
+                el.tagName === 'SCRIPT' || el.tagName === 'STYLE') return;
+            el.setAttribute('data-wa-locked', '1');
+            if ('inert' in el) el.inert = true;
+            el.setAttribute('aria-hidden', 'true');
+        });
+    }
+    function _unlockBackground() {
+        if (_trapStack.length) return; // noch ein anderes Gate aktiv
+        Array.prototype.forEach.call(document.querySelectorAll('[data-wa-locked]'), function (el) {
+            el.removeAttribute('data-wa-locked');
+            if ('inert' in el) el.inert = false;
+            el.removeAttribute('aria-hidden');
+        });
+    }
+    function _focusables(container) {
+        return Array.prototype.filter.call(
+            container.querySelectorAll('button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])'),
+            function (el) { return el.offsetParent !== null && !el.disabled; }
+        );
+    }
+    function _trapFocus(overlay, opts) {
+        opts = opts || {};
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        _lockBackground(overlay);
+        _trapStack.push(overlay);
+
+        var first = _focusables(overlay)[0];
+        if (first) { first.focus(); } else { overlay.setAttribute('tabindex', '-1'); overlay.focus(); }
+
+        function onKeydown(e) {
+            if (e.key === 'Tab') {
+                var f = _focusables(overlay);
+                if (!f.length) return;
+                var firstEl = f[0], lastEl = f[f.length - 1];
+                if (e.shiftKey && document.activeElement === firstEl) { e.preventDefault(); lastEl.focus(); }
+                else if (!e.shiftKey && document.activeElement === lastEl) { e.preventDefault(); firstEl.focus(); }
+                return;
+            }
+            if (e.key === 'Escape' && opts.closable) {
+                e.preventDefault();
+                _releaseFocusTrap(overlay);
+                if (opts.onClose) opts.onClose();
+            }
+        }
+        overlay._waTrapHandler = onKeydown;
+        document.addEventListener('keydown', onKeydown, true);
+    }
+    function _releaseFocusTrap(overlay) {
+        if (!overlay) return;
+        if (overlay._waTrapHandler) {
+            document.removeEventListener('keydown', overlay._waTrapHandler, true);
+            overlay._waTrapHandler = null;
+        }
+        var idx = _trapStack.indexOf(overlay);
+        if (idx !== -1) _trapStack.splice(idx, 1);
+        _unlockBackground();
+    }
+    function _removeGate(id) {
+        var el = document.getElementById(id);
+        if (el) { _releaseFocusTrap(el); el.remove(); }
+        return el;
+    }
+
     // ── Einstieg ──────────────────────────────────────────────
     async function boot() {
         _injectStyles();
@@ -335,8 +408,7 @@ var AuthUI = (function () {
 
     // ── Gerätesperre: Blockbildschirm bei fremdem Konto ────────
     function _showDeviceLockedScreen(user) {
-        var existing = document.getElementById('whopDeviceLockOverlay');
-        if (existing) existing.remove();
+        _removeGate('whopDeviceLockOverlay');
         var overlay = document.createElement('div');
         overlay.id = 'whopDeviceLockOverlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px;';
@@ -360,6 +432,7 @@ var AuthUI = (function () {
             '</div>'
         ].join('');
         document.body.appendChild(overlay);
+        _trapFocus(overlay, { closable: false });
 
         var input = document.getElementById('waDeviceResetInput');
         if (input) {
@@ -375,6 +448,7 @@ var AuthUI = (function () {
     function _startDeviceReset() {
         var box = document.getElementById('waDeviceResetConfirm');
         if (box) box.style.display = 'block';
+        document.getElementById('waDeviceResetInput')?.focus();
     }
     async function _confirmDeviceReset() {
         var input = document.getElementById('waDeviceResetInput');
@@ -403,7 +477,7 @@ var AuthUI = (function () {
         var uid = user && (user.id || user.sub);
         if (!_checkDeviceOwner(uid)) {
             _hideLoader();
-            var _lo0 = document.getElementById('whopLoginOverlay'); if (_lo0) _lo0.remove();
+            _removeGate('whopLoginOverlay');
             _showDeviceLockedScreen(user);
             return;
         }
@@ -411,8 +485,8 @@ var AuthUI = (function () {
         // Autorisiert → alle Gate-Overlays weg. Sonst bleibt ein Rest-Overlay (z. B. das
         // Login-Overlay aus dem Callback-Pfad hinter dem Kein-Abo-Screen) nach dem Kauf
         // per _recheckOnFocus liegen und sperrt den frisch zahlenden Kunden aus.
-        var _lo = document.getElementById('whopLoginOverlay');    if (_lo) _lo.remove();
-        var _no = document.getElementById('whopNoMemberOverlay'); if (_no) _no.remove();
+        _removeGate('whopLoginOverlay');
+        _removeGate('whopNoMemberOverlay');
         _updateWidget(user);
 
         if (typeof UserPlan !== 'undefined') {
@@ -451,16 +525,12 @@ var AuthUI = (function () {
         var token = localStorage.getItem(LS_TOKEN);
         if (!token) return;
         var ok = await _validateAndContinue(token);
-        if (ok) {
-            var ov = document.getElementById('whopNoMemberOverlay');
-            if (ov) ov.remove();
-        }
+        if (ok) _removeGate('whopNoMemberOverlay');
     }
 
     // ── Abmelden ──────────────────────────────────────────────
     function _logout() {
-        var m = document.getElementById('authUserMenu');
-        if (m) m.remove();
+        _removeGate('authUserMenu');
         localStorage.removeItem(LS_TOKEN);
         localStorage.removeItem(LS_USER);
         _clearGrace();
@@ -469,8 +539,7 @@ var AuthUI = (function () {
 
     // ── Login-Screen ──────────────────────────────────────────
     function _showLoginScreen(errorMsg) {
-        var existing = document.getElementById('whopLoginOverlay');
-        if (existing) existing.remove();
+        _removeGate('whopLoginOverlay');
 
         var overlay = document.createElement('div');
         overlay.id = 'whopLoginOverlay';
@@ -490,13 +559,13 @@ var AuthUI = (function () {
             '</div>'
         ].join('');
         document.body.appendChild(overlay);
+        _trapFocus(overlay, { closable: false });
     }
 
     // ── Kein-Abo / Winback-Screen (Neukauf + abgelaufenes Abo) ─
     function _showNoMembershipScreen(user) {
         var name = user ? (user.username || (user.email || '').split('@')[0] || 'User') : 'User';
-        var existing = document.getElementById('whopNoMemberOverlay');
-        if (existing) existing.remove();
+        _removeGate('whopNoMemberOverlay');
 
         var save         = (PRICE_MONTHLY * 12) - PRICE_YEARLY;              // 45
         var monthsFree   = Math.round(save / PRICE_MONTHLY);                 // 3
@@ -546,6 +615,7 @@ var AuthUI = (function () {
             '</div>'
         ].join('');
         document.body.appendChild(overlay);
+        _trapFocus(overlay, { closable: false });
 
         if (!_focusRecheckBound) {
             _focusRecheckBound = true;

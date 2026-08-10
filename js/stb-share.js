@@ -10,8 +10,10 @@
 //   1. Jeder Account erzeugt ein ECDH-Schlüsselpaar. Private-Key bleibt lokal,
 //      Public-Key wird server-seitig registriert (kein Geheimnis).
 //   2. Einladung: der StB nennt dem Mandanten seinen Freigabe-Code (= seine userId).
-//      Der Mandant holt den Public-Key des StB, verpackt seinen Datenschlüssel per
-//      ephemeralem ECDH darin (Envelope) und legt ihn als "grant" auf dem Server ab.
+//      Der Mandant holt den Public-Key des StB, GLEICHT DESSEN FINGERABDRUCK AB (beide
+//      Seiten zeigen denselben 64-Bit-Wert an, Abgleich über einen anderen Kanal — sonst
+//      müsste er dem Server blind glauben, s. fingerprint()), verpackt dann seinen
+//      Datenschlüssel per ephemeralem ECDH darin (Envelope) und legt ihn als "grant" ab.
 //   3. Der StB liest die Grants, entpackt mit seinem Private-Key den Datenschlüssel
 //      und kann die (read-only) gepullten Scopes des Mandanten entschlüsseln.
 //
@@ -56,16 +58,35 @@ var StbShare = (function () {
         };
     }
 
+    // ── Envelope-Version ──────────────────────────────────────────────────────
+    // v2 (seit 2026-08-10): der rohe ECDH-Output geht durch HKDF-SHA-256, bevor er
+    //   AES-GCM-Schlüssel wird. Grund: deriveBits liefert die x-Koordinate des gemeinsamen
+    //   Punkts — 256 Bit, aber nicht gleichverteilt. Für P-256 + AES-GCM ist kein praktischer
+    //   Angriff bekannt, HKDF ist hier Lehrbuch-Härtung, kein Loch-Schluss. Der info-String
+    //   bindet den Schlüssel zusätzlich an genau diesen Verwendungszweck.
+    // v1 (fehlendes `v`-Feld): rohe deriveBits direkt als AES-Schlüssel. Wird beim ENTPACKEN
+    //   weiter unterstützt, damit bestehende Freigaben nicht brechen; neu erzeugt wird nur v2.
+    //   Ein Grant wird beim Einladen neu verpackt, alte Envelopes verschwinden also von selbst.
+    var ENV_V = 2;
+    var HKDF_INFO = new TextEncoder().encode('stackr-stb-envelope|v2');
+    var HKDF_SALT = new TextEncoder().encode('stackr-stb-ecdh-salt');
+
     // ── Gemeinsamen AES-GCM-Schlüssel aus eigenem Private + fremdem Public ─────
     // priv darf ein JWK-Objekt (Alt-Installationen, Ephemeral-Keys, Node-Tests) ODER
     // bereits ein importierter (ggf. nicht-extrahierbarer) CryptoKey sein — s. _ensureKeys.
-    async function _sharedKey(priv, pubJwk) {
+    async function _sharedKey(priv, pubJwk, version) {
         var privKey = (priv && typeof priv === 'object' && priv.type === 'private')
             ? priv
             : await subtle.importKey('jwk', priv, EC, false, ['deriveBits']);
         var pub  = await subtle.importKey('jwk', pubJwk,  EC, false, []);
         var bits = await subtle.deriveBits({ name: 'ECDH', public: pub }, privKey, 256);
-        return subtle.importKey('raw', bits, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+        if ((version || 1) < 2) {
+            return subtle.importKey('raw', bits, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+        }
+        var ikm = await subtle.importKey('raw', bits, 'HKDF', false, ['deriveKey']);
+        return subtle.deriveKey(
+            { name: 'HKDF', hash: 'SHA-256', salt: HKDF_SALT, info: HKDF_INFO },
+            ikm, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
     }
 
     // ── Datenschlüssel (32 Byte) für einen Empfänger-Public-Key verpacken ─────
@@ -74,17 +95,49 @@ var StbShare = (function () {
         var eph     = await subtle.generateKey(EC, true, ['deriveBits']);
         var ephPub  = await subtle.exportKey('jwk', eph.publicKey);
         var ephPriv = await subtle.exportKey('jwk', eph.privateKey);
-        var aes     = await _sharedKey(ephPriv, granteePubJwk);
+        var aes     = await _sharedKey(ephPriv, granteePubJwk, ENV_V);
         var iv      = _wc.getRandomValues(new Uint8Array(12));
         var ct      = await subtle.encrypt({ name: 'AES-GCM', iv: iv }, aes, dataKeyBytes);
-        return { ephPub: ephPub, iv: _b64(iv), ct: _b64(new Uint8Array(ct)) };
+        return { v: ENV_V, ephPub: ephPub, iv: _b64(iv), ct: _b64(new Uint8Array(ct)) };
     }
 
     // ── Envelope mit eigenem Private-Key entpacken → Datenschlüssel (32 Byte) ──
+    // Version kommt aus dem Envelope; fehlt sie, ist es ein v1-Envelope von vor dem
+    // HKDF-Wechsel. Kein Downgrade-Risiko: der Angreifer müsste den ECDH-Shared-Secret
+    // ohnehin kennen, um überhaupt eine der beiden Ableitungen zu treffen.
     async function unwrapKey(envelope, granteePrivJwk) {
-        var aes = await _sharedKey(granteePrivJwk, envelope.ephPub);
+        var aes = await _sharedKey(granteePrivJwk, envelope.ephPub, envelope.v || 1);
         var pt  = await subtle.decrypt({ name: 'AES-GCM', iv: _unb64(envelope.iv) }, aes, _unb64(envelope.ct));
         return new Uint8Array(pt);
+    }
+
+    // ── Fingerabdruck eines Public Keys (Fund 4, Delta-Audit 2026-08-10) ──────
+    // Der Mandant holt den Public Key des Steuerberaters vom eigenen Server und verpackt
+    // seinen Datenschlüssel sofort damit. Ohne Abgleich außerhalb des Servers könnte ein
+    // bösartiger oder kompromittierter Betreiber seinen EIGENEN Public Key ausliefern, den
+    // Envelope entschlüsseln und den Datenschlüssel des Mandanten mitlesen — die E2E-Zusage
+    // fällt für diesen Pfad (nicht für den normalen Selbst-Sync, dort verlässt der Schlüssel
+    // das Gerät nie). Gegenmittel: beide Seiten zeigen denselben kurzen Fingerabdruck an,
+    // der Mandant vergleicht ihn über einen anderen Kanal (Telefon) mit dem Steuerberater.
+    //
+    // Gehasht wird der rohe EC-Punkt (65 Byte, unkomprimiert), NICHT das JWK-JSON — sonst
+    // hinge der Fingerabdruck an Feldreihenfolge und optionalen JWK-Feldern und wäre zwischen
+    // zwei Browsern nicht zwingend gleich.
+    //
+    // 64 Bit (16 Hex, vier Vierergruppen), nicht die anfangs geplanten 32 Bit: der Angreifer ist
+    // hier per Annahme der Betreiber, und der kann offline P-256-Paare erzeugen, bis eines den
+    // angezeigten Fingerabdruck trifft. Bei 32 Bit sind das ~4 Mrd. Versuche — auf einem Kern
+    // etwa ein Tag, parallel deutlich weniger. 64 Bit macht das aussichtslos und bleibt
+    // vorlesbar ("A3F2 – 9C41 – 7B08 – D5E6").
+    async function fingerprint(pubJwk) {
+        if (!pubJwk) return '';
+        var key = await subtle.importKey('jwk', pubJwk, EC, true, []);
+        var raw = await subtle.exportKey('raw', key);
+        var dig = new Uint8Array(await subtle.digest('SHA-256', raw));
+        var hex = '';
+        for (var i = 0; i < 8; i++) hex += ('0' + dig[i].toString(16)).slice(-2);
+        hex = hex.toUpperCase();
+        return hex.slice(0, 4) + '-' + hex.slice(4, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16);
     }
 
     // ========================================================================
@@ -176,20 +229,32 @@ var StbShare = (function () {
     // Schreib-Aktionen im Read-Only-Modus blocken (zentraler Chokepoint in js/actions.js).
     // Server erzwingt read-only bereits hart; das hier ist die UX-Sperre.
     var WRITE_RE  = /(^|-)(save|add|new|create|edit|update|delete|del|remove|storno|cancel|import|submit|confirm|apply|pay|book|buchen|anlegen|speichern|loeschen|erstellen|aendern|finish|enable|disable|generate|send|upload)(-|$)/i;
-    var ALLOW_SET = { 'stb-exit': 1, 'close-modal': 1, 'navigate': 1, 'reload': 1, 'stop': 1, 'goto': 1, 'print-page': 1 };
+    // stb-cancel-invite steht hier, weil WRITE_RE auf "cancel" anspringt — ein Abbrechen ist
+    // aber nie ein Schreibvorgang, und ein nicht klickbarer Abbrechen-Button ist eine Sackgasse.
+    var ALLOW_SET = { 'stb-exit': 1, 'close-modal': 1, 'navigate': 1, 'reload': 1, 'stop': 1, 'goto': 1, 'print-page': 1, 'stb-cancel-invite': 1 };
     function blocks(name) { return isReadonly() && !ALLOW_SET[name] && WRITE_RE.test(name); }
 
     // ── UI: eigener Freigabe-Code ─────────────────────────────────────────────
     function _noApp() { if (typeof App === 'undefined' || !App.showModal) { _toast('Bitte im Haupt-Dashboard öffnen.', 'info'); return true; } return false; }
-    function showCode() {
+    async function showCode() {
         if (_noApp()) return;
         var code = _uid();
         if (!code) { _toast('Bitte zuerst mit Whop anmelden.', 'warning'); return; }
+        // Eigener Fingerabdruck: der Mandant sieht beim Einladen denselben Wert und vergleicht
+        // ihn mit dem, was hier steht (s. fingerprint()). Stimmt er nicht, hat nicht dieser
+        // Steuerberater den Schlüssel geliefert, sondern jemand dazwischen.
+        var fp = '';
+        try { await _ensureKeys(); fp = await fingerprint(_pubJwk()); } catch (e) { console.warn('[StbShare] fingerprint', e && e.message); }
         var body =
           '<div style="display:flex;flex-direction:column;gap:14px;">' +
             '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">Gib diesen <strong>Freigabe-Code</strong> deinem Mandanten. Er trägt ihn bei „Steuerberater einladen" ein und gibt dir damit <strong>Nur-Lese-Zugriff</strong> auf seine Daten.</div>' +
             '<div style="font-family:monospace;font-size:15px;word-break:break-all;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;">' + _esc(code) + '</div>' +
             '<button class="btn btn-outline" data-action="stb-copy-code" data-args="' + _esc(JSON.stringify([code])).replace(/"/g, '&quot;') + '" style="width:100%;">📋 Code kopieren</button>' +
+            (fp ?
+            '<div style="border-top:1px solid var(--border);padding-top:14px;">' +
+              '<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:8px;">Dein <strong>Schlüssel-Fingerabdruck</strong>. Dein Mandant sieht denselben Wert, bevor er die Freigabe bestätigt — lies ihn ihm am Telefon vor. Weichen die Werte ab, brich die Freigabe ab.</div>' +
+              '<div style="font-family:monospace;font-size:17px;letter-spacing:1px;text-align:center;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px;">' + _esc(fp) + '</div>' +
+            '</div>' : '') +
           '</div>';
         App.showModal('Mein Steuerberater-Freigabe-Code', body, '');
     }
@@ -213,6 +278,11 @@ var StbShare = (function () {
           '</div>';
         App.showModal('Steuerberater einladen', body, '');
     }
+    // Zwischenspeicher für den geprüften Schritt: der vom Server geholte Public Key wird
+    // NICHT sofort benutzt, sondern erst nach dem Fingerabdruck-Abgleich (Fund 4). Absichtlich
+    // nur im Modul-Speicher — nichts davon soll einen Reload überleben.
+    var _pending = null;
+
     async function _doInvite() {
         var el = document.getElementById('stbInviteCode');
         var code = (el ? el.value : '').trim();
@@ -224,12 +294,53 @@ var StbShare = (function () {
             var pk = await _api({ action: 'get_pubkey', granteeId: code });
             if (pk.status === 404) { _toast('Kein Steuerberater mit diesem Code gefunden — er muss sich zuerst einmal in Stackr anmelden.', 'error', 6000); return; }
             if (pk.status !== 200 || !pk.json.pubkey) { _toast('Abruf fehlgeschlagen (' + pk.status + ').', 'error'); return; }
-            var env = await wrapKey(kb, pk.json.pubkey.pub);
-            var g = await _api({ action: 'grant', granteeId: code, envelope: env });
+            var fp = await fingerprint(pk.json.pubkey.pub);
+            if (!fp) { _toast('Schlüssel des Steuerberaters ist unbrauchbar — bitte er soll sich neu anmelden.', 'error', 6000); return; }
+            _pending = { code: code, pub: pk.json.pubkey.pub, fp: fp };
+            _showFingerprintCheck(code, fp);
+        } catch (e) { console.error('[StbShare] invite', e); _toast('Freigabe fehlgeschlagen.', 'error'); }
+    }
+
+    // Zwischenschritt: Fingerabdruck-Abgleich. Ohne ihn müsste der Mandant dem Server blind
+    // glauben, dass der ausgelieferte Public Key wirklich seinem Steuerberater gehört.
+    function _showFingerprintCheck(code, fp) {
+        var body =
+          '<div style="display:flex;flex-direction:column;gap:14px;">' +
+            '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">Vergleiche diesen <strong>Fingerabdruck</strong> mit dem, den dein Steuerberater bei „Mein Freigabe-Code" sieht — am besten am Telefon. Er bestätigt, dass der Schlüssel wirklich von ihm kommt und nicht unterwegs ausgetauscht wurde.</div>' +
+            '<div style="font-family:monospace;font-size:20px;letter-spacing:2px;text-align:center;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:16px;">' + _esc(fp) + '</div>' +
+            '<div style="font-size:12px;color:var(--text-muted);line-height:1.5;">Freigabe-Code: <span style="font-family:monospace;">' + _esc(code) + '</span></div>' +
+            '<div style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:11px;font-size:12px;line-height:1.5;">' +
+              '⚠️ Stimmen die Werte <strong>nicht</strong> überein, brich hier ab. Bestätige nur, was du tatsächlich verglichen hast — mit der Freigabe gibst du deinen Schlüssel weiter.' +
+            '</div>' +
+            '<div style="display:flex;gap:10px;">' +
+              '<button class="btn btn-outline" data-action="stb-cancel-invite" style="flex:1;">Abbrechen</button>' +
+              '<button class="btn btn-primary" data-action="stb-confirm-invite" style="flex:1;">Stimmt überein — freigeben</button>' +
+            '</div>' +
+          '</div>';
+        App.showModal('Fingerabdruck prüfen', body, '');
+    }
+
+    async function _confirmInvite() {
+        var p = _pending;
+        if (!p) { _toast('Freigabe abgelaufen — bitte erneut starten.', 'warning'); return; }
+        var kb = (typeof CloudSync !== 'undefined' && CloudSync.keyBytes) ? CloudSync.keyBytes() : null;
+        if (!kb) { _toast('Cloud-Sync nicht aktiv.', 'warning'); return; }
+        try {
+            // Gegen den bestätigten Fingerabdruck verpacken, nicht gegen einen zweiten Abruf:
+            // ein erneutes get_pubkey könnte einen anderen Schlüssel liefern als den geprüften.
+            var env = await wrapKey(kb, p.pub);
+            var g = await _api({ action: 'grant', granteeId: p.code, envelope: env });
             if (g.status !== 200) { _toast('Freigabe fehlgeschlagen (' + g.status + ').', 'error'); return; }
+            _pending = null;
             App.closeModal();
             _toast('✅ Steuerberater eingeladen — er sieht deine Daten jetzt read-only.', 'success', 5000);
-        } catch (e) { console.error('[StbShare] invite', e); _toast('Freigabe fehlgeschlagen.', 'error'); }
+        } catch (e) { console.error('[StbShare] confirmInvite', e); _toast('Freigabe fehlgeschlagen.', 'error'); }
+    }
+
+    function _cancelInvite() {
+        _pending = null;
+        App.closeModal();
+        _toast('Freigabe abgebrochen — es wurde nichts weitergegeben.', 'info');
     }
 
     // Reiner Grant-Abruf ohne UI (Unterschied zu clientsFlow, das direkt ein Modal öffnet) —
@@ -335,6 +446,7 @@ var StbShare = (function () {
         genKeyPair: genKeyPair,
         wrapKey:    wrapKey,
         unwrapKey:  unwrapKey,
+        fingerprint: fingerprint,
         registerPubkey: registerPubkey,
         checkGrants: checkGrants,
         isReadonly: isReadonly,
@@ -347,9 +459,12 @@ var StbShare = (function () {
         manageFlow: manageFlow,
         initReadonlyBanner: initReadonlyBanner,
         _doInvite: _doInvite,
+        _confirmInvite: _confirmInvite,
+        _cancelInvite: _cancelInvite,
         _doRevoke: _doRevoke,
         _b64: _b64, _unb64: _unb64,
-        _test: { genKeyPair: genKeyPair, wrapKey: wrapKey, unwrapKey: unwrapKey }
+        _test: { genKeyPair: genKeyPair, wrapKey: wrapKey, unwrapKey: unwrapKey,
+                 fingerprint: fingerprint, sharedKey: _sharedKey, ENV_V: ENV_V }
     };
 })();
 
@@ -358,7 +473,9 @@ if (typeof window !== 'undefined' && window.Actions) Actions.register({
     'stb-my-code':   function () { StbShare.showCode(); },
     'stb-copy-code': function (code) { try { navigator.clipboard.writeText(code); if (typeof Utils !== 'undefined') Utils.showToast('Code kopiert', 'success'); } catch (e) {} },
     'stb-invite':    function () { StbShare.inviteFlow(); },
-    'stb-do-invite': function () { StbShare._doInvite ? StbShare._doInvite() : 0; },
+    'stb-do-invite':      function () { StbShare._doInvite ? StbShare._doInvite() : 0; },
+    'stb-confirm-invite': function () { StbShare._confirmInvite ? StbShare._confirmInvite() : 0; },
+    'stb-cancel-invite':  function () { StbShare._cancelInvite ? StbShare._cancelInvite() : 0; },
     'stb-clients':   function () { StbShare.clientsFlow(); },
     'stb-enter':     function (ownerId) { StbShare.enterClient(ownerId); },
     'stb-exit':      function () { StbShare.exitClient(); },

@@ -57,7 +57,10 @@ var BackupCrypto = (function () {
     async function _deriveKey(pass, salt, iterations, hash) {
         var it = (typeof iterations === 'number' && iterations >= 1000 && iterations <= 10000000)
                  ? Math.floor(iterations) : ITER_LEGACY;
-        var h  = (hash === 'SHA-1' || hash === 'SHA-256' || hash === 'SHA-384' || hash === 'SHA-512') ? hash : 'SHA-256';
+        // Nur Hashes, die Stackr je geschrieben hat. Kein Angriffspfad (KDF-Parameter müssen zum
+        // Verschlüsselungszeitpunkt passen, ein manipulierter Header liefert nur einen falschen
+        // Schlüssel) — aber es gibt keinen Grund, SHA-1 aus einer Fremddatei zu akzeptieren.
+        var h  = (hash === 'SHA-256' || hash === 'SHA-512') ? hash : 'SHA-256';
         var km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
         return crypto.subtle.deriveKey(
             { name: 'PBKDF2', salt: salt, iterations: it, hash: h },

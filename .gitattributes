@@ -1,0 +1,8 @@
+# Mitgelieferte Fremdbibliotheken byte-genau halten.
+#
+# Das Repo läuft mit core.autocrlf=true — ohne diese Regel bekämen die Vendor-Dateien beim
+# Checkout CRLF-Zeilenenden. Funktional harmlos, aber dann stimmen die in js/vendor/VERSIONS.md
+# dokumentierten SHA-256-Hashes nicht mehr mit der Datei auf der Platte überein, und genau die
+# sind der Nachweis, welches Original von cdn.sheetjs.com bzw. jsDelivr eingecheckt wurde.
+# Zusätzlich müssen Web 1.7 und Local 1.7 byte-identisch bleiben (md5sum-Vergleich).
+js/vendor/*.js -text

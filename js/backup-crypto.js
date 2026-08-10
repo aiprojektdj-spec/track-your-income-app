@@ -14,7 +14,9 @@
 //
 // Dateiformat (.stackrbak):
 //   { format:"stackr-backup", version:1, app:"stackr", createdAt:<ISO>,
-//     kdf:{ algo:"PBKDF2", hash:"SHA-256", iterations:210000, salt:<b64> },
+//     kdf:{ algo:"PBKDF2", hash:"SHA-256", iterations:600000, salt:<b64> },
+//          ^ iterations/hash werden beim Entschlüsseln AUS DER DATEI gelesen, nicht aus dem Code —
+//            deshalb bleiben Backups aus Zeiten anderer Rundenzahl (z.B. 210k) lesbar.
 //     cipher:{ algo:"AES-GCM", iv:<b64>, ciphertext:<b64> } }
 //   ciphertext = AES-GCM über JSON des Klartext-Bundles:
 //     { "__account": { "oyi_companies": [...] },
@@ -27,7 +29,11 @@
 var BackupCrypto = (function () {
     'use strict';
 
-    var ITER = 210000;                 // ≥ 210k (Vorgabe)
+    // Runden für NEUE Backups. 600.000 ist die OWASP-Vorgabe für PBKDF2-HMAC-SHA-256 (die oft
+    // zitierten 210.000 gelten für SHA-512). Erhöht 2026-08-10 von 210k — gefahrlos möglich, weil
+    // _decryptFile seit demselben Tag kdf.iterations aus der Datei liest statt diese Konstante.
+    var ITER = 600000;
+    var ITER_LEGACY = 210000;          // Fallback für Alt-Dateien ohne kdf.iterations — NIE ändern
     var WARN = 'Passphrase verloren = Backup unwiederbringlich. Es gibt keine Wiederherstellung (Ende-zu-Ende).';
 
     // ── Base64 (chunked — verträgt MB-große Chiffrate) ────────────────────────
@@ -43,10 +49,18 @@ var BackupCrypto = (function () {
     }
 
     // ── PBKDF2(Passphrase) → AES-GCM-Key ──────────────────────────────────────
-    async function _deriveKey(pass, salt) {
+    // iterations/hash MÜSSEN beim Entschlüsseln aus dem KDF-Header der Datei kommen, nicht
+    // aus der Modul-Konstante (Fix 2026-08-10): sonst werden beim nächsten Hochsetzen von ITER
+    // alle vorher erzeugten Backups unentschlüsselbar — und der Nutzer sieht nur "Falsche
+    // Passphrase", sucht den Fehler also bei sich statt bei einer Codeänderung.
+    // Fallback ITER_LEGACY: Dateien aus der Zeit vor diesem Fix, deren Header fehlt/unplausibel ist.
+    async function _deriveKey(pass, salt, iterations, hash) {
+        var it = (typeof iterations === 'number' && iterations >= 1000 && iterations <= 10000000)
+                 ? Math.floor(iterations) : ITER_LEGACY;
+        var h  = (hash === 'SHA-1' || hash === 'SHA-256' || hash === 'SHA-384' || hash === 'SHA-512') ? hash : 'SHA-256';
         var km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
         return crypto.subtle.deriveKey(
-            { name: 'PBKDF2', salt: salt, iterations: ITER, hash: 'SHA-256' },
+            { name: 'PBKDF2', salt: salt, iterations: it, hash: h },
             km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
     }
 
@@ -89,14 +103,31 @@ var BackupCrypto = (function () {
     function _companyIds(onlyLand) {
         return _companyRegistry(onlyLand).map(function (c) { return c.id; });
     }
+    // Einzige Definition von "dieser Schlüssel gehört zum Backup" — von _scopeKeys (Export) UND
+    // _restore (Import) benutzt. Vorher prüfte nur der Export; _restore schrieb jeden Key aus der
+    // Datei ungefiltert per localStorage.setItem() (Fix 2026-08-10). Eine präparierte Backup-Datei
+    // konnte damit beliebige localStorage-Schlüssel dieses Origins setzen — u.a. whop_access_token,
+    // whop_grace_token, oyi_device_owner_uid, oyi_active_company. Der Merge-Schutz (_mergeKey:
+    // lokaler Wert gewinnt) griff dort nicht, weil _read() bei nicht-JSON-Werten undefined liefert.
+    function _isAllowedKey(scope, fullKey) {
+        if (typeof scope !== 'string' || typeof fullKey !== 'string') return false;
+        if (scope === '__account') return fullKey === 'oyi_companies';
+        if (!/^co_[a-z0-9_]+$/.test(scope)) return false;          // Scope muss eine Firmen-ID sein
+        var pfx = scope + '__';
+        if (fullKey.indexOf(pfx) !== 0) return false;              // kein Fremd-Scope-Schmuggel
+        var rest = fullKey.slice(pfx.length);
+        if (rest.indexOf('reselling_') === 0 || rest.indexOf('rechnungsbuch_') === 0) return true;
+        if (rest === 'audit_log') return true;
+        return (Store._EIGENBELEG_KEYS || []).indexOf(rest) !== -1;
+    }
+
     function _scopeKeys(scope) {
         if (scope === '__account') return ['oyi_companies'];
         var keys = [], seen = {};
-        var pfxR = scope + '__reselling_', pfxB = scope + '__rechnungsbuch_', aKey = scope + '__audit_log';
         function add(k) { if (!seen[k]) { seen[k] = 1; keys.push(k); } }
         var src = (Store._cache) ? Object.keys(Store._cache) : [];
         for (var i = 0; i < localStorage.length; i++) { var lk = localStorage.key(i); if (lk) src.push(lk); }
-        src.forEach(function (k) { if (k.indexOf(pfxR) === 0 || k.indexOf(pfxB) === 0 || k === aKey) add(k); });
+        src.forEach(function (k) { if (_isAllowedKey(scope, k)) add(k); });
         (Store._EIGENBELEG_KEYS || []).forEach(function (s) { var fk = scope + '__' + s; if (_read(fk) !== undefined) add(fk); });
         return keys;
     }
@@ -183,7 +214,7 @@ var BackupCrypto = (function () {
     async function _export(pass) {
         var salt = crypto.getRandomValues(new Uint8Array(16));
         var iv   = crypto.getRandomValues(new Uint8Array(12));
-        var key  = await _deriveKey(pass, salt);
+        var key  = await _deriveKey(pass, salt, ITER, 'SHA-256');
         var pt   = new TextEncoder().encode(JSON.stringify(_buildBundle()));
         var ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: BACKUP_AAD }, key, pt);
         return {
@@ -197,7 +228,7 @@ var BackupCrypto = (function () {
     async function _decryptFile(file, pass) {
         if (!file || file.format !== 'stackr-backup') throw new Error('Keine gültige Stackr-Backup-Datei.');
         var k = file.kdf || {}, c = file.cipher || {};
-        var key = await _deriveKey(pass, _unb64(k.salt));
+        var key = await _deriveKey(pass, _unb64(k.salt), k.iterations, k.hash);
         var ctBytes = _unb64(c.ciphertext), ivBytes = _unb64(c.iv);
         var pt;
         try { pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes, additionalData: BACKUP_AAD }, key, ctBytes); }
@@ -213,15 +244,20 @@ var BackupCrypto = (function () {
     // Teilerfolg als vollen Erfolg zu meldeng) — der Aufrufer (doImport) zeigt die betroffenen
     // Keys dann explizit an, statt pauschal "✅ Daten importiert".
     async function _restore(bundle) {
-        var keys = [], writes = [];
+        var keys = [], writes = [], skipped = [];
         Object.keys(bundle).forEach(function (scope) {
             var remoteKeys = bundle[scope] || {};
             Object.keys(remoteKeys).forEach(function (fullKey) {
+                if (!_isAllowedKey(scope, fullKey)) { skipped.push(scope + '/' + fullKey); return; }
                 var merged = _mergeKey(fullKey, _read(fullKey), remoteKeys[fullKey]);
                 keys.push(fullKey);
                 writes.push(_write(fullKey, merged));
             });
         });
+        if (skipped.length) {
+            console.warn('[Backup] ' + skipped.length + ' Schlüssel nicht importiert (nicht Teil des Backup-Umfangs): ' +
+                         skipped.slice(0, 10).join(', ') + (skipped.length > 10 ? ', …' : ''));
+        }
         var results = await Promise.allSettled(writes);
         var failed = results.map(function (r, i) { return r.status === 'rejected' ? keys[i] : null; }).filter(Boolean);
         if (failed.length) {
@@ -465,14 +501,18 @@ var BackupCrypto = (function () {
         doExportPlain: doExportPlain,
         doImport: doImport,
         _selftest: _selftest,
-        _test: { buildBundle: _buildBundle, mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, mergeKey: _mergeKey }
+        _test: {
+            buildBundle: _buildBundle, mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, mergeKey: _mergeKey,
+            isAllowedKey: _isAllowedKey, restore: _restore, exportFile: _export, decryptFile: _decryptFile,
+            ITER: ITER, ITER_LEGACY: ITER_LEGACY
+        }
     };
 })();
 if (typeof window !== 'undefined') window.BackupCrypto = BackupCrypto;
 if (typeof module !== 'undefined' && module.exports) module.exports = BackupCrypto;
 
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
-if (window.Actions) Actions.register({
+if (typeof window !== 'undefined' && window.Actions) Actions.register({
     'bc-open-modal':      function () { BackupCrypto.openModal(); },
     'bc-export':          function () { BackupCrypto.doExport(); },
     'bc-export-plain':    function () { BackupCrypto.openExportPlainModal(); },   // Firmen-Auswahl vorschalten

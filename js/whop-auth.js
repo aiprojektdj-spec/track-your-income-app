@@ -642,7 +642,7 @@ var AuthUI = (function () {
             var name = user.username || (user.email || '').split('@')[0] || 'Whop';
             w.innerHTML =
                 '<span id="cloudSyncDot" style="font-size:14px;color:var(--accent,#10b981);" title="Whop Pro aktiv">◆</span>' +
-                '<button class="auth-user-btn" data-action="wa-user-menu" title="' + _esc(user.email || user.username || '') + '">' +
+                '<button class="auth-user-btn" data-action="wa-user-menu" aria-haspopup="true" aria-expanded="false" title="' + _esc(user.email || user.username || '') + '">' +
                 '<i class="ti ti-user" style="font-size:13px;"></i> ' + _esc(name.substring(0, 14)) +
                 '</button>';
         } else {
@@ -650,13 +650,26 @@ var AuthUI = (function () {
         }
     }
 
+    function _closeUserMenu(menu, btn, opts) {
+        opts = opts || {};
+        if (!menu) menu = document.getElementById('authUserMenu');
+        if (menu && menu._waKeyHandler) document.removeEventListener('keydown', menu._waKeyHandler, true);
+        if (menu) menu.remove();
+        if (btn) {
+            btn.setAttribute('aria-expanded', 'false');
+            if (opts.returnFocus) btn.focus();
+        }
+    }
+
     function openUserMenu(btn) {
         var existing = document.getElementById('authUserMenu');
-        if (existing) { existing.remove(); return; }
+        if (existing) { _closeUserMenu(existing, btn, { returnFocus: false }); return; }
 
         var rect = btn.getBoundingClientRect();
         var menu = document.createElement('div');
         menu.id = 'authUserMenu';
+        menu.setAttribute('role', 'menu');
+        menu.setAttribute('aria-label', 'Konto-Menü');
         menu.style.cssText = 'position:fixed;top:' + (rect.bottom + 6) + 'px;right:' + (window.innerWidth - rect.right) + 'px;background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e2e42);border-radius:8px;padding:4px;min-width:210px;z-index:9999;box-shadow:0 8px 28px rgba(0,0,0,.45);';
 
         var user = {};
@@ -667,22 +680,36 @@ var AuthUI = (function () {
             _esc(user.email || user.username || 'Whop User') + '</div>' +
             '<div style="font-size:10px;color:var(--accent,#10b981);padding:0 12px 8px;">◆ Stackr Pro aktiv</div>' +
             '<hr style="border:none;border-top:1px solid var(--border,#2e2e42);margin:2px 0;">' +
-            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-referral">📣 Stackr empfehlen</button>' +
-            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-invite">👥 Steuerberater einladen</button>' +
-            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-clients">📂 Mandanten (als Steuerberater)</button>' +
-            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-my-code">🔑 Mein Freigabe-Code</button>' +
-            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-manage">🔒 Freigaben verwalten</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-referral">📣 Stackr empfehlen</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-invite">👥 Steuerberater einladen</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-clients">📂 Mandanten (als Steuerberater)</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-my-code">🔑 Mein Freigabe-Code</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-manage">🔒 Freigaben verwalten</button>' +
             '<hr style="border:none;border-top:1px solid var(--border,#2e2e42);margin:2px 0;">' +
-            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-manage-membership">🧾 Abo verwalten / kündigen</button>' +
-            '<button style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:#ef4444;cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-logout">🚪 Abmelden</button>';
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-manage-membership">🧾 Abo verwalten / kündigen</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:#ef4444;cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-logout">🚪 Abmelden</button>';
 
         document.body.appendChild(menu);
+        btn.setAttribute('aria-expanded', 'true');
+
+        var firstItem = menu.querySelector('[role="menuitem"]');
+        if (firstItem) firstItem.focus();
+
+        function onKeydown(e) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                _closeUserMenu(menu, btn, { returnFocus: true });
+            }
+        }
+        menu._waKeyHandler = onKeydown;
+        document.addEventListener('keydown', onKeydown, true);
 
         setTimeout(function () {
             document.addEventListener('click', function _close(e) {
                 var m2 = document.getElementById('authUserMenu');
-                if (m2 && !m2.contains(e.target) && e.target !== btn) {
-                    m2.remove();
+                if (!m2) { document.removeEventListener('click', _close); return; }
+                if (!m2.contains(e.target) && e.target !== btn) {
+                    _closeUserMenu(m2, btn, { returnFocus: false });
                     document.removeEventListener('click', _close);
                 }
             });

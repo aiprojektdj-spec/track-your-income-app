@@ -374,14 +374,14 @@ var BankImport = (function () {
         html += '</div>';
         html += '</div>';
 
-        html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">';
-        html += '<thead><tr style="background:var(--bg-secondary);">';
-        html += '<th style="padding:8px 12px;text-align:left;"><input type="checkbox" id="bankCheckAll"></th>';
-        html += '<th style="padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-muted);">Datum</th>';
-        html += '<th style="padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-muted);">Betrag</th>';
-        html += '<th style="padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-muted);">Art</th>';
-        html += '<th style="padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-muted);">Beschreibung</th>';
-        html += '<th style="padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text-muted);">Kategorie</th>';
+        html += '<div class="table-container" style="border:none;border-radius:0;box-shadow:none;"><table>';
+        html += '<thead><tr>';
+        html += '<th><input type="checkbox" id="bankCheckAll"></th>';
+        html += '<th>Datum</th>';
+        html += '<th>Betrag</th>';
+        html += '<th>Art</th>';
+        html += '<th>Beschreibung</th>';
+        html += '<th>Kategorie</th>';
         html += '</tr></thead><tbody>';
 
         transactions.forEach(function (tx, idx) {
@@ -391,17 +391,17 @@ var BankImport = (function () {
                 return '<option value="' + c + '"' + (c === autoCategory ? ' selected' : '') + '>' + c + '</option>';
             }).join('');
 
-            html += '<tr style="border-top:1px solid var(--border);" data-idx="' + idx + '">';
-            html += '<td style="padding:8px 12px;"><input type="checkbox" class="bank-row-check" data-idx="' + idx + '"></td>';
-            html += '<td style="padding:8px 12px;font-size:12px;">' + Utils.formatDate(tx.date) + '</td>';
-            html += '<td style="padding:8px 12px;font-weight:700;font-size:13px;color:' + (tx.isCredit ? 'var(--success)' : 'var(--danger)') + ';">';
+            html += '<tr data-idx="' + idx + '">';
+            html += '<td><input type="checkbox" class="bank-row-check" data-idx="' + idx + '"></td>';
+            html += '<td>' + Utils.formatDate(tx.date) + '</td>';
+            html += '<td style="font-weight:700;color:' + (tx.isCredit ? 'var(--success)' : 'var(--danger)') + ';">';
             html += (tx.isCredit ? '+' : '−') + Utils.formatCurrency(tx.amount) + '</td>';
-            html += '<td style="padding:8px 12px;"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:' + (tx.isCredit ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.12)') + ';color:' + (tx.isCredit ? 'var(--success)' : 'var(--danger)') + ';">' + (tx.isCredit ? 'Einnahme' : 'Ausgabe') + '</span></td>';
-            html += '<td style="padding:8px 12px;font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + Utils.escapeHtml(tx.description) + '">' + Utils.escapeHtml(tx.description.substring(0, 60)) + (tx.description.length > 60 ? '…' : '') + '</td>';
+            html += '<td><span class="badge ' + (tx.isCredit ? 'badge-success' : 'badge-danger') + '">' + (tx.isCredit ? 'Einnahme' : 'Ausgabe') + '</span></td>';
+            html += '<td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + Utils.escapeHtml(tx.description) + '">' + Utils.escapeHtml(tx.description.substring(0, 60)) + (tx.description.length > 60 ? '…' : '') + '</td>';
             if (!tx.isCredit) {
-                html += '<td style="padding:8px 12px;"><select class="form-select bank-cat-select" data-idx="' + idx + '" style="font-size:12px;padding:4px 8px;">' + catOptions + '</select></td>';
+                html += '<td><select class="form-select bank-cat-select" data-idx="' + idx + '" style="font-size:12px;padding:4px 8px;">' + catOptions + '</select></td>';
             } else {
-                html += '<td style="padding:8px 12px;font-size:12px;color:var(--text-muted);">Einnahme (kein Import)</td>';
+                html += '<td style="color:var(--text-muted);">Einnahme (kein Import)</td>';
             }
             html += '</tr>';
         });

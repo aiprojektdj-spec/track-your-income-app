@@ -230,17 +230,9 @@ function calcMwst(brutto, satz) {
 }
 
 function toast(msg, type='success') {
-    const colors = { success:'#10b981', danger:'#ef4444', warning:'#f59e0b', info:'#3b82f6' };
-    const el = Object.assign(document.createElement('div'), { textContent: msg });
-    Object.assign(el.style, {
-        position:'fixed', bottom:'24px', right:'24px', zIndex:'9999',
-        padding:'11px 18px', borderRadius:'8px', fontSize:'13px', fontWeight:'600',
-        background: colors[type]||colors.info, color:'#fff',
-        boxShadow:'0 4px 14px rgba(0,0,0,0.35)', maxWidth:'320px',
-        transition:'opacity .3s'
-    });
-    document.body.appendChild(el);
-    setTimeout(()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 2800);
+    // Delegiert an die zentrale Utils.showToast (Notyf, aria-live, Theme-Farben)
+    // statt eigener Hex-Farben/DOM-Bastelei — type 'danger' (Notyf kennt nur 'error') wird gemappt.
+    Utils.showToast(msg, type === 'danger' ? 'error' : type);
 }
 
 let _chartInst = null;

@@ -207,7 +207,7 @@ const Buchungen = {
                         <input type="number" min="1" max="9999" class="form-input" id="item_anzahl" value="1">
                     </div>
                     <div class="form-group" style="align-self:flex-end;">
-                        <button type="button" class="btn btn-primary" id="addItemBtn">+ Hinzufügen</button>
+                        <button type="button" class="btn btn-primary" id="addItemBtn"><i class="ti ti-plus"></i> Hinzufügen</button>
                     </div>
                 </div>
             </div>

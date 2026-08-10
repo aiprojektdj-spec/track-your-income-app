@@ -136,7 +136,7 @@ const Afa = {
         }).join('');
 
         const emptyRow = aktive.length === 0
-            ? `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:32px;">Noch keine Wirtschaftsgüter erfasst</td></tr>`
+            ? `<tr><td colspan="9" class="table-empty">Noch keine Wirtschaftsgüter erfasst</td></tr>`
             : '';
 
         // Kumulierte AfA aller Jahre für Gesamtübersicht
@@ -149,7 +149,7 @@ const Afa = {
             <div class="page-header-actions no-print">
                 <select class="form-select" id="afaYear" style="width:100px;">${yearOptions}</select>
                 <button class="btn" data-action="afa-export">CSV Export</button>
-                <button class="btn btn-primary" data-action="afa-form">+ Anlage erfassen</button>
+                <button class="btn btn-primary" data-action="afa-form"><i class="ti ti-plus"></i> Anlage erfassen</button>
             </div>
         </div>
 

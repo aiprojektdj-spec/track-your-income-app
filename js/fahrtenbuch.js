@@ -71,7 +71,7 @@ const Fahrtenbuch = {
             <div class="page-header">
                 <h2>Fahrtenbuch</h2>
                 <div class="page-header-actions no-print">
-                    <button class="btn btn-primary" id="fbNeuBtn">+ Neue Fahrt</button>
+                    <button class="btn btn-primary" id="fbNeuBtn"><i class="ti ti-plus"></i> Neue Fahrt</button>
                     <button class="btn" id="fbExportCSV"><i class="ti ti-download"></i> CSV Export</button>
                     <button class="btn" id="fbDruckBtn"><i class="ti ti-printer"></i> Drucken</button>
                 </div>

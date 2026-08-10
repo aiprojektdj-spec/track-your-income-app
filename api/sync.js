@@ -291,9 +291,12 @@ module.exports = async function handler(req, res) {
         }
 
         if (action === 'delete') {
-            // Art. 17 DSGVO — löscht den verschlüsselten Snapshot UND die Anker-Liste dieses Scopes unwiderruflich.
+            // Art. 17 DSGVO — löscht nur den verschlüsselten Snapshot. Die Anker-Liste
+            // (anchorKey) bleibt bewusst erhalten: sie enthält keine personenbezogenen
+            // Klardaten (nur Hash+ID+Timestamp je Buchung), Art. 17 betrifft sie nicht direkt.
+            // Würde sie hier mitgelöscht, könnte ein Nutzer, der Buchungen nachträglich
+            // manipuliert hat, die eigene GoBD-Tamper-Evidence-Kette mit entfernen.
             await redisCmd(['DEL', key]);
-            await redisCmd(['DEL', anchorKey]);
             return res.status(200).json({ ok: true });
         }
 

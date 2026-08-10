@@ -30,7 +30,10 @@ module.exports = async function handler(req, res) {
         console.warn('[whop-token] Rate-Limit INAKTIV — UPSTASH_REDIS_REST_URL/TOKEN nicht gesetzt');
     } else {
         try {
-            var ip    = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
+            // x-vercel-forwarded-for wird von Vercels Edge-Netzwerk selbst gesetzt und ist vom
+            // Client nicht überschreibbar (anders als das erste x-forwarded-for-Segment, das ein
+            // Client mitschicken kann) — sonst wäre das IP-Rate-Limit per Header spoofbar.
+            var ip    = req.headers['x-vercel-forwarded-for'] || (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
             var rlKey = 'whoptoken:rl:' + ip;
             var count = await redisCmd(['INCR', rlKey]);
             // NX: TTL nachziehen falls beim ersten INCR verloren — sonst permanente IP-Sperre

@@ -150,7 +150,10 @@ module.exports = async function handler(req, res) {
 
     if (REDIS_URL && REDIS_TOKEN) {
         try {
-            var ip      = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
+            // x-vercel-forwarded-for wird von Vercels Edge-Netzwerk selbst gesetzt und ist vom
+            // Client nicht überschreibbar (anders als das erste x-forwarded-for-Segment) — sonst
+            // wäre das IP-Rate-Limit per Header spoofbar.
+            var ip      = req.headers['x-vercel-forwarded-for'] || (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
             var ipRlKey = 'whopaccess:iprl:' + ip;
             var ipCount = await redisCmd(['INCR', ipRlKey]);
             await redisCmd(['EXPIRE', ipRlKey, '60', 'NX']);

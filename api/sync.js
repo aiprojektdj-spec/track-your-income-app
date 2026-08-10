@@ -156,7 +156,10 @@ module.exports = async function handler(req, res) {
     // Verhindert Kosten-/Quota-Amplification: Müll-Tokens dürfen nicht unbegrenzt
     // teure Whop-API-Calls auslösen, bevor die (userId-basierte) Prüfung in Schritt 4 greift.
     try {
-        var ip      = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
+        // x-vercel-forwarded-for wird von Vercels Edge-Netzwerk selbst gesetzt und ist vom
+        // Client nicht überschreibbar (anders als das erste x-forwarded-for-Segment) — sonst
+        // wäre das IP-Rate-Limit per Header spoofbar.
+        var ip      = req.headers['x-vercel-forwarded-for'] || (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
         var ipRlKey = 'sync:iprl:' + ip;
         var ipCount = await redisCmd(['INCR', ipRlKey]);
         await redisCmd(['EXPIRE', ipRlKey, '60', 'NX']);

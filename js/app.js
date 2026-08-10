@@ -729,6 +729,7 @@ const App = {
         '✨': 'ti-sparkles', '📋': 'ti-clipboard-list', '🚨': 'ti-alert-triangle', '🧹': 'ti-eraser',
         '⚠️': 'ti-alert-triangle', '⚠': 'ti-alert-triangle', '📦': 'ti-package', '📊': 'ti-chart-bar',
         '📥': 'ti-download', '📍': 'ti-map-pin', '✏️': 'ti-pencil', '✏': 'ti-pencil',
+        '➕': 'ti-plus',
     },
 
     showModal(title, bodyHtml, footerHtml) {

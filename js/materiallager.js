@@ -74,7 +74,7 @@ const Materiallager = {
             <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0;">
                 ${tabs.map(t => `
                     <button class="btn${this._tab === t.id ? ' btn-primary' : ' btn-secondary'}"
-                        style="border-radius:var(--radius) var(--radius) 0 0;margin-bottom:-1px;border-bottom:${this._tab === t.id ? '2px solid var(--primary)' : 'none'};"
+                        style="border-radius:var(--radius) var(--radius) 0 0;margin-bottom:-1px;border-bottom:${this._tab === t.id ? '2px solid var(--accent)' : 'none'};"
                         data-ml-tab="${t.id}">${t.label}</button>
                 `).join('')}
             </div>
@@ -97,7 +97,7 @@ const Materiallager = {
                 const mindest = parseInt(m.mindestbestand) || 0;
                 const warn = bestandVal <= mindest && mindest > 0;
                 const restwert = (parseFloat(m.kostenProEinheit) || 0) * bestandVal;
-                return `<tr${warn ? ' style="background:rgba(239,68,68,0.04);"' : ''}>
+                return `<tr${warn ? ' style="background:var(--danger-bg);"' : ''}>
                     <td>${Utils.escapeHtml(m.name)}</td>
                     <td style="color:var(--text-muted);font-size:12px;">${Utils.escapeHtml(m.kategorie || '')}</td>
                     <td style="text-align:right;font-weight:600;color:${warn ? 'var(--danger)' : 'var(--success)'};">

@@ -563,7 +563,7 @@ const Vorsteuer = {
                                 <td style="text-align:right">${Utils.formatCurrency(parseFloat(e.nettoBetrag) || 0)}</td>
                                 <td style="text-align:right">${e.ustSatz || 19}%</td>
                                 <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(parseFloat(e.vorsteuerBetrag) || 0)}</td>
-                                <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="vst-del" data-args='["${e.id}"]' >🗑</button></td>
+                                <td><button class="btn btn-small btn-danger" title="Löschen" data-action="vst-del" data-args='["${e.id}"]'><i class="ti ti-trash"></i></button></td>
                             </tr>`).join('')}
                         </tbody>
                     </table>
@@ -607,7 +607,7 @@ const Vorsteuer = {
                                 <td style="text-align:right">${Utils.formatCurrency(parseFloat(e.nettoBetrag) || 0)}</td>
                                 <td style="text-align:right;color:var(--danger)">${Utils.formatCurrency(parseFloat(e.erwerbsteuer) || 0)}</td>
                                 <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(parseFloat(e.vorsteuerBetrag) || 0)}</td>
-                                <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="vst-del" data-args='["${e.id}"]' >🗑</button></td>
+                                <td><button class="btn btn-small btn-danger" title="Löschen" data-action="vst-del" data-args='["${e.id}"]'><i class="ti ti-trash"></i></button></td>
                             </tr>`).join('')}
                         </tbody>
                     </table>
@@ -652,7 +652,7 @@ const Vorsteuer = {
                                     <td>${Utils.escapeHtml(e.lieferant || '—')}</td>
                                     <td style="text-align:right">${Utils.formatCurrency(parseFloat(e.nettoBetrag) || 0)}</td>
                                     <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(parseFloat(e.vorsteuerBetrag) || 0)}</td>
-                                    <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="vst-del" data-args='["${e.id}"]' >🗑</button></td>
+                                    <td><button class="btn btn-small btn-danger" title="Löschen" data-action="vst-del" data-args='["${e.id}"]'><i class="ti ti-trash"></i></button></td>
                                 </tr>`;
                             }).join('')}
                         </tbody>

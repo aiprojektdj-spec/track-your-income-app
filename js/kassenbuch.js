@@ -72,20 +72,19 @@ const Kassenbuch = {
                     if (isEin) { balance += betrag; tagEin += betrag; } else { balance -= betrag; tagAus += betrag; }
                 }
                 const typBadge = isSt
-                    ? '<span class="badge" style="background:rgba(100,116,139,.2);color:#94a3b8;">Storniert</span>'
+                    ? '<span class="badge badge-neutral">Storniert</span>'
                     : e.typ === 'Einnahme' ? '<span class="badge badge-success">Einnahme</span>'
                     : e.typ === 'Ausgabe' ? '<span class="badge badge-danger">Ausgabe</span>'
                     : e.typ === 'Privateinlage' ? '<span class="badge badge-info">Privateinlage</span>'
                     : '<span class="badge badge-warning">Privatentnahme</span>';
-                const rowStyle = isSt ? 'opacity:.45;text-decoration:line-through;' : '';
                 const balanceCell = isSt ? '—' : Utils.formatCurrency(balance);
-                const balanceColor = isSt ? 'var(--text-muted,#888)' : (balance >= 0 ? 'var(--success)' : 'var(--danger)');
+                const balanceColor = isSt ? 'var(--text-muted)' : (balance >= 0 ? 'var(--success)' : 'var(--danger)');
                 rowParts.push(`
-                <tr style="${rowStyle}">
+                <tr class="${isSt ? 'row-storniert' : ''}">
                     <td>${Utils.formatDate(e.datum)}</td>
                     <td>${typBadge}</td>
-                    <td>${Utils.escapeHtml(e.beschreibung || '')}${isSt ? ` <small style="color:var(--text-muted,#888);text-decoration:none;">(${Utils.escapeHtml(e.stornoGrund || '')})</small>` : ''}</td>
-                    <td style="text-align:right;color:${isSt ? 'var(--text-muted,#888)' : (isEin ? 'var(--success)' : 'var(--danger)')};">${isSt ? '' : (isEin ? '+' : '-')}${Utils.formatCurrency(betrag)}</td>
+                    <td>${Utils.escapeHtml(e.beschreibung || '')}${isSt ? ` <small style="color:var(--text-muted);text-decoration:none;">(${Utils.escapeHtml(e.stornoGrund || '')})</small>` : ''}</td>
+                    <td style="text-align:right;color:${isSt ? 'var(--text-muted)' : (isEin ? 'var(--success)' : 'var(--danger)')};">${isSt ? '' : (isEin ? '+' : '-')}${Utils.formatCurrency(betrag)}</td>
                     <td style="text-align:right;font-weight:600;color:${balanceColor};">${balanceCell}</td>
                     <td class="table-actions">
                         ${isSt ? '' : `<button class="btn btn-small btn-danger" data-delete-kasse="${e.id}">Stornieren</button>`}

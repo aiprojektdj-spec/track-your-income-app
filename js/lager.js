@@ -409,7 +409,7 @@ const Lager = {
 
             App.closeModal();
             this._selected.clear();
-            Utils.showToast(`✅ Verkauf gespeichert${isMulti ? ` (${selected.length} Artikel)` : ''}`, 'success');
+            Utils.showToast(`Verkauf gespeichert${isMulti ? ` (${selected.length} Artikel)` : ''}`, 'success');
             const contentEl = document.getElementById('content');
             contentEl.innerHTML = this.render();
             this.init();
@@ -481,7 +481,7 @@ const Lager = {
 
     _resizeAndStagePhoto(id, file) {
         const err = this._validatePhotoFile(file);
-        if (err) { Utils.showToast('⚠️ ' + err, 'warning'); return; }
+        if (err) { Utils.showToast(err, 'warning'); return; }
 
         const reader = new FileReader();
         reader.onerror = () => Utils.showToast('Datei konnte nicht gelesen werden', 'error');
@@ -1578,7 +1578,7 @@ const Lager = {
             }
             this._saveLayout(layout);
             App.closeModal();
-            Utils.showToast(isEdit ? '✅ Zone gespeichert' : '✅ Zone hinzugefügt', 'success');
+            Utils.showToast(isEdit ? 'Zone gespeichert' : 'Zone hinzugefügt', 'success');
             const contentEl = document.getElementById('content');
             contentEl.innerHTML = this.render();
             this.init();
@@ -1733,7 +1733,7 @@ const Lager = {
                 Store.savePurchase(p);
             });
             App.closeModal();
-            Utils.showToast(`✅ ${selected.length} Artikel → ${Utils.escapeHtml(zone.name)} zugeordnet`, 'success');
+            Utils.showToast(`${selected.length} Artikel → ${Utils.escapeHtml(zone.name)} zugeordnet`, 'success');
             const contentEl = document.getElementById('content');
             contentEl.innerHTML = this.render();
             this.init();
@@ -1817,7 +1817,7 @@ const Lager = {
                 const zoneName = bereich
                     ? (layout.zones.find(z => z.bereich === bereich) || {}).name || bereich
                     : null;
-                Utils.showToast(zoneName ? `✅ → ${zoneName}` : 'Zone entfernt', 'success');
+                Utils.showToast(zoneName ? `→ ${zoneName}` : 'Zone entfernt', 'success');
                 const contentEl = document.getElementById('content');
                 contentEl.innerHTML = this.render();
                 this.init();
@@ -2229,7 +2229,7 @@ const Lager = {
                         if (purchase) {
                             purchase.einkaufspreis = newVal;
                             Store.savePurchase(purchase);
-                            Utils.showToast(`✅ EK → ${Utils.formatCurrency(newVal)}`, 'success');
+                            Utils.showToast(`EK → ${Utils.formatCurrency(newVal)}`, 'success');
                         }
                         rerender();
                     };

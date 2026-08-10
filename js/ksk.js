@@ -92,7 +92,7 @@ const Ksk = {
             <h2>Künstlersozialkasse (KSK)</h2>
             <div class="page-header-actions no-print">
                 <select class="form-select" id="kskYear" style="width:100px;">${yearOptions}</select>
-                <button class="btn btn-primary" data-action="ksk-config">⚙️ KSK-Konfiguration</button>
+                <button class="btn btn-primary" data-action="ksk-config"><i class="ti ti-settings"></i> KSK-Konfiguration</button>
             </div>
         </div>
 
@@ -150,7 +150,7 @@ const Ksk = {
                         </div>
                     </div>
                     <div class="form-group">
-                        <button class="btn btn-primary" data-action="ksk-save-gemeldet">💾 Als gemeldetes EK speichern</button>
+                        <button class="btn btn-primary" data-action="ksk-save-gemeldet"><i class="ti ti-device-floppy"></i> Als gemeldetes EK speichern</button>
                     </div>
                 </div>
 
@@ -266,7 +266,7 @@ const Ksk = {
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
                 <button class="btn" data-action="close-modal">Abbrechen</button>
-                <button class="btn btn-primary" data-action="ksk-save-config">💾 Speichern</button>
+                <button class="btn btn-primary" data-action="ksk-save-config"><i class="ti ti-device-floppy"></i> Speichern</button>
             </div>
         `);
     },
@@ -313,7 +313,7 @@ const Ksk = {
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
                 <button class="btn" data-action="close-modal">Abbrechen</button>
-                <button class="btn btn-primary" data-action="ksk-save-meldung">💾 Speichern</button>
+                <button class="btn btn-primary" data-action="ksk-save-meldung"><i class="ti ti-device-floppy"></i> Speichern</button>
             </div>
         `);
     },

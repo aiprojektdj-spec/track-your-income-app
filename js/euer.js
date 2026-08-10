@@ -731,7 +731,7 @@ const Euer = {
 
             const baRows = d.expenses.map(e => `<tr>
                 <td style="${tdStyle}">${Utils.formatDate(e.datum)}</td>
-                <td style="${tdStyle}"><span style="padding:2px 8px;border-radius:10px;background:rgba(99,102,241,.12);color:var(--accent);font-size:11px;">${Utils.escapeHtml(e.kategorie||'Sonstiges')}</span></td>
+                <td style="${tdStyle}"><span class="badge badge-info">${Utils.escapeHtml(e.kategorie||'Sonstiges')}</span></td>
                 <td style="${tdStyle};color:var(--text-muted);">${Utils.escapeHtml(e.beschreibung||'—')}</td>
                 <td style="${tdR};color:var(--danger);">${Utils.formatCurrency(parseFloat(e.betrag)||0)}</td>
             </tr>`).join('');
@@ -739,7 +739,7 @@ const Euer = {
             const filteredEB = d.eigenbelegeRaw.filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, d.startDate, d.endDate));
             const ebRows = filteredEB.map(b => `<tr>
                 <td style="${tdStyle}">${Utils.formatDate(b.belegDatum)}</td>
-                <td style="${tdStyle}"><span style="padding:2px 8px;border-radius:10px;background:rgba(245,158,11,.12);color:var(--warning);font-size:11px;">Eigenbeleg</span></td>
+                <td style="${tdStyle}"><span class="badge badge-warning">Eigenbeleg</span></td>
                 <td style="${tdStyle};color:var(--text-muted);">${Utils.escapeHtml(b.beschreibung||b.belegNr||'—')}</td>
                 <td style="${tdR};color:var(--danger);">${Utils.formatCurrency(parseFloat(b.betragNetto)||parseFloat(b.betragBrutto)||0)}</td>
             </tr>`).join('');
@@ -750,7 +750,7 @@ const Euer = {
                     <div style="font-weight:800;font-size:15px;color:var(--danger);">${Utils.formatCurrency(d.summeAusgaben)}</div>
                 </div>
                 ${d.periodPurchases.filter(p=>!p.eigenbeleg_id).length > 0 ? `
-                <div style="padding:10px 16px 6px;font-size:12px;font-weight:700;color:var(--text-secondary);border-bottom:1px solid var(--border);">🛒 Wareneinkauf (${d.periodPurchases.filter(p=>!p.eigenbeleg_id).length} Artikel)</div>
+                <div style="padding:10px 16px 6px;font-size:12px;font-weight:700;color:var(--text-secondary);border-bottom:1px solid var(--border);"><i class="ti ti-shopping-cart"></i> Wareneinkauf (${d.periodPurchases.filter(p=>!p.eigenbeleg_id).length} Artikel)</div>
                 <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">
                     <thead><tr>
                         <th style="${thStyle}">Datum</th><th style="${thStyle}">Art.-Nr.</th>
@@ -760,7 +760,7 @@ const Euer = {
                     <tbody>${einkaufRows}</tbody>
                 </table></div>` : ''}
                 ${d.expenses.length > 0 ? `
-                <div style="padding:10px 16px 6px;font-size:12px;font-weight:700;color:var(--text-secondary);border-bottom:1px solid var(--border);">💼 Betriebsausgaben (${d.expenses.length})</div>
+                <div style="padding:10px 16px 6px;font-size:12px;font-weight:700;color:var(--text-secondary);border-bottom:1px solid var(--border);"><i class="ti ti-briefcase"></i> Betriebsausgaben (${d.expenses.length})</div>
                 <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">
                     <thead><tr>
                         <th style="${thStyle}">Datum</th><th style="${thStyle}">Kategorie</th>
@@ -769,7 +769,7 @@ const Euer = {
                     <tbody>${baRows}</tbody>
                 </table></div>` : ''}
                 ${filteredEB.length > 0 ? `
-                <div style="padding:10px 16px 6px;font-size:12px;font-weight:700;color:var(--text-secondary);border-bottom:1px solid var(--border);">🧾 Eigenbelege (${filteredEB.length})</div>
+                <div style="padding:10px 16px 6px;font-size:12px;font-weight:700;color:var(--text-secondary);border-bottom:1px solid var(--border);"><i class="ti ti-receipt"></i> Eigenbelege (${filteredEB.length})</div>
                 <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">
                     <thead><tr>
                         <th style="${thStyle}">Datum</th><th style="${thStyle}">Typ</th>

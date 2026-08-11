@@ -3,7 +3,7 @@
 // ============================================
 const App = {
     currentPage: 'dashboard',
-    APP_VERSION: '1.7',  // ← bei jedem Update hier UND in index.html anpassen
+    APP_VERSION: '1.7',  // ← bei jedem Update hier UND im Versions-Badge in app.html anpassen
 
     // Finanzen-Modul: alle transaktionalen Seiten, die sich die Sub-Nav teilen.
     // Reihenfolge = Reihenfolge der Sub-Tabs.

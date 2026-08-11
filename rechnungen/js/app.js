@@ -66,8 +66,34 @@ var RechApp = (function() {
         navigate('rech-dashboard');
     }
 
+    // ── Unsaved-Changes-Tracking (Muster aus js/app.js) ────────────────────────
+    // Ausgerechnet hier liegt das laengste Formular der App (Rechnung mit n Positionen),
+    // und ausgerechnet hier gab es bis 2026-08-11 keine Warnung: ein Fehlklick auf die
+    // Sub-Nav loeschte alles. Nur echte Eingabefelder zaehlen, SELECTs nicht — die sind
+    // ueberwiegend Filter-Controls ohne Speicherbedarf.
+    var _formDirty = false;
+
+    function _bindDirtyTracking() {
+        var content = document.getElementById('content');
+        if (!content || content.dataset.dirtyBound) return;
+        content.dataset.dirtyBound = '1';
+        var mark = function (e) {
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) _formDirty = true;
+        };
+        content.addEventListener('input', mark);
+        content.addEventListener('change', mark);
+    }
+
+    function markClean() { _formDirty = false; }
+
     function navigate(page, params) {
         params = params || {};
+
+        if (_formDirty && page !== currentPage) {
+            if (!confirm('Du hast ungespeicherte Eingaben. Seite trotzdem verlassen?')) return;
+        }
+        _formDirty = false;
+
         currentPage = page;
         currentParams = params;
 
@@ -93,6 +119,10 @@ var RechApp = (function() {
         var content = document.getElementById('content');
         content.innerHTML = module.render(renderParams);
         module.init(renderParams);
+        _bindDirtyTracking();
+        // Ein frisch gerendertes Formular ist noch sauber — Feldinitialisierung in init()
+        // darf nicht als Nutzereingabe zaehlen.
+        _formDirty = false;
 
         // Update sidebar active state
         document.querySelectorAll('.sidebar-link').forEach(function(link) {
@@ -395,6 +425,7 @@ var RechApp = (function() {
         navigate: navigate,
         showModal: showModal,
         closeModal: closeModal,
+        markClean: markClean,
         mount: mount
     };
 })();

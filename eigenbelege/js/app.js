@@ -808,6 +808,7 @@ async function saveBeleg(e, editId) {
     if (!editId && typeof Webhooks !== 'undefined') Webhooks.fire('eigenbeleg', beleg);
     toast(editId ? 'Eigenbeleg aktualisiert' : `Eigenbeleg ${id} gespeichert`, 'success');
     await _syncPositionenToLager(beleg); // warten bis IDB-Schreibvorgang abgeschlossen
+    ebMarkClean();
     navigate('alle');
 }
 
@@ -1840,13 +1841,40 @@ document.addEventListener('keydown', e => {
 // ═══════════════════════════════════════════════════════════════════
 const PAGES = { dashboard:renderDashboard, neu:renderNeu, alle:renderAlle, kategorien:renderKategorien, einstellungen:renderEinstellungen, vorlagen:renderProdukte };
 
+// ── Unsaved-Changes-Tracking (Muster aus js/app.js) ────────────────────────
+// Die Haupt-App warnt vor dem Seitenwechsel mit ungespeicherten Eingaben, die Sub-Apps
+// taten es bis 2026-08-11 nicht — ein Fehlklick auf die Sub-Nav loeschte den halb
+// erfassten Beleg. Nur INPUT/TEXTAREA zaehlen, SELECTs sind ueberwiegend Filter.
+let _ebFormDirty = false;
+let _ebCurrentPage = 'dashboard';
+
+function ebMarkClean() { _ebFormDirty = false; }
+
+function _ebBindDirtyTracking() {
+    const content = document.getElementById('content');
+    if (!content || content.dataset.dirtyBound) return;
+    content.dataset.dirtyBound = '1';
+    const mark = e => {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) _ebFormDirty = true;
+    };
+    content.addEventListener('input', mark);
+    content.addEventListener('change', mark);
+}
+
 function navigate(page) {
+    if (_ebFormDirty && page !== _ebCurrentPage) {
+        if (!confirm('Du hast ungespeicherte Eingaben. Seite trotzdem verlassen?')) return;
+    }
+    _ebFormDirty = false;
+    _ebCurrentPage = page;
     document.querySelectorAll('.sidebar-link[data-page]').forEach(el =>
         el.classList.toggle('active', el.dataset.page === page));
     // Eingebettet: Active-State der 2. Sub-Nav-Zeile (#rechSubnav)
     document.querySelectorAll('#rechSubnav [data-eb-page]').forEach(el =>
         el.classList.toggle('active', el.getAttribute('data-eb-page') === page));
     (PAGES[page] || renderDashboard)();
+    _ebBindDirtyTracking();
+    _ebFormDirty = false;   // frisch gerendertes Formular ist noch sauber
 }
 
 document.querySelectorAll('.sidebar-link[data-page]').forEach(el =>

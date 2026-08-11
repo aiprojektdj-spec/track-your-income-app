@@ -87,6 +87,26 @@ var Rechnung = (function() {
 
         var html = '<div class="page-header"><h2>' + title + '</h2></div>';
 
+        // §14 UStG: dieselbe Pruefung, die weiter unten das Speichern blockiert, schon BEIM
+        // OEFFNEN als Banner. Vorher erfuhr der Nutzer erst nach Kunde, Datum und allen Positionen,
+        // dass die Steuernummer fehlt — und es gibt keine Entwurfssicherung, die Rechnung war weg.
+        // Nur ein Hinweis, kein Blocker: Angebote brauchen die Angabe nicht, und wer sie gleich
+        // nachtraegt, soll hier nicht ausgesperrt werden.
+        if (currentTyp === 'rechnung' || currentTyp === 'gutschrift') {
+            var ud14 = Store.getRechUnternehmen ? Store.getRechUnternehmen() : {};
+            if (!ud14.steuernummer && !ud14.ustId) {
+                html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;margin-bottom:20px;';
+                html += 'background:var(--warning-bg);border:1px solid var(--warning);border-radius:var(--radius);">';
+                html += '<i class="ti ti-alert-triangle" style="font-size:22px;color:var(--warning);flex-shrink:0;"></i>';
+                html += '<div style="flex:1;">';
+                html += '<div style="font-weight:700;font-size:13px;">Steuernummer oder USt-IdNr. fehlt noch</div>';
+                html += '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">§14 UStG verlangt die Angabe auf jeder Rechnung. Ohne sie lässt sich dieses Dokument am Ende nicht speichern — am besten jetzt gleich ergänzen.</div>';
+                html += '</div>';
+                html += '<button class="btn btn-small btn-outline" data-rech-page="unternehmensdaten" data-action="rech-navigate" style="white-space:nowrap;"><i class="ti ti-settings" style="font-size:13px;"></i> Jetzt ergänzen</button>';
+                html += '</div>';
+            }
+        }
+
         html += '<div class="card"><div class="card-header"><div class="card-title">Dokumentdetails</div></div>';
         html += '<div style="padding: 1rem;">';
 
@@ -761,7 +781,9 @@ var Rechnung = (function() {
             showInvoicePreview(inv);
         });
         document.getElementById('invCancel').addEventListener('click', function() {
+            if (!confirm('Eingaben verwerfen und zurück zu den Dokumenten?')) return;
             reconcileLagerOnCancel();
+            if (RechApp.markClean) RechApp.markClean();
             RechApp.navigate('dokumente');
         });
     }
@@ -1116,6 +1138,7 @@ var Rechnung = (function() {
             var invoice = await buildInvoiceObject();
             if (!invoice) return;
             var saved = Store.saveRechInvoice(invoice);
+            if (RechApp.markClean) RechApp.markClean();
             if (!saved) {
                 Utils.showToast('Nicht gespeichert — Dokument ist bereits gestellt/gesperrt (GoBD §14 UStG).', 'error');
                 RechApp.navigate('dokumente');

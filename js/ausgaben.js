@@ -134,6 +134,10 @@ const Ausgaben = {
                     <div class="card-subtitle">${ksaPflichtig
                         ? `Freigrenze überschritten (${Utils.formatCurrency(ksaSumme)} Honorare, ${ksaWerte.satzText})`
                         : `${Utils.formatCurrency(ksaSumme)} von ${Utils.formatCurrency(ksaWerte.bagatelle)} Freigrenze`}</div>
+                    ${ksaPflichtig ? '' : `<div class="card-subtitle" style="margin-top:6px;color:var(--text-muted);">
+                        Gilt für den Regelfall. <strong>Nicht</strong> für „typische Verwerter" nach §24 Abs.1 KSVG
+                        (Verlage, Werbeagenturen, Theater, Galerien u.ä.) — die sind ab dem ersten Euro
+                        abgabepflichtig, ohne Freigrenze.</div>`}
                 </div>
             `;
         }
@@ -355,7 +359,7 @@ const Ausgaben = {
             ksaHint.style.color = `var(${ueberGrenze ? '--danger' : '--info'})`;
             ksaHint.innerHTML = ueberGrenze
                 ? `⚠️ Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> — übersteigt die ${Utils.formatCurrency(kw.bagatelle)}-Freigrenze (§24 Abs.2 Satz 2 KSVG). Dann ist die <strong>gesamte</strong> Jahressumme künstlersozialabgabepflichtig, nicht nur der übersteigende Teil. Voraussichtliche KSA: <strong>${Utils.formatCurrency(jahressumme * kw.satz)}</strong> (${kw.satzText} für ${year}), zusätzlich zum Honorar an die Künstlersozialkasse zu melden und zu zahlen.`
-                : `Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> von ${Utils.formatCurrency(kw.bagatelle)} Freigrenze (§24 Abs.2 Satz 2 KSVG). Bemessungsgrundlage ist der Nettobetrag ohne USt. Betrifft nur Leistungen mit gestalterischem/kreativem Charakter (§25 KSVG), z.B. Grafik, Foto, Text — reine technische Ausführung ohne kreativen Spielraum fällt idR nicht darunter.`;
+                : `Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> von ${Utils.formatCurrency(kw.bagatelle)} Freigrenze (§24 Abs.2 Satz 2 KSVG). Bemessungsgrundlage ist der Nettobetrag ohne USt. Betrifft nur Leistungen mit gestalterischem/kreativem Charakter (§25 KSVG), z.B. Grafik, Foto, Text — reine technische Ausführung ohne kreativen Spielraum fällt idR nicht darunter. <strong>Ausnahme:</strong> Als „typischer Verwerter" nach §24 Abs.1 KSVG (Verlag, Werbeagentur, Theater, Galerie u.ä.) gilt die Freigrenze für dich <strong>nicht</strong> — dann besteht die Abgabepflicht ab dem ersten Euro.`;
         };
         if (katSel) katSel.addEventListener('change', updateKsaHint);
         const betragInput = document.getElementById('exp_betrag');

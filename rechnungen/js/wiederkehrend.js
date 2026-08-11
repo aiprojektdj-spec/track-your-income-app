@@ -91,6 +91,9 @@ var Wiederkehrend = (function () {
             positionen:  inv.positionen,
             zahlungsbedingungen: inv.zahlungsbedingungen,
             notizen:     inv.notizen,
+            // Leitweg-ID mitführen (Fund T6): Daueraufträge an öffentliche Auftraggeber sind der
+            // B2G-Regelfall — ohne sie weist die Rechnungseingangsplattform jede Folgerechnung ab.
+            leitwegId:   inv.leitwegId || '',
             verkaufsplattform: inv.verkaufsplattform,
             datumsOption: inv.datumsOption,
             lastRunDate: null,
@@ -154,6 +157,7 @@ var Wiederkehrend = (function () {
             positionen:      resolvePositionenFuerNeueRechnung(rule.positionen),
             zahlungsbedingungen: rule.zahlungsbedingungen || 'Zahlbar innerhalb von 14 Tagen nach Rechnungserhalt.',
             notizen:         rule.notizen || '',
+            leitwegId:       rule.leitwegId || '',
             verkaufsplattform: rule.verkaufsplattform || '',
             status:          'offen',
             mahnungen:       [],

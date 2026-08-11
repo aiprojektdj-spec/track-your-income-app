@@ -78,6 +78,7 @@ var Rechnung = (function() {
         var kundeId = editingInvoice ? editingInvoice.kundeId : '';
         var zahlungsbedingungen = editingInvoice ? editingInvoice.zahlungsbedingungen : 'Zahlbar innerhalb von 14 Tagen nach Rechnungserhalt.';
         var notizen = editingInvoice ? editingInvoice.notizen : '';
+        var leitwegId = editingInvoice ? (editingInvoice.leitwegId || '') : '';
         var status = editingInvoice ? editingInvoice.status : 'offen';
         var positionen = editingInvoice ? editingInvoice.positionen : [];
         var datumsOption = editingInvoice ? (editingInvoice.datumsOption || 'faelligkeit') : 'faelligkeit';
@@ -229,6 +230,15 @@ var Rechnung = (function() {
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Vereinbarte Skontobedingungen hier angeben (§14 Abs. 4 Nr. 7 UStG) – nur wenn beim Vertragsschluss vereinbart, nicht als nachträgliche Zahlungserinnerung.</div></div>';
         html += '<div class="form-group"><label class="form-label" for="invNotizen">Notizen</label>';
         html += '<textarea class="form-textarea" id="invNotizen" rows="2" maxlength="1000">' + Utils.escapeHtml(notizen) + '</textarea></div>';
+        // Leitweg-ID (Fund T6, Steuer-Vergleich 2026-08-10): rechnungen/js/xrechnung.js schreibt
+        // <ram:BuyerReference> seit je korrekt, WENN inv.leitwegId gesetzt ist — ein Eingabefeld
+        // gab es aber nirgends. Damit war der B2G-Fall (Rechnung an eine Behörde) praktisch
+        // nicht bedienbar, obwohl die halbe Arbeit getan war. Die Leitweg-ID ist bei
+        // Rechnungen an öffentliche Auftraggeber Pflichtangabe; ohne sie weist die
+        // Rechnungseingangsplattform des Bundes/der Länder die XRechnung zurück.
+        html += '<div class="form-group"><label class="form-label" for="invLeitwegId">Leitweg-ID <span style="font-weight:400;color:var(--text-muted);">(nur bei Rechnungen an Behörden)</span></label>';
+        html += '<input class="form-input" type="text" id="invLeitwegId" maxlength="80" placeholder="z.B. 04011000-1234512345-06" value="' + Utils.escapeHtml(leitwegId) + '">';
+        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Teilt dir der öffentliche Auftraggeber mit. Landet als <code>BuyerReference</code> in der XRechnung — ohne sie weisen die Rechnungseingangsplattformen des Bundes und der Länder die Rechnung zurück.</div></div>';
         html += '</div></div>';
 
         // Eigenbelege-Verknüpfung
@@ -943,6 +953,8 @@ var Rechnung = (function() {
         var kundeId = document.getElementById('invKunde').value;
         var zahlungsbedingungen = document.getElementById('invZahlung').value.trim();
         var notizen = document.getElementById('invNotizen').value.trim();
+        var leitwegIdEl = document.getElementById('invLeitwegId');
+        var leitwegId = leitwegIdEl ? leitwegIdEl.value.trim() : '';
         var verkaufsplattform = document.getElementById('invPlattform') ? document.getElementById('invPlattform').value : '';
 
         // Handle new customer creation
@@ -1078,6 +1090,7 @@ var Rechnung = (function() {
             positionen: positionen,
             zahlungsbedingungen: zahlungsbedingungen,
             notizen: notizen,
+            leitwegId: leitwegId,
             verkaufsplattform: verkaufsplattform,
             status: editingInvoice ? editingInvoice.status : 'offen',
             mahnungen: editingInvoice ? (editingInvoice.mahnungen || []) : [],

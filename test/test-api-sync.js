@@ -14,7 +14,8 @@ function redisExec(cmd) {
     const op = cmd[0];
     if (op === 'GET')      return store.has(cmd[1]) ? store.get(cmd[1]) : null;
     if (op === 'SET')      { store.set(cmd[1], cmd[2]); return 'OK'; }
-    if (op === 'DEL')      { store.delete(cmd[1]); lists.delete(cmd[1]); return 1; }
+    // DEL löscht in echtem Redis den KEY, unabhängig vom Typ (String, Liste, Set).
+    if (op === 'DEL')      { store.delete(cmd[1]); lists.delete(cmd[1]); sets.delete(cmd[1]); return 1; }
     if (op === 'INCR')     { const v = parseInt(store.get(cmd[1]) || '0', 10) + 1; store.set(cmd[1], String(v)); return v; }
     if (op === 'EXPIRE')   return 1;
     if (op === 'EVAL')     return 'OK';
@@ -225,5 +226,77 @@ async function call(token, body) { const res = mkRes(); await handler({ method: 
     assert.strictEqual(r.code, 200, 'Re-Grant an bestehenden Grantee bleibt möglich');
     pass++; console.log('✓ Re-Grant an bestehenden Steuerberater trotz Deckel möglich');
 
-    console.log('\n' + pass + '/25 API-Tests bestanden ✅');
+    // ── R8: get_pubkey darf kein Nutzer-Enumerations-Orakel sein ────────────────────────────
+    // Vorher gab der Endpunkt den ganzen gespeicherten Datensatz heraus, inklusive `username`.
+    // Ein zahlender Angreifer konnte damit für beliebige Whop-User-IDs feststellen, ob sie
+    // Stackr nutzen UND wie sie dort heißen (40 Abfragen/Minute).
+    resetRate();
+    r = await call('tok_stb', { action: 'register_pubkey', pub: { kty: 'EC', x: 'n', y: 'n' } });
+    assert.strictEqual(r.code, 200);
+    assert.ok(!/username/.test(store.get('pubkey:stb1') || ''),
+        'username wird gar nicht erst gespeichert (Datenminimierung)');
+    resetRate();
+    r = await call('tok_owner', { action: 'get_pubkey', granteeId: 'stb1' });
+    assert.strictEqual(r.code, 200);
+    assert.ok(r.body.pubkey.pub, 'pub kommt weiterhin zurück — dafür ist der Endpunkt da');
+    assert.strictEqual(r.body.pubkey.username, undefined, 'kein username in der Antwort');
+    assert.deepStrictEqual(Object.keys(r.body.pubkey).sort(), ['pub', 'updatedAt'],
+        'Antwort ist eine Whitelist, nicht der gespeicherte Datensatz');
+    pass++; console.log('✓ get_pubkey gibt keinen Benutzernamen heraus (R8)');
+
+    // Alt-Datensatz von VOR dem Fix trägt noch username. Der Whitelist-Zugriff muss ihn filtern,
+    // bis er beim nächsten Login des Betroffenen überschrieben wird.
+    store.set('pubkey:altuser', JSON.stringify({ pub: { kty: 'EC' }, username: 'heisstSo', updatedAt: 1 }));
+    resetRate();
+    r = await call('tok_owner', { action: 'get_pubkey', granteeId: 'altuser' });
+    assert.strictEqual(r.code, 200);
+    assert.strictEqual(r.body.pubkey.username, undefined, 'Alt-Datensatz wird gefiltert');
+    assert.ok(!JSON.stringify(r.body).includes('heisstSo'), 'Name taucht nirgends in der Antwort auf');
+    pass++; console.log('✓ Alt-Datensätze mit username werden beim Abruf gefiltert');
+
+    // ── reset_all: Notausgang aus der Schlüssel-Sackgasse ──────────────────────────────────
+    // Voraussetzung des Fixes vom 2026-08-11: wer den Schlüssel zu seinen Cloud-Daten verloren
+    // hat, muss sie verwerfen können — sonst bleibt der Account dauerhaft unsynchronisierbar.
+    resetRate();
+    await call('tok_owner', { action: 'push', scope: '__account', version: 0, iv: 'i', ciphertext: 'c' });
+    store.set('sync:owner1:__account', JSON.stringify({ ciphertext: 'c', iv: 'i', version: 1 }));
+    store.set('sync:owner1:co_reset1',  JSON.stringify({ ciphertext: 'c', iv: 'i', version: 1 }));
+    sets.set('scopes:owner1', new Set(['__account', 'co_reset1']));
+    lists.set('syncanchor:owner1:co_reset1', [JSON.stringify({ id: 'a1', h: 'f'.repeat(64), ts: 1 })]);
+    resetRate();
+    r = await call('tok_owner', { action: 'reset_all' });
+    assert.strictEqual(r.code, 200, 'reset_all erfolgreich');
+    assert.deepStrictEqual(r.body.scopes.sort(), ['__account', 'co_reset1'], 'alle Scopes gemeldet');
+    assert.strictEqual(store.get('sync:owner1:__account'), undefined, 'Registry-Snapshot weg');
+    assert.strictEqual(store.get('sync:owner1:co_reset1'), undefined, 'Firmen-Snapshot weg');
+    assert.ok(!sets.has('scopes:owner1') || sets.get('scopes:owner1').size === 0, 'Scope-Set freigegeben');
+    assert.ok((lists.get('syncanchor:owner1:co_reset1') || []).length === 1,
+        'GoBD-Anker bleibt bestehen — sonst wäre die Tamper-Evidence per "Reset" abstreifbar');
+    pass++; console.log('✓ reset_all verwirft alle Snapshots, Anker-Kette bleibt (GoBD Rz. 64)');
+
+    // Ohne Scope-Set (Alt-Account von vor dem Scope-Deckel) muss __account trotzdem fallen
+    store.set('sync:owner1:__account', JSON.stringify({ ciphertext: 'c', iv: 'i', version: 9 }));
+    sets.delete('scopes:owner1');
+    resetRate();
+    r = await call('tok_owner', { action: 'reset_all' });
+    assert.strictEqual(r.code, 200);
+    assert.strictEqual(store.get('sync:owner1:__account'), undefined, '__account auch ohne Scope-Set gelöscht');
+    pass++; console.log('✓ reset_all erwischt __account auch ohne Scope-Set');
+
+    // Fremde Daten sind für reset_all tabu (StB-Read-Only-Prinzip)
+    store.set('sync:owner1:__account', JSON.stringify({ ciphertext: 'c', iv: 'i', version: 1 }));
+    resetRate();
+    r = await call('tok_stb', { action: 'reset_all', owner: 'owner1' });
+    assert.strictEqual(r.code, 403, 'Reset fremder Daten abgelehnt');
+    assert.ok(store.get('sync:owner1:__account'), 'fremder Snapshot unangetastet');
+    pass++; console.log('✓ reset_all mit owner-Param → 403 readonly');
+
+    // Ohne Pro kein Reset (Owner-Aktion, kein Grantee-Read)
+    resetRate();
+    r = await call('tok_stb', { action: 'reset_all' });
+    assert.strictEqual(r.code, 403);
+    assert.strictEqual(r.body.error, 'pro_required');
+    pass++; console.log('✓ reset_all ohne Pro → 403 pro_required');
+
+    console.log('\n' + pass + '/31 API-Tests bestanden ✅');
 })().catch(e => { console.error('✗ FAIL', e); process.exit(1); });

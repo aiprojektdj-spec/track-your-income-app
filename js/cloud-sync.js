@@ -42,6 +42,9 @@ var CloudSync = (function () {
     var ANCHOR_BATCH = 500;   // muss <= Server-Limit (1000, siehe api/sync.js) sein
     var LS_ANCHOR_CHECK = 'oyi_sync_anchor_check_last';                       // Timestamp der letzten automatischen Anker-Pruefung
     var ANCHOR_CHECK_INTERVAL_MS = 24 * 3600000;   // taeglich reicht — kein manueller Klick noetig, um eine Abweichung zu bemerken
+    var LS_KEY_MISMATCH = 'oyi_sync_key_mismatch';   // Sackgasse: Cloud-Daten liegen unter einem anderen Schlüssel als dem lokalen
+    var LS_ERR_TOAST    = 'oyi_sync_err_toast_last'; // Drosselung der allgemeinen Fehlermeldung (nicht bei jedem Start nerven)
+    var ERR_TOAST_INTERVAL_MS = 24 * 3600000;
 
     var _cryptoKeyCache = null;   // importierter CryptoKey (für aktuellen User)
     var _cryptoKeyUid   = null;
@@ -56,6 +59,14 @@ var CloudSync = (function () {
         catch (e) { return ''; }
     }
     function _enabled() { return localStorage.getItem(LS_ENABLED) === '1'; }
+    // Schlüssel-Sackgasse: die Cloud-Daten dieses Accounts sind mit einem anderen Schlüssel
+    // verschlüsselt als dem auf diesem Gerät. Der Zustand MUSS überleben (Reload, Neustart)
+    // und sichtbar sein — sonst läuft der Sync monatelang tot vor sich hin, ohne dass es
+    // jemand merkt (genau der Fehler, den der stille catch in _syncAll früher erzeugt hat).
+    function _setMismatch(on) {
+        try { on ? localStorage.setItem(LS_KEY_MISMATCH, String(Date.now())) : localStorage.removeItem(LS_KEY_MISMATCH); } catch (e) {}
+    }
+    function _hasMismatch() { try { return !!localStorage.getItem(LS_KEY_MISMATCH); } catch (e) { return false; } }
     function _isPro()   { return typeof UserPlan === 'undefined' || UserPlan.isPro(); }
     function _activeScope() { return (typeof CompanyManager !== 'undefined') ? CompanyManager.getActiveId() : ''; }
 
@@ -107,6 +118,12 @@ var CloudSync = (function () {
     // akzeptiert zu werden. ownerId ist bei Selbst-Sync == _userId(), bei StB-Fremdzugriff
     // (foreignLoad) explizit der Mandanten-Owner — deshalb NIE hart _userId() annehmen.
     var AAD_VERSION = 'sync-v1';
+    // Ablaufdatum des AAD-Migrations-Fallbacks (Fund R7, s. _decryptCt). AAD wurde am 2026-08-09
+    // eingeführt; jeder Push eines Scopes schreibt das Chiffrat mit AAD neu. Vier Monate sind
+    // reichlich für ein Gerät, das lange nicht synchronisiert hat — danach ist ein Blob ohne AAD
+    // kein Migrationsfall mehr, sondern ein Verdachtsfall.
+    // NACH diesem Datum: diesen Block und den Fallback in _decryptCt ersatzlos entfernen.
+    var AAD_FALLBACK_UNTIL = Date.parse('2026-12-01T00:00:00Z');
     function _aad(ownerId, scope) {
         return new TextEncoder().encode(String(ownerId || '') + '|' + String(scope || '') + '|' + AAD_VERSION);
     }
@@ -129,21 +146,48 @@ var CloudSync = (function () {
         var ct  = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: _aad(ownerId || _userId(), scope) }, key, pt);
         return { ct: _b64(new Uint8Array(ct)), iv: _b64(iv) };
     }
-    async function _decrypt(blob, scope, ownerId, overrideBytes) {
-        var key = overrideBytes ? await _importKey(overrideBytes) : await _cryptoKey();
-        var iv  = _unb64(blob.iv);
+    // Chiffrat-Beschaffung getrennt von der Entschlüsselung: nur so lässt sich sauber
+    // unterscheiden, ob der SCHLÜSSEL nicht passt oder ob das ausgelagerte Chiffrat gerade
+    // nicht ladbar war (Netz/Speicher). Früher endete beides in derselben Meldung
+    // "Code falsch" — ein Netzfehler wurde dem Nutzer als falscher Code verkauft.
+    async function _fetchCipher(blob) {
         // Übergroßes Ledger-Chiffrat liegt als eigenes Blob-Objekt (siehe push unten) —
         // erst herunterladen, dann wie gewohnt entschlüsseln.
-        var ct  = blob.blobUrl ? await BlobAttachments.get(blob.blobUrl) : _unb64(blob.ciphertext);
+        if (blob.blobUrl) return await BlobAttachments.get(blob.blobUrl);
+        if (typeof blob.ciphertext !== 'string') throw new Error('blob_malformed');
+        return _unb64(blob.ciphertext);
+    }
+    async function _decryptCt(ct, ivB64, scope, ownerId, overrideBytes) {
+        var key = overrideBytes ? await _importKey(overrideBytes) : await _cryptoKey();
+        var iv  = _unb64(ivB64);
         var pt;
         try {
             pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv, additionalData: _aad(ownerId || _userId(), scope) }, key, ct);
         } catch (e) {
             // Migrations-Fallback: Chiffrat von vor der AAD-Einführung hat keine additionalData.
             // Nächster Push dieses Scopes verschlüsselt automatisch wieder mit AAD (selbstheilend).
+            //
+            // Der Fallback hebelt für solches Alt-Chiffrat die Bindung an (ownerId, scope) aus
+            // (Fund R7, Red-Team-Audit 2026-08-10). Da derselbe Schlüssel für alle Scopes eines
+            // Nutzers gilt, könnte jemand mit Redis-Schreibzugriff — also der Betreiber oder ein
+            // kompromittierter Upstash-Zugang — den Alt-Blob von Firma A in den Slot von Firma B
+            // schieben, und der Client nähme ihn still an. Deshalb ein hartes Ablaufdatum:
+            // ab dann gibt es kein Alt-Chiffrat mehr, das nicht längst neu geschrieben wurde
+            // (jeder Push erneuert es), und der Umweg fällt weg statt jahrelang offen zu stehen.
+            if (Date.now() > AAD_FALLBACK_UNTIL) throw e;
             pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, ct);
         }
         return JSON.parse(new TextDecoder().decode(pt));
+    }
+    async function _decrypt(blob, scope, ownerId, overrideBytes) {
+        return _decryptCt(await _fetchCipher(blob), blob.iv, scope, ownerId, overrideBytes);
+    }
+    // Ergebnis eines Entschlüsselungs-Versuchs klassifizieren: 'key' (Schlüssel passt nicht,
+    // Sackgasse — Nutzer muss handeln) vs. 'fetch' (Chiffrat gerade nicht ladbar, geht beim
+    // nächsten Versuch meist von allein). Die Unterscheidung steuert Meldung UND Dot-Zustand.
+    function _classifyDecryptError(e) {
+        var m = (e && e.message) || '';
+        return (/^blob_get_/.test(m) || m === 'blob_malformed' || /Failed to fetch|NetworkError|Load failed/i.test(m)) ? 'fetch' : 'key';
     }
     // ── Roh-Byte-Ver-/Entschlüsselung — für ausgelagerte Anhänge (BlobAttachments) ──
     async function _encryptBytes(bytes, scope, ownerId) {
@@ -392,7 +436,17 @@ var CloudSync = (function () {
         var remote = null, remoteVer = 0;
         if (pull.json.blob) {
             remoteVer = pull.json.blob.version || 0;
-            remote = await _decrypt(pull.json.blob, scope);   // { keys, meta }
+            try {
+                remote = await _decrypt(pull.json.blob, scope);   // { keys, meta }
+            } catch (de) {
+                // NIE als "keine Remote-Daten" weiterlaufen: remote === null würde unten einen
+                // Push auslösen und damit fremde/ältere Cloud-Daten mit diesem Schlüssel
+                // überschreiben. Stattdessen sauber abbrechen und den Zustand benennen.
+                var err = new Error(_classifyDecryptError(de) === 'fetch' ? 'cipher_unreachable' : 'key_mismatch');
+                err.scope = scope;
+                err.cause = de;
+                throw err;
+            }
             // Ausgelagerte große Felder (Logo/Foto/PDF) wieder zu voller "data:"-URL machen,
             // BEVOR gemerged wird — der Merge kennt nur echte Werte, keine Blob-Referenzen.
             if (remote) await BlobAttachments.hydrateFields(remote.keys, function (ct, iv) { return _decryptBytes(ct, iv, scope); });
@@ -467,6 +521,7 @@ var CloudSync = (function () {
                 if (companies[i] && companies[i].id && !companies[i]._readonly) await _syncScope(companies[i].id, isStartup);
             }
             _setDot('ok');
+            _setMismatch(false);   // Lauf komplett durch → Schlüssel passt, alte Sackgassen-Markierung weg
             try { localStorage.setItem(LS_LAST_OK, String(Date.now())); } catch (e) {}
             _maybeAutoVerifyAnchors();   // fire-and-forget, taeglich throttled
             if (_conflicts.length) {
@@ -480,12 +535,30 @@ var CloudSync = (function () {
             else if (_changedActive) Utils.showToast('☁ Daten aus der Cloud zusammengeführt', 'info', 3000);
         } catch (e) {
             console.warn('[CloudSync] sync error:', e && e.message);
-            _setDot('err');
-            if (typeof Utils === 'undefined') { /* kein UI verfügbar */ }
-            else if (e && e.userMessage)              Utils.showToast(e.userMessage, 'warning', 8000);
-            else if (e && e.message === 'pro_required') Utils.showToast('Cloud-Sync ist ein Pro-Feature.', 'warning');
-            else if (e && e.message === 'scope_limit')
-                Utils.showToast('Cloud-Sync: Grenze für gesicherte Firmen erreicht. Lösche in den Einstellungen die Cloud-Daten von Firmen, die du nicht mehr brauchst.', 'warning', 8000);
+            var msg = (e && e.message) || '';
+            if (msg === 'key_mismatch') {
+                // Der eine Fehler, der von allein NIE weggeht: ohne Zutun des Nutzers bleibt der
+                // Sync für immer tot. Deshalb dauerhaft markieren, roter Punkt, lauter Hinweis.
+                _setMismatch(true);
+                _setDot('broken');
+                if (typeof Utils !== 'undefined') Utils.showToast(
+                    '⛔ Cloud-Sync gestoppt: Der Schlüssel dieses Geräts passt nicht zu den Cloud-Daten deines Accounts. ' +
+                    'Deine lokalen Daten sind vollständig sicher. Klick auf das Wolken-Symbol oben → „Problem beheben“.', 'error', 15000);
+            } else {
+                _setDot('err');
+                if (typeof Utils === 'undefined') { /* kein UI verfügbar */ }
+                else if (e && e.userMessage)               Utils.showToast(e.userMessage, 'warning', 8000);
+                else if (msg === 'pro_required')           Utils.showToast('Cloud-Sync ist ein Pro-Feature.', 'warning');
+                else if (msg === 'scope_limit')
+                    Utils.showToast('Cloud-Sync: Grenze für gesicherte Firmen erreicht. Lösche in den Einstellungen die Cloud-Daten von Firmen, die du nicht mehr brauchst.', 'warning', 8000);
+                else if (msg === 'cipher_unreachable')
+                    Utils.showToast('Cloud-Sync: Ausgelagerte Cloud-Daten waren nicht abrufbar — das ist KEIN Schlüsselproblem. Beim nächsten Sync wird es erneut versucht.', 'warning', 8000);
+                // Alles Übrige (pull_5xx, push_409, Netzabbruch) lief bisher völlig stumm ab:
+                // der Nutzer hielt den Sync für aktiv, während seit Wochen nichts mehr ankam.
+                // Gedrosselt melden — einmal am Tag reicht, um nicht zu nerven.
+                else _maybeErrToast('Cloud-Sync konnte zuletzt nicht abschließen (' + (msg || 'unbekannter Fehler') +
+                                    '). Deine Daten liegen lokal sicher — Details über das Wolken-Symbol → „Diagnose“.');
+            }
         } finally {
             _running = false;
         }
@@ -502,10 +575,24 @@ var CloudSync = (function () {
             sync: ['<i class="ti ti-cloud"></i>', 'var(--accent,#10b981)',     'Synchronisiere…'],
             ok:   ['<i class="ti ti-cloud"></i>', 'var(--accent,#10b981)',     'Cloud-Sync aktiv'],
             warn: ['<i class="ti ti-cloud-exclamation"></i>', '#f59e0b',       'Sync-Konflikte offen — klicken zum Lösen'],
-            err:  ['<i class="ti ti-cloud-exclamation"></i>', '#f59e0b',       'Cloud-Sync-Fehler — klicken für Details']
+            err:  ['<i class="ti ti-cloud-exclamation"></i>', '#f59e0b',       'Cloud-Sync-Fehler — klicken für Details'],
+            // Eigener, roter Zustand: nicht "hakt gerade", sondern "steht und bleibt stehen,
+            // bis du etwas tust". Optisch klar von der gelben Warnung getrennt.
+            broken: ['<i class="ti ti-cloud-off"></i>', 'var(--danger,#ef4444)', 'Cloud-Sync gestoppt (Schlüssel passt nicht) — klicken zum Beheben']
         };
         var s = map[state] || map.off;
         el.innerHTML = s[0]; el.style.color = s[1]; el.title = s[2];
+    }
+
+    // Gedrosselte Fehlermeldung: höchstens einmal pro Tag, und nie wenn das Gerät ohnehin
+    // offline ist (dann ist "Sync fehlgeschlagen" keine Information, sondern Lärm).
+    function _maybeErrToast(msg) {
+        if (typeof Utils === 'undefined') return;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+        var last = parseInt(localStorage.getItem(LS_ERR_TOAST) || '0', 10);
+        if (last && (Date.now() - last) < ERR_TOAST_INTERVAL_MS) return;
+        try { localStorage.setItem(LS_ERR_TOAST, String(Date.now())); } catch (e) {}
+        Utils.showToast(msg, 'warning', 10000);
     }
 
     // ── onLocalChange: debounced Push nach Änderung ───────────────────────────
@@ -536,8 +623,17 @@ var CloudSync = (function () {
 
     // ── Init: Dot setzen, beim Start Pull (sobald Store bereit) ───────────────
     function init() {
-        _setDot(_loadConflicts().length ? 'warn' : (_enabled() && _hasKey() ? 'ok' : 'off'));   // offene Konflikte nach Reload sichtbar halten
+        // Reihenfolge nach Dringlichkeit: eine Schlüssel-Sackgasse überlebt den Reload und muss
+        // sofort wieder sichtbar sein — sonst sieht der Nutzer nach jedem Neustart wieder einen
+        // freundlichen grünen Punkt, obwohl seit Wochen nichts mehr synchronisiert wird.
+        _setDot(_hasMismatch() ? 'broken' : (_loadConflicts().length ? 'warn' : (_enabled() && _hasKey() ? 'ok' : 'off')));
         if (_inited) return; _inited = true;
+        if (_hasMismatch() && typeof Utils !== 'undefined') {
+            setTimeout(function () {
+                Utils.showToast('⛔ Cloud-Sync steht still: Schlüssel und Cloud-Daten passen nicht zusammen. ' +
+                                'Klick auf das Wolken-Symbol oben, um es zu beheben.', 'error', 12000);
+            }, 4000);
+        }
         if (!_enabled() || !_hasKey() || !_token()) return;
         _maybeRemindCode();
         var tries = 0;
@@ -556,22 +652,40 @@ var CloudSync = (function () {
     // ========================================================================
     function _esc(s) { return (typeof Utils !== 'undefined' && Utils.escapeHtml) ? Utils.escapeHtml(String(s)) : String(s); }
 
+    // Reparatur-Block: erscheint oben im Panel, sobald ein Sync-Lauf am Schlüssel gescheitert
+    // ist. Er ist der einzige Weg aus der Sackgasse — vorher gab es dafür gar keine UI.
+    function _repairBlock() {
+        if (!_hasMismatch()) return '';
+        return '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);border-radius:8px;padding:12px;font-size:13px;line-height:1.5;">' +
+                 '⛔ <strong>Cloud-Sync steht.</strong> Die in der Cloud liegenden Daten dieses Accounts sind mit einem <strong>anderen Schlüssel</strong> ' +
+                 'verschlüsselt als dem auf diesem Gerät. Es geht dadurch nichts verloren: deine Buchhaltung liegt vollständig lokal auf diesem Gerät.' +
+                 '<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">' +
+                   '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">🔑 Richtigen Wiederherstellungscode eingeben</button>' +
+                   '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">🗑 Cloud-Daten verwerfen &amp; neu aufsetzen</button>' +
+                 '</div>' +
+               '</div>';
+    }
+
     function openPanel() {
         var on = _enabled() && _hasKey();
         var body;
         if (on) {
             body =
               '<div style="display:flex;flex-direction:column;gap:14px;">' +
+                _repairBlock() +
+                (_hasMismatch() ? '' :
                 '<div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:12px;font-size:13px;">' +
                   '☁ <strong>Cloud-Sync ist aktiv.</strong> Deine Daten werden Ende-zu-Ende-verschlüsselt zwischen deinen Geräten synchronisiert. Der Server kann sie nicht lesen.' +
-                '</div>' +
+                '</div>') +
                 '<button class="btn btn-outline" data-action="cs-show-code" style="width:100%;">🔑 Wiederherstellungscode anzeigen</button>' +
                 '<button class="btn btn-outline" data-action="cs-sync-now" style="width:100%;">🔄 Jetzt synchronisieren</button>' +
+                '<button class="btn btn-outline" data-action="cs-diagnose" style="width:100%;">🩺 Sync-Diagnose</button>' +
                 '<button class="btn" data-action="cs-disable" style="width:100%;background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.3);">Cloud-Sync deaktivieren</button>' +
               '</div>';
         } else {
             body =
               '<div style="display:flex;flex-direction:column;gap:14px;">' +
+                _repairBlock() +
                 '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
                   'Cloud-Sync hält deine Daten <strong>verschlüsselt</strong> zwischen mehreren Geräten aktuell. ' +
                   'Die Verschlüsselung ist <strong>Ende-zu-Ende</strong>: nur du hast den Schlüssel, der Server sieht ausschließlich unlesbares Chiffrat. ' +
@@ -583,20 +697,88 @@ var CloudSync = (function () {
                 '</div>' +
                 '<button class="btn btn-primary" data-action="cs-enable" style="width:100%;">☁ Cloud-Sync aktivieren</button>' +
                 '<button class="btn btn-outline" data-action="cs-connect" style="width:100%;">📲 Mit bestehendem Sync verbinden</button>' +
+                '<button class="btn btn-outline" data-action="cs-diagnose" style="width:100%;">🩺 Sync-Diagnose</button>' +
               '</div>';
         }
         App.showModal('Cloud-Sync', body, '');
     }
 
+    // Lesbare Herkunftsangabe zu einem Cloud-Snapshot — hilft dem Nutzer einzuordnen,
+    // WELCHES Gerät die Daten zuletzt geschrieben hat.
+    function _blobInfo(blob) {
+        if (!blob) return 'keine Cloud-Daten';
+        var parts = [];
+        if (blob.updatedAt) { try { parts.push('Stand ' + new Date(blob.updatedAt).toLocaleString('de-DE')); } catch (e) {} }
+        if (blob.version)  parts.push('Version ' + blob.version);
+        if (blob.deviceId) parts.push('zuletzt von Gerät ' + String(blob.deviceId).slice(0, 8));
+        parts.push(blob.blobUrl ? 'ausgelagert' : Math.round((String(blob.ciphertext || '').length / 1365)) + ' KB');
+        return parts.join(' · ');
+    }
+
+    function _mintKey(uid) {
+        var bytes = crypto.getRandomValues(new Uint8Array(32));
+        try { localStorage.setItem(LS_KEY(uid), _b64(bytes)); }
+        catch (e) { Utils.showToast('Schlüssel konnte nicht gespeichert werden.', 'error'); return false; }
+        _cryptoKeyCache = null;
+        _setMismatch(false);
+        return true;
+    }
+
     // ── Aktivieren: Schlüssel erzeugen → Code-Dialog (Pflicht-Bestätigung) ────
-    function enableFlow() {
+    // WICHTIG: Vor dem Erzeugen eines Schlüssels wird geprüft, ob für diesen Account bereits
+    // Cloud-Daten liegen. Ohne diese Prüfung entstand die klassische Sackgasse: Gerät A
+    // aktiviert (Schlüssel K1, Daten liegen verschlüsselt in der Cloud), Gerät B drückt
+    // ebenfalls "aktivieren" statt "verbinden" → Schlüssel K2. K2 kann K1-Daten nie lesen,
+    // jeder Sync scheitert, und der auf Gerät B angezeigte Code ist für die vorhandenen
+    // Cloud-Daten wertlos. Genau derselbe Effekt trat beim Deaktivieren-und-wieder-
+    // Aktivieren auf demselben Gerät ein, weil der vorhandene Schlüssel überschrieben wurde.
+    async function enableFlow() {
         if (!_isPro()) { Utils.showToast('Cloud-Sync ist ein Pro-Feature.', 'warning'); return; }
         var uid = _userId();
         if (!uid) { Utils.showToast('Bitte zuerst mit Whop anmelden.', 'warning'); return; }
-        var bytes = crypto.getRandomValues(new Uint8Array(32));
-        try { localStorage.setItem(LS_KEY(uid), _b64(bytes)); } catch (e) { Utils.showToast('Schlüssel konnte nicht gespeichert werden.', 'error'); return; }
-        _cryptoKeyCache = null;
-        showCode(true);
+        if (!_token()) { Utils.showToast('Bitte zuerst mit Whop anmelden.', 'warning'); return; }
+
+        // Fall 1: Dieses Gerät hat schon einen Schlüssel (z. B. nach "deaktivieren ohne
+        // Schlüssel löschen") → wiederverwenden statt überschreiben. Ein neuer Schlüssel
+        // würde die eigenen Cloud-Daten unlesbar machen.
+        if (_hasKey()) { showCode(true); return; }
+
+        Utils.showToast('Prüfe, ob für deinen Account schon Cloud-Daten existieren…', 'info', 2500);
+        var probe;
+        try { probe = await _api({ action: 'pull', scope: '__account' }); }
+        catch (e) { probe = { status: 0, json: {} }; }
+
+        if (probe.status === 403) { Utils.showToast('Cloud-Sync ist ein Pro-Feature.', 'warning'); return; }
+        if (probe.status !== 200) {
+            // Bewusst KEIN Schlüssel "auf Verdacht": liegen serverseitig schon Daten, wäre der
+            // neue Schlüssel für immer der falsche. Lieber abbrechen als eine Sackgasse bauen.
+            Utils.showToast('Cloud-Sync konnte nicht geprüft werden (Server nicht erreichbar' +
+                (probe.status ? ', HTTP ' + probe.status : '') + '). Bitte mit Internetverbindung erneut versuchen.', 'warning', 9000);
+            return;
+        }
+        if (probe.json.blob) { _showExistingData(probe.json.blob); return; }
+
+        if (_mintKey(uid)) showCode(true);
+    }
+
+    // Es liegen bereits Cloud-Daten: der Nutzer entscheidet bewusst zwischen "verbinden"
+    // (Regelfall) und "verwerfen" — ein stiller zweiter Schlüssel ist keine Option mehr.
+    function _showExistingData(blob) {
+        var body =
+          '<div style="display:flex;flex-direction:column;gap:14px;">' +
+            '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px;font-size:13px;line-height:1.5;">' +
+              '⚠️ Für deinen Account liegen <strong>bereits verschlüsselte Cloud-Daten</strong> (' + _esc(_blobInfo(blob)) + ').' +
+            '</div>' +
+            '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
+              'Würde dieses Gerät jetzt einen <strong>neuen</strong> Schlüssel erzeugen, könnte es die vorhandenen Daten nie mehr lesen — ' +
+              'und der hier angezeigte Wiederherstellungscode wäre für sie wertlos. Wähle deshalb:' +
+            '</div>' +
+            '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">📲 Mit bestehendem Sync verbinden (empfohlen)</button>' +
+            '<div style="font-size:12px;color:var(--text-muted);">Du brauchst dafür den Wiederherstellungscode deines anderen Geräts.</div>' +
+            '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">🗑 Cloud-Daten verwerfen &amp; neu aufsetzen</button>' +
+            '<div style="font-size:12px;color:var(--text-muted);">Nur wenn du den Code nicht mehr hast. Deine lokalen Daten bleiben unberührt.</div>' +
+          '</div>';
+        App.showModal('Es gibt schon Cloud-Daten', body, '');
     }
 
     // ── Code-Dialog (firstTime erzwingt Bestätigung) ──────────────────────────
@@ -659,6 +841,7 @@ var CloudSync = (function () {
         var got = (conf ? conf.value : '').toUpperCase().replace(/[^A-Z2-7]/g, '');
         if (got !== expected) { Utils.showToast('Die eingegebenen Gruppen stimmen nicht. Bitte prüfen.', 'error'); if (conf) conf.focus(); return; }
         localStorage.setItem(LS_ENABLED, '1');
+        _setMismatch(false);
         App.closeModal();
         Utils.showToast('☁ Cloud-Sync aktiviert', 'success');
         _setDot('sync');
@@ -679,11 +862,58 @@ var CloudSync = (function () {
         App.showModal('Mit bestehendem Sync verbinden', body, '');
     }
 
+    // Prüft einen eingegebenen Schlüssel gegen einen Cloud-Snapshot.
+    // 'ok' | 'mismatch' (Schlüssel passt nicht) | 'unreachable' (Chiffrat nicht ladbar).
+    // Die Trennung ist der Grund, warum ein Netz-/Speicherfehler nicht mehr fälschlich als
+    // "Code falsch" gemeldet wird — das hat Nutzer an einem völlig korrekten Code zweifeln lassen.
+    async function _probeKey(blob, bytes) {
+        var ct;
+        try { ct = await _fetchCipher(blob); }
+        catch (e) { return 'unreachable'; }
+        if (!ct || !ct.length) return 'unreachable';
+        try { await _decryptCt(ct, blob.iv, '__account', _userId(), bytes); return 'ok'; }
+        catch (e) { return 'mismatch'; }
+    }
+
+    // Code passt nicht: statt eines wegfliegenden Toasts ein Dialog, der den Zustand erklärt
+    // und beide Auswege anbietet. Ohne ihn stand der Nutzer in einer Sackgasse ohne Ausgang.
+    function _showCodeMismatch(blob) {
+        var body =
+          '<div style="display:flex;flex-direction:column;gap:14px;">' +
+            '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);border-radius:8px;padding:12px;font-size:13px;line-height:1.5;">' +
+              '❌ <strong>Dieser Code passt nicht zu den Cloud-Daten deines Accounts.</strong>' +
+            '</div>' +
+            '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
+              'Die Daten in der Cloud (' + _esc(_blobInfo(blob)) + ') wurden mit einem <strong>anderen Schlüssel</strong> verschlüsselt. ' +
+              'Das passiert typischerweise, wenn auf einem Gerät „Cloud-Sync aktivieren“ statt „Mit bestehendem Sync verbinden“ gewählt wurde — ' +
+              'dann existieren zwei Schlüssel, und nur einer davon öffnet diese Daten.' +
+            '</div>' +
+            '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
+              '<strong>Was jetzt hilft:</strong> Öffne auf dem Gerät, das zuletzt erfolgreich synchronisiert hat, ' +
+              '„Cloud-Sync → 🔑 Wiederherstellungscode anzeigen“ und gib <em>diesen</em> Code hier ein.' +
+            '</div>' +
+            '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">🔑 Anderen Code eingeben</button>' +
+            '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">🗑 Cloud-Daten verwerfen &amp; neu aufsetzen</button>' +
+            '<div style="font-size:12px;color:var(--text-muted);line-height:1.5;">' +
+              'Verwerfen löscht nur die <strong>unlesbaren Cloud-Kopien</strong>. Deine Buchhaltung auf diesem Gerät bleibt vollständig erhalten.' +
+            '</div>' +
+          '</div>';
+        App.showModal('Code passt nicht', body, '');
+    }
+
     async function _finishConnect() {
         var ta = document.getElementById('syncConnectCode');
         var btn = document.getElementById('syncConnectBtn');
-        var bytes = _fromB32(ta ? ta.value : '');
-        if (bytes.length !== 32) { Utils.showToast('Code unvollständig oder ungültig.', 'error'); return; }
+        var raw = ta ? String(ta.value || '') : '';
+        var bytes = _fromB32(raw);
+        if (bytes.length !== 32) {
+            var n = raw.toUpperCase().replace(/[^A-Z2-7]/g, '').length;
+            // Konkret statt "ungültig": 52 Zeichen sind Pflicht, und die häufigsten Tippfehler
+            // (0/O, 1/I, 8/B) fallen sonst stumm raus, weil das Alphabet sie gar nicht kennt.
+            Utils.showToast('Code unvollständig: ' + n + ' von 52 Zeichen erkannt. Der Code besteht aus 11 Gruppen. ' +
+                            'Beachte: er enthält keine Ziffern 0, 1, 8 und 9 — das sind O, I, B bzw. G.', 'error', 10000);
+            return;
+        }
         if (btn) { btn.disabled = true; btn.textContent = '⏳ Prüfe…'; }
         try {
             // Test-Entschlüsselung gegen die Account-Registry des anderen Geräts
@@ -691,8 +921,13 @@ var CloudSync = (function () {
             if (pull.status === 403) { Utils.showToast('Cloud-Sync ist ein Pro-Feature.', 'warning'); throw 0; }
             if (pull.status !== 200) { Utils.showToast('Server nicht erreichbar (' + pull.status + ').', 'error'); throw 0; }
             if (pull.json.blob) {
-                try { await _decrypt(pull.json.blob, '__account', _userId(), bytes); }
-                catch (e) { Utils.showToast('❌ Code falsch — Entschlüsselung fehlgeschlagen.', 'error'); throw 0; }
+                var probe = await _probeKey(pull.json.blob, bytes);
+                if (probe === 'unreachable') {
+                    Utils.showToast('Die Cloud-Daten konnten gerade nicht geladen werden (Netzwerk/Speicher). ' +
+                                    'Das ist KEIN Fehler deines Codes — bitte gleich noch einmal versuchen.', 'warning', 10000);
+                    throw 0;
+                }
+                if (probe === 'mismatch') { _showCodeMismatch(pull.json.blob); throw 0; }
             } else {
                 Utils.showToast('Keine bestehenden Cloud-Daten gefunden — Sync wird neu aufgebaut.', 'info');
             }
@@ -700,6 +935,7 @@ var CloudSync = (function () {
             localStorage.setItem(LS_KEY(_userId()), _b64(bytes));
             localStorage.setItem(LS_ENABLED, '1');
             _cryptoKeyCache = null;
+            _setMismatch(false);
             App.closeModal();
             Utils.showToast('✅ Verbunden — synchronisiere…', 'success');
             await _syncAll(true);
@@ -715,6 +951,179 @@ var CloudSync = (function () {
     }
 
     function syncNow() { App.closeModal(); _syncAll(false); }
+
+    // ========================================================================
+    // Notausgang: Cloud-Daten verwerfen und neu aufsetzen
+    // ========================================================================
+    // Für den Fall, dass der Schlüssel zu den Cloud-Daten auf keinem Gerät mehr existiert.
+    // Ohne diesen Weg bliebe der Account dauerhaft unsynchronisierbar: der reguläre
+    // Löschpfad (deleteRemote) setzt einen funktionierenden Schlüssel voraus, weil er den
+    // Snapshot erst entschlüsseln muss, um die Anhang-URLs einzusammeln.
+    function resetFlow() {
+        if (!_isPro()) { Utils.showToast('Cloud-Sync ist ein Pro-Feature.', 'warning'); return; }
+        if (!_token()) { Utils.showToast('Bitte zuerst mit Whop anmelden.', 'warning'); return; }
+        var body =
+          '<div style="display:flex;flex-direction:column;gap:14px;">' +
+            '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);border-radius:8px;padding:12px;font-size:13px;line-height:1.5;">' +
+              '🗑 Alle <strong>verschlüsselten Cloud-Kopien</strong> deines Accounts werden gelöscht und der Sync mit einem neuen Schlüssel neu aufgebaut.' +
+            '</div>' +
+            '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
+              '<strong>Deine Buchhaltung auf diesem Gerät bleibt vollständig erhalten</strong> — gelöscht wird nur, was in der Cloud liegt ' +
+              'und ohnehin von keinem deiner Geräte mehr entschlüsselt werden kann. Nach dem Zurücksetzen lädt <strong>dieses</strong> Gerät seinen Stand neu hoch.' +
+            '</div>' +
+            '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px;font-size:12px;line-height:1.5;">' +
+              '⚠️ <strong>Vorher auf deinen anderen Geräten prüfen:</strong> Hat dort noch ein Gerät Daten, die es nur in der Cloud gibt? ' +
+              'Dann zuerst dort ein lokales Backup (Backup &amp; Daten) ziehen. Nach dem Zurücksetzen verbindest du jedes weitere Gerät ' +
+              'über „Mit bestehendem Sync verbinden“ mit dem <strong>neuen</strong> Code.' +
+            '</div>' +
+            '<div style="font-size:12px;color:var(--text-muted);">Zum Bestätigen <strong>LÖSCHEN</strong> eintippen:</div>' +
+            '<input type="text" id="syncResetConfirm" class="form-input" placeholder="LÖSCHEN" autocomplete="off" style="font-family:monospace;letter-spacing:1px;">' +
+            '<button class="btn" id="syncResetBtn" data-action="cs-finish-reset" style="width:100%;background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.3);">Cloud-Daten verwerfen &amp; neu aufsetzen</button>' +
+            '<button class="btn btn-outline" data-action="close-modal" style="width:100%;">Abbrechen</button>' +
+          '</div>';
+        App.showModal('Cloud-Daten verwerfen', body, '');
+    }
+
+    // Alle lokalen Sync-Metadaten wegräumen — Konflikt-Basis, Key-Meta, Blob-Cache und
+    // Anker-Listen beziehen sich auf den verworfenen Stand. Blieben sie liegen, würde der
+    // erste Sync mit dem neuen Schlüssel gegen eine Basis mergen, die es nicht mehr gibt.
+    function _wipeLocalSyncState(uid) {
+        var prefixes = ['oyi_sync_keymeta_', 'oyi_sync_base_', 'oyi_sync_blobcache_', 'oyi_sync_anchored_'];
+        var doomed = [];
+        for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (!k) continue;
+            for (var p = 0; p < prefixes.length; p++) if (k.indexOf(prefixes[p]) === 0) { doomed.push(k); break; }
+        }
+        doomed.push(LS_CONFLICTS, LS_LAST_OK, LS_PENDING_DEL, LS_ANCHOR_CHECK, LS_ERR_TOAST, LS_KEY(uid));
+        doomed.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
+        _cryptoKeyCache = null; _cryptoKeyUid = null;
+    }
+
+    async function _finishReset() {
+        var inp = document.getElementById('syncResetConfirm');
+        var btn = document.getElementById('syncResetBtn');
+        var typed = (inp ? inp.value : '').trim().toUpperCase().replace(/OE/g, 'Ö');
+        if (typed !== 'LÖSCHEN') { Utils.showToast('Bitte LÖSCHEN eintippen, um zu bestätigen.', 'warning'); if (inp) inp.focus(); return; }
+        var uid = _userId();
+        if (!uid) { Utils.showToast('Bitte zuerst mit Whop anmelden.', 'warning'); return; }
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Verwerfe…'; }
+        try {
+            var res = await _api({ action: 'reset_all' });
+            if (res.status !== 200) {
+                Utils.showToast('Cloud-Daten konnten nicht verworfen werden (HTTP ' + res.status + '). Bitte später erneut versuchen.', 'error', 9000);
+                if (btn) { btn.disabled = false; btn.textContent = 'Cloud-Daten verwerfen & neu aufsetzen'; }
+                return;
+            }
+            // Anhänge mit aufräumen: ihre URLs standen nur im verworfenen Chiffrat, sonst
+            // blieben sie unauffindbar im Blob-Store liegen. Best-effort — ein Fehler hier
+            // darf den Neuaufbau nicht blockieren.
+            var blobsOk = true;
+            try { blobsOk = await BlobAttachments.purgeAll(); } catch (e) { blobsOk = false; }
+
+            _wipeLocalSyncState(uid);
+            localStorage.removeItem(LS_ENABLED);   // wird erst durch die Code-Bestätigung wieder gesetzt
+            _setMismatch(false);
+            if (!_mintKey(uid)) return;
+
+            Utils.showToast('✅ Cloud-Daten verworfen' + (blobsOk ? '' : ' (Anhang-Aufräumung folgt später)') +
+                            ' — hier ist dein NEUER Wiederherstellungscode.', 'success', 9000);
+            showCode(true);
+        } catch (e) {
+            console.warn('[CloudSync] reset error:', e && e.message);
+            Utils.showToast('Zurücksetzen fehlgeschlagen — bitte Internetverbindung prüfen.', 'error', 8000);
+            if (btn) { btn.disabled = false; btn.textContent = 'Cloud-Daten verwerfen & neu aufsetzen'; }
+        }
+    }
+
+    // ========================================================================
+    // Diagnose — beantwortet "warum synchronisiert es nicht?" ohne Konsole
+    // ========================================================================
+    async function diagnoseFlow() {
+        App.showModal('Sync-Diagnose', '<div style="font-size:13px;color:var(--text-secondary);">⏳ Prüfe Anmeldung, Schlüssel und Cloud-Daten…</div>', '');
+        var uid = _userId(), rows = [], plain = [], verdict = '', actions = '';
+        function row(label, value, state) {
+            var color = state === 'ok' ? 'var(--accent,#10b981)' : state === 'bad' ? 'var(--danger,#ef4444)' : state === 'warn' ? '#f59e0b' : 'var(--text-secondary)';
+            rows.push('<tr><td style="padding:6px 10px 6px 0;color:var(--text-muted);white-space:nowrap;vertical-align:top;">' + _esc(label) + '</td>' +
+                      '<td style="padding:6px 0;color:' + color + ';word-break:break-word;">' + _esc(value) + '</td></tr>');
+            plain.push(label + ': ' + value);
+        }
+
+        row('Angemeldet als', uid || '— nicht angemeldet —', uid ? 'ok' : 'bad');
+        var kb = _keyBytes(uid);
+        // Nur der Fingerabdruck (letzte zwei Gruppen), nicht der ganze Schlüssel: er reicht,
+        // um zwei Schlüssel zu unterscheiden, taugt aber nicht zum Mitschreiben.
+        row('Schlüssel auf diesem Gerät', kb ? ('vorhanden · endet auf ' + _groupCode(_toB32(kb)).split(' ').slice(-2).join(' ')) : 'keiner', kb ? 'ok' : 'warn');
+        row('Cloud-Sync eingeschaltet', _enabled() ? 'ja' : 'nein', _enabled() ? 'ok' : 'warn');
+        var lastOk = parseInt(localStorage.getItem(LS_LAST_OK) || '0', 10);
+        row('Letzter erfolgreicher Sync', lastOk ? new Date(lastOk).toLocaleString('de-DE') : 'noch nie', lastOk && (Date.now() - lastOk) < HEALTHY_MAX_AGE_MS ? 'ok' : 'warn');
+
+        if (!_token()) {
+            row('Server', 'nicht abgefragt (nicht angemeldet)', 'bad');
+            verdict = 'Ohne Whop-Anmeldung kann nicht synchronisiert werden. Bitte neu anmelden.';
+        } else {
+            var pull;
+            try { pull = await _api({ action: 'pull', scope: '__account' }); }
+            catch (e) { pull = { status: 0, json: {} }; }
+            if (pull.status !== 200) {
+                row('Server', pull.status === 403 ? 'Zugang verweigert (Pro-Abo/Whop)' : ('nicht erreichbar' + (pull.status ? ' — HTTP ' + pull.status : '')), 'bad');
+                verdict = pull.status === 403
+                    ? 'Der Server bestätigt kein aktives Abo für diesen Account. Prüfe deine Whop-Mitgliedschaft.'
+                    : 'Der Sync-Server ist gerade nicht erreichbar. Deine Daten liegen lokal sicher; sobald die Verbindung steht, läuft der Sync von allein weiter.';
+            } else if (!pull.json.blob) {
+                row('Cloud-Daten', 'keine vorhanden', 'warn');
+                verdict = _enabled() && kb
+                    ? 'Es liegen noch keine Cloud-Daten. Beim nächsten Sync lädt dieses Gerät seinen Stand hoch.'
+                    : 'Es liegen keine Cloud-Daten. Aktiviere Cloud-Sync, um zu starten.';
+            } else {
+                row('Cloud-Daten', _blobInfo(pull.json.blob), 'ok');
+                if (!kb) {
+                    row('Test-Entschlüsselung', 'nicht möglich — kein Schlüssel auf diesem Gerät', 'bad');
+                    verdict = 'In der Cloud liegen Daten, dieses Gerät hat aber keinen Schlüssel. Verbinde es mit dem Wiederherstellungscode deines anderen Geräts.';
+                    actions = '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">🔑 Wiederherstellungscode eingeben</button>' +
+                              '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">🗑 Cloud-Daten verwerfen &amp; neu aufsetzen</button>';
+                } else {
+                    var probe = await _probeKey(pull.json.blob, kb);
+                    if (probe === 'ok') {
+                        row('Test-Entschlüsselung', 'erfolgreich — Schlüssel passt', 'ok');
+                        _setMismatch(false);
+                        verdict = _enabled()
+                            ? 'Alles in Ordnung: Schlüssel und Cloud-Daten passen zusammen.'
+                            : 'Schlüssel und Cloud-Daten passen zusammen — Cloud-Sync ist auf diesem Gerät nur ausgeschaltet.';
+                    } else if (probe === 'unreachable') {
+                        row('Test-Entschlüsselung', 'Chiffrat nicht ladbar (Netzwerk/Speicher)', 'warn');
+                        verdict = 'Die ausgelagerten Cloud-Daten waren gerade nicht abrufbar. Das ist KEIN Schlüsselproblem — bitte später erneut prüfen.';
+                    } else {
+                        row('Test-Entschlüsselung', 'fehlgeschlagen — Schlüssel passt NICHT zu den Cloud-Daten', 'bad');
+                        _setMismatch(true); _setDot('broken');
+                        verdict = 'Gefunden: Die Cloud-Daten sind mit einem anderen Schlüssel verschlüsselt als dem dieses Geräts. ' +
+                                  'Deshalb steht der Sync. Gib den Wiederherstellungscode des Geräts ein, das zuletzt erfolgreich synchronisiert hat — ' +
+                                  'oder verwirf die Cloud-Daten und setze neu auf.';
+                        actions = '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">🔑 Anderen Code eingeben</button>' +
+                                  '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">🗑 Cloud-Daten verwerfen &amp; neu aufsetzen</button>';
+                    }
+                }
+            }
+        }
+
+        var body =
+          '<div style="display:flex;flex-direction:column;gap:14px;">' +
+            '<table style="width:100%;border-collapse:collapse;font-size:13px;"><tbody>' + rows.join('') + '</tbody></table>' +
+            '<div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;line-height:1.5;">' +
+              '<strong>Ergebnis:</strong> ' + _esc(verdict) +
+            '</div>' +
+            actions +
+            '<button class="btn btn-outline" data-action="cs-copy-diagnosis" style="width:100%;">📋 Bericht für den Support kopieren</button>' +
+          '</div>';
+        // Klartext-Fassung für den Support-Button (ohne HTML, ohne Schlüsselmaterial)
+        window.__syncDiagnosis = 'Stackr Sync-Diagnose ' + new Date().toLocaleString('de-DE') + '\n' +
+                                 plain.join('\n') + '\n\nErgebnis: ' + verdict;
+        App.showModal('Sync-Diagnose', body, '');
+    }
+    function _copyDiagnosis() {
+        try { navigator.clipboard.writeText(window.__syncDiagnosis || ''); Utils.showToast('Bericht kopiert', 'success'); }
+        catch (e) { Utils.showToast('Kopieren nicht möglich — bitte Text markieren.', 'warning'); }
+    }
 
     // ── Keep-Both-Konflikt-Dialog: pro Eintrag Fassung wählen ─────────────────
     function _recLabel(c) {
@@ -945,6 +1354,7 @@ var CloudSync = (function () {
     // stillen) Ausfallpunkt werden.
     function isHealthy() {
         if (!_enabled() || !_hasKey() || !_isPro() || !_token()) return false;
+        if (_hasMismatch()) return false;   // Cloud-Kopie existiert, ist aber unlesbar → lokale Backup-Hinweise MÜSSEN wieder erscheinen
         if (_loadConflicts().length) return false;
         var last = parseInt(localStorage.getItem(LS_LAST_OK) || '0', 10);
         if (!last) return false;
@@ -1023,6 +1433,8 @@ var CloudSync = (function () {
         enableFlow: enableFlow,
         connectFlow: connectFlow,
         disableFlow: disableFlow,
+        resetFlow: resetFlow,
+        diagnoseFlow: diagnoseFlow,
         showCode: function () { showCode(false); },
         syncNow: syncNow,
         openConflicts: openConflicts,
@@ -1036,6 +1448,8 @@ var CloudSync = (function () {
         _finishEnable: _finishEnable,
         _finishConnect: _finishConnect,
         _finishDisable: _finishDisable,
+        _finishReset: _finishReset,
+        _copyDiagnosis: _copyDiagnosis,
         _resolveConflicts: _resolveConflicts,
         _copyCode: _copyCode,
         _downloadCode: _downloadCode,
@@ -1059,8 +1473,12 @@ if (window.Actions) Actions.register({
     'cs-show-code':      function () { CloudSync.showCode(); },
     'cs-sync-now':       function () { CloudSync.syncNow(); },
     'cs-disable':        function () { CloudSync.disableFlow(); },
-    'cs-enable':         function () { CloudSync.enableFlow(); },
+    'cs-enable':         function () { Promise.resolve(CloudSync.enableFlow()).catch(function (e) { console.warn('[CloudSync] enable:', e && e.message); }); },
     'cs-connect':        function () { CloudSync.connectFlow(); },
+    'cs-reset':          function () { CloudSync.resetFlow(); },
+    'cs-finish-reset':   function () { Promise.resolve(CloudSync._finishReset()).catch(function (e) { console.warn('[CloudSync] reset:', e && e.message); }); },
+    'cs-diagnose':       function () { Promise.resolve(CloudSync.diagnoseFlow()).catch(function (e) { console.warn('[CloudSync] diagnose:', e && e.message); }); },
+    'cs-copy-diagnosis': function () { CloudSync._copyDiagnosis(); },
     'cs-finish-enable':  function () { CloudSync._finishEnable(); },
     'cs-copy-code':      function () { CloudSync._copyCode(); },
     'cs-download-code':  function () { CloudSync._downloadCode(); },

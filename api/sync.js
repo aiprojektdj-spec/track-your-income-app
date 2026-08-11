@@ -365,6 +365,36 @@ module.exports = async function handler(req, res) {
             return res.status(200).json({ ok: true });
         }
 
+        // ── Notausgang: ALLE Cloud-Snapshots dieses Accounts verwerfen ────────
+        // Für den Sackgassen-Fall "der Schlüssel, mit dem die Cloud-Daten verschlüsselt
+        // sind, existiert auf keinem Gerät mehr" (zwei Geräte hatten je einen eigenen
+        // Schlüssel erzeugt, oder der Wiederherstellungscode ging verloren). 'delete'
+        // hilft dort nicht: der Client muss den Snapshot dafür erst ENTSCHLÜSSELN, um die
+        // Anhang-URLs einzusammeln — genau das geht ja nicht mehr. Ohne diesen Endpunkt
+        // bliebe der Account dauerhaft unsynchronisierbar.
+        // Kein Datenverlust im Rechtssinn: die Klardaten liegen lokal auf den Geräten,
+        // hier fällt ausschließlich unlesbares Chiffrat weg.
+        if (action === 'reset_all') {
+            if (body.owner) return res.status(403).json({ error: 'readonly' });   // nie fremde Owner-Daten
+            var known = (await redisCmd(['SMEMBERS', 'scopes:' + userId])) || [];
+            // '__account' immer mitnehmen: das Scope-Set kam erst mit dem Scope-Deckel dazu,
+            // ältere Snapshots stehen möglicherweise nicht darin.
+            if (known.indexOf('__account') === -1) known.push('__account');
+            var wiped = [];
+            for (var ri = 0; ri < known.length; ri++) {
+                var rs = String(known[ri] || '');
+                if (!SCOPE_RE.test(rs)) continue;
+                await redisCmd(['DEL', 'sync:' + userId + ':' + rs]);
+                wiped.push(rs);
+            }
+            await redisCmd(['DEL', 'scopes:' + userId]);
+            // Anker-Listen (syncanchor:*) bleiben bewusst stehen — gleiche Begründung wie
+            // bei 'delete': sie enthalten keine Klardaten, sind aber die GoBD-Tamper-
+            // Evidence. Wären sie hier mitlöschbar, könnte man die eigene Beweiskette
+            // per "Reset" abstreifen.
+            return res.status(200).json({ ok: true, scopes: wiped });
+        }
+
         // ── Audit-Log-Anker: append-only Beweisliste für Manipulationserkennung ──
         // Speichert NUR {id, h(Content-SHA-256), ts} — keine Klardaten. Einmal
         // angehängte Einträge werden nie überschrieben (nur per Art.-17-delete
@@ -403,7 +433,16 @@ module.exports = async function handler(req, res) {
         // Öffentlichen Schlüssel registrieren (idempotent). Kein Geheimnis.
         if (action === 'register_pubkey') {
             if (!body.pub || typeof body.pub !== 'object') return res.status(400).json({ error: 'bad_payload' });
-            var pubStr = JSON.stringify({ pub: body.pub, username: username, updatedAt: Date.now() });
+            // Kein `username` im Datensatz (Fund R8, Red-Team-Audit 2026-08-10): get_pubkey ist für
+            // jeden zahlenden Nutzer aufrufbar und gab den Whop-Benutzernamen zu einer beliebigen
+            // User-ID heraus — ein Enumerations-Orakel „nutzt diese Person Stackr, und wie heißt
+            // sie dort". Zum Verpacken des Datenschlüssels wird ausschließlich `pub` gebraucht.
+            // Der Name wird deshalb gar nicht erst gespeichert, statt ihn nur aus der Antwort zu
+            // filtern — was nicht liegt, kann auch nicht verraten werden (Datenminimierung,
+            // Art. 5 Abs. 1 lit. c DSGVO). Alt-Datensätze tragen ihn noch; sie werden beim
+            // nächsten Login des jeweiligen Nutzers überschrieben (registerPubkey läuft bei
+            // jedem Login) — deshalb filtert get_pubkey unten zusätzlich.
+            var pubStr = JSON.stringify({ pub: body.pub, updatedAt: Date.now() });
             if (pubStr.length > 4096) return res.status(413).json({ error: 'too_large' });
             await redisCmd(['SET', 'pubkey:' + userId, pubStr]);
             return res.status(200).json({ ok: true });
@@ -415,7 +454,12 @@ module.exports = async function handler(req, res) {
             if (!GRANTEE_ID_RE.test(gidP)) return res.status(400).json({ error: 'bad_grantee' });
             var pk = await redisCmd(['GET', 'pubkey:' + gidP]);
             if (!pk) return res.status(404).json({ error: 'no_pubkey' });
-            return res.status(200).json({ ok: true, pubkey: JSON.parse(pk) });
+            // Nur `pub` und `updatedAt` herausgeben, nie den ganzen gespeicherten Datensatz
+            // (Fund R8): Alt-Datensätze von vor diesem Fix tragen noch ein `username`-Feld, das
+            // erst beim nächsten Login des Betroffenen verschwindet. Bis dahin filtert dieser
+            // Whitelist-Zugriff. Auch künftige Felder gelangen so nicht versehentlich nach außen.
+            var pkObj = JSON.parse(pk);
+            return res.status(200).json({ ok: true, pubkey: { pub: pkObj.pub, updatedAt: pkObj.updatedAt || 0 } });
         }
 
         // Owner erteilt Grant: verpackter Datenschlüssel (Envelope) für den StB ablegen

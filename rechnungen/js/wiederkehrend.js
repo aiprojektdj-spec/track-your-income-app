@@ -256,11 +256,11 @@ var Wiederkehrend = (function () {
             html += '</td>';
             html += '<td class="table-actions">';
             if (isDueNow) {
-                html += '<button class="action-btn action-btn-accent wk-create" data-id="' + rule.id + '" title="Rechnung jetzt erstellen"><i class="ti ti-plus"></i></button> ';
+                html += '<button class="action-btn action-btn-accent wk-create" data-id="' + rule.id + '" aria-label="Rechnung jetzt erstellen" title="Rechnung jetzt erstellen"><i class="ti ti-plus"></i></button> ';
             }
-            html += '<button class="action-btn wk-toggle" data-id="' + rule.id + '" title="' + (isActive ? 'Pausieren' : 'Aktivieren') + '">';
+            html += '<button class="action-btn wk-toggle" data-id="' + rule.id + '" aria-label="' + (isActive ? 'Pausieren' : 'Aktivieren') + '" title="' + (isActive ? 'Pausieren' : 'Aktivieren') + '">';
             html += '<i class="ti ' + (isActive ? 'ti-player-pause' : 'ti-player-play') + '"></i></button> ';
-            html += '<button class="action-btn action-btn-danger wk-delete" data-id="' + rule.id + '" title="Löschen"><i class="ti ti-trash"></i></button>';
+            html += '<button class="action-btn action-btn-danger wk-delete" data-id="' + rule.id + '" aria-label="Löschen" title="Löschen"><i class="ti ti-trash"></i></button>';
             html += '</td></tr>';
         });
 

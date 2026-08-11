@@ -517,17 +517,17 @@ const Lager = {
             b += `<button class="btn btn-small btn-success" data-sell="${p.id}" style="padding:3px 8px;font-size:11px;">Verkaufen</button>`;
         }
         if (saleId) {
-            b += `<button class="action-btn action-btn-accent" data-edit-sale="${saleId}" title="Verkauf bearbeiten / stornieren"><i class="ti ti-receipt"></i></button>`;
+            b += `<button class="action-btn action-btn-accent" data-edit-sale="${saleId}" aria-label="Verkauf bearbeiten / stornieren" title="Verkauf bearbeiten / stornieren"><i class="ti ti-receipt"></i></button>`;
         }
         if (locked) {
             b += `<span title="${Utils.escapeHtml(Store.lockReason(p) || 'Festgeschrieben')} — nicht mehr bearbeitbar" style="font-size:12px;opacity:.7;">🔒</span>`;
-            b += `<button class="action-btn action-btn-danger" data-storno-lager="${p.id}" title="Stornieren"><i class="ti ti-ban"></i></button>`;
+            b += `<button class="action-btn action-btn-danger" data-storno-lager="${p.id}" aria-label="Stornieren" title="Stornieren"><i class="ti ti-ban"></i></button>`;
         } else {
-            b += `<button class="action-btn" data-status-modal="${p.id}" title="Status ändern"><i class="ti ti-bolt"></i></button>`;
-            b += `<button class="action-btn action-btn-accent" data-edit-lager="${p.id}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>`;
-            b += `<button class="action-btn action-btn-danger" data-storno-lager="${p.id}" title="Stornieren"><i class="ti ti-ban"></i></button>`;
+            b += `<button class="action-btn" data-status-modal="${p.id}" aria-label="Status ändern" title="Status ändern"><i class="ti ti-bolt"></i></button>`;
+            b += `<button class="action-btn action-btn-accent" data-edit-lager="${p.id}" aria-label="Bearbeiten" title="Bearbeiten"><i class="ti ti-pencil"></i></button>`;
+            b += `<button class="action-btn action-btn-danger" data-storno-lager="${p.id}" aria-label="Stornieren" title="Stornieren"><i class="ti ti-ban"></i></button>`;
             // Löschen nur, wenn KEIN aktiver Verkauf darauf verweist (sonst Verkauf zuerst behandeln)
-            if (!saleId) b += `<button class="action-btn action-btn-danger" data-delete-lager="${p.id}" title="Löschen (offene Periode)"><i class="ti ti-trash"></i></button>`;
+            if (!saleId) b += `<button class="action-btn action-btn-danger" data-delete-lager="${p.id}" aria-label="Löschen (offene Periode)" title="Löschen (offene Periode)"><i class="ti ti-trash"></i></button>`;
         }
         return b;
     },
@@ -1086,8 +1086,8 @@ const Lager = {
                         : `<div style="display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;align-items:center;">
                             ${this._rowActions(p)}
                             ${p.foto
-                                ? `<button class="action-btn" data-photo-preview="${p.id}" title="Foto ansehen"><i class="ti ti-photo"></i></button>`
-                                : `<button class="action-btn" data-upload-photo="${p.id}" title="Foto hinzufügen"><i class="ti ti-camera"></i></button>`
+                                ? `<button class="action-btn" data-photo-preview="${p.id}" aria-label="Foto ansehen" title="Foto ansehen"><i class="ti ti-photo"></i></button>`
+                                : `<button class="action-btn" data-upload-photo="${p.id}" aria-label="Foto hinzufügen" title="Foto hinzufügen"><i class="ti ti-camera"></i></button>`
                             }
                         </div>`}
                 </div>

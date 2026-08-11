@@ -331,7 +331,7 @@ const GbR = {
                            style="font-size:12px;padding:5px 6px;">
                 </td>
                 <td style="padding:6px 8px;width:40px;text-align:center;">
-                    <button data-action="gbr-remove-gs" data-args='["${g.id}"]' title="Entfernen"
+                    <button data-action="gbr-remove-gs" data-args='["${g.id}"]' aria-label="Entfernen" title="Entfernen"
                             class="action-btn action-btn-danger" style="width:26px;height:26px;font-size:13px;"><i class="ti ti-trash"></i></button>
                 </td>
             </tr>`).join('');
@@ -1226,7 +1226,7 @@ const GbR = {
                         <td style="padding:5px 8px;font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(e.notiz || '')}</td>
                         <td style="padding:5px 8px;text-align:center;">
                             <button data-action="gbr-del-ausz" data-args='["${monthKey}","${g.id}","${e.id}",${year}]' 
-                                    class="action-btn action-btn-danger" style="width:24px;height:24px;font-size:12px;" title="Löschen"><i class="ti ti-trash"></i></button>
+                                    class="action-btn action-btn-danger" style="width:24px;height:24px;font-size:12px;" aria-label="Löschen" title="Löschen"><i class="ti ti-trash"></i></button>
                         </td>
                     </tr>`);
                 });

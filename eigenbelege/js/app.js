@@ -367,8 +367,8 @@ function renderDashboard() {
                         <td><span class="badge" style="background:${k.farbe}22;color:${k.farbe}">${esc(k.name)}</span></td>
                         <td style="text-align:right;font-weight:600">${euro(b.betragBrutto)}</td>
                         <td style="white-space:nowrap">
-                            <button class="action-btn" data-action="eb-view" data-id="${esc(b.id)}" title="Ansehen"><i class="ti ti-eye"></i></button>
-                            <button class="action-btn action-btn-accent" data-action="eb-edit" data-id="${esc(b.id)}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
+                            <button class="action-btn" data-action="eb-view" data-id="${esc(b.id)}" aria-label="Ansehen" title="Ansehen"><i class="ti ti-eye"></i></button>
+                            <button class="action-btn action-btn-accent" data-action="eb-edit" data-id="${esc(b.id)}" aria-label="Bearbeiten" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
                         </td>
                     </tr>`;
                 }).join('')}
@@ -921,8 +921,8 @@ function renderProdukte() {
             <td style="text-align:right">${p.standardPreis ? euro(p.standardPreis) : '—'}</td>
             <td>${esc(p.kategorie||'—')}</td>
             <td class="table-actions" style="white-space:nowrap">
-                <button class="action-btn action-btn-accent" data-action="eb-edit-produkt" data-idx="${i}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
-                <button class="action-btn action-btn-danger" data-action="eb-delete-produkt" data-idx="${i}" title="Löschen"><i class="ti ti-trash"></i></button>
+                <button class="action-btn action-btn-accent" data-action="eb-edit-produkt" data-idx="${i}" aria-label="Bearbeiten" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
+                <button class="action-btn action-btn-danger" data-action="eb-delete-produkt" data-idx="${i}" aria-label="Löschen" title="Löschen"><i class="ti ti-trash"></i></button>
             </td>
         </tr>`).join('')
     : '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted)">Noch keine Vorlagen erstellt</td></tr>';
@@ -1133,10 +1133,10 @@ function applyFilter() {
                     <td style="white-space:nowrap">${zObj.icon} ${esc(x.zahlungsweg==='sonstiges'?(x.zahlungswegSonstig||'Sonstiges'):zObj.name)}</td>
                     <td style="text-align:right;font-weight:600;white-space:nowrap">${euro(x.betragBrutto)}</td>
                     <td style="white-space:nowrap">
-                        <button class="action-btn" data-action="eb-view" data-id="${x.id}"   title="Ansehen"><i class="ti ti-eye"></i></button>
-                        ${storniert ? '' : `<button class="action-btn action-btn-accent" data-action="eb-edit" data-id="${x.id}"   title="Bearbeiten"><i class="ti ti-pencil"></i></button>`}
-                        <button class="action-btn" data-action="eb-print" data-id="${x.id}"  title="PDF / Drucken"><i class="ti ti-file-download"></i></button>
-                        ${storniert ? '' : `<button class="action-btn action-btn-danger" data-action="eb-delete" data-id="${x.id}" title="Löschen"><i class="ti ti-trash"></i></button>`}
+                        <button class="action-btn" data-action="eb-view" data-id="${x.id}"   aria-label="Ansehen" title="Ansehen"><i class="ti ti-eye"></i></button>
+                        ${storniert ? '' : `<button class="action-btn action-btn-accent" data-action="eb-edit" data-id="${x.id}"   aria-label="Bearbeiten" title="Bearbeiten"><i class="ti ti-pencil"></i></button>`}
+                        <button class="action-btn" data-action="eb-print" data-id="${x.id}"  aria-label="PDF / Drucken" title="PDF / Drucken"><i class="ti ti-file-download"></i></button>
+                        ${storniert ? '' : `<button class="action-btn action-btn-danger" data-action="eb-delete" data-id="${x.id}" aria-label="Löschen" title="Löschen"><i class="ti ti-trash"></i></button>`}
                     </td>
                 </tr>`;
             }).join('')}
@@ -1592,7 +1592,7 @@ function renderKategorien() {
                         <td><span class="badge" style="${k.std?'background:var(--bg-card);color:var(--text-muted)':'background:var(--accent-glow);color:var(--accent-light)'}">${k.std?'Standard':'Eigene'}</span></td>
                         <td>${cnt}</td>
                         <td>${euro(summ)}</td>
-                        <td>${!k.std?`<button class="action-btn action-btn-danger" data-action="eb-delete-kategorie" data-id="${k.id}" title="Löschen"><i class="ti ti-trash"></i></button>`:'—'}</td>
+                        <td>${!k.std?`<button class="action-btn action-btn-danger" data-action="eb-delete-kategorie" data-id="${k.id}" aria-label="Löschen" title="Löschen"><i class="ti ti-trash"></i></button>`:'—'}</td>
                     </tr>`;
                 }).join('')}
                 </tbody>

@@ -176,35 +176,35 @@ var Dokumente = (function() {
         }
         html += '</td>';
         html += '<td class="table-actions" style="white-space:nowrap;">';
-        html += '<button class="action-btn doc-view" data-id="' + inv.id + '" title="Vorschau"><i class="ti ti-eye"></i></button> ';
+        html += '<button class="action-btn doc-view" data-id="' + inv.id + '" aria-label="Vorschau" title="Vorschau"><i class="ti ti-eye"></i></button> ';
 
         if (inv.typ !== 'stornorechnung' && !Store._isRechInvoiceLocked(inv)) {
-            html += '<button class="action-btn action-btn-accent doc-edit" data-id="' + inv.id + '" title="Bearbeiten"><i class="ti ti-pencil"></i></button> ';
+            html += '<button class="action-btn action-btn-accent doc-edit" data-id="' + inv.id + '" aria-label="Bearbeiten" title="Bearbeiten"><i class="ti ti-pencil"></i></button> ';
         } else if (inv.typ !== 'stornorechnung' && inv.status !== 'storniert') {
-            html += '<span class="action-btn" title="Gestellte Rechnung — nur per Storno korrigierbar (§14 UStG)" style="opacity:.5;cursor:not-allowed;"><i class="ti ti-lock"></i></span> ';
+            html += '<span class="action-btn" aria-label="Gestellte Rechnung — nur per Storno korrigierbar (§14 UStG)" title="Gestellte Rechnung — nur per Storno korrigierbar (§14 UStG)" style="opacity:.5;cursor:not-allowed;"><i class="ti ti-lock"></i></span> ';
         }
         if (inv.status === 'offen' || inv.status === 'ueberfaellig' || inv.status === 'versendet') {
-            html += '<button class="action-btn action-btn-success doc-paid" data-id="' + inv.id + '" title="Als bezahlt markieren"><i class="ti ti-check"></i></button> ';
+            html += '<button class="action-btn action-btn-success doc-paid" data-id="' + inv.id + '" aria-label="Als bezahlt markieren" title="Als bezahlt markieren"><i class="ti ti-check"></i></button> ';
         }
         if (inv.typ === 'rechnung' && (inv.status === 'offen' || inv.status === 'ueberfaellig' || inv.status === 'versendet')) {
-            html += '<button class="action-btn doc-teilzahlung" data-id="' + inv.id + '" title="Teilzahlung erfassen"><i class="ti ti-cash"></i></button> ';
+            html += '<button class="action-btn doc-teilzahlung" data-id="' + inv.id + '" aria-label="Teilzahlung erfassen" title="Teilzahlung erfassen"><i class="ti ti-cash"></i></button> ';
         }
         if (inv.typ === 'rechnung' && (inv.status === 'offen' || inv.status === 'ueberfaellig' || inv.status === 'versendet')) {
-            html += '<button class="action-btn action-btn-warning doc-mahnung" data-id="' + inv.id + '" title="Mahnung erstellen"><i class="ti ti-bell-ringing"></i></button> ';
-            html += '<button class="action-btn doc-send" data-id="' + inv.id + '" title="Versenden"><i class="ti ti-send"></i></button> ';
+            html += '<button class="action-btn action-btn-warning doc-mahnung" data-id="' + inv.id + '" aria-label="Mahnung erstellen" title="Mahnung erstellen"><i class="ti ti-bell-ringing"></i></button> ';
+            html += '<button class="action-btn doc-send" data-id="' + inv.id + '" aria-label="Versenden" title="Versenden"><i class="ti ti-send"></i></button> ';
         }
         if (inv.typ === 'angebot' && inv.status === 'offen' && !inv._convertedToInvoiceId) {
-            html += '<button class="action-btn action-btn-accent doc-convert" data-id="' + inv.id + '" title="In Rechnung umwandeln"><i class="ti ti-arrow-right"></i></button> ';
+            html += '<button class="action-btn action-btn-accent doc-convert" data-id="' + inv.id + '" aria-label="In Rechnung umwandeln" title="In Rechnung umwandeln"><i class="ti ti-arrow-right"></i></button> ';
         }
         if (inv.typ === 'rechnung' || inv.typ === 'angebot') {
-            html += '<button class="action-btn doc-duplicate" data-id="' + inv.id + '" title="Duplizieren"><i class="ti ti-copy"></i></button> ';
+            html += '<button class="action-btn doc-duplicate" data-id="' + inv.id + '" aria-label="Duplizieren" title="Duplizieren"><i class="ti ti-copy"></i></button> ';
         }
-        html += '<button class="action-btn doc-pdf" data-id="' + inv.id + '" title="PDF / Drucken"><i class="ti ti-file-download"></i></button> ';
+        html += '<button class="action-btn doc-pdf" data-id="' + inv.id + '" aria-label="PDF / Drucken" title="PDF / Drucken"><i class="ti ti-file-download"></i></button> ';
         if (inv.typ === 'rechnung' || inv.typ === 'gutschrift') {
-            html += '<button class="action-btn doc-xrechnung" data-id="' + inv.id + '" title="XRechnung XML exportieren (EN 16931)" style="font-size:10px;font-weight:700;letter-spacing:.3px;">XR</button> ';
+            html += '<button class="action-btn doc-xrechnung" data-id="' + inv.id + '" aria-label="XRechnung XML exportieren (EN 16931)" title="XRechnung XML exportieren (EN 16931)" style="font-size:10px;font-weight:700;letter-spacing:.3px;">XR</button> ';
         }
         if (inv.typ !== 'stornorechnung' && inv.status !== 'storniert') {
-            html += '<button class="action-btn action-btn-danger doc-cancel" data-id="' + inv.id + '" title="Stornieren"><i class="ti ti-ban"></i></button> ';
+            html += '<button class="action-btn action-btn-danger doc-cancel" data-id="' + inv.id + '" aria-label="Stornieren" title="Stornieren"><i class="ti ti-ban"></i></button> ';
         }
         html += '</td></tr>';
         return html;

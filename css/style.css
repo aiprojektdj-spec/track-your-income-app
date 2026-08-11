@@ -956,6 +956,79 @@ a:hover { color: var(--accent-light); }
     gap: 4px;
 }
 
+/* --- Aktions-Buttons in Tabellen (Icon-only) ---
+   Genutzt in Eigenbelege, Rechnungen/Dokumente, Wiederkehrend, GbR und Lager.
+   Auch als <span class="action-btn"> für gesperrte Aktionen (§14-Schloss) — deshalb
+   inline-flex statt der Button-Defaults. */
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 5px 8px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-family: inherit;
+    line-height: 1;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: var(--transition);
+}
+
+.action-btn:hover {
+    background: var(--bg-elevated);
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+}
+.action-btn:active {
+    transform: translateY(1px);
+}
+
+.action-btn-accent {
+    color: var(--accent-text);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.action-btn-accent:hover {
+    background: var(--accent-glow);
+    border-color: var(--accent);
+    color: var(--accent-text);
+}
+
+.action-btn-danger {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+.action-btn-danger:hover {
+    background: var(--danger-bg);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.action-btn-success {
+    color: var(--success);
+    border-color: color-mix(in srgb, var(--success) 40%, transparent);
+}
+.action-btn-success:hover {
+    background: var(--success-bg);
+    border-color: var(--success);
+    color: var(--success);
+}
+
+.action-btn-warning {
+    color: var(--warning);
+    border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+}
+.action-btn-warning:hover {
+    background: var(--warning-bg);
+    border-color: var(--warning);
+    color: var(--warning);
+}
+
 /* ============================================
    Forms
    ============================================ */
@@ -2539,6 +2612,7 @@ tbody tr:last-child td {
         }
         .btn-sm { padding: 5px 10px; font-size: 12px; min-height: 44px; } /* WCAG 2.5.5 */
         .btn { min-height: 44px; } /* WCAG 2.5.5 — Desktop bleibt kompakt, nur Mobile betroffen */
+        .action-btn { min-width: 44px; min-height: 44px; } /* WCAG 2.5.5 */
 
         .stat-value {
             font-size: 26px;
@@ -2742,3 +2816,33 @@ body.stb-readonly [data-action$="-edit"],
 body.stb-readonly [data-action$="-create"],
 body.stb-readonly [data-action$="-storno"],
 body.stb-readonly [data-action$="-import"] { display: none !important; }
+
+/* ============================================
+   Akademie — Merkkästen (js/akademie.js)
+   ============================================ */
+.akademie-tip {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin: 14px 0;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--text-secondary);
+}
+.akademie-tip strong { color: var(--text-primary); }
+.akademie-tip-warn { border-left-color: var(--warning); background: var(--warning-bg); }
+
+/* ============================================
+   .data-table — Tabellen der Steuer-/Auswertungsmodule
+   (afa, ksk, lohnsteuer, oss, privatbuchungen, protokoll, ustvoranmeldung, vorsteuer)
+   Grundstyling kommt vom globalen table{}. Diese Tabellen sind NICHT sortierbar,
+   deshalb hier die falsche Klick-Erwartung aus th{cursor:pointer} zurücknehmen.
+   ============================================ */
+.data-table th {
+    cursor: default;
+}
+.data-table th:hover {
+    color: var(--text-secondary);
+}

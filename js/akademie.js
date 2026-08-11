@@ -66,7 +66,7 @@ const Akademie = {
                         <h4>Plattform-Meldepflicht (PStTG / DAC7)</h4>
                         <p>Seit 2023 melden alle Plattformen (Vinted, eBay, etc.) deine Verkaufsdaten ans Finanzamt, wenn du <strong>30+ Verkäufe</strong> oder <strong>2.000€+ Umsatz</strong> pro Jahr erreichst. Das Finanzamt weiß also Bescheid — auch ohne dass du etwas meldest.</p>
 
-                        <div class="akademie-tip">⚠️ <strong>Fauler Trick FAIL:</strong> „Ich verkauf einfach unter falschem Namen" — Plattformen melden anhand von IBAN/Adresse. Das wird gefunden. Lieber sauber anmelden + Kleinunternehmer = quasi keine Mehrarbeit.</div>
+                        <div class="akademie-tip akademie-tip-warn">⚠️ <strong>Fauler Trick FAIL:</strong> „Ich verkauf einfach unter falschem Namen" — Plattformen melden anhand von IBAN/Adresse. Das wird gefunden. Lieber sauber anmelden + Kleinunternehmer = quasi keine Mehrarbeit.</div>
 
                         <p style="margin-top:14px;"><strong>→ Nächste Aktion:</strong> Falls noch nicht angemeldet → Gewerbeanmeldung googlen. Falls angemeldet → die nächste Lektion: EÜR-Grundlagen.</p>
                     `
@@ -204,7 +204,7 @@ const Akademie = {
                             <li>Saisonal-Falsche Sachen wenn dein Lager voll ist</li>
                         </ul>
 
-                        <div class="akademie-tip">⚠️ <strong>Steuer-Hinweis:</strong> Jeder Einkauf ist ein <strong>Wareneinkauf</strong> für deine EÜR. Belege oder Quittungen sammeln! Bei Privatkäufen ohne Beleg → Eigenbeleg erstellen (in dieser App: Tab „Eigenbelege").</div>
+                        <div class="akademie-tip akademie-tip-warn">⚠️ <strong>Steuer-Hinweis:</strong> Jeder Einkauf ist ein <strong>Wareneinkauf</strong> für deine EÜR. Belege oder Quittungen sammeln! Bei Privatkäufen ohne Beleg → Eigenbeleg erstellen (in dieser App: Tab „Eigenbelege").</div>
                     `
                 }
             ]
@@ -284,7 +284,7 @@ const Akademie = {
                         <p>Auch Ware die <em>noch im Lager liegt</em> ist Wareneinkauf in dem Jahr in dem du sie gekauft hast! Das senkt deinen Gewinn — aber bedeutet auch: Beim Verkauf später hast du den Einkaufspreis schon abgeschrieben.</p>
                         <p>Im EÜR-Modus dieser App wird das automatisch korrekt behandelt: Einkauf wirkt sofort als Ausgabe, Verkauf wirkt als Einnahme.</p>
 
-                        <div class="akademie-tip">⚠️ <strong>GoBD-Pflicht:</strong> Du musst <strong>jeden</strong> Einkauf und Verkauf belegen können. Plattform-Auszüge, Banktransaktionen, Quittungen, Eigenbelege bei Privatkäufen sind Buchungsbelege — nach § 147 AO 8 Jahre aufheben.</div>
+                        <div class="akademie-tip akademie-tip-warn">⚠️ <strong>GoBD-Pflicht:</strong> Du musst <strong>jeden</strong> Einkauf und Verkauf belegen können. Plattform-Auszüge, Banktransaktionen, Quittungen, Eigenbelege bei Privatkäufen sind Buchungsbelege — nach § 147 AO 8 Jahre aufheben.</div>
 
                         <p style="margin-top:14px;">→ <strong>Probier's aus:</strong> Öffne den EÜR-Tab und schau dir an wie sich deine bisherigen Einkäufe + Verkäufe automatisch zur EÜR aggregieren.</p>
                     `
@@ -416,7 +416,7 @@ const Akademie = {
 🚭 Aus rauchfreiem & tierfreiem Haushalt.
 💬 Bei Fragen gerne anschreiben!</pre>
 
-                        <div class="akademie-tip">⚠️ <strong>Achtung:</strong> Ungenaue oder geschönte Beschreibungen führen zu Retouren — und Retouren kosten mehr als ein paar zusätzliche Sätze.</div>
+                        <div class="akademie-tip akademie-tip-warn">⚠️ <strong>Achtung:</strong> Ungenaue oder geschönte Beschreibungen führen zu Retouren — und Retouren kosten mehr als ein paar zusätzliche Sätze.</div>
                     `
                 },
                 {
@@ -669,7 +669,7 @@ const Akademie = {
                             <li>Wenn deine Margen sowieso sehr niedrig sind</li>
                         </ul>
 
-                        <div class="akademie-tip">⚠️ <strong>Achtung:</strong> Du kannst pro Verkauf <em>entweder</em> Differenz- oder Regelbesteuerung anwenden — nicht mischen. Bei Großhandels-Einkauf mit USt → normale Regelbesteuerung. Sauber dokumentieren!</div>
+                        <div class="akademie-tip akademie-tip-warn">⚠️ <strong>Achtung:</strong> Du kannst pro Verkauf <em>entweder</em> Differenz- oder Regelbesteuerung anwenden — nicht mischen. Bei Großhandels-Einkauf mit USt → normale Regelbesteuerung. Sauber dokumentieren!</div>
                     `
                 },
                 {
@@ -801,7 +801,7 @@ const Akademie = {
                             <li>Bei Bar-Einkäufen: Kassenbuch lückenlos</li>
                         </ol>
 
-                        <div class="akademie-tip">⚠️ <strong>Aufbewahrungsfrist (§ 147 AO):</strong> Rechnungen und Buchungsbelege 8 Jahre, Bücher/Aufzeichnungen/Jahresabschlüsse 10 Jahre. Lege jährlich ein Backup-Archiv weg (verschlüsselt + offline kopiert auf USB-Stick = robust).</div>
+                        <div class="akademie-tip akademie-tip-warn">⚠️ <strong>Aufbewahrungsfrist (§ 147 AO):</strong> Rechnungen und Buchungsbelege 8 Jahre, Bücher/Aufzeichnungen/Jahresabschlüsse 10 Jahre. Lege jährlich ein Backup-Archiv weg (verschlüsselt + offline kopiert auf USB-Stick = robust).</div>
                     `
                 }
             ]
@@ -988,7 +988,7 @@ const Akademie = {
                             <li>Plattform-Konfliktlösung erst als letzter Schritt</li>
                         </ol>
 
-                        <div class="akademie-tip">⚠️ <strong>Niemals:</strong> Käufer mit Geld oder Rabatten <em>im Gegenzug</em> für eine Bewertung „bestechen" — gegen Plattform-AGB, kann zu Account-Sperrung führen.</div>
+                        <div class="akademie-tip akademie-tip-warn">⚠️ <strong>Niemals:</strong> Käufer mit Geld oder Rabatten <em>im Gegenzug</em> für eine Bewertung „bestechen" — gegen Plattform-AGB, kann zu Account-Sperrung führen.</div>
                     `
                 },
                 {
@@ -1158,7 +1158,7 @@ const Akademie = {
                             <li>Ohne Anmeldung: Krankenkasse fordert rückwirkend Beiträge — teuer!</li>
                         </ul>
 
-                        <div class="akademie-tip">⚠️ <strong>Achtung Reselling + Familienversicherung:</strong> Wenn du als Schüler Reselling gewerblich betreibst und regelmäßig mehr als 505 € Gewinn erzielst, fällt die Familienversicherung weg. Gewerbegewinn zählt als Einkommen. Unter 505 € Gewinn/Monat im Jahresdurchschnitt: kein Problem.</div>
+                        <div class="akademie-tip akademie-tip-warn">⚠️ <strong>Achtung Reselling + Familienversicherung:</strong> Wenn du als Schüler Reselling gewerblich betreibst und regelmäßig mehr als 505 € Gewinn erzielst, fällt die Familienversicherung weg. Gewerbegewinn zählt als Einkommen. Unter 505 € Gewinn/Monat im Jahresdurchschnitt: kein Problem.</div>
                     `
                 },
                 {
@@ -1249,7 +1249,7 @@ const Akademie = {
                             <tr><td style="padding:6px;">Lücke in Versicherung</td><td style="padding:6px;">Kasse berechnet rückwirkend Beiträge — unvermeidlich</td></tr>
                         </table>
 
-                        <div class="akademie-tip">⚠️ <strong>Reselling während Arbeitslosigkeit:</strong> Betreibst du während des Bürgergeld-Bezugs Reselling als Gewerbe, musst du Einnahmen dem Jobcenter melden. Gewinn wird auf das Bürgergeld angerechnet. Freibetrag 2025: erste 100 € des Einkommens anrechnungsfrei, danach 20 % Freibetrag bis 1.000 € monatlicher Einnahmen.</div>
+                        <div class="akademie-tip akademie-tip-warn">⚠️ <strong>Reselling während Arbeitslosigkeit:</strong> Betreibst du während des Bürgergeld-Bezugs Reselling als Gewerbe, musst du Einnahmen dem Jobcenter melden. Gewinn wird auf das Bürgergeld angerechnet. Freibetrag 2025: erste 100 € des Einkommens anrechnungsfrei, danach 20 % Freibetrag bis 1.000 € monatlicher Einnahmen.</div>
                     `
                 },
                 {
@@ -1354,7 +1354,7 @@ const Akademie = {
                             <li>Wenn Gewinn noch nicht bekannt: Beitragsanpassung jährlich möglich</li>
                         </ol>
 
-                        <div class="akademie-tip">⚠️ <strong>Häufiger Fehler:</strong> Selbstständige vergessen die Krankenversicherung anzumelden und erhalten rückwirkend Beiträge seit Beginn der Selbstständigkeit. Die Kasse rechnet das konsequent ab — inklusive Säumniszuschlägen. Sofort anmelden spart bares Geld!</div>
+                        <div class="akademie-tip akademie-tip-warn">⚠️ <strong>Häufiger Fehler:</strong> Selbstständige vergessen die Krankenversicherung anzumelden und erhalten rückwirkend Beiträge seit Beginn der Selbstständigkeit. Die Kasse rechnet das konsequent ab — inklusive Säumniszuschlägen. Sofort anmelden spart bares Geld!</div>
                     `
                 }
             ]

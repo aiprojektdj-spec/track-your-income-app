@@ -7,6 +7,233 @@ const Protokoll = {
     _filterVon: '',
     _filterBis: '',
 
+    // ========================================================================
+    // Datenträgerüberlassung "Z3" für die Betriebsprüfung (Fund T2, §147 Abs. 6 AO)
+    // ========================================================================
+    // §147 Abs. 6 AO gibt dem Prüfer das Recht, die steuerrelevanten Daten in einem
+    // maschinell auswertbaren Format zu VERLANGEN — in der Praxis der GDPdU-/IDEA-Export:
+    // ein Verzeichnis mit index.xml (Beschreibungsdatei) und je Tabelle eine CSV-Datei.
+    // Suche nach gdpdu/index.xml/Z1/Z2/Z3 im Projekt ergab vorher null Treffer; der Prüfer
+    // hätte mit den vorhandenen Exporten (PDF, Excel, JSON) nicht arbeiten können.
+    //
+    // Ohne ZIP-Bibliothek im Projekt werden die Dateien EINZELN ausgeliefert, mit der
+    // Anweisung, sie in einen Ordner zu legen. Das ist genau die Struktur, die die
+    // Prüfsoftware erwartet (index.xml neben den Datendateien) — nur eben ohne Archiv.
+    //
+    // Bewusst enthalten: die Grundaufzeichnungen (Einkäufe, Verkäufe, Ausgaben,
+    // Kassenbuch, Rechnungen) und das Änderungsprotokoll mit der Hash-Kette. Letzteres
+    // gehört dazu, weil es die Unveränderbarkeit nach GoBD Rz. 64 belegt.
+    _Z3_TABLES: [
+        {
+            file: 'einkaeufe.csv', name: 'Einkaeufe', desc: 'Wareneinkäufe (Grundaufzeichnung)',
+            get: () => Store.getAllPurchasesRaw(),
+            cols: [
+                ['id', 'Datensatz-ID', 'a'], ['datum', 'Belegdatum', 'd'], ['marke', 'Marke', 'a'],
+                ['artikeltyp', 'Artikeltyp', 'a'], ['beschreibung', 'Bezeichnung', 'a'],
+                ['einkaufspreis', 'Einkaufspreis (EUR)', 'n'], ['anzahl', 'Menge', 'n'],
+                ['einkaufsquelle', 'Lieferant/Quelle', 'a'], ['belegNr', 'Belegnummer', 'a'],
+                ['storniert', 'Storniert', 'a'], ['notizen', 'Bemerkung', 'a']
+            ]
+        },
+        {
+            file: 'verkaeufe.csv', name: 'Verkaeufe', desc: 'Warenverkäufe (Grundaufzeichnung)',
+            get: () => Store.getAllSalesRaw(),
+            cols: [
+                ['id', 'Datensatz-ID', 'a'], ['datum', 'Belegdatum', 'd'], ['beschreibung', 'Bezeichnung', 'a'],
+                ['verkaufspreis', 'Verkaufspreis (EUR)', 'n'], ['versandKaeufer', 'Versand Käufer (EUR)', 'n'],
+                ['plattformgebuehr', 'Plattformgebühr (%)', 'n'], ['versandVerkaeufer', 'Versandkosten (EUR)', 'n'],
+                ['verkaufsplattform', 'Verkaufsplattform', 'a'], ['kaeufer', 'Käufer', 'a'],
+                ['belegNr', 'Belegnummer', 'a'], ['storniert', 'Storniert', 'a'], ['notizen', 'Bemerkung', 'a']
+            ]
+        },
+        {
+            file: 'ausgaben.csv', name: 'Ausgaben', desc: 'Betriebsausgaben (Grundaufzeichnung)',
+            get: () => Store.getAllExpensesRaw(),
+            cols: [
+                ['id', 'Datensatz-ID', 'a'], ['datum', 'Belegdatum', 'd'], ['kategorie', 'Kategorie', 'a'],
+                ['beschreibung', 'Bezeichnung', 'a'], ['betrag', 'Betrag (EUR)', 'n'],
+                ['ustSatz', 'USt-Satz', 'a'], ['belegNr', 'Belegnummer', 'a'],
+                ['storniert', 'Storniert', 'a'], ['notizen', 'Bemerkung', 'a']
+            ]
+        },
+        {
+            file: 'kassenbuch.csv', name: 'Kassenbuch', desc: 'Kassenbuch (Bareinnahmen/-ausgaben)',
+            get: () => (Store.getKassenbuch ? Store.getKassenbuch() : []),
+            cols: [
+                ['id', 'Datensatz-ID', 'a'], ['datum', 'Belegdatum', 'd'], ['art', 'Art', 'a'],
+                ['beschreibung', 'Bezeichnung', 'a'], ['betrag', 'Betrag (EUR)', 'n'],
+                ['bestandNach', 'Kassenbestand nach Buchung (EUR)', 'n'],
+                ['belegNr', 'Belegnummer', 'a'], ['storniert', 'Storniert', 'a']
+            ]
+        },
+        {
+            file: 'rechnungen.csv', name: 'Rechnungen', desc: 'Ausgangsrechnungen (Rechnungsbuch)',
+            get: () => (Store.getInvoices ? Store.getInvoices() : []),
+            cols: [
+                ['id', 'Datensatz-ID', 'a'], ['nummer', 'Rechnungsnummer', 'a'], ['datum', 'Rechnungsdatum', 'd'],
+                ['faelligkeit', 'Fälligkeit', 'd'], ['kundeId', 'Kunden-ID', 'a'],
+                ['gesamtNetto', 'Netto (EUR)', 'n'], ['gesamtUst', 'Umsatzsteuer (EUR)', 'n'],
+                ['gesamtBrutto', 'Brutto (EUR)', 'n'], ['status', 'Status', 'a'],
+                ['leitwegId', 'Leitweg-ID', 'a'], ['storniert', 'Storniert', 'a']
+            ]
+        },
+        {
+            file: 'aenderungsprotokoll.csv', name: 'Aenderungsprotokoll',
+            desc: 'Änderungsprotokoll mit Hash-Kette (Unveränderbarkeit, GoBD Rz. 64)',
+            get: () => Store.getAuditLog(),
+            cols: [
+                ['id', 'Eintrags-ID', 'a'], ['timestamp', 'Zeitpunkt', 'a'], ['action', 'Vorgang', 'a'],
+                ['entityType', 'Datensatzart', 'a'], ['entityId', 'Betroffener Datensatz', 'a'],
+                ['details', 'Beschreibung', 'a'], ['_dev', 'Geraete-Kennung', 'a'],
+                ['prevHash', 'Prüfsumme Vorgänger', 'a'], ['checksum', 'Prüfsumme', 'a'],
+                ['_clockBack', 'Uhr-Ruecksprung erkannt', 'a']
+            ]
+        }
+    ],
+
+    // Feldwert → CSV-Zelle. Zahlen mit Komma als Dezimaltrennzeichen, weil index.xml genau das
+    // deklariert; Wahrheitswerte als "ja"/"nein" statt true/false (der Prüfer liest Text);
+    // Objekte/Arrays werden zu JSON, damit nichts still verschwindet.
+    _z3Cell(rec, feld, typ) {
+        var v = rec ? rec[feld] : '';
+        if (v === undefined || v === null) return '';
+        if (typ === 'n') {
+            var n = parseFloat(v);
+            return isNaN(n) ? '' : String(n).replace('.', ',');
+        }
+        if (typeof v === 'boolean') return v ? 'ja' : 'nein';
+        if (typeof v === 'object') { try { return JSON.stringify(v); } catch (e) { return ''; } }
+        return String(v);
+    },
+
+    // GDPdU-Beschreibungsdatei. Struktur nach der Beschreibungsstandard-DTD (gdpdu-01-09-2004),
+    // die die gängige Prüfsoftware (IDEA, ACL, WinIDEA) einliest.
+    _z3IndexXml(vonJahr, bisJahr, tabellen) {
+        var esc = function (s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        };
+        var typMap = { a: 'AlphaNumeric', n: 'Numeric', d: 'Date' };
+        var firma = '';
+        try {
+            var cos = JSON.parse(localStorage.getItem('oyi_companies') || '[]');
+            var act = localStorage.getItem('oyi_active_company');
+            var co = cos.filter(function (c) { return c && c.id === act; })[0];
+            firma = co ? (co.name || '') : '';
+        } catch (e) {}
+
+        var xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+                  '<!DOCTYPE DataSet SYSTEM "gdpdu-01-09-2004.dtd">\n' +
+                  '<DataSet>\n' +
+                  '  <Version>1.0</Version>\n' +
+                  '  <DataSupplier>\n' +
+                  '    <Name>' + esc(firma || 'Unternehmen') + '</Name>\n' +
+                  '    <Location>Deutschland</Location>\n' +
+                  '    <Comment>Datenträgerüberlassung Z3 nach §147 Abs. 6 AO, erzeugt mit Stackr am ' +
+                        esc(new Date().toLocaleDateString('de-DE')) + '</Comment>\n' +
+                  '  </DataSupplier>\n' +
+                  '  <Media>\n' +
+                  '    <Name>Buchhaltungsdaten ' + esc(vonJahr === bisJahr ? vonJahr : vonJahr + '-' + bisJahr) + '</Name>\n';
+
+        tabellen.forEach(function (t) {
+            xml += '    <Table>\n' +
+                   '      <URL>' + esc(t.file) + '</URL>\n' +
+                   '      <Name>' + esc(t.name) + '</Name>\n' +
+                   '      <Description>' + esc(t.desc) + '</Description>\n' +
+                   '      <Validity><Range><From>' + vonJahr + '-01-01</From><To>' + bisJahr + '-12-31</To></Range></Validity>\n' +
+                   '      <DecimalSymbol>,</DecimalSymbol>\n' +
+                   '      <DigitGroupingSymbol>.</DigitGroupingSymbol>\n' +
+                   '      <VariableLength>\n' +
+                   '        <ColumnDelimiter>;</ColumnDelimiter>\n' +
+                   '        <TextEncapsulator>"</TextEncapsulator>\n' +
+                   '        <RecordDelimiter>&#13;&#10;</RecordDelimiter>\n';
+            t.cols.forEach(function (c, i) {
+                var tag = (i === 0) ? 'VariablePrimaryKey' : 'VariableColumn';
+                xml += '        <' + tag + '>\n' +
+                       '          <Name>' + esc(c[1]) + '</Name>\n' +
+                       '          <' + typMap[c[2]] + '>' +
+                            (c[2] === 'd' ? '<Format>YYYY-MM-DD</Format>' : (c[2] === 'n' ? '<Accuracy>2</Accuracy>' : '')) +
+                            '</' + typMap[c[2]] + '>\n' +
+                       '        </' + tag + '>\n';
+            });
+            xml += '      </VariableLength>\n    </Table>\n';
+        });
+        return xml + '  </Media>\n</DataSet>\n';
+    },
+
+    // Erzeugt den Z3-Satz. Jahresfilter, weil ein Prüfer immer einen Prüfungszeitraum nennt und
+    // niemand ihm mehr Daten geben sollte, als er verlangt hat (Datenminimierung).
+    exportZ3(vonJahr, bisJahr) {
+        var von = String(vonJahr), bis = String(bisJahr || vonJahr);
+        var imZeitraum = function (rec) {
+            var j = String((rec && (rec.datum || rec.timestamp)) || '').slice(0, 4);
+            return !j || (j >= von && j <= bis);   // Datensätze ohne Datum bleiben drin
+        };
+        var geliefert = [], leer = [];
+        this._Z3_TABLES.forEach(function (t) {
+            var recs;
+            try { recs = t.get() || []; } catch (e) { recs = []; }
+            recs = recs.filter(imZeitraum);
+            if (!recs.length) { leer.push(t.name); return; }
+            var rows = [t.cols.map(function (c) { return c[1]; })];
+            var self = Protokoll;
+            recs.forEach(function (r) {
+                rows.push(t.cols.map(function (c) { return self._z3Cell(r, c[0], c[2]); }));
+            });
+            Utils.downloadCSV(rows, t.file);
+            geliefert.push(t);
+        });
+
+        if (!geliefert.length) {
+            Utils.showToast('Für ' + (von === bis ? von : von + '–' + bis) + ' liegen keine Daten vor.', 'warning', 6000);
+            return;
+        }
+        Utils.downloadFile(this._z3IndexXml(von, bis, geliefert), 'index.xml', 'application/xml;charset=utf-8');
+        Utils.showToast('✓ Z3-Export: ' + (geliefert.length + 1) + ' Dateien heruntergeladen (index.xml + ' +
+                        geliefert.length + ' Tabellen). Alle in EINEN Ordner legen und diesen dem Prüfer übergeben.' +
+                        (leer.length ? ' Ohne Daten im Zeitraum und daher nicht enthalten: ' + leer.join(', ') + '.' : ''),
+                        'success', 12000);
+    },
+
+    openZ3Dialog() {
+        if (typeof App === 'undefined' || !App.showModal) { Utils.showToast('Bitte im Haupt-Dashboard öffnen.', 'info'); return; }
+        var jetzt = new Date().getFullYear();
+        var opts = '';
+        for (var j = jetzt; j >= jetzt - 10; j--) opts += '<option value="' + j + '">' + j + '</option>';
+        var body =
+          '<div style="display:flex;flex-direction:column;gap:14px;">' +
+            '<div style="font-size:13px;color:var(--text-secondary);line-height:1.55;">' +
+              'Erzeugt die <strong>Datenträgerüberlassung (Z3)</strong> nach §147 Abs. 6 AO: eine ' +
+              '<code>index.xml</code> plus eine CSV-Datei je Tabelle, im GDPdU-Format, das die ' +
+              'Prüfsoftware der Finanzverwaltung (IDEA) einliest.' +
+            '</div>' +
+            '<div style="display:flex;gap:10px;align-items:flex-end;">' +
+              '<div class="form-group" style="flex:1;margin:0;"><label class="form-label" for="z3Von">Von Jahr</label>' +
+                '<select class="form-select" id="z3Von">' + opts + '</select></div>' +
+              '<div class="form-group" style="flex:1;margin:0;"><label class="form-label" for="z3Bis">Bis Jahr</label>' +
+                '<select class="form-select" id="z3Bis">' + opts + '</select></div>' +
+            '</div>' +
+            '<div style="background:rgba(59,130,246,.10);border:1px solid rgba(59,130,246,.35);border-radius:8px;padding:11px;font-size:12px;line-height:1.5;">' +
+              'Der Browser lädt die Dateien <strong>einzeln</strong> herunter. Lege sie anschließend ' +
+              '<strong>alle in einen Ordner</strong> — die <code>index.xml</code> verweist auf die CSV-Dateien ' +
+              'daneben und funktioniert nur so. Gib nur den Zeitraum heraus, den der Prüfer verlangt hat.' +
+            '</div>' +
+            '<button class="btn btn-primary" data-action="pr-do-z3" style="width:100%;">Z3-Datensatz erzeugen</button>' +
+          '</div>';
+        App.showModal('Betriebsprüfung: Datenträgerüberlassung (Z3)', body, '');
+        var b = document.getElementById('z3Bis');
+        if (b) b.value = String(jetzt);
+    },
+
+    _doZ3() {
+        var v = document.getElementById('z3Von'), b = document.getElementById('z3Bis');
+        var von = v ? parseInt(v.value, 10) : new Date().getFullYear();
+        var bis = b ? parseInt(b.value, 10) : von;
+        if (bis < von) { Utils.showToast('„Bis" darf nicht vor „Von" liegen.', 'warning'); return; }
+        App.closeModal();
+        this.exportZ3(von, bis);
+    },
+
     render() {
         const log = Store.getAuditLog();
         const f = this;
@@ -82,6 +309,7 @@ const Protokoll = {
                 <h2>Aenderungsprotokoll (Audit-Log)</h2>
                 <div class="page-header-actions no-print">
                     <button class="btn" id="auditExportBtn">Protokoll exportieren</button>
+                    <button class="btn" data-action="pr-z3" title="Datenträgerüberlassung nach §147 Abs. 6 AO für die Betriebsprüfung">Betriebsprüfung (Z3)</button>
                     <button class="btn" id="auditVerifyBtn">Integritaet pruefen</button>
                 </div>
             </div>
@@ -339,3 +567,11 @@ const Protokoll = {
         });
     }
 };
+
+// ── data-action-Registrierung (CSP: keine Inline-Handler) ──
+// protokoll.js arbeitete bisher nur mit addEventListener auf festen IDs. Der Z3-Dialog wird
+// dynamisch erzeugt, dessen Button braucht daher den zentralen Dispatcher (js/actions.js).
+if (typeof window !== 'undefined' && window.Actions) Actions.register({
+    'pr-z3':    function () { Protokoll.openZ3Dialog(); },
+    'pr-do-z3': function () { Protokoll._doZ3(); }
+});

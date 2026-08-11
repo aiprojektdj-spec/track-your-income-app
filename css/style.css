@@ -352,6 +352,22 @@ a:hover { color: var(--accent-light); }
     color: var(--text-primary);
 }
 
+/* Primaer-Aktion "+ Rechnung" — von js/topnav.js in .topnav-controls eingehaengt.
+   Hebt sich bewusst von den gedaempften Icon-Controls daneben ab; sie ist der
+   einzige Einstieg in die haeufigste Aufgabe der App. */
+.topnav-controls a.topnav-cta {
+    background: var(--accent);
+    color: var(--bg-primary);
+    font-weight: 600;
+    padding: 6px 12px;
+    margin-right: 6px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.topnav-controls a.topnav-cta:hover {
+    background: var(--accent-hover);
+    color: var(--bg-primary);
+}
+
 /* ============================================
    Module Sub-Nav — persistente Leiste unter der Topnav.
    Trägt das Finanzen-Modul (Buchungen · Ausgaben · Bank · Fahrten · AfA).
@@ -2092,6 +2108,8 @@ tbody tr:last-child td {
 @media (max-width: 960px) {
     .topnav-apps .tool-tab .tab-icon + * { display: none; }
     .topnav-controls .theme-toggle { padding: 5px 6px; font-size: 0; }
+    .topnav-controls a.topnav-cta span { display: none; }
+    .topnav-controls a.topnav-cta { padding: 6px 9px; }
     .topnav-controls .theme-toggle::first-line { font-size: 14px; }
 }
 
@@ -2112,6 +2130,10 @@ tbody tr:last-child td {
     }
     .msub-tab {
         height: 44px;
+    }
+    .action-btn {
+        min-width: 44px;
+        min-height: 44px;
     }
 
     .form-row {
@@ -2615,7 +2637,6 @@ tbody tr:last-child td {
         }
         .btn-sm { padding: 5px 10px; font-size: 12px; min-height: 44px; } /* WCAG 2.5.5 */
         .btn { min-height: 44px; } /* WCAG 2.5.5 — Desktop bleibt kompakt, nur Mobile betroffen */
-        .action-btn { min-width: 44px; min-height: 44px; } /* WCAG 2.5.5 */
 
         .stat-value {
             font-size: 26px;

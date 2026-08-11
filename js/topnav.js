@@ -62,6 +62,23 @@
         set('toolTabGbr', PERSONENGES.indexOf(meta.firmenform) !== -1);
     }
 
+    // "Rechnung schreiben" ist fuer die Zielgruppe die Aufgabe Nummer eins und fuer viele
+    // Freelancer der einzige Grund, das Tool zu oeffnen — lag aber zwei Ebenen tief unter
+    // einem Tab namens "Finanzen", hinter dem sieben Bereiche stecken. Der Button kostet
+    // keinen Tab-Platz und macht den Weg einstufig. Zentral hier statt in vier HTML-Dateien,
+    // damit die Nav nicht wieder auseinanderlaeuft (derselbe Grund wie fuer _html oben).
+    function _injectCta(prefix) {
+        var ctrl = document.querySelector('.topnav-controls');
+        if (!ctrl || document.getElementById('topnavNewInvoice')) return;
+        var a = document.createElement('a');
+        a.id = 'topnavNewInvoice';
+        a.className = 'topnav-cta';
+        a.href = prefix + 'app.html?page=rechnungen';
+        a.title = 'Neue Rechnung schreiben';
+        a.innerHTML = '<i class="ti ti-plus" aria-hidden="true"></i><span>Rechnung</span>';
+        ctrl.insertBefore(a, ctrl.firstChild);
+    }
+
     window.Topnav = {
         render: function (opts) {
             opts = opts || {};
@@ -81,6 +98,7 @@
             }
             container.innerHTML = _html(prefix, active);
             _applyVisibility(container, _activeCompanyMeta());
+            _injectCta(prefix);
         }
     };
 

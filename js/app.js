@@ -520,6 +520,21 @@ const App = {
         }
     },
 
+    /** URL und document.title an die aktuelle Seite angleichen. Der Beschriftungstext kommt
+     *  aus dem Sidebar-Link, damit er automatisch der gewählten Sprache folgt. */
+    _syncLocation(page) {
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('page', page);
+            history.replaceState({ page: page }, '', url.pathname + url.search + url.hash);
+        } catch (e) {
+            // file://-Aufruf oder History-API gesperrt — kosmetisch, darf die Navigation nie stoppen
+        }
+        const link  = document.querySelector('.sidebar-link[data-page="' + page + '"]');
+        const label = (link && link.textContent.trim()) || (page.charAt(0).toUpperCase() + page.slice(1));
+        document.title = 'Stackr — ' + label;
+    },
+
     navigate(page) {
         if (!this.pages[page]) return;
 
@@ -546,6 +561,13 @@ const App = {
         }
 
         this.currentPage = page;
+
+        // Adressleiste und Tab-Titel mitziehen (U9/U10). Eintritts-Deeplinks (?page=) wurden
+        // beim Start schon gelesen, aber innerhalb der App lief die URL bisher aus dem Takt:
+        // F5 landete auf der Einstiegsseite, "Ansicht teilen" ging nicht, und jeder Tab hieß
+        // gleich. replaceState statt pushState — echte Zurück-Navigation wäre wegen der
+        // Rechtsform-Weiterleitungen oben ein eigener Umbau.
+        this._syncLocation(page);
 
         // §19 UStG Umsatzgrenzprüfung bei jeder Navigation
         this._checkUstThreshold();
@@ -1360,12 +1382,25 @@ const App = {
         const nextBtn = step < totalSteps
             ? `<button class="btn btn-primary" id="obNext">${L.t('ob.next')}</button>`
             : `<button class="btn btn-success" id="obFinish">${L.t('ob.finish')}</button>`;
+        // Schritt 1 ist die einzige Stufe mit Pflichtfeldern (_saveOnboardingStep prüft nur dort).
+        // Die Schritte 2-5 waren faktisch optional, sagten das aber nicht — wer abends seine
+        // Steuernummer nicht griffbereit hatte, brach hier ab oder trug Unsinn ein.
+        const isOptionalStep = step > 1;
         const skipLink = (step === 1 && CompanyManager.getActiveId())
             ? `<div style="text-align:center;margin-top:14px;">
                    <button class="btn-link" id="obSkip" style="background:none;border:none;color:var(--text-muted);font-size:12px;text-decoration:underline;cursor:pointer;">
                        Ich habe schon eine Firma — Setup überspringen
                    </button>
                </div>`
+            : isOptionalStep
+            ? `<div style="text-align:center;margin-top:14px;">
+                   <button class="btn-link" id="obLater" style="background:none;border:none;color:var(--text-muted);font-size:12px;text-decoration:underline;cursor:pointer;">
+                       ${L.t('ob.later')}
+                   </button>
+               </div>`
+            : '';
+        const optionalHint = isOptionalStep
+            ? `<div style="font-size:12px;color:var(--text-muted);margin:-6px 0 16px;">${L.t('ob.optional')}</div>`
             : '';
 
         document.getElementById('onboarding').innerHTML = `
@@ -1374,6 +1409,7 @@ const App = {
                     ${stepsHtml}
                     <h2>${title}</h2>
                     <div class="subtitle">${subtitle}</div>
+                    ${optionalHint}
                     ${fieldsHtml}
                     <div class="form-actions">
                         ${prevBtn}
@@ -1405,6 +1441,14 @@ const App = {
 
         const skipEl = document.getElementById('obSkip');
         if (skipEl) skipEl.addEventListener('click', () => this._skipOnboarding());
+
+        // "Später ausfüllen" auf den optionalen Schritten: das bisher Eingetragene wird
+        // übernommen, der Rest bleibt leer — kein Abbruch, sondern ein vorgezogenes Fertig.
+        const laterEl = document.getElementById('obLater');
+        if (laterEl) laterEl.addEventListener('click', () => {
+            this._saveOnboardingStep();
+            this._finishOnboarding();
+        });
     },
 
     // Für Nutzer, die ihre Firma (Stammdaten/Land/Branche) bereits über
@@ -1446,6 +1490,19 @@ const App = {
                 CompanyManager.migrateExistingData(co.id);
                 const switcherEl = document.getElementById('companySwitcher');
                 if (switcherEl) switcherEl.innerHTML = CompanyManager.renderSwitcherBtn();
+            } else {
+                // Die Firma entsteht schon in Schritt 1. Wer aus Schritt 2 zurückgeht und einen
+                // Tippfehler im Firmennamen korrigiert, lief bis 2026-08-11 in den if-Zweig
+                // hinein nicht mehr hinein — settings.firmenname und der CompanyManager-Name
+                // liefen dauerhaft auseinander (Firmenumschalter zeigte den Tippfehler, die
+                // Rechnung den korrigierten Namen).
+                const activeId = CompanyManager.getActiveId();
+                const active   = CompanyManager.getActive();
+                if (activeId && active && active.name !== d.firmenname) {
+                    CompanyManager.rename(activeId, d.firmenname);
+                    const switcherEl = document.getElementById('companySwitcher');
+                    if (switcherEl) switcherEl.innerHTML = CompanyManager.renderSwitcherBtn();
+                }
             }
             if (typeof Rechtsform !== 'undefined') Rechtsform.set(d.rechtsform);
         } else if (step === 2) {
@@ -1469,7 +1526,11 @@ const App = {
     _finishOnboarding() {
         const d = this._onboardingData;
         d.onboardingDone = true;
-        Store.saveSettings(d);
+        // Store.saveSettings ersetzt das Objekt vollständig (js/store.js). Beim Erstlauf sind
+        // die Settings leer, aber sobald der Wizard ein zweites Mal läuft, wären ohne Merge
+        // alle zwischenzeitlich gesetzten Einstellungen weg. _skipOnboarding macht es
+        // seit je richtig — hier angeglichen.
+        Store.saveSettings(Object.assign({}, Store.getSettings(), d));
         document.getElementById('onboarding').innerHTML = '';
         Utils.showToast('Einrichtung abgeschlossen! 🎉', 'success');
         this.navigate('dashboard');

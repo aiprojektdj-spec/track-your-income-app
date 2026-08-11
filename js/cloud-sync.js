@@ -29,7 +29,14 @@ var CloudSync = (function () {
                          'eigenbelege_einstellungen', 'eigenbelege_naechste_nummer', 'eigenbelege_produkte'];
 
     var LS_ENABLED = 'oyi_sync_enabled';
+    // ALT-Ablage des rohen Sync-Schlüssels (Fund R5, Red-Team-Audit 2026-08-10). Wird nur noch
+    // gelesen — für die einmalige Migration nach IndexedDB (s. _migrateKeyToIdb) und als Rückfall,
+    // solange die Migration nicht bestätigt durchgelaufen ist. NEU wird hier nichts mehr abgelegt.
     var LS_KEY     = function (uid) { return 'oyi_sync_key_' + uid; };
+    // Enthält KEIN Geheimnis, nur "auf diesem Gerät liegt ein Schlüssel für <uid>". Nötig, weil
+    // IndexedDB asynchron ist, _hasKey() aber an vielen Stellen synchron gebraucht wird
+    // (Status-Punkt, Panel-Rendering, Sync-Vorbedingungen).
+    var LS_KEY_PRESENT = function (uid) { return 'oyi_sync_keypresent_' + uid; };
     var LS_META    = function (scope) { return 'oyi_sync_keymeta_' + scope; };
     var LS_BASE    = function (scope) { return 'oyi_sync_base_' + scope; };   // zuletzt synchronisierter updatedAt je Record (Konflikt-Basis)
     var LS_BLOBCACHE = function (scope) { return 'oyi_sync_blobcache_' + scope; };   // Inhalts-Hash → Blob-URL, verhindert Doppel-Uploads unveränderter Anhänge
@@ -70,12 +77,127 @@ var CloudSync = (function () {
     function _isPro()   { return typeof UserPlan === 'undefined' || UserPlan.isPro(); }
     function _activeScope() { return (typeof CompanyManager !== 'undefined') ? CompanyManager.getActiveId() : ''; }
 
-    function _keyBytes(uid) {
-        var b64 = localStorage.getItem(LS_KEY(uid || _userId()));
+    // ── Schlüssel-Ablage (Fund R5) ───────────────────────────────────────────
+    // Vorher lag der rohe 256-bit-AES-Schlüssel als Base64 in localStorage, direkt neben dem
+    // Whop-Token. Ein einziger XSS-Treffer hätte damit nicht nur die Sitzung geliefert, sondern
+    // erlaubt, das Chiffrat serverseitig zu ziehen UND offline zu entschlüsseln — die
+    // E2E-Zusage fällt komplett. (Es wurde kein XSS gefunden; der Punkt ist der Schadensradius.)
+    //
+    // Jetzt in IndexedDB, und zwar zweigeteilt:
+    //   'ck'  — der importierte CryptoKey mit extractable:false. Er trägt den GANZEN täglichen
+    //           Sync (encrypt/decrypt). Ein XSS kann damit ver- und entschlüsseln, den Schlüssel
+    //           selbst aber nicht auslesen und nicht wegtragen.
+    //   'raw' — die Rohbytes. Unvermeidbar, weil zwei Funktionen sie brauchen: die Anzeige des
+    //           Wiederherstellungscodes (der Code IST der Schlüssel, s. showCode) und das
+    //           Verpacken für den Steuerberater (js/stb-share.js). Ein vollständig
+    //           nicht-extrahierbarer Schlüssel würde beide Funktionen entfernen — dafür ist das
+    //           "Code erneut anzeigen" der einzige Weg, ein zweites Gerät anzubinden, wenn der
+    //           Nutzer den Code nicht notiert hat.
+    //
+    // Der ehrliche Gewinn: der Schlüssel liegt nicht mehr in localStorage, also greifen generische
+    // XSS-Payloads, die schlicht localStorage abschöpfen, nicht mehr. Ein gezielter Angreifer, der
+    // Stackr kennt, kommt auch an IndexedDB. Vollständige Nicht-Extrahierbarkeit ist erst möglich,
+    // wenn "Code erneut anzeigen" entfällt — das ist eine Produktentscheidung, keine technische.
+    var IDBK_DB = 'oyi_synckey', IDBK_STORE = 'k';
+    function _idbkOpen() {
+        return new Promise(function (resolve, reject) {
+            var req = indexedDB.open(IDBK_DB, 1);
+            req.onupgradeneeded = function (e) { e.target.result.createObjectStore(IDBK_STORE); };
+            req.onsuccess = function (e) { resolve(e.target.result); };
+            req.onerror   = function () { reject(req.error); };
+        });
+    }
+    function _idbkGet(k) {
+        return _idbkOpen().then(function (db) { return new Promise(function (resolve, reject) {
+            var rq = db.transaction(IDBK_STORE, 'readonly').objectStore(IDBK_STORE).get(k);
+            rq.onsuccess = function () { resolve(rq.result); };
+            rq.onerror   = function () { reject(rq.error); };
+        }); });
+    }
+    function _idbkPut(k, v) {
+        return _idbkOpen().then(function (db) { return new Promise(function (resolve, reject) {
+            var tx = db.transaction(IDBK_STORE, 'readwrite');
+            tx.objectStore(IDBK_STORE).put(v, k);
+            tx.oncomplete = function () { resolve(); };
+            tx.onerror    = function () { reject(tx.error); };
+        }); });
+    }
+    function _idbkDel(k) {
+        return _idbkOpen().then(function (db) { return new Promise(function (resolve) {
+            var tx = db.transaction(IDBK_STORE, 'readwrite');
+            tx.objectStore(IDBK_STORE).delete(k);
+            tx.oncomplete = function () { resolve(); };
+            tx.onerror    = function () { resolve(); };   // best-effort
+        }); });
+    }
+    function _idbkKey(uid, what) { return (uid || _userId()) + ':' + what; }
+
+    // Rohbytes: IndexedDB zuerst, localStorage nur als Rückfall für noch nicht migrierte Geräte.
+    async function _keyBytes(uid) {
+        var u = uid || _userId();
+        try {
+            if (typeof indexedDB === 'undefined') throw new Error('no_idb');
+            var v = await _idbkGet(_idbkKey(u, 'raw'));
+            if (v && v.byteLength === 32) return new Uint8Array(v instanceof Uint8Array ? v : new Uint8Array(v));
+        } catch (e) { /* IDB nicht verfügbar → Rückfall unten */ }
+        var b64 = localStorage.getItem(LS_KEY(u));
         if (!b64) return null;
         try { return _unb64(b64); } catch (e) { return null; }
     }
-    function _hasKey() { return !!_keyBytes(); }
+    // Synchron, weil an vielen Stellen im Render-/Statuspfad gebraucht. Prüft nur die EXISTENZ.
+    function _hasKey(uid) {
+        var u = uid || _userId();
+        try { if (localStorage.getItem(LS_KEY_PRESENT(u)) === '1') return true; } catch (e) {}
+        try { return !!localStorage.getItem(LS_KEY(u)); } catch (e) { return false; }
+    }
+    // Schreibt Rohbytes + nicht-extrahierbaren CryptoKey nach IndexedDB und liest zur Kontrolle
+    // zurück. Erst wenn der Rückvergleich stimmt, gilt der Schlüssel als sicher abgelegt — ein
+    // stillschweigend fehlgeschlagener Schreibvorgang würde den Nutzer von seinen Cloud-Daten
+    // trennen, und der Schlüssel ist nicht wiederherstellbar.
+    async function _storeKey(uid, bytes) {
+        var u = uid || _userId();
+        // Kein IndexedDB (privater Modus mancher Browser, Node-Tests) → alte Ablage benutzen.
+        // Ein Schlüssel, der sich nicht anlegen lässt, bedeutet "Cloud-Sync gar nicht nutzbar";
+        // das ist ein schlechterer Ausgang als der bekannte, akzeptierte localStorage-Weg.
+        if (typeof indexedDB === 'undefined') {
+            localStorage.setItem(LS_KEY(u), _b64(bytes));
+            try { localStorage.setItem(LS_KEY_PRESENT(u), '1'); } catch (e) {}
+            console.warn('[CloudSync] IndexedDB nicht verfügbar — Schlüssel liegt in localStorage (s. Fund R5)');
+            return true;
+        }
+        await _idbkPut(_idbkKey(u, 'raw'), new Uint8Array(bytes));
+        await _idbkPut(_idbkKey(u, 'ck'),
+                       await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']));
+        var back = await _idbkGet(_idbkKey(u, 'raw'));
+        var ok = back && back.byteLength === 32;
+        if (ok) {
+            var a = new Uint8Array(back);
+            for (var i = 0; i < 32; i++) if (a[i] !== bytes[i]) { ok = false; break; }
+        }
+        if (!ok) throw new Error('key_store_verify_failed');
+        try { localStorage.setItem(LS_KEY_PRESENT(u), '1'); } catch (e) {}
+        return true;
+    }
+    // Einmalige Migration aus localStorage. Der Alt-Eintrag wird ERST entfernt, wenn die
+    // IndexedDB-Kopie zurückgelesen und byteweise verglichen wurde (s. _storeKey). Scheitert
+    // irgendetwas, bleibt alles wie vorher — lieber die alte Ablage als kein Schlüssel.
+    async function _migrateKeyToIdb(uid) {
+        var u = uid || _userId();
+        if (!u) return;
+        if (typeof indexedDB === 'undefined') return;   // nichts, wohin migriert werden könnte
+        var legacy = null;
+        try { legacy = localStorage.getItem(LS_KEY(u)); } catch (e) { return; }
+        if (!legacy) return;
+        try {
+            var bytes = _unb64(legacy);
+            if (bytes.length !== 32) return;
+            await _storeKey(u, bytes);
+            localStorage.removeItem(LS_KEY(u));
+            console.info('[CloudSync] Sync-Schlüssel nach IndexedDB migriert (R5)');
+        } catch (e) {
+            console.warn('[CloudSync] Schlüssel-Migration übersprungen:', e && e.message);
+        }
+    }
 
     // ── Base64 (chunked — verträgt MB-große Chiffrate) ────────────────────────
     function _b64(bytes) {
@@ -130,12 +252,21 @@ var CloudSync = (function () {
     function _importKey(bytes) {
         return crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
     }
+    // Der tägliche Sync-Pfad nimmt bevorzugt den nicht-extrahierbaren CryptoKey aus IndexedDB und
+    // fasst die Rohbytes gar nicht an (Fund R5). Nur wenn der noch nicht existiert (Alt-Gerät kurz
+    // vor der Migration), wird aus den Rohbytes importiert — dann ebenfalls nicht extrahierbar.
     async function _cryptoKey() {
         var uid = _userId();
         if (_cryptoKeyCache && _cryptoKeyUid === uid) return _cryptoKeyCache;
-        var bytes = _keyBytes(uid);
-        if (!bytes) throw new Error('no_key');
-        _cryptoKeyCache = await _importKey(bytes);
+        var ck = null;
+        try { if (typeof indexedDB !== 'undefined') ck = await _idbkGet(_idbkKey(uid, 'ck')); } catch (e) {}
+        if (!ck) {
+            var bytes = await _keyBytes(uid);
+            if (!bytes) throw new Error('no_key');
+            ck = await _importKey(bytes);
+            try { if (typeof indexedDB !== 'undefined') await _idbkPut(_idbkKey(uid, 'ck'), ck); } catch (e) {}
+        }
+        _cryptoKeyCache = ck;
         _cryptoKeyUid   = uid;
         return _cryptoKeyCache;
     }
@@ -628,6 +759,11 @@ var CloudSync = (function () {
         // freundlichen grünen Punkt, obwohl seit Wochen nichts mehr synchronisiert wird.
         _setDot(_hasMismatch() ? 'broken' : (_loadConflicts().length ? 'warn' : (_enabled() && _hasKey() ? 'ok' : 'off')));
         if (_inited) return; _inited = true;
+
+        // Schlüssel aus localStorage nach IndexedDB holen (Fund R5). Läuft im Hintergrund und
+        // blockiert den Start nicht: schlägt sie fehl, bleibt der Alt-Eintrag liegen und alles
+        // funktioniert wie bisher — _keyBytes() liest ihn weiter als Rückfall.
+        _migrateKeyToIdb(_userId()).catch(function () {});
         if (_hasMismatch() && typeof Utils !== 'undefined') {
             setTimeout(function () {
                 Utils.showToast('⛔ Cloud-Sync steht still: Schlüssel und Cloud-Daten passen nicht zusammen. ' +
@@ -711,14 +847,25 @@ var CloudSync = (function () {
         if (blob.updatedAt) { try { parts.push('Stand ' + new Date(blob.updatedAt).toLocaleString('de-DE')); } catch (e) {} }
         if (blob.version)  parts.push('Version ' + blob.version);
         if (blob.deviceId) parts.push('zuletzt von Gerät ' + String(blob.deviceId).slice(0, 8));
-        parts.push(blob.blobUrl ? 'ausgelagert' : Math.round((String(blob.ciphertext || '').length / 1365)) + ' KB');
+        if (blob.blobUrl) parts.push('ausgelagert');
+        else {
+            var kb = Math.round(String(blob.ciphertext || '').length * 0.75 / 1024);   // Base64 → Rohbytes
+            parts.push(kb >= 1 ? kb + ' KB' : 'unter 1 KB');
+        }
         return parts.join(' · ');
     }
 
-    function _mintKey(uid) {
+    // Legt einen neuen Schlüssel an. Async, weil die Ablage seit Fund R5 in IndexedDB liegt und
+    // _storeKey den Schreibvorgang zurückliest, bevor er Erfolg meldet — ein nur scheinbar
+    // gespeicherter Schlüssel wäre der Verlust aller künftigen Cloud-Daten.
+    async function _mintKey(uid) {
         var bytes = crypto.getRandomValues(new Uint8Array(32));
-        try { localStorage.setItem(LS_KEY(uid), _b64(bytes)); }
-        catch (e) { Utils.showToast('Schlüssel konnte nicht gespeichert werden.', 'error'); return false; }
+        try { await _storeKey(uid, bytes); }
+        catch (e) {
+            console.warn('[CloudSync] mintKey:', e && e.message);
+            Utils.showToast('Schlüssel konnte nicht gespeichert werden.', 'error');
+            return false;
+        }
         _cryptoKeyCache = null;
         _setMismatch(false);
         return true;
@@ -741,7 +888,7 @@ var CloudSync = (function () {
         // Fall 1: Dieses Gerät hat schon einen Schlüssel (z. B. nach "deaktivieren ohne
         // Schlüssel löschen") → wiederverwenden statt überschreiben. Ein neuer Schlüssel
         // würde die eigenen Cloud-Daten unlesbar machen.
-        if (_hasKey()) { showCode(true); return; }
+        if (_hasKey()) { await showCode(true); return; }
 
         Utils.showToast('Prüfe, ob für deinen Account schon Cloud-Daten existieren…', 'info', 2500);
         var probe;
@@ -758,7 +905,7 @@ var CloudSync = (function () {
         }
         if (probe.json.blob) { _showExistingData(probe.json.blob); return; }
 
-        if (_mintKey(uid)) showCode(true);
+        if (await _mintKey(uid)) await showCode(true);
     }
 
     // Es liegen bereits Cloud-Daten: der Nutzer entscheidet bewusst zwischen "verbinden"
@@ -782,8 +929,8 @@ var CloudSync = (function () {
     }
 
     // ── Code-Dialog (firstTime erzwingt Bestätigung) ──────────────────────────
-    function showCode(firstTime) {
-        var bytes = _keyBytes();
+    async function showCode(firstTime) {
+        var bytes = await _keyBytes();
         if (!bytes) { Utils.showToast('Kein Schlüssel auf diesem Gerät.', 'warning'); return; }
         var code   = _toB32(bytes);
         var grouped = _groupCode(code);
@@ -833,11 +980,11 @@ var CloudSync = (function () {
         document.body.appendChild(a); a.click(); a.remove();
     }
 
-    function _finishEnable() {
+    async function _finishEnable() {
         var saved = document.getElementById('syncCodeSaved');
         var conf  = document.getElementById('syncCodeConfirm');
         if (!saved || !saved.checked) { Utils.showToast('Bitte bestätige, dass du den Code gespeichert hast.', 'warning'); return; }
-        var bytes = _keyBytes(); var expected = _groupCode(_toB32(bytes)).split(' ').slice(-2).join('');
+        var bytes = await _keyBytes(); var expected = _groupCode(_toB32(bytes)).split(' ').slice(-2).join('');
         var got = (conf ? conf.value : '').toUpperCase().replace(/[^A-Z2-7]/g, '');
         if (got !== expected) { Utils.showToast('Die eingegebenen Gruppen stimmen nicht. Bitte prüfen.', 'error'); if (conf) conf.focus(); return; }
         localStorage.setItem(LS_ENABLED, '1');
@@ -1024,11 +1171,11 @@ var CloudSync = (function () {
             _wipeLocalSyncState(uid);
             localStorage.removeItem(LS_ENABLED);   // wird erst durch die Code-Bestätigung wieder gesetzt
             _setMismatch(false);
-            if (!_mintKey(uid)) return;
+            if (!(await _mintKey(uid))) return;
 
             Utils.showToast('✅ Cloud-Daten verworfen' + (blobsOk ? '' : ' (Anhang-Aufräumung folgt später)') +
                             ' — hier ist dein NEUER Wiederherstellungscode.', 'success', 9000);
-            showCode(true);
+            await showCode(true);
         } catch (e) {
             console.warn('[CloudSync] reset error:', e && e.message);
             Utils.showToast('Zurücksetzen fehlgeschlagen — bitte Internetverbindung prüfen.', 'error', 8000);
@@ -1050,7 +1197,7 @@ var CloudSync = (function () {
         }
 
         row('Angemeldet als', uid || '— nicht angemeldet —', uid ? 'ok' : 'bad');
-        var kb = _keyBytes(uid);
+        var kb = await _keyBytes(uid);
         // Nur der Fingerabdruck (letzte zwei Gruppen), nicht der ganze Schlüssel: er reicht,
         // um zwei Schlüssel zu unterscheiden, taugt aber nicht zum Mitschreiben.
         row('Schlüssel auf diesem Gerät', kb ? ('vorhanden · endet auf ' + _groupCode(_toB32(kb)).split(' ').slice(-2).join(' ')) : 'keiner', kb ? 'ok' : 'warn');
@@ -1282,7 +1429,9 @@ var CloudSync = (function () {
 
     // ── Steuerberater: fremde (Mandanten-)Daten read-only laden ───────────────
     // Rohschlüssel des aktuellen Nutzers (zum Verpacken für einen StB). Nur wenn Sync aktiv.
+    // Gibt jetzt ein Promise zurück (IndexedDB, Fund R5). Aufrufer: js/stb-share.js.
     function keyBytes() { return _keyBytes(); }
+    function hasKey() { return _hasKey(); }
 
     // Mit dem entpackten Envelope-Schlüssel die Firmen eines Mandanten pullen,
     // entschlüsseln und lokal als READ-ONLY-Client-Firmen ablegen (Registry-Merge).
@@ -1435,10 +1584,11 @@ var CloudSync = (function () {
         disableFlow: disableFlow,
         resetFlow: resetFlow,
         diagnoseFlow: diagnoseFlow,
-        showCode: function () { showCode(false); },
+        showCode: function () { return showCode(false); },
         syncNow: syncNow,
         openConflicts: openConflicts,
         keyBytes: keyBytes,
+        hasKey: hasKey,
         isHealthy: isHealthy,
         verifyAuditAnchors: verifyAuditAnchors,
         foreignLoad: foreignLoad,
@@ -1455,7 +1605,9 @@ var CloudSync = (function () {
         _downloadCode: _downloadCode,
         // Test-Oberfläche für reine Merge-/Code-Logik (siehe test-cloud-sync.js)
         _test: { mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, merge: _merge, toB32: _toB32, fromB32: _fromB32,
-            loadPendingDeletions: _loadPendingDeletions, queuePendingDeletion: _queuePendingDeletion }
+            loadPendingDeletions: _loadPendingDeletions, queuePendingDeletion: _queuePendingDeletion,
+            probeKey: _probeKey, classifyDecryptError: _classifyDecryptError,
+            hasMismatch: _hasMismatch, setMismatch: _setMismatch, encrypt: _encrypt, b64: _b64 }
     };
 })();
 if (typeof window !== 'undefined') window.CloudSync = CloudSync;
@@ -1470,7 +1622,7 @@ if (document.readyState === 'loading') {
 
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
 if (window.Actions) Actions.register({
-    'cs-show-code':      function () { CloudSync.showCode(); },
+    'cs-show-code':      function () { Promise.resolve(CloudSync.showCode()).catch(function (e) { console.warn('[CloudSync] showCode:', e && e.message); }); },
     'cs-sync-now':       function () { CloudSync.syncNow(); },
     'cs-disable':        function () { CloudSync.disableFlow(); },
     'cs-enable':         function () { Promise.resolve(CloudSync.enableFlow()).catch(function (e) { console.warn('[CloudSync] enable:', e && e.message); }); },
@@ -1479,7 +1631,7 @@ if (window.Actions) Actions.register({
     'cs-finish-reset':   function () { Promise.resolve(CloudSync._finishReset()).catch(function (e) { console.warn('[CloudSync] reset:', e && e.message); }); },
     'cs-diagnose':       function () { Promise.resolve(CloudSync.diagnoseFlow()).catch(function (e) { console.warn('[CloudSync] diagnose:', e && e.message); }); },
     'cs-copy-diagnosis': function () { CloudSync._copyDiagnosis(); },
-    'cs-finish-enable':  function () { CloudSync._finishEnable(); },
+    'cs-finish-enable':  function () { Promise.resolve(CloudSync._finishEnable()).catch(function (e) { console.warn('[CloudSync] finishEnable:', e && e.message); }); },
     'cs-copy-code':      function () { CloudSync._copyCode(); },
     'cs-download-code':  function () { CloudSync._downloadCode(); },
     'cs-finish-connect': function () { CloudSync._finishConnect(); },

@@ -266,7 +266,12 @@ var StbShare = (function () {
     // ── UI: Steuerberater einladen (Owner) ────────────────────────────────────
     function inviteFlow() {
         if (_noApp()) return;
-        if (typeof CloudSync === 'undefined' || !CloudSync.keyBytes || !CloudSync.keyBytes()) {
+        // Nur die Existenz prüfen (CloudSync.hasKey ist synchron) — die Rohbytes liegen seit
+        // Fund R5 in IndexedDB und wären nur asynchron zu holen. Für einen Vorab-Check ist das
+        // unnötig; gebraucht werden sie erst in _confirmInvite.
+        var csReady = (typeof CloudSync !== 'undefined') &&
+                      (CloudSync.hasKey ? CloudSync.hasKey() : !!(CloudSync.keyBytes && CloudSync.keyBytes()));
+        if (!csReady) {
             _toast('Aktiviere zuerst Cloud-Sync — nur dann liegen deine Daten (verschlüsselt) bereit, damit dein Steuerberater sie sehen kann.', 'warning', 6000);
             return;
         }
@@ -288,7 +293,7 @@ var StbShare = (function () {
         var code = (el ? el.value : '').trim();
         if (!code) { _toast('Bitte den Freigabe-Code eingeben.', 'warning'); return; }
         if (code === _uid()) { _toast('Das ist dein eigener Code.', 'warning'); return; }
-        var kb = CloudSync.keyBytes();
+        var kb = await CloudSync.keyBytes();
         if (!kb) { _toast('Cloud-Sync nicht aktiv.', 'warning'); return; }
         try {
             var pk = await _api({ action: 'get_pubkey', granteeId: code });
@@ -323,7 +328,7 @@ var StbShare = (function () {
     async function _confirmInvite() {
         var p = _pending;
         if (!p) { _toast('Freigabe abgelaufen — bitte erneut starten.', 'warning'); return; }
-        var kb = (typeof CloudSync !== 'undefined' && CloudSync.keyBytes) ? CloudSync.keyBytes() : null;
+        var kb = (typeof CloudSync !== 'undefined' && CloudSync.keyBytes) ? await CloudSync.keyBytes() : null;
         if (!kb) { _toast('Cloud-Sync nicht aktiv.', 'warning'); return; }
         try {
             // Gegen den bestätigten Fingerabdruck verpacken, nicht gegen einen zweiten Abruf:

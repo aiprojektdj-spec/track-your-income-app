@@ -971,7 +971,14 @@ const Buchungen = {
 
         let rows = '';
         if (allItems.length === 0) {
-            rows = '<tr><td colspan="8" class="table-empty">Keine Buchungen gefunden</td></tr>';
+            // Leerer Datenbestand ist kein Suchergebnis - s. Kommentar in js/ausgaben.js.
+            const gefiltert = Object.keys(f).some(k => f[k]);
+            rows = gefiltert
+                ? '<tr><td colspan="8" class="table-empty">Keine Buchung passt zu diesem Filter.</td></tr>'
+                : '<tr><td colspan="8" class="table-empty">Noch keine Buchungen erfasst.<br>' +
+                  '<span style="font-size:12px;">Buchungen entstehen aus Ein- und Verkäufen im Lager, aus bezahlten Rechnungen und aus dem Bank-Import.</span><br>' +
+                  `<button class="btn btn-primary btn-small" data-action="navigate" data-args='["bankimport"]' style="margin-top:12px;">` +
+                  '<i class="ti ti-building-bank"></i> Kontoauszug importieren</button></td></tr>';
         } else {
             rows = allItems.map(i => {
                 let platformBadge = '';

@@ -111,7 +111,9 @@ var Dokumente = (function() {
         });
 
         if (sorted.length === 0) {
-            html += '<tr><td colspan="8" class="table-empty">Keine Dokumente vorhanden.</td></tr>';
+            html += '<tr><td colspan="8" class="table-empty">Noch keine Rechnungen, Angebote oder Gutschriften.<br>' +
+                    '<button class="btn btn-primary btn-small" data-rech-page="rechnung-neu" data-action="rech-navigate" style="margin-top:12px;">' +
+                    '<i class="ti ti-plus"></i> Erste Rechnung schreiben</button></td></tr>';
         } else {
             sorted.forEach(function(inv) {
                 html += renderRow(inv, customerMap);

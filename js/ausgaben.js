@@ -140,7 +140,14 @@ const Ausgaben = {
 
         let rows = '';
         if (filtered.length === 0) {
-            rows = '<tr><td colspan="6" class="table-empty">Keine Ausgaben vorhanden</td></tr>';
+            // "vorhanden/gefunden" liest sich fuer den Erstnutzer wie eine fehlgeschlagene
+            // Suche - er sucht den Fehler bei sich. Leerer Datenbestand und leeres
+            // Filterergebnis brauchen deshalb verschiedene Texte, und der leere Bestand
+            // einen Hinweis auf den naechsten Schritt statt einer Sackgasse.
+            const gefiltert = !!(f._filterKategorie || f._filterVon || f._filterBis);
+            rows = gefiltert
+                ? '<tr><td colspan="6" class="table-empty">Keine Ausgabe passt zu diesem Filter.</td></tr>'
+                : '<tr><td colspan="6" class="table-empty">Noch keine Ausgaben erfasst — trag die erste oben im Formular „Neue Ausgabe“ ein.</td></tr>';
         } else {
             rows = filtered.map(e => `
                 <tr${e.storniert ? ' class="row-storniert"' : ''}>

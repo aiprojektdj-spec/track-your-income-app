@@ -48,7 +48,7 @@ const Kassenbuch = {
         let balance = anfangsbestand;
         let rows = '';
         if (filtered.length === 0) {
-            rows = '<tr><td colspan="6" class="table-empty">Keine Kassenbucheinträge vorhanden</td></tr>';
+            rows = '<tr><td colspan="6" class="table-empty">Noch keine Kassenbucheinträge — jede Bareinnahme und Barausgabe gehört hier hinein (§146 AO).</td></tr>';
         } else {
             // Tages-Gruppierung: Trennzeile + Tagessumme, sobald sich das Datum ändert (filtered ist datumssortiert)
             const dayCloseRow = (datum, ein, aus, endBalance) => `

@@ -1108,7 +1108,10 @@ function applyFilter() {
     const bar   = aktiv.filter(x=>x.zahlungsweg==='bar').reduce((a,x)=>a+(x.betragBrutto||0), 0);
 
     if (!res.length) {
-        tbl.innerHTML  = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Keine Eigenbelege gefunden.</div>';
+        tbl.innerHTML  = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Noch keine Eigenbelege.<br>'
+            + '<span style="font-size:12px;">Ein Eigenbeleg ersetzt einen fehlenden Fremdbeleg — z.B. Trinkgeld, Parkgebühr oder ein verlorener Kassenbon.</span><br>'
+            + '<button class="btn btn-primary btn-small" data-action="eb-navigate" data-page="neu" style="margin-top:12px;">'
+            + '<i class="ti ti-plus"></i> Ersten Eigenbeleg anlegen</button></div>';
         foot.innerHTML = '';
         return;
     }

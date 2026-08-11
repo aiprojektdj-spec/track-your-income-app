@@ -32,7 +32,7 @@ const Retouren = {
 
         let rows = '';
         if (filtered.length === 0) {
-            rows = '<tr><td colspan="8" class="table-empty">Keine Retouren vorhanden</td></tr>';
+            rows = '<tr><td colspan="8" class="table-empty">Noch keine Retouren erfasst — eine Retoure entsteht über „Verkauf bearbeiten“ im Lager.</td></tr>';
         } else {
             rows = filtered.map(r => {
                 const zustandBadge = r.zustand === 'Unbeschädigt'

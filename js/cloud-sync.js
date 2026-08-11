@@ -1078,8 +1078,14 @@ var CloudSync = (function () {
             } else {
                 Utils.showToast('Keine bestehenden Cloud-Daten gefunden — Sync wird neu aufgebaut.', 'info');
             }
-            // Code korrekt → lokal speichern, aktivieren
-            localStorage.setItem(LS_KEY(_userId()), _b64(bytes));
+            // Code korrekt → lokal speichern, aktivieren. Über _storeKey, damit der Schlüssel in
+            // der geprüften IndexedDB-Ablage landet (und nicht nur im localStorage-Rückfall).
+            try { await _storeKey(_userId(), bytes); }
+            catch (se) {
+                Utils.showToast('Der Schlüssel konnte auf diesem Gerät nicht gespeichert werden (' + (se && se.message || 'Fehler') +
+                                '). Ohne gespeicherten Schlüssel wäre der Sync beim nächsten Start wieder offen — bitte erneut versuchen.', 'error', 12000);
+                throw 0;
+            }
             localStorage.setItem(LS_ENABLED, '1');
             _cryptoKeyCache = null;
             _setMismatch(false);
@@ -1134,7 +1140,7 @@ var CloudSync = (function () {
     // Alle lokalen Sync-Metadaten wegräumen — Konflikt-Basis, Key-Meta, Blob-Cache und
     // Anker-Listen beziehen sich auf den verworfenen Stand. Blieben sie liegen, würde der
     // erste Sync mit dem neuen Schlüssel gegen eine Basis mergen, die es nicht mehr gibt.
-    function _wipeLocalSyncState(uid) {
+    async function _wipeLocalSyncState(uid) {
         var prefixes = ['oyi_sync_keymeta_', 'oyi_sync_base_', 'oyi_sync_blobcache_', 'oyi_sync_anchored_'];
         var doomed = [];
         for (var i = 0; i < localStorage.length; i++) {
@@ -1142,9 +1148,20 @@ var CloudSync = (function () {
             if (!k) continue;
             for (var p = 0; p < prefixes.length; p++) if (k.indexOf(prefixes[p]) === 0) { doomed.push(k); break; }
         }
-        doomed.push(LS_CONFLICTS, LS_LAST_OK, LS_PENDING_DEL, LS_ANCHOR_CHECK, LS_ERR_TOAST, LS_KEY(uid));
+        doomed.push(LS_CONFLICTS, LS_LAST_OK, LS_PENDING_DEL, LS_ANCHOR_CHECK, LS_ERR_TOAST,
+                    LS_KEY(uid), LS_KEY_PRESENT(uid));
         doomed.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
+        // Der Schlüssel liegt seit der IndexedDB-Umstellung dort, nicht mehr in localStorage —
+        // ohne dieses Aufräumen bliebe der alte, zu nichts mehr passende Schlüssel liegen.
+        await _wipeKeyStore(uid);
         _cryptoKeyCache = null; _cryptoKeyUid = null;
+    }
+    // Schlüssel restlos von diesem Gerät entfernen (IndexedDB + beide localStorage-Spuren).
+    async function _wipeKeyStore(uid) {
+        var u = uid || _userId();
+        try { localStorage.removeItem(LS_KEY(u)); localStorage.removeItem(LS_KEY_PRESENT(u)); } catch (e) {}
+        if (typeof indexedDB === 'undefined') return;
+        try { await _idbkDel(_idbkKey(u, 'raw')); await _idbkDel(_idbkKey(u, 'ck')); } catch (e) {}
     }
 
     async function _finishReset() {
@@ -1168,7 +1185,7 @@ var CloudSync = (function () {
             var blobsOk = true;
             try { blobsOk = await BlobAttachments.purgeAll(); } catch (e) { blobsOk = false; }
 
-            _wipeLocalSyncState(uid);
+            await _wipeLocalSyncState(uid);
             localStorage.removeItem(LS_ENABLED);   // wird erst durch die Code-Bestätigung wieder gesetzt
             _setMismatch(false);
             if (!(await _mintKey(uid))) return;
@@ -1567,7 +1584,13 @@ var CloudSync = (function () {
     function _finishDisable() {
         var wipe = document.getElementById('syncWipeKey');
         localStorage.removeItem(LS_ENABLED);
-        if (wipe && wipe.checked) { localStorage.removeItem(LS_KEY(_userId())); _cryptoKeyCache = null; }
+        // "Schlüssel ebenfalls löschen" muss ihn wirklich überall löschen: seit der Umstellung
+        // liegt er in IndexedDB, ein reines localStorage.removeItem hätte ihn dort stehen lassen
+        // (die Checkbox hätte also nicht gehalten, was sie verspricht).
+        if (wipe && wipe.checked) {
+            _cryptoKeyCache = null; _cryptoKeyUid = null;
+            _wipeKeyStore(_userId()).catch(function (e) { console.warn('[CloudSync] Schlüssel-Löschung:', e && e.message); });
+        }
         clearTimeout(_pushTimer);
         App.closeModal();
         _setDot('off');

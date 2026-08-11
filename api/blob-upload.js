@@ -17,6 +17,8 @@
 //   chunk  — Body = ein Teilstück (≤ MAX_CHUNK). Antwort enthält die Blob-URL des Teils.
 //   commit — JSON {chunkUrls:[...]} — fügt Teile zu einem finalen Blob zusammen, löscht die Teile.
 //   delete — JSON {urls:[...]} — löscht ein oder mehrere Blob-Objekte (Ersetzen/Art.17 DSGVO).
+//   purge  — löscht ALLE Anhänge des aufrufenden Nutzers (Gegenstück zu sync.js reset_all,
+//            wenn die URLs nur noch im unlesbaren Snapshot standen).
 //
 // Env: BLOB_READ_WRITE_TOKEN (Vercel-Blob-Store-Integration, automatisch gesetzt)
 //      + dieselben WHOP_*/KV_REST_API_*-Variablen wie api/sync.js (Auth + Rate-Limit).
@@ -24,7 +26,7 @@
 //      BLOB_BUDGET_WINDOW_SEC     (optional, Default 2592000 = 30 Tage)
 //      SYNC_OWNER_IDS             (optional — Whop-User-IDs "user_…" der Owner ohne Abo)
 // =============================================================================
-var { put, del } = require('@vercel/blob');
+var { put, del, list } = require('@vercel/blob');
 
 var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
 var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
@@ -319,6 +321,25 @@ module.exports = async function handler(req, res) {
             }
             await del(rawUrls, { token: process.env.BLOB_READ_WRITE_TOKEN });
             return res.status(200).json({ ok: true, deleted: rawUrls.length });
+        }
+
+        // Gegenstück zu api/sync.js action=reset_all: wenn die Cloud-Snapshots verworfen
+        // werden, weil sie mit keinem vorhandenen Schlüssel mehr lesbar sind, kennt
+        // niemand mehr die URLs der ausgelagerten Anhänge — die standen ausschließlich IM
+        // Chiffrat. Ohne diesen Pfad blieben sie für immer im Blob-Store liegen
+        // (api/blob-cleanup.js räumt nur stackr/tmp/, nie stackr/attachments/).
+        // Gelöscht wird ausschließlich der eigene Namespace stackr/attachments/<userId>/ —
+        // userId stammt aus dem server-seitig validierten Token, nie aus dem Request-Body.
+        if (action === 'purge') {
+            var prefix = 'stackr/attachments/' + userId + '/';
+            var cursor, removed = 0, pages = 0;
+            do {
+                var page = await list({ prefix: prefix, cursor: cursor, limit: 1000, token: process.env.BLOB_READ_WRITE_TOKEN });
+                var urls = (page.blobs || []).map(function (b) { return b.url; });
+                if (urls.length) { await del(urls, { token: process.env.BLOB_READ_WRITE_TOKEN }); removed += urls.length; }
+                cursor = page.hasMore ? page.cursor : undefined;
+            } while (cursor && ++pages < 50);   // Seiten-Deckel: 50.000 Objekte reichen weit über jeden realen Bestand
+            return res.status(200).json({ ok: true, deleted: removed });
         }
 
         return res.status(400).json({ error: 'bad_action' });

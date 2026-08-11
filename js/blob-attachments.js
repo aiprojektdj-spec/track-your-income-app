@@ -110,6 +110,22 @@ var BlobAttachments = (function () {
         } catch (e) { console.warn('[BlobAttachments] delete failed:', e && e.message); return false; }
     }
 
+    // ── Alle eigenen Anhänge verwerfen (Gegenstück zu CloudSync-Reset) ─────────
+    // Nur für den Fall, dass die Cloud-Snapshots unlesbar geworden sind: dann sind die
+    // Blob-URLs nicht mehr rekonstruierbar (sie standen im Chiffrat) und der Server muss
+    // über den Präfix des authentifizierten Nutzers aufräumen. Best-effort, wirft nicht.
+    async function purgeAll() {
+        try {
+            var r = await fetch(API + '?action=purge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _token() },
+                body: '{}'
+            });
+            if (!r.ok) { console.warn('[BlobAttachments] purge failed: HTTP ' + r.status); return false; }
+            return true;
+        } catch (e) { console.warn('[BlobAttachments] purge failed:', e && e.message); return false; }
+    }
+
     // ── Base64-Data-URL ↔ rohe Bytes ───────────────────────────────────────────
     function _dataUrlToBytes(dataUrl) {
         var comma = dataUrl.indexOf(',');
@@ -221,6 +237,7 @@ var BlobAttachments = (function () {
         put: put,
         get: get,
         deleteUrls: deleteUrls,
+        purgeAll: purgeAll,
         offloadLargeFields: offloadLargeFields,
         hydrateFields: hydrateFields
     };

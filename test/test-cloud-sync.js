@@ -127,4 +127,89 @@ let pass = 0;
     pass++; console.log('✓ Fix 40: fehlgeschlagene Löschungen landen in der Retry-Queue');
 })();
 
-console.log('\n' + pass + '/7 Tests bestanden ✅');
+// 8) Schlüssel-Sackgasse (Fix 2026-08-11): Test-Entschlüsselung muss "Schlüssel passt nicht"
+//    von "Chiffrat gerade nicht ladbar" unterscheiden. Vorher endete BEIDES in der Meldung
+//    "Code falsch — Entschlüsselung fehlgeschlagen", d.h. ein Netzfehler ließ Nutzer an einem
+//    völlig korrekten Wiederherstellungscode zweifeln.
+const asyncTests = (async () => {
+    const CS = require('../js/cloud-sync.js');
+    const T2 = CS._test;
+
+    // Umgebung so herrichten, dass _encrypt/_decrypt laufen: User-ID (geht in die AAD ein)
+    // und ein echter Schlüssel im localStorage.
+    const uid = 'user_test1';
+    localStorage.setItem('whop_user', JSON.stringify({ id: uid }));
+    const keyA = crypto.getRandomValues(new Uint8Array(32));
+    const keyB = crypto.getRandomValues(new Uint8Array(32));
+    localStorage.setItem('oyi_sync_key_' + uid, T2.b64(keyA));
+
+    const enc = await T2.encrypt({ v: 1, keys: {}, meta: {} }, '__account');
+    const blob = { ciphertext: enc.ct, iv: enc.iv, version: 3, updatedAt: Date.now(), deviceId: 'dev12345' };
+
+    assert.strictEqual(await T2.probeKey(blob, keyA), 'ok', 'richtiger Schlüssel öffnet den Snapshot');
+    assert.strictEqual(await T2.probeKey(blob, keyB), 'mismatch', 'fremder Schlüssel → mismatch');
+
+    // Ausgelagertes Chiffrat, dessen Download scheitert → 'unreachable', NIE 'mismatch'
+    global.BlobAttachments = { get: async () => { throw new Error('blob_get_404'); } };
+    assert.strictEqual(await T2.probeKey({ blobUrl: 'https://x.example/c', iv: enc.iv }, keyA), 'unreachable',
+        'nicht ladbares Chiffrat wird nicht als falscher Code gemeldet');
+    // Fehlendes Feld ist ebenfalls kein Schlüsselproblem
+    assert.strictEqual(await T2.probeKey({ iv: enc.iv }, keyA), 'unreachable', 'malformierter Blob → unreachable');
+    delete global.BlobAttachments;
+
+    assert.strictEqual(T2.classifyDecryptError(new Error('blob_get_500')), 'fetch');
+    assert.strictEqual(T2.classifyDecryptError(new Error('Failed to fetch')), 'fetch');
+    assert.strictEqual(T2.classifyDecryptError(new Error('blob_malformed')), 'fetch');
+    assert.strictEqual(T2.classifyDecryptError(new Error('The operation failed for an operation-specific reason')), 'key');
+    pass++; console.log('✓ Fix: Schlüssel-Fehler vs. Ladefehler werden unterschieden');
+
+    // 9) Sackgassen-Markierung überlebt (Reload-Simulation über localStorage) und schaltet
+    //    isHealthy ab — sonst blieben die lokalen Backup-Hinweise unterdrückt, obwohl die
+    //    Cloud-Kopie unlesbar ist (einziger Ausfallpunkt ohne Warnung).
+    localStorage.setItem('oyi_sync_enabled', '1');
+    localStorage.setItem('whop_access_token', 'tok');
+    localStorage.setItem('oyi_sync_last_ok', String(Date.now()));
+    assert.strictEqual(CS.isHealthy(), true, 'ohne Sackgasse gesund');
+    T2.setMismatch(true);
+    assert.strictEqual(T2.hasMismatch(), true, 'Markierung persistiert');
+    assert.strictEqual(CS.isHealthy(), false, 'Sackgasse ⇒ nicht gesund ⇒ Backup-Hinweise erscheinen wieder');
+    T2.setMismatch(false);
+    assert.strictEqual(CS.isHealthy(), true, 'nach Behebung wieder gesund');
+    pass++; console.log('✓ Fix: Sackgassen-Markierung persistiert und deaktiviert isHealthy');
+
+    // 10) enableFlow darf niemals einen zweiten Schlüssel erzeugen, wenn schon Cloud-Daten
+    //     existieren — genau so entstand die Sackgasse (Gerät B drückt "aktivieren").
+    const modals = [];
+    global.Utils = { showToast: () => {}, escapeHtml: s => String(s) };
+    global.App = { showModal: (t) => modals.push(t), closeModal: () => {} };
+    localStorage.removeItem('oyi_sync_key_' + uid);
+    localStorage.removeItem('oyi_sync_enabled');
+    global.fetch = async () => ({ status: 200, json: async () => ({ ok: true, blob: blob }) });
+    await CS.enableFlow();
+    assert.strictEqual(localStorage.getItem('oyi_sync_key_' + uid), null,
+        'kein neuer Schlüssel, solange fremde Cloud-Daten existieren');
+    assert.ok(/schon Cloud-Daten/.test(modals[modals.length - 1] || ''), 'Nutzer bekommt die Wahl verbinden/verwerfen');
+
+    // Server nicht erreichbar → ebenfalls kein Schlüssel auf Verdacht
+    global.fetch = async () => { throw new Error('offline'); };
+    await CS.enableFlow();
+    assert.strictEqual(localStorage.getItem('oyi_sync_key_' + uid), null,
+        'ohne Serverantwort wird kein Schlüssel erzeugt');
+
+    // Leerer Account → jetzt darf ein Schlüssel entstehen
+    global.fetch = async () => ({ status: 200, json: async () => ({ ok: true, blob: null }) });
+    await CS.enableFlow();
+    const fresh = localStorage.getItem('oyi_sync_key_' + uid);
+    assert.ok(fresh, 'ohne vorhandene Cloud-Daten wird ein Schlüssel erzeugt');
+
+    // Vorhandener lokaler Schlüssel wird wiederverwendet, nicht überschrieben (der zweite Weg
+    // in die Sackgasse: deaktivieren ohne Schlüssel-Löschung, danach wieder aktivieren).
+    await CS.enableFlow();
+    assert.strictEqual(localStorage.getItem('oyi_sync_key_' + uid), fresh,
+        'bestehender Schlüssel bleibt unangetastet');
+    pass++; console.log('✓ Fix: enableFlow erzeugt nie einen zweiten Schlüssel');
+})();
+
+asyncTests.then(() => {
+    console.log('\n' + pass + '/10 Tests bestanden ✅');
+}).catch(e => { console.error('✗ FAIL', e); process.exit(1); });

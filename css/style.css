@@ -1674,6 +1674,9 @@ tbody tr:last-child td {
     transition: var(--transition);
     min-width: 120px;
     box-shadow: var(--highlight);
+    /* wird auch als <button> genutzt (First-Run-Dashboard) — Browser-Defaults zurücknehmen */
+    font-family: inherit;
+    text-align: center;
 }
 
 .quick-action:hover {

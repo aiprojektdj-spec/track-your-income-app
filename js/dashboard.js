@@ -23,7 +23,62 @@ const Dashboard = {
         document.head.appendChild(script);
     },
 
+    /** Noch keinerlei Daten erfasst — dann ist die KPI-Ansicht sinnlos (sechs 0,00-€-Kacheln
+     *  und zwei leere Diagramme direkt nach dem Onboarding). Bewusst über alle Jahre geprüft,
+     *  nicht nur über das gewählte: wer 2025 gebucht hat und 2026 anschaut, will die Nullen
+     *  sehen — er weiß, warum sie da stehen. */
+    _isFirstRun() {
+        if (Store.getPurchases().length || Store.getSales().length || Store.getExpenses().length) return false;
+        const rech = Store.getRechInvoices ? Store.getRechInvoices() : [];
+        return rech.length === 0;
+    },
+
+    /** Startbildschirm ohne Daten: drei konkrete nächste Schritte statt leerer Auswertung. */
+    _renderFirstRun() {
+        const firma = (Store.getSettings().firmenname || '').trim();
+        return `
+            <div class="page-header">
+                <h2>${firma ? 'Willkommen, ' + Utils.escapeHtml(firma) : 'Willkommen bei Stackr'}</h2>
+            </div>
+
+            <div class="empty-state" style="padding:32px 20px 24px;">
+                <div class="icon"><i class="ti ti-rocket"></i></div>
+                <h3>Dein Konto ist eingerichtet — jetzt fehlen nur noch Daten</h3>
+                <p style="max-width:520px;margin:0 auto;line-height:1.7;">
+                    Sobald die ersten Buchungen erfasst sind, erscheint hier deine Auswertung:
+                    Umsatz, Gewinn, offene Rechnungen und die Zahlen für EÜR und
+                    Umsatzsteuer-Voranmeldung. Womit möchtest du anfangen?
+                </p>
+            </div>
+
+            <div class="quick-actions" style="justify-content:center;margin-bottom:28px;">
+                <button class="quick-action" data-action="navigate" data-args='["rechnungen"]' style="max-width:220px;">
+                    <span class="icon"><i class="ti ti-file-invoice"></i></span>
+                    <strong style="font-size:14px;color:var(--text-primary);">Erste Rechnung schreiben</strong>
+                    <span>Kunde anlegen, Positionen erfassen, als PDF oder E-Rechnung ausgeben</span>
+                </button>
+                <button class="quick-action" data-action="navigate" data-args='["ausgaben"]' style="max-width:220px;">
+                    <span class="icon"><i class="ti ti-receipt-2"></i></span>
+                    <strong style="font-size:14px;color:var(--text-primary);">Ausgabe erfassen</strong>
+                    <span>Betriebsausgaben mit Kategorie und Beleg — Grundlage der EÜR</span>
+                </button>
+                <button class="quick-action" data-action="navigate" data-args='["bankimport"]' style="max-width:220px;">
+                    <span class="icon"><i class="ti ti-building-bank"></i></span>
+                    <strong style="font-size:14px;color:var(--text-primary);">Kontoauszug importieren</strong>
+                    <span>CAMT.053, MT940 oder CSV aus dem Online-Banking</span>
+                </button>
+            </div>
+
+            <p style="text-align:center;color:var(--text-muted);font-size:12.5px;line-height:1.7;">
+                Lieber erst verstehen, wie Buchhaltung funktioniert?
+                <button class="btn btn-small" data-action="navigate" data-args='["akademie"]' style="margin-left:6px;">Zur Akademie</button>
+            </p>
+        `;
+    },
+
     render() {
+        if (this._isFirstRun()) return this._renderFirstRun();
+
         const year = this._selectedYear;
         const startDate = `${year}-01-01`;
         const endDate   = `${year}-12-31`;
@@ -296,6 +351,10 @@ const Dashboard = {
     init() {
         // Bezahlte Rechnungen immer synchronisieren wenn Dashboard geöffnet wird
         Store.autoSyncInvoices();
+
+        // First-Run-Ansicht hat weder Chart-Container noch Jahreswähler. ApexCharts (~600 KB)
+        // hier gar nicht erst nachladen — es gäbe nichts zu zeichnen.
+        if (this._isFirstRun()) return;
 
         // Akademie-Achievements bei jedem Dashboard-Aufruf prüfen
         if (typeof Akademie !== 'undefined' && Akademie.checkNewAchievements) {

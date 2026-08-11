@@ -553,8 +553,17 @@ var AuthUI = (function () {
             '<button id="whopLoginBtn" data-action="wa-login" style="width:100%;padding:14px;background:var(--accent,#10b981);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:15px;font-weight:700;letter-spacing:-.2px;margin-bottom:12px;">',
             'Mit Whop anmelden',
             '</button>',
+            // Bis 2026-08-11 war das der einzige Bildschirm der App ohne jede Verkaufsaussage —
+            // und der, den jeder Wiederkehrer und jeder Local-Umsteiger als erstes sieht.
+            // Der Trial gehoert zum Monatsplan (derselbe plan_-Link wie auf der Landingpage).
+            '<ul style="list-style:none;padding:0;margin:0 0 18px;text-align:left;color:var(--text-muted,#888);font-size:12.5px;line-height:1.9;">',
+            '<li>Rechnungen, EÜR, USt-Voranmeldung &amp; DATEV-Export</li>',
+            '<li>E-Rechnung (XRechnung) ohne Aufpreis</li>',
+            '<li>Deine Daten bleiben lokal — Cloud-Sync optional und Ende-zu-Ende-verschlüsselt</li>',
+            '</ul>',
             '<p style="color:var(--text-muted,#666);font-size:12px;margin:0;line-height:1.6;">',
-            'Noch kein Zugang? <a href="' + WHOP_PURCHASE_URL + '" target="_blank" rel="noopener" style="color:var(--accent,#10b981);text-decoration:none;font-weight:600;">Stackr Pro kaufen</a>',
+            'Noch kein Zugang? <a href="' + WHOP_PURCHASE_URL + '" target="_blank" rel="noopener" style="color:var(--accent,#10b981);text-decoration:none;font-weight:600;">7 Tage kostenlos testen</a><br>',
+            'Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung · danach ' + PRICE_MONTHLY + ' €/Monat',
             '</p>',
             '</div>'
         ].join('');
@@ -579,7 +588,10 @@ var AuthUI = (function () {
             '<div style="font-size:40px;color:var(--accent,#10b981);margin-bottom:12px;line-height:1;">◆</div>',
             '<h2 style="color:var(--text-primary,#fff);font-size:21px;margin:0 0 8px;font-weight:800;">Stackr Pro aktivieren</h2>',
             '<p style="color:var(--text-muted,#888);font-size:13.5px;margin:0 0 6px;line-height:1.6;">',
-            'Hallo <strong style="color:var(--text-secondary,#ccc);">' + _esc(name) + '</strong>, du hast aktuell kein aktives Abo.',
+            // "du hast kein aktives Abo" las sich fuer Interessenten wie eine Rechnung statt wie
+            // ein Angebot. Der Endpunkt liefert nur has_access (kein "hatte je eine Membership"),
+            // deshalb ein Text, der fuer Neukunden und Rueckkehrer gleichermassen stimmt.
+            'Hallo <strong style="color:var(--text-secondary,#ccc);">' + _esc(name) + '</strong>, für Stackr Pro brauchst du ein aktives Abo. Neu hier? Die ersten 7 Tage sind kostenlos.',
             '</p>',
             '<p style="color:var(--text-muted,#777);font-size:12px;margin:0 0 22px;line-height:1.6;">Deine Daten bleiben lokal gespeichert — nach der Zahlung wirst du beim Zurückwechseln zu diesem Tab automatisch erkannt.</p>',
 
@@ -599,7 +611,12 @@ var AuthUI = (function () {
             '<span style="color:var(--text-primary,#fff);font-size:15px;font-weight:700;">Monatlich</span>',
             '<span style="color:var(--text-primary,#fff);font-size:15px;font-weight:800;">' + PRICE_MONTHLY + ' €<span style="font-size:11px;color:var(--text-muted,#888);font-weight:500;">/Monat</span></span>',
             '</div>',
-            '<div style="color:var(--text-muted,#888);font-size:11.5px;margin-top:3px;">jederzeit kündbar</div>',
+            // Trial-Hinweis bewusst nur an der Monatskarte: sie zeigt auf denselben Whop-Plan
+            // (plan_iR6YIKLcychSZ) wie die Trial-CTAs der Landingpage. Fuer den Jahresplan
+            // (plan_b5IBQ1lecggOT) ist die Testphase im Code nicht nachweisbar — lieber keine
+            // Aussage als eine falsche.
+            '<div style="color:var(--accent,#10b981);font-size:11.5px;margin-top:3px;font-weight:600;">Erste 7 Tage kostenlos</div>',
+            '<div style="color:var(--text-muted,#888);font-size:11.5px;margin-top:2px;">Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung · jederzeit kündbar</div>',
             '</a>',
 
             '<button data-action="wa-logout" style="background:none;border:none;color:var(--text-muted,#888);cursor:pointer;font-size:13px;width:100%;padding:6px 0;">',

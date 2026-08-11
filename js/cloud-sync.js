@@ -481,8 +481,10 @@ var CloudSync = (function () {
         } catch (e) {
             console.warn('[CloudSync] sync error:', e && e.message);
             _setDot('err');
-            if (e && e.message === 'pro_required' && typeof Utils !== 'undefined') Utils.showToast('Cloud-Sync ist ein Pro-Feature.', 'warning');
-            else if (e && e.message === 'scope_limit' && typeof Utils !== 'undefined')
+            if (typeof Utils === 'undefined') { /* kein UI verfügbar */ }
+            else if (e && e.userMessage)              Utils.showToast(e.userMessage, 'warning', 8000);
+            else if (e && e.message === 'pro_required') Utils.showToast('Cloud-Sync ist ein Pro-Feature.', 'warning');
+            else if (e && e.message === 'scope_limit')
                 Utils.showToast('Cloud-Sync: Grenze für gesicherte Firmen erreicht. Lösche in den Einstellungen die Cloud-Daten von Firmen, die du nicht mehr brauchst.', 'warning', 8000);
         } finally {
             _running = false;

@@ -20,6 +20,9 @@
 //
 // Env: BLOB_READ_WRITE_TOKEN (Vercel-Blob-Store-Integration, automatisch gesetzt)
 //      + dieselben WHOP_*/KV_REST_API_*-Variablen wie api/sync.js (Auth + Rate-Limit).
+//      BLOB_MAX_BYTES             (optional, Default 10 GB — Byte-Budget je Nutzer und Fenster)
+//      BLOB_BUDGET_WINDOW_SEC     (optional, Default 2592000 = 30 Tage)
+//      SYNC_OWNER_IDS             (optional — Whop-User-IDs "user_…" der Owner ohne Abo)
 // =============================================================================
 var { put, del } = require('@vercel/blob');
 
@@ -111,6 +114,48 @@ var SCOPE_RE         = /^(__account|co_[a-z0-9_]+)$/;
 var MAX_CHUNKS_PER_COMMIT = Math.ceil(MAX_TOTAL_BYTES / MAX_CHUNK) + 8; // 200MB/4MB=50 → 58
 var BLOB_HOST_RE     = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i;
 
+// ── Byte-Budget pro Nutzer (Fund R6, Red-Team-Audit 2026-08-10) ──────────────────────────
+// RATE_MAX=120 Requests/Minute à MAX_CHUNK=4 MB sind 480 MB/Minute ≈ 28 GB/Stunde pro
+// zahlendem Account. MAX_TOTAL_BYTES deckelt nur EINE zusammengesetzte Datei (200 MB), nicht
+// die Summe — und api/blob-cleanup.js räumt ausschließlich stackr/tmp/, mit action=put
+// hochgeladene Anhänge bleiben dauerhaft liegen.
+//
+// Deshalb ein gleitendes Fenster statt eines Lebenszeit-Kontos: ein Lebenszeit-Deckel ohne
+// Gegenbuchung beim Löschen würde einen echten Vielnutzer irgendwann dauerhaft aussperren, und
+// eine Gegenbuchung gibt es nicht, weil Anhänge nie automatisch gelöscht werden. 10 GB in
+// 30 Tagen ist für eine Belegverwaltung sehr großzügig und begrenzt den Angreifer von
+// ~670 GB/Tag auf 10 GB/Monat.
+//
+// Gezählt werden put und chunk, also die tatsächlich durch die API geschobenen Bytes. commit
+// zählt NICHT mit: die zusammengesetzte Datei ist genau die Summe der Chunks, die schon
+// gezählt wurden — sonst wäre jeder Chunk-Upload doppelt gebucht.
+//
+// action=delete schreibt dem Budget NICHTS zurück, obwohl es verlockend wäre: bei einem
+// gleitenden Fenster wäre das ein Bypass. Wer 10 GB hochlädt, 30 Tage wartet (Zähler ist per
+// TTL weg) und dann löscht, hätte einen Zähler von -10 GB und damit das doppelte Budget.
+// Das Fenster selbst gibt das Budget ohnehin zurück, eine Gegenbuchung ist unnötig.
+var BLOB_BUDGET_BYTES  = parseInt(process.env.BLOB_MAX_BYTES || String(10 * 1024 * 1024 * 1024), 10);
+var BLOB_BUDGET_WINDOW = parseInt(process.env.BLOB_BUDGET_WINDOW_SEC || '2592000', 10); // 30 Tage
+
+// Bucht `bytes` auf das Budget. Rückgabe false = Deckel erreicht, dann wird die Buchung
+// zurückgenommen, damit ein abgelehnter Upload kein Budget verbraucht.
+// Redis-Fehler lassen den Upload durch (fail-open, wie das bestehende Rate-Limit hier und in
+// api/sync.js): ein Redis-Ausfall darf keinen zahlenden Kunden am Arbeiten hindern.
+async function chargeBlobBudget(userId, bytes) {
+    if (!REDIS_URL || !REDIS_TOKEN) return true;
+    var key = 'blob:bytes:' + userId;
+    try {
+        var total = await redisCmd(['INCRBY', key, String(bytes)]);
+        await redisCmd(['EXPIRE', key, String(BLOB_BUDGET_WINDOW), 'NX']);
+        if (Number(total) <= BLOB_BUDGET_BYTES) return true;
+        await redisCmd(['DECRBY', key, String(bytes)]);
+        return false;
+    } catch (e) {
+        console.error('[blob-upload] budget error:', e && e.message);
+        return true;
+    }
+}
+
 function pathFor(userId, scope, kind, name) {
     return 'stackr/' + kind + '/' + userId + '/' + scope + '/' + name;
 }
@@ -191,6 +236,13 @@ module.exports = async function handler(req, res) {
             var body = req.body;
             if (!Buffer.isBuffer(body)) return res.status(400).json({ error: 'bad_payload' });
             if (body.length > MAX_CHUNK) return res.status(413).json({ error: 'too_large', maxChunk: MAX_CHUNK });
+
+            // Budget VOR dem put() buchen — danach liegt das Objekt schon im Blob-Store und
+            // kostet, auch wenn wir die Antwort ablehnen (Fund R6).
+            if (!(await chargeBlobBudget(userId, body.length))) {
+                return res.status(507).json({ error: 'storage_budget', maxBytes: BLOB_BUDGET_BYTES,
+                                              windowSec: BLOB_BUDGET_WINDOW });
+            }
 
             var kind = action === 'chunk' ? 'tmp' : 'attachments';
             var name = action === 'chunk'

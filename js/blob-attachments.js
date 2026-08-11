@@ -32,9 +32,21 @@ var BlobAttachments = (function () {
     function _token() { try { return localStorage.getItem('whop_access_token') || ''; } catch (e) { return ''; } }
 
     // ── Roh-Upload (Bytes → Blob-URL), transparent gechunkt ───────────────────
+    // HTTP 507 = Byte-Budget des Nutzers erschöpft (api/blob-upload.js, Fund R6). Eigene
+    // Fehlermeldung, weil "blob_put_507" dem Nutzer nichts sagt und ein Retry hier nichts bringt —
+    // das Budget kommt erst mit dem gleitenden Fenster zurück.
+    function _budgetError(j) {
+        var gb = j && j.maxBytes ? Math.round(j.maxBytes / (1024 * 1024 * 1024)) : null;
+        var e = new Error('blob_budget');
+        e.userMessage = 'Speichergrenze für Anhänge erreicht' + (gb ? ' (' + gb + ' GB)' : '') +
+                        '. Lösche nicht mehr benötigte Anhänge oder warte, bis das Zeitfenster weiterläuft.';
+        return e;
+    }
+
     async function put(scope, name, bytes) {
         if (bytes.length <= MAX_CHUNK) {
             var r = await _req('put', scope, { name: name }, bytes);
+            if (r.status === 507) throw _budgetError(r.json);
             if (!r.ok) throw new Error('blob_put_' + r.status);
             return r.json.url;
         }
@@ -42,6 +54,7 @@ var BlobAttachments = (function () {
         for (var i = 0, idx = 0; i < bytes.length; i += MAX_CHUNK, idx++) {
             var piece = bytes.subarray(i, Math.min(i + MAX_CHUNK, bytes.length));
             var cr = await _req('chunk', scope, { uploadId: uploadId, index: idx }, piece);
+            if (cr.status === 507) throw _budgetError(cr.json);
             if (!cr.ok) throw new Error('blob_chunk_' + cr.status);
             chunkUrls.push(cr.json.url);
         }

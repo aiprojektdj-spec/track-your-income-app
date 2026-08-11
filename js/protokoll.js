@@ -28,6 +28,17 @@ const Protokoll = {
 
         filtered.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
 
+        // Fund T4: Einträge mit erkanntem Uhr-Rücksprung (Store._clockBackFlag) und Zustand des
+        // externen Zeitnachweises. CloudSync fehlt in Local 1.7 ganz — deshalb Existenzprüfung.
+        //
+        // isHealthy() statt eines bloßen "eingeschaltet"-Flags: nur ein frischer, konfliktfreier
+        // Sync belegt, dass tatsächlich verankert WIRD. Dieselbe Schwelle nutzen die
+        // Backup-Hinweise — ein "aktiv" zu behaupten, während seit Wochen nichts hochging, wäre
+        // hier besonders schädlich, weil daran die Beweiskraft der Zeitstempel hängt.
+        const clockBackCount = log.filter(e => e && e._clockBack).length;
+        const anchorActive = (typeof CloudSync !== 'undefined' && CloudSync.isHealthy)
+            ? !!CloudSync.isHealthy() : false;
+
         const actionLabel = (a) => {
             const map = { erstellt: 'Erstellt', bearbeitet: 'Bearbeitet', storniert: 'Storniert',
                 status_geaendert: 'Status geaendert', import: 'Import', loeschung: 'Loeschung', bezahlt: 'Bezahlt' };
@@ -80,6 +91,30 @@ const Protokoll = {
                     <strong>GoBD-Hinweis:</strong> Dieses Aenderungsprotokoll dokumentiert alle Erstellungen, Bearbeitungen und Stornierungen.
                     Eintraege koennen nicht geloescht oder veraendert werden. Jeder Eintrag besitzt eine Pruefsumme zur Integritaetssicherung.
                     <br><strong>Eintraege gesamt:</strong> ${log.length} | <strong>Gefiltert:</strong> ${filtered.length}
+                    ${clockBackCount ? `<br><span style="color:var(--danger);"><strong>⚠ ${clockBackCount} Eintrag/Einträge</strong>
+                        wurden angelegt, während die Systemuhr hinter dem vorherigen Eintrag lag — die Zeitstempel dort sind
+                        nicht belastbar. Reihenfolge und Inhalt sind es weiterhin (Hash-Kette).</span>` : ''}
+                </div>
+            </div>
+
+            <!-- Fund T4 (Steuer-Vergleich 2026-08-10): Der Zeitstempel stammt aus der Systemuhr des
+                 Geräts. Die Hash-Kette verkettet Inhalte, nicht Zeiten — sie beweist die Reihenfolge,
+                 nicht die Uhrzeit. Der externe Cloud-Anker ist die einzige Instanz, die ein Datum
+                 unabhängig vom Gerät bezeugt, und er ist opt-in. Das gehört hier offen hingeschrieben,
+                 statt als stille Option zu existieren. -->
+            <div class="card" style="margin-bottom:20px;border:1px solid var(${anchorActive ? '--success' : '--warning'});">
+                <div style="padding:1rem;font-size:13px;line-height:1.55;">
+                    <strong>${anchorActive ? '✓ Externer Zeitnachweis aktiv' : 'Beweiskraft der Zeitstempel'}</strong><br>
+                    ${anchorActive
+                        ? `Cloud-Sync ist aktiv: die Prüfsummen deiner Protokolleinträge werden zusätzlich
+                           mit einem <strong>serverseitigen</strong> Zeitstempel verankert. Damit ist eine
+                           nachträgliche Änderung auch dann erkennbar, wenn sie auf diesem Gerät stattfindet.`
+                        : `Die Zeitstempel im Protokoll kommen von der <strong>Uhr dieses Geräts</strong>. Die
+                           Hash-Kette sichert Inhalt und Reihenfolge der Einträge, aber keine Uhrzeit — ohne
+                           externen Zeugen ist die Kette nur <strong>geräteintern</strong> beweiskräftig.
+                           Der <strong>Cloud-Anker</strong> schließt das: er hinterlegt zu jedem Eintrag einen
+                           Prüfsummen-Zeitstempel auf dem Server, den dieses Gerät nicht rückwirkend ändern kann.
+                           Zu aktivieren unter <strong>Backup &amp; Daten → Cloud-Sync</strong>.`}
                 </div>
             </div>
 
@@ -254,14 +289,27 @@ const Protokoll = {
                     } catch (e) { /* best-effort, blockiert die lokale Prüfung nicht */ }
                 }
 
-                if (issues === 0) {
-                    Utils.showToast(
-                        `✓ Integritätsprüfung bestanden — ${chainResult.total} Log-Einträge, Hash-Kette intakt${anchorMsg}`,
-                        'success'
-                    );
-                } else {
+                if (issues > 0) {
                     Utils.showToast(`Warnung: ${issues} Datensätze mit ungültiger Prüfsumme!`, 'error');
+                    return;
                 }
+
+                // Uhr-Rücksprünge (Fund T4): Kette intakt, aber mindestens ein Zeitstempel wurde
+                // vor dem seines Vorgängers angelegt. Eigene Meldung statt Erfolgsmeldung — die
+                // Kette beweist Reihenfolge und Inhalt, nicht die Uhrzeit.
+                if (chainResult.clockBack > 0) {
+                    Utils.showToast(
+                        `⚠ Hash-Kette intakt (${chainResult.total} Einträge), aber ${chainResult.clockBack} Eintrag/Einträge ` +
+                        `wurden mit einer zurückgestellten Uhr angelegt — Zeitstempel dort nicht belastbar${anchorMsg}`,
+                        'warning', 9000
+                    );
+                    return;
+                }
+
+                Utils.showToast(
+                    `✓ Integritätsprüfung bestanden — ${chainResult.total} Log-Einträge, Hash-Kette intakt${anchorMsg}`,
+                    'success'
+                );
             });
         }
 

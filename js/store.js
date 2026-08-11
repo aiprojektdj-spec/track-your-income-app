@@ -1058,14 +1058,34 @@ const Store = {
         } catch { return []; }
     },
 
+    // Uhr-Rücksprung erkennen (Fund T4, Steuer-Vergleich 2026-08-10): der Zeitstempel kommt aus
+    // new Date(), also von der Systemuhr des Nutzers. Die Hash-Kette schützt ihn NICHT — sie
+    // verkettet Inhalte, nicht Zeiten. Wer die Uhr zurückstellt, erzeugt einen rückdatierten
+    // Eintrag mit intakter Kette. Vollständig lösbar ist das in einer Local-First-App ohne
+    // Serverzwang nicht (der Cloud-Anker in api/sync.js ist die eigentliche Antwort, aber opt-in).
+    //
+    // Was ohne Server geht: auffallen lassen. Ist der neue Zeitstempel ÄLTER als der des letzten
+    // Eintrags, wird das im Eintrag vermerkt. Der Vermerk liegt innerhalb der Prüfsumme — wer ihn
+    // nachträglich entfernt, bricht die Kette und wird von verifyAuditChain() gefunden. Das
+    // verhindert Rückdatierung nicht, macht sie aber nachweisbar, statt sie stillschweigend
+    // zu akzeptieren. Angezeigt wird der Befund in js/protokoll.js.
+    _clockBackFlag(prevEntry, isoNow) {
+        if (!prevEntry || !prevEntry.timestamp) return null;
+        // 2 Sekunden Toleranz: NTP-Korrekturen und Sommerzeit-Sprünge sind kein Manipulationsindiz
+        if (new Date(isoNow).getTime() >= new Date(prevEntry.timestamp).getTime() - 2000) return null;
+        return prevEntry.timestamp;
+    },
+
     _addAuditEntry(action, entityType, entityId, oldValues, newValues, details) {
         const log = this.getAuditLog();
         // Hash-chain: prevHash = checksum of last entry (GoBD Rz.64 — Unveränderlichkeit)
         const prevEntry = log.length ? log[log.length - 1] : null;
         const prevHash  = prevEntry ? (prevEntry.checksum || '') : 'GENESIS';
+        const isoNow    = new Date().toISOString();
+        const clockBack = this._clockBackFlag(prevEntry, isoNow);
         const entry = {
             id: this.generateId(),
-            timestamp: new Date().toISOString(),
+            timestamp: isoNow,
             _dev: this._deviceId(),   // Herkunft — stabiler Sortier-Tiebreak beim Merge-Re-Chaining
             action,
             entityType,
@@ -1076,6 +1096,8 @@ const Store = {
             prevHash,  // chain link: tampering one entry breaks all subsequent prevHash checks
             checksum: ''
         };
+        // Nur setzen, wenn es tatsächlich passiert ist — sonst trüge jeder Eintrag ein leeres Feld.
+        if (clockBack) entry._clockBack = clockBack;
         entry.checksum = this._calcChecksum(JSON.stringify(entry));
         log.push(entry);
         const str = JSON.stringify(log);
@@ -1089,11 +1111,14 @@ const Store = {
     _addAuditEntriesBatch(items) {
         if (!items || !items.length) return 0;
         const log = this.getAuditLog();
-        let prevHash = log.length ? (log[log.length - 1].checksum || '') : 'GENESIS';
+        let prevEntry = log.length ? log[log.length - 1] : null;
+        let prevHash = prevEntry ? (prevEntry.checksum || '') : 'GENESIS';
         for (const it of items) {
+            const isoNow    = new Date().toISOString();
+            const clockBack = this._clockBackFlag(prevEntry, isoNow);   // s. _addAuditEntry
             const entry = {
                 id: this.generateId(),
-                timestamp: new Date().toISOString(),
+                timestamp: isoNow,
                 _dev: this._deviceId(),
                 action: it.action,
                 entityType: it.entityType,
@@ -1104,8 +1129,10 @@ const Store = {
                 prevHash,
                 checksum: ''
             };
+            if (clockBack) entry._clockBack = clockBack;
             entry.checksum = this._calcChecksum(JSON.stringify(entry));
-            prevHash = entry.checksum;   // Kettenglied für nächsten Eintrag
+            prevHash  = entry.checksum;   // Kettenglied für nächsten Eintrag
+            prevEntry = entry;            // Zeitbezug für die Uhr-Rücksprung-Prüfung des nächsten
             log.push(entry);
         }
         const str = JSON.stringify(log);
@@ -1115,11 +1142,16 @@ const Store = {
     },
 
     // Verify audit log chain integrity — returns { valid, broken, total }
+    // clockBack: Anzahl Einträge, die beim Anlegen einen Uhr-Rücksprung gesehen haben (Fund T4).
+    // Das ist KEIN gebrochener Eintrag — die Kette ist intakt, nur der Zeitstempel ist verdächtig.
+    // Deshalb getrennt gezählt und nicht in `broken` gemischt: sonst würde eine harmlose
+    // Zeitzonen-/NTP-Korrektur wie eine Manipulation aussehen.
     verifyAuditChain() {
         const log = this.getAuditLog();
-        let broken = 0;
+        let broken = 0, clockBack = 0;
         for (let i = 0; i < log.length; i++) {
             const entry = log[i];
+            if (entry && entry._clockBack) clockBack++;
             // Recompute entry checksum (excluding checksum field itself)
             const copy = Object.assign({}, entry, { checksum: '' });
             const expected = this._calcChecksum(JSON.stringify(copy));
@@ -1132,7 +1164,7 @@ const Store = {
                 if (entry.prevHash !== 'GENESIS') broken++;
             }
         }
-        return { valid: broken === 0, broken, total: log.length };
+        return { valid: broken === 0, broken, clockBack, total: log.length };
     },
 
     // Stabiler Inhalts-Hash eines Audit-Eintrags (SHA-256) — unabhängig von prevHash/checksum,

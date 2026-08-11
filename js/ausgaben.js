@@ -10,11 +10,36 @@ const Ausgaben = {
 
     // Künstlersozialabgabe (§24-§28 KSVG): Unternehmer, die nicht nur gelegentlich Aufträge an
     // freie Künstler/Publizisten vergeben (Grafik/Foto/Text für eigene Werbung, §24 Abs.2 KSVG),
-    // sind abgabepflichtig. Bagatellgrenze ist eine FREIGRENZE (§24 Abs.3 KSVG) — bei Überschreiten
-    // im Kalenderjahr wird die GESAMTE Jahressumme abgabepflichtig, nicht nur der übersteigende Teil.
+    // sind abgabepflichtig. Bagatellgrenze ist eine FREIGRENZE (§24 Abs.2 Satz 2 KSVG) — bei
+    // Überschreiten im Kalenderjahr wird die GESAMTE Jahressumme abgabepflichtig, nicht nur der
+    // übersteigende Teil.
     _KSA_KATEGORIE: 'Honorare an Künstler/Publizisten',
-    _KSA_SATZ: 0.049,          // 2026, gesunken von 5,0% (2025)
-    _KSA_BAGATELLGRENZE: 1000, // 2026, gestiegen von 700€ (2025)
+
+    // Abgabesatz UND Freigrenze sind jahresabhängig — beide waren bis 2026-08-11 als feste
+    // Konstante verdrahtet, obwohl _ksaJahressumme(year) für ein beliebiges Jahr rechnet. Folge:
+    // 2025er-Honorare wurden mit den 2026er-Werten bewertet (ein Nutzer mit 850 € Honoraren in
+    // 2025 galt als nicht abgabepflichtig, obwohl er über der damaligen 700-€-Grenze lag), und
+    // zum 1.1.2027 wäre der Satz still zu niedrig geblieben. Muster übernommen von
+    // App._getUstGrenzen (js/app.js) — dort wird die Jahresabhängigkeit seit je richtig gemacht.
+    //
+    //   Abgabesatz (Künstlersozialabgabe-Verordnung, jährlich neu):
+    //     2027      → 5,0 %   (KSA-VO 2027, BMAS Juli 2026)
+    //     2026      → 4,9 %   (einmalige Absenkung)
+    //     bis 2025  → 5,0 %   (Niveau 2023-2025)
+    //   Freigrenze (§24 Abs.2 Satz 2 KSVG, geändert durch Art. 56 Nr. 1 BEG IV):
+    //     ab 2026   → 1.000 €
+    //     2025      →   700 € (Übergangsregelung "abweichend von §24 Abs.2 Satz 2")
+    //     bis 2024  →   450 €
+    //
+    // Beim Jahreswechsel 2027/2028 muss der dann veröffentlichte Satz hier ergänzt werden; ohne
+    // neuen Eintrag rechnet Stackr mit dem letzten bekannten Wert weiter (5,0 %) — bewusst so,
+    // ein zu hoher geschätzter Satz ist besser als eine stille Unterzahlung.
+    _getKsaWerte(year) {
+        const y = parseInt(year) || new Date().getFullYear();
+        const satz      = (y === 2026) ? 0.049 : 0.050;
+        const bagatelle = (y >= 2026) ? 1000 : (y === 2025 ? 700 : 450);
+        return { satz, bagatelle, satzText: (satz * 100).toLocaleString('de-DE', { minimumFractionDigits: 1 }) + '%' };
+    },
 
     _ksaJahressumme(year) {
         return Store.getExpenses().filter(e => e.kategorie === this._KSA_KATEGORIE && (e.datum || '').startsWith(String(year)))
@@ -99,15 +124,16 @@ const Ausgaben = {
 
         const ksaJahr = new Date().getFullYear();
         const ksaSumme = this._ksaJahressumme(ksaJahr);
-        const ksaPflichtig = ksaSumme > this._KSA_BAGATELLGRENZE;
+        const ksaWerte = this._getKsaWerte(ksaJahr);
+        const ksaPflichtig = ksaSumme > ksaWerte.bagatelle;
         if (ksaSumme > 0) {
             summaryCards += `
                 <div class="card stat-card ${ksaPflichtig ? 'danger' : ''}">
                     <div class="card-label">Künstlersozialabgabe ${ksaJahr}</div>
-                    <div class="card-value">${ksaPflichtig ? Utils.formatCurrency(ksaSumme * this._KSA_SATZ) : Utils.formatCurrency(0)}</div>
+                    <div class="card-value">${ksaPflichtig ? Utils.formatCurrency(ksaSumme * ksaWerte.satz) : Utils.formatCurrency(0)}</div>
                     <div class="card-subtitle">${ksaPflichtig
-                        ? `Freigrenze überschritten (${Utils.formatCurrency(ksaSumme)} Honorare, 4,9%)`
-                        : `${Utils.formatCurrency(ksaSumme)} von ${Utils.formatCurrency(this._KSA_BAGATELLGRENZE)} Freigrenze`}</div>
+                        ? `Freigrenze überschritten (${Utils.formatCurrency(ksaSumme)} Honorare, ${ksaWerte.satzText})`
+                        : `${Utils.formatCurrency(ksaSumme)} von ${Utils.formatCurrency(ksaWerte.bagatelle)} Freigrenze`}</div>
                 </div>
             `;
         }
@@ -315,13 +341,14 @@ const Ausgaben = {
             const year = (Utils.getDateInputValue('exp_datum') || Utils.todayISO()).slice(0, 4);
             const neuerBetrag = parseFloat(document.getElementById('exp_betrag')?.value) || 0;
             const jahressumme = this._ksaJahressumme(year) + neuerBetrag;
-            const ueberGrenze = jahressumme > this._KSA_BAGATELLGRENZE;
+            const kw = this._getKsaWerte(year);
+            const ueberGrenze = jahressumme > kw.bagatelle;
             ksaHint.style.background = ueberGrenze ? 'var(--danger-bg)' : 'var(--info-bg)';
             ksaHint.style.border = `1px solid var(${ueberGrenze ? '--danger' : '--info'})`;
             ksaHint.style.color = `var(${ueberGrenze ? '--danger' : '--info'})`;
             ksaHint.innerHTML = ueberGrenze
-                ? `⚠️ Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> — übersteigt die 1.000€-Freigrenze (§24 Abs.3 KSVG). Dann ist die <strong>gesamte</strong> Jahressumme künstlersozialabgabepflichtig, nicht nur der übersteigende Teil. Voraussichtliche KSA: <strong>${Utils.formatCurrency(jahressumme * this._KSA_SATZ)}</strong> (4,9%), zusätzlich zum Honorar an die Künstlersozialkasse zu melden und zu zahlen.`
-                : `Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> von ${Utils.formatCurrency(this._KSA_BAGATELLGRENZE)} Freigrenze (§24 Abs.3 KSVG). Bemessungsgrundlage ist der Nettobetrag ohne USt. Betrifft nur Leistungen mit gestalterischem/kreativem Charakter (§25 KSVG), z.B. Grafik, Foto, Text — reine technische Ausführung ohne kreativen Spielraum fällt idR nicht darunter.`;
+                ? `⚠️ Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> — übersteigt die ${Utils.formatCurrency(kw.bagatelle)}-Freigrenze (§24 Abs.2 Satz 2 KSVG). Dann ist die <strong>gesamte</strong> Jahressumme künstlersozialabgabepflichtig, nicht nur der übersteigende Teil. Voraussichtliche KSA: <strong>${Utils.formatCurrency(jahressumme * kw.satz)}</strong> (${kw.satzText} für ${year}), zusätzlich zum Honorar an die Künstlersozialkasse zu melden und zu zahlen.`
+                : `Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> von ${Utils.formatCurrency(kw.bagatelle)} Freigrenze (§24 Abs.2 Satz 2 KSVG). Bemessungsgrundlage ist der Nettobetrag ohne USt. Betrifft nur Leistungen mit gestalterischem/kreativem Charakter (§25 KSVG), z.B. Grafik, Foto, Text — reine technische Ausführung ohne kreativen Spielraum fällt idR nicht darunter.`;
         };
         if (katSel) katSel.addEventListener('change', updateKsaHint);
         const betragInput = document.getElementById('exp_betrag');

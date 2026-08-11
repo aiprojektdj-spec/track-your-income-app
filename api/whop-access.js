@@ -20,7 +20,9 @@
 // Env:
 //   WHOP_ACCESS_IDS       optional, kommagetrennt — Zugangs-IDs (prod_ zuerst, biz_ als Fallback)
 //   WHOP_API_KEY          optional — Company-API-Key aktiviert den Fallback-Scan
-//   WHOP_OWNER_USERNAMES  optional, kommagetrennt — Company-Owner ohne eigenes Abo
+//   WHOP_OWNER_IDS        optional, kommagetrennt — Whop-User-IDs ("user_…") der Company-Owner
+//                         ohne eigenes Abo. BEVORZUGT, weil unveränderlich (s. _isOwner).
+//   WHOP_OWNER_USERNAMES  Altweg, nur wirksam solange WHOP_OWNER_IDS leer ist
 
 //   prod_wgVmaJg4sBVOD = "Stackr Pro" 15 €/Mon · prod_p1WHi5t65rAA6 = "Stackr" 135 €/Jahr · biz_2OEWYGlOwb8b0f = Company
 var ACCESS_IDS = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
@@ -28,8 +30,30 @@ var ACCESS_IDS = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5
 
 var WHOP_API_KEY = process.env.WHOP_API_KEY || '';
 
+// Owner-Bypass (Company-Owner haben kein eigenes Abo). Verglichen wird gegen die
+// UNVERÄNDERLICHE Whop-User-ID aus me.sub ("user_…"), konfiguriert über WHOP_OWNER_IDS.
+//
+// Der alte Weg über den Namen war umgehbar (Fund R3, Red-Team-Audit 2026-08-10): `username`
+// entstand als `me.preferred_username || me.name || …` — und `me.name` ist der ANZEIGENAME,
+// frei wählbar und nicht eindeutig. Wer bei Whop keinen Benutzernamen gesetzt hatte und
+// seinen Anzeigenamen auf den Owner-Namen setzte, bekam Vollzugriff ohne Abo.
+//
+// Übergangsverhalten, damit der Owner sich nicht selbst aussperrt: solange WHOP_OWNER_IDS
+// leer ist, gilt weiter die Namensliste — dann aber NUR gegen preferred_username (bei Whop
+// eindeutig), nie gegen den Anzeigenamen. Sobald IDs gesetzt sind, gilt ausschließlich die ID.
+// Dieselbe Logik liegt in api/sync.js und api/blob-upload.js (SYNC_OWNER_IDS) — die drei
+// Endpunkte sind eigenständige Serverless-Funktionen ohne gemeinsames Modul.
+var OWNER_IDS = (process.env.WHOP_OWNER_IDS || '')
+    .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 var OWNERS = (process.env.WHOP_OWNER_USERNAMES || 'secondlifevintage41')
     .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+
+function _isOwner(me) {
+    var sub = (me && me.sub) || '';
+    if (OWNER_IDS.length) return !!sub && OWNER_IDS.indexOf(sub) !== -1;
+    var uname = (me && me.preferred_username) || '';
+    return !!uname && OWNERS.indexOf(uname) !== -1;
+}
 
 // Offline-Grace-Token: signiert mit ECDSA P-256, Client verifiziert mit Public Key aus
 // js/whop-auth.js (crypto.subtle.verify). Ersetzt den alten reinen localStorage-Timestamp
@@ -182,8 +206,8 @@ module.exports = async function handler(req, res) {
 
         if (!userId) return res.status(502).json({ error: 'no_user_id' });
 
-        // Owner-Bypass: Company-Owner haben kein eigenes Abo.
-        if (OWNERS.indexOf(username) !== -1) {
+        // Owner-Bypass: Company-Owner haben kein eigenes Abo (s. _isOwner oben).
+        if (_isOwner(me)) {
             return res.status(200).json({ has_access: true, user_id: userId, owner: true, grace_token: _signGraceToken(userId) });
         }
 

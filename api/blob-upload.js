@@ -30,8 +30,21 @@ var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_AP
 var ACCESS_IDS   = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
                        .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 var WHOP_API_KEY = process.env.WHOP_API_KEY || '';
+// Owner-Bypass: Vergleich gegen die UNVERÄNDERLICHE Whop-User-ID (me.sub, "user_…") aus
+// SYNC_OWNER_IDS. Der Namensweg war umgehbar (Fund R3, Red-Team-Audit 2026-08-10): `username`
+// entstand als `me.preferred_username || me.name || …`, und `me.name` ist der ANZEIGENAME —
+// frei wählbar, nicht eindeutig. Solange SYNC_OWNER_IDS leer ist, gilt weiter die Namensliste,
+// aber NUR gegen preferred_username (eindeutig), nie gegen den Anzeigenamen.
+// Identische Logik in api/sync.js und api/whop-access.js (eigenständige Funktionen).
+var OWNER_IDS    = (process.env.SYNC_OWNER_IDS || '')
+                       .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 var OWNERS       = (process.env.SYNC_OWNER_USERNAMES || 'secondlifevintage41')
                        .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+
+function isOwnerIdentity(sub, prefUsername) {
+    if (OWNER_IDS.length) return !!sub && OWNER_IDS.indexOf(sub) !== -1;
+    return !!prefUsername && OWNERS.indexOf(prefUsername) !== -1;
+}
 
 function whopGrants(obj) {
     return !!(obj && (obj.valid === true || obj.has_access === true ||
@@ -131,7 +144,10 @@ module.exports = async function handler(req, res) {
     var token = auth.indexOf('Bearer ') === 0 ? auth.slice(7) : '';
     if (!token || token.length > 4096) return res.status(401).json({ error: 'no_token' });
 
-    var userId, username;
+    // Kein Anzeigename-Fallback: prefUsername ist ausschließlich me.preferred_username, weil der
+    // Wert in die Owner-Entscheidung eingeht (s. isOwnerIdentity). Anderweitig wird er nicht
+    // gebraucht — dieser Endpunkt zeigt keinen Namen an.
+    var userId, prefUsername;
     try {
         var meRes = await fetch('https://api.whop.com/oauth/userinfo', {
             headers: { 'Authorization': 'Bearer ' + token }, signal: AbortSignal.timeout(8000)
@@ -139,14 +155,14 @@ module.exports = async function handler(req, res) {
         if (!meRes.ok) return res.status(401).json({ error: 'invalid_token' });
         var me = await meRes.json();
         userId = me.sub || me.id;
-        username = me.preferred_username || me.name || me.username || '';
+        prefUsername = me.preferred_username || '';
         if (!userId) return res.status(401).json({ error: 'no_user' });
     } catch (e) {
         console.error('[blob-upload] userinfo failed:', e);
         return res.status(502).json({ error: 'whop_unreachable' });
     }
 
-    var isOwner = OWNERS.indexOf(username) !== -1;
+    var isOwner = isOwnerIdentity(userId, prefUsername);
     if (!isOwner) {
         try {
             if (!(await whopHasAccess(token, userId))) return res.status(403).json({ error: 'pro_required' });

@@ -18,7 +18,9 @@
 //   KV_REST_API_URL / KV_REST_API_TOKEN    (Upstash REST-Endpoint + RW-Token)
 //   WHOP_ACCESS_IDS            (optional, kommagetrennt — Zugangs-IDs; Default prod_+biz_)
 //   WHOP_API_KEY               (optional — Company-API-Key aktiviert den Fallback-Scan)
-//   SYNC_OWNER_USERNAMES       (optional, kommagetrennt — Owner ohne Abo)
+//   SYNC_OWNER_IDS             (optional, kommagetrennt — Whop-User-IDs "user_…" der Owner
+//                               ohne Abo; BEVORZUGT, weil unveränderlich)
+//   SYNC_OWNER_USERNAMES       (Altweg, nur wirksam solange SYNC_OWNER_IDS leer ist)
 // =============================================================================
 
 // Variablennamen je nach Setup (manuell UPSTASH_* oder Vercel-Integration KV_*).
@@ -34,8 +36,21 @@ var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_AP
 var ACCESS_IDS   = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
                        .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 var WHOP_API_KEY = process.env.WHOP_API_KEY || '';
+// Owner-Bypass: Vergleich gegen die UNVERÄNDERLICHE Whop-User-ID (me.sub, "user_…") aus
+// SYNC_OWNER_IDS. Der Namensweg war umgehbar (Fund R3, Red-Team-Audit 2026-08-10): `username`
+// entstand als `me.preferred_username || me.name || …`, und `me.name` ist der ANZEIGENAME —
+// frei wählbar, nicht eindeutig. Solange SYNC_OWNER_IDS leer ist, gilt weiter die Namensliste,
+// aber NUR gegen preferred_username (eindeutig), nie gegen den Anzeigenamen.
+// Identische Logik in api/whop-access.js und api/blob-upload.js (eigenständige Funktionen).
+var OWNER_IDS    = (process.env.SYNC_OWNER_IDS || '')
+                       .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 var OWNERS       = (process.env.SYNC_OWNER_USERNAMES || 'secondlifevintage41')
                        .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+
+function isOwnerIdentity(sub, prefUsername) {
+    if (OWNER_IDS.length) return !!sub && OWNER_IDS.indexOf(sub) !== -1;
+    return !!prefUsername && OWNERS.indexOf(prefUsername) !== -1;
+}
 
 function whopGrants(obj) {
     return !!(obj && (obj.valid === true || obj.has_access === true ||
@@ -170,7 +185,10 @@ module.exports = async function handler(req, res) {
     }
 
     // ── 2. Token gegen Whop validieren → UserID server-seitig ableiten ────────
-    var userId, username;
+    // username dient nur der ANZEIGE (ownerName im Grant, username am Pubkey). Für die
+    // Owner-Entscheidung wird prefUsername benutzt — ohne den Anzeigenamen-Fallback, s.
+    // isOwnerIdentity().
+    var userId, username, prefUsername;
     try {
         // OIDC userinfo — identischer Endpoint wie der Client (js/whop-auth.js).
         // /v5/me lehnt OAuth-User-Tokens mit 401 ab → hier /oauth/userinfo nutzen.
@@ -182,6 +200,7 @@ module.exports = async function handler(req, res) {
         var me   = await meRes.json();
         userId   = me.sub || me.id;
         username = me.preferred_username || me.name || me.username || '';
+        prefUsername = me.preferred_username || '';
         if (!userId) return res.status(401).json({ error: 'no_user' });
     } catch (e) {
         console.error('[sync] userinfo failed:', e);
@@ -206,7 +225,7 @@ module.exports = async function handler(req, res) {
         return res.status(403).json({ error: 'readonly' });
 
     // ── 4. PRO erzwingen (server-seitig) — nur für Owner-/Schreib-Aktionen ────
-    var isOwner = OWNERS.indexOf(username) !== -1;
+    var isOwner = isOwnerIdentity(userId, prefUsername);
     if (!isOwner && !isGranteeRead) {
         try {
             // Zugangs-Check: User-Token gegen /api/v2/me/has_access, sonst Company-Key-Fallback.

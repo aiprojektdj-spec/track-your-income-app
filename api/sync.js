@@ -21,6 +21,8 @@
 //   SYNC_OWNER_IDS             (optional, kommagetrennt — Whop-User-IDs "user_…" der Owner
 //                               ohne Abo; BEVORZUGT, weil unveränderlich)
 //   SYNC_OWNER_USERNAMES       (Altweg, nur wirksam solange SYNC_OWNER_IDS leer ist)
+//   SYNC_MAX_SCOPES            (optional, Default 25 — Scopes pro Nutzer, s. claimScope)
+//   SYNC_MAX_GRANTS            (optional, Default 10 — aktive StB-Freigaben pro Owner)
 // =============================================================================
 
 // Variablennamen je nach Setup (manuell UPSTASH_* oder Vercel-Integration KV_*).
@@ -119,6 +121,38 @@ var IP_RATE_MAX  = 60;             // Requests pro Minute pro IP, VOR dem teuren
 // wird dann nur noch { blobUrl, iv, version, ... } gespeichert (siehe push unten).
 var MAX_CIPHER   = 3.5 * 1024 * 1024;
 var SCOPE_RE     = /^(__account|co_[a-z0-9_]+)$/;
+
+// ── Mengendeckel pro Nutzer (Fund R2, Red-Team-Audit 2026-08-10) ──────────────────────────
+// SCOPE_RE prüfte nur die FORM des Scopes, nicht Existenz oder Anzahl. Ein Nutzer mit einem
+// gültigen Abo konnte beliebig viele Scopes anlegen (`co_flood1`, `co_flood2`, …) und in jeden
+// bis MAX_CIPHER schreiben: bei RATE_MAX=40 Requests/Minute ~140 MB/Minute, also ~200 GB/Tag
+// dauerhaft belegter Upstash-Speicher — auf Kosten des Betreibers, für 15 €/Monat.
+//
+// Gegenmittel ist ein Zähler statt eines TTL: ein TTL auf sync:-Keys würde echte Nutzerdaten
+// wegräumen (das Backup IST der Wert). `scopes:<userId>` hält daher die Menge der belegten
+// Scopes, push/anchor müssen einen Platz belegen, delete gibt ihn wieder frei.
+//
+// 25 ist großzügig: real braucht ein Nutzer `__account` + max. 5 Firmen (Companies.MAX_COMPANIES)
+// = 6. Der Rest ist Kopfraum für Firmen, die im Laufe der Zeit gelöscht und neu angelegt wurden.
+// Damit ist der Speicher pro Nutzer auf 25 × 3,5 MB ≈ 88 MB begrenzt — ein separates Byte-Budget
+// braucht es dafür nicht. Deckt auch `anchor` mit ab (ANCHOR_MAX griff nur je Key, nicht je
+// Nutzer). Über SYNC_MAX_SCOPES/SYNC_MAX_GRANTS ohne Codeänderung anhebbar, falls ein echter
+// Kunde anläuft.
+var MAX_SCOPES   = parseInt(process.env.SYNC_MAX_SCOPES || '25', 10);
+var MAX_GRANTS   = parseInt(process.env.SYNC_MAX_GRANTS || '10', 10);
+
+// Belegt einen Scope-Platz. Reihenfolge SADD → SCARD → ggf. SREM: dadurch kann die Menge nie
+// dauerhaft über dem Deckel liegen, auch wenn zwei Requests gleichzeitig ankommen. Ein bereits
+// belegter Scope (SADD gibt 0) läuft immer durch — Bestandsdaten bleiben schreibbar, selbst wenn
+// jemand vor Einführung des Deckels mehr Scopes angelegt hatte.
+async function claimScope(userId, scope) {
+    var added = await redisCmd(['SADD', 'scopes:' + userId, scope]);
+    if (Number(added) !== 1) return true;
+    var total = await redisCmd(['SCARD', 'scopes:' + userId]);
+    if (Number(total) <= MAX_SCOPES) return true;
+    await redisCmd(['SREM', 'scopes:' + userId, scope]);
+    return false;
+}
 
 // CAS-Skript: setzt nur, wenn die gespeicherte Version == erwarteter Version.
 // Bei Konflikt wird der aktuelle Wert zurückgegeben → Client macht pull-merge-retry.
@@ -290,6 +324,11 @@ module.exports = async function handler(req, res) {
             if (!hasInline && !hasBlob) return res.status(400).json({ error: 'bad_payload' });
             if (hasInline && body.ciphertext.length > MAX_CIPHER) return res.status(413).json({ error: 'too_large', maxCipher: MAX_CIPHER });
 
+            // Scope-Platz belegen, BEVOR geschrieben wird (Fund R2) — sonst läge das Chiffrat
+            // bereits in Redis, wenn der Deckel greift.
+            if (!(await claimScope(userId, scope)))
+                return res.status(409).json({ error: 'scope_limit', maxScopes: MAX_SCOPES });
+
             var newBlob = JSON.stringify(hasInline ? {
                 ciphertext: body.ciphertext,
                 iv:         body.iv,
@@ -319,6 +358,10 @@ module.exports = async function handler(req, res) {
             // Würde sie hier mitgelöscht, könnte ein Nutzer, der Buchungen nachträglich
             // manipuliert hat, die eigene GoBD-Tamper-Evidence-Kette mit entfernen.
             await redisCmd(['DEL', key]);
+            // Scope-Platz freigeben (Fund R2): wer aufräumt, soll wieder Luft haben. Der
+            // anchorKey bleibt liegen, belegt aber keinen Platz — er ist winzig und per
+            // ANCHOR_MAX gedeckelt.
+            await redisCmd(['SREM', 'scopes:' + userId, scope]);
             return res.status(200).json({ ok: true });
         }
 
@@ -332,6 +375,10 @@ module.exports = async function handler(req, res) {
             var items = Array.isArray(body.entries) ? body.entries : [];
             if (!items.length) return res.status(400).json({ error: 'bad_payload' });
             if (items.length > 1000) return res.status(400).json({ error: 'too_many' });
+            // Auch anchor legt einen neuen Key je Scope an — ohne diesen Gate wäre der
+            // Scope-Deckel über den anchor-Pfad umgehbar (Fund R2).
+            if (!(await claimScope(userId, scope)))
+                return res.status(409).json({ error: 'scope_limit', maxScopes: MAX_SCOPES });
             var ID_RE = /^[A-Za-z0-9_-]{1,64}$/, HASH_RE = /^[A-Fa-f0-9]{64}$/;
             var rows = [];
             for (var ai = 0; ai < items.length; ai++) {
@@ -378,10 +425,28 @@ module.exports = async function handler(req, res) {
             if (!body.envelope || typeof body.envelope !== 'object') return res.status(400).json({ error: 'bad_payload' });
             var envStr = JSON.stringify(body.envelope);
             if (envStr.length > 8192) return res.status(413).json({ error: 'too_large' });
+
+            // Der Grantee muss vorher einen Public Key registriert haben (Fund R4): bisher ließ
+            // sich ein Grant blind auf eine BELIEBIGE ID setzen. Das war zweifach nutzlos-schädlich
+            // — der Envelope wäre für einen nicht existierenden Empfänger ohnehin unentpackbar,
+            // und `grantsby:<userId>` wuchs mit jedem Fantasie-Grantee weiter.
+            if (!Number(await redisCmd(['EXISTS', 'pubkey:' + gidG])))
+                return res.status(404).json({ error: 'no_pubkey' });
+
+            // Deckel auf aktive Grants pro Owner (Fund R2/R4). Ein Owner braucht selten mehr als
+            // ein bis zwei Steuerberater; ohne Deckel war `grantsby:<userId>` unbegrenzt und je
+            // Grant bis 8 KB groß. Reihenfolge wie in claimScope, damit der Deckel nie dauerhaft
+            // überschritten wird; ein bereits bestehender Grantee (SADD → 0) läuft immer durch,
+            // ein Re-Grant an denselben Steuerberater bleibt also möglich.
+            var addedG = await redisCmd(['SADD', 'grantsby:' + userId, gidG]);
+            if (Number(addedG) === 1 && Number(await redisCmd(['SCARD', 'grantsby:' + userId])) > MAX_GRANTS) {
+                await redisCmd(['SREM', 'grantsby:' + userId, gidG]);
+                return res.status(409).json({ error: 'grant_limit', maxGrants: MAX_GRANTS });
+            }
+
             var grantVal = JSON.stringify({ role: 'readonly', envelope: body.envelope, ownerName: username, createdAt: Date.now() });
             await redisCmd(['SET', 'grant:' + userId + ':' + gidG, grantVal]);
             await redisCmd(['SADD', 'grantsfor:' + gidG, userId]);
-            await redisCmd(['SADD', 'grantsby:' + userId, gidG]); // symmetrisch, für list_my_grantees
             return res.status(200).json({ ok: true });
         }
 

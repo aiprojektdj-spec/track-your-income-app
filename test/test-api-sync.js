@@ -18,9 +18,13 @@ function redisExec(cmd) {
     if (op === 'INCR')     { const v = parseInt(store.get(cmd[1]) || '0', 10) + 1; store.set(cmd[1], String(v)); return v; }
     if (op === 'EXPIRE')   return 1;
     if (op === 'EVAL')     return 'OK';
-    if (op === 'SADD')     { const s = sets.get(cmd[1]) || new Set(); s.add(cmd[2]); sets.set(cmd[1], s); return 1; }
+    // SADD muss 0 liefern, wenn das Element schon drin war — die Mengendeckel in api/sync.js
+    // (claimScope, Grant-Deckel) unterscheiden genau daran "neu" von "bestand schon".
+    if (op === 'SADD')     { const s = sets.get(cmd[1]) || new Set(); const had = s.has(cmd[2]); s.add(cmd[2]); sets.set(cmd[1], s); return had ? 0 : 1; }
     if (op === 'SREM')     { const s = sets.get(cmd[1]); if (s) s.delete(cmd[2]); return 1; }
     if (op === 'SMEMBERS') { const s = sets.get(cmd[1]); return s ? Array.from(s) : []; }
+    if (op === 'SCARD')    { const s = sets.get(cmd[1]); return s ? s.size : 0; }
+    if (op === 'EXISTS')   return (store.has(cmd[1]) || sets.has(cmd[1]) || lists.has(cmd[1])) ? 1 : 0;
     if (op === 'RPUSH')    { const l = lists.get(cmd[1]) || []; for (let i = 2; i < cmd.length; i++) l.push(cmd[i]); lists.set(cmd[1], l); return l.length; }
     if (op === 'LTRIM' || op === 'LRANGE') {
         const l = lists.get(cmd[1]) || []; let s = parseInt(cmd[2], 10), e = parseInt(cmd[3], 10);
@@ -138,5 +142,88 @@ async function call(token, body) { const res = mkRes(); await handler({ method: 
     assert.ok(r.body.anchors.length > 0, 'Anker-Kette überlebt delete (GoBD Rz. 64, Tamper-Evidence)');
     pass++; console.log('✓ delete löscht Geschäftsdaten, Anker-Kette bleibt (GoBD Rz. 64)');
 
-    console.log('\n' + pass + '/18 API-Tests bestanden ✅');
+    // ── Mengendeckel pro Nutzer (Fund R2/R4, Red-Team-Audit 2026-08-10) ──────────────────────
+    // Vorher validierte SCOPE_RE nur die FORM des Scopes: ein Nutzer mit einem 15-€-Abo konnte
+    // beliebig viele Scopes anlegen und je Scope MAX_CIPHER (3,5 MB) belegen — laut Audit
+    // ~200 GB/Tag Upstash-Speicher auf Kosten des Betreibers.
+    const MAX_SCOPES = 25, MAX_GRANTS = 10;
+
+    // Der Mock lässt EXPIRE ins Leere laufen, die Rate-Limit-Zähler verfallen also nie und die
+    // folgenden Schleifen würden nach 40 Requests in 429 laufen. resetRate() simuliert den
+    // Minutenwechsel, den echtes Redis per TTL erledigt — hier wird der Deckel getestet, nicht
+    // der Rate-Limiter.
+    const resetRate = () => {
+        for (const k of Array.from(store.keys())) {
+            if (k.indexOf('sync:rl:') === 0 || k.indexOf('sync:iprl:') === 0) store.delete(k);
+        }
+    };
+    const pushScope = async (sc) => { resetRate(); return call('tok_owner', { action: 'push', scope: sc, version: 0, iv: 'AA', ciphertext: 'X' }); };
+
+    // Bis zum Deckel auffüllen. '__account' ist durch das delete oben wieder frei, der Zähler
+    // startet also bei 0 — genau das soll delete leisten.
+    let accepted = 0, limited = null;
+    for (let i = 0; i < MAX_SCOPES + 5; i++) {
+        const rr = await pushScope('co_flood' + i);
+        if (rr.code === 200) accepted++;
+        else if (rr.body && rr.body.error === 'scope_limit') { limited = rr; break; }
+    }
+    assert.strictEqual(accepted, MAX_SCOPES, 'genau MAX_SCOPES Scopes werden angenommen, dann Stop');
+    assert.ok(limited, 'der nächste Scope wird abgelehnt');
+    assert.strictEqual(limited.code, 409);
+    assert.strictEqual(limited.body.maxScopes, MAX_SCOPES, 'Antwort nennt den Deckel');
+    pass++; console.log('✓ Scope-Deckel greift bei ' + MAX_SCOPES + ' (Speicher pro Nutzer begrenzt)');
+
+    // Schreiben in einen BESTEHENDEN Scope bleibt erlaubt — der Deckel darf niemanden aussperren,
+    // der bereits Daten liegen hat.
+    r = await pushScope('co_flood0');
+    assert.strictEqual(r.code, 200, 'bestehender Scope weiterhin beschreibbar');
+    pass++; console.log('✓ bestehende Scopes bleiben trotz erreichtem Deckel schreibbar');
+
+    // anchor darf den Deckel nicht umgehen (eigener Key je Scope)
+    resetRate();
+    r = await call('tok_owner', { action: 'anchor', scope: 'co_umgehung', entries: [{ id: 'e9', h: H }] });
+    assert.strictEqual(r.code, 409); assert.strictEqual(r.body.error, 'scope_limit', 'anchor umgeht den Deckel nicht');
+    pass++; console.log('✓ anchor-Pfad umgeht den Scope-Deckel nicht');
+
+    // delete gibt einen Platz frei → danach ist wieder genau einer zu haben
+    resetRate();
+    r = await call('tok_owner', { action: 'delete', scope: 'co_flood0' });
+    assert.strictEqual(r.code, 200);
+    r = await pushScope('co_nachraeumen');
+    assert.strictEqual(r.code, 200, 'nach delete ist wieder ein Platz frei');
+    r = await pushScope('co_nocheiner');
+    assert.strictEqual(r.code, 409, 'aber nur einer');
+    pass++; console.log('✓ delete gibt genau einen Scope-Platz frei');
+
+    // Grant nur an Grantees mit registriertem Public Key (Fund R4): vorher ließ sich ein Grant
+    // blind auf eine beliebige ID setzen und blähte grantsby:<userId> auf.
+    resetRate();
+    r = await call('tok_owner', { action: 'grant', granteeId: 'gibtEsNicht', envelope: { ephPub: {}, iv: 'i', ct: 'c' } });
+    assert.strictEqual(r.code, 404); assert.strictEqual(r.body.error, 'no_pubkey', 'Fantasie-Grantee abgelehnt');
+    pass++; console.log('✓ Grant an unbekannte ID abgelehnt (kein registrierter Pubkey)');
+
+    // Grant-Deckel pro Owner. Jeder Grantee braucht erst einen Pubkey — der Deckel ist also nur
+    // über echte, angemeldete Accounts erreichbar; getestet wird er trotzdem.
+    for (let i = 0; i < MAX_GRANTS + 2; i++) store.set('pubkey:stbX' + i, JSON.stringify({ pub: { kty: 'EC' } }));
+    let grantsOk = 0, grantLimited = null;
+    for (let i = 0; i < MAX_GRANTS + 2; i++) {
+        resetRate();
+        const rr = await call('tok_owner', { action: 'grant', granteeId: 'stbX' + i, envelope: { ephPub: {}, iv: 'i', ct: 'c' } });
+        if (rr.code === 200) grantsOk++;
+        else if (rr.body && rr.body.error === 'grant_limit') { grantLimited = rr; break; }
+    }
+    // 'stb1' wurde oben revoked, die Menge startet also leer → alle MAX_GRANTS passen rein
+    assert.strictEqual(grantsOk, MAX_GRANTS, 'genau MAX_GRANTS Freigaben werden angenommen');
+    assert.ok(grantLimited && grantLimited.code === 409, 'weiterer Grant abgelehnt');
+    assert.strictEqual(grantLimited.body.maxGrants, MAX_GRANTS, 'Antwort nennt den Deckel');
+    pass++; console.log('✓ Grant-Deckel greift bei ' + MAX_GRANTS + ' aktiven Freigaben');
+
+    // Re-Grant an einen BESTEHENDEN Steuerberater muss trotz erreichtem Deckel gehen
+    // (Schlüsselwechsel beim Owner erzeugt einen neuen Envelope für dieselbe ID).
+    resetRate();
+    r = await call('tok_owner', { action: 'grant', granteeId: 'stbX0', envelope: { ephPub: {}, iv: 'i2', ct: 'c2' } });
+    assert.strictEqual(r.code, 200, 'Re-Grant an bestehenden Grantee bleibt möglich');
+    pass++; console.log('✓ Re-Grant an bestehenden Steuerberater trotz Deckel möglich');
+
+    console.log('\n' + pass + '/25 API-Tests bestanden ✅');
 })().catch(e => { console.error('✗ FAIL', e); process.exit(1); });

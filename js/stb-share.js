@@ -330,6 +330,17 @@ var StbShare = (function () {
             // ein erneutes get_pubkey könnte einen anderen Schlüssel liefern als den geprüften.
             var env = await wrapKey(kb, p.pub);
             var g = await _api({ action: 'grant', granteeId: p.code, envelope: env });
+            // Server-Deckel seit 2026-08-11 (api/sync.js, Fund R2/R4) — beide Fälle brauchen eine
+            // Erklärung, nicht nur eine Statusnummer.
+            if (g.status === 409 && g.json && g.json.error === 'grant_limit') {
+                _toast('Du hast bereits ' + (g.json.maxGrants || 'zu viele') + ' Steuerberater freigegeben. ' +
+                       'Entziehe zuerst eine Freigabe unter „Freigaben verwalten".', 'warning', 8000);
+                return;
+            }
+            if (g.status === 404) {
+                _toast('Der Steuerberater hat sich seit der Anmeldung nicht mehr gemeldet — er muss sich einmal neu in Stackr einloggen, damit sein Schlüssel hinterlegt wird.', 'error', 7000);
+                return;
+            }
             if (g.status !== 200) { _toast('Freigabe fehlgeschlagen (' + g.status + ').', 'error'); return; }
             _pending = null;
             App.closeModal();

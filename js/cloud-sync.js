@@ -428,6 +428,12 @@ var CloudSync = (function () {
                 delete pushBody.ciphertext;
                 push = await _api(pushBody);
             }
+            // 409 heißt normalerweise Versionskonflikt → pull-merge-retry. Seit dem Scope-Deckel
+            // (api/sync.js claimScope, Fund R2) kann 409 auch "zu viele Scopes" bedeuten — das ist
+            // durch Wiederholen nicht zu heilen, drei Retries wären verschenkt und der Nutzer sähe
+            // am Ende nur "push_409".
+            if (push.status === 409 && push.json && push.json.error === 'scope_limit')
+                throw new Error('scope_limit');
             if (push.status === 409 && attempt < 3) return _syncScope(scope, isStartup, attempt + 1);
             if (push.status === 403) throw new Error('pro_required');
             if (push.status !== 200) throw new Error('push_' + push.status);
@@ -476,6 +482,8 @@ var CloudSync = (function () {
             console.warn('[CloudSync] sync error:', e && e.message);
             _setDot('err');
             if (e && e.message === 'pro_required' && typeof Utils !== 'undefined') Utils.showToast('Cloud-Sync ist ein Pro-Feature.', 'warning');
+            else if (e && e.message === 'scope_limit' && typeof Utils !== 'undefined')
+                Utils.showToast('Cloud-Sync: Grenze für gesicherte Firmen erreicht. Lösche in den Einstellungen die Cloud-Daten von Firmen, die du nicht mehr brauchst.', 'warning', 8000);
         } finally {
             _running = false;
         }

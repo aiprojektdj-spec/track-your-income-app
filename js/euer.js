@@ -1068,7 +1068,18 @@ const Euer = {
                     ['Z91', 'Gewinn (Überschuss)', z91.toFixed(2), 'Z11 - Z22 - Z46 - Z50 - Z64'],
                 ];
                 Utils.downloadCSV(rows, `elster_euer_${y}.csv`);
-                Utils.showToast('ELSTER CSV exportiert', 'success');
+                // Ein Toast beantwortete die naechste Frage nicht: ELSTER importiert keine
+                // beliebige CSV in die Anlage EUeR, die Werte muessen uebertragen werden. Ein
+                // Nicht-Steuerexperte sass hier mit einer Datei da, die er nicht einordnen kann.
+                App.showModal("Datei gespeichert — so geht's weiter", `
+                    <p style="margin:0 0 14px;line-height:1.7;">Die Datei <strong>elster_euer_${y}.csv</strong> liegt jetzt in deinem Download-Ordner.</p>
+                    <ol style="margin:0 0 14px;padding-left:20px;line-height:1.9;">
+                        <li>Bei <strong>ELSTER</strong> anmelden und die <strong>Anlage EÜR ${y}</strong> öffnen.</li>
+                        <li>Die Zeilennummern der CSV (Z11, Z22, Z46, Z50, Z64, Z91) entsprechen den Zeilennummern des Formulars — Betrag für Betrag übertragen.</li>
+                        <li>Alternativ die Datei deinem Steuerberater schicken; er kann sie direkt einlesen.</li>
+                    </ol>
+                    <p style="margin:0;font-size:12.5px;color:var(--text-muted);line-height:1.7;">Z64 ist eine Sammelzeile: sie bündelt alle Ausgabenkategorien außer Wareneinkauf, AfA und Fahrtkosten. Wenn du Personal-, Raum- oder Kfz-Kosten getrennt ausweisen musst, splitte sie im Formular auf.</p>
+                `, '<button class="btn btn-primary" data-action="close-modal">Verstanden</button>');
             });
         }
 

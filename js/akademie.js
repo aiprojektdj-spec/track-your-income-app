@@ -1956,6 +1956,21 @@ const Akademie = {
     },
 
     // ── Progress Storage ──────────────────────────────────────────────────
+    // Module, die inhaltlich am Warenhandel haengen — alle uebrigen gelten fuer jede
+    // Selbstaendigkeit. Wird nur zur Reihenfolge genutzt, nichts wird ausgeblendet.
+    HANDELS_MODULE: ['grundlagen', 'einkauf', 'listing', 'skalierung', 'kundenservice', 'social'],
+
+    /** Branche der aktiven Firma; faellt auf die Settings zurueck (Wizard schreibt beides). */
+    _branche() {
+        try {
+            if (typeof CompanyManager !== "undefined") {
+                const co = CompanyManager.getActive();
+                if (co && co.branche) return co.branche;
+            }
+        } catch (e) { /* CompanyManager optional */ }
+        try { return (Store.getSettings().branche || ""); } catch (e) { return ""; }
+    },
+
     _getProgress() {
         try {
             return JSON.parse(localStorage.getItem('akademie_progress') || '{"completedLessons":[],"unlockedAchievements":[]}');
@@ -2081,7 +2096,26 @@ const Akademie = {
         </div>`;
 
         // ── Module cards ─────────────────────────────────────────────────
-        const moduleCards = this.MODULES.map(m => {
+        // Die Landingpage verkauft an "Freelancer, GbR & Reseller", die Akademie beginnt aber
+        // mit "Grundlagen Reselling". Ein Grafikdesigner, der hier klickt, schliesst daraus,
+        // dass die App nicht fuer ihn ist — dabei sind acht der dreizehn Module
+        // branchenneutral (Steuer, KV, AfA, Mindset, Verkaufspsychologie ...). Statt Inhalte
+        // zu verstecken: fuer Nicht-Handelsbranchen die neutralen Module nach vorn sortieren
+        // und ehrlich benennen, worauf der Rest zugeschnitten ist.
+        const branche = this._branche();
+        const istHandel = !branche || branche === 'Reselling' || branche === 'E-Commerce';
+        const modules = istHandel
+            ? this.MODULES
+            : this.MODULES.slice().sort((a, b) =>
+                (this.HANDELS_MODULE.includes(a.id) ? 1 : 0) - (this.HANDELS_MODULE.includes(b.id) ? 1 : 0));
+        const brancheHinweis = istHandel ? '' : `
+            <div class="akademie-tip" style="margin:0 0 14px;">
+                Dein Profil steht auf <strong>${Utils.escapeHtml(branche)}</strong>. Die Module zu Steuer,
+                Krankenversicherung, AfA und Unternehmertum gelten fuer jede Selbstaendigkeit und stehen
+                deshalb oben. Die unteren Module (Einkauf, Listing, Skalierung, Kundenservice) sind auf
+                Warenhandel zugeschnitten &mdash; lesenswert, wenn du nebenbei Ware verkaufst, sonst ueberspringbar.
+            </div>`;
+        const moduleCards = modules.map(m => {
             const done = m.lessons.filter(l => progress.completedLessons.includes(l.id)).length;
             const pct  = m.lessons.length > 0 ? Math.round(done / m.lessons.length * 100) : 0;
             const isComplete   = done === m.lessons.length;
@@ -2151,6 +2185,7 @@ const Akademie = {
                 <h3 style="margin:0;font-size:17px;font-weight:700;">Lernpfad</h3>
                 <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">${this.MODULES.length} Module</span>
             </div>
+            ${brancheHinweis}
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:26px;">
                 ${moduleCards}
             </div>

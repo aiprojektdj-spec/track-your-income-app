@@ -3,19 +3,149 @@
 // ============================================
 const Steuertermine = {
 
+    // ── Feiertage und Werktagsverschiebung (§108 Abs. 3 AO) ──────────────────
+    // Fällt das Ende einer Frist auf Samstag, Sonntag oder gesetzlichen Feiertag, endet sie erst
+    // am nächsten Werktag. Vorher zeigte das Modul stur den 10., obwohl z.B. der 10.01.2026 ein
+    // Samstag ist — gesetzliche Frist war der 12.01. (Fund T3, Steuer-Vergleich 2026-08-10).
+    //
+    // Bewusst NUR bundesweite Feiertage. §108 Abs. 3 AO stellt auf den Feiertag am Ort des
+    // Finanzamts ab, und die Länderfeiertage (Fronleichnam, Reformationstag, Allerheiligen,
+    // Heilige Drei Könige …) gelten regional unterschiedlich. Ein nicht berücksichtigter
+    // Länderfeiertag lässt die Anzeige zu FRÜH sein — harmlos. Ein zu Unrecht verschobener
+    // Termin würde den Nutzer zu spät abgeben lassen. Die Richtung ist also Absicht.
+    _osterSonntag(year) {
+        // Gauß'sche Osterformel (gregorianisch)
+        const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+        const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+        const g = Math.floor((b - f + 1) / 3);
+        const h = (19 * a + b - d - g + 15) % 30;
+        const i = Math.floor(c / 4), k = c % 4;
+        const l = (32 + 2 * e + 2 * i - h - k) % 7;
+        const m = Math.floor((a + 11 * h + 22 * l) / 451);
+        const monat = Math.floor((h + l - 7 * m + 114) / 31);   // 3 = März, 4 = April
+        const tag   = ((h + l - 7 * m + 114) % 31) + 1;
+        return new Date(Date.UTC(year, monat - 1, tag));
+    },
+    _feiertage(year) {
+        const iso = (d) => d.toISOString().slice(0, 10);
+        const plus = (d, n) => new Date(d.getTime() + n * 86400000);
+        const o = this._osterSonntag(year);
+        return new Set([
+            `${year}-01-01`,          // Neujahr
+            iso(plus(o, -2)),         // Karfreitag
+            iso(plus(o, 1)),          // Ostermontag
+            `${year}-05-01`,          // Tag der Arbeit
+            iso(plus(o, 39)),         // Christi Himmelfahrt
+            iso(plus(o, 50)),         // Pfingstmontag
+            `${year}-10-03`,          // Tag der Deutschen Einheit
+            `${year}-12-25`, `${year}-12-26`
+        ]);
+    },
+    _naechsterWerktag(isoDatum) {
+        let d = new Date(isoDatum + 'T00:00:00Z');
+        let feiertage = this._feiertage(d.getUTCFullYear());
+        for (let guard = 0; guard < 10; guard++) {
+            const wd = d.getUTCDay();                       // 0 = So, 6 = Sa
+            const iso = d.toISOString().slice(0, 10);
+            if (wd !== 0 && wd !== 6 && !feiertage.has(iso)) return iso;
+            d = new Date(d.getTime() + 86400000);
+            // Jahreswechsel: Feiertagsliste nachziehen (10.01. kann nie so weit laufen, aber
+            // 26.12. + Wochenende landet im Januar)
+            if (d.getUTCFullYear() !== (new Date(iso + 'T00:00:00Z')).getUTCFullYear()) {
+                feiertage = this._feiertage(d.getUTCFullYear());
+            }
+        }
+        return isoDatum;   // Notausgang, sollte nie greifen
+    },
+
+    // ── UStVA-Termine aus dem eingestellten Rhythmus erzeugen ────────────────
+    // Vorher waren vier Quartalstermine hart gelistet. Wer monatlich voranmelden muss (Vorjahres-
+    // Zahllast über 7.500 €, §18 Abs. 2 UStG, oder Gründungsjahr/Folgejahr), bekam damit acht
+    // fehlende Fristen im Jahr — und das trifft genau die wachsenden Nutzer. Quelle für Rhythmus
+    // und Dauerfristverlängerung sind dieselben Einstellungen, die js/ustvoranmeldung.js benutzt.
+    _ustTermine(year) {
+        const s = (typeof Store !== 'undefined' && Store.getSettings) ? Store.getSettings() : {};
+        // Kleinunternehmer nach §19 UStG geben keine Voranmeldung ab — Termine wären falsch.
+        if ((s.ustMode || 'klein') !== 'regel') return [];
+
+        const monatlich = (s.ustVaPeriodenTyp || 'quartal') === 'monat';
+        const dauerfrist = !!s.ustDauerfristverlaengerung;
+        const versatz = dauerfrist ? 2 : 1;               // Monate nach Periodenende (§46 UStDV)
+        const zusatz = dauerfrist ? ' (inkl. Dauerfristverlängerung)' : '';
+        const out = [];
+
+        // Abgabetermin = 10. des Monats (Periodenende + versatz). Läuft über den Jahreswechsel
+        // korrekt, weil Date die Monatsüberläufe selbst auflöst.
+        const termin = (endJahr, endMonatIdx, label, id) => {
+            const d = new Date(Date.UTC(endJahr, endMonatIdx + versatz, 10));
+            const roh = d.toISOString().slice(0, 10);
+            out.push({
+                id: id, datum: this._naechsterWerktag(roh), typ: 'ust', fix: true,
+                beschreibung: 'USt-Voranmeldung ' + label + zusatz
+            });
+        };
+
+        if (monatlich) {
+            // Dezember des Vorjahres fällt in den Januar dieses Jahres (bzw. Februar mit Dauerfrist)
+            termin(year - 1, 11, 'Dezember ' + (year - 1), 'fix_ustm12v_' + year);
+            const namen = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+                           'Juli', 'August', 'September', 'Oktober', 'November'];
+            for (let m = 0; m < 11; m++) termin(year, m, namen[m] + ' ' + year, 'fix_ustm' + (m + 1) + '_' + year);
+        } else {
+            termin(year - 1, 11, 'Q4 ' + (year - 1), 'fix_ust4y_' + year);
+            for (let q = 0; q < 3; q++) termin(year, q * 3 + 2, 'Q' + (q + 1) + ' ' + year, 'fix_ust' + (q + 1) + '_' + year);
+        }
+
+        // 1/11-Sondervorauszahlung: Voraussetzung der Dauerfristverlängerung bei MONATLICHER
+        // Voranmeldung (§47 UStDV). Bei Quartalsanmeldern gibt es sie nicht — dort ist die
+        // Verlängerung ohne Sondervorauszahlung zu haben.
+        if (dauerfrist && monatlich) {
+            out.push({
+                id: 'fix_ustsvz_' + year, datum: this._naechsterWerktag(`${year}-02-10`),
+                typ: 'ust', fix: true,
+                beschreibung: '1/11-Sondervorauszahlung anmelden und zahlen (§47 UStDV)'
+            });
+        }
+        return out;
+    },
+
+    // Lohnsteuer-Anmeldung: nur wenn tatsächlich Mitarbeiter erfasst sind (js/lohnsteuer.js).
+    // Der Rhythmus hängt an der Vorjahres-Lohnsteuer (§41a Abs. 2 EStG): über 5.000 € monatlich,
+    // über 1.080 € vierteljährlich, darunter jährlich. Diese Summe kennt Stackr nicht — deshalb
+    // wird der monatliche, also strengste Fall gezeigt und der Vorbehalt dazugeschrieben, statt
+    // eine Annahme als Gewissheit auszugeben.
+    _lohnsteuerTermine(year) {
+        let hatMitarbeiter = false;
+        try {
+            const emp = (typeof Store !== 'undefined' && Store.get) ? Store.get('lohnsteuer_employees') : null;
+            hatMitarbeiter = Array.isArray(emp) && emp.length > 0;
+        } catch (e) { /* Modul/Key nicht vorhanden → keine Termine */ }
+        if (!hatMitarbeiter) return [];
+        const out = [];
+        for (let m = 0; m < 12; m++) {
+            const d = new Date(Date.UTC(year, m, 10));
+            out.push({
+                id: 'fix_lst' + (m + 1) + '_' + year,
+                datum: this._naechsterWerktag(d.toISOString().slice(0, 10)),
+                typ: 'lohn', fix: true,
+                beschreibung: 'Lohnsteuer-Anmeldung ' + ['Dez ' + (year - 1), 'Januar', 'Februar', 'März', 'April', 'Mai',
+                              'Juni', 'Juli', 'August', 'September', 'Oktober', 'November'][m] +
+                              ' (monatlich unterstellt, §41a EStG)'
+            });
+        }
+        return out;
+    },
+
     _getFixedTermine(year) {
+        const w = (iso) => this._naechsterWerktag(iso);
         return [
-            { id: 'fix_eur_' + year,   datum: `${year}-07-31`, beschreibung: 'Steuererklärung / EÜR Vorjahr abgeben',      typ: 'steuer', fix: true },
-            { id: 'fix_pstg_' + year,  datum: `${year}-03-31`, beschreibung: 'PStTG: Jahresbericht Plattformdaten',          typ: 'pstg',   fix: true },
-            { id: 'fix_gewa_' + year,  datum: `${year}-02-15`, beschreibung: 'Gewerbesteuer-Vorauszahlung Q1',               typ: 'gewerbe', fix: true },
-            { id: 'fix_gewb_' + year,  datum: `${year}-05-15`, beschreibung: 'Gewerbesteuer-Vorauszahlung Q2',               typ: 'gewerbe', fix: true },
-            { id: 'fix_gewc_' + year,  datum: `${year}-08-15`, beschreibung: 'Gewerbesteuer-Vorauszahlung Q3',               typ: 'gewerbe', fix: true },
-            { id: 'fix_gewd_' + year,  datum: `${year}-11-15`, beschreibung: 'Gewerbesteuer-Vorauszahlung Q4',               typ: 'gewerbe', fix: true },
-            { id: 'fix_ust1_' + year,  datum: `${year}-04-10`, beschreibung: 'USt-Voranmeldung Q1 (bis 10.04.)',             typ: 'ust',    fix: true },
-            { id: 'fix_ust2_' + year,  datum: `${year}-07-10`, beschreibung: 'USt-Voranmeldung Q2 (bis 10.07.)',             typ: 'ust',    fix: true },
-            { id: 'fix_ust3_' + year,  datum: `${year}-10-10`, beschreibung: 'USt-Voranmeldung Q3 (bis 10.10.)',             typ: 'ust',    fix: true },
-            { id: 'fix_ust4y_' + year, datum: `${year}-01-10`, beschreibung: 'USt-Voranmeldung Q4 Vorjahr (bis 10.01.)',     typ: 'ust',    fix: true }
-        ];
+            { id: 'fix_eur_' + year,   datum: w(`${year}-07-31`), beschreibung: 'Steuererklärung / EÜR Vorjahr abgeben', typ: 'steuer', fix: true },
+            { id: 'fix_pstg_' + year,  datum: w(`${year}-03-31`), beschreibung: 'PStTG: Jahresbericht Plattformdaten',    typ: 'pstg',   fix: true },
+            { id: 'fix_gewa_' + year,  datum: w(`${year}-02-15`), beschreibung: 'Gewerbesteuer-Vorauszahlung Q1',         typ: 'gewerbe', fix: true },
+            { id: 'fix_gewb_' + year,  datum: w(`${year}-05-15`), beschreibung: 'Gewerbesteuer-Vorauszahlung Q2',         typ: 'gewerbe', fix: true },
+            { id: 'fix_gewc_' + year,  datum: w(`${year}-08-15`), beschreibung: 'Gewerbesteuer-Vorauszahlung Q3',         typ: 'gewerbe', fix: true },
+            { id: 'fix_gewd_' + year,  datum: w(`${year}-11-15`), beschreibung: 'Gewerbesteuer-Vorauszahlung Q4',         typ: 'gewerbe', fix: true }
+        ].concat(this._ustTermine(year)).concat(this._lohnsteuerTermine(year));
     },
 
     _ampelColor(datum) {
@@ -61,7 +191,7 @@ const Steuertermine = {
         const pstpgPflicht = Object.entries(platStats).filter(([, v]) => v.count >= 30 || v.umsatz >= 2000);
 
         const colorVars = { danger: 'var(--danger)', warning: 'var(--warning)', success: 'var(--success)' };
-        const typColors = { steuer: 'badge-info', ust: 'badge-warning', gewerbe: 'badge-neutral', pstg: 'badge-danger', svs: 'badge-warning', custom: 'badge-success' };
+        const typColors = { steuer: 'badge-info', ust: 'badge-warning', gewerbe: 'badge-neutral', pstg: 'badge-danger', svs: 'badge-warning', lohn: 'badge-info', custom: 'badge-success' };
 
         const upcomingCards = upcoming.length > 0 ? upcoming.map(t => {
             const c = this._ampelColor(t.datum);

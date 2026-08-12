@@ -20,8 +20,12 @@ die längst committet sind.
   einzige Grund, warum Local überhaupt noch eine Rolle spielt.
 - **Dieses Repo wird von mehreren Sessions gleichzeitig bearbeitet.** Das ist kein Sonderfall,
   sondern der Normalzustand. Regeln dazu in Abschnitt 5 — bitte vor dem ersten Commit lesen.
-- **Code-seitig ist das meiste fertig.** Was übrig ist, steht in Abschnitt 1 (Performance-Block,
-  drei Posten) und Abschnitt 2 (braucht den User). Der Rest wartet auf Anwalt und Whop.
+- **Code-seitig ist das meiste fertig.** Frei zu greifen sind **F2** (xlsx lazy laden) und **F6**
+  (Cloud-Sync-Krypto in den Worker), s. Abschnitt 1. Abschnitt 2 braucht den User, der Rest wartet
+  auf Anwalt und Whop.
+- **Erste Amtshandlung: `git status` und `git log --oneline -5`.** Diese Datei war schon eine
+  Viertelstunde nach dem Schreiben an einer Stelle überholt, weil eine parallele Session den
+  F1-Fix gebaut hat. Was hier als „offen" steht, kann inzwischen in Arbeit sein.
 
 ---
 
@@ -32,33 +36,34 @@ die längst committet sind.
 Quelle: [`funde-audit-09-performance-2026-08-10.md`](funde-audit-09-performance-2026-08-10.md).
 Größen sind gemessen, nicht geschätzt.
 
+> ⚠️ **F1 und F3 werden gerade gebaut** (Stand 2026-08-12, 08:5x). Eine andere Session hat
+> `eigenbelege/index.html`, `lager/index.html` und `rechnungen/index.html` uncommittet in Arbeit:
+> `defer` ist dort bereits an allen Script-Tags, `chart.min.js` ist raus. **Nicht anfassen, bevor
+> das committet ist** — sonst überschreibt ihr euch. Prüfe zuerst `git status` und `git log`.
+
 | ID | Was | Status 2026-08-12 |
 |---|---|---|
-| **F1** | `defer` an die drei Sub-Apps | **offen** |
-| **F2** | `xlsx.full.min.js` (929 KB) lazy laden | **offen** |
-| **F3** | `chart.min.js` aus `eigenbelege/` entfernen | **offen** |
+| ~~F1~~ | `defer` an die drei Sub-Apps | **in Arbeit, uncommittet** (fremde Session) |
+| ~~F3~~ | `chart.min.js` aus `eigenbelege/` entfernen | **in Arbeit, uncommittet** (fremde Session) |
+| **F2** | `xlsx.full.min.js` (929 KB) lazy laden | **offen** — `defer` ist im selben Zug dazugekommen, das ist aber nur der halbe Fix |
 | **F6** | Cloud-Sync-Krypto in einen Web Worker | **offen** |
 | F4 | `preload` ergänzen | teilweise — die zwei Fonts sind drin, `style.css`/`app.js` fehlen |
 | F5 / F7 | Tabellen per `innerHTML`, `setInterval` ohne `clear` | niedrig, erst messen |
 
-**F1 — `defer` an die Sub-Apps** 🔴 *(reine Attribut-Ergänzung, größter Einzelgewinn)*
-`app.html` ist optimiert (63 von 67 Scripts mit `defer`), die drei Sub-Apps sind es nicht.
-`eigenbelege/index.html:20-25` lädt **im `<head>` ohne `defer`**: `chart.min.js`, ApexCharts
-(~600 KB), GSAP, Notyf und Flatpickr ×2. `rechnungen/` hat ~31 blockierende Tags, `lager/` ~20.
-Danach als Stufe 2: ApexCharts dort lazy laden — `_ensureApexCharts()` in `js/dashboard.js:11` ist
-fertig und kann übernommen werden.
-
-**F2 — `xlsx.full.min.js` lazy laden** 🔴
-929 KB, die größte Datei des Projekts, lädt bei **jedem** App-Start. Gebraucht wird sie nur beim
-Excel-Import. Es gibt aktuell keinen Lazy-Loader dafür (geprüft: kein `_ensureXlsx` o.ä.).
-Muster steht mit `_ensureApexCharts()` bereit.
+**F2 — `xlsx.full.min.js` wirklich lazy laden** 🔴 *(der einzige große Performance-Posten, der
+noch frei ist)*
+929 KB, die größte Datei des Projekts. Die fremde Session hat ihr gerade `defer` gegeben — damit
+blockiert sie das Rendering nicht mehr, **geladen wird sie aber weiterhin bei jedem App-Start**.
+Gebraucht wird sie nur beim Excel-Import. Einen Lazy-Loader gibt es nicht (geprüft: kein
+`_ensureXlsx` o.ä.); das Muster steht mit `_ensureApexCharts()` in `js/dashboard.js:11` bereit.
 **Achtung beim Anfassen:** SheetJS ist nur über `cdn.sheetjs.com` beziehbar; ein `npm install xlsx`
 holt gezielt die verwundbare 0.18.5 zurück (CVE-2023-30533, CVE-2024-22363). Aktuell liegt 0.20.3
 lokal in `js/vendor/` mit SHA-256 in `js/vendor/VERSIONS.md`.
 
-**F3 — `chart.min.js` aus `eigenbelege/index.html:20`** 🟠 *(eine Zeile)*
-200 KB, dort ungenutzt. Mittelfristig prüfen, ob `js/statistiken.js` auf ApexCharts umgestellt
-werden kann — dann fällt eine von zwei Chart-Bibliotheken ganz weg.
+Stufe 2 nach F1, falls die andere Session es nicht mitnimmt: ApexCharts in den Sub-Apps lazy
+laden (~600 KB), ebenfalls über `_ensureApexCharts()`. Und mittelfristig prüfen, ob
+`js/statistiken.js` auf ApexCharts umgestellt werden kann — dann fällt eine von zwei
+Chart-Bibliotheken ganz weg.
 
 **F6 — Cloud-Sync: Web Worker** 🔴
 Der komplette Blob wird immer übertragen, und AES-GCM läuft im Main-Thread (geprüft: kein

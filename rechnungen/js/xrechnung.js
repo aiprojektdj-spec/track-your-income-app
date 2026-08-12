@@ -1,7 +1,16 @@
 // ============================================================
-// XRechnung / ZUGFeRD XML Generator
+// XRechnung-Generator (Standalone-XML)
 // Standard: EN 16931 — UN/CEFACT CII D16B (XRechnung 3.0)
 // B2B-Empfangspflicht seit 01.01.2025 (§14 UStG i.V.m. WCG)
+//
+// AUSDRUECKLICH KEIN ZUGFeRD: Der Kopf dieser Datei nannte bis 2026-08-12 auch
+// ZUGFeRD, erzeugt wird aber eine reine XML-Datei. ZUGFeRD/Factur-X ist ein
+// PDF/A-3-Dokument mit eingebetteter CII-XML — die XML-Syntax ist dieselbe, das
+// Ausgabeformat nicht. Stackr hat keine PDF-Bibliothek (PDFs entstehen ueber den
+// Druckdialog des Browsers), kann also kein PDF/A-3 schreiben.
+// Auf der EMPFANGSSEITE ist ZUGFeRD dagegen vollstaendig unterstuetzt, inklusive
+// XML-Extraktion aus dem PDF (rechnungen/js/erechnung-import.js).
+// Rahmen fuer eine moegliche Ausgabeseite: plan/erechnung-zugferd-2026-08-12.md
 // ============================================================
 var XRechnung = (function () {
 

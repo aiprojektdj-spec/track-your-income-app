@@ -2,7 +2,7 @@
 
 **Fund:** G4 aus [`funde-audit-03-feature-gap-2026-08-10.md`](funde-audit-03-feature-gap-2026-08-10.md)
 **Entscheidung des Betreibers (2026-08-12):** bauen — erst diese Spezifikation, dann der Code.
-**Status:** Spezifikation fertig · Umsetzung offen, **eine Freigabe fehlt** (Abschnitt 7)
+**Status:** Spezifikation fertig · **Freigabe erteilt** (Abschnitt 7) · Umsetzung offen, auf eigene Session vertagt
 
 ---
 
@@ -127,6 +127,19 @@ dem Muster von `Dashboard._ensureApexCharts()`. Danach bleibt der Worker für we
 derselben Sitzung stehen.
 
 ## 7. Offene Freigabe
+
+**Beantwortet am 2026-08-12 durch den Betreiber: ja, aber nur auf den App-Routen.**
+
+`script-src` wird um `'wasm-unsafe-eval'` erweitert — ausschließlich auf `/app.html` und
+`/eigenbelege`. Landing, Rechtstexte und `/api/*` behalten die harte CSP unverändert.
+
+**Wichtig für die Umsetzung:** Die Direktive wird *zusammen mit* dem OCR-Code gesetzt, nicht
+vorher. Eine Aufweichung ohne das Feature, das sie rechtfertigt, wäre reiner Verlust. Zu setzen
+ist sie an beiden Stellen, an denen die CSP steht: im `<meta>`-Tag der jeweiligen HTML-Datei
+**und** im HTTP-Header in `vercel.json` — Browser werten mehrere CSPs als Schnittmenge, eine
+vergessene Stelle blockiert also weiterhin.
+
+Ursprüngliche Fragestellung:
 
 Vor der Umsetzung ist genau eine Frage zu beantworten:
 

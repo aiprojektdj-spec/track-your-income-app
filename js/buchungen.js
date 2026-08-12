@@ -1628,7 +1628,11 @@ const Buchungen = {
             const file = e.target.files[0];
             if (!file) return;
             const isExcel = file.name.match(/\.(xlsx|xls)$/i);
-            if (isExcel && typeof XLSX !== 'undefined') {
+            if (isExcel) {
+                // Frueher stand hier "isExcel && typeof XLSX !== 'undefined'": fehlte die
+                // Bibliothek, landete die Excel-Datei still im CSV-Zweig und wurde als Muell
+                // geparst. Mit dem Lazy-Load waere genau das der Normalfall geworden.
+                Utils.ensureXlsx().catch(err => { Utils.showToast(err.message, 'error'); return Promise.reject(err); }).then(() => {
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     try {
@@ -1642,6 +1646,7 @@ const Buchungen = {
                     }
                 };
                 reader.readAsArrayBuffer(file);
+                }, () => { /* Fehler wurde oben schon gemeldet */ });
             } else {
                 const reader = new FileReader();
                 reader.onload = (ev) => {

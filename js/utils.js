@@ -1,7 +1,36 @@
 // ============================================
 // Utils - Formatting & Helper Functions
 // ============================================
+// Basis-URL des js/-Ordners, ermittelt aus dem eigenen <script src>. Noetig, weil dieselbe
+// Datei von app.html (js/...) und aus den Sub-Apps (../js/...) geladen wird.
+const _UTILS_JS_BASE = (function () {
+    try {
+        var self = document.currentScript && document.currentScript.src;
+        if (self) return self.slice(0, self.lastIndexOf('/') + 1);
+    } catch (e) { /* currentScript fehlt bei defer nicht, aber sicher ist sicher */ }
+    return 'js/';
+})();
+
+let _xlsxPromise = null;
+
 const Utils = {
+    /** Laedt js/vendor/xlsx.full.min.js erst bei Bedarf nach (929 KB, groesste Datei des
+     *  Projekts). Wurde vorher auf jedem App-Start eager geladen, obwohl die meisten Nutzer
+     *  in einer Sitzung nie einen Excel-Im- oder Export ausloesen. Muster wie
+     *  _ensureApexCharts() in js/dashboard.js. Mehrfachaufrufe teilen sich dasselbe Promise. */
+    ensureXlsx() {
+        if (typeof XLSX !== 'undefined') return Promise.resolve();
+        if (_xlsxPromise) return _xlsxPromise;
+        _xlsxPromise = new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = _UTILS_JS_BASE + 'vendor/xlsx.full.min.js';
+            s.onload = () => resolve();
+            s.onerror = () => { _xlsxPromise = null; reject(new Error('Excel-Bibliothek konnte nicht geladen werden')); };
+            document.head.appendChild(s);
+        });
+        return _xlsxPromise;
+    },
+
     formatCurrency(amount) {
         const num = parseFloat(amount) || 0;
         return num.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '\u00a0\u20ac';

@@ -11,17 +11,18 @@
     <link rel="preload" href="../fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="../fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="../css/style.css">
-    <script src="../js/actions.js"></script>
-    <script src="../js/i18n.js"></script>
+    <script defer src="../js/actions.js"></script>
+    <script defer src="../js/i18n.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.44.0/dist/tabler-icons.min.css" integrity="sha384-ccZHbezhtZWmNy0cg8odL0D/jFU5k5HIls9y78Qd6lWor7rpvFIZtK0fTFG4z456" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.css" integrity="sha384-snpJ3knpH6avB6cP1vPkNdmRzCYaCpom/3TNOyvo189BiogXYXQfXkyYpZ2/xADs" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/themes/dark.css" integrity="sha384-heUUtXw0Djj2DElfLOVPlASSWFKNL3JDY6s3FEqQD03GYyWOeophY5DsfEG40sYX" crossorigin="anonymous">
-    <script src="../js/vendor/chart.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js" integrity="sha384-KNaFJ+EK516RuHsoycvreec5pD7BkTKJEkjMrVSQWu9KGTl7En4dhIDv7t1DFJ+g" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.js" integrity="sha384-uuNfwJfjOG2ukYi4eAB11/t3lP4Zjf75a3UhgkLzEpiX8JpJfacpG7Ye+0tiVMxT" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/de.js" integrity="sha384-yD6dlpesNBZIZV0gfeLiuO80i+vOIxc912ljzvZhRljuVNYEaCoKHCFzbOX0ALBT" crossorigin="anonymous"></script>
+    <!-- ApexCharts wird NICHT eager geladen: _ensureApexCharts() in eigenbelege/js/app.js
+         holt die ~600 KB erst, wenn das Kategorie-Diagramm wirklich gezeichnet wird.
+         chart.min.js (200 KB) stand hier ebenfalls, wird auf dieser Seite aber nie benutzt. -->
+    <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.js" integrity="sha384-uuNfwJfjOG2ukYi4eAB11/t3lP4Zjf75a3UhgkLzEpiX8JpJfacpG7Ye+0tiVMxT" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/de.js" integrity="sha384-yD6dlpesNBZIZV0gfeLiuO80i+vOIxc912ljzvZhRljuVNYEaCoKHCFzbOX0ALBT" crossorigin="anonymous"></script>
     <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
@@ -37,7 +38,7 @@
             <div style="font-size:14px;font-weight:700;color:var(--text-primary);line-height:1;letter-spacing:-.3px;">Stackr</div>
         </div>
         <div class="topnav-apps" id="topnavApps" data-active="eigenbelege"></div>
-        <script src="../js/topnav.js"></script>
+        <script defer src="../js/topnav.js"></script>
         <div class="topnav-controls">
             <div id="companySwitcher"></div>
             <button class="theme-toggle" id="themeToggle" title="Theme wechseln" style="display:none;"></button>
@@ -90,19 +91,19 @@
         <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
     </div>
 
-    <script src="../js/page-shell.js"></script>
-    <script src="../js/cookie-banner.js"></script>
+    <script defer src="../js/page-shell.js"></script>
+    <script defer src="../js/cookie-banner.js"></script>
 
-<script src="../js/utils.js"></script>
-<script src="../js/store.js"></script>
-<script src="../js/webhooks.js"></script>
-<script src="../js/companies.js"></script>
-<script src="../js/stb-share.js"></script>
-<script src="../js/whop-auth.js"></script>
-<script src="../js/user-plan.js?v=3"></script>
-<script src="../js/blob-attachments.js"></script>
-<script src="../js/cloud-sync.js"></script>
+<script defer src="../js/utils.js"></script>
+<script defer src="../js/store.js"></script>
+<script defer src="../js/webhooks.js"></script>
+<script defer src="../js/companies.js"></script>
+<script defer src="../js/stb-share.js"></script>
+<script defer src="../js/whop-auth.js"></script>
+<script defer src="../js/user-plan.js?v=3"></script>
+<script defer src="../js/blob-attachments.js"></script>
+<script defer src="../js/cloud-sync.js"></script>
 <!-- GbR-/CH-/AT-Tab-Sichtbarkeit wird jetzt zentral in js/topnav.js gesteuert -->
-    <script src="js/app.js"></script>
+    <script defer src="js/app.js"></script>
 </body>
 </html>

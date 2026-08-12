@@ -1190,10 +1190,13 @@ const Lager = {
 
     exportXLSX() {
         if (typeof UserPlan !== 'undefined' && !UserPlan.requirePro('Excel-Export')) return;
-        if (typeof XLSX === 'undefined') {
-            Utils.showToast('XLSX-Library nicht geladen', 'error');
-            return;
-        }
+        // Bibliothek wird nicht mehr eager geladen (s. Utils.ensureXlsx) — hier nachziehen
+        // statt abzubrechen; der alte Zweig meldete nur "XLSX-Library nicht geladen".
+        Utils.ensureXlsx().then(() => this._exportXLSX())
+            .catch(err => Utils.showToast(err.message, 'error'));
+    },
+
+    _exportXLSX() {
         const data = (this._lastAllFiltered.length ? this._lastAllFiltered : Store.getPurchases()).map(p => {
             const lo = p.lagerort;
             const lagerortStr = lo && (lo.bereich || lo.regal || lo.fach)

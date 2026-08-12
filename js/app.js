@@ -2401,7 +2401,12 @@ const App = {
 
         // ---- Excel Template Download ----
         document.getElementById('xlsxTemplateBtn').addEventListener('click', () => {
-            if (typeof XLSX === 'undefined') { Utils.showToast('XLSX-Bibliothek nicht geladen', 'error'); return; }
+            // Bibliothek wird nicht mehr eager geladen (s. Utils.ensureXlsx), sondern hier.
+            Utils.ensureXlsx().then(() => this._buildXlsxTemplate())
+                .catch(err => Utils.showToast(err.message, 'error'));
+        });
+
+        this._buildXlsxTemplate = () => {
             const wb = XLSX.utils.book_new();
 
             // Sheet 1: Einkäufe
@@ -2446,7 +2451,7 @@ const App = {
 
             XLSX.writeFile(wb, 'reselling_import_vorlage.xlsx');
             Utils.showToast('Excel-Vorlage heruntergeladen', 'success');
-        });
+        };
 
         // ---- Excel Import ----
         document.getElementById('xlsxImportOpenBtn').addEventListener('click', () => {
@@ -2456,7 +2461,6 @@ const App = {
         document.getElementById('xlsxImportFile').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            if (typeof XLSX === 'undefined') { Utils.showToast('XLSX-Bibliothek nicht geladen', 'error'); return; }
 
             if (!confirm(`"${file.name}" wird importiert in Firma: ${this._importTargetLabel()}.\n\nIst das die richtige Firma?`)) {
                 e.target.value = '';
@@ -2466,6 +2470,7 @@ const App = {
             const statusEl = document.getElementById('xlsxImportStatus');
             if (statusEl) statusEl.textContent = '⏳ Lese Datei…';
 
+            Utils.ensureXlsx().then(() => {
             const reader = new FileReader();
             reader.onload = (ev) => {
                 try {
@@ -2669,6 +2674,10 @@ const App = {
                 }
             };
             reader.readAsArrayBuffer(file);
+            }).catch(err => {
+                if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">❌ ${Utils.escapeHtml(err.message)}</span>`;
+                Utils.showToast(err.message, 'error');
+            });
         });
 
         document.getElementById('emergencyRecoverBtn').addEventListener('click', () => {
@@ -3018,9 +3027,15 @@ const App = {
 
     // SCHICHT 4 — Periodisches Backup: alle 10 Minuten wird ein Datei-Backup erzwungen,
     // auch wenn keine Änderungen stattgefunden haben (z.B. lange Sitzungen).
+    _periodicBackupTimer: null,
+
     _startPeriodicBackup() {
         const INTERVAL_MS = 10 * 60 * 1000; // 10 Minuten
-        setInterval(() => {
+        // Handle merken und vorher raeumen: bei einem zweiten Aufruf liefen sonst zwei Timer
+        // parallel und schrieben doppelt ins Backup-Verzeichnis. Heute wird die Funktion nur
+        // einmal aus init() gerufen, das ist aber keine Eigenschaft, auf die man bauen sollte.
+        if (this._periodicBackupTimer) clearInterval(this._periodicBackupTimer);
+        this._periodicBackupTimer = setInterval(() => {
             if (Store.getFsBackupFolderName()) {
                 Store.writeFileSystemBackup('periodic');
             }

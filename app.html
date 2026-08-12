@@ -235,8 +235,10 @@
          ══════════════════════════════════════════════ -->
 
     <!-- ── Vendor: CDN libs (downloaded in parallel) ── -->
-    <script defer src="js/vendor/chart.min.js"></script>
-    <script defer src="js/vendor/xlsx.full.min.js"></script>
+    <!-- chart.min.js (200 KB) wird NICHT mehr eager geladen: js/statistiken.js ist der einzige
+         Nutzer im Projekt und holt es ueber _ensureChartJs() beim ersten Zeichnen. -->
+    <!-- xlsx.full.min.js (929 KB, groesste Datei des Projekts) wird NICHT mehr eager geladen:
+         Utils.ensureXlsx() in js/utils.js holt sie beim ersten Excel-Im-/Export nach. -->
     <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.js" integrity="sha384-uuNfwJfjOG2ukYi4eAB11/t3lP4Zjf75a3UhgkLzEpiX8JpJfacpG7Ye+0tiVMxT" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>

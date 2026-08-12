@@ -1796,6 +1796,12 @@ const ExcelImport = {
 
     _handleFile(file) {
         if (!file) return;
+        // Excel-Bibliothek erst hier nachladen (929 KB) — s. Utils.ensureXlsx.
+        Utils.ensureXlsx().then(() => this._handleFileParsed(file))
+            .catch(err => Utils.showToast(err.message, 'error'));
+    },
+
+    _handleFileParsed(file) {
         const reader = new FileReader();
         reader.onerror = () => Utils.showToast('Datei konnte nicht gelesen werden', 'error');
         reader.onload = (e) => {
@@ -2233,6 +2239,12 @@ const SalesImport = {
 
     _handleFile(file) {
         if (!file) return;
+        // Excel-Bibliothek erst hier nachladen (929 KB) — s. Utils.ensureXlsx.
+        Utils.ensureXlsx().then(() => this._handleFileParsed(file))
+            .catch(err => Utils.showToast(err.message, 'error'));
+    },
+
+    _handleFileParsed(file) {
         const reader = new FileReader();
         reader.onerror = () => Utils.showToast('Datei konnte nicht gelesen werden', 'error');
         reader.onload = (e) => {

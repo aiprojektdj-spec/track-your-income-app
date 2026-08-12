@@ -293,7 +293,27 @@ const Statistiken = {
         `;
     },
 
+    /** Chart.js (200 KB) wird nicht mehr eager geladen — dieses Modul ist der einzige
+     *  Nutzer im ganzen Projekt. Nachladen genau hier, beim ersten Zeichnen. */
+    _ensureChartJs() {
+        if (typeof Chart !== 'undefined') return Promise.resolve();
+        if (this._chartJsPromise) return this._chartJsPromise;
+        this._chartJsPromise = new Promise((resolve, reject) => {
+            const el = document.createElement('script');
+            el.src = 'js/vendor/chart.min.js';
+            el.onload = () => resolve();
+            el.onerror = () => { this._chartJsPromise = null; reject(new Error('Diagramm-Bibliothek konnte nicht geladen werden')); };
+            document.head.appendChild(el);
+        });
+        return this._chartJsPromise;
+    },
+
     _renderCharts() {
+        this._ensureChartJs().then(() => this._renderChartsNow())
+            .catch(err => Utils.showToast(err.message, 'error'));
+    },
+
+    _renderChartsNow() {
         this._destroyCharts();
         const { sales, purchases, allPurchases, unsyncedRevenue } = this._getFilteredData();
         const { textColor, gridColor } = this._getThemeColors();

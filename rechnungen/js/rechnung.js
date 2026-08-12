@@ -120,7 +120,7 @@ var Rechnung = (function() {
         html += '</select></div>';
 
         html += '<div class="form-group"><label class="form-label" for="invNummer">Nummer</label>';
-        html += '<input class="form-input" id="invNummer" value="' + Utils.escapeHtml(nummer) + '" placeholder="Wird automatisch generiert"></div>';
+        html += '<input class="form-input" id="invNummer" maxlength="60" value="' + Utils.escapeHtml(nummer) + '" placeholder="Wird automatisch generiert"></div>';
 
         html += '<div class="form-group"><label class="form-label" for="invDatum">Datum</label>';
         html += '<input class="form-input" type="date" id="invDatum" value="' + datum + '"></div>';
@@ -226,7 +226,7 @@ var Rechnung = (function() {
         html += '<div class="card"><div class="card-header"><div class="card-title">Zus\u00E4tzliche Angaben</div></div>';
         html += '<div style="padding: 1rem;">';
         html += '<div class="form-group"><label class="form-label" for="invZahlung">Zahlungsbedingungen</label>';
-        html += '<textarea class="form-textarea" id="invZahlung" rows="2" placeholder="z.B. Zahlbar innerhalb 14 Tagen. 2% Skonto bei Zahlung innerhalb 7 Tagen.">' + Utils.escapeHtml(zahlungsbedingungen) + '</textarea>';
+        html += '<textarea class="form-textarea" id="invZahlung" maxlength="1000" rows="2" placeholder="z.B. Zahlbar innerhalb 14 Tagen. 2% Skonto bei Zahlung innerhalb 7 Tagen.">' + Utils.escapeHtml(zahlungsbedingungen) + '</textarea>';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Vereinbarte Skontobedingungen hier angeben (§14 Abs. 4 Nr. 7 UStG) – nur wenn beim Vertragsschluss vereinbart, nicht als nachträgliche Zahlungserinnerung.</div></div>';
         html += '<div class="form-group"><label class="form-label" for="invNotizen">Notizen</label>';
         html += '<textarea class="form-textarea" id="invNotizen" rows="2" maxlength="1000">' + Utils.escapeHtml(notizen) + '</textarea></div>';
@@ -888,8 +888,8 @@ var Rechnung = (function() {
         if (newProdBtn) {
             newProdBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-                var modalBody = '<div class="form-group"><label class="form-label" for="npName">Name <span style="color:red;">*</span></label><input class="form-input" id="npName"></div>';
-                modalBody += '<div class="form-group"><label class="form-label" for="npBeschreibung">Beschreibung</label><textarea class="form-textarea" id="npBeschreibung" rows="2"></textarea></div>';
+                var modalBody = '<div class="form-group"><label class="form-label" for="npName">Name <span style="color:red;">*</span></label><input class="form-input" id="npName" maxlength="200"></div>';
+                modalBody += '<div class="form-group"><label class="form-label" for="npBeschreibung">Beschreibung</label><textarea class="form-textarea" id="npBeschreibung" maxlength="1000" rows="2"></textarea></div>';
                 modalBody += '<div class="form-row">';
                 modalBody += '<div class="form-group"><label class="form-label" for="npPreis">Preis</label><input class="form-input" id="npPreis" type="number" step="0.01" min="0" max="99999999" value="0"></div>';
                 modalBody += '<div class="form-group"><label class="form-label" for="npEinheit">Einheit</label><select class="form-select" id="npEinheit"><option value="St\u00FCck">St\u00FCck</option><option value="Std.">Std.</option><option value="pauschal">pauschal</option></select></div>';
@@ -1413,6 +1413,21 @@ var Rechnung = (function() {
             if (settings.iban) html += '<span><em>IBAN</em> ' + Utils.escapeHtml(settings.iban) + '</span>';
             if (settings.bic) html += '<span><em>BIC</em> ' + Utils.escapeHtml(settings.bic) + '</span>';
             html += '</div>';
+            html += '<div class="inv-bank-ref">Verwendungszweck: ' + Utils.escapeHtml(inv.nummer || '') + '</div>';
+            // Zahlungslink (Fund G6): statischer Link aus den Unternehmensdaten, kein
+            // rechnungsspezifischer Bezahl-Button - der braeuchte einen Server, der Betraege
+            // signiert. https-Pruefung hier ein zweites Mal, weil dieses Dokument weitergegeben
+            // wird und ein Alt-Datensatz von vor der Feldvalidierung stammen kann.
+            if (settings.zahlungslink && settings.zahlungslink.toLowerCase().indexOf('https://') === 0) {
+                html += '<div class="inv-bank-ref">Online bezahlen: <a href="' + Utils.escapeHtml(settings.zahlungslink) + '" style="color:inherit;">' + Utils.escapeHtml(settings.zahlungslink) + '</a></div>';
+            }
+            html += '</div>';
+        }
+        else if (settings.zahlungslink && settings.zahlungslink.toLowerCase().indexOf('https://') === 0) {
+            // Ohne Bankverbindung trotzdem eine Zahlungsmoeglichkeit nennen
+            html += '<div class="inv-bank">';
+            html += '<div class="inv-bank-hd">Zahlung</div>';
+            html += '<div class="inv-bank-ref">Online bezahlen: <a href="' + Utils.escapeHtml(settings.zahlungslink) + '" style="color:inherit;">' + Utils.escapeHtml(settings.zahlungslink) + '</a></div>';
             html += '<div class="inv-bank-ref">Verwendungszweck: ' + Utils.escapeHtml(inv.nummer || '') + '</div>';
             html += '</div>';
         }

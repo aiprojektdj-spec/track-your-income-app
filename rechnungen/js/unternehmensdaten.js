@@ -21,6 +21,7 @@ var Unternehmensdaten = (function() {
             bankname:             ud.bankname              !== undefined ? ud.bankname              : (s.bankname     || ''),
             iban:                 ud.iban                  !== undefined ? ud.iban                  : (s.iban         || ''),
             bic:                  ud.bic                   !== undefined ? ud.bic                   : (s.bic          || ''),
+            zahlungslink:         ud.zahlungslink          !== undefined ? ud.zahlungslink          : '',
             logoBase64:           ud.logoBase64            !== undefined ? ud.logoBase64            : (s.logoBase64   || ''),
             invoiceHeaderColor:   ud.invoiceHeaderColor    !== undefined ? ud.invoiceHeaderColor    : (s.invoiceHeaderColor  || '#0e3b2e'),
             invoicePrimaryColor:  ud.invoicePrimaryColor   !== undefined ? ud.invoicePrimaryColor   : (s.invoicePrimaryColor || '#10b981'),
@@ -71,33 +72,33 @@ var Unternehmensdaten = (function() {
         html += '<div class="form-row">';
         html += '<div class="form-group" style="flex:2;">';
         html += '<label class="form-label" for="ud_firmenname">Firmenname <span style="color:var(--danger);">*</span></label>';
-        html += '<input class="form-input" id="ud_firmenname" value="' + Utils.escapeHtml(d.firmenname) + '" placeholder="z.B. Max Mustermann Einzelhandel">';
+        html += '<input class="form-input" id="ud_firmenname" maxlength="200" value="' + Utils.escapeHtml(d.firmenname) + '" placeholder="z.B. Max Mustermann Einzelhandel">';
         html += '</div>';
         html += '<div class="form-group">';
         html += '<label class="form-label" for="ud_inhaber">Inhaber / Geschäftsführer</label>';
-        html += '<input class="form-input" id="ud_inhaber" value="' + Utils.escapeHtml(d.inhaber) + '" placeholder="Vor- und Nachname">';
+        html += '<input class="form-input" id="ud_inhaber" maxlength="200" value="' + Utils.escapeHtml(d.inhaber) + '" placeholder="Vor- und Nachname">';
         html += '</div>';
         html += '</div>';
 
         html += '<div class="form-row">';
         html += '<div class="form-group" style="flex:3;">';
         html += '<label class="form-label" for="ud_adresse">Straße & Hausnummer <span style="color:var(--danger);">*</span></label>';
-        html += '<input class="form-input" id="ud_adresse" value="' + Utils.escapeHtml(d.adresse) + '" placeholder="Musterstraße 1">';
+        html += '<input class="form-input" id="ud_adresse" maxlength="200" value="' + Utils.escapeHtml(d.adresse) + '" placeholder="Musterstraße 1">';
         html += '</div>';
         html += '<div class="form-group">';
         html += '<label class="form-label" for="ud_plz">PLZ <span style="color:var(--danger);">*</span></label>';
-        html += '<input class="form-input" id="ud_plz" value="' + Utils.escapeHtml(d.plz) + '" placeholder="12345" style="width:90px;">';
+        html += '<input class="form-input" id="ud_plz" maxlength="10" value="' + Utils.escapeHtml(d.plz) + '" placeholder="12345" style="width:90px;">';
         html += '</div>';
         html += '<div class="form-group" style="flex:2;">';
         html += '<label class="form-label" for="ud_ort">Ort <span style="color:var(--danger);">*</span></label>';
-        html += '<input class="form-input" id="ud_ort" value="' + Utils.escapeHtml(d.ort) + '" placeholder="Musterstadt">';
+        html += '<input class="form-input" id="ud_ort" maxlength="100" value="' + Utils.escapeHtml(d.ort) + '" placeholder="Musterstadt">';
         html += '</div>';
         html += '</div>';
 
         html += '<div class="form-row">';
         html += '<div class="form-group" style="max-width:220px;">';
         html += '<label class="form-label" for="ud_land">Land</label>';
-        html += '<input class="form-input" id="ud_land" value="' + Utils.escapeHtml(d.land) + '" placeholder="Deutschland">';
+        html += '<input class="form-input" id="ud_land" maxlength="100" value="' + Utils.escapeHtml(d.land) + '" placeholder="Deutschland">';
         html += '</div>';
         html += '</div>';
 
@@ -115,22 +116,22 @@ var Unternehmensdaten = (function() {
         html += '<div class="form-row">';
         html += '<div class="form-group">';
         html += '<label class="form-label" for="ud_steuernummer">Steuernummer <span style="color:var(--danger);">*</span></label>';
-        html += '<input class="form-input" id="ud_steuernummer" value="' + Utils.escapeHtml(d.steuernummer) + '" placeholder="z.B. 12/345/67890">';
+        html += '<input class="form-input" id="ud_steuernummer" maxlength="50" value="' + Utils.escapeHtml(d.steuernummer) + '" placeholder="z.B. 12/345/67890">';
         html += '</div>';
         html += '<div class="form-group">';
         html += '<label class="form-label" for="ud_ustId">USt-IdNr. <span style="color:var(--danger);">*</span></label>';
-        html += '<input class="form-input" id="ud_ustId" value="' + Utils.escapeHtml(d.ustId) + '" placeholder="z.B. DE123456789" data-uppercase>';
+        html += '<input class="form-input" id="ud_ustId" maxlength="20" value="' + Utils.escapeHtml(d.ustId) + '" placeholder="z.B. DE123456789" data-uppercase>';
         html += '</div>';
         html += '</div>';
 
         html += '<div class="form-row">';
         html += '<div class="form-group">';
         html += '<label class="form-label" for="ud_finanzamt">Finanzamt</label>';
-        html += '<input class="form-input" id="ud_finanzamt" value="' + Utils.escapeHtml(d.finanzamt) + '" placeholder="z.B. Finanzamt München">';
+        html += '<input class="form-input" id="ud_finanzamt" maxlength="150" value="' + Utils.escapeHtml(d.finanzamt) + '" placeholder="z.B. Finanzamt München">';
         html += '</div>';
         html += '<div class="form-group">';
         html += '<label class="form-label" for="ud_hrNr">Handelsregisternummer (optional)</label>';
-        html += '<input class="form-input" id="ud_hrNr" value="' + Utils.escapeHtml(d.hrNr) + '" placeholder="z.B. HRB 12345">';
+        html += '<input class="form-input" id="ud_hrNr" maxlength="50" value="' + Utils.escapeHtml(d.hrNr) + '" placeholder="z.B. HRB 12345">';
         html += '</div>';
         html += '</div>';
 
@@ -144,15 +145,15 @@ var Unternehmensdaten = (function() {
         html += '<div class="form-row">';
         html += '<div class="form-group">';
         html += '<label class="form-label" for="ud_telefon">Telefon</label>';
-        html += '<input class="form-input" id="ud_telefon" type="tel" value="' + Utils.escapeHtml(d.telefon) + '" placeholder="+49 xxx xxxxxxx">';
+        html += '<input class="form-input" id="ud_telefon" maxlength="40" type="tel" value="' + Utils.escapeHtml(d.telefon) + '" placeholder="+49 xxx xxxxxxx">';
         html += '</div>';
         html += '<div class="form-group">';
         html += '<label class="form-label" for="ud_email">E-Mail</label>';
-        html += '<input class="form-input" id="ud_email" type="email" value="' + Utils.escapeHtml(d.email) + '" placeholder="info@firma.de">';
+        html += '<input class="form-input" id="ud_email" maxlength="150" type="email" value="' + Utils.escapeHtml(d.email) + '" placeholder="info@firma.de">';
         html += '</div>';
         html += '<div class="form-group">';
         html += '<label class="form-label" for="ud_website">Website</label>';
-        html += '<input class="form-input" id="ud_website" value="' + Utils.escapeHtml(d.website) + '" placeholder="www.firma.de">';
+        html += '<input class="form-input" id="ud_website" maxlength="150" value="' + Utils.escapeHtml(d.website) + '" placeholder="www.firma.de">';
         html += '</div>';
         html += '</div>';
 
@@ -161,16 +162,26 @@ var Unternehmensdaten = (function() {
         html += '<div class="form-row">';
         html += '<div class="form-group">';
         html += '<label class="form-label" for="ud_bankname">Bankname</label>';
-        html += '<input class="form-input" id="ud_bankname" value="' + Utils.escapeHtml(d.bankname) + '" placeholder="z.B. Sparkasse München">';
+        html += '<input class="form-input" id="ud_bankname" maxlength="150" value="' + Utils.escapeHtml(d.bankname) + '" placeholder="z.B. Sparkasse München">';
         html += '</div>';
         html += '<div class="form-group" style="flex:2;">';
         html += '<label class="form-label" for="ud_iban">IBAN <span style="color:var(--danger);">*</span></label>';
-        html += '<input class="form-input" id="ud_iban" value="' + Utils.escapeHtml(d.iban) + '" placeholder="DE00 0000 0000 0000 0000 00" data-uppercase>';
+        html += '<input class="form-input" id="ud_iban" maxlength="34" value="' + Utils.escapeHtml(d.iban) + '" placeholder="DE00 0000 0000 0000 0000 00" data-uppercase>';
         html += '</div>';
         html += '<div class="form-group">';
         html += '<label class="form-label" for="ud_bic">BIC</label>';
-        html += '<input class="form-input" id="ud_bic" value="' + Utils.escapeHtml(d.bic) + '" placeholder="z.B. SSKMDEMMXXX" data-uppercase>';
+        html += '<input class="form-input" id="ud_bic" maxlength="11" value="' + Utils.escapeHtml(d.bic) + '" placeholder="z.B. SSKMDEMMXXX" data-uppercase>';
         html += '</div>';
+        html += '</div>';
+
+        // Zahlungslink (Fund G6): bewusst ein STATISCHER Link, den der Nutzer bei seinem
+        // Anbieter selbst anlegt (PayPal.Me, Stripe Payment Link, SumUp ...). Ein echter
+        // Bezahl-Button pro Rechnung braeuchte einen Server, der Betraege signiert - genau
+        // die Serverabhaengigkeit, die Stackr nicht haben will.
+        html += '<div class="form-group">';
+        html += '<label class="form-label" for="ud_zahlungslink">Zahlungslink (optional)</label>';
+        html += '<input class="form-input" id="ud_zahlungslink" type="url" maxlength="300" value="' + Utils.escapeHtml(d.zahlungslink) + '" placeholder="https://paypal.me/deinname oder https://buy.stripe.com/...">';
+        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Erscheint als Hinweis auf der Rechnung, zusaetzlich zur Bankverbindung. Nur https-Adressen.</div>';
         html += '</div>';
 
         html += '</div></div>';
@@ -352,6 +363,12 @@ var Unternehmensdaten = (function() {
             bankname:            val('ud_bankname'),
             iban:                val('ud_iban').replace(/\s/g, ''),
             bic:                 val('ud_bic'),
+            zahlungslink:        (function () {
+                // Nur https zulassen: ein javascript:- oder data:-Link landet sonst als
+                // klickbares Element auf einem Dokument, das der Nutzer weitergibt.
+                var v = val('ud_zahlungslink').trim();
+                return v.toLowerCase().indexOf('https://') === 0 ? v : '';
+            })(),
             logoBase64:          logoBase64,
             invoiceHeaderColor:  val('ud_headerColor') || '#0e3b2e',
             invoicePrimaryColor: val('ud_primaryColor') || '#10b981',

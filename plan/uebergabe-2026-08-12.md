@@ -47,8 +47,9 @@ Größen sind gemessen, nicht geschätzt.
 | ~~F3~~ | `chart.min.js` aus `eigenbelege/` entfernen | **in Arbeit, uncommittet** (fremde Session) |
 | ~~F2~~ | `xlsx.full.min.js` (929 KB) lazy laden | **fertig, uncommittet** (fremde Session) — `Utils.ensureXlsx()` in `js/utils.js:21`, alle vier Aufrufstellen umgestellt |
 | ~~F6~~ | Cloud-Sync-Krypto in einen Web Worker | **erledigt, aber anders als empfohlen** — s. unten |
-| F4 | `preload` ergänzen | teilweise — die zwei Fonts sind drin, `style.css`/`app.js` fehlen |
-| F5 / F7 | Tabellen per `innerHTML`, `setInterval` ohne `clear` | niedrig, erst messen |
+| ~~F4~~ | `preload` ergänzen | **erledigt** — `style.css` und `app.js?v=2` in `app.html:14`; Wirkung klein, s. unten |
+| ~~F7~~ | `setInterval` ohne `clear` | **erledigt** in `94034de` (`_periodicBackupTimer` + `clearInterval`-Guard) |
+| F5 | Tabellen per `innerHTML` | **bewusst offen** — das Audit selbst sagt „nichts überstürzen, erst messen"; Event-Delegation macht es folgenlos |
 
 **F2 — `xlsx.full.min.js` wirklich lazy laden** 🔴 *(der einzige große Performance-Posten, der
 noch frei ist)*
@@ -95,6 +96,30 @@ Punkt 2 der Empfehlung (sichtbare Rückmeldung) war bereits erfüllt: `_setDot('
 der Schwerarbeit und zeigt „Synchronisiere…" an.
 
 **Unverändert gültig: keinen Delta-Sync bauen** — CAS und Merge sind korrekt und getestet.
+
+**F4 — Resource-Hints** ✅ *(2026-08-12)*
+`app.html:14` bekommt `preload` für `css/style.css` und `js/app.js?v=2`. Im Browser geprüft:
+beide Tags feuern (`initiatorType: "link"`, der Preload holt die Datei also wirklich, nicht erst
+das spätere Tag), die URLs matchen exakt — inklusive `?v=2`, sonst hätte es einen Doppel-Download
+gegeben — und es gibt keine „preloaded but not used"-Warnung. **Erwartungsmanagement:** der
+Gewinn ist klein. Der Preload-Scanner findet beide Dateien ohnehin, sie stehen im selben 22-KB-
+Dokument; die Hints heben nur die Priorität gegenüber den CDN-Stylesheets an. Der wirksamste der
+drei vom Audit vorgeschlagenen Hints (Fonts) war längst gesetzt. Belastbare Vorher/Nachher-
+Zahlen sind mit `python -m http.server` **nicht** zu bekommen — der Server ist single-threaded
+und serialisiert die Requests, was jede Messung verfälscht.
+
+### 1.3 Neuer Fund (2026-08-12): zwei blockierende Skripte in `app.html`
+
+Beim F4-Fix aufgefallen und **nicht** mitgefixt, weil außerhalb des Auftrags: `app.html:19-20`
+lädt `js/actions.js` und `js/i18n.js` **ohne `defer`**, noch vor jedem Stylesheet. Beide halten
+den Parser an. Das ist derselbe Fund, den F1 für die drei Sub-Apps behoben hat — in `app.html`
+selbst ist er stehen geblieben, obwohl der Kommentar darüber („Critical: i18n (sync, tiny ~8KB)")
+suggeriert, das sei Absicht.
+
+Vor dem Umstellen zu prüfen: ob irgendetwas `Actions` oder `I18n` **vor** dem `DOMContentLoaded`
+braucht. `Actions.register(...)` steht am Ende von `js/app.js`, das selbst `defer` hat — der
+naheliegende Verdacht ist also, dass `defer` hier gefahrlos ist. Nicht ungeprüft ändern: `defer`
+ändert die Ausführungsreihenfolge relativ zu allem, was noch synchron lädt.
 
 ### 1.2 Kleiner Rest aus dem UI-Checker
 

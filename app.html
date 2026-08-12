@@ -11,6 +11,13 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://api.whop.com">
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <!-- Fund F4: eigene kritische Kette. Wirkung ist klein — der Preload-Scanner findet
+         beide Dateien ohnehin, style.css steht in diesem head und app.js weiter unten im
+         selben 22-KB-Dokument. Die Hints heben nur ihre Prioritaet an, damit sie nicht
+         hinter den CDN-Stylesheets einsortiert werden; die blockierenden Skripte in
+         Zeile 19/20 sind der groessere Posten (eigener Fund, s. Uebergabe). -->
+    <link rel="preload" as="style"  href="css/style.css">
+    <link rel="preload" as="script" href="js/app.js?v=2">
 
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
     <title>Stackr</title>

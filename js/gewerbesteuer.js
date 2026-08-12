@@ -188,6 +188,10 @@ const Gewerbesteuer = {
         const saveBtn = document.getElementById('gewstHebesatzSave');
         if (saveBtn) saveBtn.addEventListener('click', () => {
             const val = parseFloat(document.getElementById('gewstHebesatzInput')?.value) || 400;
+            // `min`/`max` am Feld greifen nur bei nativer Formularvalidierung, hier hängt das
+            // Speichern an einem Button-Klick — ein negativer Hebesatz wäre gespeichert worden
+            // und hätte die Gewerbesteuer negativ gerechnet.
+            if (!Number.isFinite(val) || val < 0) { Utils.showToast('Ungültiger Hebesatz', 'warning'); return; }
             const einst = Store.get('gbr_einstellungen') || {};
             einst.hebesatz = val;
             Store.set('gbr_einstellungen', einst);

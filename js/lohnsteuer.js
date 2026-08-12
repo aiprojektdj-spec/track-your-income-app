@@ -304,11 +304,11 @@ const Lohnsteuer = {
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Name *</label>
-                        <input type="text" class="form-input" id="emp_name" placeholder="Max Mustermann">
+                        <input type="text" class="form-input" id="emp_name" maxlength="300" placeholder="Max Mustermann">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Position</label>
-                        <input type="text" class="form-input" id="emp_pos" placeholder="z.B. Lagerist, GF">
+                        <input type="text" class="form-input" id="emp_pos" maxlength="300" placeholder="z.B. Lagerist, GF">
                     </div>
                 </div>
                 <div class="form-row">
@@ -334,7 +334,9 @@ const Lohnsteuer = {
         document.getElementById('saveEmpBtn').addEventListener('click', () => {
             const name = document.getElementById('emp_name').value.trim();
             const brutto = parseFloat(document.getElementById('emp_brutto').value);
-            if (!name || isNaN(brutto) || brutto <= 0) { Utils.showToast('Name + Brutto erforderlich', 'warning'); return; }
+            // Number.isFinite statt isNaN: isNaN(Infinity) ist false, ein Infinity-Brutto wäre
+            // durchgelaufen und hätte jede Folgeberechnung auf NaN gezogen.
+            if (!name || !Number.isFinite(brutto) || brutto <= 0) { Utils.showToast('Name + Brutto erforderlich', 'warning'); return; }
 
             const emps = this._getEmployees();
             emps.push({

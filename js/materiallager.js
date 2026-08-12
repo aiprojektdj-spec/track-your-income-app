@@ -139,15 +139,15 @@ const Materiallager = {
                     <div class="form-row">
                         <div class="form-group" style="flex:2">
                             <label class="form-label">Bezeichnung *</label>
-                            <input type="text" class="form-input" id="ml_name" placeholder="z.B. Karton M" required>
+                            <input type="text" class="form-input" id="ml_name" maxlength="300" placeholder="z.B. Karton M" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Einheit</label>
-                            <input type="text" class="form-input" id="ml_einheit" placeholder="Stück" value="Stück">
+                            <input type="text" class="form-input" id="ml_einheit" maxlength="300" placeholder="Stück" value="Stück">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Kategorie</label>
-                            <input type="text" class="form-input" id="ml_kategorie" placeholder="Karton / Beutel …">
+                            <input type="text" class="form-input" id="ml_kategorie" maxlength="300" placeholder="Karton / Beutel …">
                         </div>
                     </div>
                     <div class="form-row">
@@ -245,7 +245,7 @@ const Materiallager = {
                         </div>
                         <div class="form-group">
                             <label class="form-label">Lieferant (optional)</label>
-                            <input type="text" class="form-input" id="mle_lieferant" placeholder="z.B. Amazon, Baumarkt">
+                            <input type="text" class="form-input" id="mle_lieferant" maxlength="300" placeholder="z.B. Amazon, Baumarkt">
                         </div>
                     </div>
                     <div class="form-hint" style="font-size:12px;color:var(--text-muted);margin-top:-4px;margin-bottom:8px;">
@@ -334,7 +334,7 @@ const Materiallager = {
                         </div>
                         <div class="form-group">
                             <label class="form-label">Grund</label>
-                            <input type="text" class="form-input" id="mlv_grund" placeholder="z.B. Verlust, Test …">
+                            <input type="text" class="form-input" id="mlv_grund" maxlength="300" placeholder="z.B. Verlust, Test …">
                         </div>
                     </div>
                     <div class="form-actions">

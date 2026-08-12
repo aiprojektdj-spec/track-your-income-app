@@ -170,7 +170,7 @@ const Privatbuchungen = {
             </div>
             <div class="form-group">
                 <label class="form-label">Beschreibung / Zweck</label>
-                <input type="text" class="form-input" id="priv_desc" placeholder="z.B. Miete, Lebensmittel, Kapitalzuführung ...">
+                <input type="text" class="form-input" id="priv_desc" maxlength="1000" placeholder="z.B. Miete, Lebensmittel, Kapitalzuführung ...">
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
                 <button class="btn" data-action="close-modal">Abbrechen</button>
@@ -186,7 +186,7 @@ const Privatbuchungen = {
         const desc    = document.getElementById('priv_desc')?.value?.trim();
 
         if (!datum) { Utils.showToast('Datum fehlt', 'error'); return; }
-        if (betrag <= 0) { Utils.showToast('Betrag fehlt oder 0', 'error'); return; }
+        if (!Number.isFinite(betrag) || betrag <= 0) { Utils.showToast('Betrag fehlt, ungültig oder 0', 'error'); return; }
 
         Store.savePrivatbuchung({ datum, typ, betrag, beschreibung: desc || '' });
         App.closeModal();

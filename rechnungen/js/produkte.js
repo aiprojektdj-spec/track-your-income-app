@@ -40,9 +40,9 @@ var Produkte = (function() {
     function showProductForm(product) {
         var isEdit = !!product;
         var body = '<div class="form-group"><label class="form-label" for="pfName">Name *</label>';
-        body += '<input class="form-input" id="pfName" value="' + Utils.escapeHtml(product ? product.name || '' : '') + '"></div>';
+        body += '<input class="form-input" id="pfName" maxlength="200" value="' + Utils.escapeHtml(product ? product.name || '' : '') + '"></div>';
         body += '<div class="form-group"><label class="form-label" for="pfBeschr">Beschreibung</label>';
-        body += '<textarea class="form-textarea" id="pfBeschr" rows="2">' + Utils.escapeHtml(product ? product.beschreibung || '' : '') + '</textarea></div>';
+        body += '<textarea class="form-textarea" id="pfBeschr" maxlength="1000" rows="2">' + Utils.escapeHtml(product ? product.beschreibung || '' : '') + '</textarea></div>';
         body += '<div class="form-row">';
         body += '<div class="form-group"><label class="form-label" for="pfPreis">Preis (netto)</label>';
         body += '<input class="form-input" type="number" step="0.01" min="0" max="99999999" id="pfPreis" value="' + (product ? product.preis || 0 : 0) + '"></div>';

@@ -1269,11 +1269,11 @@ const App = {
             fieldsHtml = `
                 <div class="form-group">
                     <label class="form-label" for="ob_firmenname">${L.t('field.company')}</label>
-                    <input type="text" class="form-input" id="ob_firmenname" value="${Utils.escapeHtml(d.firmenname || '')}" required>
+                    <input type="text" class="form-input" id="ob_firmenname" maxlength="300" value="${Utils.escapeHtml(d.firmenname || '')}" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="ob_name">${L.t('field.name.req')}</label>
-                    <input type="text" class="form-input" id="ob_name" value="${Utils.escapeHtml(d.name || '')}" required>
+                    <input type="text" class="form-input" id="ob_name" maxlength="300" value="${Utils.escapeHtml(d.name || '')}" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="ob_branche">Branche</label>
@@ -1290,16 +1290,16 @@ const App = {
             fieldsHtml = `
                 <div class="form-group">
                     <label class="form-label" for="ob_adresse">${L.t('field.address')}</label>
-                    <input type="text" class="form-input" id="ob_adresse" value="${Utils.escapeHtml(d.adresse || '')}">
+                    <input type="text" class="form-input" id="ob_adresse" maxlength="300" value="${Utils.escapeHtml(d.adresse || '')}">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label" for="ob_plz">${L.t('field.zip')}</label>
-                        <input type="text" class="form-input" id="ob_plz" value="${Utils.escapeHtml(d.plz || '')}">
+                        <input type="text" class="form-input" id="ob_plz" maxlength="300" value="${Utils.escapeHtml(d.plz || '')}">
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="ob_ort">${L.t('field.city')}</label>
-                        <input type="text" class="form-input" id="ob_ort" value="${Utils.escapeHtml(d.ort || '')}">
+                        <input type="text" class="form-input" id="ob_ort" maxlength="300" value="${Utils.escapeHtml(d.ort || '')}">
                     </div>
                 </div>
             `;
@@ -1309,11 +1309,11 @@ const App = {
             fieldsHtml = `
                 <div class="form-group">
                     <label class="form-label" for="ob_telefon">${L.t('field.phone')}</label>
-                    <input type="text" class="form-input" id="ob_telefon" value="${Utils.escapeHtml(d.telefon || '')}">
+                    <input type="text" class="form-input" id="ob_telefon" maxlength="300" value="${Utils.escapeHtml(d.telefon || '')}">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="ob_email">${L.t('field.email')}</label>
-                    <input type="email" class="form-input" id="ob_email" value="${Utils.escapeHtml(d.email || '')}">
+                    <input type="email" class="form-input" id="ob_email" maxlength="300" value="${Utils.escapeHtml(d.email || '')}">
                 </div>
             `;
         } else if (step === 4) {
@@ -1322,11 +1322,11 @@ const App = {
             fieldsHtml = `
                 <div class="form-group">
                     <label class="form-label" for="ob_steuernummer">${L.t('field.taxnr')}</label>
-                    <input type="text" class="form-input" id="ob_steuernummer" value="${Utils.escapeHtml(d.steuernummer || '')}">
+                    <input type="text" class="form-input" id="ob_steuernummer" maxlength="300" value="${Utils.escapeHtml(d.steuernummer || '')}">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="ob_ustId">${L.t('field.ustid')}</label>
-                    <input type="text" class="form-input" id="ob_ustId" value="${Utils.escapeHtml(d.ustId || '')}">
+                    <input type="text" class="form-input" id="ob_ustId" maxlength="300" value="${Utils.escapeHtml(d.ustId || '')}">
                 </div>
                 <div class="form-group">
                     <label class="form-label">${L.t('field.ustmode')}</label>
@@ -1365,15 +1365,15 @@ const App = {
             fieldsHtml = `
                 <div class="form-group">
                     <label class="form-label">${L.t('field.bank')}</label>
-                    <input type="text" class="form-input" id="ob_bankname" value="${Utils.escapeHtml(d.bankname || '')}">
+                    <input type="text" class="form-input" id="ob_bankname" maxlength="300" value="${Utils.escapeHtml(d.bankname || '')}">
                 </div>
                 <div class="form-group">
                     <label class="form-label">${L.t('field.iban')}</label>
-                    <input type="text" class="form-input" id="ob_iban" value="${Utils.escapeHtml(d.iban || '')}">
+                    <input type="text" class="form-input" id="ob_iban" maxlength="300" value="${Utils.escapeHtml(d.iban || '')}">
                 </div>
                 <div class="form-group">
                     <label class="form-label">${L.t('field.bic')}</label>
-                    <input type="text" class="form-input" id="ob_bic" value="${Utils.escapeHtml(d.bic || '')}">
+                    <input type="text" class="form-input" id="ob_bic" maxlength="300" value="${Utils.escapeHtml(d.bic || '')}">
                 </div>
             `;
         }
@@ -1544,45 +1544,45 @@ const App = {
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="set_firmenname">Firmenname</label>
-                    <input type="text" class="form-input" id="set_firmenname" value="${Utils.escapeHtml(s.firmenname || '')}">
+                    <input type="text" class="form-input" id="set_firmenname" maxlength="300" value="${Utils.escapeHtml(s.firmenname || '')}">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="set_name">Name</label>
-                    <input type="text" class="form-input" id="set_name" value="${Utils.escapeHtml(s.name || '')}">
+                    <input type="text" class="form-input" id="set_name" maxlength="300" value="${Utils.escapeHtml(s.name || '')}">
                 </div>
             </div>
             <div class="form-group">
                 <label class="form-label" for="set_adresse">Adresse</label>
-                <input type="text" class="form-input" id="set_adresse" value="${Utils.escapeHtml(s.adresse || '')}">
+                <input type="text" class="form-input" id="set_adresse" maxlength="300" value="${Utils.escapeHtml(s.adresse || '')}">
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="set_plz">PLZ</label>
-                    <input type="text" class="form-input" id="set_plz" value="${Utils.escapeHtml(s.plz || '')}">
+                    <input type="text" class="form-input" id="set_plz" maxlength="300" value="${Utils.escapeHtml(s.plz || '')}">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="set_ort">Ort</label>
-                    <input type="text" class="form-input" id="set_ort" value="${Utils.escapeHtml(s.ort || '')}">
+                    <input type="text" class="form-input" id="set_ort" maxlength="300" value="${Utils.escapeHtml(s.ort || '')}">
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="set_telefon">Telefon</label>
-                    <input type="text" class="form-input" id="set_telefon" value="${Utils.escapeHtml(s.telefon || '')}">
+                    <input type="text" class="form-input" id="set_telefon" maxlength="300" value="${Utils.escapeHtml(s.telefon || '')}">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="set_email">E-Mail</label>
-                    <input type="email" class="form-input" id="set_email" value="${Utils.escapeHtml(s.email || '')}">
+                    <input type="email" class="form-input" id="set_email" maxlength="300" value="${Utils.escapeHtml(s.email || '')}">
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="set_steuernummer">Steuernummer</label>
-                    <input type="text" class="form-input" id="set_steuernummer" value="${Utils.escapeHtml(s.steuernummer || '')}">
+                    <input type="text" class="form-input" id="set_steuernummer" maxlength="300" value="${Utils.escapeHtml(s.steuernummer || '')}">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="set_ustId">USt-ID</label>
-                    <input type="text" class="form-input" id="set_ustId" value="${Utils.escapeHtml(s.ustId || '')}">
+                    <input type="text" class="form-input" id="set_ustId" maxlength="300" value="${Utils.escapeHtml(s.ustId || '')}">
                 </div>
             </div>
             <div class="form-group">
@@ -1643,15 +1643,15 @@ const App = {
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label" for="set_bankname">Bankname</label>
-                    <input type="text" class="form-input" id="set_bankname" value="${Utils.escapeHtml(s.bankname || '')}">
+                    <input type="text" class="form-input" id="set_bankname" maxlength="300" value="${Utils.escapeHtml(s.bankname || '')}">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="set_iban">IBAN</label>
-                    <input type="text" class="form-input" id="set_iban" value="${Utils.escapeHtml(s.iban || '')}">
+                    <input type="text" class="form-input" id="set_iban" maxlength="300" value="${Utils.escapeHtml(s.iban || '')}">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="set_bic">BIC</label>
-                    <input type="text" class="form-input" id="set_bic" value="${Utils.escapeHtml(s.bic || '')}">
+                    <input type="text" class="form-input" id="set_bic" maxlength="300" value="${Utils.escapeHtml(s.bic || '')}">
                 </div>
             </div>
             <hr style="border-color:var(--border);margin:16px 0;">
@@ -2474,7 +2474,17 @@ const App = {
 
                     const parseNum = v => {
                         if (v === null || v === undefined || v === '') return 0;
-                        return parseFloat(String(v).replace(',', '.')) || 0;
+                        const n = parseFloat(String(v).replace(',', '.'));
+                        // Negative Beträge/Prozente/Mengen sind bei Import-Zeilen nicht plausibel
+                        // und würden Summen (Dashboard, EÜR) unbemerkt verfälschen — auf 0 clampen.
+                        // `|| 0` allein fing nur NaN ab, ein negativer Wert lief durch.
+                        if (!Number.isFinite(n) || n < 0) return 0;
+                        return n;
+                    };
+                    const parseQty = v => {
+                        const n = parseInt(v, 10);
+                        // Negative/0/Infinity sind bei einer Stückzahl nicht plausibel — auf 1 clampen.
+                        return (Number.isFinite(n) && n > 0) ? n : 1;
                     };
                     const parseDate = v => {
                         if (!v) return Utils.todayISO();
@@ -2503,7 +2513,7 @@ const App = {
                                 groesse: String(r[3] || '').trim(),
                                 beschreibung,
                                 einkaufspreis: parseNum(r[5]),
-                                anzahl: parseInt(r[6]) || 1,
+                                anzahl: parseQty(r[6]),
                                 einkaufsquelle: String(r[7] || 'Sonstiges').trim() || 'Sonstiges',
                                 notizen: String(r[8] || '').trim(),
                                 status: 'verfuegbar'
@@ -2750,7 +2760,7 @@ const App = {
                 </div>
                 <div class="form-group">
                     <label class="form-label" style="color:var(--danger);">Tippe <strong>LÖSCHEN</strong> zur Bestätigung:</label>
-                    <input type="text" class="form-input" id="deleteConfirmInput" placeholder="LÖSCHEN" autocomplete="off">
+                    <input type="text" class="form-input" id="deleteConfirmInput" maxlength="50" placeholder="LÖSCHEN" autocomplete="off">
                 </div>
             `;
             const footer = `

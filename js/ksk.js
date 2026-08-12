@@ -250,7 +250,7 @@ const Ksk = {
             </div>
             <div class="form-group">
                 <label class="form-label">Mitgliedsnummer (optional)</label>
-                <input type="text" class="form-input" id="ksk_nr" value="${Utils.escapeHtml(cfg.nummer || '')}" placeholder="KSK-Nummer">
+                <input type="text" class="form-input" id="ksk_nr" maxlength="50" value="${Utils.escapeHtml(cfg.nummer || '')}" placeholder="KSK-Nummer">
             </div>
             <div class="form-group">
                 <label class="form-label">Gemeldetes Jahreseinkommen (€)</label>
@@ -309,7 +309,7 @@ const Ksk = {
             </div>
             <div class="form-group">
                 <label class="form-label">Notiz</label>
-                <input type="text" class="form-input" id="ksk_notiz" placeholder="z.B. Einkommensmeldung für 2026 ...">
+                <input type="text" class="form-input" id="ksk_notiz" maxlength="300" placeholder="z.B. Einkommensmeldung für 2026 ...">
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
                 <button class="btn" data-action="close-modal">Abbrechen</button>

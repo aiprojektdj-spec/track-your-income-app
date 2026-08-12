@@ -183,12 +183,12 @@ const Fahrtenbuch = {
                     <div class="form-row">
                         <div class="form-group" style="flex:2">
                             <label class="form-label">Von (Startort) *</label>
-                            <input type="text" class="form-input" id="fb_von" list="fbOrteList"
+                            <input type="text" class="form-input" id="fb_von" maxlength="300" list="fbOrteList"
                                 value="${Utils.escapeHtml(f?.von || '')}" placeholder="z.B. Heimatadresse" required>
                         </div>
                         <div class="form-group" style="flex:2">
                             <label class="form-label">Nach (Zielort) *</label>
-                            <input type="text" class="form-input" id="fb_nach" list="fbOrteList"
+                            <input type="text" class="form-input" id="fb_nach" maxlength="300" list="fbOrteList"
                                 value="${Utils.escapeHtml(f?.nach || '')}" placeholder="z.B. Flohmarkt Stadtpark" required>
                         </div>
                         <div class="form-group">
@@ -264,13 +264,13 @@ const Fahrtenbuch = {
                         </div>
                         <div class="form-group" id="fb_zweckSonstigGrp" style="flex:2;display:${f?.zweck === 'sonstiges' ? '' : 'none'}">
                             <label class="form-label">Zweck (Freitext)</label>
-                            <input type="text" class="form-input" id="fb_zweck_text"
+                            <input type="text" class="form-input" id="fb_zweck_text" maxlength="300"
                                 value="${Utils.escapeHtml(f?.zweckSonstiges || '')}" placeholder="Beschreibung des Zwecks">
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Notizen (optional)</label>
-                        <input type="text" class="form-input" id="fb_notizen"
+                        <input type="text" class="form-input" id="fb_notizen" maxlength="1000"
                             value="${Utils.escapeHtml(f?.notizen || '')}" placeholder="Besonderheiten, Hinweise…">
                     </div>
 
@@ -525,6 +525,12 @@ const Fahrtenbuch = {
             const zweck = get('fb_zweck').value;
 
             if (!zweck) { Utils.showToast('Bitte Fahrtzweck wählen', 'warning'); return; }
+
+            // `min="0"` am Feld greift nur bei nativer Formularvalidierung — ein negativer Wert
+            // (eingefügt, per Autofill oder Skript gesetzt) kam hier bisher durch und hätte die
+            // Kilometerpauschale ins Minus gerechnet.
+            if (!Number.isFinite(km) || km < 0) { Utils.showToast('Ungültige Kilometerangabe', 'error'); return; }
+            if (art === 'tatsaechlich' && (!Number.isFinite(tk) || tk < 0)) { Utils.showToast('Ungültige Kostenangabe', 'error'); return; }
 
             // km-Stand ist GoBD-relevante Pflichtangabe eines ordnungsgemäßen Fahrtenbuchs
             // (fortlaufende, lückenlose Kilometerstände) — nicht mehr optional.

@@ -106,11 +106,11 @@ const Retouren = {
                         </div>
                         <div class="form-group">
                             <label class="form-label">Marke</label>
-                            <input type="text" class="form-input" id="rt_marke" placeholder="z.B. Nike">
+                            <input type="text" class="form-input" id="rt_marke" maxlength="300" placeholder="z.B. Nike">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Artikeltyp</label>
-                            <input type="text" class="form-input" id="rt_artikeltyp" placeholder="z.B. Schuhe">
+                            <input type="text" class="form-input" id="rt_artikeltyp" maxlength="300" placeholder="z.B. Schuhe">
                         </div>
                     </div>
                     <div class="form-row">
@@ -146,7 +146,7 @@ const Retouren = {
 
                     <div class="form-group">
                         <label class="form-label">Notizen / Grund</label>
-                        <input type="text" class="form-input" id="rt_notizen" placeholder="Grund der Retoure...">
+                        <input type="text" class="form-input" id="rt_notizen" maxlength="1000" placeholder="Grund der Retoure...">
                     </div>
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">Retoure speichern</button>
@@ -209,13 +209,22 @@ const Retouren = {
             e.preventDefault();
             const zustand = document.getElementById('rt_zustand').value;
             const saleId = (document.getElementById('rt_saleId') || {}).value || '';
+
+            // Negative Beträge liefen bis hierher ungeprüft durch (`parseFloat(...) || 0` fängt
+            // nur NaN ab) und hätten Erstattung und Verkaufserlös in die falsche Richtung
+            // verschoben — bei verknüpften Verkäufen bis in Umsatz und UVA.
+            const vkPreisRaw = parseFloat(document.getElementById('rt_vkPreis').value) || 0;
+            const erstattungRaw = parseFloat(document.getElementById('rt_erstattung').value) || 0;
+            if (!Number.isFinite(vkPreisRaw) || vkPreisRaw < 0) { Utils.showToast('Ungültiger Verkaufspreis', 'error'); return; }
+            if (!Number.isFinite(erstattungRaw) || erstattungRaw < 0) { Utils.showToast('Ungültige Erstattung', 'error'); return; }
+
             const r = {
                 datum: Utils.getDateInputValue('rt_datum'),
                 marke: document.getElementById('rt_marke').value.trim(),
                 artikeltyp: document.getElementById('rt_artikeltyp').value.trim(),
                 zustand,
-                vkPreis: parseFloat(document.getElementById('rt_vkPreis').value) || 0,
-                erstattungBetrag: parseFloat(document.getElementById('rt_erstattung').value) || 0,
+                vkPreis: vkPreisRaw,
+                erstattungBetrag: erstattungRaw,
                 notizen: document.getElementById('rt_notizen').value.trim(),
                 saleId: saleId || null
             };

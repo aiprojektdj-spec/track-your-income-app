@@ -264,7 +264,7 @@ const Steuertermine = {
                         </div>
                         <div class="form-group">
                             <label class="form-label">Beschreibung</label>
-                            <input type="text" class="form-input" id="st_beschreibung" placeholder="z.B. Vorauszahlung Finanzamt">
+                            <input type="text" class="form-input" id="st_beschreibung" maxlength="300" placeholder="z.B. Vorauszahlung Finanzamt">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Typ</label>

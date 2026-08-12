@@ -823,12 +823,16 @@ const GbR = {
 
         const bruttoEinnahmen = sales.reduce((sum, s) =>
             sum + (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0), 0);
-        // Verkäufe netto zum tatsächlichen Steuersatz je Verkauf (nicht pauschal 19%)
+        // Verkäufe netto zum tatsächlichen Steuersatz je Verkauf (nicht pauschal 19%).
+        // Store.salePerRate deckt auch die Aufteilung `steuersaetze` ab, die bei einer
+        // Teilzahlung auf eine Rechnung mit gemischten 7%/19%-Positionen entsteht — vorher
+        // wurde dort auf 19% zurückgefallen und der 7%-Anteil zu hoch versteuert
+        // (Fund D1, Steuer-Delta-Audit 2026-08-11).
         const salesNetto = isRegel ? sales.reduce((sum, s) => {
-            const brutto = (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
-            const rateRaw = (s.steuersatz != null && s.steuersatz !== '') ? parseFloat(s.steuersatz) : 19;
-            const rate = isNaN(rateRaw) ? 19 : rateRaw;
-            return sum + brutto / (1 + rate / 100);
+            return sum + Store.salePerRate(s).reduce((acc, g) => {
+                const rate = isNaN(g.satz) ? 19 : g.satz;
+                return acc + g.brutto / (1 + rate / 100);
+            }, 0);
         }, 0) : bruttoEinnahmen;
 
         const retourenListe = Store.getRetouren().filter(r => Utils.isInPeriod(r.datum, startDate, endDate));

@@ -25,21 +25,16 @@ var Dokumente = (function() {
         return Math.max(0, calcBrutto(invoice) - teilzahlungSumme(invoice));
     }
 
-    // v1-Einschränkung (siehe plan/session-prompt-zufluss-teilzahlung-steuermodule.md, Punkt 3):
-    // Store.createSaleFromInvoice() kann einer Teilzahlung nur EINEN Steuersatz mitgeben (für
-    // die Ist-UVA). Bei gemischten Sätzen über die Positionen ist der anteilige Satz nicht
-    // eindeutig, daher werden Teilzahlungen bei solchen Rechnungen abgelehnt statt falsch verbucht.
-    function hasMixedVatRates(invoice) {
-        var isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (Store.getSettings().ustMode === 'klein');
-        if (isKlein) return false; // §19 UStG: Store.createSaleFromInvoice setzt steuersatz immer fix auf 0, keine Mehrdeutigkeit
-        var saetze = [];
-        (invoice.positionen || []).forEach(function(pos) {
-            if ((pos.menge || 0) * (pos.einzelpreis || 0) === 0) return;
-            var satz = parseInt(pos.mwstSatz) || 0;
-            if (saetze.indexOf(satz) < 0) saetze.push(satz);
-        });
-        return saetze.length > 1;
-    }
+    // Frühere v1-Einschränkung ENTFERNT (Fund D1, Steuer-Delta-Audit 2026-08-11):
+    // Teilzahlungen auf Rechnungen mit gemischten 7%/19%-Positionen wurden hier abgelehnt, weil
+    // Store.createSaleFromInvoice() einer Teilzahlung angeblich nur EINEN Steuersatz mitgeben
+    // konnte. Das stimmt nicht mehr — die Funktion teilt den Teilbetrag satzgenau auf
+    // (sale.steuersaetze), und Store.salePerRate() macht diese Aufteilung für alle Auswertungen
+    // lesbar (UVA, EÜR/Gewinn, GbR).
+    //
+    // Die Sperre verursachte genau den Fehler, den sie verhindern sollte: der Rat "bitte
+    // Schlusszahlung abwarten" führt dazu, dass ein im Dezember zugeflossener Teilbetrag erst im
+    // Januar erfasst wird — ein Verstoß gegen das Zuflussprinzip des §11 EStG.
 
     function render() {
         var invoices = Store.getRechInvoices();
@@ -309,7 +304,7 @@ var Dokumente = (function() {
         body += '</select></div>';
 
         body += '<div class="form-group" id="stornoFreitextGroup" style="display:none;"><label class="form-label" for="stornoFreitext">Freitext Begr\u00FCndung</label>';
-        body += '<input class="form-input" type="text" id="stornoFreitext" placeholder="Bitte Grund eingeben..."></div>';
+        body += '<input class="form-input" type="text" id="stornoFreitext" maxlength="300" placeholder="Bitte Grund eingeben..."></div>';
 
         body += '<div style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.3);border-radius:6px;padding:10px 14px;margin-top:8px;font-size:12px;color:#b91c1c;">';
         body += '\u26A0\uFE0F Diese Aktion kann nicht r\u00FCckg\u00E4ngig gemacht werden (GoBD-Konformit\u00E4t).';
@@ -654,10 +649,6 @@ var Dokumente = (function() {
             var datum = document.getElementById('teilzDatum').value || Utils.todayISO();
             if (!betrag || betrag <= 0) {
                 Utils.showToast('Bitte einen gültigen Betrag angeben.', 'warning');
-                return;
-            }
-            if (hasMixedVatRates(inv)) {
-                Utils.showToast('⛔ Teilzahlungen bei gemischten MwSt-Sätzen (7%/19%) werden aktuell nicht unterstützt — bitte Schlusszahlung abwarten oder Rechnung mit einheitlichem Steuersatz stellen.', 'error');
                 return;
             }
             if (betrag >= rest - 0.001) {

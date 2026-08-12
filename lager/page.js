@@ -1626,6 +1626,22 @@ function _saveBulkArtikel() {
             if (saveBtn) saveBtn.textContent = '⏳ Schreibe in Datenbank…';
             await Store.setAsync('purchases', [...existing, ...newRecords]);
 
+            // GoBD (§146 Abs. 4 AO, Rz. 64): Store.setAsync() ist ein reiner Schreibpfad ohne
+            // Protokollierung — anders als Store.savePurchase(). Ohne diesen Block entstanden hier
+            // beliebig viele Einkäufe (= Betriebsausgaben) OHNE eine Zeile im Änderungsprotokoll.
+            // In einer Betriebsprüfung ist genau das die Lücke, die auffällt: die Hash-Kette ist
+            // intakt, das Protokoll wirkt vollständig, zeigt aber die Massenvorgänge nicht.
+            // Fund D2, Steuer-Delta-Audit 2026-08-11.
+            if (Store._addAuditEntriesBatch && newRecords.length) {
+                Store._addAuditEntriesBatch(newRecords.map(function (r) {
+                    return {
+                        action: 'erstellt', entityType: 'einkauf', entityId: r.id,
+                        oldValues: null, newValues: r,
+                        details: 'Einkauf erstellt (Sammel-Erfassung Lager, ' + newRecords.length + ' Artikel)'
+                    };
+                }));
+            }
+
             Store.addEinkaufsquelle(quelle);
             localStorage.setItem('lager_last_quelle', quelle);
 
@@ -2453,17 +2469,40 @@ const SalesImport = {
             const existingSales = Store.get('sales') || [];
             await Store.setAsync('sales', [...existingSales, ...newSales]);
 
+            // GoBD (§146 Abs. 4 AO, Rz. 64) — Fund D2, Steuer-Delta-Audit 2026-08-11.
+            // setAsync() protokolliert nicht. Hier entstehen Betriebs-EINNAHMEN, also der
+            // steuerlich empfindlichste Datentyp überhaupt; ohne Protokolleintrag fehlten im
+            // Änderungsprotokoll genau die umsatzstärksten Vorgänge.
+            const auditItems = newSales.map(function (s) {
+                return {
+                    action: 'erstellt', entityType: 'verkauf', entityId: s.id,
+                    oldValues: null, newValues: s,
+                    details: 'Verkauf erstellt (Verkaufs-Import, ' + newSales.length + ' Zeilen)'
+                };
+            });
+
             // Status der gematchten Artikel auf 'verkauft' setzen
             if (updatedPurchases.size > 0) {
                 const allPurchases = Store.getPurchases(true);
                 allPurchases.forEach(p => {
                     if (updatedPurchases.has(p.id)) {
+                        // Vorher-Wert für das Protokoll festhalten, bevor er überschrieben wird —
+                        // ein Statuswechsel ohne oldValues ist im Protokoll nicht nachvollziehbar.
+                        const vorher = { id: p.id, status: p.status };
                         p.status = 'verkauft';
                         if (Store._stampRecord) Store._stampRecord(p);
+                        auditItems.push({
+                            action: 'status_geaendert', entityType: 'einkauf', entityId: p.id,
+                            oldValues: vorher, newValues: { id: p.id, status: 'verkauft' },
+                            details: 'Status → verkauft (Massen-Statuswechsel aus Verkaufs-Import)'
+                        });
                     }
                 });
                 await Store.setAsync('purchases', allPurchases);
             }
+            // Ein Batch-Aufruf für beides: die Hash-Kette bleibt gültig (jeder prevHash =
+            // checksum des Vorgängers), und es entsteht nur EINE Schreiboperation.
+            if (Store._addAuditEntriesBatch && auditItems.length) Store._addAuditEntriesBatch(auditItems);
 
             App.closeModal();
             Utils.showToast(`✅ ${total} Verkäufe importiert · ${matched} Lager-Artikel als verkauft markiert`, 'success');

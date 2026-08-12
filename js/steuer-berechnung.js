@@ -18,13 +18,24 @@ const SteuerBerechnung = {
         return { netto, ust: brutto - netto, rate: r };
     },
 
-    // Verkäufe: Brutto = Verkaufspreis + Versand vom Käufer, genettet am Satz je Verkauf (steuersatz).
+    // Verkäufe: Brutto = Verkaufspreis + Versand vom Käufer, genettet am Satz je Verkauf.
+    //
+    // Ein Verkauf kann seinen Steuersatz in ZWEI Formen tragen (s. Store.salePerRate): als
+    // einzelnen `steuersatz` oder — bei einer Teilzahlung auf eine Rechnung mit gemischten
+    // 7%/19%-Positionen — als Aufteilung `steuersaetze`. Vorher las diese Funktion nur
+    // `steuersatz` und fiel bei der zweiten Form auf den 19%-Default zurück: der 7%-Anteil
+    // wurde mit 19% genettet, also zu wenig Gewinn und zu viel Umsatzsteuer ausgewiesen
+    // (Fund D1, Steuer-Delta-Audit 2026-08-11).
     nettoSales(sales, isRegel) {
         let brutto = 0, netto = 0;
         sales.forEach(s => {
             const b = (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
             brutto += b;
-            netto += isRegel ? this.nettoAusBrutto(b, s.steuersatz).netto : b;
+            if (!isRegel) { netto += b; return; }
+            const groups = (typeof Store !== 'undefined' && Store.salePerRate)
+                ? Store.salePerRate(s)
+                : [{ satz: s.steuersatz, brutto: b }];
+            groups.forEach(g => { netto += this.nettoAusBrutto(g.brutto, g.satz).netto; });
         });
         return { brutto, netto, ust: brutto - netto };
     },

@@ -2450,6 +2450,27 @@ const Store = {
     // Invoice → Sale Connector (Rechnungsbuch → Reselling)
     // ============================================
 
+    // Bruttobeträge eines Verkaufs je Steuersatz — die EINE Stelle, die weiß, wie ein Sale seinen
+    // Steuersatz trägt. Zwei Formen sind möglich (s. createSaleFromInvoice unten):
+    //   sale.steuersatz  = 19            → ein Satz für den ganzen Betrag (Regelfall)
+    //   sale.steuersaetze = {7:…, 19:…}  → satzgenaue Aufteilung, wenn die Rechnung gemischte
+    //                                      Positionen hatte; steuersatz ist dann NICHT gesetzt
+    //
+    // Ohne diesen Helfer haben Module, die nur `steuersatz` lesen, bei der zweiten Form auf ihren
+    // 19%-Default zurückgegriffen und damit einen 7%-Anteil mit 19% genettet — zu wenig Gewinn,
+    // zu viel Umsatzsteuer (Fund D1, Steuer-Delta-Audit 2026-08-11). js/ustvoranmeldung.js hatte
+    // diese Logik schon privat; sie liegt jetzt hier, damit nicht jede Auswertung ihre eigene
+    // Fassung pflegt.
+    salePerRate(sale, fallbackRate) {
+        const brutto = (parseFloat(sale && sale.verkaufspreis) || 0) +
+                       (parseFloat(sale && sale.versandkostenKaeufer) || 0);
+        if (sale && sale.steuersaetze && Object.keys(sale.steuersaetze).length) {
+            return Object.keys(sale.steuersaetze).map(k => ({ satz: parseFloat(k) || 0, brutto: sale.steuersaetze[k] }));
+        }
+        const r = parseFloat(sale && sale.steuersatz);
+        return [{ satz: isNaN(r) ? (fallbackRate === undefined ? 19 : fallbackRate) : r, brutto: brutto }];
+    },
+
     createSaleFromInvoice(invoice, platform, purchaseId, manualEK, opts) {
         opts = opts || {};
         const settings = this.getSettings();

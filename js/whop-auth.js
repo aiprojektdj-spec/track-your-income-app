@@ -597,12 +597,13 @@ var AuthUI = (function () {
 
             // Jahresabo (hervorgehoben)
             '<a href="' + WHOP_URL_YEARLY + '" target="_blank" rel="noopener" style="display:block;text-align:left;position:relative;padding:14px 16px;margin-bottom:10px;background:linear-gradient(135deg,rgba(16,185,129,.14),rgba(5,150,105,.08));border:1.5px solid var(--accent,#10b981);border-radius:12px;text-decoration:none;box-sizing:border-box;">',
-            '<span style="position:absolute;top:-9px;right:14px;background:var(--accent,#10b981);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;letter-spacing:.3px;">SPAR ' + save + ' €</span>',
+            '<span style="position:absolute;top:-9px;right:14px;background:var(--accent,#10b981);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;letter-spacing:.3px;">7 TAGE GRATIS · SPAR ' + save + ' €</span>',
             '<div style="display:flex;justify-content:space-between;align-items:baseline;">',
             '<span style="color:var(--text-primary,#fff);font-size:15px;font-weight:700;">Jahresabo</span>',
             '<span style="color:var(--text-primary,#fff);font-size:15px;font-weight:800;">' + PRICE_YEARLY + ' €<span style="font-size:11px;color:var(--text-muted,#888);font-weight:500;">/Jahr</span></span>',
             '</div>',
             '<div style="color:var(--accent,#10b981);font-size:11.5px;margin-top:3px;">entspricht ' + perMonthYear + ' €/Monat · ' + monthsFree + ' Monate gratis</div>',
+            '<div style="color:var(--accent,#10b981);font-size:11.5px;margin-top:3px;font-weight:600;">Erste 7 Tage kostenlos</div>',
             '</a>',
 
             // Monatsabo
@@ -611,10 +612,10 @@ var AuthUI = (function () {
             '<span style="color:var(--text-primary,#fff);font-size:15px;font-weight:700;">Monatlich</span>',
             '<span style="color:var(--text-primary,#fff);font-size:15px;font-weight:800;">' + PRICE_MONTHLY + ' €<span style="font-size:11px;color:var(--text-muted,#888);font-weight:500;">/Monat</span></span>',
             '</div>',
-            // Trial-Hinweis bewusst nur an der Monatskarte: sie zeigt auf denselben Whop-Plan
-            // (plan_iR6YIKLcychSZ) wie die Trial-CTAs der Landingpage. Fuer den Jahresplan
-            // (plan_b5IBQ1lecggOT) ist die Testphase im Code nicht nachweisbar — lieber keine
-            // Aussage als eine falsche.
+            // Trial-Hinweis an BEIDEN Karten: die Testphase haengt bei Whop an beiden Plaenen
+            // (vom Betreiber am 2026-08-12 bestaetigt; aus dem Code allein nicht nachweisbar,
+            // da Monats- und Jahresabo verschiedene plan_-IDs sind). Deckt sich mit der FAQ
+            // auf index.html:607, die den Trial ebenfalls fuer beide Abos nennt.
             '<div style="color:var(--accent,#10b981);font-size:11.5px;margin-top:3px;font-weight:600;">Erste 7 Tage kostenlos</div>',
             '<div style="color:var(--text-muted,#888);font-size:11.5px;margin-top:2px;">Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung · jederzeit kündbar</div>',
             '</a>',

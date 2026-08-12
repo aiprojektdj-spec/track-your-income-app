@@ -72,11 +72,13 @@ Gemessen an einem 3,5-MB-Chiffrat verteilte sich die synchrone Last so:
 
 | Posten | Kosten |
 |---|---|
-| `_b64()` — chunked Base64 | **~73 ms** |
+| `_b64()` — chunked Base64 | **~73 ms** (Node) / **58,7 ms** (Chromium 148) |
 | `JSON.stringify` des Blobs (~830 KB) | ~21 ms |
 | `crypto.subtle.encrypt` | 0 ms Main-Thread |
 
-Der Loop war teuer, weil er nebenbei einen 4,6-MB-Zwischenstring aufbaut. **Fix:**
+Der Loop war teuer, weil er nebenbei einen 4,6-MB-Zwischenstring aufbaut. Im Browser gemessen
+sinken die 58,7 ms auf **2,5 ms** — rund 56 ms Main-Thread-Hänger weniger je Sync, bei
+byte-identischer Ausgabe. **Fix:**
 `_b64`/`_unb64` in [`js/cloud-sync.js:202`](../js/cloud-sync.js#L202) nehmen jetzt
 `Uint8Array.prototype.toBase64` / `Uint8Array.fromBase64` (nativ, ohne Zwischenstring); der alte
 Loop bleibt als Fallback für Engines ohne die Methoden stehen. Test:

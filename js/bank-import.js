@@ -304,6 +304,85 @@ var BankImport = (function () {
         return parseCsv(content);
     }
 
+    // ── Zahlungsabgleich: Einnahme ↔ offene Rechnung ─────────────────────
+    // Bis 2026-08-12 hat der Import jede Gutschrift mit "Einnahme (kein Import)" verworfen —
+    // dabei ist "welche meiner Rechnungen ist bezahlt worden?" der häufigste Grund, einen
+    // Kontoauszug überhaupt zu importieren. Gebucht wird hier nichts automatisch: der Import
+    // schlägt eine Zuordnung vor, entscheiden muss der Nutzer.
+
+    function invoiceBrutto(inv) {
+        var isKlein = inv.isKlein !== undefined ? inv.isKlein : (Store.getSettings().ustMode === 'klein');
+        var sum = 0;
+        (inv.positionen || []).forEach(function (p) {
+            var netto = (p.menge || 0) * (p.einzelpreis || 0);
+            sum += netto + (isKlein ? 0 : netto * (parseFloat(p.mwstSatz) || 0) / 100);
+        });
+        return sum;
+    }
+
+    function invoiceRest(inv) {
+        var gezahlt = (inv.teilzahlungen || []).reduce(function (s, t) { return s + (parseFloat(t.betrag) || 0); }, 0);
+        return Math.max(0, invoiceBrutto(inv) - gezahlt);
+    }
+
+    function openInvoices() {
+        var all = Store.getRechInvoices ? Store.getRechInvoices() : [];
+        return all.filter(function (inv) {
+            return inv.typ === 'rechnung' && !inv._storniert &&
+                   ['offen', 'versendet', 'ueberfaellig'].indexOf(inv.status) !== -1;
+        });
+    }
+
+    // Rechnungsnummern stehen im Verwendungszweck in allen denkbaren Schreibweisen:
+    // "RE-2026-0007", "RE 2026 0007", "Rechnung Nr. 20260007". Für den Vergleich bleibt
+    // deshalb nur, was in jeder Variante gleich ist: Ziffern und Buchstaben.
+    function normRef(s) {
+        return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    }
+
+    function customerName(inv) {
+        var k = (Store.getRechCustomers() || []).find(function (c) { return c.id === inv.kundeId; });
+        return k ? (k.firma || k.ansprechpartner || '') : '';
+    }
+
+    /** Kandidaten für eine Gutschrift, bester zuerst. Kein Treffer => leeres Array. */
+    function matchCandidates(tx, invoices) {
+        var desc = normRef(tx.description);
+        var cands = [];
+        invoices.forEach(function (inv) {
+            var rest = invoiceRest(inv);
+            if (rest <= 0) return;
+            var score = 0, gruende = [];
+
+            var nr = normRef(inv.nummer);
+            if (nr && nr.length >= 4 && desc.indexOf(nr) !== -1) { score += 100; gruende.push('Rechnungsnummer im Verwendungszweck'); }
+
+            var diff = Math.abs(rest - tx.amount);
+            if (diff < 0.005)      { score += 50; gruende.push('Betrag entspricht dem offenen Rest'); }
+            else if (diff <= 1.00) { score += 20; gruende.push('Betrag weicht um ' + Utils.formatCurrency(diff) + ' ab'); }
+            else if (tx.amount < rest) { score += 5; gruende.push('Teilbetrag von ' + Utils.formatCurrency(rest)); }
+
+            var kunde = normRef(customerName(inv));
+            if (kunde && kunde.length >= 4 && desc.indexOf(kunde) !== -1) { score += 25; gruende.push('Kundenname im Verwendungszweck'); }
+
+            // Eine Zahlung vor dem Rechnungsdatum ist möglich (Vorkasse), aber untypisch —
+            // sie zählt als Signal gegen die Zuordnung, schließt sie aber nicht aus.
+            if (tx.date && inv.datum && tx.date < inv.datum) { score -= 15; gruende.push('Zahlung liegt vor dem Rechnungsdatum'); }
+
+            if (score > 0) cands.push({ inv: inv, rest: rest, score: score, gruende: gruende });
+        });
+        cands.sort(function (a, b) { return b.score - a.score; });
+        return cands;
+    }
+
+    /** Vorauswahl nur, wenn die Zuordnung eindeutig ist — sonst entscheidet der Nutzer. */
+    function autoPick(cands) {
+        if (!cands.length) return null;
+        if (cands[0].score < 50) return null;                     // schwacher Treffer: nie vorwählen
+        if (cands.length > 1 && cands[1].score === cands[0].score) return null; // Gleichstand
+        return cands[0];
+    }
+
     // ── Import UI ───────────────────────────────────────────────────────
     var _parsed = [];
 
@@ -384,6 +463,8 @@ var BankImport = (function () {
         html += '<th>Kategorie</th>';
         html += '</tr></thead><tbody>';
 
+        var offene = openInvoices();
+
         transactions.forEach(function (tx, idx) {
             var categories = ['Versandkosten', 'Plattformgebühren', 'Fahrtkosten', 'Büro & Material', 'Wareneinkauf', 'Sonstiges'];
             var autoCategory = guessCategory(tx.description);
@@ -401,13 +482,33 @@ var BankImport = (function () {
             if (!tx.isCredit) {
                 html += '<td><select class="form-select bank-cat-select" data-idx="' + idx + '" style="font-size:12px;padding:4px 8px;">' + catOptions + '</select></td>';
             } else {
-                html += '<td style="color:var(--text-muted);">Einnahme (kein Import)</td>';
+                var cands = matchCandidates(tx, offene);
+                var pick  = autoPick(cands);
+                if (!cands.length) {
+                    html += '<td style="color:var(--text-muted);font-size:12px;">Keine offene Rechnung passt</td>';
+                } else {
+                    var opts = '<option value="">-- nicht zuordnen --</option>';
+                    cands.forEach(function (c) {
+                        var sel = (pick && pick.inv.id === c.inv.id) ? ' selected' : '';
+                        opts += '<option value="' + c.inv.id + '"' + sel + '>'
+                             +  Utils.escapeHtml(c.inv.nummer || '(ohne Nr.)') + ' · '
+                             +  Utils.escapeHtml(customerName(c.inv) || 'ohne Kunde') + ' · offen '
+                             +  Utils.formatCurrency(c.rest) + '</option>';
+                    });
+                    html += '<td><select class="form-select bank-inv-select" data-idx="' + idx + '" style="font-size:12px;padding:4px 8px;">' + opts + '</select>';
+                    var top = pick || cands[0];
+                    html += '<div style="font-size:10.5px;color:var(--text-muted);margin-top:3px;">' + Utils.escapeHtml(top.gruende.join(' · ')) + '</div>';
+                    if (!pick) {
+                        html += '<div style="font-size:10.5px;color:var(--warning);margin-top:2px;">Nicht eindeutig — bitte selbst prüfen</div>';
+                    }
+                    html += '</td>';
+                }
             }
             html += '</tr>';
         });
 
         html += '</tbody></table></div>';
-        html += '<div style="padding:10px 16px;font-size:11px;color:var(--text-muted);">Nur Ausgaben werden als Betriebsausgabe importiert. Einnahmen müssen über das Rechnungsmodul erfasst werden.</div>';
+        html += '<div style="padding:10px 16px;font-size:11px;color:var(--text-muted);">Ausgaben werden als Betriebsausgabe gebucht. Einnahmen werden keiner Buchung, sondern einer <strong>offenen Rechnung</strong> zugeordnet: deckt die Zahlung den Restbetrag, gilt die Rechnung als bezahlt, sonst wird sie als Teilzahlung erfasst. Vorschläge werden nie ungefragt gebucht — nur angehakte Zeilen.</div>';
         html += '</div>';
 
         container.innerHTML = html;
@@ -417,7 +518,7 @@ var BankImport = (function () {
         if (checkAll) {
             checkAll.addEventListener('change', function () {
                 document.querySelectorAll('.bank-row-check').forEach(function (cb) {
-                    if (!_parsed[cb.dataset.idx].isCredit) cb.checked = checkAll.checked;
+                    if (istBuchbar(cb.dataset.idx)) cb.checked = checkAll.checked;
                 });
             });
         }
@@ -426,11 +527,20 @@ var BankImport = (function () {
         if (selectAllBtn) {
             selectAllBtn.addEventListener('click', function () {
                 document.querySelectorAll('.bank-row-check').forEach(function (cb) {
-                    if (!_parsed[cb.dataset.idx].isCredit) cb.checked = true;
+                    if (istBuchbar(cb.dataset.idx)) cb.checked = true;
                 });
                 if (checkAll) checkAll.checked = true;
             });
         }
+
+        // Wer eine Rechnung zuordnet, will die Zeile auch buchen — Haken automatisch setzen
+        // und wieder entfernen, wenn die Zuordnung zurueckgenommen wird.
+        document.querySelectorAll('.bank-inv-select').forEach(function (sel) {
+            sel.addEventListener('change', function () {
+                var cb = document.querySelector('.bank-row-check[data-idx="' + this.dataset.idx + '"]');
+                if (cb) cb.checked = !!this.value;
+            });
+        });
 
         var importBtn = document.getElementById('bankImportSelected');
         if (importBtn) {
@@ -448,6 +558,16 @@ var BankImport = (function () {
         return 'Sonstiges';
     }
 
+    /** Anhakbar ist eine Zeile, wenn sie zu einer Buchung führen kann: jede Ausgabe,
+     *  und jede Einnahme, für die eine Rechnung ausgewählt ist. */
+    function istBuchbar(idx) {
+        var tx = _parsed[idx];
+        if (!tx) return false;
+        if (!tx.isCredit) return true;
+        var sel = document.querySelector('.bank-inv-select[data-idx="' + idx + '"]');
+        return !!(sel && sel.value);
+    }
+
     function importSelected() {
         var checks = document.querySelectorAll('.bank-row-check:checked');
         if (!checks.length) {
@@ -455,12 +575,46 @@ var BankImport = (function () {
             return;
         }
 
-        var imported = 0;
+        var imported = 0;      // Ausgaben
+        var bezahlt = 0;       // vollständig beglichene Rechnungen
+        var teilzahlungen = 0; // erfasste Teilzahlungen
+        var uebersprungen = [];
+
         checks.forEach(function (cb) {
             var idx = parseInt(cb.dataset.idx);
             var tx = _parsed[idx];
-            if (!tx || tx.isCredit) return; // Only import expenses
+            if (!tx) return;
 
+            // ── Einnahme: einer offenen Rechnung zuordnen ────────────────────
+            if (tx.isCredit) {
+                var sel = document.querySelector('.bank-inv-select[data-idx="' + idx + '"]');
+                var invId = sel ? sel.value : '';
+                if (!invId) return; // ohne Zuordnung passiert bewusst nichts
+
+                var inv = (Store.getRechInvoices() || []).find(function (i) { return i.id === invId; });
+                if (!inv) { uebersprungen.push('Rechnung nicht mehr vorhanden'); return; }
+
+                var rest = invoiceRest(inv);
+                // Zahlung deckt den Rest (Cent-Toleranz gegen Rundung): Rechnung ist beglichen.
+                // Überzahlungen zählen ebenfalls als beglichen — die Differenz ist ein
+                // Erstattungsfall, den der Zahlungsabgleich nicht entscheiden darf.
+                if (tx.amount >= rest - 0.005) {
+                    inv.status = 'bezahlt';
+                    inv.bezahltAm = tx.date;
+                    var saved = Store.saveRechInvoice(inv);
+                    if (!saved) { uebersprungen.push((inv.nummer || invId) + ' ist gesperrt'); return; }
+                    bezahlt++;
+                } else {
+                    // Teilzahlung: eigener Store-Pfad, weil er den anteiligen Zufluss nach
+                    // §11 EStG zum Zahlungsdatum mitbucht und das Audit-Log schreibt.
+                    var res = Store.addRechTeilzahlung(invId, tx.amount, tx.date);
+                    if (!res) { uebersprungen.push((inv.nummer || invId) + ' nimmt keine Teilzahlung an'); return; }
+                    teilzahlungen++;
+                }
+                return;
+            }
+
+            // ── Ausgabe: unverändert als Betriebsausgabe ─────────────────────
             var catEl = document.querySelector('.bank-cat-select[data-idx="' + idx + '"]');
             var kategorie = catEl ? catEl.value : 'Sonstiges';
 
@@ -478,9 +632,26 @@ var BankImport = (function () {
             imported++;
         });
 
-        Utils.showToast(imported + ' Buchung(en) als Ausgabe importiert!', 'success');
-        // Clear preview
-        document.getElementById('bankImportPreview').innerHTML = '<div style="padding:20px;text-align:center;color:var(--success);font-weight:600;">✓ ' + imported + ' Ausgaben importiert!</div>';
+        // Bezahlte Rechnungen in Verkäufe überführen — derselbe Weg, den auch das
+        // Dashboard beim Öffnen geht. Erst nach der Schleife, damit jede Rechnung
+        // nur einmal betrachtet wird.
+        if (bezahlt > 0 && Store.autoSyncInvoices) Store.autoSyncInvoices();
+
+        var teile = [];
+        if (imported)      teile.push(imported + ' Ausgabe(n) gebucht');
+        if (bezahlt)       teile.push(bezahlt + ' Rechnung(en) als bezahlt markiert');
+        if (teilzahlungen) teile.push(teilzahlungen + ' Teilzahlung(en) erfasst');
+        var msg = teile.length ? teile.join(', ') : 'Nichts gebucht';
+
+        Utils.showToast(msg + (uebersprungen.length ? ' — ' + uebersprungen.length + ' übersprungen' : ''),
+                        teile.length ? 'success' : 'warning');
+
+        var out = '<div style="padding:20px;text-align:center;color:var(--success);font-weight:600;">✓ ' + Utils.escapeHtml(msg) + '</div>';
+        if (uebersprungen.length) {
+            out += '<div style="padding:0 20px 20px;text-align:center;font-size:12px;color:var(--warning);">Übersprungen: '
+                +  Utils.escapeHtml(uebersprungen.join(' · ')) + '</div>';
+        }
+        document.getElementById('bankImportPreview').innerHTML = out;
         _parsed = [];
     }
 

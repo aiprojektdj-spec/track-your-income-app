@@ -200,12 +200,20 @@ var CloudSync = (function () {
     }
 
     // ── Base64 (chunked — verträgt MB-große Chiffrate) ────────────────────────
+    // Fund F6: Der teuerste synchrone Posten eines Syncs war nicht AES-GCM (crypto.subtle
+    // rechnet in Chromium und Gecko ohnehin auf einem Hintergrund-Thread), sondern diese
+    // Umwandlung: 3,5 MB Chiffrat = ~73 ms Main-Thread, weil der chunked Loop nebenbei einen
+    // 4,6-MB-Zwischenstring aufbaut. Uint8Array.prototype.toBase64/fromBase64 macht dasselbe
+    // nativ ohne Zwischenstring. Der Loop bleibt als Fallback für alte Engines stehen.
+    // Test: test/test-cloudsync-b64.js
     function _b64(bytes) {
+        if (typeof bytes.toBase64 === 'function') return bytes.toBase64();
         var s = '', CH = 0x8000;
         for (var i = 0; i < bytes.length; i += CH) s += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
         return btoa(s);
     }
     function _unb64(str) {
+        if (typeof Uint8Array.fromBase64 === 'function') return Uint8Array.fromBase64(str);
         var bin = atob(str), b = new Uint8Array(bin.length);
         for (var i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
         return b;

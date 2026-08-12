@@ -45,8 +45,8 @@ Größen sind gemessen, nicht geschätzt.
 |---|---|---|
 | ~~F1~~ | `defer` an die drei Sub-Apps | **in Arbeit, uncommittet** (fremde Session) |
 | ~~F3~~ | `chart.min.js` aus `eigenbelege/` entfernen | **in Arbeit, uncommittet** (fremde Session) |
-| **F2** | `xlsx.full.min.js` (929 KB) lazy laden | **offen** — `defer` ist im selben Zug dazugekommen, das ist aber nur der halbe Fix |
-| **F6** | Cloud-Sync-Krypto in einen Web Worker | **offen** |
+| ~~F2~~ | `xlsx.full.min.js` (929 KB) lazy laden | **fertig, uncommittet** (fremde Session) — `Utils.ensureXlsx()` in `js/utils.js:21`, alle vier Aufrufstellen umgestellt |
+| ~~F6~~ | Cloud-Sync-Krypto in einen Web Worker | **erledigt, aber anders als empfohlen** — s. unten |
 | F4 | `preload` ergänzen | teilweise — die zwei Fonts sind drin, `style.css`/`app.js` fehlen |
 | F5 / F7 | Tabellen per `innerHTML`, `setInterval` ohne `clear` | niedrig, erst messen |
 
@@ -65,11 +65,34 @@ laden (~600 KB), ebenfalls über `_ensureApexCharts()`. Und mittelfristig prüfe
 `js/statistiken.js` auf ApexCharts umgestellt werden kann — dann fällt eine von zwei
 Chart-Bibliotheken ganz weg.
 
-**F6 — Cloud-Sync: Web Worker** 🔴
-Der komplette Blob wird immer übertragen, und AES-GCM läuft im Main-Thread (geprüft: kein
-`Worker(` in `js/cloud-sync.js`). **Keinen Delta-Sync bauen** — CAS und Merge sind korrekt und
-getestet, da soll niemand ran. Stattdessen Ver-/Entschlüsselung auslagern und dem Nutzer eine
-sichtbare Rückmeldung geben.
+**F6 — Cloud-Sync: Main-Thread-Hänger** ✅ *(2026-08-12, ohne Web Worker)*
+Die Annahme des Audits war falsch: **AES-GCM war nie der Kostenpunkt.** `crypto.subtle` rechnet in
+Chromium und Gecko auf einem Hintergrund-Thread-Pool, die Aufrufe sind async und blockieren nicht.
+Gemessen an einem 3,5-MB-Chiffrat verteilte sich die synchrone Last so:
+
+| Posten | Kosten |
+|---|---|
+| `_b64()` — chunked Base64 | **~73 ms** |
+| `JSON.stringify` des Blobs (~830 KB) | ~21 ms |
+| `crypto.subtle.encrypt` | 0 ms Main-Thread |
+
+Der Loop war teuer, weil er nebenbei einen 4,6-MB-Zwischenstring aufbaut. **Fix:**
+`_b64`/`_unb64` in [`js/cloud-sync.js:202`](../js/cloud-sync.js#L202) nehmen jetzt
+`Uint8Array.prototype.toBase64` / `Uint8Array.fromBase64` (nativ, ohne Zwischenstring); der alte
+Loop bleibt als Fallback für Engines ohne die Methoden stehen. Test:
+[`test/test-cloudsync-b64.js`](../test/test-cloudsync-b64.js) — fährt beide Pfade gegen dieselben
+Eingaben, weil ein Auseinanderlaufen der beiden Kodierungen Chiffrat unlesbar machen würde.
+
+**Warum kein Worker:** Er hätte Arbeit verschoben, die ohnehin nicht blockiert, und den einzigen
+verbliebenen Posten (`JSON.stringify`) nicht beseitigt — ein `postMessage` des Blobs kostet als
+structured clone dasselbe oder mehr. Dazu Schlüsseltransfer, `worker-src` in der CSP und
+Worker-Lebenszyklus. Wenn `JSON.stringify` später wirklich stört, ist der Hebel, den *Blob*
+kleiner zu machen, nicht den Thread zu wechseln.
+
+Punkt 2 der Empfehlung (sichtbare Rückmeldung) war bereits erfüllt: `_setDot('sync')` läuft vor
+der Schwerarbeit und zeigt „Synchronisiere…" an.
+
+**Unverändert gültig: keinen Delta-Sync bauen** — CAS und Merge sind korrekt und getestet.
 
 ### 1.2 Kleiner Rest aus dem UI-Checker
 

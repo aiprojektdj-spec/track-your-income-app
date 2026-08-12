@@ -118,12 +118,21 @@ gezielter Angreifer kommt an IndexedDB").
 
 ## 3. Reihenfolge, wenn du keinen anderen Auftrag hast
 
-1. **F2** — `xlsx.full.min.js` (929 KB) lazy laden. Größter freier Performance-Posten, Muster
-   `_ensureApexCharts()` in `js/dashboard.js:11`. Details in der Übergabe, Abschnitt 1.1.
-2. **`/compliance-legal`** — das einzige offene Audit über gesetzliche Pflichten.
-3. **`/accessibility`** — zweites Audit mit Prio Mittel.
-4. **P3 / P6** aus dem P-Block (echte Feature-/Content-Arbeit ohne Nutzerentscheidung).
-5. **F6** — Cloud-Sync-Krypto in einen Web Worker. **Erst nach Freigabe des Users:** das ist der
+> **Korrektur vom 2026-08-12, nach dem ersten Schreiben dieser Datei:** F1, F2, F3 und F7 aus dem
+> Performance-Block sind inzwischen gebaut (`Utils.ensureXlsx()`, `_ensureChartJs()`, `defer` an den
+> Sub-Apps, `clearInterval` in `_startPeriodicBackup()`). Die Übergabe führt F2 noch als „offen" —
+> das stimmt nicht mehr. Genau deshalb: **immer erst `git log`, dann arbeiten.**
+
+1. **`/compliance-legal`** — das einzige offene Audit über gesetzliche Pflichten. Erster
+   substanzieller Posten.
+2. **`/accessibility`** — zweites Audit mit Prio Mittel; der letzte Lauf hieß selbst
+   „Vollaudit-Rest".
+3. **P3 / P6** aus dem P-Block (echte Feature-/Content-Arbeit ohne Nutzerentscheidung).
+4. **F4** — `preload` für `css/style.css` und `js/app.js`; die zwei Fonts sind schon drin
+   (`app.html:23-24`). Zwei Zeilen.
+5. **F5** — Tabellen-Neurendern per `innerHTML`. **Erst messen**, dann entscheiden: bei kleinen
+   Datenmengen ist es kein Problem, und ein Umbau auf inkrementelles Rendern ist teuer.
+6. **F6** — Cloud-Sync-Krypto in einen Web Worker. **Erst nach Freigabe des Users:** das ist der
    Live-Sync-Pfad eines zahlenden Kunden und ohne Whop-Login nicht E2E prüfbar. Kein Delta-Sync.
 
 ---

@@ -972,6 +972,16 @@ a:hover { color: var(--accent-light); }
     gap: 4px;
 }
 
+/* Touch-Target 44px — gilt bewusst AUCH auf dem Desktop (WCAG 2.5.5, Level AAA).
+   Historie: die Regel stand seit 0ef02c2 (2026-07-24) im Block "Eigenbelege — aus
+   eigenbelege/index.html gemergt" und trug dort den Kommentar "nur Mobile betroffen".
+   Der Block ist zwar wie eine Media-Query eingerueckt, steht aber auf oberster Ebene —
+   die Regel galt also von Anfang an ueberall. Die UI-Politur vom 2026-08-10 wurde auf
+   genau diesem Zustand abgestimmt, deshalb bleibt das Verhalten unveraendert; nur der
+   Ort und der Kommentar sind jetzt richtig (Entscheidung des Betreibers, 2026-08-12). */
+.btn { min-height: 44px; }
+.btn-sm { padding: 5px 10px; font-size: 12px; min-height: 44px; }
+
 /* --- Aktions-Buttons in Tabellen (Icon-only) ---
    Genutzt in Eigenbelege, Rechnungen/Dokumente, Wiederkehrend, GbR und Lager.
    Auch als <span class="action-btn"> für gesperrte Aktionen (§14-Schloss) — deshalb
@@ -2611,6 +2621,14 @@ tbody tr:last-child td {
 /* ============================================
    Eigenbelege — aus eigenbelege/index.html gemergt (Finanzen-Sub-Tab)
    .badge + .modal-overlay.active bewusst ausgelassen (Main hat sie)
+
+   ACHTUNG: Der folgende Block ist eingerueckt, steht aber auf OBERSTER EBENE —
+   es ist keine Media-Query und kein Scope. Jede Regel hier gilt app-weit auf jedem
+   Viewport. Die Einrueckung stammt aus dem urspruenglichen <style>-Block der
+   Eigenbelege-Seite und hat schon einmal dazu gefuehrt, dass eine als "nur Mobile"
+   gedachte Regel ueberall galt (.btn min-height, s. Buttons-Abschnitt oben).
+   Wer hier etwas viewport-abhaengig machen will, gehoert in die echte
+   @media (max-width: 768px) weiter oben.
    ============================================ */
         /* ── Eigenbeleg-spezifische Ergänzungen ── */
         .form-control {
@@ -2647,8 +2665,6 @@ tbody tr:last-child td {
             background: var(--bg-input);
             color: var(--text-primary);
         }
-        .btn-sm { padding: 5px 10px; font-size: 12px; min-height: 44px; } /* WCAG 2.5.5 */
-        .btn { min-height: 44px; } /* WCAG 2.5.5 — Desktop bleibt kompakt, nur Mobile betroffen */
 
         .stat-value {
             font-size: 26px;

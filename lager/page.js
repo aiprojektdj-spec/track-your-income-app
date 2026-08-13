@@ -1737,10 +1737,9 @@ const ExcelImport = {
     },
 
     open() {
-        if (typeof XLSX === 'undefined') {
-            Utils.showToast('Excel-Library konnte nicht geladen werden', 'error');
-            return;
-        }
+        // Kein `typeof XLSX`-Guard mehr: die Bibliothek wird seit der Lazy-Load-Umstellung
+        // (Utils.ensureXlsx) erst in _handleFile() nachgeladen. Der alte Guard schlug daher
+        // beim Oeffnen IMMER zu und der Dialog liess sich gar nicht mehr aufrufen.
         this._rows = []; this._columns = []; this._mapping = {};
 
         const body = `
@@ -2164,10 +2163,7 @@ const SalesImport = {
     },
 
     open() {
-        if (typeof XLSX === 'undefined') {
-            Utils.showToast('XLSX-Library nicht geladen', 'error');
-            return;
-        }
+        // s. ExcelImport.open(): Guard entfernt, XLSX kommt lazy in _handleFile().
         this._rows = []; this._columns = []; this._mapping = {}; this._platform = 'Vinted';
 
         const body = `

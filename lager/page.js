@@ -619,7 +619,11 @@ function openNeuArtikelModal() {
 
             <!-- Foto (kompakt, inline) -->
             <div style="display:flex;align-items:center;gap:12px;">
-                <div id="neuFotoPreviewWrap"
+                <!-- Bewusst KEIN tabindex: der Button "Foto wählen" direkt daneben loest
+                     dieselbe Aktion aus (data-action="lgp-foto"). Ein zweiter Tab-Stopp fuer
+                     dieselbe Funktion waere fuer Tastaturnutzer schlechter, nicht besser.
+                     aria-hidden, damit der Screenreader nicht ein nacktes Kamera-Emoji ansagt. -->
+                <div id="neuFotoPreviewWrap" aria-hidden="true"
                      style="width:52px;height:52px;background:var(--bg-secondary);border-radius:8px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;cursor:pointer;"
                      data-action="lgp-foto">📷</div>
                 <div>
@@ -1292,10 +1296,12 @@ function _renderBulkRows() {
     tbody.innerHTML = _bulkRows.map(row => {
         const foto = _bulkPhotos[row.id];
         const photoHtml = foto
-            ? `<img id="bulkPh_${row.id}" src="${foto}"
+            ? `<img id="bulkPh_${row.id}" src="${foto}" role="button" tabindex="0"
+                    aria-label="Foto ändern"
                     style="width:40px;height:40px;object-fit:cover;border-radius:4px;cursor:pointer;vertical-align:middle;"
                     title="Klicken zum Ändern">`
-            : `<div id="bulkPh_${row.id}"
+            : `<div id="bulkPh_${row.id}" role="button" tabindex="0"
+                    aria-label="Foto hinzufügen"
                     style="width:40px;height:40px;background:var(--bg-secondary);border-radius:4px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;"
                     title="Foto hinzufügen">📷</div>`;
 
@@ -1368,7 +1374,16 @@ function _renderBulkRows() {
         const inputEl = document.getElementById(`bulkPhInput_${row.id}`);
         if (!phEl || !inputEl) return;
 
+        // Diese Zelle ist der EINZIGE Weg, in der Bulk-Tabelle ein Foto zu setzen — anders als
+        // die Kachel im Einzel-Dialog, neben der ein echter Button steht. Deshalb hier ein
+        // eigener Tastaturpfad (WCAG 2.1.1).
         phEl.addEventListener('click', () => inputEl.click());
+        phEl.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault();
+                inputEl.click();
+            }
+        });
 
         inputEl.addEventListener('change', e => {
             const file = e.target.files[0];

@@ -1971,6 +1971,20 @@ const Akademie = {
         try { return (Store.getSettings().branche || ""); } catch (e) { return ""; }
     },
 
+    /** Bindet Klick und Tastatur an ein Element, das kein <button> ist (WCAG 2.1.1).
+     *  Enter und Leertaste sind das, was ein Screenreader-Nutzer bei role="button" erwartet;
+     *  bei der Leertaste muss preventDefault() das Scrollen der Seite unterdruecken. */
+    _activate(el, fn) {
+        if (!el) return;
+        el.addEventListener('click', fn);
+        el.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault();
+                fn();
+            }
+        });
+    },
+
     _getProgress() {
         try {
             return JSON.parse(localStorage.getItem('akademie_progress') || '{"completedLessons":[],"unlockedAchievements":[]}');
@@ -2058,7 +2072,9 @@ const Akademie = {
             if (nextLesson) break;
         }
         const continueBanner = nextLesson ? `
-        <div id="akademieContinueBanner" class="card hover-dim" style="display:flex;align-items:center;gap:16px;padding:14px 18px;margin-bottom:18px;border-left:3px solid var(--accent);cursor:pointer;transition:opacity .15s;">
+        <div id="akademieContinueBanner" class="card hover-dim" role="button" tabindex="0"
+             aria-label="Weiter lernen: ${Utils.escapeHtml(nextLesson.title)}"
+             style="display:flex;align-items:center;gap:16px;padding:14px 18px;margin-bottom:18px;border-left:3px solid var(--accent);cursor:pointer;transition:opacity .15s;">
             <div style="width:38px;height:38px;border-radius:10px;background:rgba(16,185,129,.13);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <i class="ti ti-player-play-filled" style="color:var(--accent);font-size:18px;"></i>
             </div>
@@ -2124,7 +2140,9 @@ const Akademie = {
             const ring         = ringFor(pct, isComplete ? '#22c55e' : lvlColor);
             const lvlBadge     = `<span style="display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;background:${lvlColor}22;color:${lvlColor};border:1px solid ${lvlColor}44;text-transform:uppercase;">${m.level}</span>`;
             return `
-            <div class="card akademie-mod-card" data-mod-id="${m.id}" style="cursor:pointer;padding:16px 18px;border-left:3px solid ${isComplete ? '#22c55e' : lvlColor};transition:border-color .2s,box-shadow .2s;">
+            <div class="card akademie-mod-card" data-mod-id="${m.id}" role="button" tabindex="0"
+                 aria-label="Modul öffnen: ${Utils.escapeHtml(m.title)} — ${done} von ${m.lessons.length} Lektionen abgeschlossen"
+                 style="cursor:pointer;padding:16px 18px;border-left:3px solid ${isComplete ? '#22c55e' : lvlColor};transition:border-color .2s,box-shadow .2s;">
                 <div style="display:flex;align-items:flex-start;gap:12px;">
                     <div style="width:40px;height:40px;border-radius:10px;background:${lvlColor}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
                         <i class="ti ${iconKey}" style="color:${lvlColor};font-size:20px;"></i>
@@ -2247,7 +2265,9 @@ const Akademie = {
         const lessonList = mod.lessons.map((l, i) => {
             const done = progress.completedLessons.includes(l.id);
             return `
-            <div class="card akademie-lesson-row" data-lesson-id="${l.id}" data-mod-id="${mod.id}" style="cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:14px;${done ? 'opacity:.85;' : ''}">
+            <div class="card akademie-lesson-row" data-lesson-id="${l.id}" data-mod-id="${mod.id}" role="button" tabindex="0"
+                 aria-label="Lektion öffnen: ${Utils.escapeHtml(l.title)}, ${Utils.escapeHtml(l.duration)}${done ? ', abgeschlossen' : ''}"
+                 style="cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:14px;${done ? 'opacity:.85;' : ''}">
                 <span style="font-size:20px;width:32px;text-align:center;color:${done ? 'var(--success)' : 'var(--text-muted)'};">${done ? '<i class="ti ti-circle-check-filled"></i>' : (i === 0 || progress.completedLessons.includes(mod.lessons[i-1]?.id)) ? '<i class="ti ti-book-open"></i>' : '<i class="ti ti-lock" style="opacity:.4;"></i>'}</span>
                 <div style="flex:1;">
                     <div style="font-weight:600;font-size:14px;">${Utils.escapeHtml(l.title)}</div>
@@ -2335,7 +2355,7 @@ const Akademie = {
             if (back) back.addEventListener('click', () => { this._activeModule = null; App.navigate('akademie'); });
 
             document.querySelectorAll('.akademie-lesson-row').forEach(row => {
-                row.addEventListener('click', () => {
+                this._activate(row, () => {
                     this._activeModule = row.dataset.modId;
                     this._activeLesson = row.dataset.lessonId;
                     App.navigate('akademie');
@@ -2347,7 +2367,7 @@ const Akademie = {
         // "Weiter lernen" Banner
         const continueBannerEl = document.getElementById('akademieContinueBanner');
         if (continueBannerEl) {
-            continueBannerEl.addEventListener('click', () => {
+            this._activate(continueBannerEl, () => {
                 const progress = this._getProgress();
                 for (const m of this.MODULES) {
                     for (const l of m.lessons) {
@@ -2364,7 +2384,7 @@ const Akademie = {
 
         // Übersichts-Seite
         document.querySelectorAll('.akademie-mod-card').forEach(card => {
-            card.addEventListener('click', () => {
+            this._activate(card, () => {
                 this._activeModule = card.dataset.modId;
                 this._activeLesson = null;
                 const contentEl = document.getElementById('content');

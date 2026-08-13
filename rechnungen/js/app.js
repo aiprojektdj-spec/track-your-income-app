@@ -229,46 +229,37 @@ var RechApp = (function() {
         var modal = document.getElementById('modal');
         modal.innerHTML = `
             <div class="agb-modal-header">
-                <div style="font-size:28px;margin-bottom:8px;">📋</div>
-                <h2 style="margin:0 0 4px 0;font-size:20px;">Nutzungsbedingungen</h2>
-                <p style="margin:0;color:var(--text-secondary);font-size:13px;">Bitte lesen und akzeptieren Sie vor der ersten Nutzung</p>
+                <div style="font-size:28px;margin-bottom:8px;color:var(--accent);"><i class="ti ti-clipboard-text"></i></div>
+                <h2 style="margin:0 0 4px 0;font-size:20px;">Wichtige Hinweise zur Nutzung</h2>
+                <p style="margin:0;color:var(--text-secondary);font-size:13px;">Kurzfassung — es gelten die vollständigen AGB</p>
             </div>
             <div class="agb-scroll-box">
-                <h3>§ 1 Geltungsbereich</h3>
-                <p>Diese Nutzungsbedingungen gelten für die Nutzung der Software <strong>„Stackr"</strong> (nachfolgend „Software"). Mit der Nutzung der Software erklären Sie sich mit diesen Bedingungen einverstanden.</p>
+                <p style="margin-top:0;">Es gelten die <strong><a href="../agb.html" target="_blank" rel="noopener">Allgemeinen Geschäftsbedingungen</a></strong>
+                und die <a href="../datenschutz.html" target="_blank" rel="noopener">Datenschutzerklärung</a>. Dort stehen
+                unter anderem Widerrufsrecht, Zahlungsbedingungen und Kündigung. Diese Übersicht ersetzt sie nicht,
+                sondern hebt drei Punkte hervor, die im Alltag am häufigsten zu Missverständnissen führen:</p>
 
-                <h3>§ 2 Haftungsausschluss</h3>
-                <p>Die Software wird <strong>„wie besehen" (as-is)</strong> ohne jegliche ausdrückliche oder stillschweigende Gewährleistung bereitgestellt. Der Entwickler übernimmt <strong>keinerlei Haftung</strong> für:</p>
-                <ul>
-                    <li>Fehler, Ungenauigkeiten oder Auslassungen in Berechnungen (EÜR, Steuerbeträge, Margen, Gewinne)</li>
-                    <li>Datenverluste durch Browserabsturz, Cache-Löschung oder technische Fehler</li>
-                    <li>Steuerliche oder rechtliche Nachteile, die aus der Nutzung der Software entstehen</li>
-                    <li>Fehlbedienungen oder Fehler durch den Nutzer</li>
-                    <li>Ausfälle, Bugs oder sonstige technische Störungen</li>
-                </ul>
+                <h3>Kein steuerlicher oder rechtlicher Rat</h3>
+                <p>Stackr ersetzt <strong>keinen Steuerberater</strong>. Alle Auswertungen — EÜR, Umsatzsteuer,
+                Gewinn, Margen — sind <strong>unverbindliche Hilfsmittel</strong> und vor der Abgabe an das Finanzamt
+                fachlich zu prüfen. Die GoBD-Funktionen (Protokoll, Storno, Prüfsummen) unterstützen dabei,
+                garantieren die steuerrechtliche Vollständigkeit aber nicht.</p>
 
-                <h3>§ 3 Kein steuerlicher oder rechtlicher Rat</h3>
-                <p>Die Software ersetzt <strong>keinen professionellen Steuerberater</strong> und stellt keine steuerliche oder rechtliche Beratung dar. Alle durch die Software erzeugten Auswertungen (insbesondere EÜR, Gewinnberechnungen) sind <strong>unverbindliche Hilfsmittel</strong> und müssen vor Abgabe an Finanzbehörden durch einen qualifizierten Steuerberater oder Buchhalter geprüft werden.</p>
+                <h3>Nutzung auf eigenes Risiko</h3>
+                <p>Die Software wird ohne Gewährleistung für Fehlerfreiheit bereitgestellt. Der Umfang der Haftung
+                ergibt sich aus den AGB; die gesetzlich zwingende Haftung (Vorsatz, grobe Fahrlässigkeit, Körper-
+                und Gesundheitsschäden) bleibt davon unberührt.</p>
 
-                <h3>§ 4 Datenspeicherung</h3>
-                <p>Daten werden <strong>ausschließlich lokal im Browser</strong> gespeichert (IndexedDB / localStorage) und nicht an Server des Anbieters oder Dritter übertragen. Der Nutzer ist selbst für regelmäßige Backups verantwortlich. Der Entwickler übernimmt keine Haftung für Datenverlust.</p>
-
-                <h3>§ 5 GoBD-Konformität</h3>
-                <p>Die Software enthält Funktionen zur Unterstützung der GoBD-Konformität (Protokollierung, Stornierung, Prüfsummen). Der Entwickler übernimmt jedoch <strong>keine Garantie</strong>, dass die Software den jeweils geltenden steuerrechtlichen Anforderungen vollständig entspricht. Die Prüfung der steuerrechtlichen Anforderungen obliegt dem Nutzer.</p>
-
-                <h3>§ 6 Nutzung auf eigene Gefahr</h3>
-                <p>Die Nutzung der Software erfolgt <strong>vollständig auf eigenes Risiko</strong> des Nutzers. Der Entwickler haftet nicht für direkte, indirekte, zufällige, besondere oder Folgeschäden, die aus der Nutzung oder der Unfähigkeit zur Nutzung der Software entstehen.</p>
-
-                <h3>§ 7 Änderungen</h3>
-                <p>Der Entwickler behält sich das Recht vor, diese Nutzungsbedingungen jederzeit zu ändern. Bei wesentlichen Änderungen wird erneut um Zustimmung gebeten.</p>
-
-                <h3>§ 8 Schlussbestimmungen</h3>
-                <p>Es gilt deutsches Recht. Sollten einzelne Bestimmungen dieser Bedingungen unwirksam sein oder werden, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.</p>
+                <h3>Die Sicherung deiner Daten liegt bei dir</h3>
+                <p>Die Buchhaltungsdaten liegen <strong>lokal in deinem Browser</strong> (IndexedDB /
+                localStorage). Wird der Browser-Speicher gelöscht, sind sie weg. Lege regelmäßig ein
+                verschlüsseltes Backup an oder aktiviere Cloud-Sync — beides unter „Backup &amp; Daten".</p>
             </div>
             <div class="agb-modal-footer">
                 <label class="agb-checkbox-label">
                     <input type="checkbox" id="agbCheckbox">
-                    <span>Ich habe die Nutzungsbedingungen gelesen und akzeptiere diese vollständig.</span>
+                    <span>Ich habe die <a href="../agb.html" target="_blank" rel="noopener">AGB</a> und die
+                    <a href="../datenschutz.html" target="_blank" rel="noopener">Datenschutzerklärung</a> gelesen und akzeptiere sie.</span>
                 </label>
                 <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
                     <button class="btn btn-danger" id="agbDeclineBtn">Ablehnen</button>
@@ -282,7 +273,7 @@ var RechApp = (function() {
             document.getElementById('agbAcceptBtn').disabled = !this.checked;
         });
         document.getElementById('agbAcceptBtn').addEventListener('click', function() {
-            localStorage.setItem('agb_accepted', new Date().toISOString());
+            Utils.setAgbAccepted();
             overlay.classList.remove('active');
             onAccept();
         });
@@ -292,15 +283,16 @@ var RechApp = (function() {
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;text-align:center;padding:40px;">
                     <div style="font-size:48px;margin-bottom:16px;">🚫</div>
                     <h2>Nutzung nicht möglich</h2>
-                    <p style="color:var(--text-secondary);">Die Nutzung ist nur nach Akzeptanz der Nutzungsbedingungen möglich.</p>
+                    <p style="color:var(--text-secondary);">Die Nutzung ist nur nach Akzeptanz der AGB möglich.</p>
                     <button class="btn btn-primary" style="margin-top:24px;" data-action="reload">Seite neu laden</button>
                 </div>`;
         });
     }
 
     function initApp() {
-        // AGB-Pruefung (geteilte Akzeptanz mit Reselling Tool ueber localStorage)
-        if (!localStorage.getItem('agb_accepted')) {
+        // AGB-Pruefung (geteilte Akzeptanz mit dem Hauptmodul ueber localStorage).
+        // Utils.agbAccepted() prueft den STAND, nicht nur das Vorhandensein (Fund L2).
+        if (!Utils.agbAccepted()) {
             showAgbModal(function() { initApp(); });
             return;
         }

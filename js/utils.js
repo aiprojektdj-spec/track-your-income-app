@@ -13,7 +13,46 @@ const _UTILS_JS_BASE = (function () {
 
 let _xlsxPromise = null;
 
+// ── AGB-Zustimmung mit Versionsstand (Fund L2, Compliance-Audit 2026-08-12) ──────────────────
+// Vorher wurde unter `agb_accepted` nur ein Zeitstempel abgelegt und ausschliesslich auf
+// Vorhandensein geprueft. Folge: eine Aenderung der AGB erreichte KEINEN Bestandsnutzer mehr —
+// das Flag war gesetzt und blieb es. §9 der agb.html sieht Aenderungen ausdruecklich vor, ein
+// Verfahren dafuer existierte im Code nicht (§308 Nr. 5 BGB).
+//
+// AGB_STAND muss zum "Stand:"-Datum in agb.html passen. **Bei jeder Textaenderung dort auch hier
+// hochsetzen** — sonst bleibt die neue Fassung wieder unbemerkt. Genau das ist der Fund.
+const AGB_STAND = '2026-06';
+
 const Utils = {
+    AGB_STAND: AGB_STAND,
+
+    /** true nur, wenn der Nutzer GENAU diesen Stand akzeptiert hat.
+     *  Alt-Format (reiner ISO-Zeitstempel ohne Version) gilt bewusst als NICHT akzeptiert: diese
+     *  Nutzer haben die frueheren In-App-Nutzungsbedingungen bestaetigt, die es so nicht mehr
+     *  gibt (s. Fund L1). Sie sehen den Hinweis einmal erneut — das ist der Sinn der Versionierung,
+     *  kein Fehler. */
+    agbAccepted: function () {
+        try {
+            var raw = localStorage.getItem('agb_accepted');
+            if (!raw) return false;
+            if (raw.charAt(0) !== '{') return false;      // Alt-Format → erneut vorlegen
+            var o = JSON.parse(raw);
+            return !!(o && o.stand === AGB_STAND);
+        } catch (e) { return false; }
+    },
+
+    /** Speichert Zustimmung MIT Stand. Eine fruehere Zustimmung wird als `prev` mitgefuehrt und
+     *  nicht ueberschrieben — sie ist der Nachweis, dass und wann der Nutzer schon einmal
+     *  zugestimmt hat, und den sollte ein Zustimmungsprotokoll nicht verlieren. */
+    setAgbAccepted: function () {
+        var rec = { stand: AGB_STAND, at: new Date().toISOString() };
+        try {
+            var prev = localStorage.getItem('agb_accepted');
+            if (prev) rec.prev = prev.charAt(0) === '{' ? JSON.parse(prev) : { stand: 'vor-2026-06', at: prev };
+        } catch (e) { /* kaputter Altwert → ohne prev weiter, Zustimmung ist wichtiger */ }
+        try { localStorage.setItem('agb_accepted', JSON.stringify(rec)); } catch (e) {}
+    },
+
     /** Laedt js/vendor/xlsx.full.min.js erst bei Bedarf nach (929 KB, groesste Datei des
      *  Projekts). Wurde vorher auf jedem App-Start eager geladen, obwohl die meisten Nutzer
      *  in einer Sitzung nie einen Excel-Im- oder Export ausloesen. Muster wie

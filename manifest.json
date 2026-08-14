@@ -1,0 +1,48 @@
+{
+  "name": "Stackr — Buchhaltung für Selbstständige",
+  "short_name": "Stackr",
+  "description": "EÜR, Rechnungen, Lager und Steuer in einer App. Deine Daten bleiben auf deinem Gerät.",
+  "lang": "de",
+  "dir": "ltr",
+  "start_url": "/app.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0c0b",
+  "theme_color": "#0a0c0b",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-stackr.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-stackr.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Neue Rechnung",
+      "short_name": "Rechnung",
+      "description": "Direkt eine neue Rechnung schreiben",
+      "url": "/rechnungen/index.html"
+    },
+    {
+      "name": "Lager",
+      "short_name": "Lager",
+      "description": "Lagerbestand ansehen und erfassen",
+      "url": "/lager/index.html"
+    },
+    {
+      "name": "Steuer & EÜR",
+      "short_name": "EÜR",
+      "description": "Einnahmen-Überschuss-Rechnung öffnen",
+      "url": "/app.html?page=euer"
+    }
+  ]
+}

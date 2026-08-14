@@ -20,6 +20,7 @@
     <link rel="preload" as="script" href="js/app.js?v=2">
 
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
+    <link rel="manifest" href="/manifest.json">
     <title>Stackr</title>
 
     <!-- ── Critical: i18n (sync, tiny ~8KB) ── -->
@@ -41,10 +42,12 @@
 </head>
 <body>
 
+    <a href="#mainContent" class="skip-link">Zum Inhalt springen</a>
+
     <!-- ══════════════════════════════════════════════
          TOPNAV — persistent top bar
          ══════════════════════════════════════════════ -->
-    <div class="topnav">
+    <nav class="topnav" aria-label="Anwendungen">
         <!-- Brand -->
         <div class="topnav-brand">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;" aria-hidden="true" focusable="false">
@@ -67,7 +70,7 @@
             <a href="#" id="backupLink" title="Backup & Daten" aria-label="Backup & Daten" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-device-floppy" aria-hidden="true"></i></a>
             <div id="fsBackupStatus" style="display:none;"></div>
         </div>
-    </div>
+    </nav>
 
     <!-- ══════════════════════════════════════════════
          MODULE SUB-NAV — persistent bar below topnav.
@@ -88,7 +91,7 @@
             <h1>Stackr</h1>
             <div class="subtitle">Your Financial Overview</div>
         </div>
-        <nav class="sidebar-nav">
+        <nav class="sidebar-nav" aria-label="Module">
 
             <!-- ── GbR-Sektion (nur sichtbar wenn GbR aktiv) ── -->
             <div class="sidebar-section" id="gbrSidebarSection" style="display:none;">GbR-Verwaltung</div>
@@ -198,6 +201,8 @@
                 <a href="impressum.html" style="color:var(--text-muted,#888);text-decoration:none;" target="_blank">Impressum</a>
                 &nbsp;·&nbsp;
                 <a href="datenschutz.html" style="color:var(--text-muted,#888);text-decoration:none;" target="_blank">Datenschutz</a>
+                &nbsp;·&nbsp;
+                <a href="agb.html" style="color:var(--text-muted,#888);text-decoration:none;" target="_blank">AGB</a>
             </div>
         </div>
         <!-- Kept for JS compatibility (app.js may reference this ID) -->
@@ -214,7 +219,7 @@
          ══════════════════════════════════════════════ -->
     <div class="app-container">
         <div class="mobile-overlay" id="mobileOverlay"></div>
-        <main class="main-content">
+        <main class="main-content" id="mainContent" tabindex="-1">
             <button class="btn btn-icon mobile-menu-btn" id="mobileMenuBtn" style="display:none;">☰</button>
             <!-- Loading skeleton — visible until app.js replaces it -->
             <div id="content">

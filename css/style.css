@@ -70,6 +70,10 @@
     --border:        #1d2421;
     --border-light:  #2a332e;
     --border-strong: #3a453f;
+    /* Eingabefelder brauchen 3:1 zur Nachbarfarbe (WCAG 1.4.11), --border-light
+       schafft nur 1,47:1. Wert gegen alle Flaechen geprueft, auf denen Felder
+       liegen — schwaechster Fall ist --bg-elevated (Modal) mit 3,11:1. */
+    --border-field:  #636f68;
 
     /* Shadows — soft, layered, low */
     --shadow:    0 1px 2px rgba(0, 0, 0, 0.25), 0 4px 16px -8px rgba(0, 0, 0, 0.35);
@@ -135,6 +139,7 @@
         --border:        #e6e3da;
         --border-light:  #d6d2c6;
         --border-strong: #bcb7a8;
+        --border-field:  #868173;   /* 3,14:1 gegen --bg-elevated, s. Dark-Mode */
 
         --shadow:    0 1px 2px rgba(40, 38, 30, 0.05), 0 4px 16px -8px rgba(40, 38, 30, 0.08);
         --shadow-lg: 0 4px 12px rgba(40, 38, 30, 0.06), 0 24px 64px -16px rgba(40, 38, 30, 0.18);
@@ -1098,7 +1103,7 @@ a:hover { color: var(--accent-light); }
     width: 100%;
     padding: 9px 12px;
     background: var(--bg-input);
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--border-field);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-size: 13.5px;
@@ -1110,6 +1115,31 @@ a:hover { color: var(--accent-light); }
 .form-textarea::placeholder {
     color: var(--text-muted);
     opacity: 0.8;
+}
+
+/* ── Skip-Link (WCAG 2.4.1) — parallel zu css/landing.css ──
+   Nicht display:none, sonst ist er auch fuer die Tastatur weg. */
+.skip-link {
+    position: absolute;
+    top: -100px;
+    left: 12px;
+    z-index: 10000;
+    background: var(--accent);
+    color: #04120c;
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    transition: top 0.15s var(--ease-calm);
+}
+.skip-link:focus {
+    top: 12px;
+}
+
+/* Sprungziel selbst darf keinen Fokusrahmen malen — es ist kein Bedienelement */
+.main-content:focus {
+    outline: none;
 }
 
 /* ── Global focus ring (WCAG 2.4.7 / 2.4.11) ── */

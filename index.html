@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none';">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
+<link rel="manifest" href="/manifest.json">
 <title>Stackr — Buchhaltung für Freelancer, GbR &amp; Reseller | EÜR &amp; GoBD</title>
 <meta name="description" content="Buchhaltung für Freelancer, GbR &amp; Reseller — EÜR, GoBD, Rechnungen, Lager, KSK. Live-Demo direkt im Browser. 7 Tage kostenlos testen, danach ab 15 €/Monat. DSGVO-konform — Daten standardmäßig lokal, optionaler Ende-zu-Ende-verschlüsselter Cloud-Sync.">
 <link rel="canonical" href="https://track-your-income-app.vercel.app/">
@@ -550,12 +551,15 @@
     <div style="text-align:center;margin-bottom:48px;" data-reveal>
         <div class="section-tag">Preise</div>
         <h2 class="section-title">Ein Preis. Alles drin.</h2>
-        <p class="section-sub">Erst 7 Tage kostenlos testen — Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung. Danach 15 € im Monat. Das war's. Kein Kleingedrucktes, keine Tarif-Treppe.</p>
+        <p class="section-sub">Erst 7 Tage kostenlos testen — Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung. Danach 11,25 € im Monat im Jahresabo, 15 € bei monatlicher Zahlung. Das war's. Kein Kleingedrucktes, keine Tarif-Treppe.</p>
 
         <!-- Billing toggle -->
         <div class="billing-toggle" role="group" aria-label="Abrechnungszeitraum wählen">
-            <button class="billing-btn billing-btn-active" id="billingMonthly" data-action="billing" data-plan="monthly" aria-pressed="true">Monatlich</button>
-            <button class="billing-btn" id="billingYearly" data-action="billing" data-plan="yearly" aria-pressed="false">Jährlich <span class="billing-save-badge">25% günstiger</span></button>
+            <!-- N3: Jahresabo ist vorausgewaehlt. Der statische Zustand hier IST der
+                 Startzustand — landing.js ruft setBilling() beim Laden nicht auf.
+                 Preis, Beschreibung und CTA-Link unten muessen dazu passen. -->
+            <button class="billing-btn" id="billingMonthly" data-action="billing" data-plan="monthly" aria-pressed="false">Monatlich</button>
+            <button class="billing-btn billing-btn-active" id="billingYearly" data-action="billing" data-plan="yearly" aria-pressed="true">Jährlich <span class="billing-save-badge">25% günstiger</span></button>
         </div>
     </div>
 
@@ -564,8 +568,8 @@
         <div class="pricing-card popular" style="grid-column:1/-1;max-width:400px;margin:0 auto;">
             <div class="popular-badge">✦ Erst 7 Tage kostenlos</div>
             <div class="plan-name">Pro</div>
-            <div class="plan-price" id="proPrice">15,00 € <span id="proPricePeriod">/ Monat</span></div>
-            <div class="plan-desc" id="proDesc">inkl. MwSt. · Jederzeit kündbar</div>
+            <div class="plan-price" id="proPrice">11,25 € <span id="proPricePeriod">/ Monat</span></div>
+            <div class="plan-desc" id="proDesc">Abgerechnet jährlich (135 €) · Du sparst 45 € · inkl. MwSt.</div>
             <ul class="plan-features">
                 <li><span class="check">✓</span> <strong>Alle 12 Module dauerhaft</strong></li>
                 <li><span class="check">✓</span> <strong>Unbegrenzte Buchungen</strong></li>
@@ -577,7 +581,7 @@
                 <li><span class="check">✓</span> Prioritäts-Support</li>
                 <li style="color:var(--muted);font-size:12px;padding-top:4px;">Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung</li>
             </ul>
-            <a class="btn-plan btn-plan-pro" id="proCtaBtn" href="https://whop.com/checkout/plan_iR6YIKLcychSZ" rel="noopener">Jetzt 7 Tage kostenlos testen →</a>
+            <a class="btn-plan btn-plan-pro" id="proCtaBtn" href="https://whop.com/checkout/plan_b5IBQ1lecggOT" rel="noopener">Jetzt 7 Tage kostenlos testen →</a>
         </div>
     </div>
 

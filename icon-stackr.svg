@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Stackr">
+    <!-- Maskable-tauglich: die Raute liegt vollstaendig in der inneren 80%-Safe-Zone,
+         damit Android sie zu Kreis/Squircle beschneiden kann, ohne sie anzuschneiden. -->
+    <rect width="512" height="512" rx="96" fill="#0a0c0b"/>
+    <path d="M256 132 L332 256 L256 380 L180 256 Z" fill="#10b981"/>
+</svg>

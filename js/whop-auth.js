@@ -333,7 +333,13 @@ var AuthUI = (function () {
             // OIDC-Felder normalisieren
             me.id       = me.sub;
             me.username = me.preferred_username || me.name || me.sub || 'User';
-            localStorage.setItem(LS_USER, JSON.stringify(me));
+            // D4 / Art. 5 Abs. 1 lit. c: nur die zwei Felder persistieren, die die App
+            // wirklich braucht — id (Geraetesperre, Sync-Namespace, StB-Code) und username
+            // (Anzeige, Referral-Link). Die userinfo-Antwort enthaelt daneben u. a. E-Mail,
+            // Profilbild und Verifizierungs-Flags; die bleiben nur fuer diesen Lauf in `me`
+            // und landen nicht dauerhaft im Browser. Jede Lesestelle von user.email hat
+            // einen Fallback auf username (s. _updateWidget, _accountMenu, _onAuthorized).
+            localStorage.setItem(LS_USER, JSON.stringify({ id: me.id, username: me.username }));
 
             // Owner-Bypass läuft über /api/whop-access (prüft OWNERS serverseitig identisch) —
             // kein Client-Shortcut mehr, sonst bekäme der Owner-Pfad nie ein signiertes

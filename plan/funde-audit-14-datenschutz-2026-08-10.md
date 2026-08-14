@@ -233,9 +233,11 @@ Verhaltensbruch.
 
 ```
 🔴 SOFORT
-   D0  Vercel-Analytics: sechs <script>-Tags entfernen (Weg B, ~15 min) ODER offenlegen
-       und den Banner-Satz korrigieren (Weg A, ~1 h). Solange nichts passiert, sagt der
-       Banner etwas Unwahres.
+   D0  ✅ ERLEDIGT 2026-08-12 — Weg A gewaehlt (Nutzer-Entscheidung: Analytics bleibt,
+       wird offengelegt). Umgesetzt: datenschutz.html 2.1 (Reichweitenmessung, Art. 6
+       Abs. 1 lit. f, Art.-21-Widerspruch, Drittlandbezug), cookies.html Ziffer 3 komplett
+       neu, Banner-Satz korrigiert. Offen bleibt nur: im Vercel-Dashboard nachsehen, ob
+       Web Analytics ueberhaupt aktiv ist — aendert die Texte nicht, nur die Faktenlage.
 
 🟠 VOR LAUNCH
    D1  jsDelivr self-hosten (~2 h)   — angreifbarste Position, betrifft jeden App-Start

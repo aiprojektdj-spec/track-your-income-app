@@ -982,6 +982,27 @@ a:hover { color: var(--accent-light); }
 .btn { min-height: 44px; }
 .btn-sm { padding: 5px 10px; font-size: 12px; min-height: 44px; }
 
+/* Textlinks, die Buttons sind (Wizard: "Setup ueberspringen", "Spaeter ausfuellen",
+   "Mit Cloud-Sync verbinden"). Die Klasse wurde im Markup seit je verwendet, war hier
+   aber nie definiert — jede Verwendung trug ihre Styles inline und blieb bei ~16 px
+   Trefferflaeche. Mit min-height 44px gilt derselbe Touch-Target wie fuer .btn. */
+.btn-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 12px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 12px;
+    text-decoration: underline;
+    cursor: pointer;
+    transition: color 0.22s var(--ease-calm);
+}
+.btn-link:hover { color: var(--text-primary); }
+
 /* --- Aktions-Buttons in Tabellen (Icon-only) ---
    Genutzt in Eigenbelege, Rechnungen/Dokumente, Wiederkehrend, GbR und Lager.
    Auch als <span class="action-btn"> für gesperrte Aktionen (§14-Schloss) — deshalb
@@ -1294,6 +1315,23 @@ th:hover {
 
 th.sorted-asc::after { content: ' \25b2'; font-size: 9px; color: var(--accent-text); }
 th.sorted-desc::after { content: ' \25bc'; font-size: 9px; color: var(--accent-text); }
+
+/* Filterzeile direkt unter dem Tabellenkopf (Lager). Sie besteht aus <th>, erbt damit die
+   Kopf-Optik — hier zurueckgedreht: keine Klick-Optik, keine Versalien, normale Grossschreibung
+   in den Eingabefeldern, und die Zeile darf umbrechen statt alles in eine Zeile zu pressen. */
+tr.lager-filter-row > th {
+    cursor: default;
+    text-transform: none;
+    letter-spacing: normal;
+    white-space: normal;
+    padding-top: 3px;
+    padding-bottom: 5px;
+    background: var(--bg-secondary);
+    vertical-align: top;
+}
+tr.lager-filter-row > th:hover { color: var(--text-secondary); }
+tr.lager-filter-row .form-input,
+tr.lager-filter-row .form-select { text-transform: none; letter-spacing: normal; }
 
 td {
     padding: 10px 14px;
@@ -1629,6 +1667,13 @@ tbody tr:last-child td {
 /* ============================================
    Onboarding
    ============================================ */
+/* align-items:center in einem position:fixed-Container ohne overflow schneidet eine zu hohe
+   Karte oben UND unten ab — und weil weder Overlay noch Karte scrollen konnten, war der
+   abgeschnittene Teil nicht erreichbar. Auf dem iPad (Landscape ~700 px sichtbar) traf das
+   Schritt 4 immer und Schritt 1 knapp; der Skip-/Später-Link steht als letztes Element in der
+   Karte und verschwand deshalb als Erstes. flex-start + overflow-y:auto + margin:auto auf der
+   Karte zentriert weiterhin, wenn Platz ist, und scrollt, wenn nicht — dasselbe Muster, das
+   .modal-overlay weiter oben schon benutzt. */
 .onboarding-overlay {
     position: fixed;
     inset: 0;
@@ -1638,7 +1683,9 @@ tbody tr:last-child td {
     z-index: 2000;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding: 20px;
 }
 
@@ -1649,7 +1696,18 @@ tbody tr:last-child td {
     padding: 36px;
     width: 100%;
     max-width: 550px;
+    margin: auto;
     box-shadow: var(--highlight), var(--shadow-lg);
+}
+
+/* Der Wizard hatte bis 2026-08-13 keine einzige Media-Query. Auf Tablet-Breite bleibt der
+   zweispaltige USt-Picker sonst zweispaltig, die Karten werden schmal und dadurch noch höher. */
+@media (max-width: 860px) {
+    .onboarding-overlay { padding: 12px; }
+    .onboarding-card    { padding: 22px; }
+    .onboarding-card .subtitle,
+    .onboarding-steps   { margin-bottom: 18px; }
+    .onboarding-card .ust-picker { grid-template-columns: 1fr; }
 }
 
 .onboarding-card h2 {
@@ -2494,6 +2552,10 @@ tbody tr:last-child td {
     padding: 0;
     cursor: pointer;
     font-size: inherit;
+    /* Der Fliesstext-Link im Banner behaelt seine Zeilenhoehe — die 44px-Trefferflaeche der
+       neuen .btn-link-Basisklasse wuerde das schmale sticky Banner sonst aufblaehen. */
+    display: inline;
+    min-height: 0;
 }
 ._backup-banner ._banner-dismiss {
     margin-left: auto;
@@ -2898,3 +2960,29 @@ body.stb-readonly [data-action$="-import"] { display: none !important; }
 .data-table th:hover {
     color: var(--text-secondary);
 }
+
+/* ============================================
+   Auth-Widget in der Topnav (js/whop-auth.js)
+   Vorher ein per JS injizierter <style>-Block, den die CSP blockiert hat.
+   ============================================ */
+.auth-login-btn,
+.auth-user-btn {
+    background: none;
+    border: 1px solid var(--border, #333);
+    color: var(--text-muted, #aaa);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+.auth-user-btn { color: var(--text-primary, #fff); }
+.auth-login-btn:hover,
+.auth-user-btn:hover { background: var(--surface-2, rgba(255, 255, 255, .06)); }
+
+/* ============================================
+   Firmenumschalter (js/companies.js)
+   !important, weil der Button seine Grundfarben als Inline-Style traegt.
+   ============================================ */
+.company-switcher-btn:hover { background: rgba(255, 255, 255, .13) !important; }
+.co-dropdown-row:not(.active):hover { background: var(--bg-secondary) !important; }

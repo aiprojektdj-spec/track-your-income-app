@@ -810,13 +810,8 @@ var AuthUI = (function () {
     // ── Styles ────────────────────────────────────────────────
     function _injectStyles() {
         if (document.getElementById('authUiStyles')) return;
-        var s = document.createElement('style');
-        s.id = 'authUiStyles';
-        s.textContent =
-            '.auth-login-btn,.auth-user-btn{background:none;border:1px solid var(--border,#333);color:var(--text-muted,#aaa);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;}' +
-            '.auth-user-btn{color:var(--text-primary,#fff);}' +
-            '.auth-login-btn:hover,.auth-user-btn:hover{background:var(--surface-2,rgba(255,255,255,.06));}';
-        document.head.appendChild(s);
+        // Styles liegen in css/style.css (Abschnitt "Auth-Widget") — ein hier injizierter
+        // <style>-Block wuerde von der CSP blockiert (style-src-elem 'self').
     }
 
     function _esc(s) {

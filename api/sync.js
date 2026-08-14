@@ -353,10 +353,17 @@ module.exports = async function handler(req, res) {
 
         if (action === 'delete') {
             // Art. 17 DSGVO — löscht nur den verschlüsselten Snapshot. Die Anker-Liste
-            // (anchorKey) bleibt bewusst erhalten: sie enthält keine personenbezogenen
-            // Klardaten (nur Hash+ID+Timestamp je Buchung), Art. 17 betrifft sie nicht direkt.
-            // Würde sie hier mitgelöscht, könnte ein Nutzer, der Buchungen nachträglich
-            // manipuliert hat, die eigene GoBD-Tamper-Evidence-Kette mit entfernen.
+            // (anchorKey) bleibt bewusst erhalten. Würde sie hier mitgelöscht, könnte ein
+            // Nutzer, der Buchungen nachträglich manipuliert hat, die eigene
+            // GoBD-Tamper-Evidence-Kette mit entfernen.
+            //
+            // ACHTUNG bei der Begründung nach außen: Hash+ID+Timestamp sind pseudonyme und
+            // damit personenbezogene Daten (Art. 4 Nr. 1 i. V. m. EG 26) — "nicht
+            // personenbezogen" ist gegenüber einer Aufsichtsbehörde nicht haltbar. Tragfähig
+            // ist Art. 17 Abs. 3 lit. b DSGVO: kein Löschanspruch, soweit die Verarbeitung zur
+            // Erfüllung einer rechtlichen Verpflichtung erforderlich ist — hier §§ 145 ff.,
+            // 147 AO i. V. m. GoBD. So steht es auch in datenschutz.html, Abschnitt 6.1;
+            // beide Stellen zusammen ändern.
             await redisCmd(['DEL', key]);
             // Scope-Platz freigeben (Fund R2): wer aufräumt, soll wieder Luft haben. Der
             // anchorKey bleibt liegen, belegt aber keinen Platz — er ist winzig und per

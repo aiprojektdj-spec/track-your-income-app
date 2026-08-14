@@ -41,6 +41,11 @@ const Dashboard = {
                 <h2>${firma ? 'Willkommen, ' + Utils.escapeHtml(firma) : 'Willkommen bei Stackr'}</h2>
             </div>
 
+            <!-- Auch im First-Run: ein Trial-Nutzer in den ersten Tagen hat noch keine Daten,
+                 ist also GENAU dieser Fall. Ohne den Hinweis hier bliebe er für die Zielgruppe
+                 unsichtbar, für die er gedacht ist (Fund N2). -->
+            ${this._renderTrialHinweis()}
+
             <div class="empty-state" style="padding:32px 20px 24px;">
                 <div class="icon"><i class="ti ti-rocket"></i></div>
                 <h3>Dein Konto ist eingerichtet — jetzt fehlen nur noch Daten</h3>
@@ -74,6 +79,46 @@ const Dashboard = {
                 <button class="btn btn-small" data-action="navigate" data-args='["akademie"]' style="margin-left:6px;">Zur Akademie</button>
             </p>
         `;
+    },
+
+    // ── Trial-Hinweis (Fund N2, Monetarisierungs-Audit 2026-08-12) ───────────────────────────
+    // Whop führt den Trial mit hinterlegter Karte: 7 Tage, Abbuchung am Tag 8. Der Server kannte
+    // 'trialing' längst, gab es aber nicht an den Client weiter — die App zeigte "Pro aktiv" und
+    // verschwieg die anstehende Zahlung. Das ist die Konstellation, aus der Rückbuchungen
+    // entstehen: testen, vergessen, am Tag 8 überrascht werden.
+    //
+    // Bewusst KEINE Warnfarbe und keine Dringlichkeit, solange genug Zeit ist — der Hinweis soll
+    // informieren, nicht drängen. Ab drei Tagen vor der Abbuchung wird er auffälliger, weil dann
+    // die Entscheidung ansteht.
+    _renderTrialHinweis() {
+        if (typeof UserPlan === 'undefined' || !UserPlan.isTrialActive || !UserPlan.isTrialActive()) return '';
+        const tage = UserPlan.getTrialDaysLeft ? UserPlan.getTrialDaysLeft() : null;
+        const bis  = UserPlan.getRenewsAt ? UserPlan.getRenewsAt() : null;
+        const datum = bis ? new Date(bis).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }) : null;
+        const knapp = (tage !== null && tage <= 3);
+        const farbe = knapp ? '--warning' : '--info';
+
+        // Ohne bekannten Zeitpunkt keine Zahl erfinden — dann nur die Tatsache nennen.
+        const kopf = (tage === null)
+            ? 'Deine Testphase läuft'
+            : (tage === 0 ? 'Deine Testphase endet heute'
+                          : `Deine Testphase endet in ${tage} ${tage === 1 ? 'Tag' : 'Tagen'}`);
+        const detail = datum
+            ? `Am <strong>${datum}</strong> wird dein Abo automatisch fortgesetzt (15 €/Monat, sofern du monatlich gebucht hast). Du musst nichts tun, wenn du dabeibleiben willst.`
+            : 'Danach wird dein Abo automatisch fortgesetzt. Du musst nichts tun, wenn du dabeibleiben willst.';
+
+        return `
+            <div class="card" style="margin-bottom:18px;border:1px solid var(${farbe});background:var(${farbe}-bg,transparent);">
+                <div style="padding:14px 16px;display:flex;gap:12px;align-items:flex-start;">
+                    <i class="ti ti-hourglass-high" style="font-size:20px;color:var(${farbe});flex-shrink:0;margin-top:1px;"></i>
+                    <div style="font-size:13px;line-height:1.55;">
+                        <strong>${kopf}</strong><br>${detail}
+                        <div style="margin-top:8px;font-size:12px;color:var(--text-muted);">
+                            Abo verwalten oder kündigen kannst du jederzeit über dein Whop-Konto — siehe Kontomenü oben rechts.
+                        </div>
+                    </div>
+                </div>
+            </div>`;
     },
 
     render() {
@@ -232,6 +277,8 @@ const Dashboard = {
             <div class="page-header">
                 <h2>Dashboard</h2>
             </div>
+
+            ${this._renderTrialHinweis()}
 
             <div class="year-switcher">
                 ${yearBtns}

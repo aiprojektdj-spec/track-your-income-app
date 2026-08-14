@@ -101,6 +101,29 @@ function _grants(obj) {
         (obj.access_level && obj.access_level !== 'no_access')));
 }
 
+// Zieht Status und Verlängerungszeitpunkt aus demselben Objekt, das den Zugang gewährt hat
+// (Fund N2, Monetarisierungs-Audit 2026-08-12). Der Server kannte 'trialing' schon — _grants()
+// prüft es ausdrücklich —, warf die Information aber weg, bevor sie den Client erreichte. Folge:
+// die App konnte während der sieben Trial-Tage nicht sagen, dass ein Trial läuft, wie viele Tage
+// bleiben und wann die erste Abbuchung kommt. Das Kontomenü zeigte stattdessen "Pro aktiv" —
+// formal richtig, aber es verdeckt die anstehende Zahlung und erzeugt Rückbuchungen.
+//
+// Whop benennt das Feld je Endpoint unterschiedlich; deshalb mehrere Kandidaten statt einer
+// Annahme. Fehlt alles, bleibt renewsAt null und der Client zeigt nur "Trial", ohne Tageszahl.
+function _statusOf(obj) {
+    if (!obj || typeof obj !== 'object') return null;
+    var status = obj.status || (obj.data && obj.data.status) || null;
+    var renews = obj.renewal_period_end || obj.renews_at || obj.current_period_end ||
+                 obj.valid_until || (obj.data && (obj.data.renewal_period_end || obj.data.renews_at)) || null;
+    if (!status && !renews) return null;
+    // Whop liefert teils Sekunden-Epoch, teils ISO. Millisekunden erzwingen, damit der Client
+    // nicht raten muss; ein Wert unter 1e12 ist zwingend Sekunden (1e12 ms = 2001).
+    var renewsMs = null;
+    if (typeof renews === 'number') renewsMs = renews < 1e12 ? renews * 1000 : renews;
+    else if (typeof renews === 'string') { var p = Date.parse(renews); if (!isNaN(p)) renewsMs = p; }
+    return { status: status || null, renewsAt: renewsMs };
+}
+
 // PRIMÄR: has_access mit dem User-Token (v2). Rückgabe: true | false | null(unbestimmt).
 // null = der Endpoint akzeptiert das Token nicht (401/403) → Aufrufer nutzt den Fallback.
 // 5xx → wirft (→ 502 → Client-Offline-Grace).
@@ -116,11 +139,16 @@ async function _hasAccessViaToken(userToken) {
             if (r.status === 401 || r.status === 403) return 'reject'; // Token hier nicht akzeptiert
             if (!r.ok) return 'skip';                                  // 4xx (ID-Form)
             var j = null; try { j = await r.json(); } catch (pe) { return 'skip'; }
-            return (_grants(j) || _grants(j && j.data)) ? 'grant' : 'ok';
+            if (_grants(j) || _grants(j && j.data)) return { r: 'grant', detail: _statusOf(j) };
+            return 'ok';
         });
     })); // 5xx wirft → Promise.all rejected → äußerer catch → 502 → Grace
-    if (results.indexOf('grant') !== -1) return true;
-    return results.indexOf('ok') !== -1 ? false : null; // mind. ein 2xx ohne Grant → false, sonst unbestimmt
+    // Rueckgabe erweitert (Fund N2): statt nur true/false/null zusaetzlich das Objekt, das den
+    // Zugang gewaehrt hat — daraus liest der Handler status/renewsAt. Die Zugangs-ENTSCHEIDUNG
+    // ist unveraendert; nur die Begleitinformation wird nicht mehr verworfen.
+    var granted = results.filter(function (x) { return x && x.r === 'grant'; })[0];
+    if (granted) return { ok: true, detail: granted.detail };
+    return { ok: results.indexOf('ok') !== -1 ? false : null, detail: null };
 }
 
 // FALLBACK: Company-Membership-Scan mit dem Company-API-Key. Paginiert, Seiten-Obergrenze.
@@ -135,22 +163,24 @@ async function _hasAccessViaCompanyKey(userId) {
         var json = await res.json();
         var list = (json && json.data) || [];
         for (var i = 0; i < list.length; i++) {
-            if (list[i] && list[i].user_id === userId && _grants(list[i])) return true;
+            if (list[i] && list[i].user_id === userId && _grants(list[i])) {
+                return { ok: true, detail: _statusOf(list[i]) };   // Fund N2: Membership mitgeben
+            }
         }
         var pg = json && json.pagination;
         if (!pg || !pg.next_page || list.length === 0) break;
         page = pg.next_page;
     }
-    return false;
+    return { ok: false, detail: null };
 }
 
 // Kombiniert: Token-Weg zuerst; bei true sofort Zugang. Sonst — wenn ein Company-Key
 // vorhanden ist — der bewährte Membership-Scan als maßgebliche Zweitmeinung.
 async function _checkAccess(userToken, userId) {
-    var t = await _hasAccessViaToken(userToken);   // true | false | null
-    if (t === true) return true;
+    var t = await _hasAccessViaToken(userToken);   // { ok: true|false|null, detail }
+    if (t.ok === true) return t;
     if (WHOP_API_KEY) return await _hasAccessViaCompanyKey(userId);
-    if (t === false) return false;
+    if (t.ok === false) return { ok: false, detail: null };
     // Token-Endpoint unbestimmt UND kein Company-Key → nicht entscheidbar:
     // einen zahlenden Kunden NICHT fälschlich aussperren → als Serverproblem behandeln.
     var e = new Error('access_undeterminable (no WHOP_API_KEY, token endpoint rejected user token)');
@@ -212,8 +242,17 @@ module.exports = async function handler(req, res) {
         }
 
         // ── 2. Zugang prüfen (Token-Weg, dann ggf. Company-Key-Fallback) ─────
-        var hasAccess = await _checkAccess(token, userId);
-        return res.status(200).json({ has_access: hasAccess, user_id: userId, grace_token: hasAccess ? _signGraceToken(userId) : null });
+        var access    = await _checkAccess(token, userId);
+        var hasAccess = access.ok === true;
+        var det       = access.detail || {};
+        // status/renews_at durchreichen (Fund N2). Nur wenn Zugang besteht — bei einem
+        // abgelehnten Zugriff hat der Client damit nichts zu tun, und weniger ist besser.
+        return res.status(200).json({
+            has_access: hasAccess, user_id: userId,
+            grace_token: hasAccess ? _signGraceToken(userId) : null,
+            status:      hasAccess ? (det.status || null) : null,
+            renews_at:   hasAccess ? (det.renewsAt || null) : null
+        });
     } catch (err) {
         // Netz/5xx/unbestimmt → 502 → Client nutzt Offline-Grace (kein falsches „kein Abo").
         console.error('[whop-access] error:', err && err.message);
@@ -222,4 +261,4 @@ module.exports = async function handler(req, res) {
 };
 
 // Test-Hook (siehe test-whop-access.js) — reine Zugangs-Logik ohne HTTP-Handler
-module.exports._test = { _hasAccessViaToken: _hasAccessViaToken, _grants: _grants };
+module.exports._test = { _hasAccessViaToken: _hasAccessViaToken, _grants: _grants, _statusOf: _statusOf };

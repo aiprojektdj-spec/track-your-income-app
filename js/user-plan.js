@@ -18,10 +18,54 @@ var UserPlan = (function () {
     var _plan   = 'pro';
     var _loaded = false;
 
+    // ── Abo-Status aus dem Server-Check (Fund N2, Monetarisierungs-Audit 2026-08-12) ──────────
+    // api/whop-access.js liefert seit dem N2-Fix `status` ('active' | 'trialing') und `renews_at`
+    // mit. Vorher warf der Server die Information weg, obwohl er sie kannte — die App konnte
+    // während der sieben Trial-Tage nicht sagen, dass ein Trial läuft, wie viele Tage bleiben und
+    // wann die erste Abbuchung kommt. Das Kontomenü zeigte "Pro aktiv": formal richtig, aber es
+    // verdeckt die anstehende Zahlung. Genau daraus entstehen Rückbuchungen.
+    //
+    // Persistiert, weil der Server-Check nicht bei jedem Seitenaufruf läuft (Offline-Grace) —
+    // ohne Persistenz wäre der Hinweis nach einem Reload weg. Enthält kein Geheimnis: Status und
+    // ein Zeitpunkt, beides steht dem Nutzer ohnehin zu.
+    var LS_ACCESS = 'whop_access_info';
+    var _status   = null;   // 'active' | 'trialing' | null (unbekannt)
+    var _renewsAt = null;   // ms-Epoch oder null
+
+    function _loadAccessInfo() {
+        try {
+            var raw = localStorage.getItem(LS_ACCESS);
+            if (!raw) return;
+            var o = JSON.parse(raw);
+            _status   = o && typeof o.status === 'string' ? o.status : null;
+            _renewsAt = o && typeof o.renewsAt === 'number' ? o.renewsAt : null;
+        } catch (e) { /* kaputt → wie unbekannt behandeln, nie werfen */ }
+    }
+    _loadAccessInfo();
+
+    /** Von js/whop-auth.js direkt nach dem /api/whop-access-Aufruf zu setzen:
+     *    UserPlan.setAccessInfo(accJson.status, accJson.renews_at);
+     *  Ohne diesen Aufruf verhält sich die App wie vorher — isTrialActive() bleibt false, es wird
+     *  kein Hinweis gezeigt. Das ist bewusst so: lieber keine Aussage als eine falsche. */
+    function setAccessInfo(status, renewsAt) {
+        _status   = (typeof status === 'string' && status) ? status : null;
+        _renewsAt = (typeof renewsAt === 'number' && renewsAt > 0) ? renewsAt : null;
+        try {
+            if (_status || _renewsAt) localStorage.setItem(LS_ACCESS, JSON.stringify({ status: _status, renewsAt: _renewsAt }));
+            else localStorage.removeItem(LS_ACCESS);
+        } catch (e) {}
+        _updateUI();
+    }
+    function clearAccessInfo() {
+        _status = null; _renewsAt = null;
+        try { localStorage.removeItem(LS_ACCESS); } catch (e) {}
+    }
+
     // ── Laden (wird von AuthUI nach Login aufgerufen) ─────────
     async function load(userId) {
         _plan   = 'pro';
         _loaded = true;
+        _loadAccessInfo();
         _updateUI();
     }
 
@@ -29,9 +73,19 @@ var UserPlan = (function () {
     function isPro()          { return true; }
     function isFree()         { return false; }
     function getPlan()        { return _plan; }
-    function isTrialActive()  { return false; }
+    function getStatus()      { return _status; }
+    function getRenewsAt()    { return _renewsAt; }
+    // Trial = der Server hat ausdrücklich 'trialing' gemeldet. NICHT aus einem fehlenden Status
+    // ableiten: unbekannt heißt unbekannt, und ein falscher Trial-Hinweis bei einem zahlenden
+    // Kunden wäre schlimmer als kein Hinweis.
+    function isTrialActive()  { return _status === 'trialing'; }
     function isTrialExpired() { return false; }
-    function getTrialDaysLeft() { return null; }
+    /** Volle Tage bis zur ersten Abbuchung. null, wenn der Zeitpunkt unbekannt ist — dann zeigt
+     *  die UI "Testphase läuft" ohne Zahl, statt eine zu erfinden. 0 = heute fällig. */
+    function getTrialDaysLeft() {
+        if (!isTrialActive() || !_renewsAt) return null;
+        return Math.max(0, Math.ceil((_renewsAt - Date.now()) / 86400000));
+    }
 
     // ── Feature-Gate ──────────────────────────────────────────
     function requirePro(featureName) { return true; }
@@ -89,6 +143,7 @@ var UserPlan = (function () {
     var _public = {
         load, isPro, isFree, getPlan,
         isTrialActive, isTrialExpired, getTrialDaysLeft,
+        getStatus, getRenewsAt, setAccessInfo, clearAccessInfo,
         requirePro, getLimit, injectBadge,
         openCheckout, openCheckoutYearly,
         _showUpgradeModal, _showLockModal,

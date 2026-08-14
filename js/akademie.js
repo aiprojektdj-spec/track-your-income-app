@@ -1960,6 +1960,35 @@ const Akademie = {
     // Selbstaendigkeit. Wird nur zur Reihenfolge genutzt, nichts wird ausgeblendet.
     HANDELS_MODULE: ['grundlagen', 'einkauf', 'listing', 'skalierung', 'kundenservice', 'social'],
 
+    /** true, wenn die Branche der aktiven Firma auf Warenhandel hindeutet. */
+    _istHandelsbranche() {
+        const b = this._branche();
+        return !b || b === 'Reselling' || b === 'E-Commerce';
+    },
+
+    /** Module in der Reihenfolge, in der sie diesem Nutzer angeboten werden.
+     *  Fuer Nicht-Handelsbranchen stehen die branchenneutralen Module (Steuer, KV, AfA,
+     *  Mindset, ...) vorn. Nichts wird ausgeblendet, nur umsortiert.
+     *  EINE Quelle fuer beide Verwendungen — die Kartenliste UND die Auswahl der naechsten
+     *  Lektion im "Weiter lernen"-Banner. Solange der Banner separat ueber this.MODULES lief,
+     *  bekam ein Dienstleister dort weiter "Was ist Reselling ueberhaupt?" vorgeschlagen,
+     *  obwohl die Karten darunter schon richtig sortiert waren (Fund P6). */
+    _modulesInOrder() {
+        if (this._istHandelsbranche()) return this.MODULES;
+        return this.MODULES.slice().sort((a, b) =>
+            (this.HANDELS_MODULE.includes(a.id) ? 1 : 0) - (this.HANDELS_MODULE.includes(b.id) ? 1 : 0));
+    },
+
+    /** Erste noch nicht abgeschlossene Lektion in der Reihenfolge dieses Nutzers. */
+    _naechsteLektion(progress) {
+        for (const m of this._modulesInOrder()) {
+            for (const l of m.lessons) {
+                if (!progress.completedLessons.includes(l.id)) return { modul: m, lektion: l };
+            }
+        }
+        return null;
+    },
+
     /** Branche der aktiven Firma; faellt auf die Settings zurueck (Wizard schreibt beides). */
     _branche() {
         try {
@@ -2064,13 +2093,9 @@ const Akademie = {
         };
 
         // ── "Weiter lernen" banner ───────────────────────────────────────
-        let nextLesson = null, nextModule = null;
-        for (const m of this.MODULES) {
-            for (const l of m.lessons) {
-                if (!progress.completedLessons.includes(l.id)) { nextLesson = l; nextModule = m; break; }
-            }
-            if (nextLesson) break;
-        }
+        const naechste = this._naechsteLektion(progress);
+        const nextLesson = naechste ? naechste.lektion : null;
+        const nextModule = naechste ? naechste.modul : null;
         const continueBanner = nextLesson ? `
         <div id="akademieContinueBanner" class="card hover-dim" role="button" tabindex="0"
              aria-label="Weiter lernen: ${Utils.escapeHtml(nextLesson.title)}"
@@ -2119,11 +2144,8 @@ const Akademie = {
         // zu verstecken: fuer Nicht-Handelsbranchen die neutralen Module nach vorn sortieren
         // und ehrlich benennen, worauf der Rest zugeschnitten ist.
         const branche = this._branche();
-        const istHandel = !branche || branche === 'Reselling' || branche === 'E-Commerce';
-        const modules = istHandel
-            ? this.MODULES
-            : this.MODULES.slice().sort((a, b) =>
-                (this.HANDELS_MODULE.includes(a.id) ? 1 : 0) - (this.HANDELS_MODULE.includes(b.id) ? 1 : 0));
+        const istHandel = this._istHandelsbranche();
+        const modules = this._modulesInOrder();
         const brancheHinweis = istHandel ? '' : `
             <div class="akademie-tip" style="margin:0 0 14px;">
                 Dein Profil steht auf <strong>${Utils.escapeHtml(branche)}</strong>. Die Module zu Steuer,
@@ -2368,17 +2390,11 @@ const Akademie = {
         const continueBannerEl = document.getElementById('akademieContinueBanner');
         if (continueBannerEl) {
             this._activate(continueBannerEl, () => {
-                const progress = this._getProgress();
-                for (const m of this.MODULES) {
-                    for (const l of m.lessons) {
-                        if (!progress.completedLessons.includes(l.id)) {
-                            this._activeModule = m.id;
-                            this._activeLesson = l.id;
-                            App.navigate('akademie');
-                            return;
-                        }
-                    }
-                }
+                const naechste = this._naechsteLektion(this._getProgress());
+                if (!naechste) return;
+                this._activeModule = naechste.modul.id;
+                this._activeLesson = naechste.lektion.id;
+                App.navigate('akademie');
             });
         }
 

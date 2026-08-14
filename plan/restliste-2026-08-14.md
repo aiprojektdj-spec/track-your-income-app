@@ -31,20 +31,31 @@ for f in test/*.js; do node "$f" >/dev/null 2>&1 || echo "FAIL $f"; done
 
 ---
 
-## 1. Kleine Fixes — je unter einer Stunde
+## 1. Kleine Fixes — ✅ alle sieben erledigt (2026-08-14, Commit `6103208`)
 
-| # | Aufgabe | Datei (Stand 14.08.) | Konkret |
-|---|---|---|---|
-| **V2** | PWA-Manifest verlinken | 4 HTML-Seiten · **belegt** | `manifest.json` und `icon-stackr.svg` sind **schon angelegt**. Fehlt nur `<link rel="manifest" href="/manifest.json">` — aktuell in **0 von 4** Seiten |
-| **A4** | Skip-Link fehlt (WCAG 2.4.1) | `app.html` · **belegt** | `<a href="#mainContent" class="skip-link">Zum Inhalt springen</a>` direkt nach `<body>`. Die Landing hat einen, die App nicht |
-| **A5** | `<nav>` ohne `aria-label` | `app.html` · **belegt** | zwei Navigationen, beide ohne Label: `aria-label="Anwendungen"` an die Topnav, `aria-label="Module"` an die Sidebar |
-| **A2** | Feldrand 1,47:1 statt 3:1 (WCAG 1.4.11) | `css/style.css` · **belegt** | `--border-field: #4a5651` einführen, in `.form-input`, `.form-select`, `.form-textarea` nutzen. Token existiert noch nicht |
-| **L3** | AGB aus der App nicht erreichbar (§312i I Nr. 4 BGB) | 4 App-Seiten · **belegt** | Footer-Zeile ergänzen, wo Impressum und Datenschutz schon stehen. `agb.html` kommt in `app.html` **0×** vor |
-| **N3** | Preisumschalter startet auf „Monatlich" | `index.html` · **belegt** | `billing-btn-active` + `aria-pressed` auf den Jahres-Button. Das Gate macht es bereits richtig, nur die Landing nicht |
-| **D4** | `whop_user` speichert die ganze Userinfo-Antwort | `js/whop-auth.js:336` · **belegt** | auf `{ id, username }` reduzieren. Datenminimierung, Art. 5 Abs. 1 lit. c |
+Im Browser gegengeprüft (lokaler Server, `app.html` + `lager/`). Zwei Dinge, die beim Bauen
+anders waren als hier notiert:
 
-**Alle sieben liegen in gehaltenen Dateien.** Das ist kein Zufall — es sind genau die Dateien, an
-denen ständig gearbeitet wird. Vor dem Zugriff abstimmen, sonst kollidiert es.
+- **A2:** der oben vorgeschlagene Wert **`#4a5651` reicht nicht** — 2,5:1 gegen `--bg-input`,
+  2,13:1 gegen `--bg-elevated`. Gebaut wurde `#636f68` (dunkel) / `#868173` (hell), gegen alle
+  fünf Flächen gerechnet, schwächster Fall 3,11:1.
+- **N3:** `landing.js` ruft `setBilling()` beim Laden **nicht** auf — der statische HTML-Zustand
+  *ist* der Startzustand. Preis, Beschreibung und Checkout-Link mussten deshalb mitgezogen
+  werden, ebenso der Satz über dem Umschalter (nannte 15 €).
+
+| # | Aufgabe | Ergebnis |
+|---|---|---|
+| **V2** | PWA-Manifest verlinken | `<link rel="manifest">` in allen 4 Seiten; `manifest.json` + `icon-stackr.svg` erstmals mit committet |
+| **A4** | Skip-Link (WCAG 2.4.1) | in `app.html`; `.skip-link` fehlte auch in `css/style.css`. `<main id="mainContent" tabindex="-1">` als Ziel. Hinter dem Whop-Gate ist der Link per `inert` gesperrt — so gewollt |
+| **A5** | `<nav>` ohne `aria-label` | Topnav „Anwendungen", Sidebar „Module". Topnav war ein `<div>`; alle Selektoren darauf sind klassenbasiert |
+| **A2** | Feldrand 1,47:1 statt 3:1 | `--border-field`, genutzt in `.form-input`/`.form-select`/`.form-textarea` |
+| **L3** | AGB aus der App nicht erreichbar | Footer-Zeile auf allen 4 App-Seiten |
+| **N3** | Preisumschalter startet auf „Monatlich" | startet jetzt auf „Jährlich", Umschalten in beide Richtungen geprüft |
+| **D4** | `whop_user` speichert die ganze Userinfo-Antwort | nur noch `{ id, username }`; `datenschutz.html` präzisiert |
+
+**Zur Dateilage:** Beim Anfassen lag in denselben Dateien noch eine fertige, nicht committete
+CSP-/Cookie-Banner-Arbeit einer Parallel-Session. Sie wurde **getrennt** vorweg committet
+(`9f712cf`), damit beide Themen einzeln nachvollziehbar bleiben.
 
 ---
 
@@ -124,6 +135,8 @@ Nur zur Abgrenzung, damit nichts doppelt angefasst wird:
 `N2` (Trial-Status wird durchgereicht und im Dashboard angezeigt) · `P6` (Akademie nach Branche) ·
 `D2` (Anker-Liste offengelegt, Begründung auf Art. 17 Abs. 3 lit. b umgestellt) ·
 `D0` (Reichweitenmessung offengelegt statt bestritten) · `R2`–`R8`, `T1`–`T7`, `S1`–`S6`, `G5`, `G6`.
+
+**2026-08-14:** der komplette Abschnitt 1 — `V2`, `A4`, `A5`, `A2`, `L3`, `N3`, `D4` (`6103208`).
 
 **`G3` ist ebenfalls gebaut** — entgegen älteren Notizen. Der Zahlungsabgleich Einnahme ↔ offene
 Rechnung existiert seit dem 2026-08-12 ([js/bank-import.js:307](../js/bank-import.js)), inklusive

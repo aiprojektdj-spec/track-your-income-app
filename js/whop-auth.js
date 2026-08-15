@@ -798,8 +798,10 @@ var AuthUI = (function () {
         overlay.style.cssText = 'position:fixed;inset:0;background:var(--bg,#08080f);display:flex;align-items:center;justify-content:center;z-index:9998;flex-direction:column;gap:16px;';
         overlay.innerHTML =
             '<div style="font-size:36px;color:var(--accent,#10b981);animation:whop-spin 1.2s linear infinite;">◆</div>' +
-            '<div id="authLoadingMsg" style="color:var(--text-muted,#888);font-size:13px;">' + _esc(msg || 'Lade...') + '</div>' +
-            '<style>@keyframes whop-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>';
+            // @keyframes whop-spin liegt in css/style.css. Frueher stand hier ein
+            // <style>-Block — style-src-elem 'self' hat ihn geblockt, der Spinner
+            // stand still. Gilt fuer jede Seite, die whop-auth.js einbindet.
+            '<div id="authLoadingMsg" style="color:var(--text-muted,#888);font-size:13px;">' + _esc(msg || 'Lade...') + '</div>';
         document.body.appendChild(overlay);
     }
 

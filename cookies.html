@@ -3,10 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none';">
+<!-- script-src war 'none': die Seite braucht jetzt Skripte fuer den Widerrufs-Button
+     (Art. 7 Abs. 3 DSGVO). Gleicher Wert wie auf allen anderen Seiten, nur 'self'.
+     Muss mit dem Header in vercel.json uebereinstimmen. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'self'; frame-src 'none';">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
 <title>Cookie-Richtlinie — Stackr</title>
 <link rel="stylesheet" href="css/legal.css">
+<link rel="stylesheet" href="css/cookie-banner.css">
 </head>
 <body>
 
@@ -25,10 +29,11 @@
     <p class="update-date">Stand: Juni 2026</p>
 
     <div class="highlight-box">
-        <strong>Kurzfassung:</strong> Stackr verwendet ausschließlich technisch notwendige Cookies
-        und lokale Speicherung. Marketing- oder Analyse-<em>Cookies</em> setzen wir nicht ein.
+        <strong>Kurzfassung:</strong> Für den Betrieb verwendet Stackr ausschließlich technisch
+        notwendige Cookies und lokale Speicherung. Marketing-Cookies setzen wir nicht ein.
         Für die Reichweitenmessung nutzen wir ein nach Angaben des Anbieters cookiefreies Verfahren
-        (Vercel Web Analytics) — Details in Ziffer 3.
+        (Vercel Web Analytics) — das läuft <strong>nur, wenn du es im Hinweisbanner erlaubst</strong>,
+        und lässt sich jederzeit widerrufen. Details in Ziffer 3.
     </div>
 
     <div class="section">
@@ -55,7 +60,7 @@
         <p>
             Stackr setzt ausschließlich technisch notwendige und funktionale (reine Bedienkomfort-)
             Speicherzugriffe ein — keine Werbe-Cookies und keine Weitergabe deiner Daten zu
-            Werbezwecken. Zur cookiefreien Reichweitenmessung siehe Ziffer 3.
+            Werbezwecken. Zur einwilligungsbasierten, cookiefreien Reichweitenmessung siehe Ziffer 3.
         </p>
         <p>
             Die folgenden Tabellen beschreiben <strong style="color:var(--text);">alle Kategorien</strong>
@@ -84,6 +89,18 @@
                     <td>whop_access_token / whop_user</td>
                     <td>Speichern die Anmelde-Session nach dem Login über Whop (im localStorage), damit du angemeldet bleibst</td>
                     <td>Bis zum Logout</td>
+                    <td><span class="badge badge-required">Notwendig</span></td>
+                </tr>
+                <tr>
+                    <td>oyi_device_owner_uid</td>
+                    <td>Bindet die lokal gespeicherten Buchhaltungsdaten an dein Whop-Konto, damit ein zweites Konto sie auf diesem Gerät nicht öffnen kann (Geräteschutz)</td>
+                    <td><strong style="color:var(--text);">Bleibt auch nach dem Abmelden</strong> — entfernbar über „Gerät zurücksetzen" oder Löschen der Websitedaten</td>
+                    <td><span class="badge badge-required">Notwendig</span></td>
+                </tr>
+                <tr>
+                    <td>oyi_cookie_consent_v2</td>
+                    <td>Speichert deine Entscheidung aus dem Hinweisbanner — ohne sie erschiene das Banner bei jedem Seitenaufruf erneut</td>
+                    <td>Dauerhaft (bis zum Widerruf oder manuellen Löschen)</td>
                     <td><span class="badge badge-required">Notwendig</span></td>
                 </tr>
             </tbody>
@@ -195,14 +212,25 @@
             eine Herkunftsangabe auf Länderebene. Nach Angaben des Anbieters arbeitet der Dienst
             <strong style="color:var(--text);">ohne Cookies</strong> und legt keine dauerhafte
             Kennung auf deinem Gerät ab. Deine Buchhaltungsdaten sind davon nicht berührt.
-            Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO; du kannst nach Art. 21 DSGVO widersprechen.
         </p>
         <p>
-            Weil dabei keine Informationen auf deinem Gerät gespeichert oder ausgelesen werden, ist
-            für diese Messung nach § 25 Abs. 2 TDDDG keine Einwilligung erforderlich. Für die
-            technisch notwendige Speicherung (Anmelde-Session, Einstellungen) gilt dasselbe — der
-            Hinweis in der App ist deshalb ein <em>Informations</em>-Hinweis und kein
-            Einwilligungsbanner.
+            <strong style="color:var(--text);">Das geschieht ausschließlich mit deiner
+            Einwilligung.</strong> Das Messskript wird erst geladen, wenn du im Hinweisbanner
+            „Statistik erlauben" wählst. Wählst du „Nur notwendige", wird es nie geladen und es
+            werden keine Messdaten übertragen. Rechtsgrundlage: Art. 6 Abs. 1 lit. a DSGVO
+            (Einwilligung), für den Zugriff auf dein Endgerät zusätzlich § 25 Abs. 1 TDDDG.
+        </p>
+        <p>
+            Für die <strong style="color:var(--text);">technisch notwendige</strong> Speicherung
+            (Anmelde-Session, Einstellungen) ist nach § 25 Abs. 2 Nr. 2 TDDDG dagegen keine
+            Einwilligung erforderlich — sie lässt sich deshalb im Banner auch nicht abwählen.
+        </p>
+        <p>
+            <strong style="color:var(--text);">Einwilligung widerrufen oder ändern</strong> —
+            jederzeit mit Wirkung für die Zukunft (Art. 7 Abs. 3 DSGVO):
+        </p>
+        <p>
+            <button type="button" class="cb-btn-min" data-action="cb-reset">Einwilligung ändern</button>
         </p>
     </div>
 
@@ -224,14 +252,16 @@
             Datenschutzerklärung: <a href="https://whop.com/privacy/" target="_blank" rel="noopener">whop.com/privacy</a>
         </p>
 
-        <h3>jsDelivr / CDN-Bibliotheken</h3>
+        <h3>Kein CDN mehr</h3>
         <p>
-            Zur Auslieferung technischer JavaScript-Bibliotheken nutzt Stackr
-            <strong style="color:var(--text);">jsDelivr</strong> (ProspectOne Sp. z o.o., Polen)
-            über das Cloudflare CDN. Beim Laden dieser Ressourcen kann deine IP-Adresse an
-            CDN-Server übertragen werden. Es werden dabei keine Tracking-Cookies gesetzt.
-            Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der
-            Bereitstellung der App-Funktionalität).
+            Bis August 2026 lud Stackr technische Bibliotheken und eine Schriftart über das
+            CDN <strong style="color:var(--text);">jsDelivr</strong> nach; dabei wurde deine
+            IP-Adresse an CDN-Server übertragen. <strong style="color:var(--text);">Das ist
+            nicht mehr der Fall.</strong> Alle Bibliotheken, Schriftarten und Symbole werden
+            von unserem eigenen Server ausgeliefert. Beim Aufruf von Stackr entsteht dadurch
+            <strong style="color:var(--text);">keine Verbindung zu Dritt-Servern</strong> —
+            außer den an anderer Stelle genannten (Whop für Anmeldung und Zahlung, Vercel als
+            Hoster und für die Reichweitenmessung).
         </p>
 
     </div>
@@ -282,5 +312,7 @@
     </div>
 </footer>
 
+<script src="js/actions.js"></script>
+<script defer src="js/cookie-banner.js"></script>
 </body>
 </html>

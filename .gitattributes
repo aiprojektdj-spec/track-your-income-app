@@ -6,3 +6,8 @@
 # sind der Nachweis, welches Original von cdn.sheetjs.com bzw. jsDelivr eingecheckt wurde.
 # Zusätzlich müssen Web 1.7 und Local 1.7 byte-identisch bleiben (md5sum-Vergleich).
 js/vendor/*.js -text
+
+# Seit D1 (2026-08-15) liegen auch die ehemaligen jsDelivr-Stylesheets und die
+# Tabler-Symbolschrift lokal — dieselbe Begruendung, dieselbe Regel.
+css/vendor/*.css -text
+css/vendor/fonts/* -text binary

@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Gate: Whop OAuth callback (?code=) oder gespeichertes Token → durch -->
     <!-- WhopAuth.boot() übernimmt Login-Logik nach Script-Load -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com https://*.public.blob.vercel-storage.com https://*.make.com; frame-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com https://*.public.blob.vercel-storage.com https://*.make.com; frame-src 'none';">
 
-    <!-- ── Resource Hints: faster CDN connections ── -->
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <!-- ── Resource Hints ──
+         jsDelivr steht hier nicht mehr: seit D1 liegen alle Fremdbibliotheken lokal
+         (js/vendor/, css/vendor/). api.whop.com bleibt — der Zugangs-Check geht dorthin. -->
     <link rel="preconnect" href="https://api.whop.com">
-    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
     <!-- Fund F4: eigene kritische Kette. Wirkung ist klein — der Preload-Scanner findet
          beide Dateien ohnehin, style.css steht in diesem head und app.js weiter unten im
          selben 22-KB-Dokument. Die Hints heben nur ihre Prioritaet an, damit sie nicht
@@ -34,11 +34,12 @@
     <!-- ── CSS only in head — non-blocking ── -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/cookie-banner.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.44.0/dist/tabler-icons.min.css" integrity="sha384-ccZHbezhtZWmNy0cg8odL0D/jFU5k5HIls9y78Qd6lWor7rpvFIZtK0fTFG4z456" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.css" integrity="sha384-snpJ3knpH6avB6cP1vPkNdmRzCYaCpom/3TNOyvo189BiogXYXQfXkyYpZ2/xADs" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/themes/dark.css" integrity="sha384-heUUtXw0Djj2DElfLOVPlASSWFKNL3JDY6s3FEqQD03GYyWOeophY5DsfEG40sYX" crossorigin="anonymous">
+    <link rel="stylesheet" href="css/vendor/tabler-icons.min.css">
+    <link rel="stylesheet" href="css/vendor/notyf.min.css">
+    <link rel="stylesheet" href="css/vendor/flatpickr-dark.css">
     <!-- JS moved to body bottom with defer — no render blocking -->
-    <script defer src="/_vercel/insights/script.js"></script>
+    <!-- Vercel Web Analytics wird NICHT statisch geladen: js/cookie-banner.js zieht das
+         Skript erst nach, wenn die Einwilligung 'all' vorliegt (§25 Abs. 1 TDDDG). -->
 </head>
 <body>
 
@@ -247,15 +248,15 @@
          execution after HTML parsed, zero render blocking
          ══════════════════════════════════════════════ -->
 
-    <!-- ── Vendor: CDN libs (downloaded in parallel) ── -->
+    <!-- ── Vendor: lokal aus js/vendor/ (seit D1 kein CDN mehr) ── -->
     <!-- chart.min.js (200 KB) wird NICHT mehr eager geladen: js/statistiken.js ist der einzige
          Nutzer im Projekt und holt es ueber _ensureChartJs() beim ersten Zeichnen. -->
     <!-- xlsx.full.min.js (929 KB, groesste Datei des Projekts) wird NICHT mehr eager geladen:
          Utils.ensureXlsx() in js/utils.js holt sie beim ersten Excel-Im-/Export nach. -->
-    <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/notyf@3.10.0/notyf.min.js" integrity="sha384-uuNfwJfjOG2ukYi4eAB11/t3lP4Zjf75a3UhgkLzEpiX8JpJfacpG7Ye+0tiVMxT" crossorigin="anonymous"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js" integrity="sha384-5JqMv4L/Xa0hfvtF06qboNdhvuYXUku9ZrhZh3bSk8VXF0A/RuSLHpLsSV9Zqhl6" crossorigin="anonymous"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/de.js" integrity="sha384-yD6dlpesNBZIZV0gfeLiuO80i+vOIxc912ljzvZhRljuVNYEaCoKHCFzbOX0ALBT" crossorigin="anonymous"></script>
+    <script defer src="js/vendor/gsap.min.js"></script>
+    <script defer src="js/vendor/notyf.min.js"></script>
+    <script defer src="js/vendor/flatpickr.min.js"></script>
+    <script defer src="js/vendor/flatpickr-de.js"></script>
     <!-- ApexCharts (~600KB): lazy-loaded by dashboard.js only when chart tab opens -->
 
     <!-- ── App core ── -->

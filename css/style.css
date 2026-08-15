@@ -2630,6 +2630,13 @@ tbody tr:last-child td {
 @keyframes _spin {
     to { transform: rotate(360deg); }
 }
+/* Login-Spinner aus js/whop-auth.js (_showLoader). Stand bis 2026-08-15 als
+   <style>-Block im innerHTML des Overlays und wurde von style-src-elem 'self'
+   geblockt — der Spinner auf dem Anmeldescreen stand still. */
+@keyframes whop-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
 ._spinner-label {
     font-size: 14px;
     color: var(--text-secondary);

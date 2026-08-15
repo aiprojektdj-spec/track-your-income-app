@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self' https://cdn.jsdelivr.net; script-src-elem 'self' https://cdn.jsdelivr.net; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src-elem 'self' https://cdn.jsdelivr.net; style-src-attr 'unsafe-inline'; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none';">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
 <link rel="manifest" href="/manifest.json">
 <title>Stackr — Buchhaltung für Freelancer, GbR &amp; Reseller | EÜR &amp; GoBD</title>
@@ -24,7 +24,7 @@
 <link rel="preload" href="fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/landing.css">
 <link rel="stylesheet" href="css/cookie-banner.css">
-<script defer src="/_vercel/insights/script.js"></script>
+<!-- Vercel Web Analytics: nachgeladen von js/cookie-banner.js nach Einwilligung -->
 </head>
 <body>
 
@@ -552,6 +552,7 @@
         <div class="section-tag">Preise</div>
         <h2 class="section-title">Ein Preis. Alles drin.</h2>
         <p class="section-sub">Erst 7 Tage kostenlos testen — Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung. Danach 11,25 € im Monat im Jahresabo, 15 € bei monatlicher Zahlung. Das war's. Kein Kleingedrucktes, keine Tarif-Treppe.</p>
+        <p class="section-sub"><strong>E-Rechnung ist seit 2025 Pflicht im B2B.</strong> Bei uns ist sie drin — nicht im teuersten Tarif.</p>
 
         <!-- Billing toggle -->
         <div class="billing-toggle" role="group" aria-label="Abrechnungszeitraum wählen">
@@ -687,6 +688,13 @@
                 <span class="arrow">+</span>
             </button>
             <div class="faq-a">Ja. Buchungen können als CSV- oder Excel-Datei importiert werden. Dein aktueller Datenstand ist in wenigen Minuten übertragen — kein manuelles Abtippen. Für spezifische Importfragen steht unser Support zur Verfügung.</div>
+        </div>
+        <div class="faq-item">
+            <button class="faq-q" data-action="faq">
+                Erfüllt Stackr die E-Rechnungspflicht ab 2025?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Ja. Stackr erzeugt E-Rechnungen im XRechnung-Format (EN 16931) und prüft eingehende E-Rechnungen deiner Lieferanten. Beides ist im Preis enthalten — nicht erst in einem höheren Tarif.</div>
         </div>
     </div>
 </section>

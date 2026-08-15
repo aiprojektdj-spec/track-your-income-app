@@ -241,9 +241,7 @@ let _chartInst = null;
 function _ensureApexCharts(cb) {
     if (typeof ApexCharts !== 'undefined') { cb(); return; }
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js';
-    script.integrity = 'sha384-KNaFJ+EK516RuHsoycvreec5pD7BkTKJEkjMrVSQWu9KGTl7En4dhIDv7t1DFJ+g';
-    script.crossOrigin = 'anonymous';
+    script.src = '/js/vendor/apexcharts.min.js';
     script.onload = cb;
     script.onerror = () => console.warn('[Eigenbelege] ApexCharts failed to load');
     document.head.appendChild(script);

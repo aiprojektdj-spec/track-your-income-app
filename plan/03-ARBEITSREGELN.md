@@ -15,9 +15,19 @@ geladen. Diese Datei ist die Langfassung mit den Vorfällen dahinter — wer ein
 
 ```bash
 git status --short                                    # hält jemand anders meine Dateien?
-git add -- <datei> [<datei> …]                        # nie -A, nie .
 for f in test/*.js; do node "$f" >/dev/null 2>&1 || echo "FAIL $f"; done   # bei Rechenlogik
+git commit -F <nachricht> -- <datei> [<datei> …]      # Pathspec, nicht nur beim add
 ```
+
+**Der Pathspec gehört an den `commit`, nicht nur an das `add`.** `git commit` ohne Pathspec
+committet den **gesamten Index** — auch das, was eine andere Session zwischen deinem `git add`
+und deinem `git commit` hineingelegt hat. Das sind Sekunden, und sie reichen: am 2026-08-15 hat
+ein so gebauter Commit 27 statt 4 Dateien erfasst und die fremde D1-Arbeit (`js/vendor/`,
+`css/vendor/`, `vercel.json`, `.gitattributes`) mitgenommen.
+
+**Wenn es doch passiert:** solange nicht gepusht, `git reset --soft HEAD~1` und danach mit
+Pathspec neu committen — ein Pathspec-Commit lässt den übrigen Index stehen, die fremde Arbeit
+bleibt also genau so vorgemerkt, wie die andere Session sie hinterlassen hat.
 
 - [ ] Nur eigene Dateien im Commit — `git diff --cached --stat` gegengelesen
 - [ ] Erledigte Aufgabe **im selben Commit** in [`01-AUFGABEN.md`](01-AUFGABEN.md) abgehakt
@@ -37,6 +47,8 @@ Am 2026-08-11/12 liefen bis zu **fünf Sessions gleichzeitig** im selben Verzeic
 - **Immer pfad-gescoped committen:** `git add -- <datei>`, **nie** `git add -A`. Sonst nimmst du
   fremde Arbeit mit. Das ist am 2026-08-12 **zweimal** passiert: Teile einer Härtungsarbeit
   landeten in `365d930` und `7c07104`, weil andere Sessions die Dateien mitcommittet haben.
+  **Der Pathspec muss auch an den `commit`** — `git add -- <datei>` allein schützt nicht, siehe
+  Checkliste oben.
 - **Uncommittete Arbeit bleibt hier nicht lange liegen.** Wer fertig ist, committet sofort.
 - **Wenn du eine Datei brauchst, die jemand anders hält:** per `send_message` abstimmen, nicht
   überschreiben.

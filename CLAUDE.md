@@ -18,8 +18,11 @@ anders: nicht anfassen, per `send_message` abstimmen.
 
 ## Nicht verhandelbar
 
-1. **Pfad-gescoped committen:** `git add -- <datei>`. Nie `git add -A`, `git add .` oder
-   `git commit -a` — das nimmt fremde Arbeit mit. Ist am 2026-08-12 zweimal passiert.
+1. **Pfad-gescoped committen — beim `add` *und* beim `commit`:**
+   `git commit -F <nachricht> -- <datei>`. Nie `git add -A`, `git add .`, `git commit -a`, und
+   nie ein `git commit` ohne Pathspec: das committet den **gesamten Index**, auch was eine
+   andere Session in den Sekunden dazwischen hineingelegt hat. Ist am 2026-08-12 zweimal und
+   am 2026-08-15 erneut passiert.
 2. **`git status` unmittelbar vor dem Commit erneut prüfen**, nicht nur beim Sessionstart.
 3. **Stand immer gegen den Code prüfen, nie gegen Plandateien** — auch nicht gegen die in
    `plan/`. Die veralten binnen Stunden, nachweislich sogar am Tag ihrer Entstehung.

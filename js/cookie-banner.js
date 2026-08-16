@@ -1,17 +1,38 @@
 // ============================================
-// CookieBanner — DSGVO-konformer Cookie-Hinweis
-// Speichert Entscheidung in localStorage
+// CookieBanner — Einwilligung nach §25 TDDDG / Art. 6 Abs. 1 lit. a DSGVO
+//
+// Zwei Stufen:
+//   'necessary' → nur technisch notwendige lokale Speicherung (einwilligungsfrei,
+//                 §25 Abs. 2 Nr. 2 TDDDG). Keine Reichweitenmessung.
+//   'all'       → zusaetzlich Vercel Web Analytics, erst dann wird das Skript geladen.
+//
+// Der Analytics-Loader laeuft VOR dem Early-Return, sonst wuerde ein bereits
+// erteiltes 'all' auf Folgeseiten nicht mehr greifen.
+// Schluessel ist bewusst _v2: die v1-Frage ("Verstanden") hat nie nach
+// Reichweitenmessung gefragt, eine Einwilligung laesst sich daraus nicht ableiten.
 // ============================================
 (function () {
     'use strict';
 
-    var STORAGE_KEY = 'oyi_cookie_consent';
+    var STORAGE_KEY = 'oyi_cookie_consent_v2';
 
-    // Bereits entschieden? → nichts anzeigen
-    if (localStorage.getItem(STORAGE_KEY)) return;
+    function loadAnalytics() {
+        if (document.getElementById('vercelInsights')) return;
+        var s = document.createElement('script');
+        s.id    = 'vercelInsights';
+        s.defer = true;
+        s.src   = '/_vercel/insights/script.js';
+        document.head.appendChild(s);
+    }
+
+    var consent = null;
+    try { consent = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+
+    if (consent === 'all') loadAnalytics();
 
     function accept(level) {
-        localStorage.setItem(STORAGE_KEY, level);
+        try { localStorage.setItem(STORAGE_KEY, level); } catch (e) {}
+        if (level === 'all') loadAnalytics();
         var banner = document.getElementById('cookieBanner');
         if (banner) {
             banner.style.transition = 'transform .3s ease, opacity .3s ease';
@@ -22,117 +43,54 @@
     }
 
     function inject() {
-        // Styles
-        var style = document.createElement('style');
-        style.textContent = `
-#cookieBanner {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 9000;
-    background: #161a18;
-    border: 1px solid rgba(255,255,255,.08);
-    border-radius: 14px;
-    padding: 18px 22px;
-    display: flex;
-    align-items: center;
-    gap: 18px;
-    flex-wrap: wrap;
-    max-width: 820px;
-    width: calc(100% - 32px);
-    box-shadow: 0 8px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(16,185,129,.08);
-    animation: cookieSlideUp .35s ease;
-}
-@keyframes cookieSlideUp {
-    from { opacity:0; transform:translateX(-50%) translateY(20px); }
-    to   { opacity:1; transform:translateX(-50%) translateY(0); }
-}
-#cookieBanner .cb-text {
-    flex: 1;
-    min-width: 220px;
-    font-size: 13px;
-    color: #9ba8a1;
-    line-height: 1.55;
-}
-#cookieBanner .cb-text strong { color: #eef2f0; }
-#cookieBanner .cb-text a { color: #34d399; text-decoration: none; }
-#cookieBanner .cb-text a:hover { text-decoration: underline; }
-#cookieBanner .cb-actions {
-    display: flex;
-    gap: 8px;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-}
-#cookieBanner .cb-btn-all {
-    background: linear-gradient(135deg, #10b981, #0da271);
-    color: #fff;
-    border: none;
-    padding: 9px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap;
-    transition: opacity .15s;
-}
-#cookieBanner .cb-btn-all:hover { opacity: .88; }
-#cookieBanner .cb-btn-min {
-    background: rgba(255,255,255,.05);
-    color: #9ba8a1;
-    border: 1px solid rgba(255,255,255,.1);
-    padding: 9px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    white-space: nowrap;
-    transition: background .15s;
-}
-#cookieBanner .cb-btn-min:hover { background: rgba(255,255,255,.09); color: #eef2f0; }
-@media (max-width: 520px) {
-    #cookieBanner { flex-direction: column; gap: 12px; }
-    #cookieBanner .cb-actions { width: 100%; }
-    #cookieBanner .cb-btn-all,
-    #cookieBanner .cb-btn-min { flex: 1; text-align: center; }
-}
-        `;
-        document.head.appendChild(style);
+        // Styles liegen in css/cookie-banner.css — ein hier injizierter <style>-Block
+        // wuerde von der CSP blockiert (style-src-elem 'self', kein unsafe-inline).
 
-        // Banner-HTML
+        // Banner-HTML. Link absolut: das Banner laeuft auch in /lager/, /rechnungen/
+        // und /eigenbelege/ — relativ zeigte er dort ins Leere.
         var banner = document.createElement('div');
         banner.id = 'cookieBanner';
         banner.innerHTML =
             '<div class="cb-text">' +
-                '<strong>Cookie-Hinweis</strong><br>' +
-                'Diese App verwendet ausschließlich technisch notwendige Cookies für Anmeldung und Session-Verwaltung. ' +
-                'Keine Tracking- oder Werbe-Cookies. ' +
-                'Mehr in unserer <a href="datenschutz.html">Datenschutzerklärung</a>.' +
+                '<strong>Datenschutz-Hinweis</strong><br>' +
+                'Für Anmeldung und Betrieb speichert Stackr technisch notwendige Daten lokal in deinem ' +
+                'Browser (localStorage/IndexedDB). Das ist einwilligungsfrei und lässt sich nicht abwählen. ' +
+                'Zusätzlich möchten wir die Nutzung anonym und cookiefrei messen (Vercel Web Analytics) — ' +
+                'dafür brauchen wir deine Einwilligung. Keine Werbung, keine Weitergabe zu Werbezwecken. ' +
+                'Mehr in unserer <a href="/datenschutz.html">Datenschutzerklärung</a>.' +
             '</div>' +
             '<div class="cb-actions">' +
-                '<button class="cb-btn-all" data-action="cb-accept">Verstanden ✓</button>' +
+                '<button class="cb-btn-min" data-action="cb-necessary">Nur notwendige</button>' +
+                '<button class="cb-btn-all" data-action="cb-accept">Statistik erlauben ✓</button>' +
             '</div>';
 
-        // Nach kurzem Delay anzeigen (Seitenaufbau abwarten)
         document.body.appendChild(banner);
     }
 
-    // Auf DOM-Bereitschaft warten
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', inject);
-    } else {
-        inject();
+    // Banner nur zeigen, wenn noch nichts entschieden ist. Die oeffentliche API
+    // unten wird trotzdem immer definiert — sonst haette der Widerrufs-Button in
+    // cookies.html kein CookieBanner-Objekt, genau dann, wenn er gebraucht wird.
+    if (!consent) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', inject);
+        } else {
+            inject();
+        }
     }
 
     // Öffentliche API
     window.CookieBanner = {
         acceptAll:       function () { accept('all'); },
         acceptNecessary: function () { accept('necessary'); },
-        getConsent:      function () { return localStorage.getItem(STORAGE_KEY); },
-        reset:           function () { localStorage.removeItem(STORAGE_KEY); location.reload(); }
+        getConsent:      function () { try { return localStorage.getItem(STORAGE_KEY); } catch (e) { return null; } },
+        reset:           function () { try { localStorage.removeItem(STORAGE_KEY); } catch (e) {} location.reload(); }
     };
 })();
 
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
 if (window.Actions) Actions.register({
-    'cb-accept': function () { CookieBanner.acceptNecessary(); }
+    'cb-accept':    function () { CookieBanner.acceptAll(); },
+    'cb-necessary': function () { CookieBanner.acceptNecessary(); },
+    // Widerruf nach Art. 7 Abs. 3 DSGVO — Button liegt in cookies.html
+    'cb-reset':     function () { CookieBanner.reset(); }
 });

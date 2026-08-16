@@ -88,13 +88,19 @@ bei der der Beleg dein Gerät nie verlässt.* Spezifikation liegt vor (`9567630`
 
 ## Recht und Datenschutz
 
-### Der Cookie-Banner hat keinen Ablehnen-Button — das ist korrekt
+### Der Banner ist zweistufig — die notwendige Speicherung bleibt ohne Ablehnen-Button
 
-Stackr setzt ausschließlich technisch notwendige Speicherung ein (kein Tracking, keine Werbung),
-die nach **§25 Abs. 2 Nr. 2 TDDDG einwilligungsfrei** ist. Ein Ablehnen-Button wäre irreführend,
-weil es nichts abzulehnen gibt.
-*(Der Text sagt „Cookies", tatsächlich ist es localStorage — das ist ungenau und steht als L4 in
-den Aufgaben. Die Rechtsfolge ändert sich dadurch nicht.)*
+**Geändert am 2026-08-15.** Bis dahin stand hier: „Der Cookie-Banner hat keinen Ablehnen-Button —
+das ist korrekt." Für die **technisch notwendige** Speicherung gilt das unverändert: sie ist nach
+**§25 Abs. 2 Nr. 2 TDDDG einwilligungsfrei**, ein Ablehnen-Button wäre dort irreführend, weil es
+nichts abzulehnen gibt. Sie lässt sich im Banner deshalb bewusst nicht abwählen.
+
+Als Gesamtaussage stimmte der Satz aber nicht mehr, sobald **Vercel Web Analytics** dazukam —
+und das war schon vorher der Fall, siehe den nächsten Abschnitt. Der Banner hat seit D0 zwei
+Schaltflächen: *Nur notwendige* und *Statistik erlauben*. Nur die zweite lädt das Messskript.
+Widerruf nach Art. 7 Abs. 3 DSGVO über eine Schaltfläche in `cookies.html`.
+
+*(L4 — „Cookies" statt localStorage/IndexedDB — ist mit dem neuen Bannertext erledigt.)*
 
 ### Kein GoBD-Testat
 
@@ -105,12 +111,24 @@ Versionsstand, was für ein Ein-Personen-Produkt kaum zu rechtfertigen ist.
 „GoBD-konform umgesetzt" mit Verweis auf die mitgelieferte Verfahrensdokumentation. Aktuell steht
 der falsche Begriff **nirgends** — bitte so lassen.
 
-### Kein Churn-Tracking im Produkt
+### Kein Churn-Tracking im Produkt — mit einer Ausnahme, über die noch entschieden wird
 
-Es gibt keine Nutzungsmessung, und das soll so bleiben. Ein Local-First-Produkt mit E2E, das
-„deine Daten verlassen dein Gerät nicht" verspricht, darf kein Nutzungsverhalten messen, ohne
-genau dieses Versprechen zu brechen. **Die nötigen Kennzahlen liefert Whop ohnehin:** aktive
-Mitgliedschaften, Kündigungsquote, Trial-Konversion, Plan-Verteilung.
+**Korrektur vom 2026-08-15.** Hier stand: „Es gibt keine Nutzungsmessung, und das soll so
+bleiben." Der erste Halbsatz war **falsch**: `/_vercel/insights/script.js` lag statisch in sechs
+Seiten und maß Seitenaufrufe, Referrer, Browser/Gerät und Herkunftsland — ungefragt, auf zwei
+Seiten sogar ohne eingebundenen Consent-Banner.
+
+**Der Grundsatz bleibt richtig:** Ein Local-First-Produkt mit E2E, das „deine Daten verlassen dein
+Gerät nicht" verspricht, darf kein Nutzungsverhalten messen, ohne genau dieses Versprechen zu
+beschädigen. **Die Geschäftskennzahlen liefert Whop ohnehin:** aktive Mitgliedschaften,
+Kündigungsquote, Trial-Konversion, Plan-Verteilung.
+
+**Stand jetzt:** Die Messung ist seit D0 einwilligungspflichtig und läuft nur nach ausdrücklicher
+Zustimmung. Ob sie ganz entfällt, ist eine **offene Produktentscheidung** — der User sieht sich
+zuerst an, was die Messung im Vercel-Dashboard bisher überhaupt hergab. Fällt sie weg, gehen
+zurück: der zweite Banner-Button, die Widerrufs-Schaltfläche in `cookies.html`, deren gelockerte
+CSP (`script-src 'self'` → `'none'`, Meta **und** `vercel.json`) und die entsprechenden Absätze in
+`datenschutz.html` und `cookies.html`.
 
 ### Der Audit-Log-Zeitstempel ist Client-Zeit
 

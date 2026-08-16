@@ -136,7 +136,8 @@ const Afa = {
         }).join('');
 
         const emptyRow = aktive.length === 0
-            ? `<tr><td colspan="9" class="table-empty">Noch keine Wirtschaftsgüter erfasst</td></tr>`
+            ? `<tr><td colspan="9" class="table-empty">Noch keine Wirtschaftsgüter erfasst — Anschaffungen über 800 € netto werden hier über mehrere Jahre abgeschrieben.<br>
+                   <button class="btn btn-small btn-primary" style="margin-top:10px;" data-action="afa-form"><i class="ti ti-plus"></i> Erste Anlage erfassen</button></td></tr>`
             : '';
 
         // Kumulierte AfA aller Jahre für Gesamtübersicht

@@ -198,7 +198,7 @@ const Materiallager = {
             : '<option value="">Erst Materialarten unter "Bestand" anlegen</option>';
 
         const rows = einkauefe.length === 0
-            ? '<tr><td colspan="7" class="table-empty">Noch keine Einkäufe erfasst.</td></tr>'
+            ? '<tr><td colspan="7" class="table-empty">Noch keine Einkäufe erfasst — trag den ersten oben im Formular ein. Materialarten dafür legst du im Tab „Bestand" an.</td></tr>'
             : einkauefe.map(e => `<tr>
                 <td>${Utils.formatDate(e.datum)}</td>
                 <td>${Utils.escapeHtml(e.materialName || '')}</td>

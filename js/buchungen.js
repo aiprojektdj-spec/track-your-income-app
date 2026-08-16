@@ -1190,7 +1190,7 @@ const Buchungen = {
         const sales = Store.getSales(true).slice().sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
         let rows = '';
         if (sales.length === 0) {
-            rows = '<tr><td colspan="6" class="table-empty">Noch keine Verkäufe erfasst</td></tr>';
+            rows = '<tr><td colspan="6" class="table-empty">Noch keine Verkäufe erfasst — den ersten trägst du oben im Formular ein.</td></tr>';
         } else {
             rows = sales.map(s => {
                 const isMulti = s.purchaseIds && s.purchaseIds.length > 0;

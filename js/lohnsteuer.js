@@ -202,7 +202,7 @@ const Lohnsteuer = {
                 <div style="font-weight:700;">Mitarbeiter-Übersicht</div>
             </div>
             ${employees.length === 0
-                ? `<div style="padding:40px;text-align:center;color:var(--text-muted);">Noch keine Mitarbeiter erfasst</div>`
+                ? `<div style="padding:40px;text-align:center;color:var(--text-muted);">Noch keine Mitarbeiter erfasst — den ersten legst du oben rechts über <strong>„+ Mitarbeiter"</strong> an.</div>`
                 : `<div class="table-container" style="border:none;">
                     <table class="data-table">
                         <thead><tr>

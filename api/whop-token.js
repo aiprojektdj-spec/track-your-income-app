@@ -1,9 +1,12 @@
 // Vercel Serverless Function — Whop OAuth Code → Access Token Exchange
 // Client secret stays server-side; never exposed to the browser.
 // Env var required: WHOP_CLIENT_SECRET
+// Env optional:      ALERT_WEBHOOK_URL — Meldung bei offenem Rate-Limit-Deckel (api/_alert.js)
 
 var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
 var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
+// Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
+var alertOps    = require('./_alert.js').alertOps;
 var RATE_MAX    = 8; // Requests pro Minute pro IP — Login passiert nicht öfter als 1-2x/min, 8 lässt Retry-Spielraum, bremst Flood/Scan-Versuche stärker
 
 function redisCmd(cmd) {
@@ -26,8 +29,9 @@ module.exports = async function handler(req, res) {
 
     if (!REDIS_URL || !REDIS_TOKEN) {
         // ponytail: kein In-Memory-Fallback — in Serverless (Cold Starts, N Instanzen) wertlos.
-        // Nicht still überspringen: sichtbar loggen, damit fehlende Redis-Env auffällt.
-        console.warn('[whop-token] Rate-Limit INAKTIV — UPSTASH_REDIS_REST_URL/TOKEN nicht gesetzt');
+        // Nicht still überspringen: melden, damit fehlende Redis-Env auffällt.
+        await alertOps('whop-token', 'rate-limit-inaktiv',
+            'UPSTASH_REDIS_REST_URL/TOKEN nicht gesetzt — Login-Endpunkt ohne IP-Deckel');
     } else {
         try {
             // x-vercel-forwarded-for wird von Vercels Edge-Netzwerk selbst gesetzt und ist vom
@@ -40,7 +44,8 @@ module.exports = async function handler(req, res) {
             await redisCmd(['EXPIRE', rlKey, '60', 'NX']);
             if (count > RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
         } catch (e) {
-            console.error('[whop-token] rate-limit error:', e); // nicht blockierend
+            // nicht blockierend — weiter, aber der IP-Deckel ist damit offen
+            await alertOps('whop-token', 'rate-limit-open', e && e.message);
         }
     }
 

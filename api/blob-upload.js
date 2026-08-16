@@ -24,12 +24,16 @@
 //      + dieselben WHOP_*/KV_REST_API_*-Variablen wie api/sync.js (Auth + Rate-Limit).
 //      BLOB_MAX_BYTES             (optional, Default 10 GB — Byte-Budget je Nutzer und Fenster)
 //      BLOB_BUDGET_WINDOW_SEC     (optional, Default 2592000 = 30 Tage)
+//      ALERT_WEBHOOK_URL          (optional — Meldung bei offenem Deckel, s. api/_alert.js)
 //      SYNC_OWNER_IDS             (optional — Whop-User-IDs "user_…" der Owner ohne Abo)
 // =============================================================================
 var { put, del, list } = require('@vercel/blob');
 
 var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
 var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
+
+// Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
+var alertOps = require('./_alert.js').alertOps;
 
 // ── Auth: identisch zu api/sync.js (bewusst dupliziert, siehe dortiger Kommentar) ──
 var ACCESS_IDS   = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
@@ -144,7 +148,11 @@ var BLOB_BUDGET_WINDOW = parseInt(process.env.BLOB_BUDGET_WINDOW_SEC || '2592000
 // Redis-Fehler lassen den Upload durch (fail-open, wie das bestehende Rate-Limit hier und in
 // api/sync.js): ein Redis-Ausfall darf keinen zahlenden Kunden am Arbeiten hindern.
 async function chargeBlobBudget(userId, bytes) {
-    if (!REDIS_URL || !REDIS_TOKEN) return true;
+    if (!REDIS_URL || !REDIS_TOKEN) {
+        await alertOps('blob-upload', 'redis-env-missing',
+            'Byte-Budget und Rate-Limit sind ohne Redis-Env komplett aus');
+        return true;
+    }
     var key = 'blob:bytes:' + userId;
     try {
         var total = await redisCmd(['INCRBY', key, String(bytes)]);
@@ -153,7 +161,8 @@ async function chargeBlobBudget(userId, bytes) {
         await redisCmd(['DECRBY', key, String(bytes)]);
         return false;
     } catch (e) {
-        console.error('[blob-upload] budget error:', e && e.message);
+        // fail-open — der Byte-Deckel ist damit fuer diesen Upload weg
+        await alertOps('blob-upload', 'byte-budget-open', e && e.message);
         return true;
     }
 }
@@ -226,7 +235,13 @@ module.exports = async function handler(req, res) {
             var count = await redisCmd(['INCR', rlKey]);
             await redisCmd(['EXPIRE', rlKey, '60', 'NX']);
             if (count > RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
-        } catch (e) { console.error('[blob-upload] rate-limit error:', e); }
+        } catch (e) {
+            // nicht blockierend — weiter, aber der Nutzer-Deckel ist damit offen
+            await alertOps('blob-upload', 'rate-limit-open', e && e.message);
+        }
+    } else {
+        await alertOps('blob-upload', 'redis-env-missing',
+            'Byte-Budget und Rate-Limit sind ohne Redis-Env komplett aus');
     }
 
     var action = String(req.query && req.query.action || '');

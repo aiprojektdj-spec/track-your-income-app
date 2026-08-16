@@ -26,7 +26,11 @@ var Steuerberater = (function () {
         html += '</select></div>';
 
         html += '<div class="form-group"><label class="form-label">Zugriffspin (optional)</label>';
-        html += '<input type="number" class="form-input" id="stbPin" placeholder="z.B. 1234" maxlength="8" style="max-width:140px;">';
+        // type="text" statt "number": maxlength wirkt bei number-Inputs NICHT — die Begrenzung
+        // sah aus, als waere sie da, und tat nichts. Ausserdem verschluckt number fuehrende
+        // Nullen, eine PIN "0042" wurde zu "42". inputmode/pattern halten die Ziffern-Tastatur
+        // auf dem Telefon. Die Leseseite (buildAndDownload) nimmt ohnehin den String.
+        html += '<input type="text" inputmode="numeric" pattern="[0-9]*" class="form-input" id="stbPin" placeholder="z.B. 1234" maxlength="8" style="max-width:140px;">';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Leer = kein PIN. Der Steuerberater gibt diesen PIN beim Öffnen ein.</div>';
         html += '</div>';
         html += '</div>';

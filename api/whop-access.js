@@ -24,6 +24,11 @@
 //                         ohne eigenes Abo. BEVORZUGT, weil unveränderlich (s. _isOwner).
 //   WHOP_OWNER_USERNAMES  Altweg, nur wirksam solange WHOP_OWNER_IDS leer ist
 
+//   ALERT_WEBHOOK_URL     optional — Meldung bei offenem Rate-Limit-Deckel (api/_alert.js)
+
+// Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
+var alertOps = require('./_alert.js').alertOps;
+
 //   prod_wgVmaJg4sBVOD = "Stackr Pro" 15 €/Mon · prod_p1WHi5t65rAA6 = "Stackr" 135 €/Jahr · biz_2OEWYGlOwb8b0f = Company
 var ACCESS_IDS = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
     .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
@@ -213,9 +218,12 @@ module.exports = async function handler(req, res) {
             await redisCmd(['EXPIRE', ipRlKey, '60', 'NX']);
             if (ipCount > IP_RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
         } catch (e) {
-            console.error('[whop-access] ip-rate-limit error:', e && e.message);
-            // nicht blockierend — weiter
+            // nicht blockierend — weiter, aber der IP-Deckel ist damit offen
+            await alertOps('whop-access', 'ip-rate-limit-open', e && e.message);
         }
+    } else {
+        await alertOps('whop-access', 'rate-limit-inaktiv',
+            'Redis-Env nicht gesetzt — Zugangs-Check laeuft ohne IP-Deckel');
     }
 
     try {

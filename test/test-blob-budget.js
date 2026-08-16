@@ -33,13 +33,17 @@ function build(opts) {
         if (op === 'EXPIRE') return 1;
         return null;
     };
+    // Der Byte-Deckel ist fail-open. Damit ein offener Deckel nicht still im Log versandet,
+    // meldet chargeBlobBudget ihn ueber api/_alert.js — hier als Spion eingehaengt.
+    const alerts = [];
+    const alertOps = async (source, event, detail) => { alerts.push({ source, event, detail }); };
     const fn = new Function('REDIS_URL', 'REDIS_TOKEN', 'redisCmd', 'BLOB_BUDGET_BYTES',
-                            'BLOB_BUDGET_WINDOW', 'console',
+                            'BLOB_BUDGET_WINDOW', 'console', 'alertOps',
                             m[0] + '; return chargeBlobBudget;')(
         opts.noRedis ? '' : 'http://r', opts.noRedis ? '' : 'tok', redisCmd,
         opts.budget !== undefined ? opts.budget : 10 * GB, 2592000,
-        { error: () => {} });
-    return { charge: fn, store, calls };
+        { error: () => {} }, alertOps);
+    return { charge: fn, store, calls, alerts };
 }
 
 (async () => {
@@ -82,11 +86,22 @@ function build(opts) {
     assert.strictEqual(await bFail.charge('user_1', 999 * GB), true, 'Redis-Fehler blockiert nicht');
     pass++; console.log('✓ Redis-Ausfall blockiert den Upload nicht (fail-open)');
 
+    // 6b) …meldet den offenen Deckel aber, statt ihn nur ins Log zu schreiben
+    assert.strictEqual(bFail.alerts.length, 1, 'genau eine Meldung');
+    assert.strictEqual(bFail.alerts[0].event, 'byte-budget-open', 'Ereignis benennt den offenen Deckel');
+    pass++; console.log('✓ offener Byte-Deckel wird gemeldet, nicht nur geloggt');
+
     // 7) Ohne konfiguriertes Redis wird gar nicht gezählt (lokale Entwicklung)
     const bNo = build({ noRedis: true, budget: 1 });
     assert.strictEqual(await bNo.charge('user_1', 999 * GB), true, 'ohne Redis kein Budget');
     assert.strictEqual(bNo.calls.length, 0, 'ohne Redis auch kein Redis-Call');
     pass++; console.log('✓ ohne konfiguriertes Redis wird nicht gezählt');
+
+    // 7b) …und genau das wird gemeldet: fehlende Redis-Env in Produktion heisst, dass
+    //     Byte-Budget UND Rate-Limit komplett aus sind, ohne dass es irgendwo auffaellt
+    assert.strictEqual(bNo.alerts.length, 1, 'fehlende Redis-Env wird gemeldet');
+    assert.strictEqual(bNo.alerts[0].event, 'redis-env-missing');
+    pass++; console.log('✓ fehlende Redis-Env wird gemeldet, nicht still uebersprungen');
 
     // 8) Der Default-Deckel im Code ist plausibel: großzügig für eine Belegverwaltung, aber
     //    klein genug, dass die im Audit genannten ~28 GB/Stunde nicht mehr möglich sind
@@ -97,5 +112,5 @@ function build(opts) {
     assert.ok(defBytes < 28 * GB, 'kleiner als die im Audit genannte Stundenleistung');
     pass++; console.log('✓ Default-Deckel 10 GB je 30-Tage-Fenster');
 
-    console.log('\n' + pass + '/8 Tests bestanden ✅');
+    console.log('\n' + pass + '/10 Tests bestanden ✅');
 })().catch(e => { console.error('✗ FAIL', e); process.exit(1); });

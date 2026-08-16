@@ -23,11 +23,16 @@
 //   SYNC_OWNER_USERNAMES       (Altweg, nur wirksam solange SYNC_OWNER_IDS leer ist)
 //   SYNC_MAX_SCOPES            (optional, Default 25 — Scopes pro Nutzer, s. claimScope)
 //   SYNC_MAX_GRANTS            (optional, Default 10 — aktive StB-Freigaben pro Owner)
+//   ALERT_WEBHOOK_URL          (optional — Meldung, wenn ein Deckel fail-open aufgeht,
+//                               siehe api/_alert.js)
 // =============================================================================
 
 // Variablennamen je nach Setup (manuell UPSTASH_* oder Vercel-Integration KV_*).
 var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
 var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
+
+// Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
+var alertOps = require('./_alert.js').alertOps;
 
 // Zugangs-Check — zwei unabhängige Wege, Zugang sobald EINER bestätigt (identisch zu
 // api/whop-access.js): (1) User-Token gegen https://api.whop.com/api/v2/me/has_access/<id>
@@ -192,7 +197,8 @@ module.exports = async function handler(req, res) {
     if (req.method !== 'POST')    return res.status(405).json({ error: 'method_not_allowed' });
 
     if (!REDIS_URL || !REDIS_TOKEN) {
-        console.error('[sync] Redis env not set (KV_REST_API_URL/TOKEN or UPSTASH_REDIS_REST_*)');
+        await alertOps('sync', 'redis-env-missing',
+            'KV_REST_API_URL/TOKEN bzw. UPSTASH_REDIS_REST_* fehlen — Sync ist komplett aus');
         return res.status(500).json({ error: 'server_misconfigured' });
     }
 
@@ -214,8 +220,8 @@ module.exports = async function handler(req, res) {
         await redisCmd(['EXPIRE', ipRlKey, '60', 'NX']);
         if (ipCount > IP_RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
     } catch (e) {
-        console.error('[sync] ip-rate-limit error:', e);
-        // nicht blockierend — weiter
+        // nicht blockierend — weiter, aber der IP-Deckel ist damit offen
+        await alertOps('sync', 'ip-rate-limit-open', e && e.message);
     }
 
     // ── 2. Token gegen Whop validieren → UserID server-seitig ableiten ────────
@@ -280,8 +286,8 @@ module.exports = async function handler(req, res) {
         await redisCmd(['EXPIRE', rlKey, '60', 'NX']);
         if (count > RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
     } catch (e) {
-        console.error('[sync] rate-limit error:', e);
-        // Rate-Limit-Fehler nicht blockierend — weiter
+        // Rate-Limit-Fehler nicht blockierend — weiter, aber der Nutzer-Deckel ist offen
+        await alertOps('sync', 'rate-limit-open', e && e.message);
     }
 
     // ── 5. Request validieren ─────────────────────────────────────────────────

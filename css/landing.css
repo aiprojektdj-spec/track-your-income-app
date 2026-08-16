@@ -836,6 +836,44 @@ select.demo-inp { flex: 0 0 auto; width: auto; }
 }
 .price-guarantee svg { width: 14px; height: 14px; color: var(--accent); }
 
+/* ── Belege statt Kundenstimmen (Fund M2) ──
+   Vier nachpruefbare Aussagen an der Stelle, an der die Kaufentscheidung faellt.
+   Bewusst ruhiger gestaltet als die Preiskarten darueber: das hier soll nicht verkaufen,
+   sondern belegen. */
+.proof { max-width: 900px; margin: 48px auto 0; text-align: center; }
+.proof-head {
+    font-family: var(--font-display); font-size: 21px; font-weight: 580;
+    font-variation-settings: 'opsz' 32; color: var(--text); margin: 0 0 6px;
+}
+.proof-sub { font-size: 13.5px; color: var(--muted); margin: 0 0 26px; line-height: 1.7; }
+/* Feste Stufen statt auto-fit: bei vier Karten laesst auto-fit sonst eine allein in der
+   zweiten Reihe stehen (3+1), was wie ein Layoutfehler aussieht. 4 / 2x2 / 1 bricht immer sauber. */
+.proof-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 18px; text-align: left;
+}
+.proof-item {
+    display: flex; flex-direction: column; gap: 8px;
+    border: 1px solid var(--border); border-radius: 12px; padding: 18px 18px 20px;
+}
+.proof-num {
+    font-family: var(--font-display); font-size: 24px; font-weight: 580;
+    font-variation-settings: 'opsz' 32; color: var(--accent); line-height: 1;
+    display: flex; align-items: center; min-height: 26px;
+}
+.proof-num svg { width: 24px; height: 24px; }
+.proof-lbl { font-size: 13px; color: var(--muted); line-height: 1.65; }
+.proof-lbl strong { color: var(--text); font-weight: 600; }
+.proof-lbl a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+@media (max-width: 900px) {
+    .proof-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px) {
+    .proof { margin-top: 34px; }
+    .proof-grid { grid-template-columns: 1fr; gap: 12px; }
+}
+
 /* ════════════════════════════════════════
    FAQ
    ════════════════════════════════════════ */

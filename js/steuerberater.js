@@ -238,7 +238,7 @@ var Steuerberater = (function () {
     }
 
     function buildAfaSection(anlagen, year) {
-        if (!anlagen.length) return '<section id="s_afa"><h2 style="margin:24px 0 8px;">📉 AfA / Anlagevermögen</h2><p style="color:#6b7280;font-size:13px;">Keine Anlagen erfasst.</p></section>';
+        if (!anlagen.length) return '<section id="s_afa"><h2 style="margin:24px 0 8px;">📉 AfA / Anlagevermögen</h2><p style="color:#6b7280;font-size:13px;">Kein Anlagevermögen erfasst — Wirtschaftsgüter über 800 € netto gehören ins Anlagenverzeichnis (§6 Abs. 2 EStG), erfassbar unter „AfA".</p></section>';
         var rows = anlagen.map(function (a) {
             var jahresAfa = 0;
             if (typeof Afa !== 'undefined' && Afa._calcJahresAfa) {

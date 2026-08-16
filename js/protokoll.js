@@ -284,7 +284,14 @@ const Protokoll = {
 
         let rows = '';
         if (filtered.length === 0) {
-            rows = '<tr><td colspan="6" class="table-empty">Keine Protokolleintraege vorhanden</td></tr>';
+            // Leerer Bestand und leeres Filterergebnis brauchen verschiedene Texte (Fund U7).
+            // Ein "Anlegen"-CTA waere hier falsch: Protokolleintraege entstehen ausschliesslich
+            // automatisch aus den Buchungen — deshalb erklaert der Text das, statt eine
+            // Handlung anzubieten, die es nicht gibt.
+            const gefiltert = !!(f._filterAction || f._filterEntity || f._filterVon || f._filterBis);
+            rows = gefiltert
+                ? '<tr><td colspan="6" class="table-empty">Kein Protokolleintrag passt zu diesem Filter.</td></tr>'
+                : '<tr><td colspan="6" class="table-empty">Noch keine Protokolleinträge — sie entstehen automatisch, sobald du Buchungen, Rechnungen oder Belege anlegst, änderst oder stornierst (§146 AO).</td></tr>';
         } else {
             rows = filtered.map(e => `
                 <tr>

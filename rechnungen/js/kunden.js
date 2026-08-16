@@ -131,7 +131,9 @@ var Kunden = (function() {
 
         html += '<div class="section"><div class="section-title">Dokumente dieses Kunden</div>';
         if (invoices.length === 0) {
-            html += '<div class="empty-state">Keine Dokumente vorhanden.</div>';
+            html += '<div class="empty-state">Für diesen Kunden gibt es noch kein Dokument.<br>'
+                  + '<button class="btn btn-primary btn-small" data-rech-page="rechnung-neu" data-action="rech-navigate" style="margin-top:12px;">'
+                  + '<i class="ti ti-plus"></i> Rechnung für diesen Kunden schreiben</button></div>';
         } else {
             html += '<div class="table-container"><table><thead><tr>';
             html += '<th scope="col">Nr.</th><th scope="col">Typ</th><th scope="col">Datum</th><th scope="col">Betrag</th><th scope="col">Status</th>';

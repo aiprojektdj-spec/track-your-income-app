@@ -32,7 +32,11 @@ var RechProtokoll = (function() {
 
         var rows = '';
         if (filtered.length === 0) {
-            rows = '<tr><td colspan="6" class="table-empty">Keine Protokolleintraege vorhanden</td></tr>';
+            // s. js/protokoll.js — Eintraege entstehen automatisch, kein CTA moeglich.
+            var gefiltert = !!(filterAction || filterEntity || filterVon || filterBis);
+            rows = gefiltert
+                ? '<tr><td colspan="6" class="table-empty">Kein Protokolleintrag passt zu diesem Filter.</td></tr>'
+                : '<tr><td colspan="6" class="table-empty">Noch keine Protokolleinträge — sie entstehen automatisch, sobald du Rechnungen, Angebote oder Gutschriften anlegst, änderst oder stornierst (§146 AO).</td></tr>';
         } else {
             filtered.forEach(function(e) {
                 rows += '<tr>';

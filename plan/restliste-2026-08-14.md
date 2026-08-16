@@ -63,10 +63,10 @@ CSP-/Cookie-Banner-Arbeit einer Parallel-Session. Sie wurde **getrennt** vorweg 
 
 | # | Aufgabe | Aufwand | Warum es zählt |
 |---|---|---|---|
-| **D1** | jsDelivr self-hosten | ~2 h | Lädt auf **6 Seiten** zur Laufzeit, darunter eine **Schriftart**. Vermeidbar, weil Inter/Fraunces und zwei Vendor-Libs schon lokal liegen — genau die Konstellation aus LG München I, 3 O 17493/20. Details: [Audit 14, D1](funde-audit-14-datenschutz-2026-08-10.md) |
+| ~~**D1**~~ | ~~jsDelivr self-hosten~~ | — | ✅ **erledigt 2026-08-15** (`c41603f`). Fünf Bibliotheken + Symbolschrift liegen in `js/vendor/` und `css/vendor/`, jede beim Herunterladen gegen den bisherigen SRI-Hash geprüft. `cdn.jsdelivr.net` steht in keiner CSP mehr — auch nicht in `vercel.json`. Mit erledigt: der CSP-Verstoß „inline style", der **nicht** von einer CDN-Library kam, sondern aus `js/whop-auth.js` (Spinner-Keyframes) — der Login-Spinner stand still |
 | **U2** | First-Run-Dashboard | mittel | Nach dem Onboarding sechs 0,00-€-Kacheln und null CTAs. Der Trial ist 7 Tage lang — das ist das ganze Aktivierungsfenster |
 | **U7** | 24 Leerzustände ohne CTA | modulweise | dazu „gefunden" statt „noch keine" in leeren Listen. Am besten je Modul beim Vorbeikommen |
-| **V1** | Theme-Umschalter ist `display:none` | klein–mittel | `app.html:65` + `css/style.css:723` *(belegt)*, `js/dashboard.js:454` *(frei)*. Drei Zustände (System/Hell/Dunkel) — **Achtung:** `isDark` muss die manuelle Wahl mitlesen, sonst rechnen Charts mit der falschen Palette |
+| ~~**V1**~~ | ~~Theme-Umschalter ist `display:none`~~ | — | ✅ **erledigt 2026-08-15** (`4c77a1d`). Neu `js/theme.js`, drei Zustände auf allen vier App-Seiten. Der Hinweis zu `isDark` traf genau zu — `dashboard.js` (2×) und `statistiken.js` lasen `matchMedia` und hätten bei manueller Wahl die falsche Chart-Palette gerechnet. Die helle Palette hängt jetzt an `data-theme` statt an `@media`, sonst bräuchte es zwei Kopien von 39 Token-Zeilen |
 | **M1/M2/M4** | Landing-Copy | Textarbeit | E-Rechnungs-FAQ prominenter (kostet bei Lexware den 32,90-€-Tarif, bei Stackr in 15 € enthalten), Sozialbeweis, Preisanker. **M2 braucht echte Kundenstimmen — nichts erfinden** |
 | **D3** | `oyi_device_owner_uid` überlebt den Logout | klein | Whop-User-ID bleibt nach dem Abmelden im Browser. **Nicht blind löschen** — hängt am Geräte-Reset-Schutz. Entweder serverseitig ableiten oder in `datenschutz.html` dokumentieren |
 
@@ -137,6 +137,8 @@ Nur zur Abgrenzung, damit nichts doppelt angefasst wird:
 `D0` (Reichweitenmessung offengelegt statt bestritten) · `R2`–`R8`, `T1`–`T7`, `S1`–`S6`, `G5`, `G6`.
 
 **2026-08-14:** der komplette Abschnitt 1 — `V2`, `A4`, `A5`, `A2`, `L3`, `N3`, `D4` (`6103208`).
+
+**2026-08-15:** aus Abschnitt 2 `D1` (`c41603f`) und `V1` (`4c77a1d`).
 
 **`G3` ist ebenfalls gebaut** — entgegen älteren Notizen. Der Zahlungsabgleich Einnahme ↔ offene
 Rechnung existiert seit dem 2026-08-12 ([js/bank-import.js:307](../js/bank-import.js)), inklusive

@@ -104,7 +104,7 @@ Nichts davon ist durch Arbeit im Repo lösbar — nur nachhalten.
 
 - **2026-12-01** — der AAD-Migrations-Fallback in `js/cloud-sync.js` läuft ab (`AAD_FALLBACK_UNTIL`). Danach den `catch`-Zweig in `_decryptCt` und die Konstante **ersatzlos entfernen**; `test-aad-fallback-ablauf.js` prüft, dass die Datumssperre wirkt.
 - **Jahreswechsel 2027/28** — in `Ausgaben._getKsaWerte()` den dann veröffentlichten KSA-Abgabesatz ergänzen. Ohne Eintrag rechnet Stackr mit 5,0 % weiter — bewusst so, ein zu hoher Schätzwert ist besser als eine stille Unterzahlung.
-- **Quartalsweise** — `js/vendor/VERSIONS.md`: Advisories von SheetJS und Chart.js prüfen. Beide sind von `npm audit` **nicht** erfasst, es kommt keine Warnung von allein. **Nie `npm install xlsx`** — das Paket steht bei 0.18.5 und holt die CVEs zurück.
+- **Quartalsweise** — `js/vendor/VERSIONS.md`: Advisories prüfen. Seit D1 (2026-08-15) sind es **neun** Dateien statt zwei — zu SheetJS und Chart.js kamen gsap, notyf, flatpickr (+ de-Locale), apexcharts und die Tabler-Symbolschrift. Keine davon ist von `npm audit` erfasst, es kommt **keine Warnung von allein**; die Advisory-URLs stehen je Zeile in der Tabelle. **Nie `npm install xlsx`** — das Paket steht bei 0.18.5 und holt die CVEs zurück.
 
 ---
 

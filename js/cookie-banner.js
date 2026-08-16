@@ -16,6 +16,18 @@
 
     var STORAGE_KEY = 'oyi_cookie_consent_v2';
 
+    // Gemessen wird nur auf den oeffentlichen Seiten (Landing, Rechtstexte).
+    // In der eingeloggten App und den drei Sub-Apps nicht:
+    //  - Es kaeme kaum etwas heraus. Modulwechsel laufen ueber history.replaceState
+    //    (App._syncLocation), gemessen wuerde also im Wesentlichen "App geoeffnet" —
+    //    und das sagt Whop genauer, inklusive Abo-Status.
+    //  - Der Preis waere hoch. Genau dort gilt die Zusage, dass die Daten das Geraet
+    //    nicht verlassen; ein Analytics-Skript im Netzwerk-Tab der eigenen Buchhaltung
+    //    kostet mehr Vertrauen, als die Kennzahl wert ist.
+    // Folge: auf diesen Seiten wird auch kein Banner gezeigt — es gibt dort nichts
+    // einzuwilligen, die uebrige Speicherung ist nach §25 Abs. 2 Nr. 2 TDDDG frei.
+    var IS_APP_PAGE = /^\/(app\.html|lager|rechnungen|eigenbelege)(\/|$)/.test(location.pathname);
+
     function loadAnalytics() {
         if (document.getElementById('vercelInsights')) return;
         var s = document.createElement('script');
@@ -28,11 +40,11 @@
     var consent = null;
     try { consent = localStorage.getItem(STORAGE_KEY); } catch (e) {}
 
-    if (consent === 'all') loadAnalytics();
+    if (consent === 'all' && !IS_APP_PAGE) loadAnalytics();
 
     function accept(level) {
         try { localStorage.setItem(STORAGE_KEY, level); } catch (e) {}
-        if (level === 'all') loadAnalytics();
+        if (level === 'all' && !IS_APP_PAGE) loadAnalytics();
         var banner = document.getElementById('cookieBanner');
         if (banner) {
             banner.style.transition = 'transform .3s ease, opacity .3s ease';
@@ -70,7 +82,7 @@
     // Banner nur zeigen, wenn noch nichts entschieden ist. Die oeffentliche API
     // unten wird trotzdem immer definiert — sonst haette der Widerrufs-Button in
     // cookies.html kein CookieBanner-Objekt, genau dann, wenn er gebraucht wird.
-    if (!consent) {
+    if (!consent && !IS_APP_PAGE) {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', inject);
         } else {

@@ -51,16 +51,25 @@ werden. Vorher bringt F2 mehr und kostet fast nichts.
 Alle vier API-Endpunkte behandeln Redis-Fehler beim Rate-Limit als nicht-blockierend.
 
 **Warum:** Ein zahlender Kunde darf nicht an einem Redis-Ausfall scheitern. Fail-open ist hier
-die richtige Entscheidung. **Einzige Empfehlung:** Die `console.error`-Zeilen sollten einen Alert
-auslösen statt nur im Log zu versanden.
+die richtige Entscheidung. ~~**Einzige Empfehlung:** Die `console.error`-Zeilen sollten einen
+Alert auslösen statt nur im Log zu versanden.~~ **Erledigt 2026-08-16:** `api/_alert.js` meldet
+jeden offenen Deckel an `ALERT_WEBHOOK_URL` (Slack- und Make.com-kompatibel), entprellt auf eine
+Meldung je Ereignis und 5 Minuten. Neun Stellen in vier Endpunkten, inklusive des
+Blob-Byte-Budgets, das dieselbe Fail-open-Eigenschaft hat. Ist die Variable nicht gesetzt,
+verhält sich alles wie vorher. **Noch zu tun: `ALERT_WEBHOOK_URL` in Vercel setzen** — ohne sie
+bleibt es beim Log.
 
 ### Kein Mehrbenutzer-/Teamzugang
 
 Die Gerätesperre bindet lokale Daten fest an **eine** Whop-User-ID. Der StB-Read-only-Grant ist
 die einzige Freigabe.
 
-**Warum:** Passt zur Zielgruppe Solo-Selbstständige. Sollte im Marketing aber nicht verschwiegen
-werden.
+**Warum:** Passt zur Zielgruppe Solo-Selbstständige. ~~Sollte im Marketing aber nicht
+verschwiegen werden.~~ **Erledigt 2026-08-16:** FAQ-Eintrag „Können mehrere Personen mit
+demselben Konto arbeiten?" in `index.html` — benennt das Nein, den StB-Lesezugang als Ausnahme
+und die GbR-Gewinnverteilung, und sagt ausdrücklich, wann Stackr das falsche Werkzeug ist.
+*(`landing-v2.html` hat den Eintrag noch nicht — die Datei wurde von einer parallelen Session
+gehalten.)*
 
 ---
 
@@ -79,6 +88,15 @@ der Local-First-Entscheidung. Sie gehören so kommuniziert — nicht als Rückst
 **Empfehlung für ELSTER:** nicht bauen, sondern zur Haltung machen — *„Deine Steuerdaten
 verlassen dein Gerät nie, auch nicht für die Übermittlung"* — plus eine Schritt-für-Schritt-
 Anleitung nach dem CSV-Export. Kostet fast nichts und macht aus der Lücke ein Argument.
+**Die Anleitung ist gebaut** (`js/euer.js:1074`): Modal mit drei Schritten statt eines Toasts,
+inklusive Hinweis, dass Z64 eine Sammelzeile ist. Offen bleibt nur der Marketing-Teil.
+
+**Preisrecherche zu den vier Lücken:** [`server-kosten-psd2-2026-08-16.md`](server-kosten-psd2-2026-08-16.md)
+— Kernbefund: der Server ist nicht das Kostenproblem (er läuft längst), und die einzige
+kostenlose PSD2-Abkürzung (Nordigen/GoCardless) nimmt seit 2025 keine Neukunden mehr auf. Ein
+Aggregator kostet 3–4 € je Kunde und Monat, also **24–32 % vom Nettoerlös** — bei Anbietern mit
+Sockelbetrag 500–2.000 € im Monat ab Tag 1. Der vorhandene CAMT.053-/MT940-Import
+(`js/bank-import.js`) deckt denselben Bedarf zum Preis eines Klicks im Online-Banking.
 
 **Die eine Ausnahme:** **OCR** lässt sich als **Browser-OCR** (Tesseract.js) bauen, ohne die
 Zusage zu brechen. Das wäre eine Aussage, die kein Wettbewerber machen kann: *Belegerkennung,
@@ -123,12 +141,27 @@ Gerät nicht" verspricht, darf kein Nutzungsverhalten messen, ohne genau dieses 
 beschädigen. **Die Geschäftskennzahlen liefert Whop ohnehin:** aktive Mitgliedschaften,
 Kündigungsquote, Trial-Konversion, Plan-Verteilung.
 
-**Stand jetzt:** Die Messung ist seit D0 einwilligungspflichtig und läuft nur nach ausdrücklicher
-Zustimmung. Ob sie ganz entfällt, ist eine **offene Produktentscheidung** — der User sieht sich
-zuerst an, was die Messung im Vercel-Dashboard bisher überhaupt hergab. Fällt sie weg, gehen
-zurück: der zweite Banner-Button, die Widerrufs-Schaltfläche in `cookies.html`, deren gelockerte
-CSP (`script-src 'self'` → `'none'`, Meta **und** `vercel.json`) und die entsprechenden Absätze in
-`datenschutz.html` und `cookies.html`.
+**Entschieden am 2026-08-16: Messung nur auf den öffentlichen Seiten, und dort nur nach
+Einwilligung.** In `app.html`, `lager/`, `rechnungen/` und `eigenbelege/` wird weder gemessen noch
+ein Banner gezeigt (`IS_APP_PAGE` in [`js/cookie-banner.js`](../js/cookie-banner.js)).
+
+Grundlage waren die echten Zahlen aus dem Vercel-Dashboard (7 Tage: 100 Besucher, 417 Aufrufe,
+61 % Absprung) und zwei Überlegungen:
+
+- **In der App käme kaum etwas heraus.** Modulwechsel laufen über `history.replaceState`
+  ([`js/app.js:542`](../js/app.js)) — gemessen würde im Wesentlichen „App geöffnet". Wie viele
+  Leute die App öffnen, sagt Whop genauer, inklusive Abo-Status.
+- **Auf der Landing ist es die einzige Quelle** für Herkunft und Absprung, und ein Besucher dort
+  ist noch kein Kunde, dem die Zusage „deine Daten bleiben auf deinem Gerät" gilt.
+
+**Beim Lesen der Zahlen beachten:** Eigene Aufrufe zählen mit, Vercel Hobby hat keinen IP-Filter.
+Bei ~100 Besuchern die Woche ist der Anteil eigener Besuche erheblich — auf den eigenen Geräten
+im Banner *Nur notwendige* wählen, dann fällt er weg. Die 4,2 Aufrufe je Besucher vom August 2026
+sind aus diesem Grund vermutlich zu hoch.
+
+Fällt die Messung später ganz weg, gehen zurück: der zweite Banner-Button, die
+Widerrufs-Schaltfläche in `cookies.html`, deren gelockerte CSP (`script-src 'self'` → `'none'`,
+Meta **und** `vercel.json`) und die entsprechenden Absätze in `datenschutz.html` und `cookies.html`.
 
 ### Der Audit-Log-Zeitstempel ist Client-Zeit
 
@@ -137,8 +170,12 @@ Inhalte verkettet, nicht Zeiten.
 
 **Warum nicht vollständig lösbar:** Bei einer App ohne Serverzwang geht es nicht. Der externe
 Cloud-Anker (serverseitiges `ts` in `api/sync.js`) ist die richtige Antwort — er ist nur opt-in.
-**Empfehlung:** den Anker im Protokoll-Modul bewerben statt still anbieten. Inzwischen erkennt
-das Log zusätzlich Uhr-Rücksprünge (`41b21b6`).
+~~**Empfehlung:** den Anker im Protokoll-Modul bewerben statt still anbieten.~~ **Erledigt:**
+`js/protokoll.js:328` zeigt eine eigene Karte, die den Zustand offen benennt — grün mit
+„Externer Zeitnachweis aktiv", sonst gelb mit dem Hinweis, dass die Kette ohne Anker nur
+geräteintern beweiskräftig ist, plus dem Weg dorthin. Die Schwelle ist `CloudSync.isHealthy()`,
+nicht ein bloßes Eingeschaltet-Flag. Inzwischen erkennt das Log zusätzlich Uhr-Rücksprünge
+(`41b21b6`), und `js/cloud-sync.js:1645` prüft die Anker täglich von selbst.
 
 ---
 
@@ -185,8 +222,20 @@ Migrationspfad für Bestandskunden. Der muss funktionsfähig bleiben.
 
 **Ein Rest, der dadurch offen blieb:** Local war bei der Input-Härtung (`maxlength`, `min`/`max`,
 `Number.isFinite`) an einigen Stellen *voraus*. Das war bisher als Spiegelungsaufgabe geführt und
-ist jetzt ein **eigenständiger Web-Fund** — teilweise nachgezogen (`641840b`), systematisch
-erhoben wurde es nie.
+ist jetzt ein **eigenständiger Web-Fund** — teilweise nachgezogen (`641840b`), ~~systematisch
+erhoben wurde es nie~~ **systematisch erhoben am 2026-08-16:**
+[`funde-input-haertung-2026-08-16.md`](funde-input-haertung-2026-08-16.md).
+
+474 `<input>`-Tags geprüft. Nach Triage bleiben 11 Zahlenfelder ohne Untergrenze, 63 persistierte
+Textfelder ohne `maxlength` — und **ein echter Bug**, der bereits gefixt ist: `js/steuerberater.js`
+setzte `maxlength` auf ein `type="number"`-Feld, wo es **keine Wirkung hat** — die
+Steuerberater-PIN war unbegrenzt lang und verlor führende Nullen.
+
+**Der eigentliche Befund ist ein anderer als erwartet:** `Number.isFinite` fehlt kaum irgendwo
+sinnvoll (469 von 660 `parseFloat`-Aufrufen sind abgesichert). Das Muster ist überall
+`parseFloat(…) || 0` — und das fängt `NaN` ab, aber **nicht `-500`**. Negative Verkaufspreise und
+negative Plattformgebühren landen ungeprüft in der EÜR. **Wie bei den Hex-Farben taugt die
+Rohzahl nicht als Kennzahl** — die Triage in der Funddatei ist der Punkt.
 
 ---
 

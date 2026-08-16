@@ -826,6 +826,8 @@ select.demo-inp { flex: 0 0 auto; width: auto; }
     line-height: 1.7;
 }
 .price-anchor strong { color: var(--text); }
+.price-src { display: block; margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+.price-src a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
 .price-guarantees { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
 .price-guarantee {
     display: inline-flex; align-items: center; gap: 7px;

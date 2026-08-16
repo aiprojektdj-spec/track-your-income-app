@@ -496,7 +496,10 @@ const Dashboard = {
         if (this._chartGewinn) { this._chartGewinn.destroy(); this._chartGewinn = null; }
         if (typeof ApexCharts === 'undefined') return;
 
-        const isDark    = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        // Theme.isDark() statt matchMedia: matchMedia kennt nur die Systemeinstellung
+        // und liefert die falsche Palette, sobald jemand manuell umgeschaltet hat.
+        const isDark    = (typeof Theme !== 'undefined') ? Theme.isDark()
+                        : window.matchMedia('(prefers-color-scheme: dark)').matches;
         const textColor = isDark ? '#94a3b8' : '#64748b';
         const allSales = Store.getSales(), allPurchases = Store.getPurchases(), allExpenses = Store.getExpenses();
 
@@ -645,7 +648,10 @@ const Dashboard = {
         const sales     = Store.getSales();
         const purchases = Store.getPurchases();
         const expenses  = Store.getExpenses();
-        const isDark    = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        // Theme.isDark() statt matchMedia: matchMedia kennt nur die Systemeinstellung
+        // und liefert die falsche Palette, sobald jemand manuell umgeschaltet hat.
+        const isDark    = (typeof Theme !== 'undefined') ? Theme.isDark()
+                        : window.matchMedia('(prefers-color-scheme: dark)').matches;
         const textColor = isDark ? '#94a3b8' : '#64748b';
 
         const labels = [], einnahmen = [], ausgaben = [];

@@ -270,6 +270,12 @@ function _renderKatChart(el, katMap) {
 // ═══════════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════
+// Theme-Wechsel: ApexCharts liest seine Achsenfarben nur beim Rendern, ein
+// offenes Diagramm behielte sonst die Palette des alten Themes.
+window.addEventListener('themechange', () => {
+    if (document.getElementById('katChart')) renderDashboard();
+});
+
 function renderDashboard() {
     const belege  = EB.getBelege();
     const year    = new Date().getFullYear();

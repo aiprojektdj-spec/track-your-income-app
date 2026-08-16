@@ -300,25 +300,11 @@ var RechApp = (function() {
         // Bezahlte Rechnungen automatisch synchronisieren
         Store.autoSyncInvoices();
 
-        // Theme initialization
-        var theme = localStorage.getItem('app_theme') || 'dark';
-        if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
-
-        var themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) {
-            themeToggle.textContent = theme === 'light' ? '\u2600\uFE0F Light Mode' : '\uD83C\uDF19 Dark Mode';
-            themeToggle.addEventListener('click', function() {
-                var current = document.documentElement.getAttribute('data-theme');
-                var newTheme = current === 'light' ? 'dark' : 'light';
-                if (newTheme === 'light') {
-                    document.documentElement.setAttribute('data-theme', 'light');
-                } else {
-                    document.documentElement.removeAttribute('data-theme');
-                }
-                localStorage.setItem('app_theme', newTheme);
-                themeToggle.textContent = newTheme === 'light' ? '\u2600\uFE0F Light Mode' : '\uD83C\uDF19 Dark Mode';
-            });
-        }
+        // Theme: zentral in js/theme.js (System/Hell/Dunkel, Schluessel oyi_theme).
+        // Hier stand bis 2026-08-15 ein eigener Zwei-Zustands-Umschalter auf dem
+        // Schluessel 'app_theme'. Er war wirkungslos — die CSS kannte data-theme
+        // gar nicht — und wuerde sich jetzt mit dem zentralen Modul beissen.
+        if (typeof Theme !== 'undefined') Theme.mount();
 
         // Check overdue invoices on load
         checkOverdueInvoices();

@@ -135,7 +135,9 @@ const Statistiken = {
     },
 
     _getThemeColors() {
-        const isLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+        // s. Kommentar in js/dashboard.js — matchMedia ignoriert die manuelle Wahl.
+        const isLight = (typeof Theme !== 'undefined') ? !Theme.isDark()
+                      : window.matchMedia('(prefers-color-scheme: light)').matches;
         return {
             textColor: isLight ? '#64748b' : '#94a3b8',
             gridColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(45,45,68,0.5)'

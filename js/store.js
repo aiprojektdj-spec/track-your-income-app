@@ -1332,14 +1332,9 @@ const Store = {
         }
     },
 
-    // ---- Theme (shared, no prefix) ----
-    getTheme() {
-        return localStorage.getItem('app_theme') || 'dark';
-    },
-
-    setTheme(theme) {
-        localStorage.setItem('app_theme', theme);
-    },
+    // ---- Theme ----
+    // Liegt seit 2026-08-15 in js/theme.js (Theme.get/set, Schluessel oyi_theme).
+    // Die frueheren Store.getTheme/setTheme auf 'app_theme' rief niemand auf.
 
     // ---- Reselling Settings ----
     getSettings() {
@@ -2621,7 +2616,11 @@ const Store = {
     // App-Einstellungen die im Backup mitgesichert werden (global, NICHT firmenspezifisch).
     // app_einstellungen wurde entfernt: Firmen-Stammdaten liegen jetzt firmen-präfixiert
     // in eigenbelege_einstellungen (siehe _EIGENBELEG_KEYS) und werden dort gesichert.
-    _APP_SETTING_KEYS: ['app_theme', 'theme'],
+    // 'app_theme'/'theme' sind hier bewusst NICHT mehr aufgefuehrt: der alte Umschalter
+    // schrieb zwar hinein, die CSS wertete das Attribut aber nie aus — ein dort
+    // gespeichertes 'light' entspricht also keiner Darstellung, die je jemand gesehen
+    // hat. Aus Alt-Backups wiederherzustellen wuerde Nutzer unvermittelt umschalten.
+    _APP_SETTING_KEYS: ['oyi_theme'],
     // Firmen-Registry (global, nicht company-namespaced)
     _COMPANY_KEYS: ['oyi_companies', 'oyi_active_company'],
 

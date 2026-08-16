@@ -11,6 +11,9 @@
     <title>Stackr — Eigenbelege</title>
     <link rel="preload" href="../fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="../fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <!-- Theme (System/Hell/Dunkel) — synchron und VOR den Stylesheets:
+         setzt data-theme auf <html>, sonst blitzt die dunkle Palette auf. -->
+    <script src="../js/theme.js"></script>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/cookie-banner.css">
     <script defer src="../js/actions.js"></script>
@@ -43,7 +46,7 @@
         <script defer src="../js/topnav.js"></script>
         <div class="topnav-controls">
             <div id="companySwitcher"></div>
-            <button class="theme-toggle" id="themeToggle" title="Theme wechseln" style="display:none;"></button>
+            <button class="theme-toggle" id="themeToggle" type="button"></button>
             <a href="../app.html" id="settingsLink" title="Einstellungen" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-settings"></i></a>
             <a href="../app.html?openBackup=1" id="backupLink" title="Backup & Daten" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-device-floppy"></i></a>
             <div id="fsBackupStatus" style="display:none;"></div>

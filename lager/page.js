@@ -38,7 +38,13 @@ document.addEventListener('keydown', e => {
 // ── Sidebar-Collapse (Legacy — Button ist hidden, kein Effekt nötig) ──────
 // sidebarCollapseBtn ist display:none; Toggle läuft über sidebarToggleBtn
 
-// ── Theme: system preference via prefers-color-scheme ─────────────────────
+// ── Theme: zentral in js/theme.js (System/Hell/Dunkel) ────────────────────
+// Beim Umschalten neu zeichnen — Inline-Farben im Markup lesen die
+// CSS-Variablen nicht nach.
+window.addEventListener('themechange', () => {
+    if (typeof renderPage === 'function') renderPage();
+});
+
 // Änderungen aus anderen Tabs sofort übernehmen (nur Lager-Sync, kein Theme)
 window.addEventListener('storage', e => {
     if (e.key === '_oyi_lsmirror_ts' && Store._mainIdbReady && Store._mainIdb) {

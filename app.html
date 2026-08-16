@@ -31,6 +31,10 @@
     <link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 
+    <!-- Theme (System/Hell/Dunkel) — synchron und VOR den Stylesheets:
+         setzt data-theme auf <html>, sonst blitzt die dunkle Palette auf. -->
+    <script src="js/theme.js"></script>
+
     <!-- ── CSS only in head — non-blocking ── -->
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/cookie-banner.css">
@@ -66,7 +70,7 @@
         <!-- Right controls -->
         <div class="topnav-controls">
             <div id="companySwitcher"></div>
-            <button class="theme-toggle" id="themeToggle" title="Theme wechseln" style="display:none;"></button>
+            <button class="theme-toggle" id="themeToggle" type="button"></button>
             <a href="#" id="settingsLink" title="Einstellungen" aria-label="Einstellungen" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-settings" aria-hidden="true"></i></a>
             <a href="#" id="backupLink" title="Backup & Daten" aria-label="Backup & Daten" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-device-floppy" aria-hidden="true"></i></a>
             <div id="fsBackupStatus" style="display:none;"></div>

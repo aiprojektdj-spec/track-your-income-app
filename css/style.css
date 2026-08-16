@@ -101,50 +101,57 @@
 }
 
 /* ============================================
-   Light Mode (system preference) — warmes Papier
+   Light Mode — warmes Papier
+   ============================================
+   Haengt am Attribut, nicht an @media (prefers-color-scheme). js/theme.js setzt
+   data-theme IMMER explizit auf "light" oder "dark" und loest die Wahl "System"
+   dort per matchMedia auf. Dadurch steht die helle Palette hier genau EINMAL — mit
+   einer @media-Abfrage braeuchte es zwei Kopien (System-Fall und manuelle Wahl),
+   die zwangslaeufig auseinanderlaufen.
+
+   Preis: ohne JavaScript bleibt es bei der dunklen Palette aus :root. Verschmerzbar,
+   ohne JS rendert die App ohnehin keinen Inhalt.
    ============================================ */
-@media (prefers-color-scheme: light) {
-    :root {
-        --bg-primary:   #f6f5f1;
-        --bg-secondary: #fdfcfa;
-        --bg-card:      #f0eee8;
-        --bg-input:     #ffffff;
-        --bg-sidebar:   #f2f1ec;
-        --bg-elevated:  #e9e7e0;
+:root[data-theme="light"] {
+    --bg-primary:   #f6f5f1;
+    --bg-secondary: #fdfcfa;
+    --bg-card:      #f0eee8;
+    --bg-input:     #ffffff;
+    --bg-sidebar:   #f2f1ec;
+    --bg-elevated:  #e9e7e0;
 
-        --surface-2: rgba(0, 0, 0, 0.04);
+    --surface-2: rgba(0, 0, 0, 0.04);
 
-        --accent:        #0c9268;
-        --accent-hover:  #0a7d59;
-        --accent-light:  #10b981;
-        --accent-text:   #0a7d59;
-        --accent-deep:   #d7efe5;
-        --accent-glow:   rgba(12, 146, 104, 0.10);
-        --accent-subtle: rgba(12, 146, 104, 0.06);
-        --accent-ring:   rgba(12, 146, 104, 0.28);
+    --accent:        #0c9268;
+    --accent-hover:  #0a7d59;
+    --accent-light:  #10b981;
+    --accent-text:   #0a7d59;
+    --accent-deep:   #d7efe5;
+    --accent-glow:   rgba(12, 146, 104, 0.10);
+    --accent-subtle: rgba(12, 146, 104, 0.06);
+    --accent-ring:   rgba(12, 146, 104, 0.28);
 
-        --success:    #16a34a;
-        --success-bg: rgba(22, 163, 74, 0.09);
-        --warning:    #c47e08;
-        --warning-bg: rgba(196, 126, 8, 0.10);
-        --danger:     #d93936;
-        --danger-bg:  rgba(217, 57, 54, 0.08);
-        --info:       #5a64e8;
-        --info-bg:    rgba(90, 100, 232, 0.08);
+    --success:    #16a34a;
+    --success-bg: rgba(22, 163, 74, 0.09);
+    --warning:    #c47e08;
+    --warning-bg: rgba(196, 126, 8, 0.10);
+    --danger:     #d93936;
+    --danger-bg:  rgba(217, 57, 54, 0.08);
+    --info:       #5a64e8;
+    --info-bg:    rgba(90, 100, 232, 0.08);
 
-        --text-primary:   #171f1b;
-        --text-secondary: #56635d;
-        --text-muted:     #5f6b65;
+    --text-primary:   #171f1b;
+    --text-secondary: #56635d;
+    --text-muted:     #5f6b65;
 
-        --border:        #e6e3da;
-        --border-light:  #d6d2c6;
-        --border-strong: #bcb7a8;
-        --border-field:  #868173;   /* 3,14:1 gegen --bg-elevated, s. Dark-Mode */
+    --border:        #e6e3da;
+    --border-light:  #d6d2c6;
+    --border-strong: #bcb7a8;
+    --border-field:  #868173;   /* 3,14:1 gegen --bg-elevated, s. Dark-Mode */
 
-        --shadow:    0 1px 2px rgba(40, 38, 30, 0.05), 0 4px 16px -8px rgba(40, 38, 30, 0.08);
-        --shadow-lg: 0 4px 12px rgba(40, 38, 30, 0.06), 0 24px 64px -16px rgba(40, 38, 30, 0.18);
-        --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-    }
+    --shadow:    0 1px 2px rgba(40, 38, 30, 0.05), 0 4px 16px -8px rgba(40, 38, 30, 0.08);
+    --shadow-lg: 0 4px 12px rgba(40, 38, 30, 0.06), 0 24px 64px -16px rgba(40, 38, 30, 0.18);
+    --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 * {
@@ -725,8 +732,30 @@ a:hover { color: var(--accent-light); }
 /* ============================================
    Theme Toggle
    ============================================ */
-/* Theme toggle hidden — using system prefers-color-scheme */
-.theme-toggle { display: none !important; }
+/* Dreistufig: System → Hell → Dunkel, gesteuert von js/theme.js.
+   Bis 2026-08-15 stand hier display:none !important — der Button war im Markup,
+   aber unerreichbar. Masse wie die Nachbar-Icons in .topnav-controls. */
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.18s var(--ease-calm), background 0.18s var(--ease-calm);
+}
+.theme-toggle:hover {
+    color: var(--text-primary);
+    background: var(--surface-2);
+}
+.theme-toggle i { pointer-events: none; }
 
 /* ============================================
    Page Header — Fraunces als Signatur
@@ -2217,10 +2246,11 @@ tbody tr:last-child td {
 /* Topnav überläuft mit Text-Labels ab ~900px → früher auf Icons-only wechseln */
 @media (max-width: 960px) {
     .topnav-apps .tool-tab .tab-icon + * { display: none; }
-    .topnav-controls .theme-toggle { padding: 5px 6px; font-size: 0; }
     .topnav-controls a.topnav-cta span { display: none; }
     .topnav-controls a.topnav-cta { padding: 6px 9px; }
-    .topnav-controls .theme-toggle::first-line { font-size: 14px; }
+    /* Der Theme-Umschalter brauchte hier frueher font-size:0 + ::first-line, um
+       seinen Text zu verstecken. Seit 2026-08-15 ist er ein reiner Icon-Button
+       mit fester Groesse — die Regeln waren wirkungslos geworden. */
 }
 
 @media (max-width: 768px) {

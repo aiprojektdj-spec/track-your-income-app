@@ -146,7 +146,8 @@ const App = {
         // Periodisches Datei-Backup starten (alle 10 Minuten)
         this._startPeriodicBackup();
 
-        // Theme: system preference via prefers-color-scheme (no manual toggle)
+        // Theme: js/theme.js, synchron im <head> — hier ist nichts zu tun.
+        // Das Neuzeichnen bei Wechsel haengt in bindGlobalEvents().
 
         // AGB-Pruefung vor allem anderen. Utils.agbAccepted() prueft den STAND, nicht nur
         // das Vorhandensein — sonst erreicht eine AGB-Aenderung keinen Bestandsnutzer (Fund L2).
@@ -279,6 +280,18 @@ const App = {
     },
 
     bindGlobalEvents() {
+        // Theme-Wechsel: Charts zeichnen ihre Achsen- und Gitterfarben einmalig beim
+        // Rendern, ApexCharts/Chart.js lesen keine CSS-Variablen nach. Ohne dieses
+        // Neuzeichnen behaelt ein offenes Diagramm die Farben des alten Themes.
+        // _themeBound verhindert doppelte Listener — bindGlobalEvents() laeuft
+        // auch nach der AGB-Zustimmung erneut (s. Zeile ~929).
+        if (!this._themeBound) {
+            this._themeBound = true;
+            window.addEventListener('themechange', () => {
+                if (this.currentPage) this.navigate(this.currentPage);
+            });
+        }
+
         // Sidebar collapse toggle
         const collapseBtn = document.getElementById('sidebarCollapseBtn');
         const sidebar = document.getElementById('sidebar');

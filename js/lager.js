@@ -5,6 +5,9 @@ const Lager = {
     _filters: {},
     _viewMode: 'table',   // 'table' | 'grid'
     _sortBy: 'newest',
+    // Spaltensortierung der Tabellenansicht. Solange col leer ist, gilt das Sortier-Dropdown
+    // (_sortBy) — es ist immer genau eine Sortierquelle aktiv, sonst widersprechen sie sich.
+    _headSort: { col: '', dir: 'asc' },
     _selected: new Set(),
     _pendingPhotos: {},   // id → base64
     _currentPage: 1,
@@ -137,6 +140,9 @@ const Lager = {
             if (p.viewMode) this._viewMode = p.viewMode;
             if (p.sortBy)   this._sortBy   = p.sortBy;
             if (p.pageSize) this._pageSize = parseInt(p.pageSize) || 50;
+            if (p.headSort && typeof p.headSort === 'object') {
+                this._headSort = { col: p.headSort.col || '', dir: p.headSort.dir === 'desc' ? 'desc' : 'asc' };
+            }
         } catch(e) {}
     },
 
@@ -145,9 +151,32 @@ const Lager = {
             localStorage.setItem('lager_prefs', JSON.stringify({
                 viewMode: this._viewMode,
                 sortBy:   this._sortBy,
-                pageSize: this._pageSize
+                pageSize: this._pageSize,
+                headSort: this._headSort
             }));
         } catch(e) {}
+    },
+
+    // Lagerort als durchsuchbarer Text ("Keller Regal 3 Fach B").
+    _lagerortText(p) {
+        const lo = (p && p.lagerort) || {};
+        return [lo.bereich, lo.regal, lo.fach].filter(Boolean).join(' ');
+    },
+
+    // Sortierwert je Spaltenkopf. Nicht jede Spalte ist ein direktes Feld: "Artikel" fasst
+    // Marke + Typ + Beschreibung zusammen, "Lager" den Lagerort. EK muss eine Zahl bleiben,
+    // sonst sortiert der generische Vergleicher alphabetisch (100 € vor 20 €).
+    _sortValue(p, col) {
+        switch (col) {
+            case 'artikelNr':     return p.artikelNr || '';
+            case 'datum':         return p.datum || '';
+            case 'artikel':       return [p.marke, p.artikeltyp, p.beschreibung].filter(Boolean).join(' ');
+            case 'groesse':       return p.groesse || '';
+            case 'einkaufspreis': return parseFloat(p.einkaufspreis) || 0;
+            case 'lagerort':      return this._lagerortText(p);
+            case 'status':        return p.status || '';
+            default:              return p[col];
+        }
     },
 
     // ── Artikel-Nummern für alte Einträge nachrüsten ─────────────────────
@@ -637,6 +666,22 @@ const Lager = {
                 const nrTerm = f.artikelNr.trim().toLowerCase();
                 filtered = filtered.filter(p => (p.artikelNr||'').toLowerCase().includes(nrTerm));
             }
+            // ── Filterzeile im Tabellenkopf (spaltenbezogen, kombinierbar mit der Leiste) ──
+            if (f.von)  filtered = filtered.filter(p => (p.datum || '') >= f.von);
+            if (f.bis)  filtered = filtered.filter(p => (p.datum || '') <= f.bis);
+            if (f.artikel && f.artikel.trim()) {
+                const t = f.artikel.trim().toLowerCase();
+                filtered = filtered.filter(p =>
+                    [p.marke, p.artikeltyp, p.beschreibung].some(v => v && String(v).toLowerCase().includes(t)));
+            }
+            if (f.groesse && f.groesse.trim()) {
+                const t = f.groesse.trim().toLowerCase();
+                filtered = filtered.filter(p => (p.groesse || '').toLowerCase().includes(t));
+            }
+            if (f.lagerort && f.lagerort.trim()) {
+                const t = f.lagerort.trim().toLowerCase();
+                filtered = filtered.filter(p => this._lagerortText(p).toLowerCase().includes(t));
+            }
             if (f.search && f.search.trim()) {
                 const term = f.search.trim().toLowerCase();
                 filtered = filtered.filter(p =>
@@ -646,14 +691,19 @@ const Lager = {
                 );
             }
 
-            // Sort
-            const s = this._sortBy;
-            if (s === 'oldest')     filtered.sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
-            else if (s === 'ek_desc') filtered.sort((a,b) => (parseFloat(b.einkaufspreis)||0) - (parseFloat(a.einkaufspreis)||0));
-            else if (s === 'ek_asc')  filtered.sort((a,b) => (parseFloat(a.einkaufspreis)||0) - (parseFloat(b.einkaufspreis)||0));
-            else if (s === 'marke')   filtered.sort((a,b) => (a.marke||'').localeCompare(b.marke||''));
-            else if (s === 'artikelnr') filtered.sort((a,b) => (a.artikelNr||'').localeCompare(b.artikelNr||''));
-            else                       filtered.sort((a,b) => (b.datum||'').localeCompare(a.datum||''));
+            // Sort — Spaltenkopf schlägt das Dropdown, aber nur in der Tabellenansicht:
+            // in der Kartenansicht gibt es keine Spaltenköpfe, dort bleibt das Dropdown maßgeblich.
+            if (this._viewMode === 'table' && this._headSort.col) {
+                filtered.sort(Utils.sortComparator(this._headSort, (p, col) => this._sortValue(p, col)));
+            } else {
+                const s = this._sortBy;
+                if (s === 'oldest')     filtered.sort((a,b) => (a.datum||'').localeCompare(b.datum||''));
+                else if (s === 'ek_desc') filtered.sort((a,b) => (parseFloat(b.einkaufspreis)||0) - (parseFloat(a.einkaufspreis)||0));
+                else if (s === 'ek_asc')  filtered.sort((a,b) => (parseFloat(a.einkaufspreis)||0) - (parseFloat(b.einkaufspreis)||0));
+                else if (s === 'marke')   filtered.sort((a,b) => (a.marke||'').localeCompare(b.marke||''));
+                else if (s === 'artikelnr') filtered.sort((a,b) => (a.artikelNr||'').localeCompare(b.artikelNr||''));
+                else                       filtered.sort((a,b) => (b.datum||'').localeCompare(a.datum||''));
+            }
 
             // Session lookup
             const sessionMap = {};
@@ -1023,6 +1073,19 @@ const Lager = {
             }).join('');
         }
 
+        const f  = this._filters || {};
+        const si = col => Utils.sortIcon(this._headSort, col);
+        const esc = v => Utils.escapeHtml(v || '');
+        // Status-Auswahl der Filterzeile aus derselben Quelle wie die Filterleiste, damit eigene
+        // Status-Werte (Store.getLagerStatusListe) auch hier auftauchen.
+        const statusOpts = Store.getLagerStatusListe().map(s =>
+            `<option value="${esc(s.key)}"${f.status === s.key ? ' selected' : ''}>${esc(s.label || s.key)}</option>`).join('');
+        // Kein Live-Filtern bei jedem Tastendruck (bewusste Entscheidung, s. Suchfeld weiter
+        // unten): Textfelder greifen bei Enter bzw. beim Verlassen, Auswahl/Datum sofort.
+        const inp = (id, val, ph, extra) =>
+            `<input type="text" class="form-input lager-hf" id="${id}" value="${esc(val)}" placeholder="${ph}" ` +
+            `style="width:100%;font-size:11px;padding:3px 6px;min-height:0;${extra || ''}">`;
+
         return `
             <div class="table-container">
                 <table style="font-size:12px;">
@@ -1030,13 +1093,38 @@ const Lager = {
                         <tr>
                             <th style="width:26px;padding:5px 2px;"><input type="checkbox" id="lagerSelectAll" title="Alle"></th>
                             <th style="width:42px;padding:5px;"><i class="ti ti-camera" style="font-size:13px;"></i></th>
-                            <th style="padding:5px 6px;text-align:left;">Art.-Nr. / Datum</th>
-                            <th style="padding:5px 6px;text-align:left;">Artikel / Beschreibung</th>
-                            <th style="padding:5px 6px;text-align:left;">Größe</th>
-                            <th style="padding:5px 6px;text-align:right;">EK</th>
-                            <th style="padding:5px 6px;text-align:left;">Lager / Zone</th>
-                            <th style="padding:5px 6px;text-align:left;">Status</th>
+                            <th class="${si('artikelNr')}" data-sort="artikelNr" style="padding:5px 6px;text-align:left;" title="Nach Artikelnummer sortieren">Art.-Nr. / Datum</th>
+                            <th class="${si('artikel')}" data-sort="artikel" style="padding:5px 6px;text-align:left;" title="Nach Artikel sortieren">Artikel / Beschreibung</th>
+                            <th class="${si('groesse')}" data-sort="groesse" style="padding:5px 6px;text-align:left;" title="Nach Größe sortieren">Größe</th>
+                            <th class="${si('einkaufspreis')}" data-sort="einkaufspreis" style="padding:5px 6px;text-align:right;" title="Nach EK sortieren">EK</th>
+                            <th class="${si('lagerort')}" data-sort="lagerort" style="padding:5px 6px;text-align:left;" title="Nach Lagerort sortieren">Lager / Zone</th>
+                            <th class="${si('status')}" data-sort="status" style="padding:5px 6px;text-align:left;" title="Nach Status sortieren">Status</th>
                             <th style="padding:5px 6px;text-align:left;">Aktionen</th>
+                        </tr>
+                        <tr class="lager-filter-row">
+                            <th colspan="2" style="padding:3px 4px;text-align:center;">
+                                <button class="btn btn-small" id="lagerHfReset" title="Spaltenfilter zurücksetzen"
+                                        style="font-size:10px;padding:2px 6px;min-height:0;opacity:.7;">✕</button>
+                            </th>
+                            <th style="padding:3px 5px;min-width:130px;">
+                                ${inp('lagerHfArtikelnr', f.artikelNr, 'Art.-Nr.')}
+                                <div style="display:flex;gap:3px;margin-top:3px;">
+                                    <input type="date" class="form-input" id="lagerHfVon" value="${esc(f.von)}" title="Kaufdatum von"
+                                           style="width:50%;font-size:10px;padding:2px 4px;min-height:0;">
+                                    <input type="date" class="form-input" id="lagerHfBis" value="${esc(f.bis)}" title="Kaufdatum bis"
+                                           style="width:50%;font-size:10px;padding:2px 4px;min-height:0;">
+                                </div>
+                            </th>
+                            <th style="padding:3px 5px;">${inp('lagerHfArtikel', f.artikel, 'Marke, Typ, Beschreibung…')}</th>
+                            <th style="padding:3px 5px;min-width:60px;">${inp('lagerHfGroesse', f.groesse, 'Größe')}</th>
+                            <th style="padding:3px 5px;"></th>
+                            <th style="padding:3px 5px;min-width:90px;">${inp('lagerHfLagerort', f.lagerort, 'Ort / Regal')}</th>
+                            <th style="padding:3px 5px;min-width:90px;">
+                                <select class="form-select" id="lagerHfStatus" style="width:100%;font-size:11px;padding:3px 6px;min-height:0;">
+                                    <option value="">Alle</option>${statusOpts}
+                                </select>
+                            </th>
+                            <th style="padding:3px 5px;"></th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
@@ -1972,14 +2060,23 @@ const Lager = {
             const resetBtn = document.getElementById('lagerFilterReset');
             if (resetBtn) {
                 resetBtn.addEventListener('click', () => {
-                    this._filters = { marke:'', artikeltyp:'', warenkategorie:'', zielgruppe:'', haendler:'', status:'', filterJahr:'', filterMonat:'', artikelNr:'', search:'', showStorniert: false };
+                    this._filters = { marke:'', artikeltyp:'', warenkategorie:'', zielgruppe:'', haendler:'', status:'', filterJahr:'', filterMonat:'', artikelNr:'', search:'', showStorniert: false,
+                                      von:'', bis:'', artikel:'', groesse:'', lagerort:'' };
                     this._currentPage = 1;
                     rerender();
                 });
             }
 
-            // Filters → Seite immer auf 1 zurücksetzen
+            // Filters → Seite immer auf 1 zurücksetzen.
+            // Die Felder der Filterzeile im Tabellenkopf gibt es in der Kartenansicht nicht —
+            // fehlt das Element, bleibt der bisherige Wert stehen, statt beim Ansichtswechsel
+            // still weggeworfen zu werden.
+            const keep = (id, current) => {
+                const el = document.getElementById(id);
+                return el ? el.value : (current || '');
+            };
             const applyFilters = () => {
+                const prev = this._filters || {};
                 this._filters = {
                     marke:          (document.getElementById('lagerFilterMarke')     || {}).value || '',
                     artikeltyp:     (document.getElementById('lagerFilterTyp')       || {}).value || '',
@@ -1990,12 +2087,60 @@ const Lager = {
                     filterJahr:     (document.getElementById('lagerFilterJahr')      || {}).value || '',
                     filterMonat:    (document.getElementById('lagerFilterMonat')     || {}).value || '',
                     artikelNr:      (document.getElementById('lagerFilterArtikelnr') || {}).value || '',
-                    search:         this._filters.search || '',
-                    showStorniert:  !!(document.getElementById('lagerFilterStorniert') || {}).checked
+                    search:         prev.search || '',
+                    showStorniert:  !!(document.getElementById('lagerFilterStorniert') || {}).checked,
+                    // Spaltenfilter aus dem Tabellenkopf
+                    von:            keep('lagerHfVon',      prev.von),
+                    bis:            keep('lagerHfBis',      prev.bis),
+                    artikel:        keep('lagerHfArtikel',  prev.artikel),
+                    groesse:        keep('lagerHfGroesse',  prev.groesse),
+                    lagerort:       keep('lagerHfLagerort', prev.lagerort)
                 };
                 this._currentPage = 1;
                 rerender();
             };
+
+            // ── Filterzeile im Tabellenkopf ───────────────────────────────
+            // Art.-Nr. und Status stehen in der Leiste UND im Kopf: es ist dasselbe Filterfeld,
+            // nur an zwei Orten bedienbar. Der Kopf schreibt seinen Wert deshalb in die Leiste
+            // zurück, bevor applyFilters liest — so zeigen beide immer denselben Stand.
+            const mirrorToBar = (headId, barId) => {
+                const head = document.getElementById(headId);
+                const bar  = document.getElementById(barId);
+                if (head && bar) bar.value = head.value;
+            };
+            const applyHeadFilters = () => {
+                mirrorToBar('lagerHfArtikelnr', 'lagerFilterArtikelnr');
+                mirrorToBar('lagerHfStatus',    'lagerFilterStatus');
+                applyFilters();
+            };
+            // Textfelder: bei Enter und beim Verlassen — kein Filtern bei jedem Tastendruck
+            // (gleiche Entscheidung wie beim Suchfeld weiter unten).
+            ['lagerHfArtikelnr','lagerHfArtikel','lagerHfGroesse','lagerHfLagerort'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('keydown', e => { if (e.key === 'Enter') applyHeadFilters(); });
+                el.addEventListener('change', applyHeadFilters);
+            });
+            ['lagerHfVon','lagerHfBis','lagerHfStatus'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', applyHeadFilters);
+            });
+            const hfReset = document.getElementById('lagerHfReset');
+            if (hfReset) hfReset.addEventListener('click', () => {
+                this._filters = Object.assign({}, this._filters, {
+                    artikelNr: '', von: '', bis: '', artikel: '', groesse: '', lagerort: '', status: ''
+                });
+                this._currentPage = 1;
+                rerender();
+            });
+
+            // ── Sortierbare Spaltenköpfe ──────────────────────────────────
+            Utils.bindSortableHeaders(document.querySelector('.table-container'), this._headSort, () => {
+                this._currentPage = 1;
+                this._savePrefs();
+                rerender();
+            });
             ['lagerFilterMarke','lagerFilterTyp','lagerFilterKat','lagerFilterZielgruppe','lagerFilterHaendler','lagerFilterStatus','lagerFilterJahr','lagerFilterMonat','lagerFilterStorniert'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.addEventListener('change', applyFilters);
@@ -2030,6 +2175,9 @@ const Lager = {
             const sortEl = document.getElementById('lagerSortBy');
             if (sortEl) sortEl.addEventListener('change', () => {
                 this._sortBy = sortEl.value;
+                // Dropdown übernimmt wieder — sonst blieben zwei Sortierungen gleichzeitig
+                // gesetzt und die Auswahl im Dropdown hätte sichtbar keine Wirkung.
+                this._headSort.col = '';
                 this._currentPage = 1;
                 this._savePrefs();
                 rerender();

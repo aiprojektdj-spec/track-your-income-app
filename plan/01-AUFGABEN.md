@@ -22,17 +22,19 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 > ⚠️ **Vor dem Anfassen `git status` prüfen.** Mehrere der genannten Dateien werden regelmäßig
 > von parallelen Sessions gehalten. Details in [`03-ARBEITSREGELN.md`](03-ARBEITSREGELN.md).
 
-> ⚠️ **Diese Liste veraltet binnen Stunden.** Am 2026-08-15 waren von sechs frisch eingetragenen
-> „offenen" Punkten zwei Stunden später vier bereits gebaut — von parallelen Sessions, im selben
-> Working Tree. **Immer erst gegen den Code prüfen, dann greifen** — auch bei einer Liste mit dem
-> heutigen Datum, auch bei dieser hier.
+> ⚠️ **Diese Liste veraltet binnen Stunden — dreimal belegt.** Am 2026-08-15 waren von sechs
+> frisch eingetragenen „offenen" Punkten zwei Stunden später vier bereits gebaut. Am 2026-08-16
+> wiederholte sich das: M1, M2, M4 und U7 standen hier als offen und waren binnen zwei Stunden
+> von parallelen Sessions erledigt. **Immer erst gegen den Code prüfen, dann greifen** — auch bei
+> einer Liste mit dem heutigen Datum, auch bei dieser hier.
 
 ---
 
 ## 1. Code — kann jede Session machen
 
-Der Abschnitt ist fast leer. A11y, PWA, Performance (bis auf F6), Datenschutz und der komplette
-Kleinkram-Block sind zu.
+**Es ist genau ein Punkt übrig.** A11y, PWA, Datenschutz, Recht, Marketing und der komplette
+Kleinkram-Block sind zu; aus der Performance-Reihe fehlt nur noch F6. Alles Abgeschlossene mit
+Belegstellen steht in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
 
 ### 1.1 F6 — Cloud-Sync-Krypto in einen Web Worker · `js/cloud-sync.js`
 
@@ -53,65 +55,6 @@ Aufwand: ~2–3 h.
 > dem Tag ~91 uncommittete Zeilen einer parallelen Session (Registry-Abgleich vor dem Sync,
 > `_refreshSwitcher`) — genau in den Funktionen, die der Worker-Umbau anfasst. **Vor dem Start
 > `git status -- js/cloud-sync.js` prüfen**; ist die Datei nicht sauber, erst abstimmen.
-
-### 1.2 M2 — Sozialbeweis auf der Landingpage · `index.html`
-
-Es gibt **keinen**: keine Stimmen, keine Zahlen, keine Siegel. Bei einem unbekannten Anbieter,
-dem man die Buchhaltung anvertrauen soll, ist das die stillste Kaufbremse.
-
-**Nichts erfinden** — diese Zielgruppe prüft nach, und §5 UWG. Belastbar ist heute:
-
-| Aussage | Beleg (2026-08-16 ausgezählt) |
-|---|---|
-| „über 200 automatisierte Prüfungen" | **215** `ok(`-Aufrufe in **33** Harnesses unter `test/` |
-| „Ende-zu-Ende verschlüsselt" | `js/cloud-sync.js` — der Schlüssel verlässt das Gerät nie |
-| „läuft offline weiter" | Offline-Grace in [`js/whop-auth.js`](../js/whop-auth.js) |
-
-> 🔴 **Vorher zu klären — die Seite verkauft sich womöglich unter Wert:** Die Landingpage sagt an
-> drei Stellen **„12 Module"** ([`index.html:152`](../index.html), `:327`, `:575`). Audit 03
-> (Feature-Gap) kam ausdrücklich auf **„28 Module, nicht 12"** — siehe
-> [`00-STAND.md`](00-STAND.md), Zeile 55: Bank-Import, E-Rechnung, DATEV und Mahnwesen existieren
-> alle, tauchen in der 12er-Zählung aber nicht auf.
->
-> `app.html` hat 17 `data-page`-Einträge in der Sidebar, dazu die vier Sub-Apps (Lager,
-> Rechnungen, Eigenbelege, Finanzen) und die Akademie. **Keine der beiden Zahlen ist direkt aus
-> dem Code ableitbar** — es ist eine Definitionsfrage, was als „Modul" zählt. Festlegen (siehe
-> 2.4), dann **überall gleichzeitig** durchziehen. Bis dahin die Modulzahl nicht als Sozialbeweis
-> verwenden — aber es ist gut möglich, dass hier Verkaufsargument verschenkt wird.
-
-### 1.3 M4 — Wettbewerbs-Preisanker · `index.html`
-
-Der vorhandene Anker („eine Steuerberater-Stunde kostet 150–250 €") ist gut, aber indirekt.
-[`index.html:468`](../index.html) hat bereits eine Vergleichstabelle mit sevDesk als Spaltenkopf
-— **aber keine Preise darin**.
-
-Geplant war: *sevDesk 9,90 € nur für Rechnungen, 17,90 € für die Buchhaltung · Lexware Office:
-E-Rechnung erst ab 32,90 € · **Stackr: 15 €. Alles.***
-
-> **Blockiert, bis die Preise belegt sind.** Ein konkreter Wettbewerbspreis ohne Beleg und ohne
-> Stichtag ist §5/§6 UWG (irreführende bzw. unzulässige vergleichende Werbung). Aus genau dem
-> Grund ist derselbe Lexware-Halbsatz schon aus M1 herausgenommen worden. Wer das baut,
-> recherchiert die Preise am selben Tag, schreibt **„Stand: TT.MM.JJJJ"** daneben und legt einen
-> Beleg ab.
-
-### 1.4 U7 — Leerzustände, Rest · app-weit
-
-**Vier weitere erledigt am 2026-08-16** (`20c5d48`), browserverifiziert: AfA (mit Button „Erste
-Anlage erfassen"), Lohnsteuer, Verkäufe-Liste, Material-Einkäufe. Zusammen mit
-[`js/buchungen.js:978`](../js/buchungen.js) sind damit die Module abgedeckt, in denen ein
-Erstnutzer tatsächlich landet.
-
-**Was bewusst nicht angefasst wurde** — beim nächsten Durchgang nicht erneut als Fund melden:
-abgeleitete Ansichten (Bilanz, Steuerberater-Export) haben keine anbietbare Handlung, und ein
-leeres GoBD-Protokoll (`js/protokoll.js`) ist kein Mangel.
-
-Offen bleiben die selteneren Module (GbR-Teilansichten, Lager-Zonen, OSS) — dort lohnt ein
-Durchgang erst, wenn jemand sie im Leerzustand wirklich sieht.
-
-Nicht zu verwechseln mit [`js/bank-import.js:443`](../js/bank-import.js) — dort ist „Keine
-Buchungen **gefunden**" **korrekt**, weil es tatsächlich ein leeres Filterergebnis beschreibt.
-Die Unterscheidung ist der eigentliche Fund: *leerer Bestand* braucht eine andere Ansprache als
-*leeres Suchergebnis*.
 
 ---
 
@@ -159,7 +102,7 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
 
 | Frage | Hintergrund |
 |---|---|
-| **Modulzahl festlegen** 🔴 | Blockiert M2. „12" steht dreimal auf der Seite, „28" im Audit, 17 `data-page` im Code. Eine Zahl festlegen und überall durchziehen |
+| **Modulzahl festlegen** 🔴 | „12 Module" steht **viermal** auf der Landingpage (`index.html:152`, `:288`, `:327`, `:578`), das Feature-Gap-Audit kam auf **28**, im Code stehen 17 `data-page`. M2 ist bewusst ohne diese Zahl gebaut worden — solange sie ungeklärt ist, darf sie nirgends als Beleg dienen. Möglicherweise verkauft sich die Seite unter Wert |
 | **Top-of-Funnel** | Seit Local eingestellt ist, gibt es nur Landing → Checkout **mit Kartenpflicht** — die höchste Hürde im Vergleichsfeld. Empfehlung: **Demo aufwerten** statt Free-Tier bauen. Alternativen: Trial ohne Kartenpflicht, oder Read-only-Tier |
 | **Zielgruppen-Schärfung** | Reseller und GbR haben eigene Module, Freelancer nur den Standard. Empfehlung: Reseller + GbR nach vorn, Freelancer ehrlich als drittes Segment |
 | **Zeiterfassung für Freelancer?** | Null Treffer im Code. Empfehlung: **nicht bauen** — eigenes Produktfeld, gute Speziallösungen vorhanden; Energie in Reseller/GbR |
@@ -185,25 +128,15 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
 
 ---
 
-## Offener Faden
-
-**M1 liegt uncommittet in `index.html`.** Die zwei Blöcke (E-Rechnung-Zeile unter „Ein Preis.
-Alles drin." und FAQ Nr. 13) sind gebaut und auf Port 4322 verifiziert, aber in keinem Commit.
-Sie lagen zunächst neben fremder D0/D1-Arbeit in derselben Datei; die ist inzwischen in `bc057a6`
-drin, die Datei sollte also wieder frei sein. **Vor dem Committen `git status` prüfen.**
-
----
-
 ## Reihenfolge, wenn du wenig Zeit hast
 
 | Rang | Aufgabe | Warum | Aufwand |
 |---|---|---|---|
-| 1 | **2.1 ENV-Variablen in Vercel** | Einzige offene Sicherheitslücke | 10 Min |
-| 2 | **M1 committen** | Fertige, verifizierte Arbeit liegt unversioniert herum | 5 Min |
-| 3 | **Modulzahl festlegen (2.4)** | Blockiert M2 — und eine womöglich falsche Zahl steht bereits dreimal auf der Seite | 15 Min |
-| 4 | **M2 Sozialbeweis** | Stillste Kaufbremse; die Testzahl ist jetzt belegt | 30 Min |
-| 5 | **2.2 Whop-Mails** | Verhindert Rückbuchungen bei der 135-€-Verlängerung | 1 h |
-| 6 | **F6 Krypto-Worker** | Letzter echter Technikposten | 2–3 h |
+| 1 | **2.1 ENV-Variablen in Vercel** | Einzige offene Sicherheitslücke, reine Konfiguration | 10 Min |
+| 2 | **Modulzahl festlegen (2.4)** | „12 Module" steht viermal auf der Landingpage, das Feature-Gap-Audit sagt 28 — solange das offen ist, darf die Zahl nirgends als Beleg dienen | 15 Min |
+| 3 | **2.2 Whop-Mails** | Verhindert Rückbuchungen bei der 135-€-Verlängerung | 1 h |
+| 4 | **F6 Krypto-Worker** | Der letzte offene Code-Punkt überhaupt | 2–3 h |
+| 5 | **2.3 Live-Tests** | Sechs Funktionen sind gebaut, aber nie unter echten Bedingungen gelaufen | mehrere Sitzungen |
 
-M4 fehlt in dieser Tabelle bewusst — es ist blockiert, bis die Wettbewerbspreise belegt sind.
-U7 ebenfalls: eigener UX-Durchgang, kein Lückenfüller.
+Danach ist Abschnitt 1 leer und das Projekt hängt nur noch an dir (Abschnitt 2) und an Dritten
+(Abschnitt 3).

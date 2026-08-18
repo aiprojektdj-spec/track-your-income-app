@@ -1,6 +1,6 @@
 # Erledigt — August 2026
 
-**Stand: 2026-08-16.** Gegenstück zu [`01-AUFGABEN.md`](01-AUFGABEN.md), die nur noch Offenes
+**Stand: 2026-08-16, abends.** Gegenstück zu [`01-AUFGABEN.md`](01-AUFGABEN.md), die nur noch Offenes
 führt. Hier steht, was abgeschlossen ist — **und wo die Umsetzung von der ursprünglichen
 Aufgabenbeschreibung abwich.** Genau diese Abweichungen sind der Grund, warum die Datei
 existiert: Sie sind beim reinen Abhaken verlorengegangen und wurden zweimal neu entdeckt.
@@ -133,8 +133,25 @@ Offen aus diesem Block: nur noch **F6** (Krypto-Worker), siehe [`01-AUFGABEN.md`
   [`rechnungen/js/xrechnung.js`](../rechnungen/js/xrechnung.js), Prüfung eingehender Rechnungen in
   [`rechnungen/js/erechnung-import.js`](../rechnungen/js/erechnung-import.js).
   **Zum Lexware-Preis siehe Korrektur oben.**
-  ⚠️ **Liegt zum Stand 2026-08-16 noch uncommittet im Working Tree** — siehe „Offener Faden" in
-  [`01-AUFGABEN.md`](01-AUFGABEN.md).
+  ✅ Committet — steht in `HEAD:index.html`.
+- **M2 — Sozialbeweis** · 2026-08-16 (`0159d4d`). Block „Nachprüfbar statt behauptet" mit vier
+  Punkten, die der Interessent **vor** dem Zahlen selbst prüfen kann: 200+ automatisierte
+  Prüfungen, Ende-zu-Ende-Verschlüsselung, beiliegende Verfahrensdokumentation. Keine erfundenen
+  Kundenstimmen, keine Siegel.
+
+  > **Falle, die dort als Kommentar steht:** „über 200" ist bewusst gerundet, damit der Satz
+  > nicht veraltet — die Zahl wächst nur. Bei Änderungen **neu auszählen, nicht schätzen**
+  > (Stand 2026-08-16: 215 `ok(`-Aufrufe in 33 Harnesses). Die **Modulzahl ist absichtlich nicht**
+  > als Beleg verwendet, weil sie ungeklärt ist — siehe [`01-AUFGABEN.md`](01-AUFGABEN.md), 2.4.
+
+- **M4 — Wettbewerbs-Preisanker** · 2026-08-16 (`a3b9b6b`). Vergleichstabelle mit Preisen, Belege
+  in [`belege-wettbewerbspreise-2026-08-16.md`](belege-wettbewerbspreise-2026-08-16.md).
+
+  > **Zwei Dinge, die den §5/§6-UWG-Fallstrick entschärfen und beim Aktualisieren mitmüssen:**
+  > der **Stichtag** („Stand Juni 2026, ohne Gewähr") und der **Netto/Brutto-Hinweis** — die
+  > Wettbewerber zeichnen durchgehend netto aus, Stackrs 15,00 € sind brutto (netto 12,61 €).
+  > Ohne diesen Zusatz läse sich die Zeile günstiger für uns, als sie ist.
+
 - **M5 — Zielgruppen-Kicker.** [`index.html:75`](../index.html) `.hero-badge`
   „✦ Für Freelancer, GbR-Teams & Reseller" steht über der Headline. Die Headline selbst
   („Steuern stressen. Stackr beruhigt.") blieb unverändert.
@@ -160,8 +177,17 @@ Offen aus diesem Block: nur noch **F6** (Krypto-Worker), siehe [`01-AUFGABEN.md`
   das globale `table{}` fing sie ab. Jetzt definiert in [`css/style.css:2988`](../css/style.css)
   — sie nimmt `th{cursor:pointer}` zurück, weil diese Tabellen nicht sortierbar sind.
 
-Offen aus diesem Block: nur noch **U7**, und das ist kein Kleinkram mehr, sondern ein eigener
-UX-Durchgang.
+- **U7 — Leerzustände** · 2026-08-16 (`20c5d48`, `976a366`). 24 Leerzustände, nur einer mit
+  Handlungsaufforderung.
+
+  > **Der eigentliche Fund war nicht „überall einen Button hinsetzen":** Ein **leerer Bestand**
+  > ist etwas anderes als ein **leeres Suchergebnis**. Der Erstnutzer liest „Keine … vorhanden"
+  > als fehlgeschlagene Suche und sucht den Fehler bei sich. Beide Fälle werden jetzt getrennt
+  > angesprochen — u. a. in `js/protokoll.js` und `rechnungen/js/protokoll.js`.
+  > [`js/bank-import.js:443`](../js/bank-import.js) sagt weiterhin „Keine Buchungen **gefunden**",
+  > und das ist dort **richtig**: es beschreibt tatsächlich ein leeres Filterergebnis.
+
+**Dieser Block ist vollständig zu.**
 
 ---
 
@@ -175,6 +201,10 @@ verwendet, das gegenzuprüfen statt zu bauen.
 Am selben Tag wurde eine frisch geschriebene Rang-Tabelle mit sechs „offenen" Punkten binnen
 zwei Stunden zu **4/5 falsch** — parallele Sessions hatten L4, F7, F4 und U8 in der Zwischenzeit
 gebaut.
+
+Am 2026-08-16 zum dritten Mal: M1, M2, M4 und U7 wurden als offen in `01-AUFGABEN.md`
+eingetragen und waren zwei Stunden später alle vier gebaut. **Nach dieser Runde ist Abschnitt 1
+bis auf F6 leer** — die Liste hat also nie zu viel Arbeit ausgewiesen, sondern zu alte.
 
 **Konsequenz, jetzt in [`03-ARBEITSREGELN.md`](03-ARBEITSREGELN.md) verankert:** eine
 Aufgabenliste, nicht zwei. Abhaken gehört in denselben Commit, der fixt. Und der Stand kommt

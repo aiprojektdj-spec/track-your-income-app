@@ -1,5 +1,13 @@
 # Restliste — Stand 2026-08-14
 
+> ⛔ **Abgelöst durch [`01-AUFGABEN.md`](01-AUFGABEN.md) (offen) und
+> [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md) (abgeschlossen). Nicht mehr als Arbeitsliste
+> benutzen.**
+>
+> Diese Datei und `01-AUFGABEN.md` führten dieselben Funde in zwei Ständen. Am 2026-08-15 waren
+> acht davon (A2, A4, A5, V2, L3, N3, D4, F2) längst erledigt und wurden trotzdem weiter als
+> offen geführt — das hat eine halbe Session gekostet. Nur noch Archiv.
+
 Was aus dem Vollaudit 2026-08-10 (17 Audits, 70 Funde) **heute noch offen ist**.
 
 **Jede Zeile wurde am 2026-08-14 gegen den Code geprüft**, nicht aus älteren Notizen übernommen.

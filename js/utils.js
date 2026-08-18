@@ -483,6 +483,53 @@ const Utils = {
         this.initSmartDates(document);
     },
 
+    // ── Sortierbare Tabellenköpfe ─────────────────────────────────────────────
+    // Der Mechanismus war bis 2026-08-14 nur ad-hoc in js/buchungen.js gebaut; das CSS dazu
+    // (th.sorted-asc ▲ / th.sorted-desc ▼) ist seit je global in css/style.css. Hier einmal
+    // generisch, damit weitere Tabellen ihn benutzen statt ihn zu kopieren.
+    // `state` ist ein einfaches { col, dir }-Objekt, das der Aufrufer selbst hält (und bei
+    // Bedarf persistiert).
+
+    // CSS-Klassensuffix für den <th> der angegebenen Spalte.
+    sortIcon(state, col) {
+        if (!state || state.col !== col) return '';
+        return state.dir === 'asc' ? ' sorted-asc' : ' sorted-desc';
+    },
+
+    // Klick auf denselben Kopf dreht die Richtung, ein neuer Kopf startet aufsteigend.
+    toggleSort(state, col) {
+        if (state.col === col) state.dir = state.dir === 'asc' ? 'desc' : 'asc';
+        else { state.col = col; state.dir = 'asc'; }
+        return state;
+    },
+
+    // Vergleicher: Zahlen numerisch, alles Übrige als String (locale-aware, Groß/Klein egal).
+    // getValue(item, col) ist optional — ohne sie wird item[col] gelesen.
+    sortComparator(state, getValue) {
+        const get = getValue || ((item, col) => item[col]);
+        return (a, b) => {
+            let va = get(a, state.col), vb = get(b, state.col);
+            if (typeof va === 'number' || typeof vb === 'number') {
+                const na = Number(va) || 0, nb = Number(vb) || 0;
+                return state.dir === 'asc' ? na - nb : nb - na;
+            }
+            va = String(va == null ? '' : va).toLowerCase();
+            vb = String(vb == null ? '' : vb).toLowerCase();
+            return state.dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+        };
+    },
+
+    // Verdrahtet alle th[data-sort] unterhalb von root; onChange rendert die Tabelle neu.
+    bindSortableHeaders(root, state, onChange) {
+        (root || document).querySelectorAll('th[data-sort]').forEach(th => {
+            th.style.cursor = 'pointer';
+            th.addEventListener('click', () => {
+                Utils.toggleSort(state, th.dataset.sort);
+                if (onChange) onChange(state);
+            });
+        });
+    },
+
     // ── A11y: verwaiste Formular-Labels nachträglich verknüpfen (WCAG 1.3.1 / 4.1.2) ──
     // Die App rendert durchgehend `<label class="form-label">Text</label><input id="x">`
     // ohne `for=`. Ohne Verknüpfung liest ein Screenreader das Feld unbenannt vor und der

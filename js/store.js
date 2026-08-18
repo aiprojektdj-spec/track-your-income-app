@@ -1399,6 +1399,14 @@ const Store = {
         return Object.values(sessions);
     },
 
+    // Ist eine Artikelnummer schon vergeben? exceptId klammert den gerade bearbeiteten Artikel aus.
+    // Von der Bearbeiten-Maske (Vorab-Prüfung mit Fehlermeldung) und vom Excel-Import genutzt.
+    isArtikelNrTaken(nr, exceptId) {
+        const s = String(nr || '').trim();
+        if (!s) return false;
+        return this.getAllPurchasesRaw().some(p => p && p.id !== exceptId && String(p.artikelNr || '').trim() === s);
+    },
+
     savePurchase(purchase) {
         const purchases = this.getAllPurchasesRaw();
         if (purchase.id) {
@@ -1406,7 +1414,18 @@ const Store = {
             if (idx >= 0) {
                 const old = Object.assign({}, purchases[idx]);
                 if (this.isLocked(old)) return purchase; // GoBD: festgeschriebene/stornierte Einträge nicht bearbeitbar
-                if (old.artikelNr) purchase.artikelNr = old.artikelNr; // Artikelnummer nie per Edit überschreibbar
+                // Die Artikelnummer war bis 2026-08-13 per Edit faktisch nicht änderbar: der alte
+                // Wert wurde hier still zurückgesetzt, das Feld im Bearbeiten-Dialog war damit
+                // wirkungslos — ohne jeden Hinweis an den Nutzer. Jetzt zählt eine ausdrücklich
+                // geänderte Nummer. Leer heißt weiterhin "alte behalten"; eine bereits vergebene
+                // Nummer wird abgelehnt statt doppelt zu existieren (der Verkäufe-Import ordnet
+                // Artikel über genau diese Nummer zu, Duplikate lassen still den letzten gewinnen).
+                const gewuenschteNr = String(purchase.artikelNr || '').trim();
+                if (!gewuenschteNr || (gewuenschteNr !== old.artikelNr && this.isArtikelNrTaken(gewuenschteNr, purchase.id))) {
+                    purchase.artikelNr = old.artikelNr;
+                } else {
+                    purchase.artikelNr = gewuenschteNr;
+                }
                 this._addAuditEntry('bearbeitet', 'einkauf', purchase.id, old, purchase, 'Einkauf bearbeitet');
                 purchases[idx] = this._stampRecord(purchase);
             } else {

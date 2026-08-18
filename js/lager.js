@@ -2675,6 +2675,13 @@ const Lager = {
                         }
 
                         const newStatus = document.getElementById('le_status')?.value || p.status;
+                        // Artikelnummer vor dem Speichern prüfen: Store lehnt Duplikate ab, würde
+                        // das aber stumm tun. Der Nutzer soll wissen, warum seine Eingabe nicht ankam.
+                        const neueArtNr = document.getElementById('le_artikelnr').value.trim();
+                        if (neueArtNr && neueArtNr !== p.artikelNr && Store.isArtikelNrTaken(neueArtNr, p.id)) {
+                            Utils.showToast('Artikelnummer "' + neueArtNr + '" ist bereits vergeben.', 'error');
+                            return;
+                        }
                         Store.savePurchase({
                             ...p,
                             datum:          Utils.getDateInputValue('le_datum'),
@@ -2682,7 +2689,7 @@ const Lager = {
                             artikeltyp:     (document.getElementById('le_artikeltyp') || {}).value     || p.artikeltyp,
                             groesse:        document.getElementById('le_groesse').value.trim(),
                             beschreibung:   document.getElementById('le_beschreibung').value.trim(),
-                            artikelNr:      document.getElementById('le_artikelnr').value.trim() || p.artikelNr,
+                            artikelNr:      neueArtNr || p.artikelNr,
                             einkaufspreis:  parseFloat(document.getElementById('le_preis').value) || 0,
                             anzahl:         parseInt(document.getElementById('le_anzahl').value)  || 1,
                             einkaufsquelle,

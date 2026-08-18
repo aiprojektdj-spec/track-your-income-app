@@ -1698,6 +1698,7 @@ const ExcelImport = {
         const find = (...names) => columns.find(c => names.includes(lc(c))) || '';
         return {
             datum:        find('kaufdatum', 'datum', 'date', 'einkaufsdatum', 'kauf'),
+            artikelNr:    find('artikelnummer', 'artikelnr', 'artikel-nr', 'artikel-nr.', 'art.-nr.', 'art-nr', 'artnr', 'sku', 'item number', 'item no', 'nummer'),
             marke:        find('marke', 'brand', 'hersteller'),
             artikeltyp:   find('typ', 'artikeltyp', 'kategorie', 'type', 'category'),
             groesse:      find('größe', 'groesse', 'size', 'gr', 'gr.', 'gröse'),
@@ -1721,7 +1722,8 @@ const ExcelImport = {
         const KW = new Set(['marke','brand','hersteller','typ','artikeltyp','kategorie','type','category',
             'größe','groesse','size','beschreibung','description','modell','name','titel','title','was','artikel','bezeichnung',
             'ek','ek-preis','einkauf','einkaufspreis','preis','price','cost','kaufpreis',
-            'wo','quelle','source','datum','kaufdatum','date','anzahl','menge','quantity','qty','stück','stueck']);
+            'wo','quelle','source','datum','kaufdatum','date','anzahl','menge','quantity','qty','stück','stueck',
+            'artikelnummer','artikelnr','artikel-nr','artikel-nr.','art.-nr.','art-nr','artnr','sku']);
         const clean = c => (c == null ? '' : String(c)).trim().toLowerCase().replace(/\?/g, '');
         const limit = Math.min(aoa.length, 30);
         let best = -1;
@@ -1767,7 +1769,8 @@ const ExcelImport = {
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--text-secondary);">
                     <div style="font-weight:700;color:var(--info);margin-bottom:4px;">📊 Excel-Import</div>
-                    <div>Lade eine <strong>.xlsx, .xls oder .csv</strong>-Datei mit deinen Artikeln hoch. Spalten werden automatisch erkannt — du kannst sie zuordnen.</div>
+                    <div>Lade eine <strong>.xlsx, .xls oder .csv</strong>-Datei mit deinen Artikeln hoch. Spalten werden automatisch erkannt — du kannst sie zuordnen.
+                    Hast du eine eigene <strong>Artikelnummer</strong>-Spalte, wird sie übernommen; sonst vergibt Stackr automatisch fortlaufende Nummern.</div>
                 </div>
 
                 <div>
@@ -1864,6 +1867,7 @@ const ExcelImport = {
     _renderMapping() {
         const fields = [
             { key: 'datum',         label: 'Kaufdatum',      required: false },
+            { key: 'artikelNr',     label: 'Artikelnummer',  required: false },
             { key: 'marke',         label: 'Marke',          required: false },
             { key: 'artikeltyp',    label: 'Artikeltyp',     required: false },
             { key: 'groesse',       label: 'Größe',          required: false },
@@ -1900,13 +1904,44 @@ const ExcelImport = {
         document.querySelectorAll('[data-field]').forEach(sel => {
             sel.addEventListener('change', () => {
                 this._mapping[sel.dataset.field] = sel.value;
+                // Die Artikelnummern-Warnung hängt am Mapping — nach dem Umstellen neu rechnen.
+                if (sel.dataset.field === 'artikelNr') this._renderPreview();
             });
         });
     },
 
+    // Sammelt Artikelnummern-Konflikte der zugeordneten Spalte: schon im Lager vergeben oder
+    // innerhalb der Datei doppelt. Bis 2026-08-13 gab es überhaupt keine Duplikatprüfung —
+    // der Verkäufe-Import ordnet Artikel über genau diese Nummer zu, bei Duplikaten gewinnt
+    // dort still der zuletzt eingelesene Treffer.
+    _artNrConflicts() {
+        const col = this._mapping.artikelNr;
+        if (!col) return { taken: 0, dupes: 0 };
+        const existing = new Set(((Store.getAllPurchasesRaw && Store.getAllPurchasesRaw()) || [])
+            .map(p => String((p && p.artikelNr) || '').trim()).filter(Boolean));
+        const seen = new Set();
+        let taken = 0, dupes = 0;
+        this._rows.forEach(r => {
+            const nr = String(r[col] == null ? '' : r[col]).trim();
+            if (!nr) return;
+            if (existing.has(nr)) taken++;
+            if (seen.has(nr)) dupes++; else seen.add(nr);
+        });
+        return { taken, dupes };
+    },
+
     _renderPreview() {
         const rows = this._rows.slice(0, 10);
-        const html = `
+        const c = this._artNrConflicts();
+        const warn = (c.taken + c.dupes) > 0
+            ? `<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.5;margin-bottom:8px;">
+                   ⚠️ <strong>${c.taken + c.dupes} Artikelnummern kollidieren</strong>
+                   (${c.taken} bereits im Lager vergeben, ${c.dupes} doppelt in dieser Datei).
+                   Sie bekommen beim Import automatisch ein Suffix (-2, -3, …) und bleiben damit eindeutig —
+                   es geht nichts verloren und nichts wird überschrieben.
+               </div>`
+            : '';
+        const html = warn + `
             <table style="width:100%;border-collapse:collapse;font-size:11px;">
                 <thead style="background:var(--bg-secondary);position:sticky;top:0;">
                     <tr>${this._columns.map(c => `<th style="padding:5px 8px;text-align:left;border-bottom:1px solid var(--border);font-weight:600;">${Utils.escapeHtml(c)}</th>`).join('')}</tr>
@@ -1954,6 +1989,8 @@ const ExcelImport = {
 
             validRows.push({
                 datum:         rowDatum,                                       // pro Zeile, sonst gemeinsames Datum
+                // Eigene Artikelnummer aus der Tabelle. Leer = wie bisher automatisch vergeben.
+                artikelNr:     String(get('artikelNr') || '').trim().slice(0, 60),
                 marke,
                 artikeltyp:    String(get('artikeltyp') || 'Sonstiges').trim() || 'Sonstiges',
                 groesse:       String(get('groesse') || '').trim(),
@@ -1995,6 +2032,16 @@ const ExcelImport = {
                     if (!yearMax[y] || yearMax[y] < n) yearMax[y] = n;
                 }
             });
+            // Jede bereits vergebene Nummer — auch frei gewählte, die nicht dem JJJJ-NNN-Muster
+            // folgen. Kollidiert eine Nummer aus der Datei, bekommt sie ein Suffix, statt ein
+            // zweites Mal zu existieren (der Verkäufe-Import ordnet Artikel darüber zu).
+            const usedNrs = new Set(existing.map(p => String((p && p.artikelNr) || '').trim()).filter(Boolean));
+            const uniqueNr = wunsch => {
+                let nr = wunsch, i = 2;
+                while (usedNrs.has(nr)) { nr = wunsch + '-' + i; i++; }
+                usedNrs.add(nr);
+                return nr;
+            };
             const newRecords = [];
             const newSales   = [];
             const existingSales = Store.getAllSalesRaw ? Store.getAllSalesRaw() : [];
@@ -2004,7 +2051,17 @@ const ExcelImport = {
                 if (!yearMax[ry]) yearMax[ry] = 0;
                 const unitIds = [];
                 for (let j = 0; j < row.anzahl; j++) {
-                    yearMax[ry]++;
+                    // Eigene Nummer aus der Tabelle hat Vorrang; bei Menge > 1 zählt ein Suffix
+                    // hoch, genau wie bei der Bulk-Anlage. Ohne eigene Nummer bleibt es beim
+                    // automatischen JJJJ-NNN.
+                    let artNr;
+                    if (row.artikelNr) {
+                        artNr = uniqueNr(row.anzahl > 1 ? row.artikelNr + '-' + (j + 1) : row.artikelNr);
+                    } else {
+                        do { yearMax[ry]++; artNr = `${ry}-${String(yearMax[ry]).padStart(3, '0')}`; }
+                        while (usedNrs.has(artNr));
+                        usedNrs.add(artNr);
+                    }
                     const record = {
                         datum:         row.datum,
                         marke:         row.marke,
@@ -2016,7 +2073,7 @@ const ExcelImport = {
                         einkaufsquelle: row.einkaufsquelle,
                         status:        row.verkauft ? 'verkauft' : 'verfuegbar',
                         sessionId,
-                        artikelNr:     `${ry}-${String(yearMax[ry]).padStart(3, '0')}`,
+                        artikelNr:     artNr,
                         lagerort:      { bereich: '', regal: '', fach: '' }
                     };
                     // EINDEUTIGE ID vergeben (sonst kollidieren UI-Selektionen)
@@ -2192,7 +2249,7 @@ const SalesImport = {
                 <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--text-secondary);">
                     <div style="font-weight:700;color:var(--success);margin-bottom:4px;">📥 Verkäufe-Import</div>
                     <div>Lade die <strong>Verkaufshistorie</strong> deiner Plattform als CSV/Excel-Datei hoch. Die Verkäufe werden direkt in Buchungen gespeichert. <br>
-                    <strong>Tipp:</strong> Wenn die Artikel-Nr. (<code>ART-2026-XXXX</code>) im Titel steht, wird der Verkauf automatisch dem Lager-Artikel zugeordnet.</div>
+                    <strong>Tipp:</strong> Wenn die Artikel-Nr. (<code>2026-042</code> oder deine eigene, z.&nbsp;B. <code>SV-1042</code>) im Titel steht, wird der Verkauf automatisch dem Lager-Artikel zugeordnet.</div>
                 </div>
 
                 <div class="form-row">
@@ -2327,12 +2384,37 @@ const SalesImport = {
         });
     },
 
+    // Findet die Artikelnummer im Verkaufstitel. Die alte reine Regex /\d{4}-\d{3,}/ kannte nur
+    // automatisch vergebene Nummern — seit der Excel-Import eigene Nummern übernimmt (z. B.
+    // "SV-1042"), muss auch dagegen abgeglichen werden. Längste Nummer zuerst, damit
+    // "2026-0421" nicht von "2026-042" geschlagen wird; Treffer nur an Wortgrenzen.
+    _makeArtNrMatcher(artNrMap) {
+        const known = Object.keys(artNrMap).sort((a, b) => b.length - a.length);
+        const regex = /\b\d{4}-\d{3,}\b/;
+        return titel => {
+            const t = String(titel || '').toUpperCase();
+            const m = t.match(regex);
+            if (m && artNrMap[m[0]]) return m[0];
+            for (let i = 0; i < known.length; i++) {
+                const nr = known[i];
+                if (nr.length < 3) continue;            // zu kurz → zu viele Zufallstreffer
+                const at = t.indexOf(nr);
+                if (at === -1) continue;
+                const before = at === 0 ? '' : t[at - 1];
+                const after  = t[at + nr.length] || '';
+                if (/[A-Z0-9]/.test(before) || /[A-Z0-9]/.test(after)) continue;
+                return nr;
+            }
+            return null;
+        };
+    },
+
     // Geparste Vorschau mit erkannter Artikel-Nr-Zuordnung
     _renderPreview() {
         const purchases = Store.getPurchases ? Store.getPurchases(true) : [];
         const artNrMap = {};
-        purchases.forEach(p => { if (p.artikelNr) artNrMap[p.artikelNr] = p; });
-        const artNrRegex = /\b\d{4}-\d{3,}\b/;
+        purchases.forEach(p => { if (p.artikelNr) artNrMap[String(p.artikelNr).toUpperCase()] = p; });
+        const findArtNr = this._makeArtNrMatcher(artNrMap);
 
         const get = (row, field) => {
             const col = this._mapping[field];
@@ -2348,8 +2430,7 @@ const SalesImport = {
             const vskVk = this._parseNum(get(r, 'versandVk'));
             const kaeufer = String(get(r, 'kaeufer') || '').trim();
 
-            const m = beschr.match(artNrRegex);
-            const matchNr = m && artNrMap[m[0].toUpperCase()] ? m[0].toUpperCase() : null;
+            const matchNr = findArtNr(beschr);
 
             return { datum, beschr, preis, gebuehr, vsk, vskVk, kaeufer, matchNr };
         });
@@ -2391,8 +2472,7 @@ const SalesImport = {
             const beschr = String(get(r, 'beschreibung') || '').trim();
             const datum  = this._parseDate(get(r, 'datum'));
             const preis  = this._parseNum(get(r, 'preis'));
-            const m = beschr.match(artNrRegex);
-            const matchNr = m && artNrMap[m[0].toUpperCase()] ? m[0].toUpperCase() : null;
+            const matchNr = findArtNr(beschr);
             return { valid: datum && preis > 0, matchNr };
         });
         const totalValid   = allParsed.filter(p => p.valid).length;
@@ -2425,8 +2505,8 @@ const SalesImport = {
 
         const purchases = Store.getPurchases(true);
         const artNrMap = {};
-        purchases.forEach(p => { if (p.artikelNr && !p.storniert) artNrMap[p.artikelNr.toUpperCase()] = p; });
-        const artNrRegex = /\b\d{4}-\d{3,}\b/;
+        purchases.forEach(p => { if (p.artikelNr && !p.storniert) artNrMap[String(p.artikelNr).toUpperCase()] = p; });
+        const findArtNr = this._makeArtNrMatcher(artNrMap);
 
         // Verkäufe vorbereiten
         const newSales = [];
@@ -2449,8 +2529,8 @@ const SalesImport = {
             const gebuehrProzent = preis > 0 ? Math.round((gebuehr / (preis + vsk)) * 10000) / 100 : 0;
 
             // Lager-Match versuchen via Artikel-Nr im Titel
-            const m = beschr.match(artNrRegex);
-            const matchedPurchase = m ? artNrMap[m[0].toUpperCase()] : null;
+            const matchedNr = findArtNr(beschr);
+            const matchedPurchase = matchedNr ? artNrMap[matchedNr] : null;
 
             const sale = {
                 id: 'sale_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9),

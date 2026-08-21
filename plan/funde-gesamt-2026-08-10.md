@@ -32,6 +32,12 @@ Die ausführliche Begründung steht jeweils in der verlinkten Einzeldatei.
 
 ### Was wirklich noch offen ist — am Code verifiziert, 2026-08-13
 
+> ⛔ **Dieser Abschnitt ist überholt und wird nicht mehr gepflegt.** Stand 2026-08-13; inzwischen
+> sind u. a. F2, G3, V2, A2, A4, A5, L3, N3, D0–D4, V1 und M1 erledigt. **Gültig ist allein
+> [`01-AUFGABEN.md`](01-AUFGABEN.md)**; Abgeschlossenes steht in
+> [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md). Der Rest dieser Datei bleibt wertvoll als
+> **Fund-Archiv** — die Einzelbefunde je Audit sind weiterhin die Begründung hinter den Aufgaben.
+
 Die Parallel-Sessions haben fast alles abgearbeitet. **Gegen den Code geprüft, nicht gegen ältere
 Notizen** — diese Liste ersetzt alle vorherigen Prioritätslisten in dieser Datei.
 

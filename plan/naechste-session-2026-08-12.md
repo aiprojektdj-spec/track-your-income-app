@@ -1,5 +1,11 @@
 # Nächste Session — Arbeitsplan (Stand 2026-08-12, 15:10)
 
+> ⛔ **Historisch — hier stehen keine gültigen Aufgaben mehr.** Diese Datei ist der Arbeitsplan vom
+> 2026-08-12 und in Teilen überholt (u. a. führt sie F2 und sieben von siebzehn Audits als offen;
+> alle 17 Audits sind gelaufen, F2 ist gebaut). **Die einzige gültige Aufgabenliste ist
+> [`01-AUFGABEN.md`](01-AUFGABEN.md)**, Einstieg über [`00-STAND.md`](00-STAND.md).
+> Weiter nützlich ist hier nur noch **Abschnitt 4** (welcher Test welche Logik schützt).
+
 **Lies zuerst [`uebergabe-2026-08-12.md`](uebergabe-2026-08-12.md).** Dort stehen die Arbeitsregeln
 (parallele Sessions, pfad-gescoped committen, Browser-Cache-Falle, Encoding, Whop-Gate-Verifikation),
 der Local-1.7-Status und die offenen Performance-Posten. **Diese Datei wiederholt das nicht** — sie

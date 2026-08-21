@@ -55,7 +55,7 @@ das Gerät nie.
 | 03 | [Feature-Gap](funde-audit-03-feature-gap-2026-08-10.md) | 10 | Bank-Import, E-Rechnung, DATEV, Mahnwesen existieren **alle** — 28 Module, nicht 12 |
 | 04 | [Security-Delta](funde-audit-04-security-delta-2026-08-10.md) | 6 | ✅ vollständig gefixt (SheetJS-CVEs, Backup-Restore-Allowlist) |
 | 05 | [Steuer-Vergleich](funde-audit-05-vergleich-steuer-2026-08-10.md) | 7 | Steuerlich an mehreren Stellen **genauer als der Markt** |
-| 06 | [UI-Checker](funde-audit-06-ui-checker-2026-08-10.md) | 4 | 3 undefinierte CSS-Klassen; **kein** Design-System-Drift |
+| 06 | [UI-Checker](funde-audit-06-ui-checker-2026-08-10.md) | 4 | ✅ **alle vier zu** (Stand 2026-08-16): `.action-btn`, `.akademie-tip` und `.data-table` sind definiert, der Versions-Kommentar zeigt auf `app.html`. **Kein** Design-System-Drift |
 | 07 | [Product-Manager](funde-audit-07-product-manager-2026-08-10.md) | 6 | Positionierungsproblem, kein Produktproblem |
 | 08 | [Copy/Marketing](funde-audit-08-copy-marketing-2026-08-10.md) | 6 | Copy überdurchschnittlich; Schwächen sind **Auslassungen** |
 | 09 | [Performance](funde-audit-09-performance-2026-08-10.md) | 7 | Defer-Optimierung war nur auf `app.html` angewendet |

@@ -805,6 +805,14 @@ const App = {
         const modal = document.getElementById('modal');
         if (overlay) overlay.classList.remove('active');
         if (modal) modal.innerHTML = '';
+        // Aufräum-Haken für Aufrufer, die für die Dauer des Dialogs etwas ausblenden mussten
+        // (z. B. der Onboarding-Wizard, der den Cloud-Sync-Dialog sonst verdecken würde).
+        // Wird genau einmal gefeuert und danach gelöscht.
+        if (this._modalCloseCb) {
+            const cb = this._modalCloseCb;
+            this._modalCloseCb = null;
+            try { cb(); } catch (e) { console.warn('[App] modalCloseCb:', e && e.message); }
+        }
         // Fokus zurück auf das auslösende Element (WCAG 2.4.3)
         if (this._modalTriggerEl && typeof this._modalTriggerEl.focus === 'function' && document.contains(this._modalTriggerEl)) {
             this._modalTriggerEl.focus();
@@ -1207,9 +1215,94 @@ const App = {
             this._showLangPicker();
             return;
         }
+        this._startOnboardingFlow();
+    },
+
+    // Vor dem Stammdaten-Wizard steht die Frage, ob dieses Konto überhaupt neu ist.
+    // Wer Stackr auf einem zweiten Gerät öffnet (Laptop → Handy), hat seine Daten längst in der
+    // Cloud, bekam bis 2026-08-13 aber trotzdem zuerst den vollen Wizard, legte darin eine
+    // zweite, leere Firma an — und hebelte damit die Auto-Aktivierung der gesyncten Firma aus.
+    // CloudSync.probeAccount() beantwortet das vorab und deckelt sich selbst bei 4 s.
+    _startOnboardingFlow() {
         this._onboardingStep = 1;
         this._onboardingData = {};
-        this._renderOnboarding();
+
+        const probe = (typeof CloudSync !== 'undefined' && CloudSync.probeAccount)
+            ? CloudSync.probeAccount()
+            : null;
+        if (!probe) { this._renderOnboarding(); return; }
+
+        this._renderOnboardingChecking();
+        probe.then(res => {
+            if (res && res.hasData) this._renderCloudFound(res.blob);
+            else this._renderOnboarding();
+        }).catch(() => this._renderOnboarding());
+    },
+
+    _renderOnboardingChecking() {
+        document.getElementById('onboarding').innerHTML = `
+            <div class="onboarding-overlay">
+                <div class="onboarding-card" style="text-align:center;max-width:420px;">
+                    <div style="font-size:36px;color:var(--accent);margin-bottom:16px;">☁</div>
+                    <h2 style="margin-bottom:8px;">Einen Moment</h2>
+                    <p style="color:var(--text-muted);font-size:13px;margin:0;">Wir prüfen, ob für dein Konto schon Daten in der Cloud liegen…</p>
+                </div>
+            </div>
+        `;
+    },
+
+    // Erkennung positiv: der Nutzer soll seine Daten holen statt hier neu anzufangen.
+    // Der zweite Button ist der Ausweg, falls die Erkennung danebenliegt.
+    _renderCloudFound(blob) {
+        const info = (typeof CloudSync !== 'undefined' && CloudSync.describeBlob && blob)
+            ? CloudSync.describeBlob(blob) : '';
+        document.getElementById('onboarding').innerHTML = `
+            <div class="onboarding-overlay">
+                <div class="onboarding-card" style="max-width:480px;">
+                    <div style="font-size:36px;color:var(--accent);margin-bottom:14px;text-align:center;">☁</div>
+                    <h2 style="text-align:center;">Wir haben deine Daten gefunden</h2>
+                    <div class="subtitle" style="text-align:center;">Für dein Konto liegen bereits verschlüsselte Cloud-Daten${info ? ' (' + Utils.escapeHtml(info) + ')' : ''}. Hol sie auf dieses Gerät, statt hier von vorn anzufangen.</div>
+                    <button class="btn btn-primary" id="obCloudRestore" style="width:100%;">📲 Daten übernehmen — Code eingeben</button>
+                    <div style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.5;">Du brauchst den Wiederherstellungscode von dem Gerät, auf dem du Cloud-Sync eingerichtet hast — dort: Wolken-Symbol oben rechts → „Wiederherstellungscode anzeigen“.</div>
+                    <div style="text-align:center;margin-top:10px;">
+                        <button class="btn-link" id="obCloudSkip">Nein — ich fange auf diesem Gerät neu an</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('obCloudRestore').addEventListener('click', () => this._openSyncConnect());
+        document.getElementById('obCloudSkip').addEventListener('click', () => {
+            this._onboardingStep = 1;
+            this._onboardingData = {};
+            this._renderOnboarding();
+        });
+    },
+
+    // z-index-Falle: .onboarding-overlay liegt auf 2000, .modal-overlay auf 1000 — ein aus dem
+    // Wizard geöffneter Dialog landet sonst UNSICHTBAR hinter dem Wizard. Deshalb Overlay für
+    // die Dauer des Dialogs ausblenden und beim Schließen zurückholen, solange das Setup offen ist.
+    _openSyncConnect() {
+        const ob = document.getElementById('onboarding');
+        if (!ob) return;
+        if (typeof CloudSync === 'undefined' || !CloudSync.connectFlow) {
+            Utils.showToast('Cloud-Sync ist hier gerade nicht verfügbar.', 'warning');
+            return;
+        }
+        ob.style.display = 'none';
+        this._modalCloseCb = () => this._resumeOnboardingIfPending();
+        CloudSync.connectFlow();
+    },
+
+    // Von CloudSync nach einem Connect-Versuch ohne Reload aufgerufen und als Aufräum-Haken
+    // beim Schließen des Dialogs: Setup noch offen → Wizard zurück, sonst Overlay leeren.
+    _resumeOnboardingIfPending() {
+        const ob = document.getElementById('onboarding');
+        if (!ob || !ob.innerHTML) return false;
+        let done = false;
+        try { done = !!Store.getSettings().onboardingDone; } catch (e) {}
+        ob.style.display = '';
+        if (done) { ob.innerHTML = ''; return false; }
+        return true;
     },
 
     _showLangPicker() {
@@ -1236,16 +1329,12 @@ const App = {
         document.getElementById('langPickDE').addEventListener('click', () => {
             localStorage.setItem('stackr_lang', 'de');
             localStorage.setItem('stackr_lang_chosen', '1');
-            this._onboardingStep = 1;
-            this._onboardingData = {};
-            this._renderOnboarding();
+            this._startOnboardingFlow();
         });
         document.getElementById('langPickEN').addEventListener('click', () => {
             localStorage.setItem('stackr_lang', 'en');
             localStorage.setItem('stackr_lang_chosen', '1');
-            this._onboardingStep = 1;
-            this._onboardingData = {};
-            this._renderOnboarding();
+            this._startOnboardingFlow();
         });
     },
 
@@ -1391,18 +1480,21 @@ const App = {
         // Die Schritte 2-5 waren faktisch optional, sagten das aber nicht — wer abends seine
         // Steuernummer nicht griffbereit hatte, brach hier ab oder trug Unsinn ein.
         const isOptionalStep = step > 1;
-        const skipLink = (step === 1 && CompanyManager.getActiveId())
-            ? `<div style="text-align:center;margin-top:14px;">
-                   <button class="btn-link" id="obSkip" style="background:none;border:none;color:var(--text-muted);font-size:12px;text-decoration:underline;cursor:pointer;">
-                       Ich habe schon eine Firma — Setup überspringen
-                   </button>
-               </div>`
-            : isOptionalStep
-            ? `<div style="text-align:center;margin-top:14px;">
-                   <button class="btn-link" id="obLater" style="background:none;border:none;color:var(--text-muted);font-size:12px;text-decoration:underline;cursor:pointer;">
-                       ${L.t('ob.later')}
-                   </button>
-               </div>`
+        // Schritt 1 hat immer einen Ausgang. Bis 2026-08-13 hing der einzige Link an
+        // `CompanyManager.getActiveId()` — auf einem frischen Gerät (genau dort, wo er gebraucht
+        // wird) war er also gar nicht im DOM; das war die Ursache des iPad-Reports.
+        // "Mit Cloud-Sync verbinden" ist der Weg für Nutzer ohne Firma: ohne Firma gibt es
+        // keinen Speicherort (Store präfixt jeden Key mit der Firmen-ID), "überspringen" allein
+        // würde sie in einer App ohne Datenablage zurücklassen.
+        let footerLinks = '';
+        if (step === 1) {
+            footerLinks = `<button class="btn-link" id="obConnect">${L.t('ob.connect')}</button>`
+                + (CompanyManager.getActiveId() ? `<button class="btn-link" id="obSkip">${L.t('ob.skip')}</button>` : '');
+        } else if (isOptionalStep) {
+            footerLinks = `<button class="btn-link" id="obLater">${L.t('ob.later')}</button>`;
+        }
+        const skipLink = footerLinks
+            ? `<div style="display:flex;flex-direction:column;align-items:center;margin-top:8px;">${footerLinks}</div>`
             : '';
         const optionalHint = isOptionalStep
             ? `<div style="font-size:12px;color:var(--text-muted);margin:-6px 0 16px;">${L.t('ob.optional')}</div>`
@@ -1447,6 +1539,9 @@ const App = {
         const skipEl = document.getElementById('obSkip');
         if (skipEl) skipEl.addEventListener('click', () => this._skipOnboarding());
 
+        const connectEl = document.getElementById('obConnect');
+        if (connectEl) connectEl.addEventListener('click', () => this._openSyncConnect());
+
         // "Später ausfüllen" auf den optionalen Schritten: das bisher Eingetragene wird
         // übernommen, der Rest bleibt leer — kein Abbruch, sondern ein vorgezogenes Fertig.
         const laterEl = document.getElementById('obLater');
@@ -1468,7 +1563,7 @@ const App = {
         const s = Store.getSettings();
         Store.saveSettings(Object.assign({}, s, { onboardingDone: true, ustMode: s.ustMode || 'klein' }));
         document.getElementById('onboarding').innerHTML = '';
-        Utils.showToast('Setup übersprungen — Cloud-Sync-Icon oben rechts verbindet dich mit deinen bestehenden Daten.', 'info');
+        Utils.showToast('Setup übersprungen — über das Wolken-Symbol oben rechts holst du deine bestehenden Daten.', 'info');
         this.navigate('dashboard');
     },
 

@@ -78,6 +78,8 @@ var I18n = (function () {
             'ob.back':                   'Zurück',
             'ob.optional':               'Alles auf dieser Seite ist optional.',
             'ob.later':                  'Später ausfüllen — geht jederzeit in den Einstellungen',
+            'ob.connect':                'Ich habe schon Daten — mit Cloud-Sync verbinden',
+            'ob.skip':                   'Ich habe schon eine Firma — Setup überspringen',
             'ob.done.toast':             'Einrichtung abgeschlossen! 🎉',
 
             // ── Onboarding form fields ──
@@ -511,6 +513,8 @@ var I18n = (function () {
             'ob.back':                   'Back',
             'ob.optional':               'Everything on this page is optional.',
             'ob.later':                  'Fill in later — you can change this any time in settings',
+            'ob.connect':                'I already have data — connect to cloud sync',
+            'ob.skip':                   'I already have a company — skip setup',
             'ob.done.toast':             'Setup complete! 🎉',
 
             // ── Onboarding form fields ──

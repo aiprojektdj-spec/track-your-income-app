@@ -653,12 +653,15 @@ var CloudSync = (function () {
         _setDot('sync');
         try {
             retryPendingDeletions().catch(function (e) { console.warn('[CloudSync] retryPendingDeletions:', e && e.message); }); // fire-and-forget, blockiert den Sync nicht
+            var regBefore = '';
+            try { regBefore = localStorage.getItem('oyi_companies') || ''; } catch (e) {}
             await _syncScope('__account', isStartup);   // zuerst Registry → Firmen-IDs angleichen
             var companies = (typeof CompanyManager !== 'undefined') ? CompanyManager.getAll() : [];
             for (var i = 0; i < companies.length; i++) {
                 // Read-only-Mandanten (Steuerberater-Ansicht) NIE hochladen
                 if (companies[i] && companies[i].id && !companies[i]._readonly) await _syncScope(companies[i].id, isStartup);
             }
+            _refreshSwitcher(regBefore);
             _setDot('ok');
             _setMismatch(false);   // Lauf komplett durch → Schlüssel passt, alte Sackgassen-Markierung weg
             try { localStorage.setItem(LS_LAST_OK, String(Date.now())); } catch (e) {}
@@ -700,6 +703,25 @@ var CloudSync = (function () {
             }
         } finally {
             _running = false;
+        }
+    }
+
+    // Neu hereingezogene Firmen liefen bis 2026-08-13 komplett stumm durch: _syncScope löst
+    // Reload/Toast nur für den AKTIVEN Scope aus, und renderSwitcherBtn() lief nach einem Sync
+    // nirgends. Der Nutzer sah seine anderen Unternehmen erst nach einem manuellen Reload.
+    function _refreshSwitcher(regBefore) {
+        var regNow = '';
+        try { regNow = localStorage.getItem('oyi_companies') || ''; } catch (e) {}
+        if (regNow === regBefore || typeof CompanyManager === 'undefined') return;
+        var el = document.getElementById('companySwitcher');
+        if (el && CompanyManager.getActiveId()) {
+            try { el.innerHTML = CompanyManager.renderSwitcherBtn(); } catch (e) {}
+        }
+        var cnt = function (s) { try { return (JSON.parse(s || '[]') || []).length; } catch (e) { return 0; } };
+        var neu = cnt(regNow) - cnt(regBefore);
+        if (neu > 0 && !_needReload && typeof Utils !== 'undefined') {
+            Utils.showToast('☁ ' + neu + ' weitere' + (neu === 1 ? 's Unternehmen' : ' Unternehmen') +
+                            ' aus der Cloud übernommen', 'info', 5000);
         }
     }
 
@@ -861,6 +883,61 @@ var CloudSync = (function () {
             parts.push(kb >= 1 ? kb + ' KB' : 'unter 1 KB');
         }
         return parts.join(' · ');
+    }
+
+    // ── Erkennung für den Erststart auf einem neuen Gerät ─────────────────────
+    // Wer Stackr auf einem zweiten Gerät öffnet, hat seine Buchhaltung längst in der Cloud —
+    // aber LS_ENABLED ist gerätelokal, also startet init() hier gar keinen Pull, und der Nutzer
+    // sah bis 2026-08-13 zuerst den vollen Stammdaten-Wizard. Legte er darin eine Firma an, war
+    // anschließend auch noch die Auto-Aktivierung der gezogenen Firma ausgehebelt.
+    // Diese Probe beantwortet VOR dem Wizard die Frage "gibt es für dieses Konto schon
+    // Cloud-Daten?" — dieselbe Prüfung, die enableFlow vor dem Minten eines Schlüssels macht.
+    // Rückgabe: null = trifft nicht zu (nicht angemeldet, oder dieses Gerät hat schon einen
+    //                  Schlüssel und synchronisiert sowieso von allein).
+    //           Promise<{hasData, blob}> — jeder Fehler und alles über 4 s ergibt hasData:false,
+    //                  damit der Wizard nie an einer Netzstörung hängen bleibt.
+    function probeAccount() {
+        if (!_token() || !_isPro() || _hasKey()) return null;
+        return new Promise(function (resolve) {
+            var done = false;
+            var finish = function (r) { if (!done) { done = true; resolve(r); } };
+            setTimeout(function () { finish({ hasData: false, timedOut: true }); }, 4000);
+            _api({ action: 'pull', scope: '__account' }).then(function (res) {
+                var blob = (res && res.json) ? res.json.blob : null;
+                finish({ hasData: !!(res && res.status === 200 && blob), blob: blob });
+            }).catch(function () { finish({ hasData: false }); });
+        });
+    }
+
+    // Lesbare Herkunftsangabe für Anzeigen außerhalb dieses Moduls (Onboarding-Willkommensschirm).
+    function describeBlob(blob) { return _blobInfo(blob); }
+
+    // Erster Pull auf einem Gerät: direkt IN das gesyncte Unternehmen springen, ohne
+    // Zwischenschritt. Bis 2026-08-13 lief das nur bei völlig leerem oyi_active_company — wer im
+    // Wizard vorher eine (leere) Firma angelegt hatte, landete daneben und musste manuell
+    // wechseln. `oyi_active_company` selbst bleibt bewusst ungesynct (gerätelokale Auswahl,
+    // dieselbe Grenze zieht backup-crypto.js); die Reihenfolge ergibt sich aus `letzterZugriff`,
+    // das als Teil von oyi_companies ohnehin mitwandert.
+    // knownBefore = Firmen-IDs, die dieses Gerät VOR dem Merge kannte. Nur was danach neu ist,
+    // kommt aus der Cloud — deshalb wechselt ab dem zweiten Sync nichts mehr ungefragt weg.
+    function _activateRestoredCompany(knownBefore) {
+        if (typeof CompanyManager === 'undefined') return;
+        var all;
+        try { all = CompanyManager.getAll() || []; } catch (e) { return; }
+        if (!all.length) return;
+        var fresh = all.filter(function (c) { return c && c.id && !knownBefore[c.id]; });
+        var pick = null;
+        if (fresh.length) {
+            fresh.sort(function (a, b) {
+                return String(b.letzterZugriff || '').localeCompare(String(a.letzterZugriff || ''));
+            });
+            pick = fresh[0];
+        } else if (!CompanyManager.getActiveId()) {
+            pick = all[0];   // Notausgang wie bisher: Gerät ganz ohne aktive Firma
+        }
+        if (!pick || pick.id === CompanyManager.getActiveId()) return;
+        try { localStorage.setItem('oyi_active_company', pick.id); } catch (e) { return; }
+        _needReload = true;
     }
 
     // Legt einen neuen Schlüssel an. Async, weil die Ablage seit Fund R5 in IndexedDB liegt und
@@ -1097,15 +1174,22 @@ var CloudSync = (function () {
             localStorage.setItem(LS_ENABLED, '1');
             _cryptoKeyCache = null;
             _setMismatch(false);
+            // Wurde dieser Dialog aus dem Onboarding heraus geöffnet, darf der Wizard beim
+            // Schließen NICHT zurückkommen — die Daten sind unterwegs und gleich folgt der Reload.
+            if (typeof App !== 'undefined') App._modalCloseCb = null;
             App.closeModal();
             Utils.showToast('✅ Verbunden — synchronisiere…', 'success');
+            // Firmen, die dieses Gerät vor dem Merge kannte — alles Neue kommt aus der Cloud.
+            var knownBefore = {};
+            try {
+                (CompanyManager.getAll() || []).forEach(function (c) { if (c && c.id) knownBefore[c.id] = 1; });
+            } catch (e) {}
             await _syncAll(true);
-            // Frisches Gerät ohne aktive Firma → erste übernommene Firma aktivieren
-            if (typeof CompanyManager !== 'undefined' && !CompanyManager.getActiveId() && CompanyManager.getAll().length) {
-                localStorage.setItem('oyi_active_company', CompanyManager.getAll()[0].id);
-                _needReload = true;
-            }
+            _activateRestoredCompany(knownBefore);
             if (_needReload) setTimeout(function () { location.reload(); }, 1200);
+            // Kein Reload (z. B. gar keine Cloud-Daten vorhanden): der Nutzer darf nicht in einer
+            // leeren App sitzen bleiben, wenn das Setup noch offen ist.
+            else if (typeof App !== 'undefined' && App._resumeOnboardingIfPending) App._resumeOnboardingIfPending();
         } catch (e) {
             if (btn) { btn.disabled = false; btn.textContent = 'Verbinden & synchronisieren'; }
         }
@@ -1620,6 +1704,8 @@ var CloudSync = (function () {
         openConflicts: openConflicts,
         keyBytes: keyBytes,
         hasKey: hasKey,
+        probeAccount: probeAccount,
+        describeBlob: describeBlob,
         isHealthy: isHealthy,
         verifyAuditAnchors: verifyAuditAnchors,
         foreignLoad: foreignLoad,

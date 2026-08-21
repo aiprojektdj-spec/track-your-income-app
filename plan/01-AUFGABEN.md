@@ -32,29 +32,31 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Es ist genau ein Punkt übrig.** A11y, PWA, Datenschutz, Recht, Marketing und der komplette
-Kleinkram-Block sind zu; aus der Performance-Reihe fehlt nur noch F6. Alles Abgeschlossene mit
+**Der Worker-Umbau ist durch — übrig ist nur noch die Sync-Rückmeldung.** A11y, PWA,
+Datenschutz, Recht, Marketing und der komplette Kleinkram-Block sind zu; aus der
+Performance-Reihe ist F6 zur Hälfte erledigt. Alles Abgeschlossene mit
 Belegstellen steht in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
 
-### 1.1 F6 — Cloud-Sync-Krypto in einen Web Worker · `js/cloud-sync.js`
+### 1.1 F6 — Krypto-Worker · ✅ erledigt 2026-08-21
 
-Der einzige verbliebene Posten mit echtem Aufwand. Verifiziert 2026-08-16: **kein `Worker` in
-der Datei**, AES-GCM läuft weiterhin im Main-Thread, und der komplette Blob wird bei jedem Sync
-übertragen.
+Gebaut in `185b354` (Worker + 13 Prüfungen), **verdrahtet in `39cf8b1`**. `_encrypt` und
+`_decryptCt` in [`js/cloud-sync.js`](../js/cloud-sync.js) laufen über
+[`js/crypto-worker.js`](../js/crypto-worker.js), mit Inline-Fallback wenn kein `Worker` verfügbar ist.
 
-Das ist die einzige Stelle, die mit dem Produkt aus *Änderungshäufigkeit × Gesamtbestand* wächst
-— bei kleinen Beständen unauffällig, bei einem Reseller mit Jahren an Lagerdaten spürbar.
+> **Die Erfolgsprognose war zu optimistisch.** Angekündigt waren 62 % weniger Blockade, gemessen
+> durch die fertige Funktion sind es **rund 38 %** (150 ms → 92,5 ms bei 10,27 MB Klartext). Die
+> alte Zahl mass die Krypto-Kette allein; `JSON.stringify` (35,9 ms) und der Klon zum Worker
+> (4,3 ms) bleiben zwangsläufig im Main-Thread. Vollständige Herleitung inkl. der nicht sauber
+> zugeordneten Restzeit: [`f6-worker-einbau-2026-08-18.md`](f6-worker-einbau-2026-08-18.md).
+>
+> Der Gewinn liegt weniger in der Summe als darin, **dass der Thread überhaupt wieder
+> zwischendurch drankommt** — 7 statt 1 Herzschlag. Ein Dauerfreeze von 150 ms ist für den
+> Nutzer etwas anderes als zwei kürzere Blöcke.
 
-**Keinen Delta-Sync bauen** — Begründung in [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md).
-Stattdessen Ver-/Entschlüsselung in einen Worker auslagern und sichtbare Rückmeldung geben; der
-Nutzer sieht heute nicht, dass überhaupt etwas läuft.
-
-Aufwand: ~2–3 h.
-
-> ⛔ **Am 2026-08-16 nicht angefasst, weil die Datei gehalten wurde.** `js/cloud-sync.js` hatte an
-> dem Tag ~91 uncommittete Zeilen einer parallelen Session (Registry-Abgleich vor dem Sync,
-> `_refreshSwitcher`) — genau in den Funktionen, die der Worker-Umbau anfasst. **Vor dem Start
-> `git status -- js/cloud-sync.js` prüfen**; ist die Datei nicht sauber, erst abstimmen.
+**Offen geblieben ist die zweite Hälfte von F6:** die *sichtbare Rückmeldung* während des Syncs.
+`_setDot` kennt weiterhin nur `sync` / `ok` / Fehler; ein Fortschritt pro Scope („Firma 2 von 3")
+fehlt. Unabhängig vom Worker, klein, jederzeit greifbar — **das ist jetzt der einzige Code-Punkt
+in diesem Abschnitt.**
 
 ---
 

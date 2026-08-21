@@ -8,7 +8,12 @@ var Produkte = (function() {
         html += '</div></div>';
 
         if (products.length === 0) {
-            html += '<div class="empty-state">Noch keine Produkte oder Leistungen angelegt.</div>';
+            // Fund U7: sagen, wofuer der Bestand gut ist, nicht nur dass er leer ist.
+            html += '<div class="empty-state">Noch keine Produkte oder Leistungen angelegt.<br>'
+                  + 'Hinterlege wiederkehrende Positionen einmal mit Preis, Einheit und '
+                  + 'Steuersatz — danach genügt beim Schreiben einer Rechnung die Auswahl.<br>'
+                  + '<button class="btn btn-primary btn-small" id="prodNewEmpty" style="margin-top:12px;">'
+                  + '<i class="ti ti-plus"></i> Erstes Produkt anlegen</button></div>';
             return html;
         }
 
@@ -90,6 +95,10 @@ var Produkte = (function() {
     function init() {
         var newBtn = document.getElementById('prodNew');
         if (newBtn) newBtn.addEventListener('click', function() { showProductForm(null); });
+
+        // CTA aus dem Leerzustand — s. rechnungen/js/kunden.js zur eigenen ID.
+        var newBtnEmpty = document.getElementById('prodNewEmpty');
+        if (newBtnEmpty) newBtnEmpty.addEventListener('click', function() { showProductForm(null); });
 
         document.querySelectorAll('.prod-edit').forEach(function(btn) {
             btn.addEventListener('click', function() {

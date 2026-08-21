@@ -55,12 +55,25 @@ var Kunden = (function() {
         html += '<button class="btn btn-primary" id="kundeNew">+ Neuer Kunde</button>';
         html += '</div></div>';
 
+        // Fund U7: leerer Bestand ist etwas anderes als ein leeres Filterergebnis.
+        // Wer alle Kunden archiviert hat, sieht sonst "noch keine angelegt" und sucht
+        // den Fehler bei sich.
+        var gesamtBestand = customers.length;
         if (!_showArchived) {
             customers = customers.filter(function(c) { return !c.archiviert && !c.storniert; });
         }
 
         if (customers.length === 0) {
-            html += '<div class="empty-state">Noch keine Kunden angelegt.</div>';
+            if (gesamtBestand > 0) {
+                html += '<div class="empty-state">Alle vorhandenen Kunden sind archiviert.<br>'
+                      + 'Blende sie über <strong>Archivierte anzeigen</strong> oben rechts wieder ein.</div>';
+            } else {
+                html += '<div class="empty-state">Noch keine Kunden angelegt.<br>'
+                      + 'Einmal erfasst, stehen Anschrift und USt-IdNr. bei jeder weiteren Rechnung '
+                      + 'automatisch bereit — beides ist Pflichtangabe nach §14 Abs. 4 UStG.<br>'
+                      + '<button class="btn btn-primary btn-small" id="kundeNewEmpty" style="margin-top:12px;">'
+                      + '<i class="ti ti-plus"></i> Ersten Kunden anlegen</button></div>';
+            }
             return html;
         }
 
@@ -241,6 +254,11 @@ var Kunden = (function() {
 
         var newBtn = document.getElementById('kundeNew');
         if (newBtn) newBtn.addEventListener('click', function() { showCustomerForm(null); });
+
+        // CTA aus dem Leerzustand — eigene ID, weil zwei Elemente mit derselben ID
+        // nur beim ersten getElementById ankommen.
+        var newBtnEmpty = document.getElementById('kundeNewEmpty');
+        if (newBtnEmpty) newBtnEmpty.addEventListener('click', function() { showCustomerForm(null); });
 
         document.querySelectorAll('.kunde-row').forEach(function(row) {
             row.addEventListener('click', function(e) {

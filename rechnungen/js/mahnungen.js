@@ -109,7 +109,16 @@ var Mahnungen = (function() {
         html += '</div>';
 
         if (overdue.length === 0) {
-            html += '<div class="empty-state">Keine \u00FCberf\u00E4lligen Rechnungen vorhanden.</div>';
+            // Fund U7: hier waere ein Anlegen-CTA falsch — nichts Ueberfaelliges ist der
+            // Wunschzustand, keine offene Aufgabe. Unterschieden wird trotzdem, ob es
+            // ueberhaupt Rechnungen gibt: sonst liest der Erstnutzer das als Fehler.
+            var hatRechnungen = invoices.some(function(i) { return i.typ === 'rechnung' && !i._storniert; });
+            html += hatRechnungen
+                ? '<div class="empty-state">Keine überfälligen Rechnungen — alles im Rahmen.<br>'
+                  + 'Sobald eine Rechnung ihr Fälligkeitsdatum überschreitet, erscheint sie hier '
+                  + 'samt Verzugszinsen und Mahnstufe.</div>'
+                : '<div class="empty-state">Noch keine Rechnungen vorhanden — entsprechend gibt es nichts anzumahnen.<br>'
+                  + 'Dieses Modul überwacht später selbsttätig die Fälligkeiten deiner Rechnungen.</div>';
             return html;
         }
 

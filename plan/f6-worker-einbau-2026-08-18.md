@@ -1,9 +1,12 @@
-# F6 — Krypto-Worker: gebaut, Einbau steht aus (2026-08-18)
+# F6 — Krypto-Worker: gebaut (2026-08-18), verdrahtet (2026-08-21)
 
 **Fertig und committet:** [`js/crypto-worker.js`](../js/crypto-worker.js) + 13 Prüfungen in
 [`test/test-crypto-worker.js`](../test/test-crypto-worker.js).
-**Offen:** die Verdrahtung in `js/cloud-sync.js` — die Datei wurde von einer parallelen Session
-gehalten (Firmenumschalter-Fix, 91 uncommittete Zeilen). Deshalb liegt der Einbau hier statt im Code.
+
+> ✅ **Die Verdrahtung ist am 2026-08-21 erfolgt**, sobald `js/cloud-sync.js` frei war — wie
+> unten beschrieben, inklusive Inline-Fallback und erhaltener Fehlerklassifizierung. Die
+> Anleitung bleibt als Begründung stehen; **die Erfolgsprognose unten ist aber zu optimistisch,
+> siehe „Nachgemessen nach dem Einbau".**
 
 ---
 
@@ -77,3 +80,47 @@ Der Aufgabenpunkt verlangt neben dem Worker **sichtbare Rückmeldung**: heute si
 nicht, dass überhaupt etwas läuft. Der Sync-Punkt in der Topnav existiert (`_setDot`), kennt aber
 nur `sync` / `ok` / Fehler. Sinnvoll wäre bei mehreren MB ein Fortschritt pro Scope
 („Firma 2 von 3"). Das ist unabhängig vom Worker und kann auch vorher gebaut werden.
+
+---
+
+## Nachgemessen nach dem Einbau (2026-08-21)
+
+Die A/B-Zahl oben (143,8 ms → 54,3 ms, **62 %**) stammt aus einer Messung der *Krypto-Kette
+allein*. Durch die fertige `_encrypt`-Funktion gemessen — also inklusive allem, was zwangsläufig
+im Main-Thread bleibt — fällt der Gewinn kleiner aus:
+
+| Weg | Median längste Blockade | Erreichbarkeit des Main-Threads |
+|---|---|---|
+| Inline (ohne Worker) | **150 ms** | 1 Herzschlag — Thread durchgehend eingefroren |
+| Mit Worker | **92,5 ms** | 7 Herzschläge — Thread zwischendurch bedienbar |
+
+Edge/Chromium, 20.000 Artikel / 10,27 MB Klartext, Median aus 5 Läufen nach 2 Warmläufen,
+gemessen über `CloudSync._test.encrypt`.
+
+**Also rund 38 % weniger Blockade, nicht 62 %.** Der Unterschied ist kein Fehler der alten
+Messung, sondern ihr Zuschnitt: sie ließ weg, was nicht auslagerbar ist.
+
+Davon ist belegt unvermeidbar:
+
+- `JSON.stringify` **35,9 ms** — muss im Main-Thread laufen, dort liegen die Daten.
+- Strukturierter Klon des Strings zum Worker **4,3 ms**.
+
+Das erklärt ~40 ms der verbliebenen 92,5 ms. Der Rest ist **nicht sauber zugeordnet**; der
+wahrscheinlichste Posten ist der Rückweg: der Worker liefert das base64-Chiffrat als ~13,7 MB
+großen String zurück, und **Strings sind nicht transferierbar** — dieser Klon kostet
+Main-Thread-Zeit und lässt sich mit diesem Zuschnitt nicht vermeiden. Wer das genauer wissen
+will, muss den Rückweg einzeln vermessen; ein Messversuch mit einem `blob:`-Worker scheitert
+dabei an der CSP (`worker-src` fällt auf `script-src 'self'` zurück — das ist korrekt so).
+
+**Trotzdem ein echter Gewinn:** entscheidend ist nicht nur die Summe, sondern dass der Thread
+überhaupt wieder zwischendurch drankommt (7 statt 1 Herzschlag). Ein durchgehender Freeze von
+150 ms ist für den Nutzer etwas anderes als zwei kürzere Blöcke.
+
+> Auf einem schwachen Android-Gerät liegen beide Werte grob 3–5× höher; der absolute Gewinn
+> wächst entsprechend mit.
+
+## Was von F6 noch offen ist
+
+Die **sichtbare Rückmeldung** (Abschnitt oben, „Die zweite Hälfte von F6") ist **nicht** gebaut.
+`_setDot` kennt weiterhin nur `sync` / `ok` / Fehler, einen Fortschritt pro Scope gibt es nicht.
+Das ist unabhängig vom Worker und kann jederzeit nachgezogen werden.

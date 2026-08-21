@@ -252,11 +252,86 @@ var CloudSync = (function () {
     // eingeführt; jeder Push eines Scopes schreibt das Chiffrat mit AAD neu. Vier Monate sind
     // reichlich für ein Gerät, das lange nicht synchronisiert hat — danach ist ein Blob ohne AAD
     // kein Migrationsfall mehr, sondern ein Verdachtsfall.
-    // NACH diesem Datum: diesen Block und den Fallback in _decryptCt ersatzlos entfernen.
+    // NACH diesem Datum ersatzlos entfernen: diesen Block, die Variable allowNoAad in
+    // _decryptCt UND den catch-Zweig darunter. allowNoAad wird an den Krypto-Worker
+    // durchgereicht (js/crypto-worker.js) — faellt sie weg, entfaellt dort automatisch
+    // auch der Umweg, der Worker selbst kennt kein Datum.
     var AAD_FALLBACK_UNTIL = Date.parse('2026-12-01T00:00:00Z');
     function _aad(ownerId, scope) {
         return new TextEncoder().encode(String(ownerId || '') + '|' + String(scope || '') + '|' + AAD_VERSION);
     }
+    // ── Krypto-Worker (Fund F6) ─────────────────────────────────────────────────
+    // Gemessen ist AES-GCM nur 18-25 % der Blockierzeit; TextEncoder und base64 sind
+    // zusammen der groessere Posten. Deshalb wandert der ganze Block in den Worker und
+    // nicht nur crypto.subtle. Messreihe und A/B: plan/f6-worker-einbau-2026-08-18.md.
+    //
+    // Der Schluessel geht als CryptoKey hinueber, nicht als Rohbytes: strukturiert
+    // klonbar und dabei nicht-extrahierbar, der Worker sieht die Bytes nie (Fund R5).
+    //
+    // Lazy: die meisten Sitzungen synchronisieren nie, ein Worker beim Laden waere
+    // reine Verschwendung. Scheitert der Worker (alter Browser, blockierende
+    // Erweiterung), wird er einmal als kaputt markiert und ab da laeuft der bisherige
+    // Inline-Pfad — der bleibt deshalb vollstaendig erhalten und wird nur umgangen.
+    var _cw = null, _cwBroken = false, _cwSeq = 0, _cwPending = null;
+
+    function _cwFail() {
+        _cwBroken = true;
+        if (_cwPending) {
+            _cwPending.forEach(function (p) { p.reject(new Error('worker_unavailable')); });
+            _cwPending = null;
+        }
+        try { if (_cw) _cw.terminate(); } catch (e) {}
+        _cw = null;
+    }
+
+    function _cryptoWorker() {
+        if (_cwBroken) return null;
+        if (_cw) return _cw;
+        if (typeof Worker === 'undefined') { _cwBroken = true; return null; }
+        try {
+            // Absoluter Pfad: cloud-sync.js laeuft auch aus /lager/, /rechnungen/,
+            // /eigenbelege/. CSP braucht nichts Zusaetzliches — worker-src ist nirgends
+            // gesetzt, es greift default-src 'self', und das hier ist dieselbe Herkunft.
+            _cw = new Worker('/js/crypto-worker.js');
+            _cwPending = new Map();
+            _cw.onmessage = function (ev) {
+                var d = ev.data || {};
+                var pend = _cwPending && _cwPending.get(d.id);
+                if (!pend) return;
+                _cwPending.delete(d.id);
+                // Der Worker meldet Fehler als { ok:false, error }. Daraus wieder einen
+                // echten Error mit DERSELBEN message machen, sonst verliert
+                // _classifyDecryptError die Unterscheidung "Schluessel passt nicht" vs.
+                // "Chiffrat nicht ladbar" — genau der Bug hinter der Meldung "Code falsch".
+                if (d.ok) pend.resolve(d);
+                else pend.reject(new Error(d.error || 'worker_error'));
+            };
+            _cw.onerror = function () { _cwFail(); };
+        } catch (e) { _cwFail(); return null; }
+        return _cw;
+    }
+
+    function _cwCall(msg) {
+        var w = _cryptoWorker();
+        if (!w) return Promise.reject(new Error('worker_unavailable'));
+        return new Promise(function (resolve, reject) {
+            msg.id = ++_cwSeq;
+            _cwPending.set(msg.id, { resolve: resolve, reject: reject });
+            try {
+                w.postMessage(msg);
+            } catch (e) {
+                if (_cwPending) _cwPending.delete(msg.id);
+                _cwFail();
+                reject(new Error('worker_unavailable'));
+            }
+        });
+    }
+
+    // Nur Infrastrukturversagen rechtfertigt den Inline-Fallback. Ein echter
+    // Krypto-Fehler (falscher Schluessel) muss durchgereicht werden — sonst rechnet
+    // die App bei jedem Fehlversuch alles ein zweites Mal und meldet dasselbe.
+    function _cwUnavailable(e) { return !!e && e.message === 'worker_unavailable'; }
+
     function _importKey(bytes) {
         return crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
     }
@@ -280,9 +355,20 @@ var CloudSync = (function () {
     }
     async function _encrypt(obj, scope, ownerId) {
         var key = await _cryptoKey();
+        var aad = _aad(ownerId || _userId(), scope);
+        // JSON.stringify bleibt hier: der String muss dort entstehen, wo die Daten liegen.
+        // Alles danach (TextEncoder, AES-GCM, base64) macht der Worker.
+        var json = JSON.stringify(obj);
+        try {
+            var r = await _cwCall({ op: 'encrypt', json: json, key: key, aad: aad });
+            return { ct: r.ct, iv: r.iv };
+        } catch (e) {
+            if (!_cwUnavailable(e)) throw e;
+        }
+        // Fallback ohne Worker — unveraenderter Pfad von vor F6.
         var iv  = crypto.getRandomValues(new Uint8Array(12));
-        var pt  = new TextEncoder().encode(JSON.stringify(obj));
-        var ct  = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: _aad(ownerId || _userId(), scope) }, key, pt);
+        var pt  = new TextEncoder().encode(json);
+        var ct  = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: aad }, key, pt);
         return { ct: _b64(new Uint8Array(ct)), iv: _b64(iv) };
     }
     // Chiffrat-Beschaffung getrennt von der Entschlüsselung: nur so lässt sich sauber
@@ -298,10 +384,26 @@ var CloudSync = (function () {
     }
     async function _decryptCt(ct, ivB64, scope, ownerId, overrideBytes) {
         var key = overrideBytes ? await _importKey(overrideBytes) : await _cryptoKey();
+        var aad = _aad(ownerId || _userId(), scope);
+        // Ob der Migrations-Fallback ueberhaupt erlaubt ist, entscheidet AUSSCHLIESSLICH
+        // der Aufrufer. Der Worker kennt kein Datum und soll keines kennen (Fund R7).
+        var allowNoAad = Date.now() <= AAD_FALLBACK_UNTIL;
+        var json = null;
+        try {
+            // Der Worker liefert den Klartext-STRING zurueck; JSON.parse bleibt hier.
+            // Ein grosser Objektgraph durch den strukturierten Klon kostet ungefaehr so
+            // viel wie das Parsen selbst — der Gewinn waere sonst wieder weg.
+            json = (await _cwCall({ op: 'decrypt', ct: ct, iv: ivB64, key: key, aad: aad, allowNoAad: allowNoAad })).json;
+        } catch (e) {
+            if (!_cwUnavailable(e)) throw e;
+        }
+        if (json !== null) return JSON.parse(json);
+
+        // Fallback ohne Worker — unveraenderter Pfad von vor F6.
         var iv  = _unb64(ivB64);
         var pt;
         try {
-            pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv, additionalData: _aad(ownerId || _userId(), scope) }, key, ct);
+            pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv, additionalData: aad }, key, ct);
         } catch (e) {
             // Migrations-Fallback: Chiffrat von vor der AAD-Einführung hat keine additionalData.
             // Nächster Push dieses Scopes verschlüsselt automatisch wieder mit AAD (selbstheilend).
@@ -313,7 +415,7 @@ var CloudSync = (function () {
             // schieben, und der Client nähme ihn still an. Deshalb ein hartes Ablaufdatum:
             // ab dann gibt es kein Alt-Chiffrat mehr, das nicht längst neu geschrieben wurde
             // (jeder Push erneuert es), und der Umweg fällt weg statt jahrelang offen zu stehen.
-            if (Date.now() > AAD_FALLBACK_UNTIL) throw e;
+            if (!allowNoAad) throw e;
             pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, ct);
         }
         return JSON.parse(new TextDecoder().decode(pt));
@@ -1724,7 +1826,10 @@ var CloudSync = (function () {
         _test: { mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, merge: _merge, toB32: _toB32, fromB32: _fromB32,
             loadPendingDeletions: _loadPendingDeletions, queuePendingDeletion: _queuePendingDeletion,
             probeKey: _probeKey, classifyDecryptError: _classifyDecryptError,
-            hasMismatch: _hasMismatch, setMismatch: _setMismatch, encrypt: _encrypt, b64: _b64 }
+            hasMismatch: _hasMismatch, setMismatch: _setMismatch, encrypt: _encrypt, b64: _b64,
+            // Seit F6: decryptCt fuer den Rundlauf-Test Worker <-> Inline-Fallback,
+            // cwState um im Browser zu belegen, welcher der beiden Wege gelaufen ist.
+            decryptCt: _decryptCt, cwState: function () { return { aktiv: !!_cw, kaputt: _cwBroken }; } }
     };
 })();
 if (typeof window !== 'undefined') window.CloudSync = CloudSync;

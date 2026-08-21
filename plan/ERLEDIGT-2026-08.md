@@ -177,8 +177,8 @@ Offen aus diesem Block: nur noch **F6** (Krypto-Worker), siehe [`01-AUFGABEN.md`
   das globale `table{}` fing sie ab. Jetzt definiert in [`css/style.css:2988`](../css/style.css)
   — sie nimmt `th{cursor:pointer}` zurück, weil diese Tabellen nicht sortierbar sind.
 
-- **U7 — Leerzustände** · 2026-08-16 (`20c5d48`, `976a366`). 24 Leerzustände, nur einer mit
-  Handlungsaufforderung.
+- **U7 — Leerzustände** · 2026-08-16 (`20c5d48`, `976a366`), abgeschlossen 2026-08-21 (`947f547`).
+  24 Leerzustände, nur einer mit Handlungsaufforderung.
 
   > **Der eigentliche Fund war nicht „überall einen Button hinsetzen":** Ein **leerer Bestand**
   > ist etwas anderes als ein **leeres Suchergebnis**. Der Erstnutzer liest „Keine … vorhanden"
@@ -187,7 +187,15 @@ Offen aus diesem Block: nur noch **F6** (Krypto-Worker), siehe [`01-AUFGABEN.md`
   > [`js/bank-import.js:443`](../js/bank-import.js) sagt weiterhin „Keine Buchungen **gefunden**",
   > und das ist dort **richtig**: es beschreibt tatsächlich ein leeres Filterergebnis.
 
-**Dieser Block ist vollständig zu.**
+  > **Nachtrag 2026-08-21 (`947f547`):** Der Block galt seit dem 16.08. als zu, war es aber
+  > nicht — im Rechnungsmodul standen `kunden.js`, `produkte.js` und `mahnungen.js` noch auf
+  > einem nackten Satz. Gefunden durch Nachzählen im Code (`grep empty-state`), nicht durch
+  > die Liste. Bei den Kunden war es sogar der Fehler, den der Fund selbst beschreibt: wer
+  > alle Kunden archiviert hatte, bekam „Noch keine Kunden angelegt" zu sehen. Bei den
+  > Mahnungen wäre ein CTA falsch gewesen — nichts Überfälliges ist der Wunschzustand, keine
+  > offene Aufgabe; unterschieden wird dort nur, ob überhaupt Rechnungen existieren.
+
+**Dieser Block ist jetzt vollständig zu.**
 
 ---
 

@@ -210,6 +210,44 @@ const asyncTests = (async () => {
     pass++; console.log('✓ Fix: enableFlow erzeugt nie einen zweiten Schlüssel');
 })();
 
+// -- Sync-Punkt: laufender Sync muss vom Ruhezustand unterscheidbar sein ----------
+// Bis 2026-08-21 benutzten die Zustaende 'sync' und 'ok' dasselbe Icon in derselben
+// Farbe; der Unterschied stand nur im title-Attribut und war damit nur beim Hovern
+// zu sehen. Der Test nagelt die EIGENSCHAFT fest (die beiden muessen sich optisch
+// unterscheiden), nicht ein bestimmtes Icon - welches Icon es ist, darf sich aendern.
+(function () {
+    const fs = require('fs'), path = require('path');
+    const quelle = fs.readFileSync(path.join(__dirname, '..', 'js', 'cloud-sync.js'), 'utf8');
+    // Bewusst ohne regulaeren Ausdruck: die Map-Zeile wird als Text gesucht. Das ist hier
+    // lesbarer und unempfindlich gegen Escaping-Fehler.
+    const zeile = (name) => {
+        const marke = name + ':';
+        const treffer = quelle.split(String.fromCharCode(10))
+            .map((z) => z.trim())
+            .filter((z) => z.indexOf(marke) === 0 && z.indexOf('[') > 0);
+        assert.ok(treffer.length, 'Zustand ' + name + ' in der _setDot-Map nicht gefunden');
+        return treffer[0];
+    };
+    const icon = (z) => {
+        const i = z.indexOf('ti ti-');
+        if (i === -1) return '';
+        const rest = z.slice(i);
+        return rest.slice(0, rest.indexOf('"'));
+    };
+    const iSync = icon(zeile('sync')), iOk = icon(zeile('ok'));
+    assert.ok(iSync && iOk, 'beide Zustaende tragen ein Icon');
+    assert.notStrictEqual(iSync, iOk,
+        'laufender Sync und Ruhezustand duerfen nicht dasselbe Icon benutzen');
+    pass++; console.log('✓ Sync-Punkt: laufender Sync ist ohne Hovern erkennbar');
+
+    // Die Drehung ist die Zugabe, nicht der Traeger: unter prefers-reduced-motion steht sie
+    // still (globale Regel in css/style.css), dann muss der Icon-Wechsel allein reichen.
+    const css = fs.readFileSync(path.join(__dirname, '..', 'css', 'style.css'), 'utf8');
+    assert.ok(css.indexOf('#cloudSyncDot.is-syncing') !== -1, 'is-syncing-Regel fehlt in css/style.css');
+    assert.ok(css.indexOf('prefers-reduced-motion') !== -1, 'globale reduced-motion-Regel fehlt');
+    pass++; console.log('✓ Sync-Punkt: Drehung vorhanden und durch reduced-motion abgedeckt');
+})();
+
 asyncTests.then(() => {
-    console.log('\n' + pass + '/10 Tests bestanden ✅');
+    console.log('\n' + pass + '/12 Tests bestanden ✅');
 }).catch(e => { console.error('✗ FAIL', e); process.exit(1); });

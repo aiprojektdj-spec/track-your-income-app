@@ -757,11 +757,18 @@ var CloudSync = (function () {
             retryPendingDeletions().catch(function (e) { console.warn('[CloudSync] retryPendingDeletions:', e && e.message); }); // fire-and-forget, blockiert den Sync nicht
             var regBefore = '';
             try { regBefore = localStorage.getItem('oyi_companies') || ''; } catch (e) {}
+            // Fortschritt im Tooltip mitfuehren: bei mehreren Firmen und grossen Bestaenden
+            // dauert ein Lauf spuerbar, und der Nutzer sah bisher nur einen unveraenderten Punkt.
+            _setDot('sync', '(Stammdaten)');
             await _syncScope('__account', isStartup);   // zuerst Registry → Firmen-IDs angleichen
             var companies = (typeof CompanyManager !== 'undefined') ? CompanyManager.getAll() : [];
-            for (var i = 0; i < companies.length; i++) {
-                // Read-only-Mandanten (Steuerberater-Ansicht) NIE hochladen
-                if (companies[i] && companies[i].id && !companies[i]._readonly) await _syncScope(companies[i].id, isStartup);
+            // Read-only-Mandanten (Steuerberater-Ansicht) NIE hochladen — sie zaehlen auch
+            // nicht mit, sonst stimmt die Anzeige "x von y" nicht.
+            var zuSyncen = companies.filter(function (c) { return c && c.id && !c._readonly; });
+            for (var i = 0; i < zuSyncen.length; i++) {
+                var name = (zuSyncen[i].name || '').trim();
+                _setDot('sync', '(' + (name ? name + ', ' : '') + (i + 1) + ' von ' + zuSyncen.length + ')');
+                await _syncScope(zuSyncen[i].id, isStartup);
             }
             _refreshSwitcher(regBefore);
             _setDot('ok');
@@ -828,14 +835,18 @@ var CloudSync = (function () {
     }
 
     // ── Status-Punkt (wiederverwendet #cloudSyncDot) ──────────────────────────
-    function _setDot(state) {
+    // detail: optionaler Zusatz fuer den Tooltip waehrend eines Laufs, z.B. "Firma 2 von 3".
+    // Bis 2026-08-21 sahen 'sync' und 'ok' identisch aus (gleiches Icon, gleiche Farbe) — der
+    // Unterschied stand nur im title-Attribut, war also nur beim Hovern zu sehen. Deshalb
+    // bekommt der laufende Sync jetzt ein eigenes Icon plus Drehung (CSS: #cloudSyncDot.is-syncing).
+    function _setDot(state, detail) {
         var el = document.getElementById('cloudSyncDot');
         if (!el) return;
         el.style.cursor = 'pointer';
         el.onclick = (state === 'warn') ? openConflicts : openPanel;
         var map = {
             off:  ['<i class="ti ti-cloud"></i>', 'var(--text-muted,#888)',    'Cloud-Sync aus — klicken zum Aktivieren'],
-            sync: ['<i class="ti ti-cloud"></i>', 'var(--accent,#10b981)',     'Synchronisiere…'],
+            sync: ['<i class="ti ti-refresh"></i>', 'var(--accent,#10b981)',   'Synchronisiere…'],
             ok:   ['<i class="ti ti-cloud"></i>', 'var(--accent,#10b981)',     'Cloud-Sync aktiv'],
             warn: ['<i class="ti ti-cloud-exclamation"></i>', '#f59e0b',       'Sync-Konflikte offen — klicken zum Lösen'],
             err:  ['<i class="ti ti-cloud-exclamation"></i>', '#f59e0b',       'Cloud-Sync-Fehler — klicken für Details'],
@@ -844,7 +855,10 @@ var CloudSync = (function () {
             broken: ['<i class="ti ti-cloud-off"></i>', 'var(--danger,#ef4444)', 'Cloud-Sync gestoppt (Schlüssel passt nicht) — klicken zum Beheben']
         };
         var s = map[state] || map.off;
-        el.innerHTML = s[0]; el.style.color = s[1]; el.title = s[2];
+        el.innerHTML = s[0];
+        el.style.color = s[1];
+        el.title = s[2] + (detail ? ' ' + detail : '');
+        el.classList.toggle('is-syncing', state === 'sync');
     }
 
     // Gedrosselte Fehlermeldung: höchstens einmal pro Tag, und nie wenn das Gerät ohnehin
@@ -1829,7 +1843,11 @@ var CloudSync = (function () {
             hasMismatch: _hasMismatch, setMismatch: _setMismatch, encrypt: _encrypt, b64: _b64,
             // Seit F6: decryptCt fuer den Rundlauf-Test Worker <-> Inline-Fallback,
             // cwState um im Browser zu belegen, welcher der beiden Wege gelaufen ist.
-            decryptCt: _decryptCt, cwState: function () { return { aktiv: !!_cw, kaputt: _cwBroken }; } }
+            decryptCt: _decryptCt, cwState: function () { return { aktiv: !!_cw, kaputt: _cwBroken }; },
+            // Seit der Sync-Rueckmeldung: setDot, um Icon, Farbe, Tooltip und die
+            // is-syncing-Klasse im Browser pruefen zu koennen, ohne einen echten Lauf
+            // ausloesen zu muessen (der braeuchte Login, Netz und fremde Daten).
+            setDot: _setDot }
     };
 })();
 if (typeof window !== 'undefined') window.CloudSync = CloudSync;

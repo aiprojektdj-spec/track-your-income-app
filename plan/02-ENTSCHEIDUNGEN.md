@@ -135,14 +135,28 @@ Lager-Modul und trifft quer durch alle Formen. Die drei Personas auf der Landing
 **Zeiterfassung wird nicht gebaut** — eigenes Produktfeld mit guten Speziallösungen, die Energie
 gehört zu Reseller und GbR.
 
-### Die Modulzahl ist 28 — festgelegt 2026-08-21
+### Die Zahl ist 29 — und sie heißt „Bereiche", nicht „Module" (2026-08-21)
 
-Am Code belegbar als `App.pages` ohne das Dashboard; deckt sich mit dem Feature-Gap-Audit.
-Zum Vergleich: 6 Topnav-Oberbereiche, 17 Sidebar-Menüpunkte, 3 eigenständige Sub-Apps.
-Die vorherige Angabe „12 Module" war aus nichts ableitbar und hat die App unter Wert verkauft.
+**Ersetzt die Festlegung auf 28 vom selben Tag.** Beide Zahlen sind am Code belegbar, der
+Unterschied ist genau das Dashboard: `App.pages` registriert **29** Einträge, 28 davon ohne das
+Dashboard. Der Betreiber hat sich für „alles zählen" entschieden — ein Dashboard ist unstrittig
+ein *Bereich*, auch wenn man streiten kann, ob es ein *Modul* ist. Damit entfällt die
+Definitionsfrage, und die Zahl ist direkt aus `App.pages` nachzählbar.
 
-> **Nicht verwechseln:** die Akademie wirbt mit „9 Module, 31+ Lektionen" — das sind
-> *Lernmodule*, nicht Funktionsbereiche. Beide Zahlen stehen auf derselben Seite.
+Der zweite Teil der Entscheidung ist der wichtigere: **das Wort wechselt von „Module" auf
+„Bereiche".** Grund ist eine Verwechslung, die die 28er-Eintragung selbst schon notiert hatte:
+die Akademie wirbt auf derselben Seite mit „9 Module, 31+ Lektionen" — das sind *Lernmodule*,
+nicht Funktionsbereiche. Zwei verschiedene Dinge hießen gleich und standen zwei Bildschirme
+auseinander. Jetzt heißt das eine „Bereiche", das andere bleibt „Module".
+
+Zum Vergleich, alles am 2026-08-21 ausgezählt: 29 Einträge in `App.pages`, davon rund sechs an
+die Rechtsform gebunden und für ein Einzelunternehmen unsichtbar (Körperschaftsteuer, Bilanz,
+Lohnsteuer, Gewerbesteuer, GbR …) · 17 Sidebar-Menüpunkte · 6 Topnav-Oberbereiche ·
+3 eigenständige Sub-Apps.
+
+Die ursprüngliche Angabe „12 Module" war aus nichts ableitbar und hat die App unter Wert
+verkauft. Umgesetzt an allen vier Stellen der Landingpage in `7635b2f`; im Browser gegengeprüft,
+dass die einzige verbliebene Modulzahl die 9 der Akademie ist.
 
 ### OCR wird zurückgestellt — Auslöser sind Trustpilot-Bewertungen (2026-08-16)
 
@@ -171,7 +185,7 @@ gewinnt der erste.
 Anwaltsprüfung wartet. Eine Widerrufsklausel, die nicht trägt, ist bei einem Trial-Modell der
 teuerste Fehler — nicht vor der Freigabe anfassen.
 
-**Warum kein Read-only-Tier:** Ein zweiter Berechtigungszustand, den jedes der 28 Module kennen
+**Warum kein Read-only-Tier:** Ein zweiter Berechtigungszustand, den jeder der 29 Bereiche kennen
 muss. Bauaufwand in der Breite für eine unbelegte Annahme.
 
 **Warum die Demo:** Sie existiert, ist echt (Dashboard, Buchungen, EÜR, GoBD-Protokoll) und
@@ -381,5 +395,5 @@ ELSTER-Direktübermittlung gescheitert sind.
 |---|---|---|
 | „GoBD-zertifiziert" | „GoBD-konform umgesetzt" | Kein IDW-PS-880-Testat |
 | „ZUGFeRD" für den Ausgang | „XRechnung" | Es wird Standalone-XML erzeugt, kein PDF/A-3-Hybrid (G5) |
-| Erfundene Nutzerzahlen oder Testimonials | echte Zahlen (28 Module, 200+ Tests) | §5 UWG, und diese Zielgruppe prüft |
+| Erfundene Nutzerzahlen oder Testimonials | echte Zahlen (29 Bereiche, 200+ Tests) | §5 UWG, und diese Zielgruppe prüft |
 | „Alle Daten werden gelöscht" | die tatsächliche Ausnahme benennen | Die Anker-Liste bleibt bewusst erhalten (GoBD-Tamper-Evidence) |

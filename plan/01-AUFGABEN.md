@@ -179,7 +179,7 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
 
 | Frage | Entscheidung | Folge |
 |---|---|---|
-| Modulzahl | **28** | steht viermal korrekt auf der Landing (`065f95c`) |
+| Modulzahl | **29 Bereiche** | an allen vier Stellen der Landing (`7635b2f`); loest zugleich die Verwechslung mit den 9 Akademie-Modulen |
 | Preisstaffel | **ein Preis, keine Staffel** | — |
 | Zielgruppe | **EÜR-Rechtsformen vorn** (Einzelunternehmen, Freiberufler, GbR, eGbR) | — |
 | Zeiterfassung | **wird nicht gebaut** | eigenes Produktfeld |

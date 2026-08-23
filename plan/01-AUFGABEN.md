@@ -1,6 +1,6 @@
 # Was noch zu tun ist
 
-**Stand: 2026-08-16**, jeder Punkt an diesem Tag gegen den Code verifiziert — nicht aus einer
+**Stand: 2026-08-23**, jeder Punkt an diesem Tag gegen den Code verifiziert — nicht aus einer
 Vorgängerliste übernommen.
 
 Einstieg: [`00-STAND.md`](00-STAND.md) · Nicht-zu-Ändern: [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md)
@@ -32,11 +32,40 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Dieser Abschnitt ist leer** — es gibt derzeit keine Code-Aufgabe, die eine Session allein
-greifen könnte. A11y, PWA, Performance, Datenschutz, Recht, Marketing und der komplette
-Kleinkram-Block sind zu; F6 ist seit 2026-08-21 vollständig durch (Worker **und**
-Rückmeldung). Alles Abgeschlossene mit Belegstellen steht in
-[`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
+**Zwei neue Bauaufgaben** aus den Produktentscheidungen vom 2026-08-23 (Begründung jeweils in
+[`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md)). Der Altbestand ist zu: A11y, PWA, Performance,
+Datenschutz, Recht, Marketing und der Kleinkram-Block; F6 ist seit 2026-08-21 vollständig durch
+(Worker **und** Rückmeldung). Belegstellen in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
+
+### 1.0 OCR-Belegerkennung als Browser-OCR · `neu`
+
+**Entschieden 2026-08-23: wird gebaut.** Die letzte Feature-Lücke gegen sevDesk und lexoffice.
+Ausschließlich als **Browser-OCR (Tesseract.js)** — der Beleg verlässt das Gerät nie, das ist der
+Punkt der Übung. **Keine Server-OCR, auch nicht als Fallback.**
+
+Spezifikation inkl. der nötigen CSP-Freigabe liegt fertig vor:
+[`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md) (`9567630`).
+
+> **Vor dem Start klären:** Tesseract.js ist eine **neue Abhängigkeit** — nach Projektregel 6
+> nicht ohne Rückfrage. Bezugsweg und Prüfsumme wie bei SheetJS behandeln: lokal nach
+> `js/vendor/` mit SHA-256 in `VERSIONS.md`, **nie** über npm nachziehen.
+
+Aufwand: mehrere Sitzungen. Erst nach den Live-Tests aus 2.3 sinnvoll — ein neues Feature auf
+ungetestetem Fundament ist die teurere Reihenfolge.
+
+### 1.0b Landing-Demo ausbauen · `index.html`, Abschnitt `#demo`
+
+**Entschieden 2026-08-23** als der Weg, die Einstiegshürde zu senken — statt Kartenpflicht
+abzuschaffen oder einen Read-only-Tier zu bauen.
+
+Die Demo existiert und ist echt (Dashboard, Buchungen, EÜR, GoBD-Protokoll, „kein Video und keine
+Animation"). Ausbaurichtung: mehr Module zeigen, eigene Zahlen eingebbar machen, den Sprung von
+der Demo in den Checkout an der Stelle anbieten, an der der Wert sichtbar wurde.
+
+**Nicht anfassen:** Gate-Logik und Rechtstexte. Der Reiz dieses Wegs ist gerade, dass er beides
+unberührt lässt.
+
+> ⚠️ `index.html` wird häufig von parallelen Sessions gehalten — vorher `git status` prüfen.
 
 ### 1.1 F6 — Krypto-Worker · ✅ erledigt 2026-08-21
 
@@ -119,17 +148,20 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
 > braucht, meldest du dich einmal im Browser-Pane an; die Session bleibt danach erhalten. Ein
 > Dev-Bypass im Code ist ausdrücklich nicht gewünscht.
 
-### 2.4 Produktentscheidungen, die anstehen
+### 2.4 Produktentscheidungen · ✅ alle getroffen (2026-08-23)
 
-| Frage | Hintergrund |
-|---|---|
-| **Modulzahl festlegen** 🔴 | „12 Module" steht **viermal** auf der Landingpage (`index.html:152`, `:288`, `:327`, `:578`), das Feature-Gap-Audit kam auf **28**, im Code stehen 17 `data-page`. M2 ist bewusst ohne diese Zahl gebaut worden — solange sie ungeklärt ist, darf sie nirgends als Beleg dienen. Möglicherweise verkauft sich die Seite unter Wert |
-| **Top-of-Funnel** | Seit Local eingestellt ist, gibt es nur Landing → Checkout **mit Kartenpflicht** — die höchste Hürde im Vergleichsfeld. Empfehlung: **Demo aufwerten** statt Free-Tier bauen. Alternativen: Trial ohne Kartenpflicht, oder Read-only-Tier |
-| **Zielgruppen-Schärfung** | Reseller und GbR haben eigene Module, Freelancer nur den Standard. Empfehlung: Reseller + GbR nach vorn, Freelancer ehrlich als drittes Segment |
-| **Zeiterfassung für Freelancer?** | Null Treffer im Code. Empfehlung: **nicht bauen** — eigenes Produktfeld, gute Speziallösungen vorhanden; Energie in Reseller/GbR |
-| **Preisstaffel?** | Ein Preis für sehr unterschiedliche Intensität. Falls gestaffelt: **nach Firmenanzahl**, nie nach Features (E-Rechnung hinter einen Tarif zu legen ist genau der Lexware-Fehler) |
-| **Steuerberater-Modell** | Der StB-Zugang ist gebaut und kostenlos. Eine Kanzlei mit 40 Mandanten wäre ein eigenes Preismodell wert — zusammen mit dem Grant-Deckel (R4) angehen: erst Leck schließen, dann Preis verlangen |
-| **OCR** | Die einzige verbliebene Lücke, die weder gesetzlich erzwungen noch architekturbedingt blockiert ist. Spezifikation inkl. CSP-Freigabe liegt vor (`9567630`). Als **Browser-OCR** (Tesseract.js) wäre es eine Aussage, die kein Wettbewerber machen kann |
+**Hier steht nichts mehr offen.** Alle sieben Fragen sind entschieden und in
+[`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md) mit Begründung festgehalten:
+
+| Frage | Entscheidung | Folge |
+|---|---|---|
+| Modulzahl | **28** | steht viermal korrekt auf der Landing (`065f95c`) |
+| Preisstaffel | **ein Preis, keine Staffel** | — |
+| Zielgruppe | **EÜR-Rechtsformen vorn** (Einzelunternehmen, Freiberufler, GbR, eGbR) | — |
+| Zeiterfassung | **wird nicht gebaut** | eigenes Produktfeld |
+| Top-of-Funnel | **Demo ausbauen**, Kartenpflicht bleibt | → Aufgabe 1.0b |
+| Steuerberater-Modell | **bleibt kostenlos**, als Vertriebskanal | nichts zu bauen — der R4-Deckel ist längst drin (`MAX_GRANTS`, [`api/sync.js:499`](../api/sync.js)) |
+| OCR | **wird gebaut**, als Browser-OCR | → Aufgabe 1.0 |
 
 ---
 
@@ -154,10 +186,10 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
 | Rang | Aufgabe | Warum | Aufwand |
 |---|---|---|---|
 | 1 | **2.1 ENV-Variablen in Vercel** | Einzige offene Sicherheitslücke, reine Konfiguration | 10 Min |
-| 2 | **Modulzahl festlegen (2.4)** | „12 Module" steht viermal auf der Landingpage, das Feature-Gap-Audit sagt 28 — solange das offen ist, darf die Zahl nirgends als Beleg dienen | 15 Min |
-| 3 | **2.2 Whop-Mails** | Verhindert Rückbuchungen bei der 135-€-Verlängerung | 1 h |
-| 4 | **F6 Krypto-Worker** | Der letzte offene Code-Punkt überhaupt | 2–3 h |
-| 5 | **2.3 Live-Tests** | Sechs Funktionen sind gebaut, aber nie unter echten Bedingungen gelaufen | mehrere Sitzungen |
+| 2 | **2.2 Whop-Mails** | Verhindert Rückbuchungen bei der 135-€-Verlängerung | 1 h |
+| 3 | **2.3 Live-Tests** | Sechs Funktionen sind gebaut, aber nie unter echten Bedingungen gelaufen | mehrere Sitzungen |
+| 4 | **1.0b Landing-Demo ausbauen** | Der gewählte Weg gegen die Einstiegshürde; rührt Gate und Rechtstexte nicht an | mittel |
+| 5 | **1.0 OCR (Browser-OCR)** | Letzte Feature-Lücke — aber erst **nach** den Live-Tests, und die neue Abhängigkeit vorher freigeben lassen | mehrere Sitzungen |
 
-Danach ist Abschnitt 1 leer und das Projekt hängt nur noch an dir (Abschnitt 2) und an Dritten
-(Abschnitt 3).
+Rang 1–3 hängen ausschließlich an dir. Erst danach lohnt sich Bauen: ein neues Feature auf
+ungetestetem Fundament ist die teurere Reihenfolge.

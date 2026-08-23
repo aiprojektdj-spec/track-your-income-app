@@ -279,6 +279,52 @@ sinnvoll (469 von 660 `parseFloat`-Aufrufen sind abgesichert). Das Muster ist ü
 negative Plattformgebühren landen ungeprüft in der EÜR. **Wie bei den Hex-Farben taugt die
 Rohzahl nicht als Kennzahl** — die Triage in der Funddatei ist der Punkt.
 
+### Top-of-Funnel: die Demo wird ausgebaut, die Kartenpflicht bleibt — entschieden 2026-08-23
+
+Seit der Local-Einstellung führt der einzige Weg über Landing → Checkout **mit Kartenpflicht**.
+Drei Wege standen zur Wahl; gewählt ist der **Ausbau der bestehenden interaktiven Demo**
+(`index.html`, Abschnitt `#demo` — Dashboard, Buchungen, EÜR, GoBD-Protokoll).
+
+**Nicht gewählt und warum:**
+
+- **Trial ohne Kartenpflicht** hätte die größte Conversion-Wirkung, verlangt aber eine
+  Whop-Umkonfiguration und eine erneute Prüfung der **§356a-Widerrufsklausel** — die wartet
+  ohnehin auf den Anwalt. Ein Widerrufsrecht, das nicht trägt, ist bei einem Trial-Modell der
+  teuerste Fehler.
+- **Read-only-Tier** wäre ein echter Free-Tier gegen den Wettbewerb, aber der größte Bauaufwand
+  (Gate-Logik, Feature-Flags, Rechtstexte) — und kannibalisiert womöglich das Abo.
+
+Die Demo ist der billigste Hebel: kein Eingriff ins Gate, keine Rechtstext-Änderung, kein
+Missbrauchsrisiko. Sie existiert bereits und ist echt („kein Video und keine Animation").
+
+### Steuerberater-Zugang bleibt kostenlos — entschieden 2026-08-23
+
+Der StB-Zugang wird **nicht bepreist**. Begründung: Steuerberater, die Stackr im Mandat sehen,
+empfehlen es weiter — der Zugang ist ein Vertriebskanal, kein entgangener Umsatz.
+
+**Wichtig, weil in älteren Notizen anders vermerkt:** Der Grant-Deckel aus **R4 ist bereits
+gebaut**. `MAX_GRANTS` steht per Default auf 10 aktive Freigaben je Owner und wird in
+[`api/sync.js:499`](../api/sync.js) mit einem `409 grant_limit` durchgesetzt, anhebbar über
+`SYNC_MAX_GRANTS` ohne Codeänderung. Ein Pro-Abo kann also **nicht** unbegrenzt Gratiszugänge
+erzeugen. Die Kanzlei mit 40 Mandanten ist davon unberührt: der Deckel zählt Freigaben **pro
+Owner**, nicht pro Kanzlei — 40 Mandanten sind 40 Owner mit je einer Freigabe.
+
+Damit ist an dieser Stelle **nichts zu bauen**.
+
+### OCR wird gebaut — als Browser-OCR — entschieden 2026-08-23
+
+Die letzte Feature-Lücke gegen sevDesk und lexoffice, die weder gesetzlich erzwungen noch
+architekturbedingt blockiert ist. Umsetzung ausschließlich als **Browser-OCR (Tesseract.js)**:
+der Beleg verlässt das Gerät nie.
+
+Das ist der Punkt, an dem Local-First vom Zugeständnis zum Verkaufsargument wird — *Belegerkennung,
+bei der der Beleg dein Gerät nie verlässt* kann kein Wettbewerber mit Server-OCR behaupten.
+Spezifikation inklusive der nötigen CSP-Freigabe liegt in
+[`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md) (`9567630`).
+
+**Keine Server-OCR, auch nicht als Fallback** — das bräche dieselbe Zusage, an der PSD2 und
+ELSTER-Direktübermittlung gescheitert sind.
+
 ---
 
 ## Formulierungen, die nicht verwendet werden sollen

@@ -97,8 +97,18 @@ im Main-Thread bleibt — fällt der Gewinn kleiner aus:
 Edge/Chromium, 20.000 Artikel / 10,27 MB Klartext, Median aus 5 Läufen nach 2 Warmläufen,
 gemessen über `CloudSync._test.encrypt`.
 
-**Also rund 38 % weniger Blockade, nicht 62 %.** Der Unterschied ist kein Fehler der alten
-Messung, sondern ihr Zuschnitt: sie ließ weg, was nicht auslagerbar ist.
+**Also rund 38 % weniger Blockade, nicht 62 %.**
+
+> **Richtigstellung in eigener Sache:** Die 62 % waren nicht nur ein anderer Zuschnitt, sondern
+> eine **fehlerhafte Messung** — und zwar meine. `JSON.stringify` steckte in beiden Armen der
+> alten A/B-Messung, das war nicht das Problem. Der Fehler war der **Rückweg**: ich habe die Uhr
+> beim `postMessage` gestoppt und das Promise erst danach abgewartet. Damit fiel der Klon des
+> zurückkommenden Chiffrats aus der Messung heraus, obwohl er Main-Thread-Zeit kostet. Der
+> Worker-Arm war also systematisch zu günstig gerechnet.
+>
+> **Lehre für die nächste Messung dieser Art:** Bei einem Worker-A/B endet die Messung erst,
+> wenn das Ergebnis im Main-Thread **angekommen** ist, nicht wenn es abgeschickt wurde. Sonst
+> misst man die halbe Strecke und hält sie für die ganze.
 
 Davon ist belegt unvermeidbar:
 

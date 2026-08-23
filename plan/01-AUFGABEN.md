@@ -32,7 +32,8 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Der Worker-Umbau ist durch — übrig ist nur noch die Sync-Rückmeldung.** A11y, PWA,
+**Dieser Abschnitt ist leer - es gibt derzeit keine Code-Aufgabe, die eine Session allein
+greifen koennte.** A11y, PWA,
 Datenschutz, Recht, Marketing und der komplette Kleinkram-Block sind zu; aus der
 Performance-Reihe ist F6 zur Hälfte erledigt. Alles Abgeschlossene mit
 Belegstellen steht in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
@@ -53,10 +54,28 @@ Gebaut in `185b354` (Worker + 13 Prüfungen), **verdrahtet in `39cf8b1`**. `_enc
 > zwischendurch drankommt** — 7 statt 1 Herzschlag. Ein Dauerfreeze von 150 ms ist für den
 > Nutzer etwas anderes als zwei kürzere Blöcke.
 
-**Offen geblieben ist die zweite Hälfte von F6:** die *sichtbare Rückmeldung* während des Syncs.
-`_setDot` kennt weiterhin nur `sync` / `ok` / Fehler; ein Fortschritt pro Scope („Firma 2 von 3")
-fehlt. Unabhängig vom Worker, klein, jederzeit greifbar — **das ist jetzt der einzige Code-Punkt
-in diesem Abschnitt.**
+### 1.2 F6, zweite Haelfte - Sync-Rueckmeldung . erledigt 2026-08-21 (`617bfc3`)
+
+Die Ursache war enger als die Aufgabe vermuten liess: `_setDot` benutzte fuer `sync` und `ok`
+**dasselbe Icon in derselben Farbe** - der einzige Unterschied stand im `title`-Attribut und war
+damit nur beim Hovern zu sehen. Es fehlte also kein Detail, sondern ueberhaupt ein sichtbarer
+Unterschied.
+
+Jetzt: eigenes Icon (`ti-refresh`) plus Drehung waehrend des Laufs, und der Tooltip fuehrt den
+Fortschritt mit - erst `(Stammdaten)`, dann pro Firma `(Muster GmbH, 2 von 3)`.
+Read-only-Mandanten der Steuerberater-Ansicht zaehlen nicht mit.
+
+> **Warum der Icon-Wechsel und nicht nur die Animation:** `css/style.css` hat eine globale
+> `prefers-reduced-motion`-Regel, die jede Animation stillstellt. Der Icon-Wechsel traegt deshalb
+> die Information, die Drehung ist die Zugabe.
+
+Zwei neue Pruefungen in `test/test-cloud-sync.js` (jetzt 12) nageln die **Eigenschaft** fest -
+`sync` und `ok` duerfen nicht dasselbe Icon benutzen; *welches* Icon, darf sich aendern. Bewusst
+anders gebaut als der alte R7-Test, der einen Wortlaut festhielt und beim Umbau falsch alarmiert
+hat. Gegenprobe gemacht: mit dem alten Icon schlaegt der Test an.
+
+**Damit ist Abschnitt 1 leer.** Was bleibt, steht in Abschnitt 2 und 3 - und braucht dich oder
+Dritte, nicht eine weitere Session.
 
 ---
 

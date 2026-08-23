@@ -4,6 +4,60 @@
 const Materiallager = {
     _tab: 'bestand',
 
+    // Sortierung je Tab getrennt: die drei Tabellen haben unterschiedliche Spalten,
+    // ein gemeinsamer Zustand wuerde beim Tabwechsel auf eine Spalte zeigen, die es
+    // dort nicht gibt. Leeres col = Voreinstellung des Tabs (s. _sortiere).
+    _headSort: {
+        bestand:   { col: '', dir: 'asc' },
+        einkauf:   { col: '', dir: 'asc' },
+        verbrauch: { col: '', dir: 'asc' }
+    },
+
+    // Sortierschluessel je Tab — ROHWERTE, nicht das, was in der Zelle steht.
+    // formatCurrency/formatDate wuerden als String verglichen: "10,00 €" landete
+    // vor "9,00 €", der 02.01. vor dem 10.12.
+    _SORT_WERT: {
+        bestand: (m, col) => ({
+            name:             (m.name || '').toLowerCase(),
+            kategorie:        (m.kategorie || '').toLowerCase(),
+            bestand:          parseInt(m.bestand) || 0,
+            mindestbestand:   parseInt(m.mindestbestand) || 0,
+            kostenProEinheit: parseFloat(m.kostenProEinheit) || 0,
+            restwert:         (parseFloat(m.kostenProEinheit) || 0) * (parseInt(m.bestand) || 0)
+        }[col]),
+        einkauf: (e, col) => ({
+            datum:            e.datum || '',
+            materialName:     (e.materialName || '').toLowerCase(),
+            menge:            parseFloat(e.menge) || 0,
+            kostenProEinheit: parseFloat(e.kostenProEinheit) || 0,
+            gesamtkosten:     parseFloat(e.gesamtkosten) || 0,
+            lieferant:        (e.lieferant || '').toLowerCase()
+        }[col]),
+        verbrauch: (v, col) => ({
+            datum:            v.datum || '',
+            materialName:     (v.materialName || '').toLowerCase(),
+            menge:            parseFloat(v.menge) || 0,
+            kostenProEinheit: parseFloat(v.kostenProEinheit) || 0,
+            kosten:           parseFloat(v.kosten) || 0,
+            grund:            (v.grund || '').toLowerCase()
+        }[col])
+    },
+
+    /** Sortiert nach dem Zustand des Tabs. Ohne gewaehlte Spalte bleibt es bei der
+     *  bisherigen Voreinstellung, die der Aufrufer mitgibt. */
+    _sortiere(liste, tab) {
+        const st = this._headSort[tab];
+        if (!st || !st.col) return liste;
+        return liste.slice().sort(Utils.sortComparator(st, this._SORT_WERT[tab]));
+    },
+
+    /** Sortierbarer Tabellenkopf. `stil` traegt die Ausrichtung der Zahlenspalten. */
+    _th(tab, col, label, stil) {
+        return '<th class="' + Utils.sortIcon(this._headSort[tab], col) + '" data-sort="' + col + '"'
+             + (stil ? ' style="' + stil + '"' : '')
+             + ' title="Nach ' + label.replace(/"/g, '') + ' sortieren">' + label + '</th>';
+    },
+
     STD_MATERIAL: [
         { id: 'karton_xs',       name: 'Karton XS',            einheit: 'Stück',  kategorie: 'Karton' },
         { id: 'karton_s',        name: 'Karton S',             einheit: 'Stück',  kategorie: 'Karton' },
@@ -89,6 +143,9 @@ const Materiallager = {
 
     _renderBestand(bestand) {
         const usedIds = new Set(bestand.map(m => m.stdId || m.id));
+        // Voreinstellung ist die Reihenfolge aus dem Store (Anlagereihenfolge) —
+        // _sortiere laesst sie unangetastet, solange keine Spalte gewaehlt ist.
+        bestand = this._sortiere(bestand, 'bestand');
 
         const rows = bestand.length === 0
             ? '<tr><td colspan="7" class="table-empty">Noch kein Material erfasst. Materialart unten hinzufügen.</td></tr>'
@@ -174,12 +231,12 @@ const Materiallager = {
                 <table>
                     <thead>
                         <tr>
-                            <th>Bezeichnung</th>
-                            <th>Kategorie</th>
-                            <th style="text-align:right">Bestand</th>
-                            <th style="text-align:right">Mindestbestand</th>
-                            <th style="text-align:right">€/Einheit</th>
-                            <th style="text-align:right">Restwert</th>
+                            ${this._th('bestand', 'name', 'Bezeichnung')}
+                            ${this._th('bestand', 'kategorie', 'Kategorie')}
+                            ${this._th('bestand', 'bestand', 'Bestand', 'text-align:right')}
+                            ${this._th('bestand', 'mindestbestand', 'Mindestbestand', 'text-align:right')}
+                            ${this._th('bestand', 'kostenProEinheit', '€/Einheit', 'text-align:right')}
+                            ${this._th('bestand', 'restwert', 'Restwert', 'text-align:right')}
                             <th>Aktionen</th>
                         </tr>
                     </thead>
@@ -191,7 +248,11 @@ const Materiallager = {
 
     _renderEinkauf() {
         const bestand = Store.getMaterialBestand();
-        const einkauefe = Store.getMaterialEinkauefe().sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
+        // Voreinstellung bleibt: neueste zuerst. Erst ein Klick auf einen Kopf
+        // uebersteuert das (_sortiere gibt die Liste sonst unveraendert zurueck).
+        const einkauefe = this._sortiere(
+            Store.getMaterialEinkauefe().sort((a, b) => (b.datum || '').localeCompare(a.datum || '')),
+            'einkauf');
 
         const matOpts = bestand.length > 0
             ? bestand.map(m => `<option value="${m.id}">${Utils.escapeHtml(m.name)} (Bestand: ${parseInt(m.bestand) || 0} ${Utils.escapeHtml(m.einheit || 'Stück')})</option>`).join('')
@@ -261,9 +322,9 @@ const Materiallager = {
                 <table>
                     <thead>
                         <tr>
-                            <th>Datum</th><th>Material</th><th style="text-align:right">Menge</th>
-                            <th style="text-align:right">€/Einheit</th><th style="text-align:right">Gesamt</th>
-                            <th>Lieferant</th><th>Aktionen</th>
+                            ${this._th('einkauf', 'datum', 'Datum')}${this._th('einkauf', 'materialName', 'Material')}${this._th('einkauf', 'menge', 'Menge', 'text-align:right')}
+                            ${this._th('einkauf', 'kostenProEinheit', '€/Einheit', 'text-align:right')}${this._th('einkauf', 'gesamtkosten', 'Gesamt', 'text-align:right')}
+                            ${this._th('einkauf', 'lieferant', 'Lieferant')}<th>Aktionen</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
@@ -273,9 +334,10 @@ const Materiallager = {
     },
 
     _renderVerbrauch() {
-        const log = Store.getMaterialVerbrauch()
+        // Voreinstellung bleibt: neueste zuerst, s. _renderEinkauf.
+        const log = this._sortiere(Store.getMaterialVerbrauch()
             .filter(v => !v.storniert)
-            .sort((a, b) => (b.datum || '').localeCompare(a.datum || ''));
+            .sort((a, b) => (b.datum || '').localeCompare(a.datum || '')), 'verbrauch');
 
         const rows = log.length === 0
             ? '<tr><td colspan="7" class="table-empty">Noch kein Verbrauch gebucht. Verbrauch wird automatisch beim Speichern eines Verkaufs mit Materialbuchung gebucht.</td></tr>'
@@ -302,9 +364,9 @@ const Materiallager = {
                 <table>
                     <thead>
                         <tr>
-                            <th>Datum</th><th>Material</th><th style="text-align:right">Menge</th>
-                            <th style="text-align:right">€/Einheit</th><th style="text-align:right">Kosten</th>
-                            <th>Grund / Referenz</th><th>Aktionen</th>
+                            ${this._th('verbrauch', 'datum', 'Datum')}${this._th('verbrauch', 'materialName', 'Material')}${this._th('verbrauch', 'menge', 'Menge', 'text-align:right')}
+                            ${this._th('verbrauch', 'kostenProEinheit', '€/Einheit', 'text-align:right')}${this._th('verbrauch', 'kosten', 'Kosten', 'text-align:right')}
+                            ${this._th('verbrauch', 'grund', 'Grund / Referenz')}<th>Aktionen</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
@@ -346,6 +408,13 @@ const Materiallager = {
     },
 
     init() {
+        // Sortierbare Koepfe des gerade sichtbaren Tabs. _refresh() rendert neu und
+        // ruft init() erneut auf, die Listener haengen also immer am aktuellen DOM.
+        Utils.bindSortableHeaders(
+            document.getElementById('content'),
+            this._headSort[this._tab],
+            () => this._refresh());
+
         document.querySelectorAll('[data-ml-tab]').forEach(btn => {
             btn.addEventListener('click', () => {
                 this._tab = btn.dataset.mlTab;

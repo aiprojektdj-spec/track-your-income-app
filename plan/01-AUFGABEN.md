@@ -37,21 +37,17 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 Datenschutz, Recht, Marketing und der Kleinkram-Block; F6 ist seit 2026-08-21 vollständig durch
 (Worker **und** Rückmeldung). Belegstellen in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
 
-### 1.0 OCR-Belegerkennung als Browser-OCR · `neu`
+### ~~1.0 OCR-Belegerkennung~~ — zurückgestellt am 2026-08-16
 
-**Entschieden 2026-08-23: wird gebaut.** Die letzte Feature-Lücke gegen sevDesk und lexoffice.
-Ausschließlich als **Browser-OCR (Tesseract.js)** — der Beleg verlässt das Gerät nie, das ist der
-Punkt der Übung. **Keine Server-OCR, auch nicht als Fallback.**
+**Diese Aufgabe ist gestrichen.** Der Eintrag vom 2026-08-23 („wird gebaut") ist vom User am
+2026-08-16 zurückgenommen worden: **OCR wird erst wieder aufgegriffen, wenn Trustpilot-Bewertungen
+vorliegen** — dann sagt echtes Kundenfeedback, ob die Belegerfassung überhaupt ein Schmerz ist.
 
-Spezifikation inkl. der nötigen CSP-Freigabe liegt fertig vor:
-[`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md) (`9567630`).
+Begründung und die Bedingungen für ein Wiederaufgreifen stehen in
+[`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md). Spezifikation bleibt liegen
+([`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md)), sie verfällt nicht.
 
-> **Vor dem Start klären:** Tesseract.js ist eine **neue Abhängigkeit** — nach Projektregel 6
-> nicht ohne Rückfrage. Bezugsweg und Prüfsumme wie bei SheetJS behandeln: lokal nach
-> `js/vendor/` mit SHA-256 in `VERSIONS.md`, **nie** über npm nachziehen.
-
-Aufwand: mehrere Sitzungen. Erst nach den Live-Tests aus 2.3 sinnvoll — ein neues Feature auf
-ungetestetem Fundament ist die teurere Reihenfolge.
+**Nicht anfangen, auch nicht „nur mal die Bibliothek einbinden".**
 
 ### 1.0b Landing-Demo ausbauen · `index.html`, Abschnitt `#demo`
 
@@ -121,12 +117,36 @@ bevorzugen `SYNC_OWNER_IDS` / `WHOP_OWNER_IDS` (unveränderliche Whop-User-IDs, 
 den bei Whop **frei änderbaren Benutzernamen**, mit dem hart kodierten Default
 `'secondlifevintage41'`. **Wer sich diesen Namen bei Whop gibt, bekommt Owner-Rechte ohne Abo.**
 
-→ In Vercel `SYNC_OWNER_IDS` und `WHOP_OWNER_IDS` auf die echte Whop-User-ID setzen, danach die
-alten `*_OWNER_USERNAMES` löschen.
+**Schritt für Schritt:**
+
+1. **Whop-User-ID holen:** whop.com → Settings → Account. Die ID beginnt mit `user_`. Nicht der
+   Benutzername — genau dessen Änderbarkeit ist ja das Problem.
+2. **In Vercel:** Projekt `track-your-income-app` → Settings → Environment Variables. Zweimal
+   *Add New*, Environment **Production** (Preview schadet nicht):
+   | Name | Wert |
+   |---|---|
+   | `SYNC_OWNER_IDS` | `user_…` |
+   | `WHOP_OWNER_IDS` | `user_…` |
+   Mehrere Owner: kommagetrennt, ohne Leerzeichen.
+3. **Alte Variablen löschen:** `SYNC_OWNER_USERNAMES` und `WHOP_OWNER_USERNAMES`, falls angelegt.
+   Der hart kodierte Default greift danach nicht mehr, weil die IDs Vorrang haben
+   ([`api/sync.js:58`](../api/sync.js), [`api/whop-access.js:58`](../api/whop-access.js),
+   [`api/blob-upload.js:54`](../api/blob-upload.js)).
+4. **Neu deployen** — Umgebungsvariablen greifen erst mit dem nächsten Deployment.
+5. **Gegenprobe:** einmal einloggen und syncen. Klappt es weiter, hat die ID gepasst. Klappt es
+   **nicht**, war die ID falsch — dann Variable korrigieren, nicht die alte wieder anlegen.
+
+> **Vorsicht bei Schritt 3:** Erst die IDs setzen und deployen, **dann** die Namensliste löschen.
+> Umgekehrt sperrst du dich zwischenzeitlich selbst aus.
+
+**Bei der Gelegenheit gleich mit erledigen:** `ALERT_WEBHOOK_URL` setzen — ohne sie versanden die
+Fail-open-Meldungen aus `api/_alert.js` im Log, statt dich zu erreichen.
 
 ### 2.2 Zwei Whop-Mails konfigurieren (N4)
 
-Reine Backend-Konfiguration, kein Code, ~1 h:
+**Beide Texte sind fertig entworfen: [`whop-mails-entwuerfe.md`](whop-mails-entwuerfe.md)** —
+inklusive Auslöser, Platzhaltern und dem Grund, warum in der Winback-Mail bewusst **kein Rabatt**
+steht (§7 Abs. 3 UWG). Einfügen musst du sie selbst, reine Backend-Konfiguration, ~1 h:
 
 - **3 Tage vor der Jahresverlängerung** — 135 € ohne Vorwarnung ist die Buchung, die zu
   Rückfragen und Rückbuchungen führt.
@@ -134,6 +154,10 @@ Reine Backend-Konfiguration, kein Code, ~1 h:
   Winback-Screen in der App ist gut gemacht, erreicht aber nur Rückkehrer.
 
 ### 2.3 Live-Tests — brauchen echte Logins
+
+**Als durchklickbare Checkliste für eine Sitzung aufbereitet:
+[`live-tests-checkliste.md`](live-tests-checkliste.md)** — mit Reihenfolge, erwartetem Ergebnis je
+Schritt und dem, was sich in derselben Sitzung miterledigen lässt.
 
 Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
 
@@ -173,11 +197,12 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
   Trial-Modell der teuerste Fehler.
 - **AV-Verträge nach Art. 28 DSGVO** — Whop ist bekannt offen. **Zusätzlich prüfen: Upstash und
   Vercel**, beide sind in `datenschutz.html` als Auftragsverarbeiter benannt.
-- **§25a, ermäßigter Satz von 7 %** — die Marge wird pauschal mit 19 % gerechnet. Bei Kunst,
-  Sammlerstücken und Antiquitäten kann nach §25a Abs. 3 UStG i. V. m. Anlage 2 Nr. 49–53 der
-  ermäßigte Satz gelten. Der Fehler geht Richtung **Überzahlung**, ist also steuerstrafrechtlich
-  ungefährlich. Braucht eine Rechtsrecherche, welche Warenart im Einzelfall wirklich 7 % ist —
-  **nicht blind implementieren.**
+- **§25a, ermäßigter Satz von 7 %** — **recherchiert am 2026-08-16:**
+  [`25a-ermaessigter-satz-recherche.md`](25a-ermaessigter-satz-recherche.md). Kernbefund: Seit dem
+  JStG 2024 ist die Fehlerrichtung nicht mehr nur Über-, sondern auch **Unterzahlung** — der neue
+  §25a Abs. 7 Nr. 1 Buchst. c schließt die Differenzbesteuerung aus, wenn auf den Einkauf ein
+  ermäßigter Satz angewandt wurde. Stackr fragt das nirgends ab. **Weiter nicht blind
+  implementieren** — die Datei nennt die drei Fragen, die dein Steuerberater beantworten muss.
 
 ---
 

@@ -144,6 +144,54 @@ Die vorherige Angabe „12 Module" war aus nichts ableitbar und hat die App unte
 > **Nicht verwechseln:** die Akademie wirbt mit „9 Module, 31+ Lektionen" — das sind
 > *Lernmodule*, nicht Funktionsbereiche. Beide Zahlen stehen auf derselben Seite.
 
+### OCR wird zurückgestellt — Auslöser sind Trustpilot-Bewertungen (2026-08-16)
+
+**Korrigiert die Eintragung vom 2026-08-23, die OCR als „wird gebaut" nach Abschnitt 1 der
+Aufgabenliste gesetzt hat.** OCR ist **kein offener Auftrag**.
+
+**Warum:** Es ist das größte Einzelvorhaben im Backlog (mehrere Sitzungen, neue Abhängigkeit
+Tesseract.js, CSP-Freigabe) und dafür das am schlechtesten belegte. Kein Kunde hat die
+Belegerfassung bisher als Schmerz genannt — die Annahme stammt aus dem Wettbewerbsvergleich,
+nicht aus Kundenkontakt.
+
+**Auslöser zum Wiederaufgreifen: Es liegen Trustpilot-Bewertungen vor.** Dann gibt es echtes
+Kundenfeedback, und die Frage lässt sich beantworten statt raten. Nennen mehrere Bewertungen die
+Belegerfassung, wird gebaut — sonst nicht.
+
+Die Spezifikation bleibt liegen ([`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md),
+`9567630`) und verfällt nicht. Wenn gebaut wird, dann **ausschließlich als Browser-OCR** — der
+Beleg verlässt das Gerät nie, keine Server-OCR, auch nicht als Fallback.
+
+### Top-of-Funnel: die Demo wird ausgebaut, die Kartenpflicht bleibt (2026-08-16)
+
+Von vier Wegen — Demo aufwerten, Trial ohne Kartenpflicht, Read-only-Tier, alles lassen —
+gewinnt der erste.
+
+**Warum nicht Trial ohne Karte:** Hängt an der §356a-Klausel im AGB, die noch auf die
+Anwaltsprüfung wartet. Eine Widerrufsklausel, die nicht trägt, ist bei einem Trial-Modell der
+teuerste Fehler — nicht vor der Freigabe anfassen.
+
+**Warum kein Read-only-Tier:** Ein zweiter Berechtigungszustand, den jedes der 28 Module kennen
+muss. Bauaufwand in der Breite für eine unbelegte Annahme.
+
+**Warum die Demo:** Sie existiert, ist echt (Dashboard, Buchungen, EÜR, GoBD-Protokoll) und
+lässt Gate-Logik wie Rechtstexte unberührt. Ausbau statt Umbau.
+
+> **Nebenbefund, der die Dringlichkeit dämpft:** Bei rund 100 Besuchern die Woche — eigene
+> Aufrufe eingerechnet — ist die Engstelle eher der Zulauf als die Umwandlung. Eine perfekte
+> Demo vor leerem Saal ändert wenig.
+
+### Steuerberater-Zugang bleibt vorerst kostenlos — erst messen (2026-08-16)
+
+Der Zugang ist gebaut, der Grant-Deckel aus R4 steht (`SYNC_MAX_GRANTS`, Default 10 in
+[`api/sync.js:147`](../api/sync.js)). Das Leck ist zu, die Preisfrage bleibt offen.
+
+**Vor jeder Preisentscheidung steht eine Zahl, die niemand hat:** Wie viele Freigaben laufen
+überhaupt? Whop weiß das nicht, es steht in Upstash (`grantsby:<userId>`). Solange die Antwort
+„eine Handvoll" lauten könnte, ist jedes Kanzlei-Preismodell eine Lösung ohne Problem.
+
+**Nächster Schritt, wenn das angegangen wird:** Grants zählen, nicht Tarife entwerfen.
+
 ---
 
 ## Recht und Datenschutz

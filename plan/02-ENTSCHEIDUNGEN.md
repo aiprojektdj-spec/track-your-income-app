@@ -104,6 +104,48 @@ bei der der Beleg dein Gerät nie verlässt.* Spezifikation liegt vor (`9567630`
 
 ---
 
+## Produkt und Preis
+
+### Ein Preis, keine Staffel — entschieden 2026-08-21
+
+15 €/Monat für alle, unabhängig von Nutzungsintensität und Firmenanzahl.
+
+**Warum:** „Keine Tarif-Treppe" ist auf der Landingpage bereits ein Verkaufsargument und die
+Spitze gegen Lexware, das die E-Rechnung erst im 32,90-€-Tarif freischaltet. Eine eigene Staffel
+würde genau dieses Argument entwerten.
+
+Falls das je aufgemacht wird: **nach Firmenanzahl staffeln, nie nach Features.** Ein Pflichtthema
+wie die E-Rechnung hinter einen höheren Tarif zu legen, ist der Fehler, den Stackr dem
+Wettbewerb vorhält.
+
+**Offen und davon unberührt:** das Steuerberater-Modell. Der StB-Zugang ist gebaut und
+kostenlos, eine Kanzlei mit 40 Mandanten zahlt nichts. Wenn das angegangen wird, dann zusammen
+mit dem Grant-Deckel (R4) — erst das Leck schließen, dann Preis verlangen.
+
+### Zielgruppe: die EÜR-Rechtsformen stehen vorn — entschieden 2026-08-21
+
+Beworben werden **Einzelunternehmen, Freiberufler, GbR und eGbR**. Die Bilanz-Formen (OHG, KG,
+GmbH, UG, GmbH & Co. KG) sind in `js/rechtsform.js` vollständig hinterlegt und werden auf der
+Seite genannt, aber nicht in den Vordergrund gestellt — die Bilanz-Tiefe ist nicht auditiert.
+
+„Reseller" ist **keine Rechtsform**, sondern ein Anwendungsfall; die Stärke dort liegt im
+Lager-Modul und trifft quer durch alle Formen. Die drei Personas auf der Landing
+(Freelancer/GbR/Reseller) bleiben deshalb bestehen.
+
+**Zeiterfassung wird nicht gebaut** — eigenes Produktfeld mit guten Speziallösungen, die Energie
+gehört zu Reseller und GbR.
+
+### Die Modulzahl ist 28 — festgelegt 2026-08-21
+
+Am Code belegbar als `App.pages` ohne das Dashboard; deckt sich mit dem Feature-Gap-Audit.
+Zum Vergleich: 6 Topnav-Oberbereiche, 17 Sidebar-Menüpunkte, 3 eigenständige Sub-Apps.
+Die vorherige Angabe „12 Module" war aus nichts ableitbar und hat die App unter Wert verkauft.
+
+> **Nicht verwechseln:** die Akademie wirbt mit „9 Module, 31+ Lektionen" — das sind
+> *Lernmodule*, nicht Funktionsbereiche. Beide Zahlen stehen auf derselben Seite.
+
+---
+
 ## Recht und Datenschutz
 
 ### Der Banner ist zweistufig — die notwendige Speicherung bleibt ohne Ablehnen-Button

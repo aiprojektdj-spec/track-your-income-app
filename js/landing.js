@@ -338,16 +338,27 @@
         fuelleKategorien();
     })();
 
-    // Demo-Tabs
-    document.querySelectorAll('.demo-tab').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            document.querySelectorAll('.demo-tab').forEach(function (b) { b.setAttribute('aria-selected', 'false'); });
-            btn.setAttribute('aria-selected', 'true');
-            document.querySelectorAll('.demo-view').forEach(function (v) { v.hidden = true; });
-            var view = document.getElementById('dv-' + btn.dataset.view);
-            if (view) view.hidden = false;
+    // Reiterwechsel — als Funktion, weil ihn auch die Rechnungs-Voreinstellung ausloest.
+    function demoZeigeReiter(name) {
+        document.querySelectorAll('.demo-tab').forEach(function (b) {
+            b.setAttribute('aria-selected', String(b.dataset.view === name));
         });
+        document.querySelectorAll('.demo-view').forEach(function (v) { v.hidden = true; });
+        var view = document.getElementById('dv-' + name);
+        if (view) view.hidden = false;
+    }
+
+    document.querySelectorAll('.demo-tab').forEach(function (btn) {
+        btn.addEventListener('click', function () { demoZeigeReiter(btn.dataset.view); });
     });
+
+    // Rechnung bezahlt: Status umschalten und hinspringen. Erst dadurch ist die Kette
+    // Rechnung -> Zahlung -> Buchung -> EUER als Abfolge sichtbar statt als vier Reiter.
+    window.demoRechnungBezahlt = function () {
+        var st = document.getElementById('demoInvStatus');
+        if (st) { st.textContent = 'bezahlt'; st.classList.add('bezahlt'); }
+        demoZeigeReiter('rechnung');
+    };
 
     // Demo: Enter im Betragsfeld bucht
     var demoAmtInp = document.getElementById('demoAmt');
@@ -456,7 +467,10 @@
             case 'auth':        window.openAuth(el.dataset.mode); break;
             case 'faq':         window.toggleFaq(el); break;
             case 'billing':     window.setBilling(el.dataset.plan); break;
-            case 'demo-add':    window.demoAdd(el.dataset.label, parseFloat(el.dataset.amount), el.dataset.type, el.dataset.cat); break;
+            case 'demo-add':
+                window.demoAdd(el.dataset.label, parseFloat(el.dataset.amount), el.dataset.type, el.dataset.cat);
+                if (el.dataset.demoInvoice) window.demoRechnungBezahlt();
+                break;
             case 'demo-custom': window.demoAddCustom(); break;
         }
     });

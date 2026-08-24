@@ -604,6 +604,33 @@ select.demo-inp { flex: 0 0 auto; width: auto; }
 }
 .demo-inline-cta-btn:hover { filter: brightness(1.08); }
 @keyframes demoCtaIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Rechnungsansicht der Demo ── */
+.demo-inv-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+.demo-inv-nr { font-weight: 700; font-size: 14px; color: var(--text); }
+.demo-inv-meta { font-size: 12px; color: var(--subtle); margin-top: 2px; }
+.demo-inv-status {
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--subtle);
+}
+/* Wird von demoRechnungBezahlt() gesetzt, sobald die Voreinstellung geklickt wird. */
+.demo-inv-status.bezahlt {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-glow, rgba(16,185,129,.08));
+}
 .demo-book-btn {
     background: linear-gradient(135deg, var(--accent), var(--accent2));
     color: #fff;

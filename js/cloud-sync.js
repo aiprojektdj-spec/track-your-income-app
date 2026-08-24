@@ -28,6 +28,13 @@ var CloudSync = (function () {
     var EB_KEYS       = ['eigenbelege_belege', 'eigenbelege_kategorien',
                          'eigenbelege_einstellungen', 'eigenbelege_naechste_nummer', 'eigenbelege_produkte'];
 
+    // Grabsteine geloeschter FIRMEN. Muessen global liegen und nicht in Store: Store.get()
+    // praefixt jeden Key mit der Firmen-ID, der Grabstein einer Firma laege also ausgerechnet in
+    // der Firma, deren Daten beim Loeschen verschwinden. Wandert als Teil des __account-Scopes
+    // mit und wird dort ueber _mergeRecords vereinigt — jedes Geraet erfaehrt so von der Loeschung.
+    var LS_CO_TOMBS = 'oyi_company_tombstones';
+    var CO_TOMB_RETENTION_MS = 180 * 86400000;   // wie Store._TOMBSTONE_RETENTION_MS
+
     var LS_ENABLED = 'oyi_sync_enabled';
     // ALT-Ablage des rohen Sync-Schlüssels (Fund R5, Red-Team-Audit 2026-08-10). Wird nur noch
     // gelesen — für die einmalige Migration nach IndexedDB (s. _migrateKeyToIdb) und als Rückfall,
@@ -528,7 +535,7 @@ var CloudSync = (function () {
 
     // ── Welche Keys gehören zu einem Scope ────────────────────────────────────
     function _scopeKeys(scope) {
-        if (scope === '__account') return ['oyi_companies'];
+        if (scope === '__account') return ['oyi_companies', LS_CO_TOMBS];
         var keys = [], pfxR = scope + '__reselling_', pfxB = scope + '__rechnungsbuch_', aKey = scope + '__audit_log';
         if (typeof Store !== 'undefined') {
             for (var k in Store._cache) {
@@ -557,6 +564,24 @@ var CloudSync = (function () {
     //   konsultiert, damit ein physisch gelöschter Datensatz (offene Periode, s. store.js
     //   deletePurchase/deleteSale/deleteExpense) nicht durch einen älteren Cloud-Snapshot eines
     //   anderen Geräts unbemerkt wieder auftaucht.
+    // ── Grabsteine ───────────────────────────────────────────────────────────
+    // Belege liegen firmen-praefixiert in Store, Firmen global in localStorage.
+    function _coTombs() {
+        try { return JSON.parse(localStorage.getItem(LS_CO_TOMBS) || '[]') || []; } catch (e) { return []; }
+    }
+    function _isTombstoned(entityType, id) {
+        if (entityType === 'firma') return _coTombs().some(function (t) { return t && t.id === id; });
+        return (typeof Store !== 'undefined' && Store.isTombstoned) ? Store.isTombstoned(entityType, id) : false;
+    }
+    // Von CompanyManager.delete() aufgerufen, BEVOR die Firma aus der Registry faellt.
+    function tombstoneCompany(id) {
+        if (!id) return;
+        var cutoff = Date.now() - CO_TOMB_RETENTION_MS;
+        var list = _coTombs().filter(function (t) { return t && t.id !== id && (t.deletedAt || 0) >= cutoff; });
+        list.push({ id: id, deletedAt: Date.now() });
+        try { localStorage.setItem(LS_CO_TOMBS, JSON.stringify(list)); } catch (e) {}
+    }
+
     function _mergeRecords(localArr, remoteArr, base, entityType) {
         var byId = {}, localDirty = false, remoteDirty = false, remoteIds = {}, conflicts = [];
         (localArr || []).forEach(function (r) { if (r && r.id != null) byId[r.id] = r; });
@@ -564,7 +589,7 @@ var CloudSync = (function () {
         (remoteArr || []).forEach(function (r) {
             if (!r || r.id == null) return;
             var ex = byId[r.id];
-            if (!ex && entityType && typeof Store !== 'undefined' && Store.isTombstoned && Store.isTombstoned(entityType, r.id)) {
+            if (!ex && entityType && _isTombstoned(entityType, r.id)) {
                 // Lokal bewusst gelöscht (Tombstone vorhanden) — NICHT wieder aufnehmen. remoteDirty,
                 // damit der nächste Push die veraltete Remote-Kopie ebenfalls entfernt.
                 remoteDirty = true;
@@ -624,7 +649,10 @@ var CloudSync = (function () {
             } else if (_isRecArr(lv, rv)) {
                 var entityType = /__reselling_purchases$/.test(k) ? 'einkauf'
                     : /__reselling_sales$/.test(k) ? 'verkauf'
-                    : /__reselling_expenses$/.test(k) ? 'ausgabe' : null;
+                    : /__reselling_expenses$/.test(k) ? 'ausgabe'
+                    // Ohne diesen Zweig lief die Firmenregistry ohne Grabsteinpruefung durch die
+                    // Union: eine geloeschte Firma kam beim naechsten Sync als leerer Zombie zurueck.
+                    : (k === 'oyi_companies') ? 'firma' : null;
                 var rr = _mergeRecords(lv, rv, base[k], entityType);
                 mergedKeys[k] = rr.val; if (rr.localDirty) localDirty = true; if (rr.remoteDirty) remoteDirty = true;
                 if (rr.conflicts.length) rr.conflicts.forEach(function (c) { conflicts.push({ key: k, id: c.id, mine: c.mine, theirs: c.theirs }); });
@@ -1821,6 +1849,7 @@ var CloudSync = (function () {
         keyBytes: keyBytes,
         hasKey: hasKey,
         probeAccount: probeAccount,
+        tombstoneCompany: tombstoneCompany,
         describeBlob: describeBlob,
         isHealthy: isHealthy,
         verifyAuditAnchors: verifyAuditAnchors,

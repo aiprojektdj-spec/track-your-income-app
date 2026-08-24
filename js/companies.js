@@ -4,7 +4,6 @@
 const CompanyManager = {
     REGISTRY_KEY: 'oyi_companies',       // global localStorage key (nie namespaced)
     ACTIVE_KEY:   'oyi_active_company',  // global localStorage key
-    MAX_COMPANIES: 5,
 
     FARBEN: [
         { name: 'Emerald', hex: '#10b981' },
@@ -47,9 +46,11 @@ const CompanyManager = {
             UserPlan.requirePro('Mehrere Unternehmen');
             return null;
         }
-        if (companies.length >= this.MAX_COMPANIES) {
-            throw new Error(`Maximal ${this.MAX_COMPANIES} Firmen erlaubt`);
-        }
+        // Kein Stueck-Limit mehr (Entscheidung des Betreibers, 2026-08-24). Die alte Grenze von
+        // 5 band ohnehin nur diese eine Stelle: Firmen, die ueber den Cloud-Sync hereinkamen,
+        // liefen als Union in `oyi_companies` daran vorbei — im Live-Konto standen dadurch 8
+        // Firmen bei angeblichem Maximum 5, und der Umschalter meldete "8 von 5 angelegt".
+        // Eine gesyncte Firma wegzuwerfen, nur weil ein Zaehler voll ist, waere Datenverlust.
         const id = 'co_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
         const company = {
             id,
@@ -116,6 +117,14 @@ const CompanyManager = {
         if (typeof CloudSync !== 'undefined') {
             try { await CloudSync.deleteRemote(id); }
             catch (e) { console.error('[CompanyManager] Cloud-Löschung fehlgeschlagen:', e); }
+        }
+        // Grabstein setzen, BEVOR die Firma aus der Registry faellt. Ohne ihn holte die naechste
+        // Sync-Union den Registry-Eintrag zurueck (`_mergeRecords` uebernimmt jede Remote-ID, die
+        // lokal fehlt) — die Firma erschien als leerer Zombie im Umschalter, weil ihre Daten
+        // zwar geloescht waren, ihr Eintrag aber nicht. deleteRemote() oben raeumt nur den
+        // eigenen Scope der Firma, nicht ihren Eintrag im __account-Scope.
+        if (typeof CloudSync !== 'undefined' && CloudSync.tombstoneCompany) {
+            CloudSync.tombstoneCompany(id);
         }
         // Aus Registry entfernen
         const companies = this.getAll().filter(c => c.id !== id);
@@ -322,16 +331,11 @@ const CompanyManager = {
 
     // ── UI ──────────────────────────────────────────────────────────────────
 
-    // CSP: kein Inline-Handler → Hover per CSS, einmalig global injiziert
-    _injectStyles() {
-        if (document.getElementById('companySwitcherStyles')) return;
-        const s = document.createElement('style');
-        s.id = 'companySwitcherStyles';
-        s.textContent =
-            '.company-switcher-btn:hover{background:rgba(255,255,255,.13) !important;}' +
-            '.co-dropdown-row:not(.active):hover{background:var(--bg-secondary) !important;}';
-        document.head.appendChild(s);
-    },
+    // Hover-Styles liegen in css/style.css (Abschnitt "Firmenumschalter").
+    // Frueher hier als <style>-Block injiziert — der Kommentar sagte "CSP: kein
+    // Inline-Handler", die CSP blockt aber genauso injizierte Stylesheets
+    // (style-src-elem 'self'), die Hover-Effekte waren dadurch wirkungslos.
+    _injectStyles() {},
 
     // Rendert den Company-Switcher-Button (oben rechts im tool-switcher)
     renderSwitcherBtn() {
@@ -372,7 +376,6 @@ const CompanyManager = {
         const btn       = document.getElementById('companySwitcherBtn');
         const companies = this.getAll();
         const activeId  = this.getActiveId();
-        const maxed     = companies.length >= this.MAX_COMPANIES;
 
         const rows = companies.map(co => {
             const isActive = co.id === activeId;
@@ -428,7 +431,7 @@ const CompanyManager = {
             <div style="padding:12px 14px;background:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
                 <div>
                     <div style="font-weight:700;font-size:13px;">🏢 Unternehmen</div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">${companies.length} von ${this.MAX_COMPANIES} angelegt</div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">${companies.length} angelegt</div>
                 </div>
                 <button data-action="co-close-dropdown" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;line-height:1;padding:0 2px;">×</button>
             </div>
@@ -440,15 +443,10 @@ const CompanyManager = {
 
             <!-- Footer -->
             <div style="padding:10px 14px;border-top:1px solid var(--border);">
-                ${!maxed
-                    ? `<button class="btn btn-outline" data-action="co-create"
-                               style="width:100%;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;">
-                           <span style="font-size:16px;">＋</span> Neues Unternehmen anlegen
-                       </button>`
-                    : `<div style="text-align:center;font-size:12px;color:var(--text-muted);padding:4px;">
-                           Maximum von ${this.MAX_COMPANIES} Unternehmen erreicht
-                       </div>`
-                }
+                <button class="btn btn-outline" data-action="co-create"
+                        style="width:100%;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <span style="font-size:16px;">＋</span> Neues Unternehmen anlegen
+                </button>
             </div>`;
 
         document.body.appendChild(dropdown);

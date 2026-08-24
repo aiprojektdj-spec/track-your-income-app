@@ -460,11 +460,9 @@ var BackupCrypto = (function () {
                     bundle = await _decryptFile(parsed, pass);
                 }
                 await _restore(bundle);
-                var maxCo = (typeof CompanyManager !== 'undefined' && CompanyManager.MAX_COMPANIES)
-                         || (typeof Companies !== 'undefined' && Companies.MAX_COMPANIES) || 5;
-                if (_companyIds().length > maxCo) {
-                    _toast('⚠️ Mehr als ' + maxCo + ' Firmen vorhanden — „Neue Firma anlegen" bleibt gesperrt, bis eine gelöscht wird. Bestehende Firmen funktionieren normal.', 'warning', 8000);
-                }
+                // Frueher stand hier eine Warnung, dass ueber MAX_COMPANIES hinaus "Neue Firma
+                // anlegen" gesperrt bleibe. Das Stueck-Limit ist am 2026-08-24 entfallen — die
+                // Meldung haette eine Sperre angekuendigt, die es nicht mehr gibt.
                 _toast('✅ Daten importiert — lade neu…', 'success', 1800);
                 setTimeout(function () { location.reload(); }, 1300);
             } catch (e) {

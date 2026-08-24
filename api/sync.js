@@ -137,8 +137,12 @@ var SCOPE_RE     = /^(__account|co_[a-z0-9_]+)$/;
 // wegräumen (das Backup IST der Wert). `scopes:<userId>` hält daher die Menge der belegten
 // Scopes, push/anchor müssen einen Platz belegen, delete gibt ihn wieder frei.
 //
-// 25 ist großzügig: real braucht ein Nutzer `__account` + max. 5 Firmen (Companies.MAX_COMPANIES)
-// = 6. Der Rest ist Kopfraum für Firmen, die im Laufe der Zeit gelöscht und neu angelegt wurden.
+// 25 ist großzügig: real braucht ein Nutzer `__account` + seine Firmen. Das clientseitige
+// Stück-Limit (früher Companies.MAX_COMPANIES = 5) ist am 2026-08-24 entfallen — damit ist DIESER
+// Zähler die einzige verbliebene Obergrenze. Wer sie reißt, bekommt kein stilles Fehlverhalten,
+// sondern 409 `scope_limit`, das der Client als lesbare Meldung anzeigt (js/cloud-sync.js,
+// „Grenze für gesicherte Firmen erreicht"). Der Rest ist Kopfraum für Firmen, die im Laufe der
+// Zeit gelöscht und neu angelegt wurden.
 // Damit ist der Speicher pro Nutzer auf 25 × 3,5 MB ≈ 88 MB begrenzt — ein separates Byte-Budget
 // braucht es dafür nicht. Deckt auch `anchor` mit ab (ANCHOR_MAX griff nur je Key, nicht je
 // Nutzer). Über SYNC_MAX_SCOPES/SYNC_MAX_GRANTS ohne Codeänderung anhebbar, falls ein echter

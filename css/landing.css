@@ -540,7 +540,9 @@ section { padding: 88px 24px; max-width: 1100px; margin: 0 auto; }
 .demo-preset .amt.out { color: var(--red); }
 .demo-custom { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 18px; }
 .demo-custom-lbl { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
-.demo-custom-row { display: flex; gap: 8px; }
+.demo-custom-row { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Zweite Zeile (Betrag/Typ/Kategorie/Buchen) unter der Bezeichnung. */
+.demo-custom-row + .demo-custom-row { margin-top: 8px; }
 .demo-inp {
     flex: 1;
     min-width: 0;
@@ -556,6 +558,11 @@ section { padding: 88px 24px; max-width: 1100px; margin: 0 auto; }
 }
 .demo-inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
 select.demo-inp { flex: 0 0 auto; width: auto; }
+/* Betragsfeld nicht von den beiden Auswahlfeldern zerquetschen lassen: die nehmen
+   ihre natuerliche Breite, das Zahlenfeld schrumpfte sonst auf ~35 px und der
+   Platzhalter war weg. Unter 380 px bricht die Zeile stattdessen um. */
+#demoAmt { flex: 1 1 110px; min-width: 110px; }
+#demoLabel { flex: 1 1 100%; }
 .demo-book-btn {
     background: linear-gradient(135deg, var(--accent), var(--accent2));
     color: #fff;

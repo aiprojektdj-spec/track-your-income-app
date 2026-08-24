@@ -274,9 +274,32 @@
         demoToast('<span class="ok">✓</span> ' + id + ' erfasst — GoBD-protokolliert');
     };
 
-    window.demoAddCustom = function () {
-        var amtInp = document.getElementById('demoAmt');
+    // Kategorien je Buchungstyp. 'Wareneinkauf' muss WORTGLEICH zu der Pruefung in
+    // demoTotals() bleiben — nur dieser eine Wert landet in der EUER im Wareneinsatz
+    // statt in den Betriebsausgaben, und genau diese Trennung soll die Demo zeigen.
+    var DEMO_KATEGORIEN = {
+        in:  ['Verkauf', 'Dienstleistung'],
+        out: ['Wareneinkauf', 'Porto', 'Bürobedarf']
+    };
+
+    function fuelleKategorien() {
         var typeSel = document.getElementById('demoType');
+        var catSel  = document.getElementById('demoCat');
+        if (!typeSel || !catSel) return;
+        var liste = DEMO_KATEGORIEN[typeSel.value === 'out' ? 'out' : 'in'];
+        catSel.textContent = '';
+        liste.forEach(function (k) {
+            var o = document.createElement('option');
+            o.value = k; o.textContent = k;
+            catSel.appendChild(o);
+        });
+    }
+
+    window.demoAddCustom = function () {
+        var amtInp  = document.getElementById('demoAmt');
+        var typeSel = document.getElementById('demoType');
+        var catSel  = document.getElementById('demoCat');
+        var lblInp  = document.getElementById('demoLabel');
         var amt = parseFloat((amtInp.value || '').replace(',', '.'));
         if (!isFinite(amt) || amt <= 0) {
             amtInp.focus();
@@ -285,9 +308,21 @@
         }
         amt = Math.round(amt * 100) / 100;
         var type = typeSel.value === 'out' ? 'out' : 'in';
-        window.demoAdd(type === 'in' ? 'Eigene Einnahme' : 'Eigene Ausgabe', amt, type, type === 'in' ? 'Verkauf' : 'Betriebsausgabe');
+        // Freitext ist unbedenklich: bookingRow() setzt textContent, kein innerHTML.
+        var label = (lblInp && lblInp.value || '').trim().slice(0, 40)
+                 || (type === 'in' ? 'Eigene Einnahme' : 'Eigene Ausgabe');
+        var cat = (catSel && catSel.value) || (type === 'in' ? 'Verkauf' : 'Betriebsausgabe');
+        window.demoAdd(label, amt, type, cat);
         amtInp.value = '';
+        if (lblInp) lblInp.value = '';
     };
+
+    (function initKategorien() {
+        var typeSel = document.getElementById('demoType');
+        if (!typeSel) return;
+        typeSel.addEventListener('change', fuelleKategorien);
+        fuelleKategorien();
+    })();
 
     // Demo-Tabs
     document.querySelectorAll('.demo-tab').forEach(function (btn) {

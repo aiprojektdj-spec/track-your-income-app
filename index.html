@@ -276,11 +276,18 @@
             <div class="demo-custom">
                 <div class="demo-custom-lbl">Eigene Buchung</div>
                 <div class="demo-custom-row">
+                    <input class="demo-inp" id="demoLabel" type="text" maxlength="40" placeholder="Bezeichnung, z. B. Kunde Müller" aria-label="Bezeichnung der Buchung">
+                </div>
+                <div class="demo-custom-row">
                     <input class="demo-inp" id="demoAmt" type="number" min="0.01" step="0.01" placeholder="Betrag in €" aria-label="Betrag in Euro">
                     <select class="demo-inp" id="demoType" aria-label="Buchungstyp">
                         <option value="in">Einnahme</option>
                         <option value="out">Ausgabe</option>
                     </select>
+                    <!-- Wird von js/landing.js je nach Buchungstyp gefuellt: nur bei einer
+                         Ausgabe gibt es "Wareneinkauf", und nur der landet in der EUER im
+                         Wareneinsatz statt in den Betriebsausgaben. -->
+                    <select class="demo-inp" id="demoCat" aria-label="Kategorie"></select>
                     <button class="demo-book-btn" type="button" data-action="demo-custom">Buchen</button>
                 </div>
             </div>

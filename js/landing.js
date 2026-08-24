@@ -272,7 +272,21 @@
         }
 
         demoToast('<span class="ok">✓</span> ' + id + ' erfasst — GoBD-protokolliert');
+
+        // Erst ab der ZWEITEN selbst ausgeloesten Buchung: nach der ersten weiss der
+        // Besucher noch nicht, was passiert ist, danach schon — dann ist der Verweis
+        // eine Antwort und keine Unterbrechung. Die fuenf vorbelegten Buchungen aus
+        // demo.bookings zaehlen nicht mit, sie hat niemand gemacht.
+        eigeneBuchungen++;
+        if (eigeneBuchungen >= 2) {
+            ['demoCtaDash', 'demoCtaEuer'].forEach(function (cid) {
+                var el = document.getElementById(cid);
+                if (el) el.hidden = false;
+            });
+        }
     };
+
+    var eigeneBuchungen = 0;
 
     // Kategorien je Buchungstyp. 'Wareneinkauf' muss WORTGLEICH zu der Pruefung in
     // demoTotals() bleiben — nur dieser eine Wert landet in der EUER im Wareneinsatz

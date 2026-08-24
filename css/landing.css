@@ -563,6 +563,47 @@ select.demo-inp { flex: 0 0 auto; width: auto; }
    Platzhalter war weg. Unter 380 px bricht die Zeile stattdessen um. */
 #demoAmt { flex: 1 1 110px; min-width: 110px; }
 #demoLabel { flex: 1 1 100%; }
+
+/* ── Inline-CTA in der Demo (Dashboard und EUER) ──
+   Erscheint ab der zweiten eigenen Buchung. Eingeblendet statt eingeschoben,
+   damit nichts springt, waehrend der Besucher auf die Zahlen schaut. Die
+   Reduced-Motion-Regel weiter oben setzt animation-duration global auf .01ms,
+   deshalb bewusst eine Animation und keine Transition — sie ist damit ohne
+   Zusatzregel abgedeckt. */
+.demo-inline-cta {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    background: var(--accent-glow, rgba(16,185,129,.08));
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    animation: demoCtaIn .32s ease-out both;
+}
+.demo-inline-cta p {
+    flex: 1 1 220px;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+}
+.demo-inline-cta-btn {
+    flex: 0 0 auto;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    min-height: 40px;
+}
+.demo-inline-cta-btn:hover { filter: brightness(1.08); }
+@keyframes demoCtaIn { from { opacity: 0; } to { opacity: 1; } }
 .demo-book-btn {
     background: linear-gradient(135deg, var(--accent), var(--accent2));
     color: #fff;

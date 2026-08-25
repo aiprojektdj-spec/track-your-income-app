@@ -119,42 +119,38 @@ Dritte, nicht eine weitere Session.
 
 ## 2. Braucht dich — keine Session kann das allein
 
-### 2.1 Eine ENV-Variable, die eine Sicherheitslücke offen lässt 🟠
+### 2.1 ~~Owner-ENV-Variablen~~ · ✅ erledigt 2026-08-23
 
-**Das Wichtigste auf dieser Seite. 10 Minuten, reine Konfiguration, kein Code.**
+**Fund R3 ist geschlossen.** In Vercel gesetzt (Production + Preview, Typ Config):
 
-Der Code-Fix zu **R3** ist drin: `api/sync.js`, `api/blob-upload.js` und `api/whop-access.js`
-bevorzugen `SYNC_OWNER_IDS` / `WHOP_OWNER_IDS` (unveränderliche Whop-User-IDs, `user_…`).
+| Name | Wert |
+|---|---|
+| `SYNC_OWNER_IDS` | `user_ljp5xcrqojylg` |
+| `WHOP_OWNER_IDS` | `user_ljp5xcrqojylg` |
 
-**Aber:** Solange diese Variablen in Vercel leer sind, greift der Altweg — der Vergleich gegen
-den bei Whop **frei änderbaren Benutzernamen**, mit dem hart kodierten Default
-`'secondlifevintage41'`. **Wer sich diesen Namen bei Whop gibt, bekommt Owner-Rechte ohne Abo.**
+Redeploy ausgeführt, `/api/whop-access` antwortet danach sauber. Anleitung und Rückweg:
+[`r3-owner-ids-anleitung.md`](r3-owner-ids-anleitung.md).
 
-**Schritt für Schritt:**
+> **Zwei Dinge, die diese Aufgabenbeschreibung falsch hatte:**
+> 1. Es waren **keine** `*_OWNER_USERNAMES` in Vercel gesetzt — der Owner-Check lief
+>    vollständig über den hart kodierten Namen. Der Schritt „alte Namensvariablen löschen"
+>    entfiel deshalb ersatzlos.
+> 2. Das Löschen der Namensvariablen hätte die Lücke **nicht** geschlossen: der Default
+>    stand im Quelltext, nicht in der Variablen. Ohne Variable griff er erst recht.
 
-1. **Whop-User-ID holen:** whop.com → Settings → Account. Die ID beginnt mit `user_`. Nicht der
-   Benutzername — genau dessen Änderbarkeit ist ja das Problem.
-2. **In Vercel:** Projekt `track-your-income-app` → Settings → Environment Variables. Zweimal
-   *Add New*, Environment **Production** (Preview schadet nicht):
-   | Name | Wert |
-   |---|---|
-   | `SYNC_OWNER_IDS` | `user_…` |
-   | `WHOP_OWNER_IDS` | `user_…` |
-   Mehrere Owner: kommagetrennt, ohne Leerzeichen.
-3. **Alte Variablen löschen:** `SYNC_OWNER_USERNAMES` und `WHOP_OWNER_USERNAMES`, falls angelegt.
-   Der hart kodierte Default greift danach nicht mehr, weil die IDs Vorrang haben
-   ([`api/sync.js:58`](../api/sync.js), [`api/whop-access.js:58`](../api/whop-access.js),
-   [`api/blob-upload.js:54`](../api/blob-upload.js)).
-4. **Neu deployen** — Umgebungsvariablen greifen erst mit dem nächsten Deployment.
-5. **Gegenprobe:** einmal einloggen und syncen. Klappt es weiter, hat die ID gepasst. Klappt es
-   **nicht**, war die ID falsch — dann Variable korrigieren, nicht die alte wieder anlegen.
+**Der Default ist mit `c413228` entfernt** (`|| ''` statt `|| 'secondlifevintage41'` in allen
+drei Endpunkten), `CLOUD-SYNC.md` nachgezogen — sie dokumentierte nur den Altweg und hätte ein
+Neuaufsetzen dorthin zurückgeführt.
 
-> **Vorsicht bei Schritt 3:** Erst die IDs setzen und deployen, **dann** die Namensliste löschen.
-> Umgekehrt sperrst du dich zwischenzeitlich selbst aus.
+> ⚠️ **Folge, die man kennen muss:** Der Namensweg fällt jetzt auf eine leere Liste zurück.
+> Ein neues Projekt oder eine neue Umgebung ohne diese Variablen hat **keinen Owner-Bypass**.
+> Das ist die Absicht — fällt aber erst beim Anmelden auf.
 
-**Bei der Gelegenheit gleich mit erledigen:** `ALERT_WEBHOOK_URL` setzen — ohne sie versanden die
-Fail-open-Meldungen aus `api/_alert.js` im Log, statt dich zu erreichen.
+**Noch offen:** der funktionale Beweis. Nach dem nächsten Login muss `/api/whop-access` mit
+`"owner": true` antworten. Kommt stattdessen der „Stackr Pro aktivieren"-Bildschirm, stimmt
+die ID nicht — sie steht dort unten als Freigabe-Code zum Kopieren.
 
+---
 ### 2.2 Zwei Whop-Mails konfigurieren (N4)
 
 **Beide Texte sind fertig entworfen: [`whop-mails-entwuerfe.md`](whop-mails-entwuerfe.md)** —

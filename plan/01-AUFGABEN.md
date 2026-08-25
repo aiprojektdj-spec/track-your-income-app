@@ -1,6 +1,6 @@
 # Was noch zu tun ist
 
-**Stand: 2026-08-23**, jeder Punkt an diesem Tag gegen den Code verifiziert — nicht aus einer
+**Stand: 2026-08-25**, jeder Punkt an diesem Tag gegen den Code verifiziert — nicht aus einer
 Vorgängerliste übernommen.
 
 Einstieg: [`00-STAND.md`](00-STAND.md) · Nicht-zu-Ändern: [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md)
@@ -32,10 +32,14 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Zwei neue Bauaufgaben** aus den Produktentscheidungen vom 2026-08-23 (Begründung jeweils in
-[`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md)). Der Altbestand ist zu: A11y, PWA, Performance,
-Datenschutz, Recht, Marketing und der Kleinkram-Block; F6 ist seit 2026-08-21 vollständig durch
-(Worker **und** Rückmeldung). Belegstellen in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
+**Dieser Abschnitt ist leer** (Stand 2026-08-25). Beide Bauaufgaben aus den Produktentscheidungen
+vom 2026-08-23 sind erledigt: die Landing-Demo ist ausgebaut, OCR ist bis zu den ersten
+Trustpilot-Bewertungen gesperrt. Der Altbestand war schon vorher zu — A11y, PWA, Performance,
+Datenschutz, Recht, Marketing, Kleinkram; F6 seit 2026-08-21 vollständig (Worker **und**
+Rückmeldung). Belegstellen in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
+
+Die Einträge unten bleiben mit ihren Fallen stehen, bis jemand sie ins Archiv zieht — sie sind
+frisch genug, dass die nächste Session sie beim Anfassen derselben Stellen braucht.
 
 ### ~~1.0 OCR-Belegerkennung~~ — zurückgestellt am 2026-08-16
 
@@ -49,19 +53,28 @@ Begründung und die Bedingungen für ein Wiederaufgreifen stehen in
 
 **Nicht anfangen, auch nicht „nur mal die Bibliothek einbinden".**
 
-### 1.0b Landing-Demo ausbauen · `index.html`, Abschnitt `#demo`
+### 1.0b Landing-Demo ausbauen · ✅ erledigt 2026-08-25 (`69361f1`, `b6be27c`, `cb95d40`)
 
-**Entschieden 2026-08-23** als der Weg, die Einstiegshürde zu senken — statt Kartenpflicht
-abzuschaffen oder einen Read-only-Tier zu bauen.
+Entschieden 2026-08-23 als der Weg, die Einstiegshürde zu senken — statt Kartenpflicht
+abzuschaffen oder einen Read-only-Tier zu bauen. **Alle drei Ausbaurichtungen sind umgesetzt:**
 
-Die Demo existiert und ist echt (Dashboard, Buchungen, EÜR, GoBD-Protokoll, „kein Video und keine
-Animation"). Ausbaurichtung: mehr Module zeigen, eigene Zahlen eingebbar machen, den Sprung von
-der Demo in den Checkout an der Stelle anbieten, an der der Wert sichtbar wurde.
+| Ziel | Umsetzung |
+|---|---|
+| mehr Bereiche zeigen | fünf Reiter statt drei — Dashboard · Buchungen · **Rechnung** · EÜR · GoBD-Protokoll |
+| eigene Zahlen eingebbar | `.demo-custom` mit Bezeichnung, Betrag, Typ und Kategorie → `window.demoAddCustom()` |
+| Sprung in den Checkout dort, wo der Wert sichtbar wird | `#demoCtaDash` und `#demoCtaEuer` |
 
-**Nicht anfassen:** Gate-Logik und Rechtstexte. Der Reiz dieses Wegs ist gerade, dass er beides
-unberührt lässt.
+Gate-Logik und Rechtstexte blieben unberührt, wie es die Entscheidung verlangt.
 
-> ⚠️ `index.html` wird häufig von parallelen Sessions gehalten — vorher `git status` prüfen.
+> **Am 2026-08-25 auf Port 4324 durchgeklickt** (frischer Port, Cache-Falle umgangen), Konsole
+> fehlerfrei. Die ganze Kette trägt: eigene Ausgabe „249,90 €" erscheint oben in der Liste,
+> `demoCat` wechselt beim Umschalten auf *Ausgabe* korrekt auf Wareneinkauf/Porto/Bürobedarf,
+> der **Wareneinsatz in der EÜR steigt auf 3.389,90 €**, der Gewinn wird neu gerechnet, und das
+> GoBD-Protokoll schreibt `B-2026-90 erstellt (Wareneinkauf) · CREATE` mit. `aria-selected` ist
+> beim Reiterwechsel sauber exklusiv.
+>
+> Das überzählige `</div>` aus `cb95d40` ist wirklich weg — `#demoList` liegt wieder innerhalb
+> von `#demo`.
 
 ### 1.1 F6 — Krypto-Worker · ✅ erledigt 2026-08-21
 
@@ -213,8 +226,11 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
 | 1 | **2.1 ENV-Variablen in Vercel** | Einzige offene Sicherheitslücke, reine Konfiguration | 10 Min |
 | 2 | **2.2 Whop-Mails** | Verhindert Rückbuchungen bei der 135-€-Verlängerung | 1 h |
 | 3 | **2.3 Live-Tests** | Sechs Funktionen sind gebaut, aber nie unter echten Bedingungen gelaufen | mehrere Sitzungen |
-| 4 | **1.0b Landing-Demo ausbauen** | Der gewählte Weg gegen die Einstiegshürde; rührt Gate und Rechtstexte nicht an | mittel |
-| 5 | **1.0 OCR (Browser-OCR)** | Letzte Feature-Lücke — aber erst **nach** den Live-Tests, und die neue Abhängigkeit vorher freigeben lassen | mehrere Sitzungen |
 
-Rang 1–3 hängen ausschließlich an dir. Erst danach lohnt sich Bauen: ein neues Feature auf
-ungetestetem Fundament ist die teurere Reihenfolge.
+**Abschnitt 1 ist leer.** Es gibt derzeit keine Code-Aufgabe, die eine Session greifen könnte:
+1.0b ist am 2026-08-25 fertig geworden, 1.0 (OCR) ist bis zu den ersten Trustpilot-Bewertungen
+gesperrt, F6 ist seit 2026-08-21 durch.
+
+Rang 1–3 hängen damit **ausschließlich an dir**. Für Rang 1 liegt seit `327112b` eine
+Schritt-für-Schritt-Anleitung bereit: [`r3-owner-ids-anleitung.md`](r3-owner-ids-anleitung.md),
+inklusive des Falls, dass man sich als Owner aussperrt.

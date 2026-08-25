@@ -14,7 +14,9 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const OWNER_NAME = 'secondlifevintage41';        // Default in allen drei Dateien
+const OWNER_NAME = 'secondlifevintage41';        // frueherer Default, seit c413228 entfernt —
+                                                 // hier nur noch als Beispiel fuer eine
+                                                 // ausdruecklich gesetzte Namensliste
 const OWNER_ID   = 'user_ownerRealId';
 
 function loadDecider(file, fnName, envIds) {

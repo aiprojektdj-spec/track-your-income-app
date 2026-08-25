@@ -208,6 +208,7 @@
             <div class="demo-tabs" role="tablist" aria-label="Demo-Module">
                 <button class="demo-tab" role="tab" aria-selected="true" data-view="dashboard" type="button">Dashboard</button>
                 <button class="demo-tab" role="tab" aria-selected="false" data-view="buchungen" type="button">Buchungen</button>
+                <button class="demo-tab" role="tab" aria-selected="false" data-view="lager" type="button">Lager</button>
                 <button class="demo-tab" role="tab" aria-selected="false" data-view="rechnung" type="button">Rechnung</button>
                 <button class="demo-tab" role="tab" aria-selected="false" data-view="euer" type="button">EÜR</button>
                 <button class="demo-tab" role="tab" aria-selected="false" data-view="gobd" type="button">GoBD-Protokoll</button>
@@ -245,6 +246,13 @@
                 <!-- Buchungen -->
                 <div class="demo-view" id="dv-buchungen" hidden>
                     <div class="demo-rows" id="demoList"></div>
+                </div>
+                <!-- Lager: das Modul, das Stackr von sevDesk und lexoffice unterscheidet.
+                     Zeigt den Weg Einkauf -> Verkauf und die Marge nach §25a UStG, die bei
+                     Gebrauchtware ohne Vorsteuer die eigentliche Bemessungsgrundlage ist. -->
+                <div class="demo-view" id="dv-lager" hidden>
+                    <div class="demo-rows" id="demoLagerList"></div>
+                    <div class="demo-euer-note" id="demoLagerNote">Jeder Artikel kennt seinen Einkaufspreis. Verkaufst du ihn, bucht Stackr die Einnahme <strong>und</strong> rechnet die Marge nach <strong>§25a UStG</strong> — bei Gebrauchtware ohne Vorsteuer zahlst du Umsatzsteuer nur auf die Differenz, nicht auf den vollen Verkaufspreis.</div>
                 </div>
                 <!-- Rechnung -->
                 <div class="demo-view" id="dv-rechnung" hidden>

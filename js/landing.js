@@ -102,7 +102,16 @@
             { t: '02.06. 09:05', text: 'Rechnung RE-2026-041 als bezahlt markiert', op: 'update' },
             { t: '31.05. 18:40', text: 'Buchung B-2026-087 storniert (Storno statt Löschen)', op: 'storno' }
         ],
-        months: { lbls: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun'], vals: [1800, 2100, 1950, 2400, 2150, 2080] }
+        months: { lbls: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun'], vals: [1800, 2100, 1950, 2400, 2150, 2080] },
+        // Lagerbestand. ek/vk sind Bruttopreise — bei Gebrauchtware von privat gibt es
+        // keine Vorsteuer, deshalb ist die Marge (vk-ek) die Bemessungsgrundlage nach
+        // §25a UStG. Der Satz steht hier bewusst am Artikel und nicht als Konstante:
+        // seit 2025 kann fuer Anlage-2-Ware (Kunst, Sammlungsstuecke) 7 % gelten.
+        lager: [
+            { id: 'L1', name: 'Nike Air Jordan 1 · Gr. 43', ek: 120.00, vk: 210.00, satz: 19, sold: false },
+            { id: 'L2', name: 'Levis 501 Vintage · W32',    ek:  18.00, vk:  65.00, satz: 19, sold: false },
+            { id: 'L3', name: 'Omega Seamaster · 1968',     ek: 640.00, vk: 890.00, satz: 19, sold: false }
+        ]
     };
 
     function demoTotals() {
@@ -225,6 +234,71 @@
         list.innerHTML = '';
         demo.log.slice(0, 7).forEach(function (e) { list.appendChild(logRow(e, false)); });
     }
+
+    /* ── Lager-Reiter ──────────────────────────────────────────────────────────
+       Der Grund, warum ein Reseller Stackr nimmt, kam in der Demo bisher nicht vor.
+       Gezeigt wird die ganze Kette: Artikel mit Einkaufspreis -> Verkauf -> Einnahme
+       im Dashboard, Wareneinsatz in der EUER, Eintrag im GoBD-Protokoll, und die
+       Marge nach §25a. Die Betraege sind Brutto; ust = marge * satz/(100+satz). */
+    function lagerMarge(a) {
+        var marge = Math.max(0, a.vk - a.ek);
+        return { marge: marge, ust: marge * a.satz / (100 + a.satz) };
+    }
+
+    function lagerRow(a) {
+        var m = lagerMarge(a);
+        var row = document.createElement('div');
+        row.className = 'demo-row';
+        var links = document.createElement('span');
+        links.className = 'dr-label';
+        // textContent statt innerHTML: die Namen sind zwar eigene Konstanten, aber die
+        // Demo bekommt anderswo schon Nutzereingaben — kein zweites Muster einfuehren.
+        links.textContent = a.name;
+        var sub = document.createElement('span');
+        sub.style.cssText = 'display:block;font-size:11px;color:var(--subtle);';
+        sub.textContent = 'EK ' + fmtEur(a.ek) + ' · VK ' + fmtEur(a.vk) +
+            ' · Marge ' + fmtEur(m.marge) + ' (davon ' + fmtEur(m.ust) + ' USt nach §25a)';
+        links.appendChild(sub);
+        var rechts = document.createElement('span');
+        rechts.className = 'dr-amt';
+        if (a.sold) {
+            rechts.className = 'dr-amt in';
+            rechts.textContent = 'verkauft ✓';
+        } else {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'demo-inline-cta-btn';
+            btn.style.padding = '5px 12px';
+            btn.style.fontSize = '12px';
+            btn.textContent = 'verkaufen';
+            btn.addEventListener('click', function () { window.demoVerkaufen(a.id); });
+            rechts.appendChild(btn);
+        }
+        row.appendChild(links);
+        row.appendChild(rechts);
+        return row;
+    }
+
+    function renderDemoLager() {
+        var list = document.getElementById('demoLagerList');
+        if (!list) return;
+        list.innerHTML = '';
+        demo.lager.forEach(function (a) { list.appendChild(lagerRow(a)); });
+    }
+
+    window.demoVerkaufen = function (id) {
+        var a = null;
+        demo.lager.forEach(function (x) { if (x.id === id) a = x; });
+        if (!a || a.sold) return;
+        a.sold = true;
+        renderDemoLager();
+        // Loest dieselbe Kette aus wie jede andere Buchung — inklusive GoBD-Eintrag,
+        // Chart, EUER und dem Verweis in den Checkout ab der zweiten eigenen Buchung.
+        window.demoAdd(a.name + ' · verkauft', a.vk, 'in', 'Verkauf');
+        var m = lagerMarge(a);
+        demoToast('<span class="ok">✓</span> Verkauft — Marge ' + fmtEur(m.marge) +
+                  ', davon ' + fmtEur(m.ust) + ' USt nach §25a');
+    };
 
     var toastTimer = null;
     function demoToast(html) {
@@ -373,6 +447,7 @@
     renderDemoChart();
     renderDemoList();
     renderDemoLog();
+    renderDemoLager();
 
     /* ════════════════════════════════════════
        PRICING TOGGLE

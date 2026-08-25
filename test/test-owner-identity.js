@@ -95,4 +95,50 @@ assert.strictEqual(bodyOf('sync.js', 'isOwnerIdentity'), bodyOf('blob-upload.js'
     'sync.js und blob-upload.js müssen dieselbe Owner-Logik haben');
 pass++; console.log('✓ sync.js und blob-upload.js sind deckungsgleich');
 
-console.log('\n' + pass + '/5 Tests bestanden ✅');
+// ── 6. Kein hart kodierter Owner mehr im Quelltext ────────────────────────────────────────
+// Bis 2026-08 stand in allen drei Dateien `process.env.SYNC_OWNER_USERNAMES || 'secondlifevintage41'`
+// bzw. WHOP_OWNER_USERNAMES. Der Name lebte damit im Quelltext weiter: OHNE jede Konfiguration
+// bekam derjenige den Owner-Bypass, der sich diesen Namen bei Whop gab — der Code fiel OFFEN auf.
+//
+// Der Test nagelt die Eigenschaft fest, nicht den Namen: der Rückfallwert der beiden Env-Listen
+// muss eine leere Zeichenkette sein. Ein neuer hart kodierter Owner — egal welcher — lässt ihn
+// scheitern. Die Namensnennung im erklärenden Kommentar der Dateien stört dabei nicht, weil nur
+// die Initialisierungszeile geprüft wird.
+for (const [file, varName] of [['sync.js', 'OWNER_IDS'], ['sync.js', 'OWNERS'],
+                               ['blob-upload.js', 'OWNER_IDS'], ['blob-upload.js', 'OWNERS'],
+                               ['whop-access.js', 'OWNER_IDS'], ['whop-access.js', 'OWNERS']]) {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'api', file), 'utf8');
+    const zeile = src.split('\n').find(z => z.trim().startsWith('var ' + varName + ' ')
+                                         || z.trim().startsWith('var ' + varName + '='));
+    assert.ok(zeile, file + ': Initialisierung von ' + varName + ' nicht gefunden');
+    const m = zeile.match(/\|\|\s*(['"])(.*?)\1/);
+    assert.ok(m, file + '/' + varName + ': erwarteter ||-Rückfallwert nicht gefunden');
+    assert.strictEqual(m[2], '',
+        file + '/' + varName + ': Rückfallwert muss leer sein, gefunden: ' + JSON.stringify(m[2]));
+}
+pass++; console.log('✓ kein hart kodierter Owner im Quelltext — Rückfallwert ist überall leer');
+
+// ── 7. Ohne Konfiguration ist niemand Owner (fällt zu, nicht auf) ─────────────────────────
+// Der Zustand, in dem die App ohne gesetzte Env-Variablen läuft. Vorher war das der gefährliche
+// Fall; jetzt muss er der sicherste sein.
+for (const [file, fn] of [['sync.js', 'isOwnerIdentity'], ['blob-upload.js', 'isOwnerIdentity']]) {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'api', file), 'utf8');
+    const m = src.match(new RegExp('function ' + fn + '\\([\\s\\S]*?\\n\\}', 'm'));
+    const isOwner = new Function('OWNER_IDS', 'OWNERS', m[0] + '; return ' + fn + ';')([], []);
+    for (const [sub, name] of [['user_ownerRealId', 'secondlifevintage41'],
+                               ['user_attacker', 'secondlifevintage41'],
+                               ['user_x', 'irgendwer'], ['', '']]) {
+        assert.strictEqual(isOwner(sub, name), false,
+            file + ': ohne konfigurierte Owner darf niemand Owner sein (' + sub + '/' + name + ')');
+    }
+}
+{
+    const src = fs.readFileSync(path.join(__dirname, '..', 'api', 'whop-access.js'), 'utf8');
+    const m = src.match(/function _isOwner\([\s\S]*?\n\}/m);
+    const isOwner = new Function('OWNER_IDS', 'OWNERS', m[0] + '; return _isOwner;')([], []);
+    assert.strictEqual(isOwner({ sub: 'user_ownerRealId', preferred_username: 'secondlifevintage41' }),
+        false, 'whop-access.js: ohne konfigurierte Owner darf niemand Owner sein');
+}
+pass++; console.log('✓ ohne gesetzte Env-Variablen ist niemand Owner (faellt zu, nicht auf)');
+
+console.log('\n' + pass + '/7 Tests bestanden ✅');

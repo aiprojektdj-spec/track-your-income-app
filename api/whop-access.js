@@ -50,7 +50,12 @@ var WHOP_API_KEY = process.env.WHOP_API_KEY || '';
 // Endpunkte sind eigenständige Serverless-Funktionen ohne gemeinsames Modul.
 var OWNER_IDS = (process.env.WHOP_OWNER_IDS || '')
     .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
-var OWNERS = (process.env.WHOP_OWNER_USERNAMES || 'secondlifevintage41')
+// Kein hart kodierter Default mehr (Fund R3, geschlossen 2026-08-23): frueher stand hier
+// || 'secondlifevintage41'. Der Name lebte damit im Quelltext weiter, auch ohne gesetzte
+// Variable — wer sich den Namen bei Whop sicherte, bekam Owner-Rechte ohne Abo. Jetzt
+// faellt der Namensweg ohne ausdrueckliche Konfiguration auf eine LEERE Liste zurueck:
+// im Zweifel kein Owner statt eines erratbaren Owners.
+var OWNERS = (process.env.WHOP_OWNER_USERNAMES || '')
     .split(',').map(function (s) { return s.trim(); }).filter(Boolean);
 
 function _isOwner(me) {

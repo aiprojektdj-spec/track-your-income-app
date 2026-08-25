@@ -26,8 +26,18 @@ ENV-Vars automatisch an — Token wird nie manuell eingetragen:
 KV_REST_API_URL          = https://<...>.upstash.io   # von Integration gesetzt
 KV_REST_API_TOKEN        = <RW-REST-Token>            # von Integration gesetzt (Sensitive)
 WHOP_APP_ID              = app_dc3OND8eGv2Iim          # optional, default gesetzt
-SYNC_OWNER_USERNAMES     = secondlifevintage41         # optional, Owner ohne Abo
+SYNC_OWNER_IDS           = user_…                     # Owner ohne eigenes Abo (Fund R3)
 ```
+
+> **`SYNC_OWNER_IDS`, nicht `SYNC_OWNER_USERNAMES`.** Der Benutzername ist bei Whop frei
+> änderbar; wer ihn übernimmt, bekäme Owner-Rechte ohne Abo (Fund R3, Red-Team-Audit
+> 2026-08-10). Die `user_…`-ID ist unveränderlich. Der Namensweg existiert nur noch als
+> Altweg und greift ausschließlich, wenn `SYNC_OWNER_IDS` leer **und**
+> `SYNC_OWNER_USERNAMES` ausdrücklich gesetzt ist — seit 2026-08-23 gibt es keinen
+> hart kodierten Default mehr. Dieselbe Variable braucht `api/blob-upload.js`;
+> `api/whop-access.js` nutzt `WHOP_OWNER_IDS`. Anleitung:
+> [`plan/r3-owner-ids-anleitung.md`](plan/r3-owner-ids-anleitung.md).
+
 `api/sync.js` liest `KV_REST_API_URL/TOKEN` (Fallback: `UPSTASH_REDIS_REST_URL/TOKEN`,
 falls man die DB manuell statt über die Integration anlegt).
 

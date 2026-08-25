@@ -1,6 +1,6 @@
 # Erledigt — August 2026
 
-**Stand: 2026-08-16, abends.** Gegenstück zu [`01-AUFGABEN.md`](01-AUFGABEN.md), die nur noch Offenes
+**Stand: 2026-08-25.** Gegenstück zu [`01-AUFGABEN.md`](01-AUFGABEN.md), die nur noch Offenes
 führt. Hier steht, was abgeschlossen ist — **und wo die Umsetzung von der ursprünglichen
 Aufgabenbeschreibung abwich.** Genau diese Abweichungen sind der Grund, warum die Datei
 existiert: Sie sind beim reinen Abhaken verlorengegangen und wurden zweimal neu entdeckt.
@@ -83,7 +83,13 @@ findet, greift daneben.
 > Pollution, CVE-2024-22363 ReDoS) — das npm-Paket ist dort eingefroren und unmaintained.
 > Aktuell liegt **0.20.3** in `js/vendor/` mit SHA-256 in `js/vendor/VERSIONS.md`.
 
-Offen aus diesem Block: nur noch **F6** (Krypto-Worker), siehe [`01-AUFGABEN.md`](01-AUFGABEN.md).
+- **F6 — Krypto-Worker + Sync-Rückmeldung** · 2026-08-21 (`185b354`, `39cf8b1`, `617bfc3`).
+  Damit ist der Performance-Block vollständig zu. Herleitung und die korrigierte Erfolgszahl
+  (angekündigt 62 % weniger Blockade, gemessen **38 %**) stehen ausführlich in
+  [`01-AUFGABEN.md`](01-AUFGABEN.md), 1.1/1.2 — sie werden hierher gezogen, sobald jemand den
+  Abschnitt archiviert.
+
+**Dieser Block ist vollständig zu.**
 
 ---
 
@@ -141,8 +147,15 @@ Offen aus diesem Block: nur noch **F6** (Krypto-Worker), siehe [`01-AUFGABEN.md`
 
   > **Falle, die dort als Kommentar steht:** „über 200" ist bewusst gerundet, damit der Satz
   > nicht veraltet — die Zahl wächst nur. Bei Änderungen **neu auszählen, nicht schätzen**
-  > (Stand 2026-08-16: 215 `ok(`-Aufrufe in 33 Harnesses). Die **Modulzahl ist absichtlich nicht**
-  > als Beleg verwendet, weil sie ungeklärt ist — siehe [`01-AUFGABEN.md`](01-AUFGABEN.md), 2.4.
+  > (**Stand 2026-08-25: 249 `ok(`-Aufrufe in 35 Harnesses**, alle grün; am 2026-08-16 waren es
+  > 215 in 33). Die Zahl ist seither nur gewachsen — die Rundung trägt also weiter.
+  >
+  > Die **Modulzahl** war zum Zeitpunkt dieses Eintrags ungeklärt und deshalb bewusst nicht als
+  > Beleg verwendet. **Inzwischen entschieden:** es sind **29 Bereiche** (alle Einträge in
+  > `App.pages`, Dashboard eingerechnet), und das Wort ist von „Module" auf „Bereiche" gewechselt,
+  > weil die Akademie auf derselben Seite mit „9 Module" wirbt — das sind Lernmodule. Umgesetzt an
+  > allen vier Stellen in `7635b2f`, Begründung in
+  > [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md).
 
 - **M4 — Wettbewerbs-Preisanker** · 2026-08-16 (`a3b9b6b`). Vergleichstabelle mit Preisen, Belege
   in [`belege-wettbewerbspreise-2026-08-16.md`](belege-wettbewerbspreise-2026-08-16.md).

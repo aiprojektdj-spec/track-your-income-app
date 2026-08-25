@@ -36,9 +36,6 @@ var AuthUI = (function () {
     var PRICE_YEARLY  = 135;  // €/Jahr
     var PKCE_KEY          = 'whop_oauth_pkce';
 
-    // Whop company owners can't self-subscribe — grant them permanent access
-    var OWNER_USERNAMES   = ['secondlifevintage41'];
-
     // Zugangs-Check läuft SERVERSEITIG über /api/whop-access. Das Backend prüft primär mit dem
     // durchgereichten User-Token gegen /api/v2/me/has_access/<id> (has_access existiert bei Whop
     // unter v2, nicht v5) und — falls WHOP_API_KEY gesetzt ist — zusätzlich per Company-Scan.

@@ -196,11 +196,35 @@ Vollständig mit Begründung in [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md). 
 
 ---
 
-## 7. Der eine Punkt, der wirklich drängt
+## 7. Der Punkt, der drängte — inzwischen erledigt
 
-**`SYNC_OWNER_IDS` und `WHOP_OWNER_IDS` sind in Vercel nicht gesetzt.** Der Code-Fix zu R3 ist
-seit `40e4d83` drin, aber solange die Variablen leer sind, greift der Altweg: der Vergleich gegen
-den bei Whop **frei änderbaren Benutzernamen**, mit hart kodiertem Default `'secondlifevintage41'`
-in allen drei Endpunkten. Wer sich diesen Namen bei Whop gibt, bekommt Owner-Rechte ohne Abo.
+> **Nachtrag 2026-08-23.** Dieser Abschnitt beschrieb die letzte offene Sicherheitslücke. Sie ist
+> zu, auf beiden Wegen. Der Text bleibt stehen, weil die *Fehleinschätzung* darin lehrreich ist —
+> siehe die drei Korrekturen unten.
 
-Zehn Minuten, reine Konfiguration, kein Code. Danach die alten `*_OWNER_USERNAMES` löschen.
+**Ursprünglicher Stand:** `SYNC_OWNER_IDS` und `WHOP_OWNER_IDS` seien in Vercel nicht gesetzt,
+und solange sie leer sind, greife der Altweg — der Vergleich gegen den bei Whop frei änderbaren
+Benutzernamen, mit hart kodiertem Default in allen drei Endpunkten. Wer sich diesen Namen gibt,
+bekomme Owner-Rechte ohne Abo. Einzuschätzen als „zehn Minuten, reine Konfiguration".
+
+**Was tatsächlich stimmte — und was nicht:**
+
+1. **Die Lücke war echt.** Ohne Konfiguration entschied ein frei wählbarer Name über Owner-Rechte.
+2. **Der empfohlene Fix hätte sie nicht geschlossen.** „Variablen setzen, dann die alten
+   `*_OWNER_USERNAMES` löschen" — es waren gar keine Namensvariablen gesetzt. Der Check lief
+   vollständig über den **hart kodierten Default im Quelltext**, und der wäre durch keine
+   Dashboard-Änderung verschwunden. Löschen kann man nur, was existiert.
+3. **Der wirksame Fix lag im Code, nicht in der Konfiguration.** Mit entferntem Default fällt
+   `isOwnerIdentity` zu statt auf: leere Liste → `indexOf` → −1 → niemand ist Owner. Das gilt
+   unabhängig davon, was in Vercel steht.
+
+**Endstand:** Default in `c413228` aus allen drei Endpunkten entfernt · Wachhund dagegen in
+`ed0f527` (Prüfung 6 und 7 in `test/test-owner-identity.js`, Gegenprobe gemacht) ·
+`SYNC_OWNER_IDS` und `WHOP_OWNER_IDS` am 2026-08-23 in Vercel gesetzt, Redeploy durch
+(Details in [`r3-owner-ids-anleitung.md`](r3-owner-ids-anleitung.md)).
+
+**Die Lehre, und sie ist der Grund, warum dieser Abschnitt stehen bleibt:** Eine Aufgabe, die als
+„zehn Minuten Konfiguration" in einer Liste steht, kann eine Code-Aufgabe sein. Wer sie abarbeitet,
+ohne vorher nachzusehen, was im Dashboard *tatsächlich* gesetzt ist, hakt sie ab und lässt die
+Lücke offen — die Konfigurationsänderung hätte hier nichts bewirkt.
+

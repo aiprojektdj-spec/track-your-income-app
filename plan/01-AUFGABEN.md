@@ -32,26 +32,32 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Dieser Abschnitt ist leer** (Stand 2026-08-25). Beide Bauaufgaben aus den Produktentscheidungen
-vom 2026-08-23 sind erledigt: die Landing-Demo ist ausgebaut, OCR ist bis zu den ersten
-Trustpilot-Bewertungen gesperrt. Der Altbestand war schon vorher zu — A11y, PWA, Performance,
-Datenschutz, Recht, Marketing, Kleinkram; F6 seit 2026-08-21 vollständig (Worker **und**
-Rückmeldung). Belegstellen in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
+**Eine Aufgabe, und sie gehört in eine eigene Session** (Stand 2026-08-27): OCR ist zurück im
+Auftrag. Alles andere aus dem Vollaudit ist zu — Belegstellen in
+[`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
 
-Die Einträge unten bleiben mit ihren Fallen stehen, bis jemand sie ins Archiv zieht — sie sind
-frisch genug, dass die nächste Session sie beim Anfassen derselben Stellen braucht.
+### 1.0 OCR-Belegerkennung · 🔴 aktiv — **eigene Session**
 
-### ~~1.0 OCR-Belegerkennung~~ — zurückgestellt am 2026-08-16
+**Entschieden 2026-08-27: wird gebaut.** Der User hat die Zurückstellung vom 2026-08-16
+aufgehoben — nicht mehr auf Trustpilot-Bewertungen warten. Ausdrückliche Vorgabe: **in einer
+eigenen Session**, nicht nebenbei zwischen anderen Aufgaben.
 
-**Diese Aufgabe ist gestrichen.** Der Eintrag vom 2026-08-23 („wird gebaut") ist vom User am
-2026-08-16 zurückgenommen worden: **OCR wird erst wieder aufgegriffen, wenn Trustpilot-Bewertungen
-vorliegen** — dann sagt echtes Kundenfeedback, ob die Belegerfassung überhaupt ein Schmerz ist.
+**→ Startpunkt: [`session-prompt-ocr-2026-08-27.md`](session-prompt-ocr-2026-08-27.md).**
+Dort steht alles, was die Session braucht, ohne diese Datei zu lesen.
 
-Begründung und die Bedingungen für ein Wiederaufgreifen stehen in
-[`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md). Spezifikation bleibt liegen
-([`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md)), sie verfällt nicht.
+Die Spezifikation ist vollständig und gilt unverändert:
+[`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md).
 
-**Nicht anfangen, auch nicht „nur mal die Bibliothek einbinden".**
+Drei Dinge, die man vorher wissen muss:
+
+| | |
+|---|---|
+| **CSP-Freigabe** | **liegt vor** — `'wasm-unsafe-eval'` auf `/app.html` und `/eigenbelege`, sonst nirgends. Nicht erneut erfragen. Zu setzen an **beiden** Stellen: `<meta>` und `vercel.json`, sonst greift die Schnittmenge |
+| **Abhängigkeit** | `tesseract.js` 7.0.0 + `tesseract.js-core` 6.1.2, **einmalig vendoriert** nach `js/vendor/`, SHA-256 in `VERSIONS.md`. **Nie zur Laufzeit vom CDN** — das würde bei jedem Lauf verraten, dass gerade ein Beleg verarbeitet wird |
+| **Nur Browser-OCR** | keine Server-Variante, auch nicht als Fallback. Das ist der ganze Punkt der Übung |
+
+**Umfang v1 bewusst klein:** Datum, Bruttobetrag, Händlername — als anklickbare Vorschläge, nichts
+wird automatisch eingetragen. Kein Pflichtpfad: fällt OCR aus, ändert sich für den Nutzer nichts.
 
 ### 1.0b Landing-Demo ausbauen · ✅ erledigt 2026-08-25 (`69361f1`, `b6be27c`, `cb95d40`)
 
@@ -194,7 +200,7 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
 | Zeiterfassung | **wird nicht gebaut** | eigenes Produktfeld |
 | Top-of-Funnel | **Demo ausbauen**, Kartenpflicht bleibt | → Aufgabe 1.0b |
 | Steuerberater-Modell | **bleibt kostenlos**, als Vertriebskanal | nichts zu bauen — der R4-Deckel ist längst drin (`MAX_GRANTS`, [`api/sync.js:499`](../api/sync.js)) |
-| OCR | **wird gebaut**, als Browser-OCR | → Aufgabe 1.0 |
+| OCR | **wird gebaut**, als Browser-OCR — 2026-08-16 zurückgestellt, am **2026-08-27 wieder aufgenommen** | → Aufgabe 1.0, eigene Session |
 
 ---
 

@@ -158,6 +158,31 @@ Die ursprüngliche Angabe „12 Module" war aus nichts ableitbar und hat die App
 verkauft. Umgesetzt an allen vier Stellen der Landingpage in `7635b2f`; im Browser gegengeprüft,
 dass die einzige verbliebene Modulzahl die 9 der Akademie ist.
 
+### OCR wird doch gebaut — Zurückstellung aufgehoben (2026-08-27)
+
+**Der User hat die Zurückstellung vom 2026-08-16 aufgehoben:** „OCR muss fertig werden, eigene
+Session." Der Trustpilot-Auslöser gilt nicht mehr als Bedingung — es wird gebaut, ohne auf
+Bewertungen zu warten.
+
+**Was das bedeutet:**
+
+- OCR ist wieder **aktiver Auftrag** in [`01-AUFGABEN.md`](01-AUFGABEN.md), Abschnitt 1.
+- Umsetzung **in einer eigenen Session**, nicht nebenbei — ausdrückliche Vorgabe. Startpunkt:
+  [`session-prompt-ocr-2026-08-27.md`](session-prompt-ocr-2026-08-27.md).
+- Die Rahmenbedingungen der Spezifikation bleiben unverändert gültig, insbesondere: **nur
+  Browser-OCR**, keine Server-Variante auch nicht als Fallback.
+
+**Die CSP-Freigabe liegt bereits vor** und muss nicht erneut eingeholt werden: `'wasm-unsafe-eval'`
+darf auf `/app.html` und `/eigenbelege` gesetzt werden, Landing, Rechtstexte und `/api/*` behalten
+die harte CSP (Abschnitt 7 der Spezifikation, beantwortet 2026-08-12).
+
+*Der Einwand aus der Zurückstellung bleibt der Vollständigkeit halber festgehalten — kein Kunde
+hat die Belegerfassung bisher als Schmerz genannt, die Annahme stammt aus dem Wettbewerbsvergleich.
+Der User hat das abgewogen und anders entschieden. Kein Grund, die Frage erneut aufzuwerfen.*
+
+<details>
+<summary>Überholt: die Zurückstellung vom 2026-08-16</summary>
+
 ### OCR wird zurückgestellt — Auslöser sind Trustpilot-Bewertungen (2026-08-16)
 
 **Korrigiert die Eintragung vom 2026-08-23, die OCR als „wird gebaut" nach Abschnitt 1 der
@@ -206,6 +231,8 @@ Der Zugang ist gebaut, der Grant-Deckel aus R4 steht (`SYNC_MAX_GRANTS`, Default
 
 **Nächster Schritt, wenn das angegangen wird:** Grants zählen, nicht Tarife entwerfen.
 
+
+</details>
 ---
 
 ## Recht und Datenschutz

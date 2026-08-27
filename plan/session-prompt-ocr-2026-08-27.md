@@ -6,6 +6,20 @@ Diese Datei ist der vollständige Einstieg — du musst keine andere Planungsdat
 anzufangen. Die inhaltliche Spezifikation ist
 [`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md); sie gilt unverändert.
 
+> ⛔ **Nachtrag 2026-08-27: OCR wird auf der Landingpage NICHT beworben.**
+>
+> Das Feature wird gebaut und ist in der App ganz normal benutzbar — aber `index.html` bleibt
+> unberührt: kein Feature-Punkt, kein Bullet in der Preisliste, kein FAQ-Eintrag, keine Zeile in
+> der Vergleichstabelle, nichts im `<title>` oder in der Meta-Description.
+>
+> Grund: Auf der Seite steht nur, was belegbar ist. Wie gut Browser-OCR einen zerknitterten
+> Thermobon liest, weiß vor echten Kundenbelegen niemand. Beworben und danebengegriffen ist
+> teurer als gar nicht beworben (§5 UWG). Beworben wird es, sobald eine gemessene Trefferquote
+> vorliegt — dann mit der Zahl, nicht mit dem Wort „automatisch".
+>
+> Begründung in [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md). **`index.html` steht damit nicht
+> auf deiner Liste anzufassender Dateien.**
+
 ---
 
 ## 0. Erste Handgriffe

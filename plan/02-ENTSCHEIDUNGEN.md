@@ -176,6 +176,24 @@ Bewertungen zu warten.
 darf auf `/app.html` und `/eigenbelege` gesetzt werden, Landing, Rechtstexte und `/api/*` behalten
 die harte CSP (Abschnitt 7 der Spezifikation, beantwortet 2026-08-12).
 
+**OCR wird auf der Landingpage nicht beworben — entschieden 2026-08-27.**
+
+Das Feature wird gebaut und ist in der App ganz normal benutzbar. Es taucht aber **nicht** auf
+`index.html` auf: kein Feature-Punkt, kein Bullet in der Preisliste, kein FAQ-Eintrag, keine
+Zeile in der Wettbewerbs-Vergleichstabelle, kein Wort im `<title>` oder in der Meta-Description.
+
+Der Grund ist derselbe, aus dem der Lexware-Preis aus M1 herausgeflogen ist: **Auf der Seite
+steht nur, was belegbar ist.** Wie zuverlässig Browser-OCR einen zerknitterten Tankbeleg oder
+einen Thermobon liest, weiß bis zu echten Kundenbelegen niemand. Eine beworbene Belegerkennung,
+die im Alltag danebengreift, ist teurer als gar keine — sie erzeugt Erwartung, Enttäuschung und
+im Zweifel eine §5-UWG-Diskussion über eine Eigenschaft, die die Kaufentscheidung getragen hat.
+
+**Wiederaufgreifen:** sobald an echten Belegen eine Trefferquote gemessen ist, die man
+hinschreiben kann. Dann gehört die gemessene Zahl in die Aussage, nicht das Wort „automatisch".
+
+*Nicht zu verwechseln mit der Zurückstellung vom 2026-08-16: Der Bau ist ausdrücklich freigegeben.
+Zurückgehalten wird nur die Bewerbung.*
+
 *Der Einwand aus der Zurückstellung bleibt der Vollständigkeit halber festgehalten — kein Kunde
 hat die Belegerfassung bisher als Schmerz genannt, die Annahme stammt aus dem Wettbewerbsvergleich.
 Der User hat das abgewogen und anders entschieden. Kein Grund, die Frage erneut aufzuwerfen.*

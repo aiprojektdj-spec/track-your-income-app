@@ -45,6 +45,12 @@ eigenen Session**, nicht nebenbei zwischen anderen Aufgaben.
 **→ Startpunkt: [`session-prompt-ocr-2026-08-27.md`](session-prompt-ocr-2026-08-27.md).**
 Dort steht alles, was die Session braucht, ohne diese Datei zu lesen.
 
+> ⛔ **OCR wird auf der Landingpage nicht beworben** (2026-08-27). Gebaut wird es, in der App ist
+> es normal benutzbar — aber `index.html` bleibt unberührt: kein Feature-Punkt, kein Bullet in
+> der Preisliste, kein FAQ-Eintrag, keine Zeile in der Vergleichstabelle. Erst wenn an echten
+> Belegen eine Trefferquote gemessen ist, die man hinschreiben kann. Begründung in
+> [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md).
+
 Die Spezifikation ist vollständig und gilt unverändert:
 [`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md).
 
@@ -118,8 +124,9 @@ Zwei neue Prüfungen in `test/test-cloud-sync.js` (jetzt 12) nageln die **Eigens
 Bewusst anders gebaut als der alte R7-Test, der einen Wortlaut festhielt und beim nächsten Umbau
 falsch alarmiert hat. Gegenprobe gemacht: mit dem alten Icon schlägt der Test an.
 
-**Damit ist Abschnitt 1 leer.** Was bleibt, steht in Abschnitt 2 und 3 — und braucht dich oder
-Dritte, nicht eine weitere Session.
+**Damit war Abschnitt 1 am 2026-08-25 leer** — bis OCR am 2026-08-27 zurück in den Auftrag kam
+(1.0 oben). Alles andere bleibt zu; was offen ist, steht in Abschnitt 2 und 3 und braucht dich
+oder Dritte.
 
 ---
 

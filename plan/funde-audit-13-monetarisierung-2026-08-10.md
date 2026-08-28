@@ -1,168 +1,240 @@
-# Audit 13 — Monetarisierung (Pricing, Funnel, Churn)
+# Monetarisierungs-Audit — Funde (2026-08-13)
 
-**Gelaufen:** 2026-08-12 · **Skill:** `/monetarisierung` · **Masterplan-Prio:** Mittel
-**Fund-Präfix:** `Z` (Zahlung) — `R`/`T`/`P`/`M`/`L`/`F`/`A` sind belegt.
-
-Kennzeichnung: **[geprüft]** = an Code verifiziert · **[Markt]** = externe Preisangabe aus der
-Skill-Definition, nicht neu recherchiert.
-
-> **Masterplan und `funde-gesamt-2026-08-10.md` habe ich NICHT aktualisiert.** Beide Dateien
-> hält die laufende Session „Audit 2026-08-10 Masterplan". Status-Zeile bitte dort nachtragen:
-> `| 13 | Monetarisierung | /monetarisierung | ✅ 2026-08-12 | 11 Funde (1 🔴, 5 🟠, 4 🟡, 2 ✅) |`
+**Session-Prompt:** `plan/session-prompt-audit-13-monetarisierung-2026-08-10.md`
+**Scope:** Pricing, Trial-Funnel, Checkout, Churn, Revenue-Diversifikation.
+**Abgrenzung:** Positionierung und Zielgruppen stehen in
+[#14 Product-Manager](funde-audit-07-product-manager-2026-08-10.md), Landing-Copy in
+[#15 Copy/Marketing](funde-audit-08-copy-marketing-2026-08-10.md) — hier nicht wiederholt.
 
 ---
 
-## Vorbemerkung: die Prämisse des Audits ist weggefallen
+## Wichtige Vorbemerkung: die Skill-Prämisse ist überholt
 
-Die Skill-Definition baut auf der **kostenlosen Offline-Version (Local 1.7) als wichtigstem
-Top-of-Funnel** auf — zwei der sieben Analysebereiche (1 und 6) und ein Akzeptanzkriterium
-(„Offline→Web-Funnel als zentraler Hebel adressiert") hängen daran.
+Der Skill baut seine gesamte Funnel-Analyse auf der Annahme auf, die **kostenlose
+Offline-Version (Local 1.7) sei der wichtigste Top-of-Funnel**. Das gilt seit dem **2026-08-11
+nicht mehr**: Local wird nicht mehr gepflegt (Nutzer-Entscheidung), der Ordner bleibt liegen,
+gespiegelt wird nicht mehr. Erhalten bleibt nur der **Local-Import in Web** als Migrationspfad
+für Bestandsdaten.
 
-Dieser Funnel existiert seit dem **2026-08-11** nicht mehr: Local 1.7 ist auf Nutzerentscheidung
-eingestellt (Memory `local17-eingestellt-2026-08-11`, Abschluss-Commit `244520c`). Der Audit ist
-deshalb mit korrigierter Prämisse gelaufen — **Landing + Live-Demo sind der gesamte Top-of-Funnel.**
+Damit fallen die Skill-Abschnitte 1 und 6 (Offline→Web-Funnel, Kannibalismus) in ihrer
+ursprünglichen Form weg. Die eigentliche Frage lautet jetzt anders und ist wichtiger:
+**Stackr hat aktuell überhaupt keinen Top-of-Funnel mehr außer der Landingpage.** Das ist unten
+als **N1** geführt.
+
+*Nebenbefund, der die Entscheidung stützt:* Wie in
+[#14 P1](funde-audit-07-product-manager-2026-08-10.md) belegt, war Local ohnehin **ungegated**
+(`PUBLIC_KEY_JWK: null` ⇒ Entwicklermodus). Es war also nie ein Funnel, sondern ein kostenloser
+Vollzugang. Die Einstellung beseitigt ein Leck — sie hinterlässt aber eine Lücke.
 
 ---
 
-## Fundliste
+## Funde
 
-### Z1 — Der Funnel hat nur noch einen Eingang 🔴 [geprüft]
+| # | Fund | Wirkung | Aufwand |
+|---|---|---|---|
+| N1 | Kein Top-of-Funnel mehr seit der Local-Einstellung | strategisch | Entscheidung |
+| N2 | Der Trial ist in der App unsichtbar — Server kennt `trialing`, wirft es weg | 🔴 Churn + Rückbuchungen | ~1 Tag |
+| N3 | Jahresabo ist nicht Default, obwohl es 25 % günstiger ist | 🟠 Conversion + Cashflow | ~1 h |
+| N4 | Kein Signal vor Ablauf/Verlängerung, kein Winback nach außen | 🟠 Churn | mittel |
+| N5 | Keine Preisstaffel für Mehr-Firmen-Nutzer und Steuerberater | 🟡 Umsatzpotenzial | mittel |
 
-100 % des Neugeschäfts läuft jetzt über `index.html`. Vorher stand dahinter eine installierte Basis
-kostenloser Offline-Nutzer, die man verlustfrei hochziehen konnte; die ist weg (nicht abgewandert —
-sie wird nur nicht mehr bedient).
+---
 
-Das ist keine Landingpage-Kritik, sondern eine Risikoverschiebung: **jede Conversion-Schwäche auf
-der Landing kostet jetzt doppelt**, weil kein zweiter Einstieg mehr kompensiert. Gleichzeitig fällt
-die Rechtfertigung für den Hard-Gate schwerer — es gibt keine kostenlose Alternative mehr, auf die
-man Preissensible verweisen kann.
+## 🔴 N2 — Der Trial ist in der App unsichtbar, obwohl der Server ihn kennt
 
-Konsequenz für künftige Läufe: Bereich 1 und 6 der Skill-Definition sowie das Akzeptanzkriterium
-sind **gegenstandslos** und sollten aus `~/.claude/skills/monetarisierung/SKILL.md` entfernt werden,
-sonst meldet jeder Lauf denselben toten Hebel erneut. Ebenfalls veraltet dort: „Offen: echte
-Whop-Plan-Links + Referral-Rechtstext" (beides erledigt, s. Z6).
+**Das ist der teuerste Fund dieses Audits, und er ist fast geschenkt zu beheben.**
 
-### Z2 — M3 ist erledigt, nicht offen ✅ [geprüft]
+Der Trial läuft Whop-seitig: 7 Tage, **Karte hinterlegt**, Abbuchung am Tag 8. Der Server weiß
+das auch — `api/whop-access.js:100` prüft ausdrücklich auf `status === 'trialing'`:
 
-Der Copy-Audit führt M3 „Die kostenlose Version existiert auf der Seite nicht" als offenen Fund.
-**Das ist jetzt der richtige Zustand, nicht ein Mangel.** Die Landing erwähnt keine Gratis-Version,
-und die FAQ (`index.html:643`) sagt „kein Download, keine Installation" — konsistent mit der
-Einstellung. M3 bitte als *obsolet* schließen, nicht bauen. Eine nicht mehr gepflegte Version zu
-bewerben wäre irreführend.
+```javascript
+obj.status === 'active' || obj.status === 'trialing' || …
+```
 
-### Z3 — Landing und In-App-Gate widersprechen sich beim Jahresabo 🟠 [geprüft]
+Aber die Antwort an den Client wirft die Information weg
+([api/whop-access.js:216](../api/whop-access.js#L216)):
 
-Der beste Monetarisierungs-Text des Projekts steht im **In-App-Gate**, nicht auf der Landing.
+```javascript
+return res.status(200).json({ has_access: hasAccess, user_id: userId, grace_token: … });
+```
 
-| | Landing (`index.html:556-582`) | In-App-Gate (`js/whop-auth.js:598-621`) |
+Client-seitig sind die passenden Funktionen als **Stummel** vorhanden
+([js/user-plan.js:29-32](../js/user-plan.js#L29)):
+
+```javascript
+function isPro()          { return true; }
+function isTrialActive()  { return false; }
+function getTrialDaysLeft() { return null; }
+```
+
+**Folge:** Während der sieben Trial-Tage kann die App dem Nutzer **nicht sagen**, dass er im
+Trial ist, wie viele Tage bleiben oder wann die erste Abbuchung kommt. Das Kontomenü zeigt ihm
+stattdessen „◆ Stackr Pro aktiv" ([js/whop-auth.js:681](../js/whop-auth.js#L681)) — formal
+richtig, aber es verdeckt die anstehende Zahlung.
+
+**Warum das teuer ist:**
+
+1. **Rückbuchungen und Erstattungen.** Der klassische Ablauf: Nutzer testet, vergisst es, wird
+   am Tag 8 mit 15 € belastet, fühlt sich überrumpelt → Erstattungsanfrage oder Chargeback.
+   Chargebacks kosten Gebühren **und** beschädigen den Standing des Whop-Kontos. Genau das
+   verhindert ein Hinweis am Tag 5.
+2. **Der beste Conversion-Moment bleibt ungenutzt.** Tag 5–6 ist der Zeitpunkt, an dem ein
+   Nutzer bereits Daten erfasst hat und der Wert sichtbar ist. Ein Hinweis wie
+   *„Du hast in 6 Tagen 23 Buchungen erfasst und deine erste EÜR vorbereitet — ab morgen läuft
+   dein Abo für 15 €/Monat"* macht aus einer Überraschung eine Bestätigung.
+3. **Es widerspricht dem eigenen Ton.** Die Landingpage kommuniziert den Trial vorbildlich
+   transparent („Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung") — an *jeder* Stelle.
+   Dass ausgerechnet die App danach schweigt, ist ein Bruch mit der eigenen Linie.
+
+**Fix — die Verkabelung fehlt, nicht die Logik:**
+
+```javascript
+// api/whop-access.js — Status durchreichen statt verwerfen
+return res.status(200).json({
+    has_access: hasAccess, user_id: userId, grace_token: …,
+    status: membershipStatus,          // 'active' | 'trialing'
+    renews_at: membershipRenewsAt      // falls Whop es liefert
+});
+
+// js/user-plan.js — die beiden Stummel füllen
+function isTrialActive()    { return _status === 'trialing'; }
+function getTrialDaysLeft() { return _renewsAt ? Math.ceil((_renewsAt - Date.now()) / 864e5) : null; }
+```
+
+Dazu ein dezenter Streifen im Kontomenü und ab Tag 5 ein Hinweis im Dashboard. **Der teuerste
+Teil ist die UI, nicht die Technik** — die Statusabfrage läuft bei jedem `boot()` ohnehin.
+
+*Dies ist derselbe Musterfall wie an anderer Stelle mehrfach beobachtet: die schwierige Hälfte
+ist gebaut, die einfache fehlt.*
+
+---
+
+## 🟠 N3 — Das Jahresabo ist nicht die Standardauswahl
+
+Der Preisumschalter auf der Landingpage steht auf **„Monatlich"**
+([index.html:556](../index.html#L556), `billing-btn-active` auf dem Monats-Button), obwohl das
+Jahresabo für beide Seiten besser ist:
+
+| | Monatlich | Jährlich |
 |---|---|---|
-| Default | **Monatlich** (`billing-btn-active`, `aria-pressed="true"`) | **Jahresabo** hervorgehoben, Monat sekundär |
-| Ersparnis | nur Badge „25% günstiger" | **„SPAR 45 €"** absolut |
-| Monatsäquivalent | erst nach Toggle-Klick | „entspricht 11,25 €/Monat" direkt |
-| Gratis-Monate | — | **„3 Monate gratis"** |
+| Preis | 15 €/Monat | 135 €/Jahr = 11,25 €/Monat |
+| Ersparnis für den Kunden | — | **45 €** (25 %) |
+| Cashflow für den Anbieter | 15 € | **135 € sofort** |
+| Churn-Risiko | jeden Monat | einmal im Jahr |
 
-Die absolute Zahl (`45 €`) und „3 Monate gratis" werden im Gate sauber aus `PRICE_MONTHLY`/
-`PRICE_YEARLY` berechnet (`whop-auth.js:579-581`) — auf der Landing tauchen sie nie auf. Wer zuerst
-die Landing sieht, bekommt die schwächere Variante.
+Im **Gate** ist es bereits richtig gelöst: `_showNoMembershipScreen` hebt das Jahresabo optisch
+hervor, mit „SPAR 45 €"-Badge und der Umrechnung „entspricht 11,25 €/Monat · 3 Monate gratis"
+([js/whop-auth.js:587-593](../js/whop-auth.js#L587)). Nur die Landingpage — die weit mehr
+Besucher sieht — startet auf der schlechteren Variante.
 
-**Maßnahme:** Landing-Framing an das Gate angleichen (Jahr vorausgewählt, 45 € absolut nennen).
+**Fix:** Umschalter-Default auf „Jährlich" setzen und die Monatsvariante als Alternative
+daneben. Eine Zeile plus ein umgestellter `billing-btn-active`.
+**Erwarteter Effekt:** Bei SaaS-Preisschaltern liegt der Anteil der Default-Auswahl erfahrungsgemäß
+deutlich über dem der Alternative — der Wechsel verschiebt Umsatz nach vorn, ohne den Preis
+anzufassen. Zu messen, nicht zu glauben: Whop zeigt die Plan-Verteilung.
 
-### Z4 — 15 € liegt über jedem Einstiegstarif des Wettbewerbs 🟡 [Markt]
+---
 
-| Produkt | Einstieg | Mittel |
-|---|---|---|
-| lexoffice | — | 7,90 € / 15,90 € |
-| FastBill | 0 € | 9 € / 19 € |
-| Papierkram | 0 € | 9,90 € |
-| sevDesk | 0 € | 12 € / 24 € |
-| **Stackr** | **15 €** (einziger Tarif) | — |
+## 🟠 N4 — Kein Signal vor Ablauf, kein Weg zurück nach außen
 
-Stackr ist damit teurer als jeder Einstieg und liegt auf Höhe der *mittleren* Stufen — bei
-gleichzeitig **fehlendem Free-Tier**, das vier von vier Wettbewerbern haben.
+**Vor dem Ablauf:** Es gibt keine Erinnerung an die anstehende Verlängerung. Für Jahresabos ist
+das relevant — 135 € einmal im Jahr ohne Vorwarnung ist genau die Buchung, die zu einer
+Rückfrage führt. (Ob Whop selbst eine Mail schickt, ist aus dem Code nicht feststellbar und
+sollte im Whop-Backend geprüft werden.)
 
-**Wichtig: der Preisanker auf der Landing ist trotzdem richtig gesetzt.** `index.html:584-588`
-vergleicht mit einer Steuerberater-Stunde (150–250 €), nicht mit dem Wettbewerb. Der Copy-Audit
-schlägt unter **M4** vor, den Anker auf den Wettbewerb zu richten — **davon rate ich ab**: das lädt
-zu genau dem Vergleich ein, den Stackr auf den Preis allein verliert. Der tragfähige Hebel ist
-Leistungsumfang (12 Module inkl. Lager, GbR, KSK, Fahrtenbuch — in den 9-€-Tarifen nicht enthalten),
-nicht Preisnähe.
+**Nach dem Ablauf** ist es dagegen gut gelöst: `_showNoMembershipScreen` dient laut Kommentar
+ausdrücklich als **Winback-Screen für Neukauf *und* abgelaufenes Abo**
+([js/whop-auth.js:574](../js/whop-auth.js#L574)) — mit beiden Preiskarten, gerechneter Ersparnis
+und dem entscheidenden Satz: *„Deine Daten bleiben lokal gespeichert — nach der Zahlung wirst du
+beim Zurückwechseln zu diesem Tab automatisch erkannt."*
 
-### Z5 — Ein einziger Tarif ist jetzt der einzige Einstieg 🟠 → **Entscheidung des Users**
+Das ist der wichtigste Churn-Schutz, den eine Local-First-App hat: **Kündigen bedeutet keinen
+Datenverlust.** Ein Nutzer, der weiß, dass seine Buchhaltung nicht weg ist, kommt eher zurück.
+Es steht auch korrekt in AGB §7.
 
-Solange die Gratis-Offline-Version existierte, war „ein Preis, keine Tarif-Treppe"
-(`index.html:553`) eine Stärke: Preissensible hatten einen Platz. Jetzt haben sie keinen — sie
-bouncen. Das ist die direkte Kopplung von Z1 an den P-Block-Fund **P4**.
+**Die Lücke:** Dieser Winback-Screen erreicht nur, wer die App **erneut öffnet**. Wer nach der
+Kündigung nicht wiederkommt, sieht ihn nie. Es gibt keinen Kanal nach außen — kein E-Mail-Anlass,
+keine Erinnerung.
 
-Zwei Wege, beide legitim, **keiner davon einseitig umsetzbar:**
+**Realistischer Fix ohne Tracking und ohne DSGVO-Ärger:** Whop kennt die Mitgliedschaftsereignisse
+(Kündigung, Ablauf, fehlgeschlagene Zahlung) und kann Mails versenden. Das ist eine
+**Konfigurationsaufgabe im Whop-Backend**, kein Code. Zwei Mails reichen: eine drei Tage vor der
+Jahresverlängerung, eine sieben Tage nach der Kündigung mit dem Hinweis, dass die Daten erhalten
+sind.
 
-- **A — Einzelpreis halten**, 7-Tage-Trial als Abfederung, Positionierung klar Premium. Weniger
-  Komplexität, weniger Support, höherer ARPU, mehr Bounce.
-- **B — schlanker Zweittarif** (z. B. nur Rechnungen + EÜR, ~8–9 €) als Auffangbecken gegen die
-  Free-Tiers. Mehr Conversion, aber Gate-Logik, Feature-Flags und Rechtstexte wachsen mit.
+**Zum Churn-Tracking allgemein:** Der Skill fragt nach Churn-Signalen im Produkt. Es gibt keine —
+und das ist **richtig so**. Ein Local-First-Produkt mit E2E-Verschlüsselung, das mit „Deine Daten
+verlassen dein Gerät nicht" wirbt, kann kein Nutzungsverhalten messen, ohne genau dieses
+Versprechen zu brechen. Die Kennzahlen, die es braucht, liefert Whop ohnehin: aktive
+Mitgliedschaften, Kündigungsquote, Trial-Konversion, Plan-Verteilung. **Kein Produkt-Tracking
+nachrüsten.**
 
-### Z6 — Checkout und Referral sind fertig, die Skill-Notiz ist veraltet ✅ [geprüft]
+---
 
-- Echte Whop-Plan-Links **sind verdrahtet**: `plan_iR6YIKLcychSZ` (monatlich),
-  `plan_b5IBQ1lecggOT` (jährlich) — in `js/whop-auth.js:26-27`, `index.html:580` und
-  `landing-v2.html:306/319` identisch.
-- **Zwei Klicks** von Landing bis Whop-Checkout (`#preise` → CTA). Ziel „max. 3" erfüllt.
-- Referral-Overlay vorhanden (`whop-auth.js:744`), Affiliate-Muster `?a={ref}` belegt.
-- **Referral-Rechtstext existiert:** `agb.html:286` §11 Empfehlungsprogramm, aus dem Overlay
-  verlinkt. Offen ist nur die **Anwalts-Freigabe** von §11 — nicht der Text.
-- Kündigungsweg korrekt auf `whop.com/@me/settings/orders/` (`whop-auth.js:33`), nicht auf den
-  Company-Hub.
+## 🟡 N1 — Seit der Local-Einstellung fehlt der Top-of-Funnel
 
-### Z7 — Kontextwechsel beim Checkout, ausreichend abgefedert 🟡 [geprüft]
+Bis zum 2026-08-11 lief die Erzählung: kostenlose Offline-Version als Einstieg, Web-Abo als
+Upgrade. Diese Stufe ist weg. Übrig bleibt: **Landingpage → Whop-Checkout mit Karte → App.**
 
-Checkout öffnet in neuem Tab (`target="_blank"`). Das Gate erklärt das vorab: „nach der Zahlung
-wirst du beim Zurückwechseln zu diesem Tab automatisch erkannt" (`whop-auth.js:596`). Kein
-Handlungsbedarf.
+Das ist ein Hard-Gate ohne Vorstufe. Die Wettbewerber haben durchweg eine:
 
-### Z8 — Kein Kündigungs-Vorlauf, keine Absichts-Erkennung 🟠 [geprüft]
+| Anbieter | Einstieg |
+|---|---|
+| sevDesk | Testzeitraum |
+| Lexware Office | Testphase |
+| FastBill, Papierkram | kleiner Free-Tier |
+| **Stackr** | 7-Tage-Trial **mit Kartenpflicht** |
 
-Die Kündigung passiert vollständig bei Whop. Stackr erfährt davon **erst, wenn der Zugang schon weg
-ist** — dann erscheint der Winback-Screen (`whop-auth.js:574`). Es gibt:
+Die Kartenpflicht ist die höchste Hürde in diesem Vergleichsfeld.
 
-- keine Erinnerung vor der Verlängerung,
-- keinen Hinweis vor dem Ablauf,
-- keine Gelegenheit, vor der Kündigung ein Angebot zu machen (z. B. Wechsel Monat → Jahr).
+**Was den Verlust teilweise auffängt und heute schon existiert:** die **Live-Demo auf der
+Landingpage** („Probier es aus. Hier. Jetzt."). Das ist die richtige Antwort auf ein Hard-Gate —
+Wert zeigen, bevor die Karte verlangt wird. Sie ist derzeit ein Abschnitt unter vielen.
 
-Der Winback-Screen selbst ist gut gebaut — er kommt nur strukturell zu spät. Ein Vorlauf-Kontakt
-wäre über den bestehenden client-seitigen Make.com-Pfad denkbar; das Verlängerungsdatum kennt
-allerdings nur Whop, ohne dessen Daten bleibt es bei Whops eigenen Mails.
+**Drei Optionen, absteigend nach Aufwand:**
 
-### Z9 — Downgrade ist datensicher ✅ [geprüft]
+1. **Demo aufwerten statt Free-Tier bauen.** Die Demo prominenter setzen (Hero-Bereich statt
+   Mitte) und um die zwei Alleinstellungen erweitern, die kein Wettbewerber zeigen kann:
+   Lager-Verwaltung und GbR-Gewinnverteilung. Kein neues Produkt, keine neue Codebasis.
+   **Meine Empfehlung.**
+2. **Trial ohne Kartenpflicht.** Senkt die Einstiegshürde deutlich, erhöht aber den Anteil
+   unqualifizierter Anmeldungen und ist bei Whop eine Plan-Konfiguration. Messbar über die
+   Trial-Konversionsrate.
+3. **Read-only-Web-Tier.** Ein dauerhaft kostenloser Zugang, der Erfassen erlaubt, aber Export,
+   Cloud-Sync und E-Rechnung sperrt. Größter Aufwand, und er widerspricht der klaren
+   Ein-Preis-Erzählung („Ein Preis. Alles drin.").
 
-Sauber gelöst und ein echtes Verkaufsargument:
+**Nicht empfehlenswert:** Local wiederbeleben. Die Entscheidung ist gefallen, und die Version
+war ohnehin ungegated.
 
-- Daten bleiben lokal, nichts wird beim Ablauf gelöscht (`whop-auth.js:596`).
-- **4 h Offline-Grace** über ECDSA-P-256-signiertes Token (`whop-auth.js:53-58`) — kein
-  Fehl-Aussperren bei Netzproblemen, und nicht fälschbar.
-- Steuerberater-Nur-Lese-Code direkt auf dem Gate angeboten (`whop-auth.js:628-631`).
+---
 
-### Z10 — Eine einzige Einnahmequelle 🟡 → **Entscheidung des Users**
+## 🟡 N5 — Ein Preis für sehr unterschiedliche Nutzungsintensität
 
-15 €/135 € ist der komplette Umsatz. Die **billigste realistische zweite Linie ist die
-Steuerberater-Lizenz**, weil die Infrastruktur weitgehend steht: StB-Envelope (`js/stb-share.js`),
-Nur-Lese-Zugriff und Freigabe-Code existieren. Fehlt: Mehr-Mandanten-Verwaltung und ein Preis.
-Das ist ein neues Produkt, keine Optimierung — deshalb Entscheidung, nicht Maßnahme.
+Ein Einzelunternehmer mit fünf Rechnungen im Monat und eine GbR mit drei Gesellschaftern, zwei
+Firmen und Lagerverwaltung zahlen **beide 15 €**. Der Nutzen und die Zahlungsbereitschaft
+unterscheiden sich erheblich.
 
-### Z11 — Das Gate steht vor dem Onboarding, die Aktivierung dahinter 🟠 [geprüft]
+Wie schon in [#14 P4](funde-audit-07-product-manager-2026-08-10.md) empfohlen: Falls je gestaffelt
+wird, dann **nach Firmenanzahl**, nicht nach Features. Gesetzlich nötige Funktionen wie die
+E-Rechnung hinter einen höheren Tarif zu legen, ist genau der Fehler, den Lexware macht
+(dort erst ab 32,90 €) — und derzeit Stackrs bestes Verkaufsargument.
 
-Reihenfolge im Code: `AuthUI.boot()` → Gate → erst danach `showOnboarding()`
-(`js/app.js:166` und `:176`, Wizard ab `:1190`). Für einen Trial-Nutzer heißt das:
+**Zwei ungenutzte Umsatzquellen, beide bereits technisch vorbereitet:**
 
-1. Karte hinterlegen, **dann**
-2. 5-Schritt-Stammdaten-Wizard, **dann**
-3. leere App.
-
-Die Landing beweist das Produkt vorab mit einer echten interaktiven Mini-Demo
-(`index.html:189-240`: Dashboard, Buchungen, EÜR, GoBD-Protokoll, „kein Video und keine
-Animation") — **die App selbst startet dann leer**. Die 7 Trial-Tage sind das ganze
-Aktivierungsfenster, und es gibt darin keine geführte erste Buchung und keine Demo-Daten auf Knopfdruck.
-
-Das ist der stärkste unbesetzte Hebel: Der Trial verlangt Vorleistung (Karte), bevor der erste
-Erfolg garantiert ist.
+- **Steuerberater-Zugang.** Die Read-only-Freigabe ist gebaut (`js/stb-share.js`, ECDH-Envelope,
+  Fingerabdruck-Abgleich) und **kostenlos** — der Steuerberater braucht kein eigenes Abo. Für
+  den Mandanten ist das ein Kaufargument. Eine Kanzlei mit 40 Mandanten wäre allerdings ein
+  eigenes Preismodell wert. Heute ist dieser Weg zugleich ein Leck
+  ([#2 R4](funde-audit-01-red-team-2026-08-10.md): ein Abo kann unbegrenzt Gratis-Zugänge
+  erzeugen) — ein Deckel würde beides regeln.
+- **Empfehlungsprogramm.** Vollständig verdrahtet: Referral-Link mit `?a=<username>`, Teilen per
+  E-Mail und WhatsApp, und — anders als eine ältere Notiz behauptet — **die
+  Teilnahmebedingungen existieren**: `agb.html` §11 mit Anker `#empfehlungsprogramm`, korrekt
+  aus dem Referral-Dialog verlinkt ([js/whop-auth.js:780](../js/whop-auth.js#L780)). Der Text
+  regelt Freiwilligkeit, Pro-Abo-Voraussetzung, Abwicklung über Whop und stellt klar, dass der
+  Anbieter nicht Auszahlungsstelle ist. **Das Programm ist einsatzbereit und wird nirgends
+  beworben** — es steht nur im Kontomenü.
 
 ---
 
@@ -170,55 +242,44 @@ Erfolg garantiert ist.
 
 | Bereich | Score | Kommentar |
 |---|---|---|
-| Landing→Abo-Funnel *(ersetzt „Offline→Web", s. Z1)* | **7**/10 | Live-Demo ist stark und ehrlich; aber nur ein Eingang, kein Auffangbecken |
-| Pricing vs. Markt | **6**/10 | Über jedem Einstiegstarif, ohne Free-Tier; Anker richtig gesetzt, Umfang zu schwach begründet |
-| Upgrade-Flow | **9**/10 | Gate/Winback ist das beste Stück Monetarisierung im Projekt; Landing hinkt hinterher (Z3) |
-| Churn-Protection | **5**/10 | Datensicher (Z9), aber ohne jeden Vorlauf vor Ablauf/Kündigung (Z8) |
-| Revenue-Diversifikation | **3**/10 | Eine Linie; StB-Lizenz liegt technisch fast fertig da |
+| Top-of-Funnel | **4/10** | Local weggefallen, nur Landing + Demo übrig; Kartenpflicht ist die höchste Hürde im Vergleichsfeld |
+| Pricing vs. Markt | **7/10** | 15 € liegt über sevDesks 9,90-€-Einstieg, aber unter dessen 17,90-€-Vollpaket — und E-Rechnung ist drin, wo Lexware 32,90 € nimmt. Gut positioniert, schlecht erzählt |
+| Checkout-Flow | **8/10** | Landing → Checkout in 2 Klicks, echte Plan-Links verdrahtet, `_recheckOnFocus` erkennt die Zahlung ohne Reload |
+| Trial-Erlebnis | **3/10** | Server kennt `trialing`, App zeigt nichts — kein Countdown, keine Vorwarnung vor der Abbuchung (**N2**) |
+| Churn-Schutz | **6/10** | Winback-Screen gut gemacht, „Daten bleiben erhalten" ist das stärkste Argument — aber er erreicht nur Rückkehrer |
+| Revenue-Diversifikation | **4/10** | Ein Preis, ein Produkt. StB-Zugang und Referral sind gebaut und ungenutzt |
 
-## Top 3 Sofort-Maßnahmen
+---
+
+## Top-3-Sofortmaßnahmen
 
 ```
-💰 QUICK WIN 1 — Jahresabo-Framing der Landing an das In-App-Gate angleichen
-   Aufwand: ~1 h
-   Impact: Verschiebung des Mix zu Jahresabo → höherer LTV, weniger Churn
-   Implementierung: index.html:556-582 — billingYearly als Default (billing-btn-active +
-   aria-pressed umdrehen, proPrice/proPricePeriod entsprechend initialisieren), Badge um die
-   absolute Zahl ergaenzen ("Spar 45 € = 3 Monate gratis"), Werte wie in whop-auth.js:579-581
-   aus 15/135 rechnen statt hart schreiben.
-   ⚠ index.html ist derzeit von einer parallelen Session gehalten — vorher abstimmen.
+💰 QUICK WIN 1 — Trial sichtbar machen (N2)
+   Aufwand: ~1 Tag (Server-Feld durchreichen + 2 Stummel füllen + UI-Streifen)
+   Impact: weniger Rückbuchungen, plus der beste Conversion-Moment wird überhaupt erst nutzbar
+   Umsetzung: status/renews_at in die whop-access-Antwort, isTrialActive()/getTrialDaysLeft()
+              füllen, Hinweis im Kontomenü + ab Tag 5 im Dashboard
 
-💰 QUICK WIN 2 — Demo-Daten auf Knopfdruck im Leerzustand
-   Aufwand: ~1 Tag
-   Impact: Aktivierung innerhalb der 7 Trial-Tage; adressiert Z11 direkt
-   Implementierung: Leerzustand nach dem Onboarding um "Mit Beispieldaten ansehen" erweitern;
-   der Datensatz der Landing-Demo (index.html) existiert bereits und kann als Vorlage dienen.
-   Pflicht: klar als Demo markieren und in einem Zug loeschbar halten (GoBD — Demo-Buchungen
-   duerfen nicht ins Protokoll der echten Firma geraten).
+💰 QUICK WIN 2 — Jahresabo als Default (N3)
+   Aufwand: ~1 Stunde
+   Impact: verschiebt Umsatz nach vorn und senkt die Kündigungsfrequenz, ohne Preisänderung
+   Umsetzung: billing-btn-active auf den Jahres-Button, Reihenfolge tauschen
+              (das Gate macht es bereits richtig — nur die Landing nachziehen)
 
-💰 QUICK WIN 3 — Rückweg für die verwaisten Local-Nutzer benennen
-   Aufwand: ~1 h
-   Impact: die einzige verbliebene Bestandsbasis; ohne Hinweis geht sie still verloren
-   Implementierung: FAQ-Eintrag auf index.html — Local-Daten lassen sich per verschluesseltem
-   Export in die Web-Version importieren (Pfad existiert, Memory local-web-datentransfer-...).
-   In Local 1.7 selbst ist kein CTA moeglich: eingestellt, wird nicht mehr angefasst.
+💰 QUICK WIN 3 — Zwei Whop-Mails konfigurieren (N4)
+   Aufwand: ~1 Stunde, reine Konfiguration im Whop-Backend
+   Impact: fängt die Jahresverlängerungs-Überraschung ab und holt Gekündigte zurück
+   Umsetzung: 3 Tage vor Verlängerung; 7 Tage nach Kündigung mit dem Hinweis,
+              dass die Daten erhalten sind
 ```
 
 ## Strategisch (3–6 Monate)
 
-1. **Tarifstruktur entscheiden (Z5)** — Einzelpreis halten oder Zweittarif gegen die Free-Tiers.
-   Blockiert Z1-Folgearbeit; alles andere an der Landing ist Feinschliff daneben.
-2. **Steuerberater-Lizenz (Z10)** — zweite Einnahmequelle mit der geringsten Baulast, weil
-   Envelope und Nur-Lese-Zugriff stehen.
-3. **Wert über Umfang begründen, nicht über Preisnähe (Z4)** — die 12 Module gegen die
-   Feature-Grenzen der 9-€-Tarife stellen, statt in einen Preisvergleich zu gehen.
-4. **Vorlauf vor dem Ablauf (Z8)** — Angebot „Monat → Jahr" bevor gekündigt wird, statt Winback
-   danach.
-
-## Was dieser Audit nicht konnte
-
-- **Keine echten Funnel-Zahlen.** Es gibt kein Analytics (bewusst, DSGVO). Alle Conversion-Aussagen
-  sind strukturell begründet, nicht gemessen. Die Prozentangaben im Skill-Output-Format
-  („+X % Conversion") habe ich deshalb weggelassen statt sie zu erfinden.
-- **Whop-seitige Zahlen** (Trial-Abbruchquote, Churn, Affiliate-Umsatz) liegen nicht im Repo.
-- **Kein Anwaltsersatz.** §11 AGB ist geschrieben, die Freigabe fehlt weiter.
+1. **Demo zum Haupteinstieg machen** statt eines Free-Tiers (N1, Option 1) — die einzige
+   Maßnahme, die den weggefallenen Local-Funnel ersetzt, ohne ein zweites Produkt zu pflegen.
+2. **Empfehlungsprogramm aktivieren.** Es ist fertig und rechtlich abgesichert, wird aber nirgends
+   beworben. Ein Hinweis nach dem dritten erfolgreichen Monat kostet nichts.
+3. **Staffelung nach Firmenanzahl prüfen** (N5) — erst wenn es genug Mehr-Firmen-Nutzer gibt,
+   um die Grenze empirisch zu setzen. Vorher ist jede Staffel geraten.
+4. **Steuerberater-Modell** — zusammen mit dem Grant-Deckel aus R4 angehen. Erst Leck schließen,
+   dann Preis dafür verlangen.

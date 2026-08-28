@@ -1,3 +1,12 @@
+> ## ⚠ Abgelöst — Stand 2026-08-14
+>
+> Diese Übergabe ist durch vier neue Dateien ersetzt:
+> [`00-STAND.md`](00-STAND.md) · [`01-AUFGABEN.md`](01-AUFGABEN.md) ·
+> [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md) · [`03-ARBEITSREGELN.md`](03-ARBEITSREGELN.md).
+> Der Text unten ist der Stand vom 12.08. und in Teilen überholt.
+
+---
+
 # Übergabe — Stackr Web 1.7, Stand 2026-08-12
 
 Diese Datei ist als **Einstieg für eine neue Session** gedacht und steht für sich: sie nennt jeden

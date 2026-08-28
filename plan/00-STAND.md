@@ -109,9 +109,10 @@ Diese Punkte sind am Code verifiziert und **gehören ins Marketing** — dort st
 | Datei | Inhalt |
 |---|---|
 | `plan/00-STAND.md` | **diese Datei** — Einstieg und Gesamtbild |
-| `plan/01-AUFGABEN.md` | Was noch zu tun ist, nach Zuständigkeit getrennt |
+| `plan/01-AUFGABEN.md` | Was noch zu tun ist, nach Zuständigkeit getrennt — **nur noch Offenes** |
 | `plan/02-ENTSCHEIDUNGEN.md` | Was bewusst **nicht** geändert wird, mit Begründung |
 | `plan/03-ARBEITSREGELN.md` | Parallele Sessions, Fallen, Verifikationswege |
+| `plan/ERLEDIGT-2026-08.md` | Abgeschlossenes aus 08/2026 — **mit den Abweichungen zur Aufgabenbeschreibung** und den Fallen, die beim nächsten Anfassen wieder greifen (Theme-Vertrag, N3-Startzustand, SheetJS-CVE) |
 | `plan/funde-gesamt-2026-08-10.md` | Alle Audit-Funde am Stück, eine Zeile je Fund |
 | `plan/funde-audit-01…17-*.md` | Die einzelnen Audits mit Datei:Zeile je Fund |
 | `plan/OFFEN.md` | ältere Statusliste — **von `01-AUFGABEN.md` abgelöst**, nur noch Archiv |

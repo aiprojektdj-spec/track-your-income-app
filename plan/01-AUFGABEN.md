@@ -32,38 +32,36 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Eine Aufgabe, und sie gehört in eine eigene Session** (Stand 2026-08-27): OCR ist zurück im
-Auftrag. Alles andere aus dem Vollaudit ist zu — Belegstellen in
-[`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
+**Dieser Abschnitt ist leer** (Stand 2026-08-27). OCR ist gebaut; alles andere aus dem Vollaudit
+ist zu — Belegstellen in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
 
-### 1.0 OCR-Belegerkennung · 🔴 aktiv — **eigene Session**
+### 1.0 OCR-Belegerkennung · ✅ erledigt 2026-08-27
 
-**Entschieden 2026-08-27: wird gebaut.** Der User hat die Zurückstellung vom 2026-08-16
-aufgehoben — nicht mehr auf Trustpilot-Bewertungen warten. Ausdrückliche Vorgabe: **in einer
-eigenen Session**, nicht nebenbei zwischen anderen Aufgaben.
+Gebaut nach [`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md) und
+[`session-prompt-ocr-2026-08-27.md`](session-prompt-ocr-2026-08-27.md). Ergebnis, Abweichungen
+und Messwerte in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
 
-**→ Startpunkt: [`session-prompt-ocr-2026-08-27.md`](session-prompt-ocr-2026-08-27.md).**
-Dort steht alles, was die Session braucht, ohne diese Datei zu lesen.
+Kurzfassung: `tesseract.js` 7.0.0 + `tesseract.js-core` **7.0.0** in `js/vendor/` (SHA-256 in
+[`VERSIONS.md`](../js/vendor/VERSIONS.md)), Extraktionsheuristik in
+[`js/beleg-ocr.js`](../js/beleg-ocr.js) mit 35 Prüfungen in
+[`test/test-beleg-ocr.js`](../test/test-beleg-ocr.js), UI im Eigenbeleg-Formular.
 
-> ⛔ **OCR wird auf der Landingpage nicht beworben** (2026-08-27). Gebaut wird es, in der App ist
-> es normal benutzbar — aber `index.html` bleibt unberührt: kein Feature-Punkt, kein Bullet in
-> der Preisliste, kein FAQ-Eintrag, keine Zeile in der Vergleichstabelle. Erst wenn an echten
-> Belegen eine Trefferquote gemessen ist, die man hinschreiben kann. Begründung in
-> [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md).
-
-Die Spezifikation ist vollständig und gilt unverändert:
-[`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md).
-
-Drei Dinge, die man vorher wissen muss:
+**Drei Abweichungen von der Spezifikation, jede am Build gemessen:**
 
 | | |
 |---|---|
-| **CSP-Freigabe** | **liegt vor** — `'wasm-unsafe-eval'` auf `/app.html` und `/eigenbelege`, sonst nirgends. Nicht erneut erfragen. Zu setzen an **beiden** Stellen: `<meta>` und `vercel.json`, sonst greift die Schnittmenge |
-| **Abhängigkeit** | `tesseract.js` 7.0.0 + `tesseract.js-core` 6.1.2, **einmalig vendoriert** nach `js/vendor/`, SHA-256 in `VERSIONS.md`. **Nie zur Laufzeit vom CDN** — das würde bei jedem Lauf verraten, dass gerade ein Beleg verarbeitet wird |
-| **Nur Browser-OCR** | keine Server-Variante, auch nicht als Fallback. Das ist der ganze Punkt der Übung |
+| **Keine CSP gelockert** | `'wasm-unsafe-eval'` war freigegeben, wird aber **nicht gebraucht**: der WASM-Kern kompiliert im Worker, dessen Antwort keine CSP trägt. Hängt an `workerBlobURL: false` — ein `blob:`-Worker erbt die Dokument-CSP. `vercel.json` und die `<meta>`-Tags sind unverändert |
+| **Kern-Version 7.0.0, nicht 6.1.2** | `tesseract.js@7.0.0` verlangt `tesseract.js-core@^7.0.0`. Der `latest`-Tag von `tesseract.js-core` zeigt irreführend auf 6.1.2 |
+| **Fünf Dateien statt vier** | `tesseract.min.js` (die Bibliothek selbst) fehlte in der Liste der Spezifikation, die nur die drei zur Laufzeit nachgeladenen Teile nannte |
 
-**Umfang v1 bewusst klein:** Datum, Bruttobetrag, Händlername — als anklickbare Vorschläge, nichts
-wird automatisch eingetragen. Kein Pflichtpfad: fällt OCR aus, ändert sich für den Nutzer nichts.
+> ⛔ **OCR wird auf der Landingpage nicht beworben** (2026-08-27) — `index.html` ist unberührt
+> geblieben. Erst wenn an echten Belegen eine Trefferquote gemessen ist, die man hinschreiben
+> kann. Begründung in [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md).
+
+> ⚠️ **Offen: an echten Belegen messen.** Geprüft wurde bisher nur an synthetischen Bonbildern
+> (sauber und absichtlich verschlechtert), dort je 3 von 3 Feldern korrekt. Ein echtes Bonfoto —
+> Thermopapier, geknickt, verblasst — ist damit **nicht** abgedeckt. Genau diese Messung ist die
+> Bedingung dafür, das Feature überhaupt bewerben zu dürfen.
 
 ### 1.0b Landing-Demo ausbauen · ✅ erledigt 2026-08-25 (`69361f1`, `b6be27c`, `cb95d40`)
 
@@ -124,9 +122,9 @@ Zwei neue Prüfungen in `test/test-cloud-sync.js` (jetzt 12) nageln die **Eigens
 Bewusst anders gebaut als der alte R7-Test, der einen Wortlaut festhielt und beim nächsten Umbau
 falsch alarmiert hat. Gegenprobe gemacht: mit dem alten Icon schlägt der Test an.
 
-**Damit war Abschnitt 1 am 2026-08-25 leer** — bis OCR am 2026-08-27 zurück in den Auftrag kam
-(1.0 oben). Alles andere bleibt zu; was offen ist, steht in Abschnitt 2 und 3 und braucht dich
-oder Dritte.
+**Damit war Abschnitt 1 am 2026-08-25 leer** — OCR kam am 2026-08-27 noch einmal hinein und
+ist am selben Tag fertig geworden (1.0 oben). Alles andere bleibt zu; was offen ist, steht in
+Abschnitt 2 und 3 und braucht dich oder Dritte.
 
 ---
 
@@ -207,7 +205,7 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
 | Zeiterfassung | **wird nicht gebaut** | eigenes Produktfeld |
 | Top-of-Funnel | **Demo ausbauen**, Kartenpflicht bleibt | → Aufgabe 1.0b |
 | Steuerberater-Modell | **bleibt kostenlos**, als Vertriebskanal | nichts zu bauen — der R4-Deckel ist längst drin (`MAX_GRANTS`, [`api/sync.js:499`](../api/sync.js)) |
-| OCR | **wird gebaut**, als Browser-OCR — 2026-08-16 zurückgestellt, am **2026-08-27 wieder aufgenommen** | → Aufgabe 1.0, eigene Session |
+| OCR | **gebaut** als Browser-OCR, 2026-08-27. Nicht beworben, bis eine Trefferquote an echten Belegen gemessen ist | → Aufgabe 1.0, erledigt |
 
 ---
 
@@ -237,8 +235,8 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
 | 3 | **2.3 Live-Tests** | Sechs Funktionen sind gebaut, aber nie unter echten Bedingungen gelaufen | mehrere Sitzungen |
 
 **Abschnitt 1 ist leer.** Es gibt derzeit keine Code-Aufgabe, die eine Session greifen könnte:
-1.0b ist am 2026-08-25 fertig geworden, 1.0 (OCR) ist bis zu den ersten Trustpilot-Bewertungen
-gesperrt, F6 ist seit 2026-08-21 durch.
+1.0b ist am 2026-08-25 fertig geworden, 1.0 (OCR) am 2026-08-27, F6 ist seit 2026-08-21 durch.
+Offen ist dort nur noch eine Messung an echten Belegen — die braucht Bonfotos und damit dich.
 
 Rang 1–3 hängen damit **ausschließlich an dir**. Für Rang 1 liegt seit `327112b` eine
 Schritt-für-Schritt-Anleitung bereit: [`r3-owner-ids-anleitung.md`](r3-owner-ids-anleitung.md),

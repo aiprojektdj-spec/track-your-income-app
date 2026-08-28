@@ -11,3 +11,9 @@ js/vendor/*.js -text
 # Tabler-Symbolschrift lokal — dieselbe Begruendung, dieselbe Regel.
 css/vendor/*.css -text
 css/vendor/fonts/* -text binary
+
+# Belegerkennung (2026-08-27): das deutsche Sprachmodell liegt eine Ebene tiefer, weil
+# langPath ein Verzeichnis sein muss und die Datei exakt deu.traineddata.gz heissen muss.
+# js/vendor/*.js greift dort nicht — Muster mit Schraegstrich sind verankert, und * geht
+# nicht ueber /. Ohne diese Zeile haengt der SHA-256 in VERSIONS.md am Zufall.
+js/vendor/tessdata/* -text binary

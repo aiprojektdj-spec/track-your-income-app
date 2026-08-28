@@ -24,6 +24,84 @@ findet, greift daneben.
 
 ---
 
+## OCR-Belegerkennung — Fund G4, gebaut 2026-08-27
+
+Texterkennung für Eigenbelege, vollständig im Browser. Gebaut nach
+[`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md) und
+[`session-prompt-ocr-2026-08-27.md`](session-prompt-ocr-2026-08-27.md).
+
+**Was entstanden ist**
+
+| Datei | Inhalt |
+|---|---|
+| [`js/beleg-ocr.js`](../js/beleg-ocr.js) | die drei Extraktionsregeln, ohne jeden Browser-Bezug (~5 KB) |
+| [`test/test-beleg-ocr.js`](../test/test-beleg-ocr.js) | 35 Prüfungen an echten Bon-Texten, ohne Browser und ohne WASM |
+| `js/vendor/tesseract*` + `js/vendor/tessdata/` | fünf vendorierte Dateien, ~9,3 MB, SHA-256 in [`VERSIONS.md`](../js/vendor/VERSIONS.md) |
+| [`eigenbelege/js/app.js`](../eigenbelege/js/app.js) | Lazy-Loader, Worker, Fortschritt, Chips |
+| [`datenschutz.html`](../datenschutz.html) | neuer Abschnitt 4.4 |
+
+`index.html` blieb unberührt — OCR wird nicht beworben, bis eine Trefferquote an echten Belegen
+gemessen ist (Entscheidung vom 2026-08-27).
+
+**Vier Stellen, an denen die Umsetzung von der Beschreibung abwich**
+
+1. **Es wurde keine CSP gelockert — die Freigabe blieb ungenutzt.** Die Spezifikation ging davon
+   aus, dass `script-src` um `'wasm-unsafe-eval'` erweitert werden muss, und der Betreiber hatte
+   das für `/app.html` und `/eigenbelege` freigegeben. **Am echten Build gemessen ist es nicht
+   nötig.** Der WASM-Kern wird im *Worker* kompiliert, und die Antwort des Worker-Skripts
+   (`/js/vendor/…`) trägt keine CSP — die des Dokuments gilt dort nicht. Geprüft mit
+   `scripts/csp-preview-server.js` unter den echten `vercel.json`-Headern: Konsole leer, kein
+   `Refused to compile WebAssembly`, 3 von 3 Feldern erkannt. `vercel.json` und die `<meta>`-Tags
+   sind unverändert geblieben.
+
+   Das hängt an **einer** Zeile: `workerBlobURL: false`. Ein aus einer `blob:`-URL gestarteter
+   Worker **erbt** die CSP des Dokuments; dann bräuchte es `'wasm-unsafe-eval'` *und*
+   `worker-src blob:`. Wer die Option ändert, muss die CSP mitändern. Die Spezifikation stellte
+   die Frage „reicht `worker-src 'self'` oder braucht es `blob:`?" — die Antwort ist, dass man
+   sich das aussuchen kann, und die teurere Variante zu vermeiden war die ganze Ersparnis.
+
+2. **`tesseract.js-core` 7.0.0, nicht 6.1.2.** Die Spezifikation nannte 6.1.2 und schrieb im
+   selben Satz, die Major-Versionen müssten zusammenpassen — was sich widerspricht.
+   `tesseract.js@7.0.0` verlangt laut eigener `package.json` `tesseract.js-core@^7.0.0`. Die
+   Verwechslung ist erklärbar: der `latest`-Tag von `tesseract.js-core` zeigt bis heute auf
+   **6.1.2**, obwohl 7.0.0 veröffentlicht ist. **Maßgeblich ist `dependencies` der Bibliothek,
+   nie der `latest`-Tag.**
+
+3. **Fünf Dateien statt vier.** Die Liste der Spezifikation nannte nur die drei zur Laufzeit
+   nachgeladenen Teile (Worker, Kern, Sprachmodell). `tesseract.min.js` — die Bibliothek selbst —
+   fehlte darin und wird natürlich ebenfalls gebraucht.
+
+   Dazu ein Fallstrick, der in keiner Beschreibung stand: `corePath` darf **kein Verzeichnis**
+   sein. Kern 7.0.0 bringt sechs Varianten mit, und bei einem Verzeichnis fragt `tesseract.js`
+   zuerst `tesseract-core-relaxedsimd-lstm.wasm.js` an — die bewusst nicht vendoriert ist, weil
+   sie 3,9 MB für einen kaum messbaren Gewinn kostet. Ergebnis wäre ein 404 gewesen. Deshalb
+   prüft `_ocrHatSimd()` SIMD selbst und übergibt eine konkrete Datei.
+
+4. **Es gab keinen Foto-Upload, neben den die Funktion treten konnte.** Die Beschreibung sagte
+   „zusätzlicher Weg **neben dem Foto-Upload**" — im Eigenbeleg-Formular existiert aber gar
+   keiner: `_foto` wird nur beim Bearbeiten aus einem vorhandenen Beleg übernommen, nie gesetzt.
+   Gebaut ist deshalb eine eigenständige Karte „Beleg auslesen". Das gewählte Bild wird
+   **nicht** als Beleganhang gespeichert — das wäre eine Erweiterung des Umfangs gewesen und
+   hätte Datenmengen in den `localStorage` gebracht.
+
+**Gemessen** (Chromium, warmer Worker): sauberes synthetisches Bonbild 3 von 3 Feldern korrekt;
+dasselbe Bild absichtlich verschlechtert (1,8° schräg, Helligkeitsverlauf, Rauschen, leichte
+Unschärfe) ebenfalls 3 von 3, 681 ms. Der SUMME-Vorrang trägt dabei sichtbar: „Geg. BAR 20,00"
+ist der größere Betrag und wird korrekt nicht genommen.
+
+> ⚠️ **Was fehlt: ein echter Bon.** Die Verifikationsliste der Session verlangt ausdrücklich
+> „ein echter Bon als Bild, nicht nur ein synthetisches Testbild". Auf dem Rechner lag keiner,
+> und ein Bonfoto lässt sich nicht synthetisieren — Thermopapier, Knicke, verblasster Druck und
+> Handykamera sind genau die Eigenschaften, die synthetische Bilder nicht haben. **Diese Messung
+> steht noch aus**, und sie ist zugleich die Bedingung dafür, das Feature bewerben zu dürfen.
+
+**Bekannte Grenze der Betragsregel:** ohne Schlüsselwort gewinnt der größte Betrag — auf einem
+Barbon ist das „Gegeben 50,00" statt der Summe. Die Regel steht so in der Spezifikation und wurde
+bewusst nicht eigenmächtig erweitert; ein Ausschluss von `Gegeben`/`Rückgeld` wäre der nächste
+naheliegende Schritt, sollte sich das an echten Bons zeigen.
+
+---
+
 ## Barrierefreiheit (`6103208`)
 
 - **A2 — Randkontrast der Eingabefelder** · WCAG 1.4.11 AA. Eigene Variable `--border-field`

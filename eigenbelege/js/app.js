@@ -414,6 +414,183 @@ function renderDashboard() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// BELEGERKENNUNG (OCR) – Fund G4
+// ═══════════════════════════════════════════════════════════════════
+// Laeuft vollstaendig im Browser. tesseract.js, der WASM-Kern und das deutsche
+// Sprachmodell liegen unter js/vendor/ und werden NICHT beim Seitenstart geladen —
+// zusammen sind sie ein Vielfaches der uebrigen App. Erst der Klick auf
+// "Beleg auslesen" holt sie nach (Muster: _ensureApexCharts weiter oben).
+//
+// Kein Bild verlaesst das Geraet. Genau deshalb liegen hier ~8 MB WASM statt eines
+// OCR-Endpunkts: ein Server-Aufruf waere die einzige Stelle der App, an der der
+// Server Klardaten saehe (s. plan/ocr-belegerkennung-2026-08-12.md, Abschnitt 1).
+//
+// KEIN PFLICHTPFAD: faellt hiervon irgendetwas aus, bleibt das Formular unveraendert
+// von Hand ausfuellbar. Und nichts wird automatisch eingetragen — die Treffer stehen
+// als anklickbare Chips ueber dem jeweiligen Feld. Ein falsch vorbefuelltes Feld ist
+// schlimmer als ein leeres.
+
+let _ocrWorker     = null;   // bleibt fuer weitere Belege derselben Sitzung stehen
+let _ocrBild       = null;   // vom Nutzer gewaehlte Datei — nie automatisch verarbeitet
+let _ocrLaeuft     = false;
+let _ocrLibPromise = null;
+
+/** Lazy-load des Loaders (~63 KB). Kern und Sprachmodell holt danach der Worker. */
+function _ensureTesseract() {
+    if (typeof Tesseract !== 'undefined') return Promise.resolve();
+    if (_ocrLibPromise) return _ocrLibPromise;
+    _ocrLibPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = '/js/vendor/tesseract.min.js';
+        script.onload  = () => resolve();
+        script.onerror = () => { _ocrLibPromise = null; reject(new Error('tesseract.js nicht ladbar')); };
+        document.head.appendChild(script);
+    });
+    return _ocrLibPromise;
+}
+
+// tesseract.js waehlt den Kern sonst selbst — und wuerde bei einem Verzeichnis als
+// corePath zuerst die relaxedsimd-Variante anfragen, die wir bewusst nicht vendoriert
+// haben (das waeren 3,9 MB mehr fuer einen kaum messbaren Gewinn). Deshalb pruefen wir
+// SIMD selbst und uebergeben eine konkrete Datei.
+// WebAssembly.validate() kompiliert nicht und faellt daher nicht unter wasm-unsafe-eval;
+// schlaegt es fehl, ist der Nicht-SIMD-Kern die sichere Antwort.
+function _ocrHatSimd() {
+    try {
+        return WebAssembly.validate(new Uint8Array([
+            0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123,
+            3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11,
+        ]));
+    } catch (e) { return false; }
+}
+
+function _ocrStatus(text, prozent) {
+    const el = document.getElementById('ocrStatus');
+    if (!el) return;
+    if (!text) { el.style.display = 'none'; el.textContent = ''; return; }
+    el.style.display = 'block';
+    const bar = prozent === null || prozent === undefined ? ''
+        : `<div style="height:4px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden">
+               <div style="height:100%;width:${Math.round(prozent * 100)}%;background:var(--accent);transition:width .2s"></div>
+           </div>`;
+    // text kommt aus unserem eigenen Code bzw. aus tesseract.js-Statusnamen,
+    // wird der Vollstaendigkeit halber trotzdem escaped.
+    el.innerHTML = `<span style="font-size:12px;color:var(--text-secondary)">${esc(text)}</span>${bar}`;
+}
+
+// Statusnamen von tesseract.js sind englisch und technisch — hier die drei, die der
+// Nutzer tatsaechlich zu sehen bekommt.
+const _OCR_STATUS_TEXT = {
+    'loading tesseract core':        'Texterkennung wird geladen…',
+    'initializing tesseract':        'Texterkennung wird gestartet…',
+    'loading language traineddata':  'Sprachmodell wird geladen…',
+    'initializing api':              'Texterkennung wird gestartet…',
+    'recognizing text':              'Beleg wird gelesen…',
+};
+
+async function _ocrEnsureWorker() {
+    if (_ocrWorker) return _ocrWorker;
+    await _ensureTesseract();
+    _ocrWorker = await Tesseract.createWorker('deu', 1, {
+        workerPath: '/js/vendor/tesseract-worker.min.js',
+        corePath:   _ocrHatSimd() ? '/js/vendor/tesseract-core-simd-lstm.wasm.js'
+                                  : '/js/vendor/tesseract-core-lstm.wasm.js',
+        langPath:   '/js/vendor/tessdata',
+        // NICHT AENDERN, ohne die CSP mitzuaendern. tesseract.js startet den Worker
+        // sonst aus einer blob:-URL — und ein blob:-Worker ERBT die CSP des Dokuments.
+        // Dann braeuchte script-src zusaetzlich 'wasm-unsafe-eval' (und worker-src
+        // blob:), weil der WASM-Kern im Worker kompiliert wird.
+        // So dagegen laeuft der Worker von einer gleichnamigen Datei auf 'self':
+        // erlaubt durch default-src, und seine eigene Antwort traegt keine CSP, also
+        // kompiliert das WASM ohne jede Aufweichung. Am Build geprueft, s.
+        // js/vendor/VERSIONS.md.
+        workerBlobURL: false,
+        // Das Sprachmodell kommt von unserem eigenen Origin und haengt im HTTP-Cache
+        // (Cache-Control 7 Tage, s. vercel.json). Ein zweiter Zwischenspeicher in
+        // IndexedDB brauchte eine eigene Erklaerung im Datenschutztext und spart nichts.
+        cacheMethod: 'none',
+        logger: m => {
+            const txt = _OCR_STATUS_TEXT[m.status];
+            if (txt) _ocrStatus(txt, m.progress);
+        },
+    });
+    return _ocrWorker;
+}
+
+function ocrDateiGewaehlt(input) {
+    const f = input.files && input.files[0];
+    _ocrBild = f || null;
+    const btn = document.getElementById('ocrStart');
+    if (btn) btn.disabled = !_ocrBild || _ocrLaeuft;
+    _ocrStatus(_ocrBild ? 'Bereit — auf „Beleg auslesen“ klicken.' : '', null);
+    // Vorschau, damit sichtbar ist, welches Bild gleich gelesen wird.
+    const vor = document.getElementById('ocrPreview');
+    if (vor) {
+        if (vor.src && vor.src.startsWith('blob:')) URL.revokeObjectURL(vor.src);
+        if (_ocrBild) { vor.src = URL.createObjectURL(_ocrBild); vor.style.display = 'block'; }
+        else { vor.removeAttribute('src'); vor.style.display = 'none'; }
+    }
+}
+
+async function ocrStarten() {
+    if (!_ocrBild || _ocrLaeuft) return;
+    _ocrLaeuft = true;
+    const btn = document.getElementById('ocrStart');
+    if (btn) btn.disabled = true;
+    _ocrStatus('Texterkennung wird geladen…', 0);
+    try {
+        const worker = await _ocrEnsureWorker();
+        const { data } = await worker.recognize(_ocrBild);
+        const treffer = BelegOCR.extract(data && data.text ? data.text : '');
+        _ocrChipsSetzen(treffer);
+        const anzahl = ['datum', 'betrag', 'haendler'].filter(k => treffer[k]).length;
+        if (anzahl) {
+            _ocrStatus(`${anzahl} von 3 Feldern erkannt — Vorschlag anklicken, um ihn zu uebernehmen.`, null);
+        } else {
+            _ocrStatus('Nichts Verwertbares erkannt. Bitte von Hand eintragen.', null);
+        }
+    } catch (err) {
+        console.warn('[Eigenbelege] OCR fehlgeschlagen:', err);
+        _ocrStatus('Belegerkennung nicht moeglich. Die Felder lassen sich wie gewohnt von Hand ausfuellen.', null);
+    } finally {
+        _ocrLaeuft = false;
+        if (btn) btn.disabled = !_ocrBild;
+    }
+}
+
+function _ocrChipHtml(zielId, anzeige, wert, roh) {
+    return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <button type="button" class="btn btn-secondary btn-sm" data-action="eb-ocr-uebernehmen"
+                data-ziel="${esc(zielId)}" data-wert="${esc(String(wert))}"
+                style="padding:3px 10px;font-size:12px">
+            <i class="ti ti-wand"></i> ${esc(anzeige)} übernehmen
+        </button>
+        <span style="font-size:11px;color:var(--text-muted)">erkannt: „${esc(roh)}“</span>
+    </div>`;
+}
+
+function _ocrChipsSetzen(treffer) {
+    const setze = (containerId, html) => {
+        const el = document.getElementById(containerId);
+        if (el) el.innerHTML = html;
+    };
+    setze('ocrChipDatum', treffer.datum
+        ? _ocrChipHtml('eb-datum', datum(treffer.datum.wert), treffer.datum.wert, treffer.datum.roh) : '');
+    setze('ocrChipHaendler', treffer.haendler
+        ? _ocrChipHtml('eb-vk-name', treffer.haendler.wert, treffer.haendler.wert, treffer.haendler.roh) : '');
+    setze('ocrChipBetrag', treffer.betrag
+        ? _ocrChipHtml('eb-brutto', euro(treffer.betrag.wert), treffer.betrag.wert.toFixed(2), treffer.betrag.roh) : '');
+}
+
+function ocrUebernehmen(zielId, wert) {
+    const el = document.getElementById(zielId);
+    if (!el) return;
+    el.value = wert;
+    if (zielId === 'eb-brutto') recalcBetrag();
+    el.focus();
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // FORMULAR – NEU / BEARBEITEN
 // ═══════════════════════════════════════════════════════════════════
 let _foto = null;
@@ -615,15 +792,39 @@ function renderNeu(editId=null) {
 
         <form id="ebForm" data-action="eb-save-beleg" data-edit-id="${editId||''}">
 
+        <!-- Belegerkennung (optional, Fund G4) — nichts hiervon ist Pflicht, und
+             nichts wird automatisch eingetragen: die Treffer erscheinen als Chips
+             ueber Datum, Verkaeufer und Bruttobetrag. -->
+        <div class="card" style="padding:18px;margin-bottom:14px">
+            <div class="card-section-title">
+                <i class="ti ti-scan"></i> Beleg auslesen
+                <span style="font-weight:400;color:var(--text-muted);font-size:12px">– optional</span>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">
+                Foto oder Scan des Belegs auswählen. Die Texterkennung läuft vollständig auf diesem Gerät —
+                <strong>das Bild wird nicht hochgeladen</strong>. Der erste Lauf lädt einmalig die
+                Erkennungsdateien und dauert deshalb länger.
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <input type="file" accept="image/*" id="ocrFile" data-action="eb-ocr-file"
+                       style="font-size:12px;max-width:100%">
+                <button type="button" class="btn btn-secondary btn-sm" id="ocrStart" data-action="eb-ocr-start" disabled>
+                    <i class="ti ti-scan"></i> Beleg auslesen
+                </button>
+            </div>
+            <div id="ocrStatus" style="display:none;margin-top:10px"></div>
+            <img id="ocrPreview" alt="Vorschau des gewählten Belegbilds" style="display:none;margin-top:10px;max-width:220px;max-height:160px;border-radius:8px;border:1px solid var(--border)">
+        </div>
+
         <!-- Grunddaten -->
         <div class="card" style="padding:18px;margin-bottom:14px">
             <div class="card-section-title"><i class="ti ti-file-description"></i> Grunddaten</div>
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label" for="eb-datum">Datum *</label><input class="form-control" type="date" id="eb-datum" value="${b?.belegDatum||today()}">
+                    <label class="form-label" for="eb-datum">Datum *</label><div id="ocrChipDatum"></div><input class="form-control" type="date" id="eb-datum" value="${b?.belegDatum||today()}">
                 </div>
                 <div class="form-group" style="flex:2">
-                    <label class="form-label" for="eb-vk-name">Verkäufer / Absender *</label><input class="form-control" id="eb-vk-name" value="${esc(vkName)}" placeholder="Name des Verkäufers">
+                    <label class="form-label" for="eb-vk-name">Verkäufer / Absender *</label><div id="ocrChipHaendler"></div><input class="form-control" id="eb-vk-name" value="${esc(vkName)}" placeholder="Name des Verkäufers">
                 </div>
             </div>
             <div class="form-row">
@@ -654,7 +855,7 @@ function renderNeu(editId=null) {
             <div class="card-section-title"><i class="ti ti-coin-euro"></i> Betrag &amp; Zahlung</div>
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label" for="eb-brutto">Bruttobetrag * (€)</label><input class="form-control" type="number" step="0.01" min="0" id="eb-brutto"
+                    <label class="form-label" for="eb-brutto">Bruttobetrag * (€)</label><div id="ocrChipBetrag"></div><input class="form-control" type="number" step="0.01" min="0" id="eb-brutto"
                         value="${b?.betragBrutto||''}" placeholder="0,00" data-action="eb-recalc">
                 </div>
                 <div class="form-group">
@@ -700,6 +901,12 @@ function renderNeu(editId=null) {
             <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy"></i> Eigenbeleg speichern</button>
         </div>
         </form>`;
+
+    // Das gewaehlte Belegbild gehoert zu genau diesem Formular und darf nicht in den
+    // naechsten Eigenbeleg hinueberwandern. Der Worker dagegen bleibt absichtlich
+    // stehen — er ist das Teure an der Sache.
+    _ocrBild = null;
+    _ocrLaeuft = false;
 
     recalcBetrag();
     recalcPositionen();
@@ -1989,6 +2196,8 @@ document.addEventListener('click', function (e) {
         case 'eb-show-lager':         showLagerAuswahl(Number(d.idx)); break;
         case 'eb-remove-pos':         removeWarenPos(Number(d.idx)); break;
         case 'eb-add-pos':            addWarenPos(); break;
+        case 'eb-ocr-start':          ocrStarten(); break;
+        case 'eb-ocr-uebernehmen':    ocrUebernehmen(d.ziel, d.wert); break;
         case 'eb-edit-produkt':       editProdukt(Number(d.idx)); break;
         case 'eb-delete-produkt':     deleteProdukt(Number(d.idx)); break;
         case 'eb-produkt-form':       showProduktForm(); break;
@@ -2026,4 +2235,5 @@ document.addEventListener('change', function (e) {
     _ebInputDispatch(e);
     var el = e.target;
     if (el.matches && el.matches('input[data-action="eb-import-json"]')) importJSON(el);
+    if (el.matches && el.matches('input[data-action="eb-ocr-file"]')) ocrDateiGewaehlt(el);
 });

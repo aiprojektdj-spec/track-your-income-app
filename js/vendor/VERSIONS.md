@@ -101,6 +101,86 @@ Benutzte Leseoptionen: `type:'array'`, `cellDates`, `codepage:65001`, `header:1`
 
 ---
 
+## `tesseract*` — Belegerkennung (OCR), seit 2026-08-27
+
+Fund **G4**. Texterkennung für Eigenbelege, die **vollständig im Browser** läuft — kein
+Belegbild geht an einen Server. Genau deshalb liegen hier ~9 MB: ein OCR-Endpunkt wäre die
+einzige Stelle der App, an der der Server Klardaten sähe.
+
+| Datei | Version | SHA-256 | Größe | Lizenz |
+|---|---|---|---|---|
+| `js/vendor/tesseract.min.js` | tesseract.js 7.0.0 | `000c27d9cd0def655f77b36c72a389c0ab13793aa31cb4d7aab56d09c0afbc7e` | 62.961 B | Apache-2.0 |
+| `js/vendor/tesseract-worker.min.js` | tesseract.js 7.0.0 | `576b7df7e3393e137e51849357c9adb53fe7ac1bb69bfa06cf3d61520f182c6d` | 111.307 B | Apache-2.0 |
+| `js/vendor/tesseract-core-simd-lstm.wasm.js` | tesseract.js-core 7.0.0 | `c58b46a4c796c0b8afccf77591d5b875b6896b45d402bbce8caa6f5362447b38` | 3.899.472 B | Apache-2.0 |
+| `js/vendor/tesseract-core-lstm.wasm.js` | tesseract.js-core 7.0.0 | `eef5f8b2f8e20e150680b20adaec4a60babafee3adbe8a94583c81fee46e8680` | 3.896.484 B | Apache-2.0 |
+| `js/vendor/tessdata/deu.traineddata.gz` | @tesseract.js-data/deu 1.0.0 | `306c4280d0cbed46fbff727486bd43b92730181bae80f56941a091f363bdf28b` | 1.333.102 B | Apache-2.0 |
+
+**Bezugsquellen** (einmalig am 2026-08-27 geholt, Größen gegen das jsDelivr-Manifest geprüft):
+
+```
+https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js
+https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/worker.min.js          → tesseract-worker.min.js
+https://cdn.jsdelivr.net/npm/tesseract.js-core@7.0.0/tesseract-core-simd-lstm.wasm.js
+https://cdn.jsdelivr.net/npm/tesseract.js-core@7.0.0/tesseract-core-lstm.wasm.js
+https://cdn.jsdelivr.net/npm/@tesseract.js-data/deu@1.0.0/4.0.0_best_int/deu.traineddata.gz
+```
+
+**Advisories:** <https://github.com/naptha/tesseract.js/security> ·
+<https://github.com/naptha/tesseract.js-core/security>
+
+> **`npm install tesseract.js` ist verboten**, aus demselben Grund wie bei `xlsx`: es gibt genau
+> eine produktive Abhängigkeit (`@vercel/blob`), und dabei bleibt es. Die Bibliothek zieht über
+> npm neun eigene Abhängigkeiten nach — hier liegen stattdessen fünf fertige Dateien.
+
+**Vier Punkte, die beim nächsten Versionswechsel zu beachten sind:**
+
+1. **Der Kern muss zur Bibliothek passen — und `latest` hilft dabei nicht.** `tesseract.js@7.0.0`
+   verlangt laut eigener `package.json` `tesseract.js-core@^7.0.0`. Der `latest`-Tag von
+   `tesseract.js-core` zeigt aber (Stand 2026-08-27) noch auf **6.1.2**. Wer `latest` nimmt, baut
+   ein Major-Gespann falsch zusammen. Maßgeblich ist `dependencies` der Bibliothek, nicht der Tag.
+2. **Nur die beiden LSTM-Kerne liegen hier.** `tesseract.js-core` liefert sechs Varianten; die
+   Nicht-LSTM-Kerne sind die alte Tesseract-3-Engine und für Bons unnötig. Die dritte
+   LSTM-Variante (`relaxedsimd`) ist ebenfalls bewusst nicht vendoriert: 3,9 MB mehr für einen
+   kaum messbaren Gewinn.
+   **Folge:** `corePath` darf **kein Verzeichnis** sein. Bei einem Verzeichnis fragt
+   `tesseract.js` zuerst `tesseract-core-relaxedsimd-lstm.wasm.js` an und läuft in einen 404.
+   `eigenbelege/js/app.js` prüft deshalb SIMD selbst (`_ocrHatSimd()`) und übergibt eine konkrete
+   Datei.
+3. **Das Sprachmodell ist die `best_int`-Variante** — das ist das, was `tessdata_fast` meint, und
+   die Datei, die `tesseract.js` selbst per Default zieht. `4.0.0/deu.traineddata.gz` (7,1 MB)
+   enthält zusätzlich das Legacy-Modell und wird nicht gebraucht. Der Ordner heißt `tessdata/`,
+   weil `langPath` ein Verzeichnis sein muss und die Datei exakt `deu.traineddata.gz` heißen muss.
+4. **Die eingebauten CDN-Pfade bleiben in den Dateien stehen** (`cdn.jsdelivr.net/...` als
+   Default für `workerPath`/`corePath`/`langPath`). Sie werden zur Laufzeit alle drei überschrieben;
+   zusätzlich würde `connect-src 'self'` einen Zugriff ohnehin blockieren. Beim Update prüfen, dass
+   alle drei Optionen weiterhin gesetzt sind — sonst telefoniert die Belegerkennung nach außen.
+
+**Zur CSP: es wurde keine gelockert — das ist eine bewusste Abweichung von der Spezifikation.**
+`plan/ocr-belegerkennung-2026-08-12.md` ging davon aus, dass `script-src` um `'wasm-unsafe-eval'`
+erweitert werden muss, und der Betreiber hatte das für `/app.html` und `/eigenbelege` freigegeben.
+Am echten Build gemessen (2026-08-27, Chromium, `scripts/csp-preview-server.js` mit den echten
+`vercel.json`-Headern) ist es **nicht nötig**: der WASM-Kern wird im Worker kompiliert, und die
+Antwort des Worker-Skripts (`/js/vendor/…`) trägt keine CSP, also gilt dort die des Dokuments
+nicht. Die Konsole blieb leer, 3 von 3 Feldern wurden erkannt.
+
+Das hängt an **einer** Einstellung: `workerBlobURL: false` in `eigenbelege/js/app.js`. Ein aus
+einer `blob:`-URL gestarteter Worker **erbt** die CSP des Dokuments — dann bräuchte es
+`'wasm-unsafe-eval'` und `worker-src blob:`. Wer diese Option ändert, muss die CSP mitändern.
+
+Sollte ein Browser die Kompilierung doch verweigern (Konsole: `Refused to compile WebAssembly`),
+ist die Freigabe erteilt und der Eingriff klein: `'wasm-unsafe-eval'` in `script-src` — an **beiden**
+Stellen, im `<meta>`-Tag von `eigenbelege/index.html` **und** im Header für `/eigenbelege/:path*`
+in `vercel.json`, weil Browser mehrere CSPs schneiden. Bis dahin gilt: eine Aufweichung ohne
+Notwendigkeit wäre reiner Verlust. Fällt die Erkennung aus, bleibt der Eigenbeleg unverändert von
+Hand erfassbar — sie ist kein Pflichtpfad.
+
+**Aufrufstellen:** `eigenbelege/index.html` lädt nur `js/beleg-ocr.js` (~5 KB Heuristik).
+Bibliothek, Kern und Sprachmodell holt `eigenbelege/js/app.js` erst beim Klick auf
+„Beleg auslesen“ nach. Die Extraktionsregeln sind ohne Browser prüfbar:
+`node test/test-beleg-ocr.js`.
+
+---
+
 ## `chart.min.js` — Chart.js
 
 | | |

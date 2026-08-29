@@ -161,6 +161,11 @@ var AuthUI = (function () {
         opts = opts || {};
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
+        // Ohne Namen liest der Screenreader beim Betreten nur "Dialog" vor, nicht den Grund
+        // der Sperre. aria-labelledby hat Vorrang, damit Name und sichtbare Überschrift
+        // nicht auseinanderlaufen können.
+        if (opts.labelledBy) overlay.setAttribute('aria-labelledby', opts.labelledBy);
+        else if (opts.label) overlay.setAttribute('aria-label', opts.label);
         _lockBackground(overlay);
         _trapStack.push(overlay);
 
@@ -418,7 +423,7 @@ var AuthUI = (function () {
         overlay.innerHTML = [
             '<div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e2e42);border-radius:16px;padding:32px 28px;max-width:460px;width:100%;text-align:left;box-shadow:0 32px 80px rgba(0,0,0,.8);">',
             '<div style="font-size:34px;margin-bottom:10px;line-height:1;">🔒</div>',
-            '<h2 style="color:var(--text-primary,#fff);font-size:19px;margin:0 0 10px;font-weight:800;">Gerät gesperrt — anderes Konto erkannt</h2>',
+            '<h2 id="waDeviceLockTitle" style="color:var(--text-primary,#fff);font-size:19px;margin:0 0 10px;font-weight:800;">Gerät gesperrt — anderes Konto erkannt</h2>',
             '<p style="color:var(--text-muted,#aaa);font-size:13.5px;margin:0 0 14px;line-height:1.6;">',
             'Dieser Browser enthält bereits lokale Geschäftsdaten eines <strong>anderen</strong> Stackr-Kontos als <strong style="color:var(--text-secondary,#ddd);">' + _esc(user && (user.username || user.email) || 'dieses Konto') + '</strong>. ',
             'Aus Datenschutzgründen zeigt Stackr diese Daten keinem anderen Konto an.',
@@ -435,7 +440,7 @@ var AuthUI = (function () {
             '</div>'
         ].join('');
         document.body.appendChild(overlay);
-        _trapFocus(overlay, { closable: false });
+        _trapFocus(overlay, { closable: false, labelledBy: 'waDeviceLockTitle' });
 
         var input = document.getElementById('waDeviceResetInput');
         if (input) {
@@ -571,7 +576,7 @@ var AuthUI = (function () {
             '</div>'
         ].join('');
         document.body.appendChild(overlay);
-        _trapFocus(overlay, { closable: false });
+        _trapFocus(overlay, { closable: false, label: 'Anmeldung erforderlich' });
     }
 
     // ── Kein-Abo / Winback-Screen (Neukauf + abgelaufenes Abo) ─
@@ -589,7 +594,7 @@ var AuthUI = (function () {
         overlay.innerHTML = [
             '<div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e2e42);border-radius:16px;padding:32px 28px;max-width:440px;width:100%;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,.8);">',
             '<div style="font-size:40px;color:var(--accent,#10b981);margin-bottom:12px;line-height:1;">◆</div>',
-            '<h2 style="color:var(--text-primary,#fff);font-size:21px;margin:0 0 8px;font-weight:800;">Stackr Pro aktivieren</h2>',
+            '<h2 id="waNoMemberTitle" style="color:var(--text-primary,#fff);font-size:21px;margin:0 0 8px;font-weight:800;">Stackr Pro aktivieren</h2>',
             '<p style="color:var(--text-muted,#888);font-size:13.5px;margin:0 0 6px;line-height:1.6;">',
             // "du hast kein aktives Abo" las sich fuer Interessenten wie eine Rechnung statt wie
             // ein Angebot. Der Endpunkt liefert nur has_access (kein "hatte je eine Membership"),
@@ -636,7 +641,7 @@ var AuthUI = (function () {
             '</div>'
         ].join('');
         document.body.appendChild(overlay);
-        _trapFocus(overlay, { closable: false });
+        _trapFocus(overlay, { closable: false, labelledBy: 'waNoMemberTitle' });
 
         if (!_focusRecheckBound) {
             _focusRecheckBound = true;

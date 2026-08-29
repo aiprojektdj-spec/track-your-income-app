@@ -144,6 +144,27 @@ check('MwSt-Satz mit Prozentzeichen zaehlt nicht als Betrag',
     OCR.findBetrag(['Brot 2,49', 'MwSt 19,00 % Ust 0,40']).wert === 2.49,
     JSON.stringify(OCR.findBetrag(['Brot 2,49', 'MwSt 19,00 % Ust 0,40'])));
 
+// Dasselbe Muster wie beim MwSt-Satz, nur haeufiger: ein Datum steht auf JEDEM Bon,
+// und "27.08.2026" enthaelt "27.08" — formal ein Betrag. Ohne die Regel verliert jeder
+// Endbetrag unter 31,12 gegen den Tag-Monat-Kopf des Datums, sobald die Summenzeile
+// nicht erkannt wurde.
+check('Datum zaehlt nicht als Betrag',
+    OCR.findBetrag(['Kiosk Meier', '27.08.2026  14:33', 'Kaffee 2,50', 'EUR 3,99']).wert === 3.99,
+    JSON.stringify(OCR.findBetrag(['Kiosk Meier', '27.08.2026  14:33', 'Kaffee 2,50', 'EUR 3,99'])));
+
+check('reine Datumszeile liefert keinen Betrag',
+    OCR.findBetrag(['Datum: 27.08.2026']) === null,
+    JSON.stringify(OCR.findBetrag(['Datum: 27.08.2026'])));
+
+check('zweistelliges Jahr leckt ebenfalls nicht durch',
+    OCR.findBetrag(['12.05.26', 'Bar 4,20']).wert === 4.20,
+    JSON.stringify(OCR.findBetrag(['12.05.26', 'Bar 4,20'])));
+
+// Gegenprobe zur Datumsregel: der Punkt am Satzende darf den Betrag nicht kosten.
+check('Betrag am Satzende bleibt erhalten',
+    OCR.findBetrag(['Summe betraegt 3,99.']).wert === 3.99,
+    JSON.stringify(OCR.findBetrag(['Summe betraegt 3,99.'])));
+
 check('Betrag ohne Nachkommastellen wird ignoriert',
     OCR.findBetrag(['Menge 3 Stueck', 'Kasse 2']) === null);
 

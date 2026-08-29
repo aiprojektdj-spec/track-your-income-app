@@ -72,15 +72,24 @@ var BelegOCR = (function () {
         return parseFloat(vorkomma + '.' + nachkomma);
     }
 
-    // Alle Betraege einer Zeile. Ein Wert mit nachfolgendem Prozentzeichen ist ein
-    // MwSt-SATZ und kein Betrag ("19,00 %"); der wuerde in der Rueckfallregel sonst
-    // jeden kleinen Bon-Endbetrag schlagen.
+    // Alle Betraege einer Zeile. Zwei Dinge sehen wie ein Betrag aus, sind aber keiner,
+    // und beide wuerden in der Rueckfallregel ("groesster Betrag") jeden kleinen
+    // Bon-Endbetrag schlagen:
+    //   1. Ein Wert mit nachfolgendem Prozentzeichen ist ein MwSt-SATZ ("19,00 %").
+    //   2. Der Kopf eines Datums. "27.08.2026" enthaelt "27.08" — mit zwei Ziffern nach
+    //      dem Punkt und einem Nicht-Ziffer-Zeichen dahinter, also formal ein Betrag.
+    //      Ein Datum steht auf JEDEM Bon, und jeder Endbetrag unter 31,12 verloere
+    //      gegen den Tag-Monat-Kopf. Erkennungsmerkmal: direkt dahinter folgt ein
+    //      weiterer Trenner mit Ziffer (".2026"). Ein echter Betrag am Satzende
+    //      ("3,99.") hat dort keine Ziffer und bleibt drin.
     function _betraegeDerZeile(zeile) {
         var out = [];
         var m;
         RE_BETRAG.lastIndex = 0;
         while ((m = RE_BETRAG.exec(zeile)) !== null) {
-            if (/^\s*%/.test(zeile.slice(m.index + m[0].length))) continue;
+            var rest = zeile.slice(m.index + m[0].length);
+            if (/^\s*%/.test(rest)) continue;
+            if (/^[.,]\d/.test(rest)) continue;
             var wert = _zuZahl(m[1]);
             if (!isFinite(wert)) continue;
             out.push({ wert: wert, roh: m[1] });

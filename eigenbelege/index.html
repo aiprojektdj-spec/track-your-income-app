@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Robust gegen Aufruf ohne Trailing-Slash (/eigenbelege): relative Pfade gegen Unterordner auflösen -->
     <base href="/eigenbelege/">
+    <!-- Diese CSP bleibt hart, obwohl die Seite Belegerkennung per WebAssembly anbietet.
+         'wasm-unsafe-eval' ist NICHT noetig und wurde bewusst nicht gesetzt — zweimal
+         gemeldet, zweimal am Build widerlegt:
+
+         Der WASM-Kern wird nicht hier kompiliert, sondern im Worker. Ein Worker bezieht
+         seine CSP aus den Antwort-Headern SEINES EIGENEN Skripts; /js/vendor/… bekommt in
+         vercel.json nur Cache-Control, keine CSP. Gegenprobe am 2026-08-28 unter den echten
+         vercel.json-Headern (scripts/csp-preview-server.js): WebAssembly.compile() im Main
+         Thread wird von genau dieser CSP BLOCKIERT, der OCR-Lauf daneben liefert trotzdem
+         3 von 3 Feldern. Die CSP ist also scharf, sie greift nur nicht im Worker.
+
+         Das haengt an workerBlobURL:false in js/app.js — ein blob:-Worker WUERDE diese CSP
+         erben, und dann braeuchte es 'wasm-unsafe-eval' und worker-src blob:.
+         Herleitung und Rueckfallweg: js/vendor/VERSIONS.md, Abschnitt "Zur CSP". -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com https://*.make.com; frame-src 'none';">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
     <link rel="manifest" href="/manifest.json">

@@ -163,6 +163,20 @@ Am echten Build gemessen (2026-08-27, Chromium, `scripts/csp-preview-server.js` 
 Antwort des Worker-Skripts (`/js/vendor/…`) trägt keine CSP, also gilt dort die des Dokuments
 nicht. Die Konsole blieb leer, 3 von 3 Feldern wurden erkannt.
 
+> **Der Einwand kam zweimal, deshalb hier die Gegenprobe** (2026-08-28, dieselbe Seite, ein
+> Durchlauf). Der naheliegende Verdacht ist ja, dass lokal einfach keine CSP greift — das wurde
+> mitgeprüft:
+>
+> | | |
+> |---|---|
+> | `WebAssembly.compile()` im **Main Thread** | **blockiert** — `CompileError: Compiling or instantiating WebAssembly module violates the following Content Security Policy directive…` |
+> | echter OCR-Lauf über die UI, unmittelbar danach | **3 von 3 Feldern**, 1837 ms, Konsole leer |
+>
+> Die CSP ist also nachweislich scharf und blockt WASM — im Dokument. Dass OCR trotzdem läuft,
+> ist der Beweis, dass dort gar nicht kompiliert wird. Ein `grep` nach `WebAssembly.instantiate`
+> in den Vendor-Dateien belegt deshalb nichts: entscheidend ist nicht, *dass* kompiliert wird,
+> sondern *in welchem Kontext*.
+
 Das hängt an **einer** Einstellung: `workerBlobURL: false` in `eigenbelege/js/app.js`. Ein aus
 einer `blob:`-URL gestarteter Worker **erbt** die CSP des Dokuments — dann bräuchte es
 `'wasm-unsafe-eval'` und `worker-src blob:`. Wer diese Option ändert, muss die CSP mitändern.

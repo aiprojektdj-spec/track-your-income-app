@@ -236,6 +236,57 @@ const Utils = {
     // Logo-Upload-Sanitizer: prüft Magic Bytes statt dem client-seitig spoofbaren
     // declared MIME-Type, und entschärft SVGs (Script/Event-Handler/javascript:-URIs
     // strippen), bevor sie als data:-URL im Logo-Feld landen.
+    // Beleg-Fotos kommen als Handyaufnahmen mit 3000-4000 px Kantenlaenge herein. Als
+    // Data-URL waechst so ein Bild um rund ein Drittel und landet dann im Datenbestand,
+    // den der Cloud-Sync bei JEDER Aenderung komplett verschluesselt und hochlaedt
+    // (kein Delta-Sync, siehe plan/02-ENTSCHEIDUNGEN.md). Zehn ungeschrumpfte Belege
+    // vervielfachen die Uebertragung. Zum Lesen eines Bons reichen 1600 px bei weitem.
+    //
+    // Reine Rechnung, ohne DOM — deshalb in test/test-bild-verkleinern.js pruefbar.
+    _bildZielMasse(breite, hoehe, maxKante) {
+        const max = maxKante || this.BILD_MAX_KANTE;
+        const groesste = Math.max(breite, hoehe);
+        if (!(groesste > max) || !(breite > 0) || !(hoehe > 0)) return { breite, hoehe, verkleinert: false };
+        const faktor = max / groesste;
+        return {
+            breite:      Math.max(1, Math.round(breite * faktor)),
+            hoehe:       Math.max(1, Math.round(hoehe  * faktor)),
+            verkleinert: true
+        };
+    },
+
+    BILD_MAX_KANTE: 1600,
+    BILD_JPEG_QUALITAET: 0.82,
+
+    // Zeichnet das Bild auf ein verkleinertes Canvas. PNG bleibt PNG (Logos koennen
+    // Transparenz tragen, JPEG wuerde sie schwarz fuellen), alles andere wird JPEG.
+    _verkleinereBild(dataUrl, mimeTyp) {
+        return new Promise((resolve, reject) => {
+            if (typeof document === 'undefined' || typeof Image === 'undefined') { reject(new Error('kein DOM')); return; }
+            const img = new Image();
+            img.onerror = () => reject(new Error('Bild nicht lesbar'));
+            img.onload = () => {
+                try {
+                    const ziel = this._bildZielMasse(img.naturalWidth, img.naturalHeight);
+                    if (!ziel.verkleinert) { resolve(dataUrl); return; }
+                    const cv = document.createElement('canvas');
+                    cv.width  = ziel.breite;
+                    cv.height = ziel.hoehe;
+                    const ctx = cv.getContext('2d');
+                    if (!ctx) { resolve(dataUrl); return; }
+                    ctx.drawImage(img, 0, 0, ziel.breite, ziel.hoehe);
+                    const istPng = mimeTyp === 'image/png';
+                    const klein  = istPng ? cv.toDataURL('image/png')
+                                          : cv.toDataURL('image/jpeg', this.BILD_JPEG_QUALITAET);
+                    // Nur uebernehmen, wenn es wirklich kleiner ist — bei einem PNG-Screenshot
+                    // kann die Neucodierung groesser ausfallen als das Original.
+                    resolve(klein.length < dataUrl.length ? klein : dataUrl);
+                } catch (e) { reject(e); }
+            };
+            img.src = dataUrl;
+        });
+    },
+
     sanitizeImageFile(file) {
         return new Promise((resolve, reject) => {
             const isSvg = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name || '');
@@ -276,7 +327,14 @@ const Utils = {
                 const blob = new Blob([bytes], { type: file.type });
                 const r2 = new FileReader();
                 r2.onerror = () => reject(new Error('Datei konnte nicht gelesen werden.'));
-                r2.onload = () => resolve(r2.result);
+                r2.onload = () => {
+                    // GIF unveraendert durchreichen: ein Canvas-Umweg wuerde die Animation
+                    // auf das erste Einzelbild reduzieren.
+                    if (isGif) { resolve(r2.result); return; }
+                    this._verkleinereBild(r2.result, file.type)
+                        .then(resolve)
+                        .catch(() => resolve(r2.result));   // im Zweifel das Original, nie ein Fehler
+                };
                 r2.readAsDataURL(blob);
             };
             reader.readAsArrayBuffer(file);

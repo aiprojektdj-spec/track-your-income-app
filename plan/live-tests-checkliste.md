@@ -64,15 +64,27 @@ zwei Tabs — die Gerätesperre hängt an `oyi_device_owner_uid`.
 - [ ] Sind die Daten dort wirklich **nur lesbar** — Speichern-Buttons gesperrt, Toast erscheint?
 - [ ] Freigabe in A zurückziehen → verliert der StB sofort den Zugriff?
 
-### 4. Make.com-Webhook · ~15 Min
+### 4. Make.com-Webhook · ~10 Min
 
-- [ ] Webhook-URL in den Einstellungen hinterlegen
-- [ ] Ereignis auslösen (neue Rechnung)
-- [ ] Kommt in Make.com ein Aufruf an, mit den erwarteten Feldern?
-- [ ] **CSP prüfen:** Konsole offen halten — `connect-src` muss den Make-Host kennen, sonst
-      blockiert der Browser still
-- [ ] Falsche URL eintragen: bekommt der Nutzer eine sichtbare Fehlermeldung oder scheitert es
-      stumm?
+> **Zwei der fünf Punkte sind am 2026-08-29 vorab am Code geklärt** — sie brauchen dich nicht
+> mehr, nur noch eine Gegenprobe im Vorbeigehen:
+>
+> - **CSP steht schon richtig.** `connect-src` führt `https://*.make.com`, und zwar in
+>   `vercel.json` **und** im `<meta>`-Tag von `app.html`. Custom-Webhooks liegen auf
+>   `hook.eu1/eu2/us1.make.com` — alle darunter. Die Konsole trotzdem offen halten: es geht
+>   darum, ob der *echte* Host passt, nicht ob die Regel existiert.
+> - **Eine falsche URL scheitert nicht stumm — beim Eintragen.** Neben dem Feld sitzt ein
+>   Test-Knopf ([`js/app.js:1047`](../js/app.js)), der einen Toast wirft, im Erfolgs- wie im
+>   Fehlerfall. **Aber:** beim echten Ereignis ist es umgekehrt — `Webhooks.fire()` schluckt
+>   jeden Fehler bewusst (`.catch(() => {})`, kein Retry), damit ein toter Webhook nie das
+>   Speichern einer Rechnung kippt. Ein Webhook, der erst *später* kaputtgeht, fällt dem
+>   Nutzer also nirgends auf. Das ist eine Entscheidung, keine Lücke — aber prüf beim Test,
+>   ob dir das so recht ist.
+
+- [ ] Webhook-URL in den Einstellungen hinterlegen, Test-Knopf drücken → Toast erscheint?
+- [ ] Ereignis auslösen (neue Rechnung) — **der eigentliche Test**
+- [ ] Kommt in Make.com ein Aufruf an, mit den erwarteten Feldern (`event`, `ts`, `data`)?
+- [ ] Konsole währenddessen offen: keine CSP-Meldung zum echten Make-Host?
 
 ### 5. Lager-Feature-Batch, Punkt 10 · ~20 Min
 

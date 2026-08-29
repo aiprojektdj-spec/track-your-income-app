@@ -100,6 +100,21 @@ Barbon ist das „Gegeben 50,00" statt der Summe. Die Regel steht so in der Spez
 bewusst nicht eigenmächtig erweitert; ein Ausschluss von `Gegeben`/`Rückgeld` wäre der nächste
 naheliegende Schritt, sollte sich das an echten Bons zeigen.
 
+**Nachtrag 2026-08-28 — das Datum wurde als Betrag gelesen** (`a7e82ea`). Dieselbe Rückfallregel
+zählte den Tag-Monat-Kopf eines Datums mit: `27.08.2026` enthält `27.08` — zwei Nachkommastellen,
+ein Nicht-Ziffer-Zeichen dahinter, formal ein Betrag. Anders als „Gegeben 50,00" ist das keine
+Grenze der Spezifikation, sondern schlicht falsch, und es traf **jeden** Bon: ein Datum steht
+immer drauf. Jeder Endbetrag unter 31,12 verlor gegen den Datumskopf, sobald die Summenzeile
+nicht erkannt wurde. Gemessen: Bon mit `27.08.2026` und 3,99 ohne Summenzeile → Vorschlag 27,08.
+
+Der Ausschluss hat denselben Aufbau wie die schon vorhandene MwSt-Satz-Regel: hinter dem Treffer
+folgt ein weiterer Trenner mit Ziffer (`.2026`). Ein echter Betrag am Satzende (`3,99.`) hat dort
+keine Ziffer und bleibt erhalten — dafür steht eine Gegenprobe im Test. Vier neue Prüfungen,
+[`test/test-beleg-ocr.js`](../test/test-beleg-ocr.js) jetzt 39 statt 35.
+
+Die SHA-256-Summen der fünf Vendor-Dateien wurden bei der Gelegenheit gegen
+[`VERSIONS.md`](../js/vendor/VERSIONS.md) nachgerechnet: alle fünf stimmen, Größen ebenfalls.
+
 ---
 
 ## Barrierefreiheit (`6103208`)

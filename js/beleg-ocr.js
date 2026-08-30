@@ -114,7 +114,19 @@ var BelegOCR = (function () {
     // Bestaetigungswoerter: hier steht bewusst KEIN "BAR"/"GEGEBEN". Auf einem Barbon
     // ist "Gegeben 50,00" genau der Betrag, der nicht gewinnen soll; ihn als Bestaetigung
     // zuzulassen hoebe die Summenregel von hinten wieder auf.
-    var RE_BESTAETIGUNG = /betrag|brutto|summe|gesamt|total|zu\s+zahlen|endbetrag/i;
+    //
+    // Das \b vorn ist nicht kosmetisch. Ohne es traf /betrag/ auch "Rabattbetrag" und
+    // "Nettobetrag" — dann bestaetigt ausgerechnet eine Teilbetragszeile einen Kandidaten
+    // als Endbetrag, und die Sicherung, die diese Regel ungefaehrlich macht, faellt aus.
+    // Belegt: eine korrekt gelesene "SUMME 85,90" wurde neben "Rabattbetrag 5,90" auf
+    // 5,90 heruntergezogen. "Rechnungsbetrag" und "Zahlbetrag" stehen deshalb einzeln
+    // drin — sie sind echte Endbetraege und wuerden vom \b sonst mitgerissen.
+    var RE_BESTAETIGUNG = /\b(?:betrag|brutto|summe|gesamt|total|zu\s+zahlen|endbetrag|rechnungsbetrag|zahlbetrag)/i;
+
+    // Das \b allein genuegt nicht: ein Bindestrich IST eine Wortgrenze, "MwSt-Betrag"
+    // kaeme also durch. Eine Zeile, die einen Teilbetrag ausweist, kann keinen Endbetrag
+    // bestaetigen — unabhaengig davon, wie das Wort zusammengesetzt ist.
+    var RE_TEILBETRAG = /rabatt|netto|mwst|\bust\b|steuer|trinkgeld|pfand|zwischensumme|anzahlung|gutschein/i;
 
     // Vergleichsform ohne Tausendertrenner, Dezimalzeichen vereinheitlicht:
     // "1.234,56" und "1234.56" werden beide zu "1234,56".
@@ -173,7 +185,7 @@ var BelegOCR = (function () {
             if (!b.length) continue;
             // Merkt sich pro Betrag, ob seine Zeile ihn als Endbetrag ausweist —
             // gebraucht von der Gegenprobe, nicht von der Auswahl selbst.
-            if (RE_BESTAETIGUNG.test(zeilen[i])) {
+            if (RE_BESTAETIGUNG.test(zeilen[i]) && !RE_TEILBETRAG.test(zeilen[i])) {
                 for (var k = 0; k < b.length; k++) b[k].bestaetigt = true;
             }
             alle = alle.concat(b);

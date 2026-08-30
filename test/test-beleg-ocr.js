@@ -228,6 +228,33 @@ check('Gegeben-Zeile bestaetigt nicht',
     OCR.findBetrag(['SUMME 85,90', 'Geg. BAR 5,90', 'Rueckgeld 5,90']).wert === 85.90,
     JSON.stringify(OCR.findBetrag(['SUMME 85,90', 'Geg. BAR 5,90', 'Rueckgeld 5,90'])));
 
+// Die Bestaetigung darf nicht in zusammengesetzten Woertern anschlagen. Ohne das \b
+// traf /betrag/ auch "Rabattbetrag" — dann zieht eine Teilbetragszeile eine KORREKT
+// gelesene Summenzeile herunter. Gemeldet aus einer Parallel-Session, hier reproduziert.
+check('Rabattbetrag bestaetigt nicht',
+    OCR.findBetrag(['Baumarkt', 'Schraube 5,90', 'Rabattbetrag 5,90', 'SUMME [2 EUR 85,90']).wert === 85.90,
+    JSON.stringify(OCR.findBetrag(['Baumarkt', 'Schraube 5,90', 'Rabattbetrag 5,90', 'SUMME [2 EUR 85,90'])));
+
+check('Nettobetrag bestaetigt nicht',
+    OCR.findBetrag(['Baumarkt', 'Nettobetrag 5,90', 'Nettobetrag 5,90', 'SUMME 85,90']).wert === 85.90,
+    JSON.stringify(OCR.findBetrag(['Baumarkt', 'Nettobetrag 5,90', 'Nettobetrag 5,90', 'SUMME 85,90'])));
+
+// Der Fall, den ein blosses \b NICHT abfaengt: ein Bindestrich ist eine Wortgrenze,
+// "MwSt-Betrag" kaeme also durch. Dafuer gibt es den Teilbetrags-Ausschluss.
+check('MwSt-Betrag bestaetigt nicht (Bindestrich ist eine Wortgrenze)',
+    OCR.findBetrag(['Baumarkt', 'MwSt-Betrag 5,90', 'MwSt-Betrag 5,90', 'SUMME 85,90']).wert === 85.90,
+    JSON.stringify(OCR.findBetrag(['Baumarkt', 'MwSt-Betrag 5,90', 'MwSt-Betrag 5,90', 'SUMME 85,90'])));
+
+// Gegenprobe zum Ausschluss: echte Endbetrags-Komposita muessen weiter bestaetigen,
+// sonst haette der Fix die Regel bloss stillgelegt.
+check('Gesamtbetrag bestaetigt weiterhin',
+    OCR.findBetrag(['SUMME [2 EUR 785,90', 'Gesamtbetrag 85,90', 'Posten 85,90']).wert === 85.90,
+    JSON.stringify(OCR.findBetrag(['SUMME [2 EUR 785,90', 'Gesamtbetrag 85,90', 'Posten 85,90'])));
+
+check('Rechnungsbetrag bestaetigt weiterhin',
+    OCR.findBetrag(['SUMME [2 EUR 785,90', 'Rechnungsbetrag 85,90', 'Posten 85,90']).wert === 85.90,
+    JSON.stringify(OCR.findBetrag(['SUMME [2 EUR 785,90', 'Rechnungsbetrag 85,90', 'Posten 85,90'])));
+
 // ── 3) Haendler ─────────────────────────────────────────────────────────────
 console.log('\nHaendler');
 

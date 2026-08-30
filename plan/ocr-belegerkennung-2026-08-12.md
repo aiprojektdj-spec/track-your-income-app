@@ -147,8 +147,11 @@ Bedingungen zutreffen:
 3. Der Kandidat ist ein Ziffern-Suffix des Gewinners, und der weggefallene Präfix ist
    **genau eine Ziffer** (`85,90` in `785,90`). Verglichen wird auf der Ziffernform, also ohne
    Tausendertrenner und mit vereinheitlichtem Dezimalzeichen.
-4. Der Kandidat steht mindestens einmal auf einer Zeile mit einem **Bestätigungswort**:
-   `BETRAG`, `BRUTTO`, `SUMME`, `GESAMT`, `TOTAL`, `ZU ZAHLEN`, `ENDBETRAG`.
+4. Der Kandidat steht mindestens einmal auf einer Zeile mit einem **Bestätigungswort**
+   (`BETRAG`, `BRUTTO`, `SUMME`, `GESAMT`, `TOTAL`, `ZU ZAHLEN`, `ENDBETRAG`,
+   `RECHNUNGSBETRAG`, `ZAHLBETRAG`) — und **nicht** auf einer Zeile, die einen
+   **Teilbetrag** ausweist (`RABATT`, `NETTO`, `MWST`, `UST`, `STEUER`, `TRINKGELD`,
+   `PFAND`, `ZWISCHENSUMME`, `ANZAHLUNG`, `GUTSCHEIN`).
 
 **Warum vier Bedingungen und nicht zwei.** Ohne Bedingung 4 wäre die Regel gefährlich: ein Bon
 mit zwei Posten zu `5,90` und einer Summe von `85,90`, die nur einmal dasteht, würde
@@ -159,6 +162,21 @@ als Postenpreis. Auf dem Bauhaus-Bon trägt ihn die Zeile `Betrag EUR 85,90`.
 `BAR` und `GEGEBEN` stehen bewusst **nicht** in der Liste: auf einem Barbon ist „Gegeben 50,00"
 genau der Betrag, der nicht gewinnen soll — er als Bestätigungswort zuzulassen hieße, die
 bestehende Regel von hinten aufzuheben.
+
+**Warum Bedingung 4 zweiteilig ist — nachgetragen am selben Tag.** Die erste Fassung prüfte
+bloß `/betrag|brutto|…/`. Eine Parallel-Session fand die Lücke: das trifft auch
+**`Rabattbetrag`** und **`Nettobetrag`**. Dann bestätigt ausgerechnet eine Teilbetragszeile
+einen Kandidaten als Endbetrag — und die Sicherung, die diese ganze Regel ungefährlich macht,
+fällt aus. Reproduziert: neben `Rabattbetrag 5,90` wurde eine **korrekt gelesene**
+`SUMME 85,90` auf `5,90` heruntergezogen. Die Fehlerrichtung ist diesmal nach unten, und
+schlimmer noch: die Korrektur überschreibt einen Wert, der nie falsch war.
+
+Eine Wortgrenze (`\b`) vorn ist die halbe Antwort — sie wirft `Rabattbetrag`, `Nettobetrag`
+und `Steuerbetrag` hinaus, **aber nicht `MwSt-Betrag`**: ein Bindestrich *ist* eine Wortgrenze.
+Und sie nimmt `Rechnungsbetrag` und `Zahlbetrag` mit, die echte Endbeträge sind. Deshalb beides:
+Wortgrenze plus die beiden Komposita einzeln in der Liste, plus ein eigener Ausschluss für
+Teilbetragszeilen, der unabhängig von der Wortzusammensetzung greift. An sechzehn Zeilen
+gemessen, alle sechzehn richtig eingeordnet.
 
 **Die Korrektur wird nicht verschwiegen.** Greift sie, trägt der Treffer zusätzlich fest, was
 ursprünglich dastand; der Chip zeigt beides. Eine stille Korrektur wäre wieder ein Raten, und

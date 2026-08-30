@@ -4,7 +4,10 @@
 
 > **Punkt 6 ist am 2026-08-29 abgearbeitet** — er brauchte keinen Login, weil das Gate genau
 > der Zustand *ohne* Anmeldung ist. Ergebnis, Fund und Fix stehen unten bei Punkt 6.
-> **Punkt 7 (Bon) kam am 2026-08-30 dazu** und braucht für die Messung ebenfalls keinen Login.
+> **Punkt 7 (Bon) ist am 2026-08-30 gemessen** — ebenfalls ohne Login, an einem echten
+> Bauhaus-Bon: **2 von 3**, und der Fehltreffer ist ausgerechnet die Bruttosumme
+> (`785,90` statt `85,90`). Fund, Rohtext-Befund und ein Fixvorschlag stehen unten bei Punkt 7;
+> die Entscheidung über die Regeländerung steht noch aus.
 > Die Punkte 1–5 warten weiter auf dich.
 
 Sieben Funktionen sind gebaut, committet und statisch geprüft, aber nie unter echten Bedingungen
@@ -140,7 +143,7 @@ Login-Gate-Screen `#whopLoginOverlay`. Konsole fehlerfrei, alle 36 Node-Harnesse
 > deshalb per Event-Dispatch geprüft, der Ring rechnerisch aus den *live* ausgelesenen
 > Computed Styles. Wer die Pane offen hat, sieht denselben Befund in einem Screenshot.
 
-### 7. Belegerkennung an einem echten Bon · ~15 Min
+### 7. Belegerkennung an einem echten Bon · ✅ gemessen 2026-08-30 — **2 von 3**
 
 Der einzige offene Punkt aus der OCR-Session (Fund G4, gebaut 2026-08-27). Geprüft ist bisher
 **nur an synthetischen Bildern** — sauber und absichtlich verschlechtert, dort je 3 von 3 Feldern.
@@ -162,21 +165,75 @@ Bruttosumme. Ohne die Sollwerte ist der Lauf keine Messung, sondern nur ein Eind
 [`js/beleg-ocr.js`](../js/beleg-ocr.js) und den Vendor-Dateien, nicht am Gate. Wer ohnehin
 angemeldet ist, nimmt gleich den echten Klickweg in `eigenbelege/` und prüft beides in einem.
 
-- [ ] **Datum** korrekt vorgeschlagen? Bei mehreren Daten auf dem Bon: das frühere, nicht das
-      Druckdatum
-- [ ] **Bruttosumme** korrekt? Auf einem Barbon der kritische Fall: „Gegeben 50,00" ist der
-      größere Betrag und darf **nicht** gewinnen, solange eine Summenzeile da ist
-- [ ] **Verkäufer** plausibel — nicht die Adresszeile, nicht die Steuernummer
-- [ ] **Rohtext festhalten**, auch wenn alles stimmt. Bei einem Fehltreffer ist er die einzige
-      Grundlage für eine Regeländerung, und ein zweites Foto desselben Bons gibt es selten
-- [ ] Dauer notieren (kalter *und* warmer Worker — der erste Lauf lädt ~9 MB nach)
-- [ ] Konsole leer? Insbesondere kein `Refused to compile WebAssembly` — das wäre der Fall, in
-      dem die CSP-Freigabe doch gebraucht wird (Eingriff steht in
-      [`VERSIONS.md`](../js/vendor/VERSIONS.md), beide Stellen)
+**Gelaufen am 2026-08-30** an einem Bauhaus-Kassenbon (Ravensburg, 06.07.2026, 85,90 € für zwei
+Stufenschwerlastregale, EC-Zahlung). Frischer Port **4339**, Messumgebung im Scratchpad — der Bon
+trägt IBAN-Fragment, Kartennummer, Terminal-ID und Steuernummer und hat das Repo nie berührt.
 
-**Danach:** Trefferquote in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md) beim OCR-Abschnitt
-nachtragen — die Warnung „Was fehlt: ein echter Bon" ersetzt sie. Erst dann steht die
-Bewerbungsfrage wieder offen.
+- [x] **Datum** ✅ `2026-07-06`. **Aber nicht aus der Datumszeile** — die zerfiel zu
+      `Datünı Aa 0 o607.2026`, der Punkt zwischen Tag und Monat ging verloren. Getragen hat die
+      Fußzeile unter dem Barcode (`06.07.26 11:36 587`). Dass die Früheste-Regel über den
+      *ganzen* Text läuft und nicht über eine erkannte „Datum:"-Zeile, hat den Treffer hier
+      gerettet — vorher war das nur gegen Druckdatum-Dubletten gedacht.
+- [ ] **Bruttosumme** ❌ **`785,90` statt `85,90`** — Zehnfach-Überhöhung. Ursache und
+      Bewertung unten.
+- [x] **Verkäufer** ✅ `Bauhaus GmbH & Co, KG Schwaben` (Komma statt Punkt, sonst korrekt).
+      Auch das ein Treffer durch Durchfallen: das **BAUHAUS-Logo wurde gar nicht gelesen** —
+      weiße Schrift auf schwarzen Kästen, tesseract liefert dafür nichts. Die Regel nahm die
+      nächste Zeile, und die war die richtige. Auf einem Bon, dessen Kopf nur aus dem Logo
+      besteht, gäbe es keinen Verkäufer.
+- [x] **Rohtext festhalten** — liegt im Scratchpad (`bon-lauf/rohtext.txt`), vollständig unten
+      in der Fundbeschreibung zitiert, soweit er zur Sache gehört. Konfidenz **56**, zwei Läufe
+      zeichengleich (der Fehler ist also reproduzierbar, kein Zufallsausrutscher).
+- [x] Dauer: Worker-Aufbau **1,2 s**, Erkennung kalt **4,6 s**, warm **3,4 s**.
+      ⚠️ **Das ist nicht die Nutzererfahrung.** Gemessen gegen `localhost` — die ~9 MB kamen
+      von der Platte, nicht übers Netz. Der erste Klick eines echten Nutzers dauert deutlich
+      länger; diese Zahl taugt nur als Untergrenze.
+- [x] Konsole leer, insbesondere **kein** `Refused to compile WebAssembly`.
+      ⚠️ Belegt aber nichts Neues zur CSP: der Harness lief unter `python -m http.server`,
+      der **gar keine CSP-Header schickt**. Die CSP-Aussage vom 2026-08-27 (gemessen mit
+      `scripts/csp-preview-server.js` unter den echten `vercel.json`-Headern) bleibt die
+      maßgebliche.
+
+> **Fund: `SUMME [2]` wird zu `SUMME [2` — und die schließende Klammer landet als `7` am
+> Betrag.** Die Zeile kam als `SUMME [2 EUR 785,90` aus der Erkennung. Die Heuristik hat sich
+> dabei **korrekt verhalten**: sie hat die Summenzeile bevorzugt (`RE_SUMMENZEILE` greift auf
+> „SUMME") und den einzigen Betrag darin genommen. Auch der Rückfall hätte nicht geholfen —
+> `785,90` ist zugleich der größte Betrag auf dem ganzen Bon.
+>
+> Das ist also **kein Regelfehler im bisherigen Sinn, sondern eine fehlende Gegenprobe.** Im
+> Rohtext steht die Wahrheit dreimal:
+>
+> | Betrag | Vorkommen |
+> |---|---|
+> | `785,90` | **1×** (nur die verunglückte Summenzeile) |
+> | `88,80` | 1× (verlesenes `EC-Cash … 85,90`) |
+> | `85,90` | **3×** (Artikelzeile, `Betrag EUR`, `BRUTTO`) |
+> | `72,18` / `13,72` | je 1× (Netto und MwSt — **72,18 + 13,72 = 85,90**) |
+>
+> **Warum dieser Fehltreffer schwerer wiegt als ein verlesener Händlername:** er betrifft das
+> Geldfeld, und er geht **nach oben**. Ein übernommener Eigenbeleg über 785,90 € statt 85,90 €
+> ist eine um 700 € zu hohe Betriebsausgabe und ein um 111,72 € zu hoher Vorsteuerabzug.
+> Automatisch eingetragen wird nichts — der Chip muss geklickt werden, so wie es
+> [`js/beleg-ocr.js`](../js/beleg-ocr.js) im Kopf festhält. Aber `85,90` und `785,90`
+> unterscheiden sich um **ein Zeichen am Zeilenanfang**, und der Chip ist genau die Stelle, an
+> der man schnell klickt statt liest.
+>
+> **Vorschlag (noch nicht gebaut, weil er die Spezifikation ändert):** eine Konsens-Gegenprobe.
+> Gewinnt ein Betrag die Summenzeile, kommt aber im ganzen Bon **nur einmal** vor, während ein
+> anderer Betrag **mehrfach** vorkommt und ein Ziffern-Suffix des Gewinners ist (`85,90` ist
+> Suffix von `785,90`), dann ist der mehrfache der wahrscheinlichere. Die Regel feuert eng —
+> nur auf das beobachtete Muster „eine Ziffer vorn drangeklebt" — und stünde in
+> [`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md), Abschnitt 5
+> nachzutragen. Alternativ oder zusätzlich die arithmetische Probe `Netto + MwSt = Brutto`,
+> die auf diesem Bon exakt aufgeht, aber nicht auf jedem Bon einen solchen Block vorfindet.
+>
+> **Eine Messung ist noch keine Quote.** n = 1. Das Bild kam zudem über WhatsApp
+> (1536 × 2048, 334 KB) und war damit schon einmal rekomprimiert — ein realistischer Weg, aber
+> nicht die Rohdatei der Kamera.
+
+**Bewerbungsfrage:** bleibt **zu**. Mit `index.html` unberührt ist alles richtig — bei einem
+gemessenen Bon, dessen Betragsfeld danebenliegt, wäre jede Zahl in der Werbung angreifbar
+(§5 UWG), und „automatisch" erst recht.
 
 ---
 

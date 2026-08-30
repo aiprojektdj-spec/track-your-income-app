@@ -172,6 +172,62 @@ check('ohne jeden Betrag kommt null', OCR.findBetrag(['REWE Markt GmbH']) === nu
 
 check('roher Treffer bleibt erhalten', OCR.findBetrag(['SUMME 1.234,56']).roh === '1.234,56');
 
+// ── 2a) Konsens-Gegenprobe ──────────────────────────────────────────────────
+// Spezifikation Abschnitt 5a. Anlass ist gemessen, nicht ausgedacht: am 2026-08-30
+// las die Erkennung an einem echten Bauhaus-Bon "SUMME [2]  EUR  85,90" als
+// "SUMME [2 EUR 785,90" — die schliessende Klammer wurde zur 7 und klebte am Betrag.
+console.log('\nBetrag: Konsens-Gegenprobe');
+
+// Der gemessene Fall, auf das Wesentliche gekuerzt.
+const BON_BAUHAUS_VERSTUEMMELT = [
+    'Bauhaus GmbH & Co, KG Schwaben',
+    'SF OFENSCMERST 85,90 C',
+    'SUMME [2 EUR 785,90 |',      // <- die verunglueckte Zeile
+    'Betrag EUR 85,90 |',          // <- Bestaetigungswort "Betrag"
+    'C 19% 72,18€ 13,72€ 85,90€ 1',
+];
+
+check('angeklebte Ziffer wird gegen den dreifachen Konsens verworfen',
+    OCR.findBetrag(BON_BAUHAUS_VERSTUEMMELT).wert === 85.90,
+    JSON.stringify(OCR.findBetrag(BON_BAUHAUS_VERSTUEMMELT)));
+
+check('die Korrektur wird nicht verschwiegen',
+    OCR.findBetrag(BON_BAUHAUS_VERSTUEMMELT).korrigiertVon === '785,90',
+    JSON.stringify(OCR.findBetrag(BON_BAUHAUS_VERSTUEMMELT)));
+
+// Der gefaehrlichste Fall der ganzen Regel, und der Grund fuer Bedingung 4:
+// zwei Posten zu 5,90 und eine Summe von 85,90, die nur einmal dasteht. Ohne das
+// verlangte Bestaetigungswort wuerde hier nach UNTEN korrigiert — aus einem
+// Erkennungsfehler wuerde ein Rechenfehler.
+check('ohne Bestaetigungswort wird NICHT nach unten korrigiert',
+    OCR.findBetrag(['Kiosk Meier', 'Cola 5,90', 'Wasser 5,90', 'SUMME 85,90']).wert === 85.90,
+    JSON.stringify(OCR.findBetrag(['Kiosk Meier', 'Cola 5,90', 'Wasser 5,90', 'SUMME 85,90'])));
+
+check('unkorrigierter Treffer traegt kein korrigiertVon',
+    OCR.findBetrag(['SUMME 85,90']).korrigiertVon === undefined,
+    JSON.stringify(OCR.findBetrag(['SUMME 85,90'])));
+
+// Bedingung 1: kommt der Gewinner selbst mehrfach vor, ist er kein Ausrutscher.
+check('mehrfach vorkommender Gewinner bleibt stehen',
+    OCR.findBetrag(['SUMME 785,90', 'Betrag EUR 785,90', 'Posten 85,90', 'BRUTTO 85,90']).wert === 785.90,
+    JSON.stringify(OCR.findBetrag(['SUMME 785,90', 'Betrag EUR 785,90', 'Posten 85,90', 'BRUTTO 85,90'])));
+
+// Bedingung 3: genau eine Ziffer. Zwei weggefallene Zeichen waeren geraten.
+check('zwei angeklebte Ziffern greifen nicht',
+    OCR.findBetrag(['SUMME 1785,90', 'Betrag EUR 85,90', 'BRUTTO 85,90']).wert === 1785.90,
+    JSON.stringify(OCR.findBetrag(['SUMME 1785,90', 'Betrag EUR 85,90', 'BRUTTO 85,90'])));
+
+// Der Vergleich laeuft auf der Ziffernform, also ohne Tausendertrenner.
+check('Tausendertrenner stoert den Vergleich nicht',
+    OCR.findBetrag(['SUMME 1.785,90', 'Betrag EUR 785,90', 'BRUTTO 785,90']).wert === 785.90,
+    JSON.stringify(OCR.findBetrag(['SUMME 1.785,90', 'Betrag EUR 785,90', 'BRUTTO 785,90'])));
+
+// "Gegeben" darf kein Bestaetigungswort sein — sonst hoebe die Gegenprobe die
+// Summenregel von hinten wieder auf, die genau diesen Fall abfaengt.
+check('Gegeben-Zeile bestaetigt nicht',
+    OCR.findBetrag(['SUMME 85,90', 'Geg. BAR 5,90', 'Rueckgeld 5,90']).wert === 85.90,
+    JSON.stringify(OCR.findBetrag(['SUMME 85,90', 'Geg. BAR 5,90', 'Rueckgeld 5,90'])));
+
 // ── 3) Haendler ─────────────────────────────────────────────────────────────
 console.log('\nHaendler');
 

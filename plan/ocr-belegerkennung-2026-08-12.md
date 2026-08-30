@@ -113,11 +113,67 @@ schlimmer ist als ein leeres.
 | Feld | Regel |
 |---|---|
 | Datum | erstes Vorkommen von `TT.MM.JJJJ` oder `TT.MM.JJ`; bei mehreren das früheste, weil Bons oft ein späteres Druckdatum tragen |
-| Betrag | Zeile mit `SUMME`, `GESAMT`, `TOTAL`, `ZU ZAHLEN` bevorzugt; sonst der größte gefundene Betrag mit zwei Nachkommastellen |
+| Betrag | Zeile mit `SUMME`, `GESAMT`, `TOTAL`, `ZU ZAHLEN` bevorzugt; sonst der größte gefundene Betrag mit zwei Nachkommastellen. Danach die **Konsens-Gegenprobe**, siehe unten |
 | Händler | erste Zeile mit mindestens drei Buchstaben, die keine Zahl und keine Adressfloskel ist |
 
 Alle drei Regeln sind Heuristiken und gehören in eine eigene, testbare Funktion — dieselbe
 Trennung wie beim Zahlungsabgleich (G3), wo die Zuordnungslogik ohne Browser prüfbar ist.
+
+### 5a. Konsens-Gegenprobe beim Betrag — nachgetragen 2026-08-30
+
+**Der Anlass ist gemessen, nicht ausgedacht.** Beim ersten Lauf an einem echten Bon
+(Bauhaus, 06.07.2026, 85,90 €; Protokoll in [`live-tests-checkliste.md`](live-tests-checkliste.md),
+Punkt 7) las die Erkennung die Summenzeile so:
+
+```
+SUMME [2 EUR 785,90        ← richtig wäre: SUMME [2]  EUR  85,90
+```
+
+Die schließende Klammer wurde als `7` gelesen und klebte am Betrag. **Beide bisherigen Regeln
+liefern hier denselben falschen Wert:** die Schlüsselwortzeile, weil `785,90` der einzige Betrag
+darin ist — und der Rückfall „größter Betrag" ebenfalls, weil die verunglückte Zeile stehen
+bleibt und `785,90` damit der größte Betrag des ganzen Bons ist. Am Code gegengeprüft: zerstört
+man das Schlüsselwort künstlich (`SUMME`→`SUHME`), kommt weiterhin `785,90` heraus. Es gab also
+kein Sicherheitsnetz unter der Schlüsselwortregel.
+
+Dass der Fehler **nach oben** geht, macht ihn teuer: übernommen wären das 700 € zu viel
+Betriebsausgabe und 111,72 € zu viel Vorsteuer.
+
+**Die Regel.** Der Gewinner wird verworfen zugunsten eines Kandidaten, wenn **alle vier**
+Bedingungen zutreffen:
+
+1. Der Gewinner kommt im ganzen Bon **genau einmal** vor.
+2. Der Kandidat kommt **mindestens zweimal** vor.
+3. Der Kandidat ist ein Ziffern-Suffix des Gewinners, und der weggefallene Präfix ist
+   **genau eine Ziffer** (`85,90` in `785,90`). Verglichen wird auf der Ziffernform, also ohne
+   Tausendertrenner und mit vereinheitlichtem Dezimalzeichen.
+4. Der Kandidat steht mindestens einmal auf einer Zeile mit einem **Bestätigungswort**:
+   `BETRAG`, `BRUTTO`, `SUMME`, `GESAMT`, `TOTAL`, `ZU ZAHLEN`, `ENDBETRAG`.
+
+**Warum vier Bedingungen und nicht zwei.** Ohne Bedingung 4 wäre die Regel gefährlich: ein Bon
+mit zwei Posten zu `5,90` und einer Summe von `85,90`, die nur einmal dasteht, würde
+fälschlich **nach unten** korrigiert — aus einem Erkennungsfehler würde ein Rechenfehler. Das
+Bestätigungswort verlangt, dass der Kandidat selbst irgendwo als Endbetrag auftritt, nicht bloß
+als Postenpreis. Auf dem Bauhaus-Bon trägt ihn die Zeile `Betrag EUR 85,90`.
+
+`BAR` und `GEGEBEN` stehen bewusst **nicht** in der Liste: auf einem Barbon ist „Gegeben 50,00"
+genau der Betrag, der nicht gewinnen soll — er als Bestätigungswort zuzulassen hieße, die
+bestehende Regel von hinten aufzuheben.
+
+**Die Korrektur wird nicht verschwiegen.** Greift sie, trägt der Treffer zusätzlich fest, was
+ursprünglich dastand; der Chip zeigt beides. Eine stille Korrektur wäre wieder ein Raten, und
+der Leitsatz der Funktion bleibt: ein falsch vorbefülltes Feld ist schlimmer als ein leeres.
+
+**Was sie nicht kann.** Steht der wahre Betrag nur ein einziges Mal auf dem Bon, greift nichts —
+dann fehlt der Konsens, aus dem die Regel ihren Namen hat. Der Fall bleibt offen und ist der
+Grund, warum eine Trefferquote weiterhin mehr als einen Bon braucht.
+
+**Drei weitere Fehler der Betragsregel sind am selben Tag bestätigt und bewusst offen geblieben**
+— Summenzeile mit Umbruch, verlorenes Minus bei Retouren, Uhrzeit mit Punkt. Alle drei sitzen im
+Rückfallpfad und irren ebenfalls nach oben; die Gegenprobe fängt keinen davon. Reproduktion und
+Lösungsrichtungen in [`funde-betragsregel-2026-08-30.md`](funde-betragsregel-2026-08-30.md).
+Sie sind nicht behoben, weil die Regel sonst vier Neuerungen auf einem einzigen echten Bon
+trüge — erst mehr Bons, dann der Rückfallpfad in einem Stück.
 
 ## 6. Ladeverhalten
 

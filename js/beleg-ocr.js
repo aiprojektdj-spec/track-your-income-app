@@ -102,16 +102,85 @@ var BelegOCR = (function () {
         return liste.reduce(function (a, b) { return b.wert > a.wert ? b : a; });
     }
 
+    // ── Konsens-Gegenprobe (Spezifikation Abschnitt 5a) ──────────────────────
+    // Anlass ist gemessen: am 2026-08-30 las die Erkennung "SUMME [2]  EUR  85,90"
+    // als "SUMME [2 EUR 785,90" — die schliessende Klammer wurde zur 7 und klebte am
+    // Betrag. Beide bisherigen Regeln liefern dabei denselben falschen Wert: die
+    // Schluesselwortzeile, weil 785,90 der einzige Betrag darin ist, und der Rueckfall
+    // "groesster Betrag" auch, weil die verunglueckte Zeile stehen bleibt. Es gab also
+    // kein Netz darunter — und der Fehler geht nach OBEN, also in Richtung zu hoher
+    // Betriebsausgabe und zu hoher Vorsteuer.
+    //
+    // Bestaetigungswoerter: hier steht bewusst KEIN "BAR"/"GEGEBEN". Auf einem Barbon
+    // ist "Gegeben 50,00" genau der Betrag, der nicht gewinnen soll; ihn als Bestaetigung
+    // zuzulassen hoebe die Summenregel von hinten wieder auf.
+    var RE_BESTAETIGUNG = /betrag|brutto|summe|gesamt|total|zu\s+zahlen|endbetrag/i;
+
+    // Vergleichsform ohne Tausendertrenner, Dezimalzeichen vereinheitlicht:
+    // "1.234,56" und "1234.56" werden beide zu "1234,56".
+    function _ziffernform(roh) {
+        var trenner = roh.lastIndexOf(',') > roh.lastIndexOf('.') ? ',' : '.';
+        var teile = roh.split(trenner);
+        var nachkomma = teile.pop();
+        var vorkomma = teile.join('').replace(/[.,\s]/g, '');
+        return vorkomma + ',' + nachkomma;
+    }
+
+    // Ist `kurz` der Rest von `lang`, nachdem vorne GENAU EINE Ziffer wegfaellt?
+    // Genau eine, weil das das beobachtete Muster ist: ein einzelnes Zeichen, das die
+    // Erkennung an den Betrag geklebt hat. Mehr zuzulassen hiesse raten.
+    function _istAngeklebteZiffer(lang, kurz) {
+        if (lang.length !== kurz.length + 1) return false;
+        if (lang.slice(1) !== kurz) return false;
+        return /^\d$/.test(lang.charAt(0));
+    }
+
+    function _konsensGegenprobe(gewinner, alle) {
+        if (!gewinner) return gewinner;
+
+        var haeufigkeit = {};   // Ziffernform -> Anzahl im ganzen Bon
+        var bestaetigt  = {};   // Ziffernform -> stand mind. einmal auf einer Endbetragszeile
+        for (var i = 0; i < alle.length; i++) {
+            var f = _ziffernform(alle[i].roh);
+            haeufigkeit[f] = (haeufigkeit[f] || 0) + 1;
+            if (alle[i].bestaetigt) bestaetigt[f] = true;
+        }
+
+        var gForm = _ziffernform(gewinner.roh);
+        // Bedingung 1: der Gewinner steht nur ein einziges Mal auf dem Bon.
+        if (haeufigkeit[gForm] !== 1) return gewinner;
+
+        var bester = null;
+        for (var j = 0; j < alle.length; j++) {
+            var kForm = _ziffernform(alle[j].roh);
+            if (haeufigkeit[kForm] < 2) continue;            // Bedingung 2
+            if (!_istAngeklebteZiffer(gForm, kForm)) continue; // Bedingung 3
+            if (!bestaetigt[kForm]) continue;                 // Bedingung 4
+            if (!bester || alle[j].wert > bester.wert) bester = alle[j];
+        }
+        if (!bester) return gewinner;
+
+        // Nicht stillschweigend korrigieren: was urspruenglich dastand, bleibt am
+        // Treffer haengen, damit der Chip beides zeigen kann.
+        return { wert: bester.wert, roh: bester.roh, korrigiertVon: gewinner.roh };
+    }
+
     function findBetrag(zeilen) {
         var ausSummenzeilen = [];
         var alle = [];
         for (var i = 0; i < zeilen.length; i++) {
             var b = _betraegeDerZeile(zeilen[i]);
             if (!b.length) continue;
+            // Merkt sich pro Betrag, ob seine Zeile ihn als Endbetrag ausweist —
+            // gebraucht von der Gegenprobe, nicht von der Auswahl selbst.
+            if (RE_BESTAETIGUNG.test(zeilen[i])) {
+                for (var k = 0; k < b.length; k++) b[k].bestaetigt = true;
+            }
             alle = alle.concat(b);
             if (RE_SUMMENZEILE.test(zeilen[i])) ausSummenzeilen = ausSummenzeilen.concat(b);
         }
-        return _groesster(ausSummenzeilen.length ? ausSummenzeilen : alle);
+        var gewinner = _groesster(ausSummenzeilen.length ? ausSummenzeilen : alle);
+        return _konsensGegenprobe(gewinner, alle);
     }
 
     // ── Haendler ─────────────────────────────────────────────────────────────

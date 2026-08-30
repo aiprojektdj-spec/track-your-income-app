@@ -89,11 +89,31 @@ dasselbe Bild absichtlich verschlechtert (1,8° schräg, Helligkeitsverlauf, Rau
 Unschärfe) ebenfalls 3 von 3, 681 ms. Der SUMME-Vorrang trägt dabei sichtbar: „Geg. BAR 20,00"
 ist der größere Betrag und wird korrekt nicht genommen.
 
-> ⚠️ **Was fehlt: ein echter Bon.** Die Verifikationsliste der Session verlangt ausdrücklich
-> „ein echter Bon als Bild, nicht nur ein synthetisches Testbild". Auf dem Rechner lag keiner,
-> und ein Bonfoto lässt sich nicht synthetisieren — Thermopapier, Knicke, verblasster Druck und
-> Handykamera sind genau die Eigenschaften, die synthetische Bilder nicht haben. **Diese Messung
-> steht noch aus**, und sie ist zugleich die Bedingung dafür, das Feature bewerben zu dürfen.
+**Am echten Bon gemessen — 2026-08-30, 2 von 3.** Bauhaus-Kassenbon (Ravensburg, 06.07.2026,
+85,90 €), Handyfoto über WhatsApp, 1536 × 2048. Datum und Verkäufer korrekt, **Bruttosumme
+falsch: `785,90` statt `85,90`.** Der Lauf und der vollständige Befund stehen in
+[`live-tests-checkliste.md`](live-tests-checkliste.md), Punkt 7.
+
+Kurzfassung des Fundes: die Zeile `SUMME [2]` kam als `SUMME [2 EUR 785,90` aus der Erkennung —
+die schließende Klammer wurde als `7` gelesen und klebte am Betrag. Die Heuristik hat sich dabei
+regelkonform verhalten (Summenzeile bevorzugt, einzigen Betrag darin genommen); auch der Rückfall
+„größter Betrag" hätte denselben Fehler gemacht. **Es fehlt keine Regel, es fehlt eine
+Gegenprobe:** `85,90` steht dreimal im Rohtext, `785,90` genau einmal, und `72,18 + 13,72` ergibt
+exakt `85,90`. Ein Vorschlag dazu liegt in der Checkliste; entschieden ist er nicht.
+
+Die beiden anderen Treffer sind zudem **durch Durchfallen** zustande gekommen, nicht durch
+Können: die Datumszeile zerfiel (`Datünı Aa 0 o607.2026`), der Treffer kam aus der Barcode-Fußzeile;
+das BAUHAUS-Logo (weiß auf schwarz) wurde gar nicht gelesen, der Händler kam aus Zeile 2. Beides
+hat hier funktioniert, aber nicht aus dem Grund, aus dem die Regeln geschrieben wurden.
+
+Zeiten: Worker-Aufbau 1,2 s, Erkennung kalt 4,6 s, warm 3,4 s — gemessen gegen `localhost`, die
+~9 MB kamen von der Platte. **Keine Aussage über den ersten Klick eines echten Nutzers.**
+
+> ⚠️ **Beworben wird weiterhin nichts.** `index.html` bleibt unberührt. Eine Messung an einem
+> einzigen Bon ist keine Trefferquote, und der eine Fehltreffer sitzt im Geldfeld und geht nach
+> oben (785,90 € statt 85,90 € wären 700 € zu viel Betriebsausgabe und 111,72 € zu viel
+> Vorsteuer). Vor der Bewerbungsfrage steht damit erst die Entscheidung über die Gegenprobe —
+> und danach mehr als ein Bon.
 
 **Bekannte Grenze der Betragsregel:** ohne Schlüsselwort gewinnt der größte Betrag — auf einem
 Barbon ist das „Gegeben 50,00" statt der Summe. Die Regel steht so in der Spezifikation und wurde

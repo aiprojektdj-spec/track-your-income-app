@@ -558,7 +558,13 @@ async function ocrStarten() {
     }
 }
 
-function _ocrChipHtml(zielId, anzeige, wert, roh) {
+function _ocrChipHtml(zielId, anzeige, wert, roh, hinweis) {
+    // hinweis steht nur da, wenn die Konsens-Gegenprobe zugeschlagen hat. Eine stille
+    // Korrektur waere wieder ein Raten — wer den Chip anklickt, soll sehen, dass der
+    // Rohtext etwas anderes hergab (Spezifikation Abschnitt 5a).
+    const hinweisHtml = hinweis
+        ? `<span style="font-size:11px;color:var(--warning,#f59e0b)">${esc(hinweis)}</span>`
+        : '';
     return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
         <button type="button" class="btn btn-secondary btn-sm" data-action="eb-ocr-uebernehmen"
                 data-ziel="${esc(zielId)}" data-wert="${esc(String(wert))}"
@@ -566,6 +572,7 @@ function _ocrChipHtml(zielId, anzeige, wert, roh) {
             <i class="ti ti-wand"></i> ${esc(anzeige)} übernehmen
         </button>
         <span style="font-size:11px;color:var(--text-muted)">erkannt: „${esc(roh)}“</span>
+        ${hinweisHtml}
     </div>`;
 }
 
@@ -579,7 +586,11 @@ function _ocrChipsSetzen(treffer) {
     setze('ocrChipHaendler', treffer.haendler
         ? _ocrChipHtml('eb-vk-name', treffer.haendler.wert, treffer.haendler.wert, treffer.haendler.roh) : '');
     setze('ocrChipBetrag', treffer.betrag
-        ? _ocrChipHtml('eb-brutto', euro(treffer.betrag.wert), treffer.betrag.wert.toFixed(2), treffer.betrag.roh) : '');
+        ? _ocrChipHtml('eb-brutto', euro(treffer.betrag.wert), treffer.betrag.wert.toFixed(2),
+            treffer.betrag.korrigiertVon || treffer.betrag.roh,
+            treffer.betrag.korrigiertVon
+                ? `korrigiert auf ${treffer.betrag.roh} — dieser Betrag steht mehrfach auf dem Beleg`
+                : null) : '');
 }
 
 function ocrUebernehmen(zielId, wert) {

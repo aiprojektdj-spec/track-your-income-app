@@ -68,6 +68,13 @@ ist genau das, was beim Übernehmen eines Chips niemand nachrechnet.
 Weniger dringend als Fund 1, weil eine Retoure als Eigenbeleg seltener ist als ein Barkauf. Aber
 die Fehlerrichtung ist dieselbe, und der Betrag ist doppelt falsch (Vorzeichen *und* Wirkung).
 
+> **Verschärfung, von `web-1-7-79` beim Gegenprüfen bemerkt:** der Treffer kommt mit
+> `bestaetigt: true` durch. Die Summenzeile trägt ja das Schlüsselwort, und der Betrag daneben
+> stimmt betragsmäßig sogar — es fehlt nur das Vorzeichen. Ein Vorschlag, der intern als
+> bestätigt gilt und dem Nutzer eine plausible Zahl zeigt, wird beim Übernehmen erst recht nicht
+> hinterfragt. Die Konsens-Gegenprobe verlässt sich auf dieselbe Markierung; ein Fix am
+> Vorzeichen muss deshalb an `RE_BETRAG` ansetzen, nicht an der Bestätigung.
+
 ## Fund 3 — Uhrzeit mit Punkt wird als Betrag gelesen
 
 ```

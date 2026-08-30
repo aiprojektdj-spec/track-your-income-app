@@ -1,12 +1,13 @@
 # Live-Tests — Checkliste für eine Sitzung
 
-**Stand: 2026-08-29.** Aufgabe 2.3 aus [`01-AUFGABEN.md`](01-AUFGABEN.md).
+**Stand: 2026-08-30.** Aufgabe 2.3 aus [`01-AUFGABEN.md`](01-AUFGABEN.md).
 
-> **Punkt 6 ist am 2026-08-29 abgearbeitet** — er brauchte als einziger keinen Login, weil
-> das Gate genau der Zustand *ohne* Anmeldung ist. Ergebnis, Fund und Fix stehen unten bei
-> Punkt 6. Die Punkte 1–5 warten weiter auf dich.
+> **Punkt 6 ist am 2026-08-29 abgearbeitet** — er brauchte keinen Login, weil das Gate genau
+> der Zustand *ohne* Anmeldung ist. Ergebnis, Fund und Fix stehen unten bei Punkt 6.
+> **Punkt 7 (Bon) kam am 2026-08-30 dazu** und braucht für die Messung ebenfalls keinen Login.
+> Die Punkte 1–5 warten weiter auf dich.
 
-Sechs Funktionen sind gebaut, committet und statisch geprüft, aber nie unter echten Bedingungen
+Sieben Funktionen sind gebaut, committet und statisch geprüft, aber nie unter echten Bedingungen
 gelaufen. Fünf davon brauchen einen **echten Whop-Login** — deshalb einmal anmelden und dann
 alles am Stück durchgehen, statt fünfmal einzeln.
 
@@ -138,6 +139,44 @@ Login-Gate-Screen `#whopLoginOverlay`. Konsole fehlerfrei, alle 36 Node-Harnesse
 > in der Seite an (nachgewiesen: ein `keydown`-Mitschnitt blieb leer). Die Trap-Grenzen sind
 > deshalb per Event-Dispatch geprüft, der Ring rechnerisch aus den *live* ausgelesenen
 > Computed Styles. Wer die Pane offen hat, sieht denselben Befund in einem Screenshot.
+
+### 7. Belegerkennung an einem echten Bon · ~15 Min
+
+Der einzige offene Punkt aus der OCR-Session (Fund G4, gebaut 2026-08-27). Geprüft ist bisher
+**nur an synthetischen Bildern** — sauber und absichtlich verschlechtert, dort je 3 von 3 Feldern.
+Ein Bonfoto lässt sich aber nicht synthetisieren: Thermopapier, Knicke, verblasster Druck und
+Handykamera sind genau die Eigenschaften, die das Testbild nicht hatte.
+
+> **Diese Messung ist die Bedingung dafür, das Feature bewerben zu dürfen.** `index.html` ist
+> bewusst unberührt, bis eine Trefferquote vorliegt — beworben wird dann mit der Zahl, nicht
+> mit dem Wort „automatisch" ([`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md), §5 UWG).
+
+**Was du mitbringst:** ein Foto eines echten Bons (JPG/PNG, so wie es das Handy aufnimmt — nicht
+nachbearbeitet, nicht zugeschnitten) und die drei tatsächlichen Werte dazu: Datum, Verkäufer,
+Bruttosumme. Ohne die Sollwerte ist der Lauf keine Messung, sondern nur ein Eindruck.
+
+> **Das Bild gehört nicht ins Repo.** Ein Bon trägt Ort, Zeit und Zahlungsart; er wird für den
+> Lauf gebraucht, nicht für die Historie. Ablage im Scratchpad der Sitzung.
+
+**Login:** für die reine Genauigkeitsmessung **nicht nötig** — die Erkennung hängt an
+[`js/beleg-ocr.js`](../js/beleg-ocr.js) und den Vendor-Dateien, nicht am Gate. Wer ohnehin
+angemeldet ist, nimmt gleich den echten Klickweg in `eigenbelege/` und prüft beides in einem.
+
+- [ ] **Datum** korrekt vorgeschlagen? Bei mehreren Daten auf dem Bon: das frühere, nicht das
+      Druckdatum
+- [ ] **Bruttosumme** korrekt? Auf einem Barbon der kritische Fall: „Gegeben 50,00" ist der
+      größere Betrag und darf **nicht** gewinnen, solange eine Summenzeile da ist
+- [ ] **Verkäufer** plausibel — nicht die Adresszeile, nicht die Steuernummer
+- [ ] **Rohtext festhalten**, auch wenn alles stimmt. Bei einem Fehltreffer ist er die einzige
+      Grundlage für eine Regeländerung, und ein zweites Foto desselben Bons gibt es selten
+- [ ] Dauer notieren (kalter *und* warmer Worker — der erste Lauf lädt ~9 MB nach)
+- [ ] Konsole leer? Insbesondere kein `Refused to compile WebAssembly` — das wäre der Fall, in
+      dem die CSP-Freigabe doch gebraucht wird (Eingriff steht in
+      [`VERSIONS.md`](../js/vendor/VERSIONS.md), beide Stellen)
+
+**Danach:** Trefferquote in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md) beim OCR-Abschnitt
+nachtragen — die Warnung „Was fehlt: ein echter Bon" ersetzt sie. Erst dann steht die
+Bewerbungsfrage wieder offen.
 
 ---
 

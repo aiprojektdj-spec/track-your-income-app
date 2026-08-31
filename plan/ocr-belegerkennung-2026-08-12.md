@@ -113,7 +113,7 @@ schlimmer ist als ein leeres.
 | Feld | Regel |
 |---|---|
 | Datum | erstes Vorkommen von `TT.MM.JJJJ` oder `TT.MM.JJ`; bei mehreren das früheste, weil Bons oft ein späteres Druckdatum tragen |
-| Betrag | Zeile mit `SUMME`, `GESAMT`, `TOTAL`, `ZU ZAHLEN` bevorzugt; sonst der größte gefundene Betrag mit zwei Nachkommastellen. Danach die **Konsens-Gegenprobe**, siehe unten |
+| Betrag | Zeile mit `SUMME`, `GESAMT`, `TOTAL`, `ZU ZAHLEN` bevorzugt — **außer Zwischenständen** (`ZWISCHENSUMME`, `SUBTOTAL`, `ÜBERTRAG`), siehe 5b; sonst der größte gefundene Betrag mit zwei Nachkommastellen. Danach die **Konsens-Gegenprobe**, siehe 5a |
 | Händler | erste Zeile mit mindestens drei Buchstaben, die keine Zahl und keine Adressfloskel ist |
 
 Alle drei Regeln sind Heuristiken und gehören in eine eigene, testbare Funktion — dieselbe
@@ -186,7 +186,33 @@ der Leitsatz der Funktion bleibt: ein falsch vorbefülltes Feld ist schlimmer al
 dann fehlt der Konsens, aus dem die Regel ihren Namen hat. Der Fall bleibt offen und ist der
 Grund, warum eine Trefferquote weiterhin mehr als einen Bon braucht.
 
-**Drei weitere Fehler der Betragsregel sind am selben Tag bestätigt und bewusst offen geblieben**
+### 5b. Zwischenstände gehören nicht in den Summenpool — nachgetragen 2026-08-31
+
+Eine Parallel-Session meldete es und korrigierte damit ihre eigene frühere Entwarnung.
+`RE_SUMMENZEILE` verlangt keine Wortgrenze, `/summe/` trifft also auch **`Zwischensumme`** —
+sie landete im selben Pool wie die echte Summe. **Solange nichts abgezogen wird, fällt das
+nicht auf:** beide Beträge sind dann gleich groß, und genau so steht es im Bestandstest
+(Tankstelle, `Zwischensumme 77,38` / `GESAMT 77,38`). Sobald ein Rabatt, Gutschein oder
+Pfandabzug dazwischensteht, ist der Zwischenstand **größer** als der Endbetrag — und aus dem
+Pool gewinnt der größte:
+
+```
+Zwischensumme 100,00 / Rabatt -14,10 / SUMME 85,90   ->  100,00
+```
+
+Reproduziert. Wieder die teure Fehlerrichtung nach oben, wie beim gemessenen Bon.
+
+Ausgeschlossen wird über eine **eigene, enge Liste** (`ZWISCHENSUMME`, `ZWISCHEN SUMME`,
+`SUBTOTAL`, `ÜBERTRAG`) und ausdrücklich **nicht** über den Teilbetrags-Ausschluss aus 5a:
+dort stehen auch `NETTO` und `MWST`, und **`Summe inkl. MwSt` ist eine völlig normale
+Endbetragszeile**, die im Pool bleiben muss. Am Code gegengeprüft — mit dem breiten Ausschluss
+wären `SUMME inkl. MwSt`, `GESAMT inkl. 19% MwSt` und `Summe einschl. USt` allesamt
+herausgefallen.
+
+Der Zwischenstand verschwindet nicht aus der Betrachtung, er verliert nur seinen Vorrang:
+bleibt keine echte Summenzeile übrig, greift wie bisher der Rückfall.
+
+**Drei weitere Fehler der Betragsregel sind am 2026-08-30 bestätigt und bewusst offen geblieben**
 — Summenzeile mit Umbruch, verlorenes Minus bei Retouren, Uhrzeit mit Punkt. Alle drei sitzen im
 Rückfallpfad und irren ebenfalls nach oben; die Gegenprobe fängt keinen davon. Reproduktion und
 Lösungsrichtungen in [`funde-betragsregel-2026-08-30.md`](funde-betragsregel-2026-08-30.md).

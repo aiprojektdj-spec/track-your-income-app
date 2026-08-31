@@ -58,6 +58,20 @@ var BelegOCR = (function () {
     // Betrag mit zwei Nachkommastellen.
     var RE_SUMMENZEILE = /summe|gesamt|total|zu\s+zahlen/i;
 
+    // Eine Zwischensumme ist per Definition NICHT der Endbetrag — sie traegt aber das
+    // Wort "summe" und landete damit im selben Pool. Solange nichts abgezogen wird, faellt
+    // das nicht auf: dann ist sie gleich gross wie die Summe. Sobald ein Rabatt, Gutschein
+    // oder Pfandabzug dazwischensteht, ist sie GROESSER als der Endbetrag — und weil aus dem
+    // Pool der groesste Betrag gewinnt, schlaegt sie die richtige Summe:
+    //     Zwischensumme 100,00 / Rabatt -14,10 / SUMME 85,90   ->  100,00
+    // Derselbe Fehler nach oben wie beim gemessenen Bon (785,90 statt 85,90), nur aus einer
+    // anderen Richtung, und mit denselben Folgen: zu hohe Betriebsausgabe, zu hohe Vorsteuer.
+    //
+    // Bewusst eine EIGENE, enge Liste statt RE_TEILBETRAG: dort stehen auch "netto" und
+    // "mwst", und "Summe inkl. MwSt" ist eine voellig normale Endbetragszeile, die im Pool
+    // bleiben muss. Ausgeschlossen wird nur, was schon dem Namen nach ein Zwischenstand ist.
+    var RE_ZWISCHENSUMME = /zwischensumme|zwischen\s?summe|subtotal|uebertrag|übertrag/i;
+
     // Vier Schreibweisen, laengere zuerst — sonst frisst die kurze Alternative den
     // Tausendertrenner nicht mit:  1.234,56 | 1234,56 | 1,234.56 | 1234.56
     var RE_BETRAG = /(?:^|[^\d.,])(\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2}|\d{1,3}(?:,\d{3})+\.\d{2}|\d+\.\d{2})(?!\d)/g;
@@ -189,7 +203,9 @@ var BelegOCR = (function () {
                 for (var k = 0; k < b.length; k++) b[k].bestaetigt = true;
             }
             alle = alle.concat(b);
-            if (RE_SUMMENZEILE.test(zeilen[i])) ausSummenzeilen = ausSummenzeilen.concat(b);
+            if (RE_SUMMENZEILE.test(zeilen[i]) && !RE_ZWISCHENSUMME.test(zeilen[i])) {
+                ausSummenzeilen = ausSummenzeilen.concat(b);
+            }
         }
         var gewinner = _groesster(ausSummenzeilen.length ? ausSummenzeilen : alle);
         return _konsensGegenprobe(gewinner, alle);

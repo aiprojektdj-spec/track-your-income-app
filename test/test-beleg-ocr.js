@@ -255,6 +255,22 @@ check('Rechnungsbetrag bestaetigt weiterhin',
     OCR.findBetrag(['SUMME [2 EUR 785,90', 'Rechnungsbetrag 85,90', 'Posten 85,90']).wert === 85.90,
     JSON.stringify(OCR.findBetrag(['SUMME [2 EUR 785,90', 'Rechnungsbetrag 85,90', 'Posten 85,90'])));
 
+// ── 2b) Zwischensumme, zwei Randfaelle ──────────────────────────────────────
+// Die Hauptabdeckung des Zwischensummen-Ausschlusses steht weiter unten unter
+// "Zwischensumme vs. Endbetrag" (Rabattbon, Gutschein, Subtotal, Endsumme). Hier
+// stehen nur die zwei Faelle, die dort nicht vorkommen.
+console.log('\nBetrag: Zwischensumme, Randfaelle');
+
+check('Uebertrag zaehlt ebenfalls nicht als Summenzeile',
+    OCR.findBetrag(['Uebertrag 100,00', 'GESAMT 85,90']).wert === 85.90,
+    JSON.stringify(OCR.findBetrag(['Uebertrag 100,00', 'GESAMT 85,90'])));
+
+// Der Ausschluss nimmt der Zwischensumme nur den VORRANG, er wirft sie nicht aus der
+// Betrachtung: bleibt keine echte Summenzeile uebrig, greift wie bisher der Rueckfall.
+check('ohne echte Summenzeile bleibt die Zwischensumme im Rueckfall',
+    OCR.findBetrag(['Zwischensumme 40,00', 'Posten 12,00']).wert === 40.00,
+    JSON.stringify(OCR.findBetrag(['Zwischensumme 40,00', 'Posten 12,00'])));
+
 // ── 3) Haendler ─────────────────────────────────────────────────────────────
 console.log('\nHaendler');
 
@@ -325,6 +341,54 @@ const teil = OCR.extract('####\n12.03.2026\nSUMME 9,99');
 check('Teiltreffer: Datum und Betrag ohne Haendler',
     teil.datum.wert === '2026-03-12' && teil.betrag.wert === 9.99 && teil.haendler === null,
     JSON.stringify(teil));
+
+// ── 5) Zwischensumme schlaegt den Endbetrag nicht ───────────────────────────
+// Gefunden am 2026-08-31 beim Gegenlesen der Konsens-Gegenprobe. Eine Zeile
+// "Zwischensumme" traegt das Wort "summe" und landete damit im Summenpool; aus dem Pool
+// gewinnt der groesste Betrag. Ohne Abzug faellt das nicht auf, weil Zwischensumme und
+// Summe dann gleich gross sind — sobald ein Rabatt dazwischensteht, ist die Zwischensumme
+// GROESSER und schlaegt die richtige Summe. Fehler nach oben, also zu hohe Betriebsausgabe
+// und zu hohe Vorsteuer: dieselbe Klasse wie 785,90 statt 85,90.
+console.log('\nZwischensumme vs. Endbetrag');
+
+const rabattbon = OCR.extract([
+    'Drogerie Mueller',
+    'Shampoo             100,00',
+    'Zwischensumme       100,00',
+    'Rabatt              -14,10',
+    'SUMME EUR            85,90',
+    'Betrag EUR           85,90',
+].join('\n'));
+check('Rabattbon: SUMME gewinnt gegen die groessere Zwischensumme',
+    rabattbon.betrag.wert === 85.90, JSON.stringify(rabattbon.betrag));
+
+const gutschein = OCR.extract([
+    'Getraenkemarkt',
+    'Zwischensumme        52,40',
+    'Gutschein           -10,00',
+    'ZU ZAHLEN            42,40',
+].join('\n'));
+check('Gutschein: ZU ZAHLEN gewinnt gegen die Zwischensumme',
+    gutschein.betrag.wert === 42.40, JSON.stringify(gutschein.betrag));
+
+check('englische Schreibweise Subtotal ebenso',
+    OCR.findBetrag(zeilen('Subtotal 52,40\nTOTAL 42,40')).wert === 42.40,
+    JSON.stringify(OCR.findBetrag(zeilen('Subtotal 52,40\nTOTAL 42,40'))));
+
+// Gegenprobe zur Ausschlussliste: sie darf nur treffen, was schon dem Namen nach ein
+// Zwischenstand ist. "Endsumme" und "Gesamtsumme" sind Endbetraege und bleiben im Pool —
+// und "Summe inkl. MwSt" ebenfalls. Deshalb steht "mwst" bewusst NICHT in
+// RE_ZWISCHENSUMME, obwohl es in RE_TEILBETRAG steht: dort geht es um die Gegenprobe,
+// hier um die Auswahl.
+check('Endsumme bleibt eine Summenzeile',
+    OCR.findBetrag(zeilen('Posten 9,99\nEndsumme 9,99')).wert === 9.99);
+
+check('Gesamtsumme bleibt eine Summenzeile',
+    OCR.findBetrag(zeilen('Posten 12,34\nGesamtsumme 12,34')).wert === 12.34);
+
+check('"Summe inkl. MwSt" bleibt eine Summenzeile',
+    OCR.findBetrag(zeilen('Wein 89,00\nSumme inkl. MwSt 19,90')).wert === 19.90,
+    JSON.stringify(OCR.findBetrag(zeilen('Wein 89,00\nSumme inkl. MwSt 19,90'))));
 
 console.log('\n' + pass + ' bestanden, ' + fail + ' fehlgeschlagen\n');
 process.exit(fail ? 1 : 0);

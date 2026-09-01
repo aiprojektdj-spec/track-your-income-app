@@ -32,8 +32,77 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Dieser Abschnitt ist leer** (Stand 2026-08-27). OCR ist gebaut; alles andere aus dem Vollaudit
-ist zu — Belegstellen in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
+**Zwei offene Punkte** (1.3 und 1.4, eingetragen 2026-09-01). Beide fielen beim Live-Test 5
+an, beide sind am laufenden Code gemessen, nicht erschlossen. Alles aus dem Vollaudit ist
+weiterhin zu — Belegstellen in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
+
+### 1.3 Doppelte Artikelnummer wird beim **Anlegen** stumm akzeptiert
+
+`isArtikelNrTaken()` wird repo-weit an genau **einer** Stelle aufgerufen: im Edit-Zweig von
+`savePurchase` ([`js/store.js:1424`](../js/store.js)). Die drei anderen Schreibwege prüfen nicht:
+
+| Weg | Verhalten bei vergebener Nummer |
+|---|---|
+| Bearbeiten-Maske ([`js/store.js:1424`](../js/store.js)) | verworfen, alte Nummer bleibt — integer, aber **ohne Toast** |
+| Neuer Artikel ([`lager/page.js:908`](../lager/page.js)) | **Dublette entsteht** |
+| Bulk-Einkauf ([`lager/page.js:1607`](../lager/page.js)) | **Dublette entsteht** |
+| Excel-Import ([`lager/page.js:2038`](../lager/page.js)) | Suffix `-2`/`-3` — bewusst so |
+
+Der Neu-Zweig in [`js/store.js:1443`](../js/store.js) generiert nur dann eine Nummer, wenn das
+Feld **leer** ist; ein ausgefülltes Feld geht ungeprüft durch. Gemessen mit dem echten
+Quelltext (gleiches Extraktionsmuster wie `test/test-artikelnummer-eigene.js`):
+
+```
+A Bearbeiten   -> p2.artikelNr = 2026-001 | Duplikat entstanden? false
+B Neu anlegen  -> Anzahl mit SV-1042 = 2  | Duplikat entstanden? true
+```
+
+Am 2026-09-01 zusätzlich **live bestätigt**: in der Testfirma lagen nach dem Durchklick zwei
+Artikel `DUP-TEST-1` mit verschiedenen IDs nebeneinander.
+
+**Warum das nicht kosmetisch ist:** der Verkäufe-Import ordnet Artikel über die Nummer zu und
+baut dafür `artNrMap[nr] = p` ([`lager/page.js:2508`](../lager/page.js)) — bei einer Dublette
+**gewinnt der zuletzt angelegte**. Der Verkauf hängt dann am falschen Einkaufspreis, und damit
+stimmen §25a-Marge und EÜR nicht mehr.
+
+Zu tun: Prüfung in beide Anlege-Wege ziehen und **mit sichtbarer Fehlermeldung** abweisen —
+auch im Bearbeiten-Weg, wo die Ablehnung heute stumm passiert (Kategorie U7). Regressionstest
+gehört in `test/test-artikelnummer-eigene.js`, das den Neu-Weg bisher nicht abdeckt.
+
+> Der Kommentar über `isArtikelNrTaken` ([`js/store.js:1403`](../js/store.js)) behauptet, die
+> Funktion werde „von der Bearbeiten-Maske (Vorab-Prüfung mit Fehlermeldung)" genutzt. Diese
+> Vorab-Prüfung existiert nicht. Beim Fix mit korrigieren.
+
+### 1.4 §25a: Retouren-Korrektur verpufft in der Standardmethode
+
+`margeEinzeldifferenz()` ([`js/steuer-berechnung.js:107`](../js/steuer-berechnung.js)) liest nur
+`verkaufspreis` und `einkaufspreis`. Das Feld `margeKorrektur`, das
+[`js/ustvoranmeldung.js:127`](../js/ustvoranmeldung.js) und `:223` für Retoure und Gutschrift
+nach §17 UStG erzeugen, kommt in der Funktion **nicht vor** — der Eintrag trägt
+`max(0, 0−0) = 0` bei und die Korrektur verschwindet. Gemessen:
+
+```
+Einzeldifferenz nur Verkauf    : margeBrutto 50,00  ust 7,98
+Einzeldifferenz + volle Retoure: margeBrutto 50,00  ust 7,98   <- unverändert
+Gesamtdifferenz + volle Retoure: bemessungsgrundlage 0,00      <- korrekt
+```
+
+Das ist das Symptom „Bemessungsgrundlage blieb bei 50 statt 0" vom 2026-08-09: in der
+Gesamtdifferenz behoben, in der **Default-Methode** (`differenzMethode` = `'einzel'`) nicht.
+Folge ist eine **Übersteuerung** — der Nutzer zahlt USt auf eine Marge, die er zurückerstattet
+hat.
+
+Zu tun: `margeKorrektur` in `margeEinzeldifferenz()` berücksichtigen, ohne den Floor pro
+Position aufzugeben — die Korrektur gehört auf **ihre eigene** Position verrechnet, nicht in
+eine Gesamtsumme. Regressionstest ergänzen; es gibt bisher keinen `test/`-Harness für §25a.
+
+> [`session-prompt-live-test-5-lager-2026-08-30.md`](session-prompt-live-test-5-lager-2026-08-30.md)
+> führt das als „bekannte, bewusste Grenze — kein Fund" und verweist auf
+> [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md). Beides trägt nicht: der Floor verbietet
+> Verrechnung **zwischen** Positionen, hier wird dieselbe Position zurückgenommen — und
+> `02-ENTSCHEIDUNGEN.md` erwähnt §25a auf seinen 444 Zeilen nirgends. Wer den Punkt trotzdem
+> als Nicht-Fehler einstuft, sollte das dort begründet eintragen, statt auf einen Eintrag zu
+> verweisen, den es nicht gibt.
 
 ### 1.0 OCR-Belegerkennung · ✅ erledigt 2026-08-27
 

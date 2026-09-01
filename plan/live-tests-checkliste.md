@@ -145,6 +145,11 @@ Login-Gate-Screen `#whopLoginOverlay`. Konsole fehlerfrei, alle 36 Node-Harnesse
 
 ### 7. Belegerkennung an einem echten Bon · ✅ gemessen 2026-08-30 — **2 von 3**
 
+> **Die Überschrift bleibt bei „2 von 3", und das ist Absicht.** Gemessen wurden 2 von 3; die
+> dritte Zahl kam erst durch eine Regel zustande, die es beim Lauf noch nicht gab. Ein „3 von 3"
+> ohne diesen Hinweis wäre geschönter, als die Sache hergibt — und es ist genau die Zahl, mit
+> der später geworben werden soll. Der Nachher-Wert steht unten bei der Bruttosumme.
+
 Der einzige offene Punkt aus der OCR-Session (Fund G4, gebaut 2026-08-27). Geprüft ist bisher
 **nur an synthetischen Bildern** — sauber und absichtlich verschlechtert, dort je 3 von 3 Feldern.
 Ein Bonfoto lässt sich aber nicht synthetisieren: Thermopapier, Knicke, verblasster Druck und
@@ -175,7 +180,10 @@ trägt IBAN-Fragment, Kartennummer, Terminal-ID und Steuernummer und hat das Rep
       *ganzen* Text läuft und nicht über eine erkannte „Datum:"-Zeile, hat den Treffer hier
       gerettet — vorher war das nur gegen Druckdatum-Dubletten gedacht.
 - [ ] **Bruttosumme** ❌ **`785,90` statt `85,90`** — Zehnfach-Überhöhung. Ursache und
-      Bewertung unten.
+      Bewertung unten. **Bleibt als Fehltreffer stehen:** der Kasten ist die Messung, nicht der
+      heutige Codestand. Mit der danach gebauten Gegenprobe liefert derselbe Rohtext `85,90`,
+      aber das ist ein **Nachher-Wert** — er gehört nicht in die Messzeile, sonst behauptet das
+      Protokoll eine Genauigkeit, die die Erkennung an diesem Bon nicht hatte.
 - [x] **Verkäufer** ✅ `Bauhaus GmbH & Co, KG Schwaben` (Komma statt Punkt, sonst korrekt).
       Auch das ein Treffer durch Durchfallen: das **BAUHAUS-Logo wurde gar nicht gelesen** —
       weiße Schrift auf schwarzen Kästen, tesseract liefert dafür nichts. Die Regel nahm die
@@ -218,14 +226,21 @@ trägt IBAN-Fragment, Kartennummer, Terminal-ID und Steuernummer und hat das Rep
 > unterscheiden sich um **ein Zeichen am Zeilenanfang**, und der Chip ist genau die Stelle, an
 > der man schnell klickt statt liest.
 >
-> **Vorschlag (noch nicht gebaut, weil er die Spezifikation ändert):** eine Konsens-Gegenprobe.
-> Gewinnt ein Betrag die Summenzeile, kommt aber im ganzen Bon **nur einmal** vor, während ein
-> anderer Betrag **mehrfach** vorkommt und ein Ziffern-Suffix des Gewinners ist (`85,90` ist
-> Suffix von `785,90`), dann ist der mehrfache der wahrscheinlichere. Die Regel feuert eng —
-> nur auf das beobachtete Muster „eine Ziffer vorn drangeklebt" — und stünde in
-> [`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md), Abschnitt 5
-> nachzutragen. Alternativ oder zusätzlich die arithmetische Probe `Netto + MwSt = Brutto`,
-> die auf diesem Bon exakt aufgeht, aber nicht auf jedem Bon einen solchen Block vorfindet.
+> **Inzwischen gebaut** (2026-08-30, `f487f1b`): die **Konsens-Gegenprobe**. Gewinnt ein Betrag
+> die Summenzeile, kommt aber im ganzen Bon **nur einmal** vor, während ein anderer Betrag
+> **mehrfach** vorkommt und ein Ziffern-Suffix des Gewinners ist (`85,90` ist Suffix von
+> `785,90`), dann gewinnt der mehrfache. Die Regel feuert eng — nur auf das beobachtete Muster
+> „eine Ziffer vorn drangeklebt" — und steht in
+> [`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md), Abschnitt 5a.
+> Die arithmetische Probe `Netto + MwSt = Brutto` ist dort als Option vermerkt, aber **nicht**
+> gebaut: sie geht auf diesem Bon exakt auf, setzt aber einen erkannten Steuerblock voraus, und
+> im Rohtext stehen Label und Werte auf zwei verschiedenen Zeilen.
+>
+> Die Regel wurde danach zweimal nachgeschärft, beide Male auf Meldung aus Parallel-Sessions:
+> `03a7475` (die Bestätigung schlug auch in „Rabattbetrag" an und zog eine **korrekt gelesene**
+> Summe herunter) und `927275d` (eine „Zwischensumme" landete im Summenpool und schlug mit
+> Rabatt den echten Endbetrag). Beide Nachschärfungen betrafen **nicht** den hier gemessenen
+> Bon — sie kamen aus dem Gegenlesen der neuen Regel.
 >
 > **Eine Messung ist noch keine Quote.** n = 1. Das Bild kam zudem über WhatsApp
 > (1536 × 2048, 334 KB) und war damit schon einmal rekomprimiert — ein realistischer Weg, aber

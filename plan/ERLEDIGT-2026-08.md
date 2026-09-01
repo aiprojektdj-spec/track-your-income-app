@@ -99,7 +99,13 @@ die schließende Klammer wurde als `7` gelesen und klebte am Betrag. Die Heurist
 regelkonform verhalten (Summenzeile bevorzugt, einzigen Betrag darin genommen); auch der Rückfall
 „größter Betrag" hätte denselben Fehler gemacht. **Es fehlt keine Regel, es fehlt eine
 Gegenprobe:** `85,90` steht dreimal im Rohtext, `785,90` genau einmal, und `72,18 + 13,72` ergibt
-exakt `85,90`. Ein Vorschlag dazu liegt in der Checkliste; entschieden ist er nicht.
+exakt `85,90`.
+
+**Die Gegenprobe ist inzwischen gebaut** — Konsens-Gegenprobe, Spezifikation Abschnitt 5a,
+`f487f1b`; zweimal nachgeschärft in `03a7475` und `927275d`, beide Male auf Meldung aus
+Parallel-Sessions beim Gegenlesen. Derselbe Rohtext liefert damit `85,90`. **Das ist ein
+Nachher-Wert und ersetzt die Messung nicht:** gemessen wurden 2 von 3, und genau so bleibt es
+oben stehen. Die dritte Zahl kam durch eine Regel zustande, die es beim Lauf nicht gab.
 
 Die beiden anderen Treffer sind zudem **durch Durchfallen** zustande gekommen, nicht durch
 Können: die Datumszeile zerfiel (`Datünı Aa 0 o607.2026`), der Treffer kam aus der Barcode-Fußzeile;

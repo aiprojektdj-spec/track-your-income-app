@@ -22,6 +22,30 @@ alles am Stück durchgehen, statt fünfmal einzeln.
 `python -m http.server` schickt keine No-Cache-Header, und der Cache hängt am Origin. Reload,
 Cache-Bust und neuer Tab liefern trotzdem alten Code.
 
+> ⚠️ **Das gilt aber nicht für die Punkte 1–5. Auf einem lokalen Port kommt man dort gar nicht
+> hinein** — am 2026-09-01 am Code und im Browser belegt, und der Grund ist zweifach:
+>
+> 1. **Das Gate braucht `api/`.** `js/whop-auth.js` ruft `/api/whop-token` und
+>    `/api/whop-access` **gleichursprünglich** auf. `python -m http.server` liefert nur
+>    statische Dateien; die fünf Endpunkte in `api/` sind Vercel-Functions und existieren
+>    lokal nicht. Der Zugangs-Check kann dort also nie zustande kommen.
+> 2. **Die Sitzung hängt am Origin.** `localStorage` ist pro Origin getrennt, und dort liegen
+>    `whop_access_token` und `whop_grace_token`. `localhost:4340` ist ein anderer Origin als
+>    `localhost:4337` — **jeder frische Port ist eine frische Anmeldung**, auch wenn `api/`
+>    da wäre. Gemessen: `whopLoginOverlay: SICHTBAR`, `localStorage` leer.
+>
+> Die beiden Sätze „frischer Port" und „die Session bleibt danach erhalten" schließen einander
+> also aus. **Für die Punkte 1–5 ist die Produktionsumgebung der einzige Weg**
+> (`https://track-your-income-app.vercel.app`), im normalen Browser mit der bestehenden
+> Anmeldung. Der frische lokale Port bleibt richtig für alles, was **kein** Gate braucht —
+> Punkt 6 und Punkt 7 sind genau so gelaufen.
+>
+> **Folge für das Testen auf Produktion:** dort liegen echte Buchhaltungsdaten. Vor
+> schreibenden Schritten die **aktive Firma auf eine Testfirma umstellen** — es gibt eine
+> namens „Test". Firmenübergreifend wirken trotzdem: Cloud-Sync-Aktivierung, die
+> Art.-17-Löschung, der Webhook und die StB-Freigabe. Diese vier sind **nicht**
+> firmengescoped und treffen auch die echten Daten (u. a. „Reck & Schwarz GbR").
+
 ---
 
 ## Reihenfolge — absichtlich so
@@ -254,10 +278,12 @@ gemessenen Bon, dessen Betragsfeld danebenliegt, wäre jede Zahl in der Werbung 
 
 ## Was in derselben Sitzung mit erledigt werden kann
 
-- **Owner-Gegenprobe** — der einzige Rest aus 2.1: `/api/whop-access` muss nach dem Login
-  `"owner": true` liefern. Kommt stattdessen „Stackr Pro aktivieren“, stimmt die
-  `SYNC_OWNER_IDS`/`WHOP_OWNER_IDS` nicht — sie steht dort unten als Freigabe-Code.
-  Ein Blick, kein eigener Termin
+- **Owner-Gegenprobe** — ✅ **erledigt 2026-09-01.** `/api/whop-access` auf Produktion
+  antwortete `200` mit `has_access: true`, **`owner: true`** und einem Grace-Token, für
+  `user_ljp5xcrqojylg`. `WHOP_OWNER_IDS` in Vercel ist damit nachweislich richtig gesetzt —
+  der Owner-Pfad in [`api/whop-access.js:254`](../api/whop-access.js) ist die einzige Stelle,
+  die `owner: true` überhaupt zurückgibt. Damit ist der letzte Rest aus 2.1 zu.
+  Der Zugriffstoken wurde dabei nur durchgereicht, nicht ausgelesen.
 - **`ALERT_WEBHOOK_URL`** — sonst versanden die Fail-open-Meldungen aus `api/_alert.js` im Log
 - **Whop-Mails** aus [`whop-mails-entwuerfe.md`](whop-mails-entwuerfe.md), wenn du eh im
   Whop-Dashboard bist

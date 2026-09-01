@@ -104,6 +104,43 @@ eine Gesamtsumme. Regressionstest ergänzen; es gibt bisher keinen `test/`-Harne
 > als Nicht-Fehler einstuft, sollte das dort begründet eintragen, statt auf einen Eintrag zu
 > verweisen, den es nicht gibt.
 
+### 1.5 Abgebrochene Rechnung lässt Lagerartikel als „verkauft" zurück
+
+**Live gemessen am 2026-09-01** auf Produktion, Firma „Test", beim Durchklicken von Live-Test 5,
+Punkt 2. Der eigentliche Prüfpunkt ist dabei **bestanden**: „📦 Artikel aus Lager" markiert den
+Artikel sofort beim Verknüpfen als verkauft, nicht erst bei der Zahlung, und der Gegenweg trägt
+auch — Position wieder entfernen setzt ihn auf `verfuegbar` zurück und leert `verkaufsdatum`.
+
+**Der Fund liegt daneben:** verlässt man die Rechnung, **ohne** die Position zu entfernen und
+**ohne** zu speichern, bleibt die Markierung stehen. Gemessen nach dem Weg-Navigieren:
+
+```
+status:        verkauft
+verkaufsdatum: 2026-09-01
+Rechnungen:    0
+Verkäufe:      0
+```
+
+Der Artikel ist damit aus dem Bestand verschwunden — er zählt nicht mehr unter „Verfügbar" und
+nicht mehr im Lagerwert —, **ohne dass ihm ein Umsatz gegenübersteht**. In der EÜR fehlt die
+Einnahme, im Lager fehlt die Ware. Wer es nicht zufällig bemerkt, findet den Artikel nur über
+den Status-Filter wieder und muss ihn von Hand zurücksetzen.
+
+> **Warum das kein Randfall ist:** die §14-Sperre macht ihn wahrscheinlich. Ohne Steuernummer
+> lässt sich die Rechnung **gar nicht** speichern (der Hinweis steht korrekt oben im Formular).
+> Ein neuer Nutzer, der eine Rechnung ausprobiert, bevor er seine Stammdaten gepflegt hat,
+> läuft also zwangsläufig in genau diesen Pfad: er kann nicht speichern, verlässt das Formular —
+> und hat still einen Artikel weniger im Lager. Die beiden Mechanismen sind je für sich richtig
+> und ergeben zusammen den Fehler.
+
+**Betroffen ist in den Testdaten:** `CC-P2-1` („Session-CC Punkt2"), bewusst **nicht**
+zurückgesetzt, damit der Zustand nachvollziehbar bleibt.
+
+**Lösungsrichtung** (nicht gebaut): die Markierung erst beim Speichern der Rechnung festschreiben
+und beim Verknüpfen nur reservieren — dafür gibt es den Status `reserviert` bereits. Alternativ
+beim Verlassen eines ungespeicherten Formulars die Markierungen zurücknehmen. Die erste Variante
+ist die ehrlichere, weil sie auch den Absturz- und Tab-schließen-Fall abdeckt.
+
 ### 1.0 OCR-Belegerkennung · ✅ erledigt 2026-08-27
 
 Gebaut nach [`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md) und

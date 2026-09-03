@@ -48,6 +48,12 @@ const UstVoranmeldung = {
         };
         const _istDiff25aSale = s => _linkedPurchases25a(s).some(p => p.differenzbesteuert);
         const _sumEk25a = s => _linkedPurchases25a(s).reduce((sum, p) => sum + (parseFloat(p.einkaufspreis) || 0), 0);
+        // Gemeinsamer Schlüssel für Position UND zugehörige §17-Korrektur: die verknüpften
+        // Lagerartikel. Nur darüber kann margeEinzeldifferenz() eine Retoure gegen genau die
+        // Position verrechnen, zu der sie gehört — der Floor bei 0 bleibt dabei pro Position.
+        // Sortiert, damit Sammelverkauf und Retoure darauf denselben Schlüssel ergeben.
+        const _ref25a = ids => (ids || []).filter(Boolean).map(String).sort().join('|');
+        const _refSale25a = s => _ref25a(_linkedPurchases25a(s).map(p => p.id));
         const diff25aPositionenRoh = [];
 
         // Brutto-Umsätze nach Steuersatz aufteilen (Feld: steuersatz, Default: 19 nur wenn nicht gesetzt)
@@ -124,9 +130,9 @@ const UstVoranmeldung = {
                                 // versteuerte Marge (max(0,vk-ek)) zurücknehmen. NICHT die negierten vk/ek
                                 // erneut auf 0 klemmen lassen — sonst verschwindet die Korrektur bei
                                 // vollständiger Stornierung spurlos (die schon gezahlte USt bliebe stehen).
-                                diff25aPositionenRoh.push({ margeKorrektur: -Math.max(0, vk - ek), satz: 19 });
+                                diff25aPositionenRoh.push({ margeKorrektur: -Math.max(0, vk - ek), satz: 19, ref: _ref25a([pos.lagerArtikelId]) });
                             } else {
-                                diff25aPositionenRoh.push({ verkaufspreis: vk, einkaufspreis: ek });
+                                diff25aPositionenRoh.push({ verkaufspreis: vk, einkaufspreis: ek, ref: _ref25a([pos.lagerArtikelId]) });
                             }
                             return;
                         }
@@ -149,7 +155,7 @@ const UstVoranmeldung = {
             Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate))
                 .forEach(s => {
                     if (_istDiff25aSale(s)) {
-                        diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s) });
+                        diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s), ref: _refSale25a(s) });
                         return;
                     }
                     _perRateGroups(s).forEach(function (g) {
@@ -163,7 +169,7 @@ const UstVoranmeldung = {
             // separaten Rechnungs-Pfad, der Rechnungs-Umsätze schon zählt, also KEIN _invoiceId-Ausschluss.
             const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
             sales.filter(_istDiff25aSale).forEach(s => {
-                diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s) });
+                diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s), ref: _refSale25a(s) });
             });
             const salesOhneDiff25a = sales.filter(s => !_istDiff25aSale(s));
             // Satzgenau summieren (_perRateGroups) statt pro Sale nur EINEN Satz anzunehmen —
@@ -220,7 +226,7 @@ const UstVoranmeldung = {
                 const originalMarge = Math.max(0, originalVk - originalEk);
                 const erstattung = parseFloat(r.erstattungBetrag) || 0;
                 const anteil = originalVk !== 0 ? Math.min(1, erstattung / Math.abs(originalVk)) : 0;
-                diff25aPositionenRoh.push({ margeKorrektur: -(originalMarge * anteil), satz: 19 });
+                diff25aPositionenRoh.push({ margeKorrektur: -(originalMarge * anteil), satz: 19, ref: _refSale25a(linked) });
                 return;
             }
             const rate = _rate(linked || r);
@@ -238,12 +244,20 @@ const UstVoranmeldung = {
         let diff25a;
         if (differenzMethode === 'gesamt') {
             const vortrag = Store.getDifferenzVortrag(this._year);
-            const ueber750 = diff25aPositionenRoh.filter(p => p.einkaufspreis > 750);
             // margeKorrektur-Einträge (Retouren-/Gutschrift-Korrekturen ohne eigenes einkaufspreis-Feld,
-            // s. Zeile ~127/223) müssen in die Gesamtdifferenz-Bemessungsgrundlage einfließen — nicht in
-            // beiden Filtern durchfallen (undefined > 750 UND undefined <= 750 sind beide false).
+            // s. Zeile ~127/223) dürfen nicht in beiden Filtern durchfallen (undefined > 750 UND
+            // undefined <= 750 sind beide false). Sie gehören in denselben Topf wie die Position, zu
+            // der sie gehört — sonst senkt die Retoure eines >750€-Artikels die Gesamtdifferenz, in
+            // der er gar nicht steckt, während er selbst seine volle Marge behält: zwei Fehler auf
+            // einmal. Der Rest (kein passender >750er in der Periode) bleibt bei der Gesamtdifferenz.
+            const ueber750Refs = new Set(
+                diff25aPositionenRoh.filter(p => p.einkaufspreis > 750 && p.ref).map(p => p.ref)
+            );
+            const _istUeber750 = p => p.einkaufspreis > 750 ||
+                (p.margeKorrektur != null && p.ref && ueber750Refs.has(p.ref));
+            const ueber750 = diff25aPositionenRoh.filter(_istUeber750);
             diff25a = SteuerBerechnung.margeGesamtdifferenz(
-                diff25aPositionenRoh.filter(p => !(p.einkaufspreis > 750)), vortrag, 19
+                diff25aPositionenRoh.filter(p => !_istUeber750(p)), vortrag, 19
             );
             diff25a.margeBrutto = diff25a.bemessungsgrundlage;
             diff25a.margeNetto = diff25a.netto;

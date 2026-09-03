@@ -5,6 +5,10 @@
 //     (z.B. "SV-1042"), nicht nur das automatische JJJJ-NNN-Muster.
 //  C) Suffix-Logik des Excel-Imports: kollidierende Nummern bekommen -2/-3, nichts wird
 //     ueberschrieben und nichts geht verloren.
+//  D) Die SCHREIBENDEN Wege muessen alle pruefen (Fund 1.3 aus Live-Test 5, 2026-09-01):
+//     savePurchase() faengt Duplikate nur im Edit-Zweig ab. Neu-Dialog und Bulk-Einkauf gingen
+//     ungeprueft durch, weil der Neu-Zweig nur bei LEEREM Feld eine Nummer generiert — live
+//     belegt durch zwei Artikel "DUP-TEST-1" nebeneinander im Bestand.
 // Testet den ECHTEN Code per Quelltext-Extraktion (gleiches Vorgehen wie die anderen test-*.js
 // in diesem Repo, da store.js/page.js wegen DOM-/localStorage-Globals nicht require()-bar sind).
 'use strict';
@@ -23,6 +27,7 @@ function extractMethod(src, startMarker, endMarkerRe) {
 
 const storeSrc = fs.readFileSync(path.join(__dirname, '..', 'js', 'store.js'), 'utf8');
 const pageSrc  = fs.readFileSync(path.join(__dirname, '..', 'lager', 'page.js'), 'utf8');
+const lagerSrc = fs.readFileSync(path.join(__dirname, '..', 'js', 'lager.js'), 'utf8');
 
 let pass = 0, total = 0;
 function check(name, cond) {
@@ -137,6 +142,51 @@ check('C1 freie Nummer bleibt unveraendert', uniqueNr('SV-2000') === 'SV-2000');
 check('C2 vergebene Nummer bekommt -2',      uniqueNr('SV-1042') === 'SV-1042-2');
 check('C3 zweite Kollision bekommt -3',      uniqueNr('SV-1042') === 'SV-1042-3');
 check('C4 nichts geht verloren',             usedNrs.size === 5);
+
+// ── D) Alle Schreibwege pruefen auf Duplikate ─────────────────────────────────
+// D0: der Store allein reicht NICHT — sein Neu-Zweig generiert nur bei leerem Feld und laesst
+// eine ausgefuellte, bereits vergebene Nummer durch. Genau deshalb muss die UI vorher pruefen.
+st = mockStore(bestand);
+st.savePurchase({ artikelNr: 'SV-1042', beschreibung: 'Dublette' });
+check('D0 Store allein laesst die Dublette durch (deshalb Pruefung in der UI)',
+      st._data.filter(p => p.artikelNr === 'SV-1042').length === 2);
+
+check('D1 Neu-Dialog prueft vor dem Speichern',
+      /if \(artikelNr && Store\.isArtikelNrTaken\(artikelNr\)\) \{[\s\S]{0,260}?showToast/.test(pageSrc));
+check('D1b Neu-Dialog bricht ab, statt nur zu warnen',
+      /if \(artikelNr && Store\.isArtikelNrTaken\(artikelNr\)\) \{[\s\S]{0,360}?return;/.test(pageSrc));
+check('D2 Bulk-Einkauf prueft manuelle Nummern gegen Bestand und Stapel',
+      /bulkGeplanteNrn/.test(pageSrc) &&
+      /Store\.isArtikelNrTaken\(nr\) \|\| bulkGeplanteNrn\.has\(nr\)/.test(pageSrc));
+check('D3 Bearbeiten-Dialog prueft weiterhin (js/lager.js)',
+      /Store\.isArtikelNrTaken\(neueArtNr, p\.id\)/.test(lagerSrc));
+
+// D4-D7: Bulk-Vorpruefung nachgebildet — muss Bestand UND Stapel-interne Kollisionen abfangen
+function bulkKollision(rows, bestandNrn) {
+    const geplant = new Set();
+    for (const row of rows) {
+        const manualNr = (row.artikelNr || '').trim();
+        if (!manualNr) continue;
+        const anzahl = parseInt(row.anzahl) || 1;
+        const nrn = anzahl > 1
+            ? Array.from({ length: anzahl }, (_, j) => manualNr + '-' + (j + 1))
+            : [manualNr];
+        for (const nr of nrn) {
+            if (bestandNrn.has(nr) || geplant.has(nr)) return nr;
+            geplant.add(nr);
+        }
+    }
+    return null;
+}
+const imBestand = new Set(['SV-1042']);
+check('D4 Bulk: Kollision mit dem Bestand wird erkannt',
+      bulkKollision([{ artikelNr: 'SV-1042', anzahl: 1 }], imBestand) === 'SV-1042');
+check('D5 Bulk: zwei Zeilen mit derselben Nummer werden erkannt',
+      bulkKollision([{ artikelNr: 'NEU-1', anzahl: 1 }, { artikelNr: 'NEU-1', anzahl: 1 }], imBestand) === 'NEU-1');
+check('D6 Bulk: Mehrfachmenge erzeugt -1/-2 und kollidiert korrekt',
+      bulkKollision([{ artikelNr: 'M', anzahl: 2 }, { artikelNr: 'M-2', anzahl: 1 }], imBestand) === 'M-2');
+check('D7 Bulk: freie Nummern und Leerzeilen gehen durch',
+      bulkKollision([{ artikelNr: '', anzahl: 3 }, { artikelNr: 'FREI-9', anzahl: 2 }], imBestand) === null);
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');
 process.exit(pass === total ? 0 : 1);

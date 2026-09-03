@@ -104,12 +104,36 @@ const SteuerBerechnung = {
 
     // Einzeldifferenz (Standard, §25a Abs. 3 UStG): jede Position einzeln, negative Marge = 0€ USt,
     // KEINE Verrechnung zwischen Positionen. satz = Artikel-eigener Regelsteuersatz (Default 19).
+    //
+    // pos.margeKorrektur (Retoure/Gutschrift, §17 UStG) wird VOR dem Floor gegen die Position mit
+    // derselben pos.ref verrechnet. Bis 2026-09-02 las diese Funktion nur verkaufspreis/einkaufspreis:
+    // ein reiner Korrektur-Eintrag trug max(0, 0−0) = 0 bei und verschwand spurlos — nach einer vollen
+    // Retoure blieb die ursprünglich versteuerte Marge in Kz. 81 stehen, obwohl der Kunde sein Geld
+    // zurückhatte (Übersteuerung). Die Gesamtdifferenz war davon nie betroffen, weil sie flach summiert.
+    //
+    // Das Gruppieren hebelt den Floor NICHT aus: er wirkt weiter pro Gruppe, und eine Gruppe ist genau
+    // eine Position (ref = die verknüpften Lagerartikel). Ohne ref bildet jeder Eintrag seine eigene
+    // Gruppe — Verhalten dann exakt wie vorher.
+    //
+    // Bewusste Grenze: findet eine Korrektur in der Periode keine passende Position (Verkauf in Q1,
+    // Retoure in Q2), läuft sie gegen 0 und bleibt wirkungslos. Die Einzeldifferenz kennt anders als
+    // die Gesamtdifferenz keinen Vortrag (§25a Abs. 4 UStG), in den ein Negativbetrag wandern könnte.
     margeEinzeldifferenz(positionen) {
+        const gruppen = new Map();
+        (positionen || []).forEach((pos, i) => {
+            // Ohne ref ist jeder Eintrag seine eigene Gruppe (Index als Schlüssel) — nie mit einer
+            // ref-Gruppe kollidierbar, weil die Präfixe sich unterscheiden.
+            const key = (pos.ref !== undefined && pos.ref !== null && pos.ref !== '') ? 'r:' + pos.ref : 'i:' + i;
+            if (!gruppen.has(key)) gruppen.set(key, { summe: 0, satz: pos.satz });
+            const g = gruppen.get(key);
+            g.summe += (parseFloat(pos.verkaufspreis) || 0) - (parseFloat(pos.einkaufspreis) || 0) + (parseFloat(pos.margeKorrektur) || 0);
+            if (g.satz == null) g.satz = pos.satz;
+        });
         let margeBrutto = 0, margeNetto = 0;
-        (positionen || []).forEach(pos => {
-            const marge = Math.max(0, (parseFloat(pos.verkaufspreis) || 0) - (parseFloat(pos.einkaufspreis) || 0));
+        gruppen.forEach(g => {
+            const marge = Math.max(0, g.summe);
             margeBrutto += marge;
-            margeNetto += this.nettoAusBrutto(marge, pos.satz).netto;
+            margeNetto += this.nettoAusBrutto(marge, g.satz).netto;
         });
         return { margeBrutto, margeNetto, ust: margeBrutto - margeNetto };
     },

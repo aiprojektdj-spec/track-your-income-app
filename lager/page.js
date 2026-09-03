@@ -872,6 +872,17 @@ function openNeuArtikelModal() {
         const rawTags = document.getElementById('neu_tags')?.value || '';
         const tags = rawTags.split(',').map(t => t.trim()).filter(Boolean);
         const artikelNr = (document.getElementById('neu_artikelnr')?.value || '').trim();
+        // Dieselbe Vorab-Pruefung wie im Bearbeiten-Dialog (js/lager.js): Store.savePurchase()
+        // faengt Duplikate nur im Edit-Zweig ab — beim Neuanlegen geht eine bereits vergebene
+        // Nummer ungeprueft durch (der Neu-Zweig generiert nur bei LEEREM Feld). Die Dublette
+        // ist nicht kosmetisch: der Verkaeufe-Import ordnet ueber die Nummer zu (artNrMap weiter
+        // unten) und nimmt bei Gleichstand den zuletzt angelegten Artikel — der Verkauf haengt
+        // danach am falschen Einkaufspreis, was §25a-Marge und EUER verfaelscht.
+        if (artikelNr && Store.isArtikelNrTaken(artikelNr)) {
+            Utils.showToast('Artikelnummer "' + artikelNr + '" ist bereits vergeben.', 'error');
+            document.getElementById('neu_artikelnr')?.focus();
+            return;
+        }
 
         let haendler = (neuHaendlerSelect || {}).value || '';
         if (haendler === 'Sonstiges') {
@@ -1557,6 +1568,27 @@ function _saveBulkArtikel() {
     if (validRows.length === 0) {
         Utils.showToast('Mindestens eine Zeile mit Marke/Beschreibung und Preis ausfüllen', 'warning');
         return;
+    }
+
+    // Manuell vergebene Artikelnummern vorab pruefen — gleicher Grund wie im Neu-Dialog oben.
+    // Hier zusaetzlich Kollisionen INNERHALB des Stapels abfangen: zwei Zeilen mit derselben
+    // Nummer sind im Bestand hinterher nicht mehr auseinanderzuhalten. Laeuft vor dem Sperren
+    // des Buttons, damit bei einem Treffer nichts geschrieben und nichts blockiert wird.
+    const bulkGeplanteNrn = new Set();
+    for (const row of validRows) {
+        const manualNr = (row.artikelNr || '').trim();
+        if (!manualNr) continue;
+        const rowAnzahl = parseInt(row.anzahl) || 1;
+        const geplant = rowAnzahl > 1
+            ? Array.from({ length: rowAnzahl }, (_, j) => manualNr + '-' + (j + 1))
+            : [manualNr];
+        for (const nr of geplant) {
+            if (Store.isArtikelNrTaken(nr) || bulkGeplanteNrn.has(nr)) {
+                Utils.showToast('Artikelnummer "' + nr + '" ist bereits vergeben.', 'error');
+                return;
+            }
+            bulkGeplanteNrn.add(nr);
+        }
     }
 
     const totalToCreate = validRows.reduce((s, r) => s + (parseInt(r.anzahl) || 1), 0);

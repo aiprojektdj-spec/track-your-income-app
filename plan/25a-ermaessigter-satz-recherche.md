@@ -1,96 +1,102 @@
-# §25a und der ermäßigte Satz — Entscheidungsgrundlage
+# §25a und der ermäßigte Satz — erledigt, weil es die Frage nicht gibt
 
-**Recherchiert am 2026-08-16.** Dies ist **keine Umsetzungsanweisung.** Der Punkt stand in
-[`01-AUFGABEN.md`](01-AUFGABEN.md) Abschnitt 3 mit dem ausdrücklichen Vermerk „nicht blind
-implementieren" — daran ändert diese Datei nichts. Sie sagt nur, was rechtlich gilt und welche
-Frage dein Steuerberater beantworten muss.
+**Recherchiert am 2026-08-16, am Gesetzestext widerlegt am 2026-09-03.**
+
+Die erste Fassung dieser Datei empfahl, am Artikel einen Umsatzsteuersatz zu erfassen und die
+Marge von Kunst- und Sammlerware mit 7 % statt 19 % zu besteuern. **Das war falsch.** Sie stützte
+sich auf §25a Abs. 5 **Satz 2** UStG — dort steht etwas ganz anderes. Maßgeblich ist Satz 1:
+
+> **§25a Abs. 5 Satz 1 UStG:** „Die Steuer ist mit dem allgemeinen Steuersatz nach § 12 Abs. 1 zu
+> berechnen."
+>
+> §25a Abs. 5 Satz 2 UStG regelt Steuer**befreiungen**, nicht den Steuersatz: „Die
+> Steuerbefreiungen, ausgenommen die Steuerbefreiung für innergemeinschaftliche Lieferungen
+> (§ 4 Nr. 1 Buchstabe b, § 6a), bleiben unberührt."
+
+Die Marge ist damit **immer** mit 19 % zu besteuern — auch bei Kunstgegenständen und
+Sammlungsstücken, auch nach dem JStG 2024. Der ermäßigte Satz von 7 % (§12 Abs. 2 Nr. 13 UStG,
+Anlage 2 Nr. 53/54) gilt seit dem 1.1.2025 für **Lieferung, innergemeinschaftlichen Erwerb und
+Einfuhr** solcher Ware in der **Regelbesteuerung**. Auf die Differenz greift er nie.
+
+**Konsequenz für den Code: Die fest verdrahteten 19 sind richtig und bleiben.** Betroffen wären
+[`js/euer.js:165`](../js/euer.js), [`js/gbr-modul.js:85`](../js/gbr-modul.js) und vier Stellen in
+[`js/ustvoranmeldung.js`](../js/ustvoranmeldung.js) gewesen.
+
+## Die Fehlerrichtung war zusätzlich verkehrt herum
+
+Die alte Fassung argumentierte, pauschale 19 % führten zur **Über**zahlung und seien deshalb
+ungefährlich. Beides trifft nicht zu: 19 % sind schlicht korrekt. Hätte man Punkt 1 umgesetzt,
+wäre statt 19/119 nur 7/107 auf die Marge abgeführt worden — eine **Unter**zahlung, und zwar
+systematisch bei jedem betroffenen Verkauf. Der Fund hätte den Schaden erzeugt, den er zu
+verhindern vorgab.
 
 ---
 
-## Was Stackr heute rechnet
+## Was von der Recherche übrig bleibt
 
-Der Rechenkern kann längst mehrere Sätze: `margeEinzeldifferenz()` in
-[`js/steuer-berechnung.js:107`](../js/steuer-berechnung.js) nimmt **pro Position** einen `satz`.
+### 1. Das Artikelfeld existiert längst — und misst etwas anderes
 
-Fest auf 19 stehen nur die zwei **Vorschau-Aufrufe**:
+`warenart` ist in [`js/lager.js:2571`](../js/lager.js) gebaut, wird gespeichert und in
+[`js/euer.js:145`](../js/euer.js) sowie `:156` in die §25a-Positionen übernommen. Nichts liest es
+danach aus. Das ist **kein Mangel**: Das Feld darf den Steuersatz gerade nicht steuern.
 
-- [`js/euer.js:165`](../js/euer.js) — `Object.assign({ satz: 19 }, p)`
-- [`js/gbr-modul.js:85`](../js/gbr-modul.js) — dieselbe Zeile
+Seine echte Aufgabe ist §14a Abs. 6 UStG. Der verlangt auf der Rechnung genau eine von drei
+Formulierungen, und die drei Optionen des Dropdowns entsprechen ihnen eins zu eins:
 
-Es fehlt also nicht die Rechenlogik, sondern die **Angabe am Artikel**, welcher Satz gilt.
-
-## Was seit dem 1.1.2025 gilt (JStG 2024)
-
-Der Fund im Audit war unter dem alten Rechtsstand formuliert. Seit dem Jahressteuergesetz 2024
-haben sich **zwei** Dinge geändert, und das zweite ist das wichtigere:
-
-**1. Der ermäßigte Satz auf Kunst ist zurück.** Kunstgegenstände und Sammlungsstücke sind wieder
-mit **7 %** belegt (§12 Abs. 2 Nr. 13 UStG). Maßgeblich ist Anlage 2:
-
-| Anlage 2 | Ware |
+| `warenart` | Pflichtangabe nach §14a Abs. 6 UStG |
 |---|---|
-| Nr. 53 | Kunstgegenstände |
-| Nr. 54 | Sammlungsstücke |
-| Nr. 49 Buchst. f | zugehörige Druckerzeugnisse |
+| `gebraucht` | „Gebrauchtgegenstände/Sonderregelung" |
+| `kunst` | „Kunstgegenstände/Sonderregelung" |
+| `sammlerstueck` | „Sammlungsstücke und Antiquitäten/Sonderregelung" |
 
-Bei Differenzbesteuerung wird die **Marge mit dem Satz der Ware** besteuert
-(§25a Abs. 5 Satz 2 UStG) — für Anlage-2-Ware also `USt = Marge × 7/107` statt `× 19/119`.
+Der Hinweistext unter dem Feld behauptete bis zum 2026-09-03 dasselbe Falsche wie diese Datei
+(„kann nach §25a Abs. 3 UStG i.V.m. Anlage 2 UStG auch 7 % gelten") und forderte den Nutzer aktiv
+auf, beim Steuerberater nach dem ermäßigten Satz zu fragen. Korrigiert — er nennt jetzt Abs. 5
+Satz 1 und die Pflichtangaben.
 
-**2. Neuer Ausschlussgrund — §25a Abs. 7 Nr. 1 Buchst. c UStG.** Die Differenzbesteuerung ist
-**ausgeschlossen**, wenn auf den vorangegangenen Umsatz bereits ein ermäßigter Satz angewendet
-wurde. Das betrifft die Fälle des §25a Abs. 2 (selbst eingeführte oder mit ausgewiesener Steuer
-erworbene Kunst) — beim **Ankauf von Privatpersonen bleibt die Differenzbesteuerung anwendbar**.
+**Offen, aber ein eigener Punkt:** Ob Stackr die Pflichtangabe aus `warenart` automatisch auf die
+Rechnung setzt, ist ungeprüft. `differenzbesteuert` taucht nur in `euer.js`, `gbr-modul.js`,
+`lager.js` und `ustvoranmeldung.js` auf — im Rechnungsweg nicht.
 
-**Nebenbefund:** Ist der Einkaufspreis eines Kunstgegenstands (Nr. 53) nicht ermittelbar oder
-unbedeutend, sind pauschal **30 % des Verkaufspreises** als Bemessungsgrundlage anzusetzen
-(§25a Abs. 3 Satz 2). Auch das kennt Stackr heute nicht.
+### 2. §25a Abs. 7 Nr. 1 Buchst. c — real, aber für Stackr gegenstandslos
+
+> Die Differenzbesteuerung findet keine Anwendung „in den Fällen des **Absatzes 2**, wenn auf den
+> der Lieferung des Wiederverkäufers vorangegangenen Umsatz ein ermäßigter Steuersatz angewandt
+> worden ist".
+
+Die alte Fassung nannte das „den Teil, der Geld kostet, wenn er fehlt". Der Ausschluss ist aber
+auf **die Fälle des Absatzes 2** begrenzt, und Absatz 2 ist kein Normalfall, sondern ein
+Wahlrecht: Der Wiederverkäufer muss es spätestens mit der ersten Voranmeldung des Kalenderjahres
+**gegenüber dem Finanzamt erklären**, und die Erklärung bindet ihn für mindestens zwei Jahre.
+
+Wer nach Abs. 1 von Privatpersonen einkauft — der Fall, für den Stackr gebaut ist — ist davon
+nicht berührt. Und Stackr kennt die Abs.-2-Option nirgends. Ein Guard hätte also nichts zu
+bewachen. **Wird nicht gebaut**, solange es keine Abs.-2-Unterstützung gibt; käme sie, gehört der
+Ausschluss zu ihr.
+
+### 3. Pauschalmarge 30 % — bleibt offen
+
+§25a Abs. 3 Satz 2 UStG: Ist der Einkaufspreis eines Kunstgegenstands nicht ermittelbar oder
+unbedeutend, sind **30 % des Verkaufspreises** als Bemessungsgrundlage anzusetzen. Kennt Stackr
+nicht. Eigener Fall, unabhängig vom Steuersatz, weiterhin ungeprüft — und auch hier gilt dann
+Abs. 5 Satz 1: auf die so ermittelte Marge 19 %.
 
 ---
-
-## Was das für die Fehlerrichtung bedeutet
-
-Der Audit-Fund sagte: pauschal 19 % führe zur **Überzahlung**, sei also steuerstrafrechtlich
-ungefährlich. Das stimmt für Punkt 1 weiterhin — wer 19 % statt 7 % auf die Marge abführt, zahlt
-zu viel.
-
-**Punkt 2 dreht die Richtung um.** Wer Kunst mit 7 % eingekauft hat und trotzdem
-differenzbesteuert verkauft, wendet ein Verfahren an, das ihm nicht mehr zusteht, und versteuert
-nur die Marge statt des vollen Entgelts. Das ist eine **Unterzahlung**. Stackr fragt heute
-nirgends, ob der Einkauf ermäßigt besteuert war — es kann diesen Fall also weder erkennen noch
-warnen.
-
----
-
-## Empfehlung
-
-**Nicht automatisieren, sondern erfragen.** Kein Automatismus kann aus „Vintage-Jacke" oder
-„Sammlerstück" ableiten, ob Anlage 2 Nr. 53/54 greift — das ist im Einzelfall eine Zollrechts-
-und Sachverständigenfrage.
-
-1. **Artikelfeld „Umsatzsteuersatz" mit Default 19 %.** 7 % nur aktiv wählbar, mit einem
-   Hinweis, der die Anlage-2-Nummer nennt und zur Rückfrage beim Steuerberater auffordert. Die
-   zwei Vorschau-Aufrufe lesen dann das Feld statt der festen 19.
-2. **Guard vor dem gefährlichen Fall zuerst.** Eine Ja/Nein-Angabe am Einkauf: *„War auf diesen
-   Einkauf ein ermäßigter Steuersatz ausgewiesen?"* Bei Ja die Differenzbesteuerung für diese
-   Position sperren, mit Verweis auf §25a Abs. 7 Nr. 1 Buchst. c. **Das ist der Teil, der Geld
-   kostet, wenn er fehlt** — und er ist billiger als Punkt 1.
-3. **Pauschalmarge 30 % separat betrachten.** Eigener Fall, eigene Entscheidung, nicht in
-   denselben Aufwasch.
-4. **Jahresfunktion, keine Konstante** — Regel 7 der Arbeitsregeln. Der Satz gilt ab 2025;
-   Verkäufe aus 2024 bleiben bei 19 %.
 
 ## Was der Steuerberater beantworten muss
 
-- Fällt die Ware, die du tatsächlich handelst, unter Anlage 2 Nr. 53/54 — oder ist es
-  Gebrauchtware, für die weiterhin 19 % gilt? **Wenn Letzteres, ist der ganze Punkt für dich
-  gegenstandslos** und gehört zu den Entscheidungen, nicht zu den Aufgaben.
-- Gab es in der Vergangenheit Einkäufe mit ausgewiesenem ermäßigtem Satz, die
-  differenzbesteuert weiterverkauft wurden? Das wäre rückwirkend zu korrigieren.
-- Gilt für deine Fälle die Pauschalmarge nach §25a Abs. 3 Satz 2 überhaupt?
+Nichts mehr zum Steuersatz — das ist eine Gesetzesfrage und beantwortet. Es bleibt nur:
+
+- Wurde in der Vergangenheit ein Abs.-2-Wahlrecht gegenüber dem Finanzamt erklärt? Falls nein
+  (wahrscheinlich), ist Punkt 2 dauerhaft erledigt.
+- Kommen Kunstgegenstände ohne ermittelbaren Einkaufspreis vor (Punkt 3)?
 
 ## Quellen
 
 - [§ 25a UStG (gesetze-im-internet.de)](https://www.gesetze-im-internet.de/ustg_1980/__25a.html)
-- [KMLZ Newsletter 52/2024 — JStG 2024 für Münz-, Kunsthändler und Galeristen](https://www.kmlz.de/de/Umsatzsteuer/Newsletter_52_2024)
-- [DATEV magazin — Wiedereinführung des ermäßigten Steuersatzes zum 1.1.2025](https://www.datev-magazin.de/nachrichten-steuern-recht/steuern/wieder-einfuehrung-des-ermaessigten-steuersatzes-auf-kunstgegenstaende-und-sammlungsstuecke-zum-1-januar-2025-143695)
-- [Haufe — Ermäßigter Steuersatz auf Kunstgegenstände und Sammlungsstücke](https://www.haufe.de/steuern/finanzverwaltung/ermaessigter-steuersatz-auf-kunstgegenstaende-und-sammlungsstuecke_164_670038.html)
+  — Abs. 2, Abs. 3 Satz 2, **Abs. 5 Satz 1**, Abs. 7 Nr. 1 Buchst. c
+- [§ 14a UStG (gesetze-im-internet.de)](https://www.gesetze-im-internet.de/ustg_1980/__14a.html)
+  — Abs. 6, die drei Pflichtformulierungen
+- [Umsatzsteuer-Anwendungserlass zu § 25a UStG (Haufe)](https://www.haufe.de/id/norm/umsatzsteuer-anwendungserlass-zu-25a-ustg-HI7554751.html)
+- [BVDG — „7statt19" gilt ab 1. Januar 2025](https://www.bvdg.de/aktuell_GESCHAFFT_7statt19_20241122)
+  — betrifft die Regelbesteuerung, nicht die Marge

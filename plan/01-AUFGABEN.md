@@ -323,12 +323,14 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
   Trial-Modell der teuerste Fehler.
 - **AV-Verträge nach Art. 28 DSGVO** — Whop ist bekannt offen. **Zusätzlich prüfen: Upstash und
   Vercel**, beide sind in `datenschutz.html` als Auftragsverarbeiter benannt.
-- **§25a, ermäßigter Satz von 7 %** — **recherchiert am 2026-08-16:**
-  [`25a-ermaessigter-satz-recherche.md`](25a-ermaessigter-satz-recherche.md). Kernbefund: Seit dem
-  JStG 2024 ist die Fehlerrichtung nicht mehr nur Über-, sondern auch **Unterzahlung** — der neue
-  §25a Abs. 7 Nr. 1 Buchst. c schließt die Differenzbesteuerung aus, wenn auf den Einkauf ein
-  ermäßigter Satz angewandt wurde. Stackr fragt das nirgends ab. **Weiter nicht blind
-  implementieren** — die Datei nennt die drei Fragen, die dein Steuerberater beantworten muss.
+- **§25a, ermäßigter Satz von 7 % — ERLEDIGT am 2026-09-03, es gibt die Frage nicht.**
+  §25a Abs. 5 Satz 1 UStG schreibt für die Marge den **allgemeinen** Steuersatz vor; die 7 % auf
+  Kunst und Sammlungsstücke gelten nur in der Regelbesteuerung. Die festen 19 im Code sind
+  richtig. Die Recherche vom 2026-08-16 hatte Abs. 5 **Satz 2** zitiert, der Steuerbefreiungen
+  regelt — hätte man sie umgesetzt, wäre daraus eine systematische **Unterzahlung** geworden.
+  Begründung und die zwei Restpunkte (Pauschalmarge 30 %, Rechnungs-Pflichtangabe) stehen in
+  [`25a-ermaessigter-satz-recherche.md`](25a-ermaessigter-satz-recherche.md), die Entscheidung in
+  [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md). **Nicht erneut als Fund melden.**
 
 ---
 

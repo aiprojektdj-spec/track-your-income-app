@@ -2575,7 +2575,7 @@ const Lager = {
                                     <option value="kunst" ${p.warenart === 'kunst' ? 'selected' : ''}>Kunstgegenstände</option>
                                     <option value="sammlerstueck" ${p.warenart === 'sammlerstueck' ? 'selected' : ''}>Sammlungsstücke und Antiquitäten</option>
                                 </select>
-                                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Stackr rechnet die Marge v1 pauschal mit 19% USt. Bei bestimmten Kunstgegenständen/Sammlerstücken/Einfuhren kann nach §25a Abs. 3 UStG i.V.m. Anlage 2 UStG auch 7% gelten — bitte im Zweifel mit deinem Steuerberater klären.</div>
+                                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Die Marge wird immer mit 19% versteuert: §25a Abs. 5 Satz 1 UStG schreibt den allgemeinen Steuersatz vor. Der ermäßigte Satz von 7% auf Kunst und Sammlungsstücke (seit 1.1.2025) gilt nur bei Regelbesteuerung, nie auf die Differenz. Die Warenart entscheidet stattdessen, welche Pflichtangabe §14a Abs. 6 UStG auf deiner Rechnung verlangt — „Gebrauchtgegenstände/Sonderregelung", „Kunstgegenstände/Sonderregelung" oder „Sammlungsstücke und Antiquitäten/Sonderregelung".</div>
                             </div>
                         </div>
                         <div class="form-group">

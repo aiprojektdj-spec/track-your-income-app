@@ -255,6 +255,36 @@ Der Zugang ist gebaut, der Grant-Deckel aus R4 steht (`SYNC_MAX_GRANTS`, Default
 
 ## Recht und Datenschutz
 
+### Die §25a-Marge wird mit 19 % gerechnet — der ermäßigte Satz gilt dafür nie (2026-09-03)
+
+Die fest verdrahteten 19 in [`js/euer.js:165`](../js/euer.js),
+[`js/gbr-modul.js:85`](../js/gbr-modul.js) und an vier Stellen in
+[`js/ustvoranmeldung.js`](../js/ustvoranmeldung.js) sind **kein Vereinfachungs-Provisorium,
+sondern der Gesetzeswortlaut**:
+
+> **§25a Abs. 5 Satz 1 UStG:** „Die Steuer ist mit dem allgemeinen Steuersatz nach § 12 Abs. 1 zu
+> berechnen."
+
+Der ermäßigte Satz von 7 % auf Kunstgegenstände und Sammlungsstücke, der seit dem 1.1.2025 wieder
+gilt (§12 Abs. 2 Nr. 13 UStG, Anlage 2 Nr. 53/54), betrifft Lieferung, innergemeinschaftlichen
+Erwerb und Einfuhr in der **Regelbesteuerung**. Auf die Differenz greift er nicht.
+
+**Warum das hier steht:** Ein Audit hat den Punkt am 2026-08-16 als Fund gemeldet und dabei Abs. 5
+**Satz 2** zitiert — der regelt Steuerbefreiungen, nicht den Steuersatz. Die daraus abgeleitete
+Empfehlung, ein Satz-Feld am Artikel zu bauen, hätte 7/107 statt 19/119 abgeführt und damit eine
+systematische **Unterzahlung** erzeugt. Der Fund war nicht bloß überflüssig, er war gefährlich.
+Deshalb: **nicht erneut aufmachen.** Herleitung in
+[`25a-ermaessigter-satz-recherche.md`](25a-ermaessigter-satz-recherche.md).
+
+Ebenfalls entschieden: **kein Guard für §25a Abs. 7 Nr. 1 Buchst. c.** Der Ausschluss gilt nur
+„in den Fällen des Absatzes 2" — einem Wahlrecht, das der Wiederverkäufer gegenüber dem Finanzamt
+erklären muss und das Stackr nirgends kennt. Beim Ankauf von Privatpersonen nach Abs. 1 greift er
+nicht. Wird die Abs.-2-Option je gebaut, gehört der Ausschluss zu ihr.
+
+**Nicht entschieden, weiterhin offen:** die Pauschalmarge von 30 % nach §25a Abs. 3 Satz 2 UStG
+und die Frage, ob die Pflichtangabe nach §14a Abs. 6 UStG automatisch auf der Rechnung landet.
+Beides steht in der Recherche-Datei.
+
 ### Der Banner ist zweistufig — die notwendige Speicherung bleibt ohne Ablehnen-Button
 
 **Geändert am 2026-08-15.** Bis dahin stand hier: „Der Cookie-Banner hat keinen Ablehnen-Button —

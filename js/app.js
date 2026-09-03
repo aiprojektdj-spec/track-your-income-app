@@ -2579,7 +2579,13 @@ const App = {
 
                     const parseNum = v => {
                         if (v === null || v === undefined || v === '') return 0;
-                        const n = parseFloat(String(v).replace(',', '.'));
+                        // Bis 2026-09-03 stand hier `.replace(',', '.')`. Ein String-Argument ersetzt
+                        // nur das ERSTE Vorkommen, deshalb wurde "1.234,56" zu "1.234.56" und davon
+                        // las parseFloat nur "1.234" — Faktor 1000 nach unten, ohne jede Meldung.
+                        // Regel: ist ein Komma da, ist es das Dezimalzeichen und Punkte sind
+                        // Tausendertrenner; ohne Komma bleibt der Punkt das Dezimalzeichen ("80.50").
+                        const roh = String(v).trim();
+                        const n = parseFloat(roh.includes(',') ? roh.replace(/\./g, '').replace(',', '.') : roh);
                         // Negative Beträge/Prozente/Mengen sind bei Import-Zeilen nicht plausibel
                         // und würden Summen (Dashboard, EÜR) unbemerkt verfälschen — auf 0 clampen.
                         // `|| 0` allein fing nur NaN ab, ein negativer Wert lief durch.
@@ -2631,7 +2637,12 @@ const App = {
                     }
 
                     // -- Verkäufe --
-                    const wsV = wb.Sheets['Verkäufe'] || wb.Sheets['Verkauefe'] || wb.Sheets['verkauf'] || wb.Sheets['Verkauf'];
+                    // 'Verkaeufe' stand hier bis 2026-09-03 als 'Verkauefe' (u und e vertauscht) und
+                    // konnte deshalb nie greifen — waehrend die Einkaufszeile darueber richtig
+                    // transliteriert. Folge war kein glatter Fehlschlag, sondern eine halbe
+                    // Uebernahme: Einkaeufe kamen an, Verkaeufe fielen still weg. An einer echten
+                    // Datei gemessen (338 Verkaufszeilen), s. plan/live-tests-checkliste.md Punkt 1.
+                    const wsV = wb.Sheets['Verkäufe'] || wb.Sheets['Verkaeufe'] || wb.Sheets['verkauf'] || wb.Sheets['Verkauf'];
                     if (wsV) {
                         const rows = XLSX.utils.sheet_to_json(wsV, { header: 1, defval: '' });
                         rows.slice(1).forEach(r => {
@@ -2681,7 +2692,9 @@ const App = {
 
                     // -- Fallback: einzelne Tabelle mit Kaufdatum/Einkauf/Verkauf/Verkaufsdatum-Spalten --
                     // (z.B. private Reselling-Listen mit einer Zeile pro Artikel statt den 3 Vorlagen-Sheets)
+                    let flachGenutzt = false;
                     if (!wsE && !wsV && !wsA) {
+                        flachGenutzt = true;
                         const normHeader = h => String(h || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                         wb.SheetNames.forEach(sheetName => {
                             const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: '' });
@@ -2756,13 +2769,25 @@ const App = {
                         });
                     }
 
+                    // Eine Null wird gemeldet, wenn das Blatt DA WAR und trotzdem nichts ergab —
+                    // vorher filterte `.filter(Boolean)` jede Null heraus, und ein Blatt mit 0
+                    // uebernommenen Zeilen kam im Text ueberhaupt nicht mehr vor. Der Nutzer las
+                    // dann "29 Einkaeufe" und erfuhr nie, dass daneben 338 Verkaeufe weggefallen
+                    // waren. Ein FEHLENDES Blatt bleibt weiterhin stumm: laut Anleitung darf man
+                    // einzelne Blaetter leer lassen, dort waere "0 Verkaeufe" nur Rauschen.
+                    // `flachGenutzt` muss mit hinein: der Fallback-Zweig fuellt dieselben Zaehler,
+                    // hat aber per Definition keines der drei Blaetter — ohne ihn faende die
+                    // Meldung dort keine einzige Quelle und fiele auf "0 Datensaetze" zurueck.
                     const msg = [
-                        importedEinkauf > 0 ? `${importedEinkauf} Einkäufe` : '',
-                        importedVerkauf > 0 ? `${importedVerkauf} Verkäufe` : '',
-                        importedAusgaben > 0 ? `${importedAusgaben} Ausgaben` : '',
+                        (wsE || flachGenutzt) ? `${importedEinkauf} Einkäufe` : '',
+                        (wsV || flachGenutzt) ? `${importedVerkauf} Verkäufe` : '',
+                        wsA ? `${importedAusgaben} Ausgaben` : '',
                     ].filter(Boolean).join(', ') || '0 Datensätze';
 
-                    if (statusEl) statusEl.innerHTML = `<span style="color:var(--success);">✅ Importiert: ${msg}${skipped > 0 ? ` (${skipped} leere Zeilen übersprungen)` : ''}</span>`;
+                    // "leere Zeilen" war nachweislich falsch: uebersprungen wird, wenn die beiden
+                    // Pruefspalten leer sind — die Zeile selbst kann voll sein. An der Messdatei
+                    // waren 160 der 972 "leeren" Zeilen echte Einkaeufe.
+                    if (statusEl) statusEl.innerHTML = `<span style="color:var(--success);">✅ Importiert: ${msg}${skipped > 0 ? ` (${skipped} Zeilen übersprungen)` : ''}</span>`;
                     Utils.showToast(`Import abgeschlossen: ${msg}`, 'success');
                     e.target.value = '';
                     // Kurze Verzögerung dann View aktualisieren

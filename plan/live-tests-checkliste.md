@@ -10,8 +10,10 @@
 > die Entscheidung über die Regeländerung steht noch aus.
 > **Punkt 1 (Excel-Import) ist am 2026-09-03 gemessen** — ebenfalls ohne Login: der Import
 > hängt an SheetJS, nicht am Gate. Vier Funde an einer echten Datei, zwei davon still
-> (ein Tippfehler im Blattnamen und ein Toast, der eine Null verschweigt). Steht unten bei
-> Punkt 1. **Die Punkte 2–5 warten weiter auf dich.**
+> (ein Tippfehler im Blattnamen und ein Toast, der eine Null verschweigt). **Fund 1, 2 und
+> das Dezimalkomma sind noch am selben Tag behoben** und durch einen Harness abgesichert;
+> Fund 3 und 4 bleiben als Produktentscheidungen offen. Alles unten bei Punkt 1.
+> **Die Punkte 2–5 warten weiter auf dich.**
 
 Sieben Funktionen sind gebaut, committet und statisch geprüft, aber nie unter echten Bedingungen
 gelaufen. Fünf davon brauchen einen **echten Whop-Login** — deshalb einmal anmelden und dann
@@ -190,10 +192,40 @@ Kassenbuch | EÜR | Vorlagen`, 189 Einkaufs- und 338 Verkaufszeilen.
 > Blatt-Auswahlfeld fehlt**, und `_findHeaderRow` kann das nicht auffangen: es sucht die
 > Kopfzeile *innerhalb* eines Blattes, nicht das richtige Blatt.
 
-**Nicht gefixt, nur festgehalten** — so wie es unten unter „Wenn etwas schiefgeht“ steht.
-Fund 1 ist ein Zeichen, Fund 2 zwei Zeilen; beide liegen in `js/app.js`, das gerade frei ist.
-Fund 3 und 4 sind Produktentscheidungen (abweisen statt importieren? Blattauswahl?) und
-gehören nicht in eine Testsitzung.
+> **Nachtrag 2026-09-03 — Fund 1, 2 und das Dezimalkomma sind auf Ansage behoben.**
+> Die Messkästen darüber bleiben **unverändert stehen**: sie sind der Zustand beim Lauf, nicht
+> der heutige Codestand (dieselbe Regel wie bei Punkt 7).
+>
+> | | vorher | nachher |
+> |---|---|---|
+> | Verkäufe aus `Verkaeufe` | 0 von 338 | **338 von 338** |
+> | Toast | `29 Einkäufe (972 leere Zeilen übersprungen)` | `29 Einkäufe, 338 Verkäufe (1627 Zeilen übersprungen)` |
+> | `parseNum("1.234,56")` | `1.234` | **`1234.56`** |
+>
+> Die Null wird nur genannt, wenn das Blatt **da war** — ein fehlendes Blatt bleibt stumm, weil
+> die Anleitung ausdrücklich erlaubt, einzelne Blätter leer zu lassen. Beim Bauen ist dabei
+> aufgefallen, dass der **Flach-Fallback** dieselben Zähler füllt, aber per Definition keines
+> der drei Blätter hat — ohne ein zusätzliches `flachGenutzt` wäre er auf „0 Datensätze“
+> zurückgefallen. Das ist mitgetestet.
+>
+> Abgesichert durch [`test/test-xlsx-import-blattnamen.js`](../test/test-xlsx-import-blattnamen.js)
+> (8 Prüfungen). Der Test schneidet `parseNum` und den Meldungsaufbau **im Wortlaut** aus
+> `js/app.js` — er prüft ausgelieferten Code, keine Kopie. Die ASCII-Regel wird **gerechnet**
+> (`ä→ae`) statt aufgezählt, damit ein künftiger Blattname sie automatisch erbt.
+> Gegenprobe gemacht: alle vier Fehler einzeln zurückgebaut, der Test schlägt jedes Mal an.
+> Alle 40 Harnesses grün.
+>
+> ⚠️ **Für diese Datei heißt „behoben“ nicht „funktioniert“.** Fund 3 steht weiter offen, also
+> kommen die 338 Verkäufe jetzt mit **0,00 € und dem heutigen Datum** an. Der Tippfehler war
+> trotzdem ein Defekt — aber wer die Datei heute einliest, bekommt mehr Unsinn als vorher,
+> nicht weniger.
+
+**Fund 3 und 4 bleiben offen** — das sind Produktentscheidungen, keine Reparaturen:
+- **Fund 3:** Kopfzeile gegen die erwarteten Namen prüfen und bei Abweichung **abbrechen**
+  statt zu importieren? Das würde fremde Tabellen künftig abweisen, die heute (fehlerhaft)
+  durchlaufen. Alternativ nur warnen.
+- **Fund 4:** Blatt-Auswahlfeld im Import-Dialog, statt fest `SheetNames[0]`. Betrifft drei
+  Stellen (`lager/page.js:1865` und `:2359`, `js/buchungen.js:1640`) und ist echte UI-Arbeit.
 
 ### 2. Cloud-Sync mit zwei echten Profilen · ~30 Min
 

@@ -96,17 +96,37 @@ var BelegOCR = (function () {
     //      gegen den Tag-Monat-Kopf. Erkennungsmerkmal: direkt dahinter folgt ein
     //      weiterer Trenner mit Ziffer (".2026"). Ein echter Betrag am Satzende
     //      ("3,99.") hat dort keine Ziffer und bleibt drin.
+    //   3. Eine Uhrzeit in Punktschreibweise. "07.45" hat zwei Nachkommastellen und
+    //      nichts dahinter — die Datumsabwehr aus Punkt 2 greift nicht, weil eine Uhrzeit
+    //      keinen dritten Teil hat. Im Rueckfall schlaegt sie jeden Bon unter 24 Euro
+    //      (Fund 3 aus plan/funde-betragsregel-2026-08-30.md). Erkannt wird sie nur, wenn
+    //      die ZEILE sie ankuendigt — "Kaffee 7.45" bleibt damit ein Betrag.
+    var RE_UHRZEITZEILE = /uhrzeit|\buhr\b|\bzeit\b/i;
+    var RE_UHRZEITFORM  = /^(\d{1,2})\.(\d{2})$/;
+
     function _betraegeDerZeile(zeile) {
         var out = [];
         var m;
+        var istZeitzeile = RE_UHRZEITZEILE.test(zeile);
         RE_BETRAG.lastIndex = 0;
         while ((m = RE_BETRAG.exec(zeile)) !== null) {
             var rest = zeile.slice(m.index + m[0].length);
             if (/^\s*%/.test(rest)) continue;
             if (/^[.,]\d/.test(rest)) continue;
+            if (istZeitzeile) {
+                var u = RE_UHRZEITFORM.exec(m[1]);
+                if (u && parseInt(u[1], 10) < 24 && parseInt(u[2], 10) < 60) continue;
+            }
             var wert = _zuZahl(m[1]);
             if (!isFinite(wert)) continue;
-            out.push({ wert: wert, roh: m[1] });
+            // Vorzeichen: RE_BETRAG verlangt vor der Zahl ein Nicht-Ziffer-Zeichen und
+            // verschluckt das Minus dabei — aus "-49,99" wurde 49,99, aus einer Erstattung
+            // also eine Ausgabe (Fund 2, ebenda). Gewertet wird nur ein direkt anliegendes
+            // Minus, vorn oder hinten ("49,99-" ist im deutschen Kassendruck ueblich); ein
+            // Bindestrich mit Leerzeichen drumherum ist ein Trennstrich, kein Vorzeichen.
+            var davor = m[0].length > m[1].length ? m[0].charAt(0) : '';
+            var negativ = davor === '-' || /^-/.test(rest);
+            out.push({ wert: wert, roh: m[1], negativ: negativ });
         }
         return out;
     }
@@ -197,6 +217,17 @@ var BelegOCR = (function () {
         for (var i = 0; i < zeilen.length; i++) {
             var b = _betraegeDerZeile(zeilen[i]);
             if (!b.length) continue;
+            // Negative Betraege kommen gar nicht erst in die Auswahl: der Bruttobetrag
+            // eines Eigenbelegs ist nie negativ. Das erledigt zwei Faelle auf einmal —
+            // die Rabatt- oder Gutscheinzeile, die im Rueckfall sonst als "groesster
+            // Betrag" gewinnt, und die Retoure, deren Summenzeile nur noch aus negativen
+            // Betraegen besteht. Im zweiten Fall bleibt am Ende nichts uebrig, und genau
+            // das ist die richtige Antwort: lieber kein Vorschlag als ein Vorzeichenfehler,
+            // den beim Klicken niemand nachrechnet.
+            var positiv = [];
+            for (var n = 0; n < b.length; n++) if (!b[n].negativ) positiv.push(b[n]);
+            if (!positiv.length) continue;
+            b = positiv;
             // Merkt sich pro Betrag, ob seine Zeile ihn als Endbetrag ausweist —
             // gebraucht von der Gegenprobe, nicht von der Auswahl selbst.
             if (RE_BESTAETIGUNG.test(zeilen[i]) && !RE_TEILBETRAG.test(zeilen[i])) {

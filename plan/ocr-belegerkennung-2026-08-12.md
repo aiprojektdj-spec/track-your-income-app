@@ -212,12 +212,51 @@ herausgefallen.
 Der Zwischenstand verschwindet nicht aus der Betrachtung, er verliert nur seinen Vorrang:
 bleibt keine echte Summenzeile übrig, greift wie bisher der Rückfall.
 
-**Drei weitere Fehler der Betragsregel sind am 2026-08-30 bestätigt und bewusst offen geblieben**
-— Summenzeile mit Umbruch, verlorenes Minus bei Retouren, Uhrzeit mit Punkt. Alle drei sitzen im
-Rückfallpfad und irren ebenfalls nach oben; die Gegenprobe fängt keinen davon. Reproduktion und
-Lösungsrichtungen in [`funde-betragsregel-2026-08-30.md`](funde-betragsregel-2026-08-30.md).
-Sie sind nicht behoben, weil die Regel sonst vier Neuerungen auf einem einzigen echten Bon
-trüge — erst mehr Bons, dann der Rückfallpfad in einem Stück.
+**Drei weitere Fehler der Betragsregel sind am 2026-08-30 bestätigt** — Summenzeile mit Umbruch,
+verlorenes Minus bei Retouren, Uhrzeit mit Punkt. Alle drei sitzen im Rückfallpfad und irren
+ebenfalls nach oben; die Gegenprobe fängt keinen davon. Reproduktion und Lösungsrichtungen in
+[`funde-betragsregel-2026-08-30.md`](funde-betragsregel-2026-08-30.md). **Zwei davon sind am
+2026-09-03 geschlossen, siehe 5c; Fund 1 ist offen geblieben.**
+
+### 5c. Was kein Betrag ist: Vorzeichen und Uhrzeit — nachgetragen 2026-09-03
+
+Zwei der drei offenen Funde ließen sich schließen, **ohne eine ratende Regel hinzuzufügen** — und
+das war die Bedingung, unter der sie überhaupt angefasst wurden. Beide Eingriffe sagen nur, was
+*kein* Betrag ist; keiner von beiden wählt zwischen Kandidaten aus. Genau darin unterscheiden sie
+sich von Fund 1.
+
+**Vorzeichen (Fund 2).** `RE_BETRAG` verlangt vor der Zahl ein Nicht-Ziffer-Zeichen und
+verschluckte das Minus dabei: aus `-49,99` wurde `49,99`, aus einer Erstattung eine Ausgabe.
+Erkannt wird jetzt ein **direkt anliegendes** Minus, vorn oder hinten — `49,99-` ist im deutschen
+Kassendruck üblich. Ein Bindestrich mit Leerzeichen drumherum (`Posten A - 12,50`) bleibt ein
+Trennstrich; dafür steht eine Gegenprobe im Test.
+
+Negative Beträge kommen anschließend **gar nicht erst in die Auswahl**, weil der Bruttobetrag
+eines Eigenbelegs nie negativ ist. Das schließt zwei Fälle mit einem Griff:
+
+| Fall | vorher | jetzt |
+|---|---|---|
+| `Posten 9,99` / `Rabatt -14,10`, keine Summenzeile | `14,10` — der Abzug gewinnt den Rückfall | `9,99` |
+| Retoure, deren Summenzeile nur `-49,99` trägt | `49,99` als Ausgabe | **kein Vorschlag** |
+
+Der zweite Fall ist Absicht und kein Notbehelf: bei einer Retoure ist die richtige Antwort kein
+Vorschlag. Ein Vorzeichenfehler ist beim Klicken eines Chips nicht zu bemerken — die Zahl stimmt
+ja, nur ihre Richtung nicht. Der Eigenbeleg lässt sich von Hand erfassen wie eh und je.
+
+> Die Rabattzeile im Rückfall war in der Fundliste nicht aufgeführt; sie fiel am 2026-09-03 bei
+> einem systematischen Durchgang durch realistische Bonformen auf. Dieselbe Familie, dieselbe
+> Richtung — und sie trifft jeden Bon mit Rabatt, auf dem die Summenzeile nicht erkannt wird.
+
+**Uhrzeit (Fund 3).** `07.45` hat zwei Nachkommastellen und nichts dahinter, ist also formal ein
+Betrag; die Datumsabwehr greift nicht, weil eine Uhrzeit keinen dritten Teil hat. Im Rückfall
+schlug sie jeden Bon unter 24 Euro. Verworfen wird sie nur, wenn **die Zeile sie ankündigt**
+(`Uhrzeit`, `Uhr`, `Zeit`) und die beiden Teile als Zeit durchgehen. `Kaffee 7.45` bleibt damit
+ein Betrag, `Zeit 99.99` ebenfalls — beides steht als Gegenprobe im Test.
+
+**Fund 1 bleibt offen, und das ist kein Versehen.** Eine `SUMME`-Zeile ohne eigenen Betrag müsste
+man mit der oder den nächsten Zeilen zusammenlesen — das ist eine Regel, die *rät*, welcher Betrag
+gemeint war. Sie gehört an einen Rückfallpfad, der in einem Stück umgebaut wird, und dafür braucht
+es mehr als einen gemessenen Bon.
 
 ## 6. Ladeverhalten
 

@@ -1,6 +1,21 @@
-# Betragsregel: drei offene Fehler — gefunden 2026-08-30
+# Betragsregel: drei Fehler — gefunden 2026-08-30, zwei davon geschlossen
 
-**Nicht behoben, bewusst.** Alle drei sind an der ausgelieferten Fassung von
+> **Stand 2026-09-03.** Fund 2 (verlorenes Minus) und Fund 3 (Uhrzeit mit Punkt) sind behoben,
+> Spezifikation [Abschnitt 5c](ocr-belegerkennung-2026-08-12.md), Regressionstests in
+> [`test/test-beleg-ocr.js`](../test/test-beleg-ocr.js) (jetzt 67 Prüfungen).
+>
+> **Der Vorbehalt unten galt trotzdem und wurde eingehalten:** angefasst wurde nur, was ohne
+> eine ratende Regel auskommt. Beide Eingriffe sagen ausschließlich, was *kein* Betrag ist —
+> ein Minus ist ein Vorzeichen, eine angekündigte Uhrzeit ist keine Summe. Keiner von beiden
+> wählt zwischen Kandidaten aus, und deshalb hängt keiner an der Frage, wie viele Bons gemessen
+> sind. **Fund 1 bleibt offen**, weil er genau das täte: er müsste raten, welcher Betrag unter
+> einer umbrochenen `SUMME`-Zeile gemeint war.
+>
+> Bei der Gelegenheit fiel ein **vierter Fall derselben Familie** auf, der hier fehlte: eine
+> Rabattzeile (`Rabatt -14,10`) gewann den Rückfall, weil sie betragsmäßig der größte Wert war.
+> Mit dem Vorzeichenfix ist er miterledigt.
+
+**Alle drei sind** an der ausgelieferten Fassung von
 [`js/beleg-ocr.js`](../js/beleg-ocr.js) reproduziert, keiner ist theoretisch. Sie stehen hier
 statt im Code, weil die Betragsregel am selben Tag bereits eine neue Regel bekommen hat
 (die Konsens-Gegenprobe, [Abschnitt 5a](ocr-belegerkennung-2026-08-12.md)) — und die steht auf

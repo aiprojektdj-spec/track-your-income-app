@@ -390,5 +390,54 @@ check('"Summe inkl. MwSt" bleibt eine Summenzeile',
     OCR.findBetrag(zeilen('Wein 89,00\nSumme inkl. MwSt 19,90')).wert === 19.90,
     JSON.stringify(OCR.findBetrag(zeilen('Wein 89,00\nSumme inkl. MwSt 19,90'))));
 
+// ── 6) Vorzeichen und Uhrzeit ───────────────────────────────────────────────
+// Fund 2 und Fund 3 aus plan/funde-betragsregel-2026-08-30.md. Beide leben im
+// Rueckfallpfad, beide irren nach oben. Fund 1 (umbrochene Summenzeile) ist
+// bewusst NICHT gefixt und hat deshalb hier auch keinen Test — er braucht eine
+// Regel, die raet, und die wartet auf mehr gemessene Bons.
+console.log('\nVorzeichen und Uhrzeit');
+
+// Aus einer Erstattung darf keine Ausgabe werden. Bleibt von der Summenzeile nur
+// Negatives uebrig, ist kein Vorschlag die richtige Antwort — ein Vorzeichenfehler
+// waere beim Klicken nicht zu bemerken.
+const retoure = OCR.extract([
+    'MediaMarkt',
+    'Ruecknahme',
+    'Artikel        -49,99',
+    'SUMME          -49,99',
+].join('\n'));
+check('Retoure: negative Summe liefert keinen Vorschlag',
+    retoure.betrag === null, JSON.stringify(retoure.betrag));
+
+check('nachgestelltes Minus zaehlt ebenso',
+    OCR.findBetrag(zeilen('Retoure\nSUMME 49,99-')) === null,
+    JSON.stringify(OCR.findBetrag(zeilen('Retoure\nSUMME 49,99-'))));
+
+// Der Rabatt ist der haeufige Fall desselben Musters: ohne Summenzeile gewann
+// bisher der Abzug, weil er der groesste Betrag war.
+check('Rabattzeile gewinnt den Rueckfall nicht mehr',
+    OCR.findBetrag(zeilen('Kiosk\nPosten 9,99\nRabatt -14,10')).wert === 9.99,
+    JSON.stringify(OCR.findBetrag(zeilen('Kiosk\nPosten 9,99\nRabatt -14,10'))));
+
+// Gegenprobe: ein Trennstrich mit Leerzeichen ist kein Vorzeichen.
+check('Bindestrich mit Leerzeichen macht keinen negativen Betrag',
+    OCR.findBetrag(zeilen('Posten A - 12,50')).wert === 12.50,
+    JSON.stringify(OCR.findBetrag(zeilen('Posten A - 12,50'))));
+
+// Uhrzeit in Punktschreibweise: "07.45" ist formal ein Betrag und schlug im
+// Rueckfall jeden Bon unter 24 Euro.
+check('Uhrzeit mit Punkt zaehlt nicht als Betrag',
+    OCR.findBetrag(zeilen('Datum 12.03.2026\nUhrzeit 07.45\nKaffee 2,40')).wert === 2.40,
+    JSON.stringify(OCR.findBetrag(zeilen('Datum 12.03.2026\nUhrzeit 07.45\nKaffee 2,40'))));
+
+// Gegenprobe: nur die Zeile, die eine Uhrzeit ankuendigt, wird so gelesen.
+check('derselbe Zahlenwert ohne Zeitwort bleibt ein Betrag',
+    OCR.findBetrag(zeilen('Kiosk Meier\nKaffee 7.45')).wert === 7.45,
+    JSON.stringify(OCR.findBetrag(zeilen('Kiosk Meier\nKaffee 7.45'))));
+
+check('unmoegliche Uhrzeit bleibt ein Betrag',
+    OCR.findBetrag(zeilen('Zeit 99.99')).wert === 99.99,
+    JSON.stringify(OCR.findBetrag(zeilen('Zeit 99.99'))));
+
 console.log('\n' + pass + ' bestanden, ' + fail + ' fehlgeschlagen\n');
 process.exit(fail ? 1 : 0);

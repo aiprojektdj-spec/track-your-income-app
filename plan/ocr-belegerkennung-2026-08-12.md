@@ -112,9 +112,9 @@ schlimmer ist als ein leeres.
 
 | Feld | Regel |
 |---|---|
-| Datum | erstes Vorkommen von `TT.MM.JJJJ` oder `TT.MM.JJ`; bei mehreren das früheste, weil Bons oft ein späteres Druckdatum tragen |
+| Datum | erstes Vorkommen von `TT.MM.JJJJ` oder `TT.MM.JJ`; bei mehreren das früheste, weil Bons oft ein späteres Druckdatum tragen. Findet sich keins, `JJJJ-MM-TT` aus dem Fiskalblock, siehe 5d |
 | Betrag | Zeile mit `SUMME`, `GESAMT`, `TOTAL`, `ZU ZAHLEN` bevorzugt — **außer Zwischenständen** (`ZWISCHENSUMME`, `SUBTOTAL`, `ÜBERTRAG`), siehe 5b; sonst der größte gefundene Betrag mit zwei Nachkommastellen. Danach die **Konsens-Gegenprobe**, siehe 5a |
-| Händler | erste Zeile mit mindestens drei Buchstaben, die keine Zahl und keine Adressfloskel ist |
+| Händler | erste Zeile mit mindestens drei Buchstaben, die keine Adressfloskel ist. Eine einzelne Zahl darf sie tragen („Cafe 1900"), unter drei Grenzen — siehe 5d |
 
 Alle drei Regeln sind Heuristiken und gehören in eine eigene, testbare Funktion — dieselbe
 Trennung wie beim Zahlungsabgleich (G3), wo die Zuordnungslogik ohne Browser prüfbar ist.
@@ -257,6 +257,55 @@ ein Betrag, `Zeit 99.99` ebenfalls — beides steht als Gegenprobe im Test.
 man mit der oder den nächsten Zeilen zusammenlesen — das ist eine Regel, die *rät*, welcher Betrag
 gemeint war. Sie gehört an einen Rückfallpfad, der in einem Stück umgebaut wird, und dafür braucht
 es mehr als einen gemessenen Bon.
+
+### 5d. Datum aus dem Fiskalblock, Händlername mit Ziffer — nachgetragen 2026-09-03
+
+Beide Lücken stammen aus demselben systematischen Durchgang wie 5c. Sie betreffen nicht den
+Betrag, sondern die beiden anderen Felder, und in beiden Fällen lieferte die Regel bisher
+**gar nichts** — der Fehler war eine Lücke, kein falscher Wert.
+
+**Datum: `JJJJ-MM-TT` als Rückfall.** Seit der Kassensicherungsverordnung trägt jeder deutsche
+Bon einen Fiskalblock, und der druckt seine Zeitstempel in ISO 8601. Auf dem gemessenen Bon war
+das neben der Fußleiste die **einzige unversehrte Datumsangabe**: die eigentliche Datumszeile kam
+als `Datuenı Aa 0 o607.2026` aus der Erkennung, der Punkt zwischen Tag und Monat war weg. Ein
+Format, das auf jedem Bon steht und das die Erkennung selten zerlegt, ist der natürliche letzte
+Anker.
+
+**Nur als Rückfall, nicht gleichberechtigt** — und das ist die eigentliche Entscheidung: der
+Fiskalstempel steht in **UTC**. Ein Kauf um 00:30 Ortszeit trägt dort noch den Vortag, und die
+Früheste-Regel würde diesen Vortag dem richtigen Datum vorziehen. Solange eine Punktangabe
+existiert, ist sie die lokale und damit die richtige. Es gibt dafür eine eigene Prüfung.
+
+`06/07/2026` und `06-07-2026` bleiben **bewusst unerkannt**: in dieser Schreibweise ist nicht
+entscheidbar, ob Tag oder Monat vorn steht — dieselbe Zeichenfolge heißt in Deutschland der
+6. Juli und in den USA der 7. Juni. Ein stillschweigend falsches Datum ist schlimmer als keins.
+Bei ISO stellt sich die Frage nicht, das Format definiert die Reihenfolge.
+
+**Händler: eine Ziffer ist erlaubt.** Die Regel verwarf jede Zeile mit einer Zahl — und damit
+`Cafe 1900`, `Shell 4711`, `Kiosk 24`. Ein Fehlgriff ist beim Verkäufer außerdem billiger als
+beim Betrag: er fällt beim Hinsehen auf, während eine falsche Zahl plausibel aussieht. Drei
+Grenzen verhindern, dass stattdessen die Adresse gewinnt:
+
+| Grenze | schließt aus |
+|---|---|
+| Zeile beginnt mit einer Ziffer | `587 RAVENSBURG`, `88212 Ravensburg` |
+| mehr als eine Zifferngruppe | `Kontakt Center: 0621 3905-1000`, `SF OFENSCMERST 85,90 C` |
+| Ziffernfolge ab fünf Stellen | `Art/EAN 4024506316768` |
+
+Dazu kamen Kassen- und Fiskalwörter in die Floskelliste (`Kasse`, `Bed.`, `Terminal`, `Trace`,
+`EAN`, `Art.-Nr`, `TSE`, `Datum`, `Uhrzeit`, `Signatur`) — die hatte vorher die Ziffer selbst
+ausgeschlossen.
+
+**Gegengeprüft am echten Bon:** von seinen 53 Rohtextzeilen akzeptiert die gelockerte Regel 17,
+und die erste davon ist weiterhin die richtige Namenszeile. Keine Adress-, Telefon-, PLZ-, EAN-
+oder Betragszeile ist darunter; neu hinzugekommen sind nur zwei Rauschzeilen tief im Bon
+(`Bankarbeitstag. 5`), die den Kopf nie überholen können.
+
+**Nicht geändert: `1 234,56` mit Leerzeichen** wird weiterhin als `234,56` gelesen. Der Fix wäre
+einfach und trotzdem falsch: `3 250,00` — Menge und Preis in zwei Spalten, auf Bons alltäglich —
+würde dann zu `3250,00`. Die heutige Lesart irrt **nach unten**, die Reparatur würde **nach oben**
+irren, und das ist die teure Richtung. Ohne einen Weg, beide Fälle zu unterscheiden, bleibt es
+wie es ist.
 
 ## 6. Ladeverhalten
 

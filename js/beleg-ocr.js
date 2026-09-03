@@ -22,6 +22,26 @@ var BelegOCR = (function () {
     // neben dem Kaufdatum oft ein spaeteres Druck- oder Abrechnungsdatum.
     var RE_DATUM = /(?:^|[^\d.])(\d{1,2})\.(\d{1,2})\.(\d{2,4})(?!\d)/g;
 
+    // JJJJ-MM-TT, aber NUR als Rueckfall, wenn oben gar nichts gefunden wurde.
+    //
+    // Warum es das ueberhaupt braucht: seit der Kassensicherungsverordnung traegt jeder
+    // deutsche Bon einen Fiskalblock, und der druckt seine Zeitstempel in ISO 8601. Auf dem
+    // einzigen bisher gemessenen Bon war das die einzige unversehrte Datumsangabe neben der
+    // Fussleiste — die eigentliche Datumszeile kam als "Datuenı Aa 0 o607.2026" aus der
+    // Erkennung, der Punkt zwischen Tag und Monat war weg. Ein Format, das auf jedem Bon
+    // steht und das die Erkennung selten zerlegt, ist der natuerliche letzte Anker.
+    //
+    // Warum nur als Rueckfall und nicht gleichberechtigt: der Fiskalstempel steht in UTC.
+    // Ein Kauf um 00:30 Ortszeit traegt dort noch den Vortag, und die Frueheste-Regel wuerde
+    // diesen Vortag dem richtigen Datum vorziehen. Solange eine Punktangabe existiert, ist
+    // sie die lokale und damit die richtige.
+    //
+    // Schraegstrich (06/07/2026) und Bindestrich (06-07-2026) bleiben bewusst draussen:
+    // in dieser Schreibweise ist nicht entscheidbar, ob Tag oder Monat vorn steht. Ein
+    // stillschweigend falsches Datum ist schlimmer als keins — bei ISO stellt sich die
+    // Frage nicht, das Format definiert die Reihenfolge.
+    var RE_DATUM_ISO = /(?:^|[^\d-])(\d{4})-(\d{2})-(\d{2})(?!\d)/g;
+
     function _istEchtesDatum(t, m, j) {
         if (m < 1 || m > 12 || t < 1 || t > 31) return false;
         var d = new Date(Date.UTC(j, m - 1, t));
@@ -47,6 +67,17 @@ var BelegOCR = (function () {
             var j = jRoh.length === 2 ? 2000 + parseInt(jRoh, 10) : parseInt(jRoh, 10);
             if (!_istEchtesDatum(t, mo, j)) continue;
             treffer.push({ wert: _iso(j, mo, t), roh: m[1] + '.' + m[2] + '.' + jRoh });
+        }
+        if (!treffer.length) {
+            RE_DATUM_ISO.lastIndex = 0;
+            while ((m = RE_DATUM_ISO.exec(text)) !== null) {
+                var jI = parseInt(m[1], 10);
+                if (jI < 2000 || jI > 2100) continue;
+                var moI = parseInt(m[2], 10);
+                var tI  = parseInt(m[3], 10);
+                if (!_istEchtesDatum(tI, moI, jI)) continue;
+                treffer.push({ wert: _iso(jI, moI, tI), roh: m[1] + '-' + m[2] + '-' + m[3] });
+            }
         }
         if (!treffer.length) return null;
         treffer.sort(function (a, b) { return a.wert < b.wert ? -1 : a.wert > b.wert ? 1 : 0; });
@@ -254,7 +285,32 @@ var BelegOCR = (function () {
         'steuernummer', 'st\\.-?nr', 'ust-?id', '\\buid\\b',
         'kundenbeleg', 'quittung', 'rechnung', 'kassenbon', '\\bbeleg\\b',
         'vielen dank', '\\bdanke\\b', 'auf wiedersehen', '(?:oe|ö)ffnungszeiten',
+        // Kassen- und Fiskalzeilen. Sie stehen hier, seit ein Name mit Ziffer erlaubt ist
+        // (s. _nameTrotzZiffer): vorher hat die Ziffer sie von allein ausgeschlossen.
+        '\\bkasse\\b', '\\bbed\\b', 'bediener', 'terminal', 'trace', '\\bean\\b',
+        'art\\.?-?nr', '\\btse\\b', 'datum', 'uhrzeit', '\\bnr\\.', 'signatur',
     ].join('|'), 'i');
+
+    // Ein Name darf eine Ziffer tragen — "Cafe 1900", "Shell 4711", "Kiosk 24" sind
+    // Haendlernamen, und die Regel lieferte dort bisher gar nichts. Ein Fehlgriff ist beim
+    // Verkaeufer billiger als beim Betrag: er faellt beim Hinsehen auf, waehrend eine falsche
+    // Zahl plausibel aussieht. Trotzdem drei Grenzen, damit nicht die Adresse gewinnt:
+    //
+    //   1. Faengt die Zeile mit einer Ziffer an, ist es Postleitzahl oder Hausnummer
+    //      ("587 RAVENSBURG", "88212 Ravensburg").
+    //   2. Mehr als eine Zifferngruppe heisst Telefonnummer, Kartennummer, Kennung
+    //      ("Kontakt Center: 0621 3905-1000"). Ein Name traegt hoechstens eine Zahl.
+    //   3. Eine Ziffernfolge ab fuenf Stellen ist eine Kennung, keine Jahreszahl
+    //      ("Art/EAN 4024506316768").
+    var RE_ZIFFERNGRUPPE = /\d+/g;
+
+    function _nameTrotzZiffer(z) {
+        if (/^\d/.test(z)) return false;
+        var gruppen = z.match(RE_ZIFFERNGRUPPE) || [];
+        if (gruppen.length > 1) return false;
+        if (gruppen[0] && gruppen[0].length >= 5) return false;
+        return true;
+    }
 
     function findHaendler(zeilen) {
         for (var i = 0; i < zeilen.length; i++) {
@@ -265,7 +321,7 @@ var BelegOCR = (function () {
                 .replace(/[^A-Za-zÄÖÜäöüß0-9.]+$/, '')
                 .trim();
             if (!z) continue;
-            if (RE_ZIFFER.test(z)) continue;
+            if (RE_ZIFFER.test(z) && !_nameTrotzZiffer(z)) continue;
             var buchstaben = z.match(RE_BUCHSTABE);
             if (!buchstaben || buchstaben.length < 3) continue;
             if (RE_FLOSKEL.test(z)) continue;

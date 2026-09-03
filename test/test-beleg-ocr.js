@@ -439,5 +439,69 @@ check('unmoegliche Uhrzeit bleibt ein Betrag',
     OCR.findBetrag(zeilen('Zeit 99.99')).wert === 99.99,
     JSON.stringify(OCR.findBetrag(zeilen('Zeit 99.99'))));
 
+// ── 7) ISO-Datum als Rueckfall ──────────────────────────────────────────────
+// Seit der Kassensicherungsverordnung traegt jeder Bon einen Fiskalblock mit
+// ISO-Zeitstempeln. Auf dem gemessenen Bauhaus-Bon war das neben der Fussleiste die
+// einzige unversehrte Datumsangabe — die Datumszeile selbst kam als
+// "Datuenı Aa 0 o607.2026" aus der Erkennung.
+console.log('\nDatum: ISO als Rueckfall');
+
+check('ISO wird gelesen, wenn keine Punktangabe da ist',
+    OCR.findDatum('Belegdatum 2026-07-06\nSUMME 12,00').wert === '2026-07-06',
+    JSON.stringify(OCR.findDatum('Belegdatum 2026-07-06\nSUMME 12,00')));
+
+check('ISO im Fiskalblock rettet das Datum',
+    OCR.findDatum('Signaturzaehler 7044299\n2026-07-06T09:36:22.000Z').wert === '2026-07-06',
+    JSON.stringify(OCR.findDatum('Signaturzaehler 7044299\n2026-07-06T09:36:22.000Z')));
+
+// Der Kern der Rueckfall-Bauart: die Punktangabe ist die lokale Zeit, der Fiskalstempel
+// steht in UTC. Existiert eine Punktangabe, darf ISO sie NICHT unterbieten — sonst
+// gewinnt bei einem Kauf kurz nach Mitternacht der Vortag.
+check('ISO verdraengt eine vorhandene Punktangabe nicht',
+    OCR.findDatum('Datum: 07.07.2026\n2026-07-06T22:30:00.000Z').wert === '2026-07-07',
+    JSON.stringify(OCR.findDatum('Datum: 07.07.2026\n2026-07-06T22:30:00.000Z')));
+
+check('unplausibles ISO-Jahr wird verworfen',
+    OCR.findDatum('Kennung 1899-07-06') === null,
+    JSON.stringify(OCR.findDatum('Kennung 1899-07-06')));
+
+// Bewusst nicht unterstuetzt: in TT/MM/JJJJ ist nicht entscheidbar, ob Tag oder Monat
+// vorn steht. Ein stillschweigend falsches Datum ist schlimmer als keins.
+check('Schraegstrich bleibt unerkannt (Reihenfolge nicht entscheidbar)',
+    OCR.findDatum('Kiosk\n06/07/2026') === null);
+
+// ── 8) Haendlername mit Ziffer ──────────────────────────────────────────────
+// "Cafe 1900" ist ein Name, keine Adresse. Bisher verwarf die Regel jede Zeile mit
+// Ziffer und lieferte in solchen Faellen gar nichts.
+console.log('\nHaendler: Name mit Ziffer');
+
+check('Name mit Jahreszahl wird erkannt',
+    OCR.findHaendler(['Cafe 1900', 'Hauptstr. 3']).wert === 'Cafe 1900',
+    JSON.stringify(OCR.findHaendler(['Cafe 1900', 'Hauptstr. 3'])));
+
+check('Name mit Filialnummer wird erkannt',
+    OCR.findHaendler(['Shell 4711', '12345 Koeln']).wert === 'Shell 4711');
+
+// Die drei Grenzen, die verhindern, dass stattdessen die Adresse gewinnt.
+check('PLZ-Zeile gewinnt nicht (faengt mit Ziffer an)',
+    OCR.findHaendler(['88212 Ravensburg', 'Baecker Wolf']).wert === 'Baecker Wolf',
+    JSON.stringify(OCR.findHaendler(['88212 Ravensburg', 'Baecker Wolf'])));
+
+check('Telefonzeile gewinnt nicht (mehrere Zifferngruppen)',
+    OCR.findHaendler(['Kontakt Center: 0621 3905-1000', 'Baecker Wolf']).wert === 'Baecker Wolf',
+    JSON.stringify(OCR.findHaendler(['Kontakt Center: 0621 3905-1000', 'Baecker Wolf'])));
+
+check('EAN-Zeile gewinnt nicht (Ziffernfolge ab fuenf Stellen)',
+    OCR.findHaendler(['Art/EAN 4024506316768', 'Baecker Wolf']).wert === 'Baecker Wolf',
+    JSON.stringify(OCR.findHaendler(['Art/EAN 4024506316768', 'Baecker Wolf'])));
+
+check('Kassenzeile gewinnt nicht (Floskelliste)',
+    OCR.findHaendler(['Kasse 2', 'Baecker Wolf']).wert === 'Baecker Wolf',
+    JSON.stringify(OCR.findHaendler(['Kasse 2', 'Baecker Wolf'])));
+
+check('Betragszeile gewinnt nicht (zwei Zifferngruppen)',
+    OCR.findHaendler(['SF OFENSCMERST 85,90 C', 'Baecker Wolf']).wert === 'Baecker Wolf',
+    JSON.stringify(OCR.findHaendler(['SF OFENSCMERST 85,90 C', 'Baecker Wolf'])));
+
 console.log('\n' + pass + ' bestanden, ' + fail + ' fehlgeschlagen\n');
 process.exit(fail ? 1 : 0);

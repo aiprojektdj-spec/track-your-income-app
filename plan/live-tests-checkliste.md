@@ -13,7 +13,13 @@
 > (ein Tippfehler im Blattnamen und ein Toast, der eine Null verschweigt). **Fund 1, 2 und
 > das Dezimalkomma sind noch am selben Tag behoben** und durch einen Harness abgesichert;
 > Fund 3 und 4 bleiben als Produktentscheidungen offen. Alles unten bei Punkt 1.
-> **Die Punkte 2–5 warten weiter auf dich.**
+> **Punkt 5 (Lager) ist am 2026-09-03 abgeschlossen** — als einziger bisher **auf Produktion**,
+> weil das Gate lokal prinzipiell nicht aufgeht (Kasten unten). Drei Funde: die Duplikatprüfung
+> fehlte beim **Anlegen**, und die §25a-Retoure verpuffte in der Standardmethode — beide
+> inzwischen behoben (`dddea9d`) und die Korrektur an der ausgelieferten Datei nachgemessen.
+> Offen bleibt Fund 1.5: eine **abgebrochene** Rechnung lässt den Lagerartikel als „verkauft"
+> zurück, ohne Umsatz.
+> **Die Punkte 2–4 warten weiter auf dich.**
 
 Sieben Funktionen sind gebaut, committet und statisch geprüft, aber nie unter echten Bedingungen
 gelaufen. Fünf davon brauchen einen **echten Whop-Login** — deshalb einmal anmelden und dann
@@ -277,13 +283,79 @@ zwei Tabs — die Gerätesperre hängt an `oyi_device_owner_uid`.
 - [ ] Kommt in Make.com ein Aufruf an, mit den erwarteten Feldern (`event`, `ts`, `data`)?
 - [ ] Konsole währenddessen offen: keine CSP-Meldung zum echten Make-Host?
 
-### 5. Lager-Feature-Batch, Punkt 10 · ~20 Min
+### 5. Lager-Feature-Batch, Punkt 10 · ✅ gelaufen 2026-09-01 bis 2026-09-03 — **3 Funde**
 
-Reiner Durchklick des zuletzt gebauten Stapels.
+Gelaufen **auf Produktion** in der Firma „Test" (siehe die Warnung oben: lokal kommt man am
+Gate nicht vorbei). An diesem Punkt haben mehrere Sessions parallel gearbeitet; die Zuordnung
+steht bei den einzelnen Haken.
 
-- [ ] Artikel anlegen, eigene Artikelnummer vergeben, Duplikat versuchen → wird es abgewiesen?
-- [ ] „Artikel aus Lager" in einer Rechnung → wird er sofort als verkauft markiert?
-- [ ] Retoure auf diesen Verkauf → stimmt die §25a-Marge danach noch?
+- [x] **Artikel anlegen, eigene Nummer, Duplikat versuchen** ❌ **Es wird nicht abgewiesen.**
+      `isArtikelNrTaken()` hängt nur im Edit-Zweig von `savePurchase`; Neu-Dialog und
+      Bulk-Einkauf setzen `artikelNr` direkt, der Neu-Zweig generiert nur bei **leerem** Feld.
+      Live belegt: zwei Artikel `DUP-TEST-1` mit verschiedenen IDs nebeneinander, beide mit
+      `isArtikelNrTaken(nr, eigeneId) === true`. Gefunden von einer Parallel-Session,
+      unabhängig reproduziert. Folge: der Verkäufe-Import ordnet über die Nummer zu
+      (`artNrMap`, letzter gewinnt) → Verkauf am falschen EK → falsche §25a-Marge und EÜR.
+      **Behoben in `dddea9d`**, Fundbeschreibung in [`01-AUFGABEN.md`](01-AUFGABEN.md) 1.3.
+- [x] **„Artikel aus Lager" → sofort als verkauft markiert?** ✅ **Ja.** Gemessen direkt nach
+      dem Verknüpfen: `status: verkauft`, `verkaufsdatum` gesetzt — und zwar bei
+      `getRechInvoices().length === 0`, die Rechnung war zu dem Zeitpunkt **noch nicht
+      gespeichert**. Der Gegenweg trägt ebenfalls: Position entfernen setzt auf `verfuegbar`
+      zurück und leert das Verkaufsdatum.
+      ⚠️ **Daneben ein eigener Fund:** verlässt man die Rechnung, ohne die Position zu entfernen
+      und ohne zu speichern, bleibt die Markierung stehen — Ware aus dem Bestand verschwunden,
+      ohne Umsatz. Beschrieben als [`01-AUFGABEN.md`](01-AUFGABEN.md) 1.5, **noch offen**.
+- [x] **Retoure auf diesen Verkauf → §25a-Marge?** ✅ **Stimmt — nach dem Fix.**
+      Der Fehler war real (`margeEinzeldifferenz()` las `margeKorrektur` nicht, Bemessungs-
+      grundlage blieb bei 50 statt 0, **nur** in der Standardmethode `differenzMethode='einzel'`);
+      gefunden von einer Parallel-Session, **behoben in `dddea9d`**.
+
+> **Messung zu Punkt 3, 2026-09-03.** Aufgebaut wurde der Fall live auf Produktion: Artikel
+> `CC-P3-1` (EK 100, differenzbesteuert) über den Neu-Dialog, Rechnung `RE-2026-001` über
+> **150 €** mit §25a-Position, verknüpft auf den Lagerartikel. `differenzMethode` stand auf
+> `einzel`, also im fehlerhaften Pfad.
+>
+> Gerechnet wurde dann gegen die **von Produktion ausgelieferte** `js/steuer-berechnung.js`
+> (per `curl` geholt, nicht gegen den Repo-Stand — die beiden können auseinanderlaufen):
+>
+> | Szenario | margeBrutto | USt |
+> |---|---|---|
+> | nur Verkauf | 50,00 | 7,98 |
+> | **+ volle Retoure** | **0,00** | **0,00** |
+> | + halbe Retoure | 25,00 | 3,99 |
+>
+> Die 50,00 / 7,98 sind zeichengleich der Vorher-Wert aus dem Node-Harness der meldenden
+> Session — es ist also derselbe Fall, und er rechnet jetzt richtig.
+>
+> **Gegenprobe zum Floor**, weil der Fix ihn hätte aufweichen können: zwei Positionen mit
+> +50 und −20 ergeben **50,00**, nicht 30,00. Es wird also weiterhin **nicht** zwischen
+> Positionen verrechnet — §25a Abs. 3 bleibt gewahrt. Die Korrektur wirkt nur innerhalb
+> derselben `ref`-Gruppe.
+>
+> **Was diese Messung nicht abdeckt:** den Klickweg der Gutschrift. Der Browser fror während
+> des Laufs mehrfach ein (Tabs starben, `Runtime.evaluate` lief in 45-s-Timeouts). Belegt sind
+> damit die Datenseite (Artikel und Rechnung wirklich über die Oberfläche angelegt) und die
+> Rechenseite (ausgelieferter Code) — **nicht** die Kette „Gutschrift klicken → `margeKorrektur`
+> geschrieben → UVA zeigt 0" in einem Durchgang.
+
+> **Zwei Beobachtungen am Rand, beide kein Fehler, beide leicht zu verwechseln:**
+>
+> 1. **Eine gespeicherte Rechnung erzeugt keinen `Sale`.** `Store.getSales()` blieb auf 0, die
+>    Dokumente liegen in `getRechInvoices()`. Die §25a-Berechnung liest die **Rechnungs-
+>    positionen** ([`js/ustvoranmeldung.js:122`](../js/ustvoranmeldung.js) ff.), nicht die
+>    Verkäufe — wer sie über `getSales()` sucht, findet nichts und hält es für einen Fehler.
+> 2. **Es gibt zwei getrennte Unternehmensprofile.** Der §14-Gate liest
+>    `Store.getRechUnternehmen()`, nicht `Store.getSettings()`. Eine in den Einstellungen
+>    gepflegte Steuernummer blockiert die Rechnung trotzdem. Der Toast in
+>    [`rechnungen/js/rechnung.js:1008`](../rechnungen/js/rechnung.js) sagt korrekt
+>    „Unternehmensdaten" — der in [`dokumente.js:446`](../rechnungen/js/dokumente.js) sagt für
+>    dieselbe Sache „Bitte in **Einstellungen** ergänzen". Eine der beiden Formulierungen
+>    schickt den Nutzer an die falsche Stelle.
+
+**Testdaten in der Firma „Test"**, absichtlich stehen gelassen: `CC-P2-1` (Beleg für Fund 1.5,
+im Phantom-Zustand „verkauft" ohne Rechnung), `CC-P3-1`, `RE-2026-001`, Kunde „Testkunde
+Punkt3", Unternehmensdaten „Testfirma Punkt3", Steuernummer `99/999/99999 (TESTDATEN)`.
+Alles fiktiv — aber es liegt in der Produktionsdatenbank und gehört beim Aufräumen gelöscht.
 
 ### 6. Edge-Tastaturtest der Gate-Overlays · ✅ erledigt 2026-08-29
 

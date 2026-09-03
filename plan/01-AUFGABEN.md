@@ -32,77 +32,86 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Zwei offene Punkte** (1.3 und 1.4, eingetragen 2026-09-01). Beide fielen beim Live-Test 5
-an, beide sind am laufenden Code gemessen, nicht erschlossen. Alles aus dem Vollaudit ist
-weiterhin zu — Belegstellen in [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md).
+**Offen ist noch 1.5** (Stand 2026-09-03). Die Funde 1.3 und 1.4 aus Live-Test 5 sind gefixt
+(`dddea9d`, gepusht und auf Produktion gegengeprüft) und stehen unten als ✅ — mit dem, was sich
+beim Bauen gegenüber der ursprünglichen Fundbeschreibung als falsch herausgestellt hat.
 
-### 1.3 Doppelte Artikelnummer wird beim **Anlegen** stumm akzeptiert
+### 1.3 Doppelte Artikelnummer beim **Anlegen** · ✅ erledigt 2026-09-03 (`dddea9d`)
 
-`isArtikelNrTaken()` wird repo-weit an genau **einer** Stelle aufgerufen: im Edit-Zweig von
-`savePurchase` ([`js/store.js:1424`](../js/store.js)). Die drei anderen Schreibwege prüfen nicht:
+Von den vier Schreibwegen prüften zwei nicht:
 
-| Weg | Verhalten bei vergebener Nummer |
-|---|---|
-| Bearbeiten-Maske ([`js/store.js:1424`](../js/store.js)) | verworfen, alte Nummer bleibt — integer, aber **ohne Toast** |
-| Neuer Artikel ([`lager/page.js:908`](../lager/page.js)) | **Dublette entsteht** |
-| Bulk-Einkauf ([`lager/page.js:1607`](../lager/page.js)) | **Dublette entsteht** |
-| Excel-Import ([`lager/page.js:2038`](../lager/page.js)) | Suffix `-2`/`-3` — bewusst so |
+| Weg | vorher | jetzt |
+|---|---|---|
+| Bearbeiten-Maske ([`js/lager.js:2681`](../js/lager.js)) | Toast + Abbruch — war schon richtig | unverändert |
+| Neuer Artikel ([`lager/page.js`](../lager/page.js)) | **Dublette entstand** | Toast, Fokus zurück ins Feld, nichts geschrieben |
+| Bulk-Einkauf ([`lager/page.js`](../lager/page.js)) | **Dublette entstand** | prüft gegen Bestand **und** die Zeilen gegeneinander |
+| Excel-Import ([`lager/page.js`](../lager/page.js)) | Suffix `-2`/`-3` | unverändert — dort ist Umbenennen richtig |
 
-Der Neu-Zweig in [`js/store.js:1443`](../js/store.js) generiert nur dann eine Nummer, wenn das
-Feld **leer** ist; ein ausgefülltes Feld geht ungeprüft durch. Gemessen mit dem echten
-Quelltext (gleiches Extraktionsmuster wie `test/test-artikelnummer-eigene.js`):
+`savePurchase` fängt Duplikate nur im Edit-Zweig ab; sein Neu-Zweig generiert eine Nummer **nur
+bei leerem Feld** und ließ eine ausgefüllte, bereits vergebene durch. Die Prüfung sitzt jetzt in
+der UI, vor dem Sperren des Speichern-Buttons — bei einem Treffer wird nichts geschrieben.
 
-```
-A Bearbeiten   -> p2.artikelNr = 2026-001 | Duplikat entstanden? false
-B Neu anlegen  -> Anzahl mit SV-1042 = 2  | Duplikat entstanden? true
-```
+**Warum das nicht kosmetisch war:** der Verkäufe-Import ordnet über die Nummer zu und baut dafür
+`artNrMap[nr] = p` — bei einer Dublette **gewinnt der zuletzt angelegte**. Der Verkauf hing dann
+am falschen Einkaufspreis, was §25a-Marge und EÜR verfälscht.
 
-Am 2026-09-01 zusätzlich **live bestätigt**: in der Testfirma lagen nach dem Durchklick zwei
-Artikel `DUP-TEST-1` mit verschiedenen IDs nebeneinander.
-
-**Warum das nicht kosmetisch ist:** der Verkäufe-Import ordnet Artikel über die Nummer zu und
-baut dafür `artNrMap[nr] = p` ([`lager/page.js:2508`](../lager/page.js)) — bei einer Dublette
-**gewinnt der zuletzt angelegte**. Der Verkauf hängt dann am falschen Einkaufspreis, und damit
-stimmen §25a-Marge und EÜR nicht mehr.
-
-Zu tun: Prüfung in beide Anlege-Wege ziehen und **mit sichtbarer Fehlermeldung** abweisen —
-auch im Bearbeiten-Weg, wo die Ablehnung heute stumm passiert (Kategorie U7). Regressionstest
-gehört in `test/test-artikelnummer-eigene.js`, das den Neu-Weg bisher nicht abdeckt.
-
-> Der Kommentar über `isArtikelNrTaken` ([`js/store.js:1403`](../js/store.js)) behauptet, die
-> Funktion werde „von der Bearbeiten-Maske (Vorab-Prüfung mit Fehlermeldung)" genutzt. Diese
-> Vorab-Prüfung existiert nicht. Beim Fix mit korrigieren.
-
-### 1.4 §25a: Retouren-Korrektur verpufft in der Standardmethode
-
-`margeEinzeldifferenz()` ([`js/steuer-berechnung.js:107`](../js/steuer-berechnung.js)) liest nur
-`verkaufspreis` und `einkaufspreis`. Das Feld `margeKorrektur`, das
-[`js/ustvoranmeldung.js:127`](../js/ustvoranmeldung.js) und `:223` für Retoure und Gutschrift
-nach §17 UStG erzeugen, kommt in der Funktion **nicht vor** — der Eintrag trägt
-`max(0, 0−0) = 0` bei und die Korrektur verschwindet. Gemessen:
+Gegenprobe am 2026-09-03 auf Produktion, in der Firma „Test":
 
 ```
-Einzeldifferenz nur Verkauf    : margeBrutto 50,00  ust 7,98
-Einzeldifferenz + volle Retoure: margeBrutto 50,00  ust 7,98   <- unverändert
-Gesamtdifferenz + volle Retoure: bemessungsgrundlage 0,00      <- korrekt
+Duplikat SV-1042      -> 7 Artikel vorher, 7 nachher, Toast „bereits vergeben", Fokus im Feld
+freie Nummer          -> 7 vorher, 8 nachher, Dialog schließt normal
 ```
 
-Das ist das Symptom „Bemessungsgrundlage blieb bei 50 statt 0" vom 2026-08-09: in der
-Gesamtdifferenz behoben, in der **Default-Methode** (`differenzMethode` = `'einzel'`) nicht.
-Folge ist eine **Übersteuerung** — der Nutzer zahlt USt auf eine Marge, die er zurückerstattet
-hat.
+`test/test-artikelnummer-eigene.js` von 23 auf 32 Checks erweitert (Abschnitt D), inklusive
+Quelltext-Prüfung, damit ein späterer Umbau die Prüfstellen nicht still entfernt.
 
-Zu tun: `margeKorrektur` in `margeEinzeldifferenz()` berücksichtigen, ohne den Floor pro
-Position aufzugeben — die Korrektur gehört auf **ihre eigene** Position verrechnet, nicht in
-eine Gesamtsumme. Regressionstest ergänzen; es gibt bisher keinen `test/`-Harness für §25a.
+> **Korrektur an der ursprünglichen Fundmeldung vom 2026-09-01.** Dort stand,
+> `isArtikelNrTaken()` werde „repo-weit an genau einer Stelle" aufgerufen und die
+> Bearbeiten-Maske lehne **stumm** ab. Beides war falsch: die Suche hatte `js/lager.js` nicht
+> erfasst. Der Bearbeiten-Dialog hat die Vorab-Prüfung mit Fehlermeldung seit je, und der
+> Kommentar in [`js/store.js`](../js/store.js), der auf sie verweist, stimmt — er wurde
+> **nicht** geändert. Der eigentliche Fund (die beiden Anlege-Wege) bestand unabhängig davon.
 
-> [`session-prompt-live-test-5-lager-2026-08-30.md`](session-prompt-live-test-5-lager-2026-08-30.md)
-> führt das als „bekannte, bewusste Grenze — kein Fund" und verweist auf
-> [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md). Beides trägt nicht: der Floor verbietet
-> Verrechnung **zwischen** Positionen, hier wird dieselbe Position zurückgenommen — und
-> `02-ENTSCHEIDUNGEN.md` erwähnt §25a auf seinen 444 Zeilen nirgends. Wer den Punkt trotzdem
-> als Nicht-Fehler einstuft, sollte das dort begründet eintragen, statt auf einen Eintrag zu
-> verweisen, den es nicht gibt.
+### 1.4 §25a: Retouren-Korrektur verpuffte in der Standardmethode · ✅ erledigt 2026-09-03 (`dddea9d`)
+
+`margeEinzeldifferenz()` las nur `verkaufspreis`/`einkaufspreis`. Die `margeKorrektur`, die
+[`js/ustvoranmeldung.js`](../js/ustvoranmeldung.js) für Retoure und Gutschrift nach §17 UStG
+erzeugt, trug damit `max(0, 0−0) = 0` bei und verschwand: nach einer vollen Retoure blieb die
+ursprünglich versteuerte Marge in Kz. 81 stehen, obwohl der Kunde sein Geld zurück hatte —
+**Übersteuerung**. Nur die Standardmethode war betroffen; die Gesamtdifferenz summiert flach und
+rechnete richtig.
+
+Die Korrektur wird jetzt über einen gemeinsamen Schlüssel — die verknüpften Lagerartikel — gegen
+genau die Position verrechnet, zu der sie gehört, und zwar **vor** dem Floor. Der Floor bei 0
+wirkt unverändert **pro Position**: eine überschießende Retoure drückt die Marge einer anderen
+Position nicht, §25a Abs. 3 bleibt gewahrt.
+
+Gegenprobe gegen die **ausgelieferte** Datei (`curl` auf Produktion, nicht der Working Tree):
+
+```
+nur Verkauf     : margeBrutto 50,00  ust 7,98
++ volle Retoure : margeBrutto  0,00  ust 0,00
++ halbe Retoure : margeBrutto 25,00  ust 3,99
+```
+
+**Zweiter Fehler in derselben Ecke, mitgefixt:** bei Gesamtdifferenz landete die Korrektur eines
+Artikels über 750 € im Gesamttopf, in dem der Artikel selbst gar nicht steckt. Das senkte die
+Gesamtdifferenz zu Unrecht **und** ließ den Artikel seine volle Marge behalten. Korrekturen
+folgen jetzt ihrer Position in den richtigen Topf.
+
+`test/test-25a-retoure-marge.js` ist neu (13 Checks) — es gab bis dahin keinen §25a-Harness.
+
+> **Bleibende Grenze, kein Fehler:** findet eine Korrektur in der Periode keine passende Position
+> (Verkauf in Q1, Retoure in Q2), läuft sie gegen 0 und bleibt wirkungslos. Die Einzeldifferenz
+> kennt anders als die Gesamtdifferenz keinen Vortrag (§25a Abs. 4 UStG), in den ein
+> Negativbetrag wandern könnte. Im Code kommentiert.
+
+> **Zur Einordnung im Session-Prompt.** [`session-prompt-live-test-5-lager-2026-08-30.md`](session-prompt-live-test-5-lager-2026-08-30.md)
+> führte den Punkt als „bekannte, bewusste Grenze — kein Fund" und verwies auf
+> [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md). Der Verweis ging ins Leere: einen §25a-Eintrag
+> gab es dort am 2026-09-01 nicht — der [heutige](02-ENTSCHEIDUNGEN.md) stammt aus einer anderen
+> Session und behandelt den **Steuersatz**, nicht die Korrektur. Der Floor verbietet Verrechnung
+> **zwischen** Positionen; hier wurde dieselbe Position nach §17 UStG zurückgenommen.
 
 ### 1.5 Abgebrochene Rechnung lässt Lagerartikel als „verkauft" zurück
 

@@ -8,7 +8,10 @@
 > Bauhaus-Bon: **2 von 3**, und der Fehltreffer ist ausgerechnet die Bruttosumme
 > (`785,90` statt `85,90`). Fund, Rohtext-Befund und ein Fixvorschlag stehen unten bei Punkt 7;
 > die Entscheidung über die Regeländerung steht noch aus.
-> Die Punkte 1–5 warten weiter auf dich.
+> **Punkt 1 (Excel-Import) ist am 2026-09-03 gemessen** — ebenfalls ohne Login: der Import
+> hängt an SheetJS, nicht am Gate. Vier Funde an einer echten Datei, zwei davon still
+> (ein Tippfehler im Blattnamen und ein Toast, der eine Null verschweigt). Steht unten bei
+> Punkt 1. **Die Punkte 2–5 warten weiter auf dich.**
 
 Sieben Funktionen sind gebaut, committet und statisch geprüft, aber nie unter echten Bedingungen
 gelaufen. Fünf davon brauchen einen **echten Whop-Login** — deshalb einmal anmelden und dann
@@ -52,17 +55,145 @@ Cache-Bust und neuer Tab liefern trotzdem alten Code.
 
 Der Datentransfer steht vorn, weil alles Weitere auf vorhandenen Daten aufbaut.
 
-### 1. Excel-Import mit einer echten Datei · ~15 Min
+### 1. Excel-Import mit einer echten Datei · ⚠️ gemessen 2026-09-03 — **4 Funde, 2 davon still**
 
 Nimm eine echte Datei, keine erfundene — der Sinn des Tests ist gerade, dass echte Dateien
 unsauberer sind.
 
-- [ ] Buchungen-Import: Zeilenzahl in der Datei = Zeilenzahl in der App?
-- [ ] Lager-Import: Erkennt er sowohl das 3-Sheet-Template als auch eine flache
-      1-Zeile-pro-Artikel-Tabelle?
-- [ ] Umlaute in Artikelbezeichnungen korrekt?
-- [ ] Beträge mit deutschem Dezimalkomma korrekt eingelesen (nicht Faktor 100 daneben)?
-- [ ] Ein Datum am Monatsersten und -letzten stichprobenhaft gegen die Quelle prüfen
+**Gelaufen an `Umsätze.Vinted.2025.xlsx`** (die echte Datei hinter der ESt-Abgabe 2025:
+15.203 / 12.188,10 / 3.014,90). Sechs Blätter — `ANLEITUNG | Einkaeufe | Verkaeufe |
+Kassenbuch | EÜR | Vorlagen`, 189 Einkaufs- und 338 Verkaufszeilen.
+
+> **Ohne Login und ohne Produktion gemessen.** Der Import hängt an SheetJS und den zwei
+> Parse-Pfaden, nicht am Gate. Ein Node-Harness lädt `js/vendor/xlsx.full.min.js` und schneidet
+> `_autoDetect` / `_findHeaderRow` / `_parseDate` **im Wortlaut aus `lager/page.js`** heraus
+> (dynamisch gesucht, nicht nach Zeilennummer — die verschob sich während des Laufs um 32
+> Zeilen durch eine Parallel-Session). Nur das Spalten-Mapping aus `js/app.js` ist
+> **nachgebildet**, weil es inline in einem DOM-Handler steht und sich nicht schneiden lässt;
+> die Fundstelle ist [`js/app.js:2606`](../js/app.js) ff. Harness im Scratchpad.
+>
+> **Was das nicht abdeckt:** den Klickweg. Dateiauswahl, Toast, Mapping-Dialog und der
+> tatsächliche Schreibvorgang in den Store sind nicht durchgeklickt. Die Zahlen unten sind
+> Parser-Ergebnisse, keine Store-Stände. Die 527 Datensätze absichtlich **nicht** in die
+> Produktions-App geschrieben.
+
+- [x] **Buchungen-Import: Zeilenzahl in der Datei = Zeilenzahl in der App?** ❌
+      **189 Einkäufe in der Datei → 29 in der App.** 160 nicht-leere Zeilen fallen weg und
+      werden als „leere Zeilen“ gemeldet. Verkäufe: 338 → **0** (Fund 1).
+- [x] **Lager-Import: 3-Sheet-Template und flache Tabelle?** ❌ Beides nicht — er kommt an
+      den Daten gar nicht an (Fund 4).
+- [x] **Umlaute korrekt?** ✅ Sauber durch, an der echten Datei: `Weiß`, `Gebühren`, `EÜR`,
+      `Umsätze` im Dateinamen. Kein Fund.
+- [x] **Beträge mit deutschem Dezimalkomma (nicht Faktor 100 daneben)?** ⚠️ Kein Faktor-100-
+      Fehler. Aber `parseNum` macht `String(v).replace(',', '.')` — **ein String-Argument
+      ersetzt nur das erste Vorkommen**. Gemessen: `"80,50"→80.5` ✅, `"1234,56"→1234.56` ✅,
+      **`"1.234,56"→1.234`** ❌ — Faktor **1000 nach unten**. In dieser Datei nicht ausgelöst,
+      weil die Beträge numerische Zellen sind; erreichbar wird es über Textzellen, und genau
+      die lädt die eigene Vorlage ein („Preise mit Punkt ODER Komma — beides wird erkannt“,
+      [`js/app.js:2545`](../js/app.js)). `.replace(/\./g,'').replace(',','.')` wäre der Fix,
+      aber nur nach Klärung, was mit `"80.50"` passieren soll.
+- [x] **Ein Datum am Monatsersten und -letzten gegen die Quelle prüfen** ❌ Nicht prüfbar:
+      **alle** Datumswerte kommen als **heutiges Datum** an (Fund 2).
+
+> **Fund 1 — der Blattname `Verkaeufe` wird nie gefunden. Ein Tippfehler.**
+> [`js/app.js:2634`](../js/app.js) sucht die Verkäufe so:
+>
+> ```js
+> const wsV = wb.Sheets['Verkäufe'] || wb.Sheets['Verkauefe'] || wb.Sheets['verkauf'] || wb.Sheets['Verkauf'];
+> ```
+>
+> `Verkäufe` ohne Umlaut heißt **`Verkaeufe`** — im Code steht **`Verkauefe`**, u und e
+> vertauscht. Die Einkaufszeile direkt darüber (`:2606`) transliteriert `Einkäufe → Einkaeufe`
+> **richtig**; genau diese Asymmetrie macht es zum Tippfehler und nicht zu einer Absicht.
+>
+> Der Haupt-Pfad ist nicht betroffen: die mitgelieferte Vorlage
+> ([`js/app.js:2509`](../js/app.js)) benennt ihre Blätter **mit** Umlaut, und `'Verkäufe'`
+> steht als erste Alternative da. Der ASCII-Name ist der Ausweichpfad für Dateien, die den
+> Umlaut unterwegs verloren haben — und der trägt nur zur Hälfte.
+>
+> **Warum das schlimmer ist als ein glatter Fehlschlag:** die Einkäufe kommen an, die Verkäufe
+> nicht. Eine **halbe** Übernahme sieht aus wie eine gelungene. Wer sie nicht nachzählt, führt
+> eine EÜR mit Ausgaben ohne die zugehörigen Einnahmen.
+
+> **Fund 2 — die stille Null im Abschluss-Toast.** Die Meldung wird so gebaut:
+>
+> ```js
+> const msg = [ importedEinkauf > 0 ? `${importedEinkauf} Einkäufe` : '', … ].filter(Boolean).join(', ') || '0 Datensätze';
+> ```
+>
+> `.filter(Boolean)` wirft eine Null **komplett heraus**, statt sie als „0 Verkäufe“
+> anzuzeigen. Gemessener Toast für diese Datei:
+>
+> ```
+> Import abgeschlossen: 29 Einkäufe (972 leere Zeilen übersprungen)
+> ```
+>
+> Das Wort „Verkäufe“ kommt darin nicht vor. Der Nutzer erfährt nicht, dass 338 Verkäufe
+> weggefallen sind — er erfährt nicht einmal, dass es um Verkäufe ging. Zusammen mit Fund 1
+> ergibt das den unangenehmsten Fall: **ein grüner Haken auf einem halben Import.**
+>
+> Dass die Klammer „972 leere Zeilen übersprungen“ sagt, macht es schlimmer statt besser:
+> **160 dieser Zeilen sind nicht leer**, sondern echte Einkäufe. Die Meldung behauptet also
+> aktiv das Gegenteil des Vorgefallenen.
+
+> **Fund 3 — die Kopfzeile wird nie geprüft.** Nach dem Blattnamen-Treffer liest der Import
+> stur nach Spaltenindex (`r[0]`, `r[1]`, …) und wirft die Kopfzeile mit `rows.slice(1)` weg.
+> Trifft der Blattname, passt aber die Spaltenfolge nicht, entsteht **stiller Unsinn mit
+> Erfolgsmeldung**. Gemessen an dieser Datei:
+>
+> | Spalte in der Datei | landet in der App als |
+> |---|---|
+> | `Belegnummer (E-###)` (leer) | `datum` → Rückfall auf **heute** |
+> | `Datum` | `marke` |
+> | `Plattform / Ort` (`Vinted`) | `artikeltyp` |
+> | `Artikel / Beschreibung` | `groesse` |
+> | `Farbe` (`Weiß`) | `beschreibung` |
+> | `Betrag (€)` | `einkaufspreis` ✅ (zufällig richtig) |
+> | `Versand / Gebühren (€)` (`3,29`) | `anzahl` → `parseInt` → **3 Stück** |
+> | `Zoll / EUSt (€)` (`/`) | `einkaufsquelle` → **`/`** |
+>
+> Ein echter Datensatz nach dem Import:
+> `{"datum":"2026-09-03","marke":"","artikeltyp":"Vinted","groesse":"Adidas Trainingsjacke XL","beschreibung":"Blau","einkaufspreis":12,"anzahl":3,"einkaufsquelle":"/"}`
+>
+> Auch die **Abbruchbedingung** hängt an dieser Verschiebung: übersprungen wird, wenn `r[1]`
+> **und** `r[4]` leer sind — in dieser Datei also „kein Datum **und** keine Farbe“. Daher die
+> 160 verlorenen Einkäufe: ihnen fehlte schlicht die Farbangabe.
+>
+> Und die Zeilenzahl allein hätte den Fehler **nicht** gezeigt: hebt man Fund 1 auf, importiert
+> das Blatt `Verkaeufe` **338 von 338** Zeilen — die Zählprobe der Checkliste steht auf „grün“,
+> während die Summe der Verkaufspreise bei **0,00 €** statt 15.203 € liegt (`r[5]` zeigt auf
+> `Gewinn (€)`, und die Spalte ist leer). **Die Zeilenzahl ist als Prüfkriterium zu schwach;
+> es braucht eine Summenprobe.**
+>
+> ⚠️ **Fairness:** Diese Datei ist *nicht* Stackrs Vorlage, sondern eine eigene Vinted-Tabelle.
+> „Falsche Spalten rein → Unsinn raus“ ist insofern erwartbar. Der Fund ist **nicht**, dass die
+> Zuordnung danebenliegt, sondern dass niemand sie prüft: ein Abgleich der Kopfzeile gegen die
+> erwarteten Namen würde hier abbrechen statt zu importieren.
+
+> **Fund 4 — der Lager-Import nimmt immer das erste Blatt, und es gibt keine Auswahl.**
+> [`lager/page.js:1865`](../lager/page.js) (und `:2359`, sowie
+> [`js/buchungen.js:1640`](../js/buchungen.js)) greifen fest auf `wb.SheetNames[0]`. Bei dieser
+> Datei ist das Blatt 0 die **`ANLEITUNG`**. Gemessen:
+>
+> ```
+> genommen wird : SheetNames[0] = "ANLEITUNG"
+> _findHeaderRow: 0 -> ["Anleitung (einfach erklärt)"]
+> Toast         : "✅ 17 Zeilen geladen aus ANLEITUNG"
+> _autoDetect   : {}   (keine einzige Spalte zugeordnet)
+> ```
+>
+> Der Nutzer bekommt einen **grünen Erfolgs-Toast über 17 importierbare Zeilen Fließtext**,
+> und der Mapping-Dialog öffnet sich mit einer einzigen Spalte und leerer Zuordnung. Der
+> Blattname steht immerhin im Toast — das ist die einzige Chance, es zu merken.
+>
+> Beide Vorlagen der App sind mehrblättrig (die eigene hat vier Blätter). **Ein
+> Blatt-Auswahlfeld fehlt**, und `_findHeaderRow` kann das nicht auffangen: es sucht die
+> Kopfzeile *innerhalb* eines Blattes, nicht das richtige Blatt.
+
+**Nicht gefixt, nur festgehalten** — so wie es unten unter „Wenn etwas schiefgeht“ steht.
+Fund 1 ist ein Zeichen, Fund 2 zwei Zeilen; beide liegen in `js/app.js`, das gerade frei ist.
+Fund 3 und 4 sind Produktentscheidungen (abweisen statt importieren? Blattauswahl?) und
+gehören nicht in eine Testsitzung.
 
 ### 2. Cloud-Sync mit zwei echten Profilen · ~30 Min
 

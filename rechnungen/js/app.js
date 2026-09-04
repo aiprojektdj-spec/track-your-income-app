@@ -86,6 +86,25 @@ var RechApp = (function() {
 
     function markClean() { _formDirty = false; }
 
+    // Verlassen-Haken: eine Seite kann eine Aufraeumfunktion hinterlegen, die laeuft, wenn der
+    // Nutzer sie verlaesst, OHNE ueber "Abbrechen" oder "Speichern" zu gehen. Gebraucht fuer die
+    // Lager-Verknuepfungen der Rechnungsmaske: die schreiben sofort in den Store, obwohl die
+    // Rechnung noch gar nicht gespeichert ist — wer einfach wegnavigiert, liess den Artikel als
+    // verkauft zurueck, ohne dass ihm ein Umsatz gegenuebersteht (01-AUFGABEN.md 1.5).
+    // Nur EIN Haken: es ist immer genau eine Seite offen.
+    var _leaveHook = null;
+    function onLeave(fn) { _leaveHook = fn || null; }
+    function _runLeaveHook() {
+        if (!_leaveHook) return;
+        var fn = _leaveHook;
+        _leaveHook = null;   // vor dem Aufruf loeschen, damit ein navigate() darin nicht erneut ausloest
+        try { fn(); } catch (e) { /* Aufraeumen darf das Navigieren nie blockieren */ }
+    }
+    // Tab schliessen / Reload / Sprung aus der Rechnungs-App heraus (Top-Nav ist ein echter
+    // Seitenwechsel, kein navigate()). Best effort: der Store schreibt synchron in den Cache und
+    // den localStorage-Spiegel, die IndexedDB-Spiegelung kann dabei verloren gehen.
+    window.addEventListener('beforeunload', _runLeaveHook);
+
     function navigate(page, params) {
         params = params || {};
 
@@ -93,6 +112,8 @@ var RechApp = (function() {
             if (!confirm('Du hast ungespeicherte Eingaben. Seite trotzdem verlassen?')) return;
         }
         _formDirty = false;
+        // Erst NACH der Rueckfrage: bleibt der Nutzer auf der Seite, darf nichts aufgeraeumt werden.
+        if (page !== currentPage) _runLeaveHook();
 
         currentPage = page;
         currentParams = params;
@@ -404,6 +425,7 @@ var RechApp = (function() {
         showModal: showModal,
         closeModal: closeModal,
         markClean: markClean,
+        onLeave: onLeave,
         mount: mount
     };
 })();

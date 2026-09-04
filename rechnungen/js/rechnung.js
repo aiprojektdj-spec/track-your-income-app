@@ -326,7 +326,7 @@ var Rechnung = (function() {
         html += '<label style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:400;white-space:nowrap;">';
         html += '<input type="checkbox" class="pos-diff25a" data-idx="' + idx + '"' + (pos.differenzbesteuert ? ' checked' : '') + '> Diff.';
         html += '</label>';
-        html += '<select class="form-select pos-warenart" data-idx="' + idx + '" aria-label="Warenart (§25a)" title="v1 rechnet pauschal 19% USt auf die Marge. Bei Kunst/Sammlerstücken kann §25a Abs. 3 UStG i.V.m. Anlage 2 UStG auch 7% vorsehen — im Zweifel Steuerberater konsultieren." style="display:' + (pos.differenzbesteuert ? '' : 'none') + ';font-size:11px;margin-top:2px;">';
+        html += '<select class="form-select pos-warenart" data-idx="' + idx + '" aria-label="Warenart (§25a)" title="Die Marge wird immer mit 19% versteuert (§25a Abs. 5 Satz 1 UStG schreibt den allgemeinen Steuersatz vor); der ermäßigte Satz auf Kunst und Sammlungsstücke gilt nur bei Regelbesteuerung, nie auf die Differenz. Die Warenart bestimmt die Pflichtangabe nach §14a Abs. 6 UStG auf der Rechnung." style="display:' + (pos.differenzbesteuert ? '' : 'none') + ';font-size:11px;margin-top:2px;">';
         html += '<option value="gebraucht"' + (pos.warenart === 'gebraucht' ? ' selected' : '') + '>Gebrauchtgeg.</option>';
         html += '<option value="kunst"' + (pos.warenart === 'kunst' ? ' selected' : '') + '>Kunstgeg.</option>';
         html += '<option value="sammlerstueck"' + (pos.warenart === 'sammlerstueck' ? ' selected' : '') + '>Sammlerst./Antiq.</option>';
@@ -688,6 +688,11 @@ var Rechnung = (function() {
         autoGenerateNumber();
         updateSummen();
 
+        // Wer die Maske verlaesst, ohne zu speichern oder abzubrechen (Sidebar-Klick, Top-Nav,
+        // Tab zu), soll die Lager-Markierungen nicht stehen lassen — sonst ist der Artikel als
+        // verkauft aus dem Bestand, ohne dass es die Rechnung dazu gibt (01-AUFGABEN.md 1.5).
+        if (RechApp.onLeave) RechApp.onLeave(reconcileLagerOnCancel);
+
         document.getElementById('invTyp').addEventListener('change', function() {
             currentTyp = this.value;
             autoGenerateNumber();
@@ -793,6 +798,7 @@ var Rechnung = (function() {
         document.getElementById('invCancel').addEventListener('click', function() {
             if (!confirm('Eingaben verwerfen und zurück zu den Dokumenten?')) return;
             reconcileLagerOnCancel();
+            if (RechApp.onLeave) RechApp.onLeave(null); // schon aufgeraeumt, nicht doppelt
             if (RechApp.markClean) RechApp.markClean();
             RechApp.navigate('dokumente');
         });
@@ -1157,6 +1163,10 @@ var Rechnung = (function() {
                 RechApp.navigate('dokumente');
                 return;
             }
+            // Ab hier sind die Verknuepfungen Teil einer gespeicherten Rechnung — nicht mehr
+            // zurueckrollen. Beim gesperrten Dokument oben bleibt der Haken bewusst stehen:
+            // dort wurde nichts gespeichert, der Zustand entspricht dem Abbrechen.
+            if (RechApp.onLeave) RechApp.onLeave(null);
             Utils.showToast('Dokument gespeichert!', 'success');
             RechApp.navigate('dokumente');
         } finally {
@@ -1382,7 +1392,7 @@ var Rechnung = (function() {
         }
 
         // \u00A725a UStG Differenzbesteuerung \u2014 Pflichthinweis, sobald mind. eine Position betroffen ist.
-        // Je Warenart eigener Pflichttext (\u00A725a Abs. 2/3 UStG); mehrere Warenarten auf einer
+        // Je Warenart eigener Pflichttext (\u00A714a Abs. 6 UStG); mehrere Warenarten auf einer
         // Rechnung \u2192 alle zutreffenden Texte anzeigen.
         var diff25aWarenarten = Array.from(new Set((inv.positionen || []).filter(function(p) { return p.differenzbesteuert; }).map(function(p) { return p.warenart || 'gebraucht'; })));
         if (diff25aWarenarten.length) {

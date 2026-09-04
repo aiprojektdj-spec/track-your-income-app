@@ -215,8 +215,8 @@ bleibt keine echte Summenzeile übrig, greift wie bisher der Rückfall.
 **Drei weitere Fehler der Betragsregel sind am 2026-08-30 bestätigt** — Summenzeile mit Umbruch,
 verlorenes Minus bei Retouren, Uhrzeit mit Punkt. Alle drei sitzen im Rückfallpfad und irren
 ebenfalls nach oben; die Gegenprobe fängt keinen davon. Reproduktion und Lösungsrichtungen in
-[`funde-betragsregel-2026-08-30.md`](funde-betragsregel-2026-08-30.md). **Zwei davon sind am
-2026-09-03 geschlossen, siehe 5c; Fund 1 ist offen geblieben.**
+[`funde-betragsregel-2026-08-30.md`](funde-betragsregel-2026-08-30.md). **Alle drei sind
+inzwischen geschlossen: Fund 2 und 3 am 2026-09-03 (5c), Fund 1 am 2026-09-04 (5e).**
 
 ### 5c. Was kein Betrag ist: Vorzeichen und Uhrzeit — nachgetragen 2026-09-03
 
@@ -306,6 +306,55 @@ einfach und trotzdem falsch: `3 250,00` — Menge und Preis in zwei Spalten, auf
 würde dann zu `3250,00`. Die heutige Lesart irrt **nach unten**, die Reparatur würde **nach oben**
 irren, und das ist die teure Richtung. Ohne einen Weg, beide Fälle zu unterscheiden, bleibt es
 wie es ist.
+
+### 5e. Zahlungszeilen gehören nicht in den Rückfall — nachgetragen 2026-09-04
+
+Fund 1, der letzte der drei und laut Fundliste „der teuerste": auf schmalen Thermobons bricht
+die Summenzeile um.
+
+```
+2 x Kaffee      7,98
+SUMME
+        12,47          ← der Betrag steht eine Zeile tiefer
+Geg. BAR  20,00
+Rueck      7,53
+```
+
+`ausSummenzeilen` bleibt leer, weil die `SUMME`-Zeile selbst keinen Betrag trägt; es fällt auf
+„größter Betrag" zurück, und **das hingelegte Bargeld ist fast immer größer als die Summe**.
+Ergebnis `20,00` statt `12,47` — und ausgerechnet der Fall, für den die Summenregel gebaut wurde,
+war damit ausgehebelt.
+
+**Gelöst, ohne die Folgezeile zu raten.** Die Fundliste schlug vor, eine Summenzeile ohne eigenen
+Betrag mit den nächsten ein bis zwei Zeilen zusammenzulesen — das wäre eine Regel, die *rät*,
+welcher Betrag gemeint war, und sie wartete deshalb auf mehr gemessene Bons. Der Ausweg ist
+derselbe wie bei Rabatt und Zwischensumme: **sagen, was ohnehin nie der Rechnungsbetrag ist.**
+Gegebenes Bargeld und Rückgeld fliegen aus dem Rückfallpool, und der größte verbleibende Betrag
+ist dann von selbst der richtige. Kein Zusammenlesen, keine Positionsannahme, keine neue Frage an
+die Daten.
+
+**Nur Bargeld-Wörter, und das ist der heikle Teil.** `EC`, `Karte` und `Betrag` gehören
+ausdrücklich **nicht** dazu: auf einem Kartenbon steht dort der richtige Endbetrag — auf dem
+gemessenen Bauhaus-Bon als `Betrag EUR 85,90`, und die Konsens-Gegenprobe stützt sich genau
+darauf. Ein pauschaler Ausschluss aller Zahlungszeilen hätte dort geschadet; die Fundliste hatte
+davor gewarnt.
+
+Ausgeschlossen wird: `Geg.`, `Gegeben`, `BAR`, `Barzahlung`, `Bargeld`, `Rückgeld`,
+`Wechselgeld`, `Rück`, `Zurück`. Vier Gegenproben stehen im Test, weil die Wortgrenzen hier eng
+sein müssen:
+
+| Zeile | bleibt im Pool, weil |
+|---|---|
+| `Zahlung bargeldlos 89,50` | `bargeld` mit ausdrücklichem Nein zu `bargeldlos` — das steht auf **Karten**bons |
+| `Rucksack 49,99` | `Ruck` ist nicht `Rück` |
+| `Rueckenlehne 199,00` | keine Wortgrenze hinter `Rueck` |
+| `Cocktail Bar Nachtschwalbe` / `Longdrink 12,50` | ein Lokal darf „Bar" heißen |
+
+**Wenn nichts übrig bleibt, gilt wieder die volle Liste.** Steht der einzige Betrag eines Bons
+auf einer Bar-Zeile, ist ein womöglich unscharfer Vorschlag besser als keiner — anders als beim
+Vorzeichen (5c) droht hier kein Richtungsfehler, nur ein ungenauer Wert. Die Konsens-Gegenprobe
+bekommt weiterhin **alle** Beträge, denn sie zählt Zeugen: gerade die Zahlungszeile wiederholt
+den Endbetrag oft.
 
 ## 6. Ladeverhalten
 

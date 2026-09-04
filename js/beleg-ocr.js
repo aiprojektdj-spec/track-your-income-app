@@ -242,8 +242,23 @@ var BelegOCR = (function () {
         return { wert: bester.wert, roh: bester.roh, korrigiertVon: gewinner.roh };
     }
 
+    // Zeilen, die zeigen, WIE gezahlt wurde — nicht, was der Beleg gekostet hat. Das
+    // hingelegte Bargeld ist fast immer groesser als die Summe und gewinnt deshalb den
+    // Rueckfall; das Rueckgeld ist kleiner und kann ihn ebenfalls verfaelschen.
+    //
+    // Bewusst NUR Bargeld-Woerter. "EC", "Karte" und "Betrag" gehoeren ausdruecklich NICHT
+    // hierher: auf einem Kartenbon steht dort der richtige Endbetrag — auf dem gemessenen
+    // Bauhaus-Bon als "Betrag EUR 85,90", und die Konsens-Gegenprobe stuetzt sich genau
+    // darauf. Ein pauschaler Ausschluss aller Zahlungszeilen wuerde dort schaden.
+    //
+    // "bargeld" mit ausdruecklichem Nein zu "bargeldlos": das steht auf Kartenbons, und dort
+    // traegt die Zeile den richtigen Betrag. Ein Wort, das seine eigene Verneinung enthaelt,
+    // ist die Sorte Falle, die man einmal einbaut und nie wiederfindet.
+    var RE_ZAHLUNGSZEILE = /geg\.|gegeben|barzahlung|bargeld(?!los)|\bbar\b|r(?:ue|ü)ckgeld|wechselgeld|r(?:ue|ü)ck\b|zur(?:ue|ü)ck/i;
+
     function findBetrag(zeilen) {
         var ausSummenzeilen = [];
+        var ohneZahlung = [];
         var alle = [];
         for (var i = 0; i < zeilen.length; i++) {
             var b = _betraegeDerZeile(zeilen[i]);
@@ -265,11 +280,22 @@ var BelegOCR = (function () {
                 for (var k = 0; k < b.length; k++) b[k].bestaetigt = true;
             }
             alle = alle.concat(b);
+            if (!RE_ZAHLUNGSZEILE.test(zeilen[i])) ohneZahlung = ohneZahlung.concat(b);
             if (RE_SUMMENZEILE.test(zeilen[i]) && !RE_ZWISCHENSUMME.test(zeilen[i])) {
                 ausSummenzeilen = ausSummenzeilen.concat(b);
             }
         }
-        var gewinner = _groesster(ausSummenzeilen.length ? ausSummenzeilen : alle);
+        // Der Rueckfall laeuft ueber die Liste OHNE Zahlungszeilen — dort und nur dort
+        // richtet das hingelegte Bargeld Schaden an. Bleibt danach nichts uebrig (ein Bon,
+        // dessen einziger Betrag auf einer Bar-Zeile steht), gilt wieder die volle Liste:
+        // ein womoeglich unscharfer Vorschlag ist immer noch besser als gar keiner, und
+        // anders als beim Vorzeichen droht hier kein Richtungsfehler.
+        //
+        // Die Konsens-Gegenprobe bekommt weiterhin `alle`: sie zaehlt, wie oft ein Betrag
+        // auf dem Bon steht, und dafuer ist jede Nennung ein Zeuge — gerade die Zahlungszeile,
+        // die den Endbetrag oft wiederholt.
+        var rueckfall = ohneZahlung.length ? ohneZahlung : alle;
+        var gewinner = _groesster(ausSummenzeilen.length ? ausSummenzeilen : rueckfall);
         return _konsensGegenprobe(gewinner, alle);
     }
 

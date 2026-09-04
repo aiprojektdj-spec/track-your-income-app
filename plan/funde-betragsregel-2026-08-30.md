@@ -1,5 +1,17 @@
-# Betragsregel: drei Fehler — gefunden 2026-08-30, zwei davon geschlossen
+# Betragsregel: drei Fehler — gefunden 2026-08-30, alle geschlossen
 
+> **Stand 2026-09-04: auch Fund 1 ist zu** — und ohne die Regel, vor der dieser Text warnt.
+> Die vorgeschlagene Lösung („Summenzeile ohne Betrag mit den nächsten Zeilen zusammenlesen")
+> hätte geraten, welcher Betrag gemeint ist. Stattdessen fliegen **gegebenes Bargeld und
+> Rückgeld aus dem Rückfallpool** — dann ist der größte verbleibende Betrag von selbst der
+> richtige. Dieselbe Bauart wie bei Rabatt und Zwischensumme: sagen, was nie der
+> Rechnungsbetrag ist, statt zu wählen, welcher es sein könnte.
+>
+> Die Warnung aus Fund 1 ist dabei befolgt: `EC`, `Karte` und `Betrag` sind **nicht**
+> ausgeschlossen, weil auf Kartenbons genau dort der richtige Endbetrag steht. Spezifikation
+> [Abschnitt 5e](ocr-belegerkennung-2026-08-12.md), elf Prüfungen dazu, darunter vier
+> Wortgrenzen-Gegenproben (`bargeldlos`, `Rucksack`, `Rueckenlehne`, ein Lokal namens „Bar").
+>
 > **Stand 2026-09-03.** Fund 2 (verlorenes Minus) und Fund 3 (Uhrzeit mit Punkt) sind behoben,
 > Spezifikation [Abschnitt 5c](ocr-belegerkennung-2026-08-12.md), Regressionstests in
 > [`test/test-beleg-ocr.js`](../test/test-beleg-ocr.js) (jetzt 67 Prüfungen).

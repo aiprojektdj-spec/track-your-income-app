@@ -503,5 +503,65 @@ check('Betragszeile gewinnt nicht (zwei Zifferngruppen)',
     OCR.findHaendler(['SF OFENSCMERST 85,90 C', 'Baecker Wolf']).wert === 'Baecker Wolf',
     JSON.stringify(OCR.findHaendler(['SF OFENSCMERST 85,90 C', 'Baecker Wolf'])));
 
+// ── 9) Zahlungszeilen gewinnen den Rueckfall nicht ──────────────────────────
+// Fund 1 aus plan/funde-betragsregel-2026-08-30.md, der letzte der drei. Auf schmalen
+// Thermobons bricht die Summenzeile um: "SUMME" steht allein, der Betrag eine Zeile
+// tiefer. Dann bleibt ausSummenzeilen leer, es faellt auf "groesster Betrag" zurueck —
+// und das hingelegte Bargeld ist fast immer groesser als die Summe.
+//
+// Geloest wird das NICHT, indem die Folgezeile geraten wird, sondern indem gesagt wird,
+// was ohnehin nie der Rechnungsbetrag ist: gegebenes Bargeld und Rueckgeld.
+console.log('\nZahlungszeilen im Rueckfall');
+
+const barbonUmbruch = OCR.extract([
+    '2 x Kaffee      7,98',
+    'SUMME',
+    '        12,47',
+    'Geg. BAR  20,00',
+    'Rueck      7,53',
+].join('\n'));
+check('umbrochene Summenzeile: Bargeld gewinnt nicht mehr',
+    barbonUmbruch.betrag.wert === 12.47, JSON.stringify(barbonUmbruch.betrag));
+
+check('Wechselgeld ebenso',
+    OCR.findBetrag(zeilen('Kiosk\nBrot 3,50\nWechselgeld 16,50')).wert === 3.50,
+    JSON.stringify(OCR.findBetrag(zeilen('Kiosk\nBrot 3,50\nWechselgeld 16,50'))));
+
+check('Bargeld-Schreibweise ebenso',
+    OCR.findBetrag(zeilen('Kiosk\nBrot 3,50\nBargeld 20,00')).wert === 3.50);
+
+// Die Ausnahmen. Kartenbons tragen den richtigen Betrag ausgerechnet auf der
+// Zahlungszeile — auf dem gemessenen Bauhaus-Bon als "Betrag EUR 85,90".
+check('Kartenbon: "Betrag EUR" bleibt drin',
+    OCR.findBetrag(zeilen('Bauhaus\nArtikel 85,90\nBetrag EUR 85,90')).wert === 85.90);
+
+check('"EC-Cash" bleibt drin',
+    OCR.findBetrag(zeilen('Markt\nEC-Cash EUR 42,00')).wert === 42.00);
+
+// "bargeldlos" steht auf Kartenbons und ist das Gegenteil einer Barzahlung.
+check('"bargeldlos" wird nicht als Barzahlung gelesen',
+    OCR.findBetrag(zeilen('Tankstelle\nDiesel 89,50\nZahlung bargeldlos 89,50')).wert === 89.50,
+    JSON.stringify(OCR.findBetrag(zeilen('Tankstelle\nDiesel 89,50\nZahlung bargeldlos 89,50'))));
+
+// Steht der einzige Betrag des Bons auf einer Bar-Zeile, waere kein Vorschlag die
+// schlechtere Antwort: anders als beim Vorzeichen droht hier kein Richtungsfehler.
+check('einziger Betrag auf einer Bar-Zeile wird trotzdem vorgeschlagen',
+    OCR.findBetrag(zeilen('Kiosk Meier\nBAR 12,47')).wert === 12.47,
+    JSON.stringify(OCR.findBetrag(zeilen('Kiosk Meier\nBAR 12,47'))));
+
+// Gegenproben gegen zu gierige Wortgrenzen.
+check('"Rucksack" ist kein Rueckgeld',
+    OCR.findBetrag(zeilen('Outdoor\nRucksack 49,99\nMuetze 9,99')).wert === 49.99);
+
+check('"Rueckenlehne" ebenso',
+    OCR.findBetrag(zeilen('Moebel\nRueckenlehne 199,00\nSchraube 2,00')).wert === 199.00);
+
+check('ein Lokal namens "Bar" verliert seinen Posten nicht',
+    OCR.findBetrag(zeilen('Cocktail Bar Nachtschwalbe\nLongdrink 12,50')).wert === 12.50,
+    JSON.stringify(OCR.findBetrag(zeilen('Cocktail Bar Nachtschwalbe\nLongdrink 12,50'))));
+
+check('erkannte Summenzeile behaelt Vorrang vor allem',
+    OCR.findBetrag(zeilen('Kiosk\nSUMME 3,50\nGeg. BAR 20,00')).wert === 3.50);
+
 console.log('\n' + pass + ' bestanden, ' + fail + ' fehlgeschlagen\n');
 process.exit(fail ? 1 : 0);

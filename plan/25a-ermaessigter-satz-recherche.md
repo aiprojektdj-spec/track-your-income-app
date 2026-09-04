@@ -54,9 +54,45 @@ Der Hinweistext unter dem Feld behauptete bis zum 2026-09-03 dasselbe Falsche wi
 auf, beim Steuerberater nach dem ermäßigten Satz zu fragen. Korrigiert — er nennt jetzt Abs. 5
 Satz 1 und die Pflichtangaben.
 
-**Offen, aber ein eigener Punkt:** Ob Stackr die Pflichtangabe aus `warenart` automatisch auf die
-Rechnung setzt, ist ungeprüft. `differenzbesteuert` taucht nur in `euer.js`, `gbr-modul.js`,
-`lager.js` und `ustvoranmeldung.js` auf — im Rechnungsweg nicht.
+**Am 2026-09-04 geprüft: die Pflichtangabe steht korrekt auf der PDF-Rechnung.**
+[`rechnungen/js/rechnung.js:1387`](../rechnungen/js/rechnung.js) sammelt die Warenarten aller
+differenzbesteuerten Positionen und gibt je Warenart den exakten Wortlaut aus; mehrere Warenarten
+auf einer Rechnung ergeben mehrere Zeilen, eine unbekannte Warenart fällt auf `gebraucht` zurück.
+Nichts zu tun.
+
+> **Korrektur an meiner eigenen Notiz vom 2026-09-03.** Dort stand, `differenzbesteuert` tauche
+> „im Rechnungsweg nirgends auf". Das war ein Fehler im Suchlauf, nicht im Code: der Grep lief nur
+> über `js/`, und das Rechnungsmodul liegt in `rechnungen/js/`. Es ist dort vollständig verdrahtet
+> — Checkbox und Warenart-Auswahl pro Position, Übernahme aus dem Lagerartikel, Pflichtangabe im
+> Ausdruck.
+
+**Dabei ein zweiter Fundort desselben Fehlers:** Der falsche 7-%-Tooltip stand ein zweites Mal am
+Warenart-Auswahlfeld der Rechnungsposition
+([`rechnungen/js/rechnung.js:329`](../rechnungen/js/rechnung.js)), wortgleich mit dem in
+`lager.js`. Ebenfalls korrigiert. Zusätzlich zitierte der Kommentar über der Pflichtangabe
+„§25a Abs. 2/3 UStG" als deren Grundlage — richtig ist §14a Abs. 6 UStG.
+
+### 1a. E-Rechnung: §25a wird als „Steuerfreier Umsatz" ausgewiesen — offen
+
+[`rechnungen/js/xrechnung.js:48`](../rechnungen/js/xrechnung.js) `taxCategoryFor()` kennt
+`pos.differenzbesteuert` nicht. Eine §25a-Position trägt `mwstSatz: null`, wird über
+`parseInt(null) || 0` zu `rate = 0` und fällt bei einem Inlandskunden durch alle Zweige bis zum
+Schluss-`return`:
+
+```js
+return { code: 'E', reasonCode: null, reason: 'Steuerfreier Umsatz' };
+```
+
+Die **Kategorie `E`** ist für die Differenzbesteuerung vertretbar — sie ist die übliche Zuordnung
+in EN 16931, unter den Regeln BR-E-1 bis BR-E-10. Falsch ist der **Begründungstext**: Ein
+differenzbesteuerter Umsatz ist nicht steuerfrei, er ist auf die Marge besteuert. Und die
+§14a-Abs.-6-Pflichtangabe, die die PDF-Rechnung korrekt trägt, fehlt der XML damit vollständig —
+obwohl BT-120 (`ExemptionReason`) genau der Ort dafür wäre.
+
+Naheliegende Behebung: in `taxCategoryFor()` vor dem Schluss-`return` auf `pos.differenzbesteuert`
+prüfen und denselben Warenart-Text setzen, den `rechnung.js` schon kennt. **Noch nicht gebaut** —
+die Datei gehörte am 2026-09-04 zum Arbeitsbereich einer parallelen Session, und XRechnung-Ausgabe
+ohne Validator-Gegenprobe zu ändern wäre leichtsinnig.
 
 ### 2. §25a Abs. 7 Nr. 1 Buchst. c — real, aber für Stackr gegenstandslos
 

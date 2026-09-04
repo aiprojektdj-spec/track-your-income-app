@@ -281,9 +281,16 @@ Ebenfalls entschieden: **kein Guard für §25a Abs. 7 Nr. 1 Buchst. c.** Der Aus
 erklären muss und das Stackr nirgends kennt. Beim Ankauf von Privatpersonen nach Abs. 1 greift er
 nicht. Wird die Abs.-2-Option je gebaut, gehört der Ausschluss zu ihr.
 
-**Nicht entschieden, weiterhin offen:** die Pauschalmarge von 30 % nach §25a Abs. 3 Satz 2 UStG
-und die Frage, ob die Pflichtangabe nach §14a Abs. 6 UStG automatisch auf der Rechnung landet.
-Beides steht in der Recherche-Datei.
+**Nachtrag 2026-09-04.** Derselbe falsche 7-%-Hinweis stand ein zweites Mal am Warenart-Feld der
+Rechnungsposition ([`rechnungen/js/rechnung.js:329`](../rechnungen/js/rechnung.js)) — korrigiert.
+Die **Pflichtangabe nach §14a Abs. 6 UStG ist auf der PDF-Rechnung korrekt umgesetzt** und damit
+kein offener Punkt mehr.
+
+**Nicht entschieden, weiterhin offen:** die Pauschalmarge von 30 % nach §25a Abs. 3 Satz 2 UStG —
+und neu die **E-Rechnung**: `taxCategoryFor()` in
+[`rechnungen/js/xrechnung.js:48`](../rechnungen/js/xrechnung.js) kennt `differenzbesteuert` nicht
+und weist §25a-Positionen als „Steuerfreier Umsatz" aus. Die Kategorie `E` ist dabei vertretbar,
+der Begründungstext nicht. Details in der Recherche-Datei.
 
 ### Der Banner ist zweistufig — die notwendige Speicherung bleibt ohne Ablehnen-Button
 

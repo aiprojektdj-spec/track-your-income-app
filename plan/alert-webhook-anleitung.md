@@ -85,8 +85,8 @@ Slack-Incoming-Webhook, weil `text` das Feld ist, das Slack erwartet:
 }
 ```
 
-**Elf Aufrufstellen in vier Endpunkten, zehn verschiedene `source:event`-Paare** (entprellt wird
-je Paar). Gegen den Code geprüft am 2026-09-02:
+**15 Aufrufstellen in fünf Endpunkten, 13 verschiedene `source:event`-Paare** (entprellt wird
+je Paar). Gegen den Code geprüft am 2026-09-04:
 
 | `source` | `event` | Bedeutung |
 |---|---|---|
@@ -98,13 +98,28 @@ je Paar). Gegen den Code geprüft am 2026-09-02:
 | `blob-upload` | `rate-limit-open` | Nutzer-Zähler nicht erreichbar |
 | `whop-access` | `ip-rate-limit-open` | Zugangs-Check ohne IP-Deckel (Redis-Fehler) |
 | `whop-access` | `rate-limit-inaktiv` | Zugangs-Check ohne IP-Deckel (Redis-Env fehlt) |
+| `whop-access` | `grace-token-aus` | `WHOP_GRACE_PRIVATE_KEY` fehlt oder ist ungültig — **kein Kunde** bekommt mehr ein Offline-Grace-Token. Fällt sonst erst auf, wenn jemand offline aus dem Gate fliegt. |
 | `whop-token` | `rate-limit-open` | Login-Endpunkt ohne IP-Deckel (Redis-Fehler) |
 | `whop-token` | `rate-limit-inaktiv` | Login-Endpunkt ohne IP-Deckel (Redis-Env fehlt) |
+| `blob-cleanup` | `cron-secret-missing` | `CRON_SECRET` nicht gesetzt — der tägliche Aufräum-Job läuft ins Leere |
+| `blob-cleanup` | `cleanup-failed` | Aufräum-Job abgebrochen — verwaiste Chunks bleiben liegen, Blob-Speicher wächst |
 
 Zwei Muster, die für Make-Filter wichtig sind: `whop-access` sendet **nie** `rate-limit-open`,
 sondern `ip-rate-limit-open`. Und `…-inaktiv` heißt „Env fehlt", `…-open` heißt „Redis antwortet
 nicht" — ein Filter auf `rate-limit-open` allein verpasst die Hälfte. Willst du nur eine Regel:
 filtere gar nicht, es sind ohnehin höchstens ein paar Meldungen pro Ausfall.
+
+**Drei Alarme melden keinen offenen Deckel, sondern fehlende Konfiguration** und treffen alle
+Kunden gleichzeitig: `sync`/`redis-env-missing` (Sync komplett aus), `whop-access`/
+`grace-token-aus` (kein Offline-Grace) und `blob-cleanup`/`cron-secret-missing`. Kommt einer davon
+direkt nach einem Deployment, ist fast immer eine Environment-Variable nicht gesetzt oder nur für
+das falsche Environment hinterlegt.
+
+**Was der Alarm bewusst nicht kann:** Er meldet fehlgeschlagene Läufe, aber keine
+*ausbleibenden*. Wird der Cron in Vercel abgeschaltet oder läuft er nie an, bleibt es still — ein
+Dead-Man-Switch bräuchte gespeicherten Zustand, und der läge in Redis, also genau in dem System,
+dessen Ausfall hier gemeldet werden soll. Wenn du Gewissheit willst, schau einmal im Monat in
+Vercel → Cron Jobs auf den letzten Lauf.
 
 ## Zwei Eigenschaften, die dich vor Ärger bewahren
 

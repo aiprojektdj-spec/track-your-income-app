@@ -251,7 +251,13 @@ module.exports = async function handler(req, res) {
 
         // Owner-Bypass: Company-Owner haben kein eigenes Abo (s. _isOwner oben).
         if (_isOwner(me)) {
-            return res.status(200).json({ has_access: true, user_id: userId, owner: true, grace_token: _signGraceToken(userId) });
+            var ownerGrace = _signGraceToken(userId);
+            // null heisst: WHOP_GRACE_PRIVATE_KEY fehlt oder das PEM ist kaputt. Folge ist
+            // still — der Client bekommt einfach kein Offline-Grace und faellt erst beim
+            // naechsten Netzausfall aus dem Gate. Grund steht im Log (s. _signGraceToken).
+            if (!ownerGrace) await alertOps('whop-access', 'grace-token-aus',
+                'WHOP_GRACE_PRIVATE_KEY fehlt oder ungueltig — niemand bekommt Offline-Grace');
+            return res.status(200).json({ has_access: true, user_id: userId, owner: true, grace_token: ownerGrace });
         }
 
         // ── 2. Zugang prüfen (Token-Weg, dann ggf. Company-Key-Fallback) ─────
@@ -260,9 +266,13 @@ module.exports = async function handler(req, res) {
         var det       = access.detail || {};
         // status/renews_at durchreichen (Fund N2). Nur wenn Zugang besteht — bei einem
         // abgelehnten Zugriff hat der Client damit nichts zu tun, und weniger ist besser.
+        var grace = hasAccess ? _signGraceToken(userId) : null;
+        // Nur melden, wenn ein Token faellig gewesen WAERE — bei fehlendem Zugang ist null korrekt.
+        if (hasAccess && !grace) await alertOps('whop-access', 'grace-token-aus',
+            'WHOP_GRACE_PRIVATE_KEY fehlt oder ungueltig — niemand bekommt Offline-Grace');
         return res.status(200).json({
             has_access: hasAccess, user_id: userId,
-            grace_token: hasAccess ? _signGraceToken(userId) : null,
+            grace_token: grace,
             status:      hasAccess ? (det.status || null) : null,
             renews_at:   hasAccess ? (det.renewsAt || null) : null
         });

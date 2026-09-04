@@ -32,9 +32,10 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Offen ist noch 1.5** (Stand 2026-09-03). Die Funde 1.3 und 1.4 aus Live-Test 5 sind gefixt
-(`dddea9d`, gepusht und auf Produktion gegengeprüft) und stehen unten als ✅ — mit dem, was sich
-beim Bauen gegenüber der ursprünglichen Fundbeschreibung als falsch herausgestellt hat.
+**Dieser Abschnitt ist wieder leer** (Stand 2026-09-04). Alle drei Funde aus Live-Test 5 sind
+gefixt und stehen unten als ✅ — jeweils mit dem, was sich beim Bauen gegenüber der
+ursprünglichen Fundbeschreibung als falsch herausgestellt hat. Das ist bei zweien von dreien
+passiert, also beim Lesen der Fundtexte einkalkulieren.
 
 ### 1.3 Doppelte Artikelnummer beim **Anlegen** · ✅ erledigt 2026-09-03 (`dddea9d`)
 
@@ -113,42 +114,46 @@ folgen jetzt ihrer Position in den richtigen Topf.
 > Session und behandelt den **Steuersatz**, nicht die Korrektur. Der Floor verbietet Verrechnung
 > **zwischen** Positionen; hier wurde dieselbe Position nach §17 UStG zurückgenommen.
 
-### 1.5 Abgebrochene Rechnung lässt Lagerartikel als „verkauft" zurück
+### 1.5 Abgebrochene Rechnung ließ Lagerartikel als „verkauft" zurück · ✅ erledigt 2026-09-04 (`69461b4`)
 
 **Live gemessen am 2026-09-01** auf Produktion, Firma „Test", beim Durchklicken von Live-Test 5,
-Punkt 2. Der eigentliche Prüfpunkt ist dabei **bestanden**: „📦 Artikel aus Lager" markiert den
-Artikel sofort beim Verknüpfen als verkauft, nicht erst bei der Zahlung, und der Gegenweg trägt
-auch — Position wieder entfernen setzt ihn auf `verfuegbar` zurück und leert `verkaufsdatum`.
+Punkt 2. Der eigentliche Prüfpunkt war dabei bestanden — der Fund lag daneben: verließ man die
+Rechnung, **ohne** die Position zu entfernen und **ohne** zu speichern, blieb die Markierung
+stehen. Der Artikel war aus Bestand und Lagerwert verschwunden, **ohne dass ihm ein Umsatz
+gegenüberstand**.
 
-**Der Fund liegt daneben:** verlässt man die Rechnung, **ohne** die Position zu entfernen und
-**ohne** zu speichern, bleibt die Markierung stehen. Gemessen nach dem Weg-Navigieren:
+> **Warum das kein Randfall war:** die §14-Sperre machte ihn wahrscheinlich. Ohne Steuernummer
+> lässt sich die Rechnung gar nicht speichern — wer sie ausprobiert, bevor die Stammdaten stehen,
+> lief zwangsläufig in genau diesen Pfad.
 
-```
-status:        verkauft
-verkaufsdatum: 2026-09-01
-Rechnungen:    0
-Verkäufe:      0
-```
+**Gebaut:** `RechApp` hat jetzt einen **Verlassen-Haken**. Die Rechnungsmaske hinterlegt in
+`init()` ihr bereits vorhandenes `reconcileLagerOnCancel`; `navigate()` ruft es beim echten
+Seitenwechsel — und zwar **nach** der Verwerfen-Rückfrage, damit nichts aufgeräumt wird, wenn der
+Nutzer doch auf der Seite bleibt. `beforeunload` deckt Tab-schließen, Reload und den Sprung über
+die Top-Nav ab, die ein echter Seitenwechsel ist und kein `navigate()`.
 
-Der Artikel ist damit aus dem Bestand verschwunden — er zählt nicht mehr unter „Verfügbar" und
-nicht mehr im Lagerwert —, **ohne dass ihm ein Umsatz gegenübersteht**. In der EÜR fehlt die
-Einnahme, im Lager fehlt die Ware. Wer es nicht zufällig bemerkt, findet den Artikel nur über
-den Status-Filter wieder und muss ihn von Hand zurücksetzen.
+Abgemeldet wird der Haken an zwei Stellen: beim **Abbrechen** (dort lief `reconcile` schon von
+Hand) und nach **erfolgreichem Speichern**, wo die Verknüpfungen zur Rechnung gehören. Beim
+**gesperrten** Dokument bleibt er bewusst stehen — dort wurde nichts gespeichert, der Zustand
+entspricht dem Abbrechen.
 
-> **Warum das kein Randfall ist:** die §14-Sperre macht ihn wahrscheinlich. Ohne Steuernummer
-> lässt sich die Rechnung **gar nicht** speichern (der Hinweis steht korrekt oben im Formular).
-> Ein neuer Nutzer, der eine Rechnung ausprobiert, bevor er seine Stammdaten gepflegt hat,
-> läuft also zwangsläufig in genau diesen Pfad: er kann nicht speichern, verlässt das Formular —
-> und hat still einen Artikel weniger im Lager. Die beiden Mechanismen sind je für sich richtig
-> und ergeben zusammen den Fehler.
+> **Verworfene Lösungsvariante.** Die ursprüngliche Fundnotiz schlug vor, beim Verknüpfen nur zu
+> **reservieren** und erst beim Speichern festzuschreiben. Das hätte nichts gebracht: `reserviert`
+> fällt an **allen** Zählstellen genauso aus dem Bestand wie `verkauft` — `js/lager.js` filtert
+> durchgehend auf `status === 'verfuegbar'` (Kennzahlen, Lagerwert, Artikel-Picker), ebenso
+> [`lager/page.js:97`](../lager/page.js). Der Artikel wäre weiterhin verschwunden, nur anders
+> beschriftet. Wer den Status-Weg später doch will, muss zuerst diese Filter auf
+> „alles außer verkauft" umstellen.
 
-**Betroffen ist in den Testdaten:** `CC-P2-1` („Session-CC Punkt2"), bewusst **nicht**
-zurückgesetzt, damit der Zustand nachvollziehbar bleibt.
+**Bleibender Rest:** ein harter Absturz (Prozess weg, kein `beforeunload`) kann die Markierung
+weiterhin stehen lassen. Der Store schreibt synchron in Cache und localStorage-Spiegel, die
+IndexedDB-Spiegelung kann dabei verloren gehen. Dagegen hülfe nur ein Reparaturlauf beim Laden
+der Lager-Seite (verkauft ohne zugehörigen Verkauf und ohne Rechnungsposition) — bewusst nicht
+gebaut, weil er eine ganze Klasse stiller Selbstheilung einführt.
 
-**Lösungsrichtung** (nicht gebaut): die Markierung erst beim Speichern der Rechnung festschreiben
-und beim Verknüpfen nur reservieren — dafür gibt es den Status `reserviert` bereits. Alternativ
-beim Verlassen eines ungespeicherten Formulars die Markierungen zurücknehmen. Die erste Variante
-ist die ehrlichere, weil sie auch den Absturz- und Tab-schließen-Fall abdeckt.
+`test/test-rechnung-lager-verlassen.js` ist neu, 14 Checks: Verdrahtung im Quelltext plus die
+Semantik von `reconcileLagerOnCancel` in allen vier Richtungen (neu verknüpft, unverändert,
+entfernt, getauscht).
 
 ### 1.0 OCR-Belegerkennung · ✅ erledigt 2026-08-27
 

@@ -17,8 +17,8 @@
 > weil das Gate lokal prinzipiell nicht aufgeht (Kasten unten). Drei Funde: die Duplikatprüfung
 > fehlte beim **Anlegen**, und die §25a-Retoure verpuffte in der Standardmethode — beide
 > inzwischen behoben (`dddea9d`) und die Korrektur an der ausgelieferten Datei nachgemessen.
-> Offen bleibt Fund 1.5: eine **abgebrochene** Rechnung lässt den Lagerartikel als „verkauft"
-> zurück, ohne Umsatz.
+> Auch Fund 1.5 ist behoben (`69461b4`): eine **abgebrochene** Rechnung ließ den Lagerartikel als
+> „verkauft" zurück, ohne Umsatz. **Alle drei Funde aus Test 5 sind damit zu.**
 > **Die Punkte 2–4 warten weiter auf dich.**
 
 Sieben Funktionen sind gebaut, committet und statisch geprüft, aber nie unter echten Bedingungen
@@ -304,7 +304,11 @@ steht bei den einzelnen Haken.
       zurück und leert das Verkaufsdatum.
       ⚠️ **Daneben ein eigener Fund:** verlässt man die Rechnung, ohne die Position zu entfernen
       und ohne zu speichern, bleibt die Markierung stehen — Ware aus dem Bestand verschwunden,
-      ohne Umsatz. Beschrieben als [`01-AUFGABEN.md`](01-AUFGABEN.md) 1.5, **noch offen**.
+      ohne Umsatz. Beschrieben als [`01-AUFGABEN.md`](01-AUFGABEN.md) 1.5, **behoben am
+      2026-09-04** (`69461b4`): `RechApp` bekam einen Verlassen-Haken, der beim Wegnavigieren,
+      bei `beforeunload` und beim Tab-schließen dieselbe Aufräumfunktion fährt wie der
+      Abbrechen-Knopf. Der naheliegende Weg über den Status `reserviert` hätte nichts gebracht —
+      er fällt an allen Zählstellen genauso aus dem Bestand wie `verkauft`.
 - [x] **Retoure auf diesen Verkauf → §25a-Marge?** ✅ **Stimmt — nach dem Fix.**
       Der Fehler war real (`margeEinzeldifferenz()` las `margeKorrektur` nicht, Bemessungs-
       grundlage blieb bei 50 statt 0, **nur** in der Standardmethode `differenzMethode='einzel'`);

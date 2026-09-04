@@ -155,6 +155,44 @@ gebaut, weil er eine ganze Klasse stiller Selbstheilung einführt.
 Semantik von `reconcileLagerOnCancel` in allen vier Richtungen (neu verknüpft, unverändert,
 entfernt, getauscht).
 
+### 1.6 Derselbe Fund bleibt offen, wenn die Rechnungsmaske **eingebettet** läuft
+
+Nachtrag zu 1.5 vom 2026-09-04, am Code belegt. Der Fix dort deckt drei Wege ab und nennt sie
+auch so: `RechApp.navigate()` innerhalb der Rechnungs-App, sowie `beforeunload` für
+Tab-schließen, Reload und die **Top-Nav** — letztere zu Recht, denn sie besteht aus echten
+Links (`js/topnav.js:41` baut `<a href="app.html?page=…">`), also einem echten Seitenwechsel.
+
+**Ein vierter Weg fehlt.** Die Rechnungs-App läuft nicht nur unter `/rechnungen/`, sondern auch
+**eingebettet in `app.html`** als Finanzen-Sub-Tab ([`js/app.js:43`](../js/app.js):
+`RechApp.mount()`). Dort steht neben dem Formular die **Sidebar** von `app.html` — und die
+navigiert clientseitig:
+
+| Weg | Mechanik | Haken läuft? |
+|---|---|---|
+| Sub-Nav der Rechnungs-App | `RechApp.navigate()` | ✅ |
+| Top-Nav | echter Link → Unload → `beforeunload` | ✅ |
+| Tab schließen / Reload | `beforeunload` | ✅ |
+| **Sidebar in `app.html`** | `App.navigate()` — `replaceState`, kein Unload | ❌ |
+
+`js/app.js:339` (`_activate` der `.sidebar-link`) ruft `this.navigate(page)`; die Funktion
+tauscht `#content` aus und zieht per `replaceState` nur die Adresszeile nach — **kein Unload**.
+Und `RechApp` wird dabei nichts mitgeteilt: `js/app.js` erwähnt `RechApp` an genau **einer**
+Stelle, nämlich `mount()`. Der Aufräumhaken kann also gar nicht anspringen.
+
+**Ergebnis:** Wer die Rechnung im Finanzen-Tab offen hat, einen Lagerartikel verknüpft und dann
+in der Sidebar auf Dashboard, Statistiken oder Steuer & Soziales klickt, hinterlässt denselben
+Zustand wie vor dem Fix — Artikel „verkauft", keine Rechnung, kein Umsatz. Die Verwerfen-Rückfrage
+erscheint zwar (`App.navigate` hat ein eigenes `_formDirty`), sie räumt aber nichts auf.
+
+**Zu tun:** `_runLeaveHook` aus `RechApp` exportieren (heute ist nur der Setter `onLeave` nach
+außen sichtbar) und in `App.navigate()` aufrufen, wenn die verlassene Seite die eingebettete
+Rechnungs-App war — an derselben Stelle, an der `App.navigate` schon `_formDirty` behandelt.
+Der Test `test/test-rechnung-lager-verlassen.js` prüft die Verdrahtung im Quelltext und würde
+diesen vierten Weg mit einer Zeile mit abdecken.
+
+> Nicht im Browser nachgestellt: der Browser fiel während der Live-Tests wiederholt aus. Der
+> Befund steht rein am Code — aber alle vier Belegstellen sind benannt und einzeln nachlesbar.
+
 ### 1.0 OCR-Belegerkennung · ✅ erledigt 2026-08-27
 
 Gebaut nach [`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md) und

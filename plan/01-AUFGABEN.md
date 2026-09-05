@@ -208,6 +208,53 @@ decken Export, Aufruf, beide Reihenfolgebedingungen und den `typeof`-Guard ab.
 > steht am Code, mit benannten Belegstellen; ein Durchklick im Finanzen-Tab wäre die noch
 > fehlende Bestätigung.
 
+### 1.7 Steuerberater-Nur-Lese-Modus: die Schreibsperre ist ein Namens-Regex und hat Löcher
+
+Vorklärung zu Live-Test 3 (Steuerberater-Zugang), 2026-09-05, am Code gemessen. Der Test selbst
+braucht zwei Accounts und wartet auf den Betreiber — **dieser Teil nicht.**
+
+Die Sperre in [`js/stb-share.js`](../js/stb-share.js) entscheidet über den **Namen** der
+`data-action`: `WRITE_RE` listet Verben (`save`, `add`, `delete`, `import`, `speichern`, …),
+alles andere gilt als Lesezugriff. Eine Denylist über Bezeichner ist genau die Konstruktion, die
+still Lücken hat — jede neue Aktion, deren Name kein gelistetes Verb enthält, ist automatisch
+erlaubt, ohne dass jemand eine Entscheidung getroffen hätte.
+
+**Gezählt:** 174 `data-action`-Namen im Repo, **57 gesperrt, 117 nicht.** Das meiste davon ist zu
+Recht offen (Exporte, Tabs, Filter, Navigation, Kopieren). Fünf Kandidaten habe ich einzeln
+nachgeschlagen statt vom Namen zu schließen — **zwei davon schreiben wirklich in den Store:**
+
+| Aktion | Handler | Schreibt |
+|---|---|---|
+| `uva-mark` | `UstVoranmeldung._markEingereicht()` | `Store.saveUstPeriode(…)` **und** `Store.setDifferenzVortrag(…)` |
+| `app-ust-switch-regel` | `App._ustSwitchToRegel(key)` | `Store.saveSettings({ustMode:'regel'})` |
+
+Beide rutschen durch, weil `WRITE_RE` weder `mark` noch `switch` kennt. Beide sind steuerlich
+relevant: das eine markiert eine **USt-Voranmeldung als eingereicht** und fixiert dabei den
+§25a-Vortrag für die Folgeperiode, das andere stellt die **Besteuerungsform** des Mandanten von
+Kleinunternehmer auf Regelbesteuerung um.
+
+Die anderen drei geprüften (`lgp-bulk-mwst`, `lgp-bulk-dup`, `eb-clear-lager`) schreiben **nur ins
+Formular**, kein `Store.save*`. Die restlichen 112 sind **nicht** einzeln geprüft.
+
+**Tragweite, eingegrenzt:** Der Schaden bleibt im Browser des Steuerberaters. Der Push lässt
+`_readonly`-Firmen ausdrücklich aus ([`js/cloud-sync.js:795`](../js/cloud-sync.js)), und
+serverseitig gilt der Grant-Check — die Bücher des Mandanten sind also **nicht** gefährdet. Aber
+der Zweck des Modus ist, dass der Berater den Stand nicht verändern *kann*; hier verändert er
+seine eigene Sicht darauf, ohne es zu merken, und entscheidet danach womöglich auf einem Stand,
+den er selbst erzeugt hat. Eine Periode, die als eingereicht dasteht, ohne es zu sein, ist genau
+die Sorte Irrtum, die niemand nachprüft.
+
+**Zu tun — und das ist bewusst keine Ein-Zeilen-Änderung:** `mark|switch` in `WRITE_RE`
+nachzutragen schließt die zwei bekannten Löcher und lässt die Bauart unverändert; beim nächsten
+neuen Aktionsnamen steht dieselbe Frage wieder offen. Richtig wäre die **Umkehrung zur
+Allowlist**: lesende Aktionen ausdrücklich benennen, alles andere sperren. Das ist ein Eingriff
+mit Regressionsrisiko (117 Namen wollen durchgesehen werden) und gehört in eine eigene Sitzung,
+zusammen mit einem Harness, der die Liste gegen alle `data-action`-Vorkommen prüft und bei einer
+neuen, nicht eingeordneten Aktion fehlschlägt.
+
+> **Nicht im Browser nachgestellt** — dafür bräuchte es den zweiten Account, auf den Live-Test 3
+> ohnehin wartet. Belegt sind Zählung und Handler-Zuordnung am Quelltext.
+
 ### 1.0 OCR-Belegerkennung · ✅ erledigt 2026-08-27
 
 Gebaut nach [`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md) und

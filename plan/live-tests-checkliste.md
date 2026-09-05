@@ -306,9 +306,33 @@ zwei Tabs — die Gerätesperre hängt an `oyi_device_owner_uid`.
 
 ### 3. Steuerberater-Zugang mit zwei Accounts · ~20 Min
 
+> **Zwei der vier Punkte sind am 2026-09-05 vorab am Code geklärt** — sie brauchen dich nur noch
+> als Sichtprüfung im Vorbeigehen, nicht als eigentlichen Test:
+>
+> - **Der Fingerabdruck kann gar nicht auseinanderlaufen.**
+>   [`test/test-stb-share.js`](../test/test-stb-share.js) nagelt ihn in zwei Prüfungen fest:
+>   deterministisch und schlüsselgebunden (`DA6B-BA5E-C3D2-54E2`) sowie **unabhängig von der
+>   Feldreihenfolge im JWK**. Beide Seiten leiten ihn aus demselben Schlüssel ab; ein
+>   Auseinanderfallen wäre ein Schlüsselfehler, kein Anzeigefehler. Der Vergleich bleibt
+>   sinnvoll — aber als Bestätigung, nicht als offene Frage.
+> - **Die Nur-Lese-Sperre trägt nicht überall.** Sie entscheidet über den *Namen* der
+>   `data-action` (`WRITE_RE` in [`js/stb-share.js`](../js/stb-share.js)): 174 Namen im Repo,
+>   **57 gesperrt, 117 nicht**. Zwei davon schreiben nachweislich in den Store — `uva-mark`
+>   (markiert eine USt-Voranmeldung als eingereicht und fixiert den §25a-Vortrag) und
+>   `app-ust-switch-regel` (stellt die Besteuerungsform um). Steht als Fund
+>   [`01-AUFGABEN.md`](01-AUFGABEN.md) 1.7, **offen**.
+>
+> **Wichtig für die Bewertung beim Testen:** Der Schaden bleibt lokal. Der Push lässt
+> `_readonly`-Firmen aus, die Bücher des Mandanten sind nicht gefährdet — der Berater verändert
+> nur seine eigene Sicht. Wer den Punkt durchklickt, sollte also **nicht** erwarten, dass beim
+> Mandanten etwas ankommt, sondern prüfen, ob die Oberfläche den Klick überhaupt zulässt.
+
 - [ ] Freigabe in A erteilen, Fingerabdruck notieren
 - [ ] Im StB-Account: stimmt der angezeigte Fingerabdruck **zeichengenau** mit dem in A überein?
+      (Erwartung: ja — s. Kasten. Weicht er ab, ist es ein Schlüsselfehler und ein echter Fund)
 - [ ] Sind die Daten dort wirklich **nur lesbar** — Speichern-Buttons gesperrt, Toast erscheint?
+      **Gezielt mitnehmen:** „Als eingereicht markieren" in der USt-Voranmeldung und die
+      Umstellung auf Regelbesteuerung. Beide sollten *nicht* gehen, gehen aber laut Code doch
 - [ ] Freigabe in A zurückziehen → verliert der StB sofort den Zugriff?
 
 ### 4. Make.com-Webhook · ~10 Min

@@ -563,6 +563,25 @@ trägt IBAN-Fragment, Kartennummer, Terminal-ID und Steuernummer und hat das Rep
 gemessenen Bon, dessen Betragsfeld danebenliegt, wäre jede Zahl in der Werbung angreifbar
 (§5 UWG), und „automatisch" erst recht.
 
+> **Zwei Minuten, wenn du das nächste Mal ohnehin im Eigenbeleg-Formular stehst.** Zwei Fälle
+> rund um die Chips sind seit `56a98ff`/`e0e77a7` am Code behoben, aber **nicht im Browser
+> nachgestellt** — die Seite liegt hinter dem Whop-Gate, und einen Dev-Bypass gibt es bewusst
+> nicht. Beide Fixes habe ich am Code gegengeprüft, beide greifen; was fehlt, ist der Klick:
+>
+> - [ ] **Bild mitten im Lauf wechseln.** „Beleg auslesen" starten und *während* der Erkennung
+>       ein anderes Bild wählen — das Dateifeld bleibt bedienbar, gesperrt wird nur der
+>       Startknopf. Erwartung: **keine** Chips des alten Bildes, stattdessen der Hinweis
+>       „Es wurde ein anderes Bild gewählt — bitte erneut auslesen." Der Lauf hält sein Bild
+>       jetzt in einer lokalen Referenz fest und vergleicht nach dem `await`
+>       ([`eigenbelege/js/app.js:553`](../eigenbelege/js/app.js)).
+> - [ ] **Zwei Bilder nacheinander, das zweite unbrauchbar.** Erwartung: beim Fehlschlag
+>       stehen **keine** Chips des ersten Laufs mehr neben „Belegerkennung nicht möglich" —
+>       sie sahen sonst aus wie das Ergebnis dieses Laufs.
+>
+> Beides berührt die Trefferquote oben nicht; es geht darum, dass ein Vorschlag nie zu einem
+> anderen Beleg gehört als dem, den man gerade ansieht. Genau daran hängt der Leitsatz der
+> Funktion — ein falsch vorbefülltes Feld ist schlimmer als ein leeres.
+
 ---
 
 ## Was in derselben Sitzung mit erledigt werden kann

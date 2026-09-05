@@ -155,7 +155,7 @@ gebaut, weil er eine ganze Klasse stiller Selbstheilung einführt.
 Semantik von `reconcileLagerOnCancel` in allen vier Richtungen (neu verknüpft, unverändert,
 entfernt, getauscht).
 
-### 1.6 Derselbe Fund bleibt offen, wenn die Rechnungsmaske **eingebettet** läuft
+### 1.6 Derselbe Fund im **eingebetteten** Modus · ✅ erledigt 2026-09-05 (`39df75a`)
 
 Nachtrag zu 1.5 vom 2026-09-04, am Code belegt. Der Fix dort deckt drei Wege ab und nennt sie
 auch so: `RechApp.navigate()` innerhalb der Rechnungs-App, sowie `beforeunload` für
@@ -184,14 +184,29 @@ in der Sidebar auf Dashboard, Statistiken oder Steuer & Soziales klickt, hinterl
 Zustand wie vor dem Fix — Artikel „verkauft", keine Rechnung, kein Umsatz. Die Verwerfen-Rückfrage
 erscheint zwar (`App.navigate` hat ein eigenes `_formDirty`), sie räumt aber nichts auf.
 
-**Zu tun:** `_runLeaveHook` aus `RechApp` exportieren (heute ist nur der Setter `onLeave` nach
-außen sichtbar) und in `App.navigate()` aufrufen, wenn die verlassene Seite die eingebettete
-Rechnungs-App war — an derselben Stelle, an der `App.navigate` schon `_formDirty` behandelt.
-Der Test `test/test-rechnung-lager-verlassen.js` prüft die Verdrahtung im Quelltext und würde
-diesen vierten Weg mit einer Zeile mit abdecken.
+**Gebaut.** `RechApp` exportiert jetzt einen öffentlichen Auslöser `runLeaveHook()` — bis dahin
+war nur der Setter `onLeave` nach außen sichtbar, der Wirt konnte also gar nichts anstoßen.
+`App.navigate()` ruft ihn beim Seitenwechsel, an derselben Stelle, an der es schon `_formDirty`
+behandelt. Zwei Bedingungen an die Platzierung, beide durch Tests festgenagelt:
 
-> Nicht im Browser nachgestellt: der Browser fiel während der Live-Tests wiederholt aus. Der
-> Befund steht rein am Code — aber alle vier Belegstellen sind benannt und einzeln nachlesbar.
+- **nach** der Verwerfen-Rückfrage — verneint der Nutzer sie, bricht `navigate()` ab, und dann
+  darf nichts aufgeräumt worden sein; sonst wäre die Verknüpfung weg, obwohl er ausdrücklich
+  auf der Seite geblieben ist;
+- **vor** dem Austausch von `#content` — danach sind die `.pos-lager-id`-Felder weg, aus denen
+  `reconcileLagerOnCancel` seine `currentIds` liest, und der Abgleich liefe ins Leere.
+
+Der Aufruf ist für alle anderen Seitenwechsel unschädlich: ist kein Haken gesetzt, passiert
+nichts, und der Haken löscht sich beim Laufen selbst. `EBApp` ist in derselben Schleife
+mitgeführt, damit die Eigenbeleg-Sub-App später ohne erneuten Eingriff in `navigate()` opt-in
+kann — sie setzt heute keinen Haken.
+
+`test/test-rechnung-lager-verlassen.js` wuchs von 14 auf **23 Prüfungen**; die sechs neuen (D1–D6)
+decken Export, Aufruf, beide Reihenfolgebedingungen und den `typeof`-Guard ab.
+
+> **Nicht im Browser nachgestellt** — weder der Fund noch der Fix. Der Browser fiel während der
+> Live-Tests wiederholt aus (Tabs starben, `Runtime.evaluate` lief in 45-s-Timeouts). Beides
+> steht am Code, mit benannten Belegstellen; ein Durchklick im Finanzen-Tab wäre die noch
+> fehlende Bestätigung.
 
 ### 1.0 OCR-Belegerkennung · ✅ erledigt 2026-08-27
 

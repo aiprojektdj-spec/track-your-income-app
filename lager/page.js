@@ -1795,7 +1795,9 @@ const ExcelImport = {
         // Kein `typeof XLSX`-Guard mehr: die Bibliothek wird seit der Lazy-Load-Umstellung
         // (Utils.ensureXlsx) erst in _handleFile() nachgeladen. Der alte Guard schlug daher
         // beim Oeffnen IMMER zu und der Dialog liess sich gar nicht mehr aufrufen.
-        this._rows = []; this._columns = []; this._mapping = {};
+        // `_wb` muss mit zurueckgesetzt werden: bleibt die Mappe des vorigen Aufrufs stehen,
+        // laedt ein Blattwechsel Daten aus einer Datei, die gar nicht mehr gewaehlt ist.
+        this._rows = []; this._columns = []; this._mapping = {}; this._wb = null;
 
         const body = `
             <div style="display:flex;flex-direction:column;gap:14px;">
@@ -1808,6 +1810,15 @@ const ExcelImport = {
                 <div>
                     <label class="form-label">Datei wählen *</label>
                     <input type="file" class="form-input" id="excelFileInput" accept=".xlsx,.xls,.csv">
+                </div>
+
+                <div id="excelSheetSection" style="display:none;">
+                    <label class="form-label" for="excelSheetSelect">Tabellenblatt</label>
+                    <select class="form-input" id="excelSheetSelect"></select>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
+                        Stackr wählt das erste Blatt, das wie eine Tabelle aussieht — Anleitungs- und
+                        Deckblätter werden übersprungen. Stimmt die Wahl nicht, stell sie hier um.
+                    </div>
                 </div>
 
                 <div id="excelMappingSection" style="display:none;">
@@ -1862,38 +1873,70 @@ const ExcelImport = {
         reader.onload = (e) => {
             try {
                 const wb = XLSX.read(e.target.result, { type: 'array' });
-                const sheetName = wb.SheetNames[0];
-                const sheet = wb.Sheets[sheetName];
-                // 1) Rohe Zeilen lesen, um die echte Header-Zeile zu finden (Leerzeilen behalten → Index = Tabellenzeile)
-                const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
-                if (aoa.length === 0) {
-                    Utils.showToast('Datei enthält keine Daten', 'warning');
-                    return;
+                // Mappe merken, damit ein Blattwechsel die Datei nicht neu einlesen muss.
+                this._wb = wb;
+
+                // Blattauswahl anbieten, sobald es mehr als eines gibt. Vorher nahm der Import
+                // fest SheetNames[0] — an einer echten Datei war das die "ANLEITUNG", und der
+                // Toast meldete gruen "17 Zeilen geladen" ueber Fliesstext (Live-Test 1).
+                const sel = document.getElementById('excelSheetSelect');
+                const vorgabe = Utils.waehleDatenblatt(wb);
+                if (sel) {
+                    sel.innerHTML = wb.SheetNames
+                        .map(n => `<option value="${Utils.escapeHtml(n)}">${Utils.escapeHtml(n)}</option>`).join('');
+                    sel.value = vorgabe;
+                    sel.onchange = () => this._ladeBlatt(sel.value);
+                    document.getElementById('excelSheetSection').style.display =
+                        wb.SheetNames.length > 1 ? '' : 'none';
                 }
-                const hdrIdx = this._findHeaderRow(aoa);
-                // 2) Ab erkannter Header-Zeile als Objekte lesen
-                const json = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false, range: hdrIdx });
-                if (json.length === 0) {
-                    Utils.showToast('Datei enthält keine Daten', 'warning');
-                    return;
-                }
-                this._rows = json;
-                // Nur echte Spalten — leere __EMPTY-Platzhalter (z. B. erste Leerspalte) raus
-                this._columns = Object.keys(json[0]).filter(k => k && !/^__EMPTY/.test(k));
-                this._mapping = this._autoDetect(this._columns);
-                this._renderMapping();
-                this._renderPreview();
-                document.getElementById('excelMappingSection').style.display = '';
-                document.getElementById('excelPreviewSection').style.display = '';
-                document.getElementById('excelCommonFields').style.display = '';
-                document.getElementById('excelImportBtn').disabled = false;
-                Utils.showToast(`✅ ${json.length} Zeilen geladen aus ${sheetName}`, 'success');
+                this._ladeBlatt(vorgabe);
             } catch (err) {
                 console.error('[ExcelImport] Parse-Fehler:', err);
                 Utils.showToast('Datei konnte nicht gelesen werden: ' + err.message, 'error');
             }
         };
         reader.readAsArrayBuffer(file);
+    },
+
+    /** Liest EIN Blatt der gemerkten Mappe ein. Aus _handleFileParsed herausgeloest, damit
+     *  ein Blattwechsel im Auswahlfeld nicht die ganze Datei neu einlesen muss. */
+    _ladeBlatt(sheetName) {
+        const sheet = this._wb && this._wb.Sheets[sheetName];
+        if (!sheet) return;
+        // 1) Rohe Zeilen lesen, um die echte Header-Zeile zu finden (Leerzeilen behalten → Index = Tabellenzeile)
+        const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+        const leer = () => {
+            // Der Dialog muss zurueckfallen, sonst steht die Zuordnung des VORIGEN Blattes
+            // noch da und der Import-Knopf bleibt aktiv — man importierte sonst das alte Blatt.
+            this._rows = []; this._columns = []; this._mapping = {};
+            ['excelMappingSection', 'excelPreviewSection', 'excelCommonFields']
+                .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+            const btn = document.getElementById('excelImportBtn');
+            if (btn) btn.disabled = true;
+            Utils.showToast(`Blatt „${sheetName}“ enthält keine Tabelle`, 'warning');
+        };
+        if (aoa.length === 0) return leer();
+        const hdrIdx = this._findHeaderRow(aoa);
+        // 2) Ab erkannter Header-Zeile als Objekte lesen
+        const alleZeilen = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false, range: hdrIdx });
+        // Vollstaendig leere Zeilen raus. Excel dehnt den benutzten Bereich weit ueber die
+        // letzte gefuellte Zeile hinaus: die gemessene Datei meldete "1001 Zeilen geladen" bei
+        // 189 echten. Angelegt wurden sie nie (_import verwirft sie mangels Preis), aber die
+        // Zahl im Toast war falsch — und ein Zaehler, der luegt, ist genau der Fehler, der
+        // beim Buchungen-Import so lange unbemerkt blieb.
+        const json = alleZeilen.filter(r => Object.values(r).some(v => String(v == null ? '' : v).trim() !== ''));
+        if (json.length === 0) return leer();
+        this._rows = json;
+        // Nur echte Spalten — leere __EMPTY-Platzhalter (z. B. erste Leerspalte) raus
+        this._columns = Object.keys(json[0]).filter(k => k && !/^__EMPTY/.test(k));
+        this._mapping = this._autoDetect(this._columns);
+        this._renderMapping();
+        this._renderPreview();
+        document.getElementById('excelMappingSection').style.display = '';
+        document.getElementById('excelPreviewSection').style.display = '';
+        document.getElementById('excelCommonFields').style.display = '';
+        document.getElementById('excelImportBtn').disabled = false;
+        Utils.showToast(`✅ ${json.length} Zeilen geladen aus ${sheetName}`, 'success');
     },
 
     _renderMapping() {
@@ -2356,7 +2399,8 @@ const SalesImport = {
         reader.onload = (e) => {
             try {
                 const wb = XLSX.read(e.target.result, { type: 'array', codepage: 65001 });
-                const sheetName = wb.SheetNames[0];
+                // Nicht mehr fest SheetNames[0] — s. Utils.waehleDatenblatt.
+                const sheetName = Utils.waehleDatenblatt(wb);
                 const sheet = wb.Sheets[sheetName];
                 const json = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
                 if (json.length === 0) {

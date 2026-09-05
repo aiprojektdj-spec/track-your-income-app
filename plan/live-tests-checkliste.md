@@ -226,12 +226,62 @@ Kassenbuch | EÜR | Vorlagen`, 189 Einkaufs- und 338 Verkaufszeilen.
 > trotzdem ein Defekt — aber wer die Datei heute einliest, bekommt mehr Unsinn als vorher,
 > nicht weniger.
 
-**Fund 3 und 4 bleiben offen** — das sind Produktentscheidungen, keine Reparaturen:
-- **Fund 3:** Kopfzeile gegen die erwarteten Namen prüfen und bei Abweichung **abbrechen**
-  statt zu importieren? Das würde fremde Tabellen künftig abweisen, die heute (fehlerhaft)
-  durchlaufen. Alternativ nur warnen.
-- **Fund 4:** Blatt-Auswahlfeld im Import-Dialog, statt fest `SheetNames[0]`. Betrifft drei
-  Stellen (`lager/page.js:1865` und `:2359`, `js/buchungen.js:1640`) und ist echte UI-Arbeit.
+> **Nachtrag 2026-09-04 — auch Fund 3 und 4 sind gebaut.** Die Messkästen oben bleiben
+> unverändert; hier stehen nur die Nachher-Werte.
+>
+> **Fund 3 — die Kopfzeile wird jetzt geprüft, und die Ablehnung ist laut.**
+> Geprüft wird gegen `IMPORT_SPALTEN`, eine **einzige** Definition, aus der jetzt auch die
+> heruntergeladene Vorlage entsteht. Vorher standen Vorlage und Import getrennt da und
+> konnten auseinanderlaufen, ohne dass es auffällt.
+>
+> Die Prüfung ist bewusst **tolerant**: Klammerzusätze (`Datum (JJJJ-MM-TT)` → `datum`),
+> Groß-/Kleinschreibung, fehlende Umlaute (`Größe`/`Groesse`) und eigene Zusatzspalten hinten
+> gehen durch. Abgewiesen wird erst, wenn weniger als die Hälfte der Spalten an ihrer Position
+> sitzt. An der Messdatei: **0 von 9** erkannt → abgewiesen. Die eigene Vorlage: **9/9, 12/12,
+> 6/6** → angenommen.
+>
+> | | vorher | nachher |
+> |---|---|---|
+> | Meldung | `Import abgeschlossen: 29 Einkäufe (972 leere Zeilen übersprungen)` **grün** | `Spaltenüberschriften passen nicht zur Vorlage: „Einkäufe" (nur 0 von 9 Spalten erkannt, …) und „Verkäufe" (nur 0 von 12 …). Lade dir die Excel-Vorlage herunter…` **rot** |
+>
+> Zwei Dinge, die sich erst beim Bauen zeigten:
+> - **Die Ablehnung darf keine Sackgasse sein.** Der Flach-Fallback greift jetzt auch, wenn es
+>   die Blätter zwar gab, ihre Kopfzeile aber abgewiesen wurde — vorher lief dort wenigstens
+>   ein Versuch, danach wäre gar keiner mehr gelaufen.
+> - **Ein abgelehntes Blatt wird nicht als „0 Einkäufe" gezählt.** Sonst läse es sich als „war
+>   halt leer" — wieder derselbe stille Fehler, nur andersherum.
+>
+> **Fund 4 — `SheetNames[0]` ist an allen drei Stellen weg.**
+> Neu ist `Utils.waehleDatenblatt(wb)`: es nimmt das erste Blatt, das *wie eine Tabelle
+> aussieht* (mehrere Zeilen mit mehreren gefüllten Zellen nebeneinander). Das Kriterium kommt
+> ohne Spaltennamen aus, deshalb trägt es in allen drei Pfaden. Findet sich nichts, bleibt es
+> bei Blatt 0 — **nie schlechter als vorher**. An der Messdatei: `ANLEITUNG` → **`Einkaeufe`**.
+>
+> Dazu im Lager-Dialog ein **Auswahlfeld über alle Blätter**, sichtbar ab zwei Blättern, mit
+> der Heuristik als Vorauswahl. Ein Blattwechsel liest die Datei nicht neu ein (die Mappe wird
+> gemerkt) und setzt Zuordnung, Vorschau und Import-Knopf zurück, wenn das neue Blatt keine
+> Tabelle enthält — sonst hätte man die Zuordnung des **vorigen** Blattes importiert.
+>
+> **Nebenbefund, gleich mitgenommen:** der Lager-Toast meldete `1001 Zeilen geladen` bei 189
+> echten — Excel dehnt den benutzten Bereich weit über die letzte gefüllte Zeile hinaus.
+> Angelegt wurden diese Zeilen nie (`_import` verwirft sie mangels Preis), aber ein Zähler,
+> der lügt, ist genau der Fehler aus Fund 2. Jetzt: **`189 Zeilen geladen`** — exakt der
+> Sollwert aus der Erstmessung.
+>
+> Abgesichert durch [`test/test-xlsx-blattwahl.js`](../test/test-xlsx-blattwahl.js) (7) und die
+> auf 13 erweiterte [`test/test-xlsx-import-blattnamen.js`](../test/test-xlsx-import-blattnamen.js).
+> Beide schneiden den Prüfcode im Wortlaut aus `js/app.js` bzw. `js/utils.js`. Alle **42**
+> Harnesses grün. Der Harness hat dabei zwei Fehler in meiner eigenen Arbeit gefangen: ein
+> `0 Ausgaben`, das der Flach-Fallback nie erzeugen kann, und einen Schlüssel `lieferant`, der
+> `plattformlieferant` hätte heißen müssen.
+>
+> ⚠️ **Nicht browserverifiziert — und hier wiegt das schwerer als bei Fund 1/2.** Das
+> Auswahlfeld ist **neuer DOM-Code**, der noch nie in einem Browser gelaufen ist; die Tests
+> decken die reinen Funktionen ab, nicht die Verdrahtung. Der Import-Dialog liegt hinter dem
+> Whop-Gate, und lokal fehlen die `api/`-Functions (Kasten oben). Statisch geprüft sind
+> `node --check` und der Abgleich aller sechs Element-IDs gegen das Markup.
+> **Offen: einmal auf Produktion durchklicken** — Datei mit mehreren Blättern wählen, Blatt
+> umstellen, prüfen, dass Zuordnung und Vorschau mitwandern.
 
 ### 2. Cloud-Sync mit zwei echten Profilen · ~30 Min
 

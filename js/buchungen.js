@@ -1637,7 +1637,9 @@ const Buchungen = {
                 reader.onload = (ev) => {
                     try {
                         const wb = XLSX.read(ev.target.result, { type: 'array' });
-                        const ws = wb.Sheets[wb.SheetNames[0]];
+                        // Nicht mehr fest SheetNames[0]: bei mehrblaettrigen Dateien ist das
+                        // oft ein Anleitungs- oder Deckblatt (Live-Test 1, 2026-09-03).
+                        const ws = wb.Sheets[Utils.waehleDatenblatt(wb)];
                         const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
                         parsedRows = raw.map(row => row.map(cell => String(cell == null ? '' : cell)));
                         processCSVRows();

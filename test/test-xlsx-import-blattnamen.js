@@ -78,12 +78,14 @@ pass++; console.log('✓ parseNum: ' + faelle.length + ' Faelle, inkl. Tausender
 // ---------------------------------------------------------------------------
 // 3) Abschlussmeldung: eine Null wird genannt, wenn die Quelle da war
 // ---------------------------------------------------------------------------
-const mMsg = SRC.match(/const msg = \[[\s\S]*?\.filter\(Boolean\)\.join\(', '\) \|\| '0 Datensätze';/);
+// Mitgeschnitten wird ab `const genutzt = …`, weil der Meldungsaufbau die Hilfsfunktion
+// benutzt — sie hier abzutippen waere genau die Kopie, die dieser Test vermeiden soll.
+const mMsg = SRC.match(/const genutzt = \([\s\S]*?\.filter\(Boolean\)\.join\(', '\) \|\| '0 Datensätze';/);
 assert.ok(mMsg, 'Aufbau der Abschlussmeldung nicht gefunden');
 
 // Die Zaehler heissen im Original importedEinkauf/-Verkauf/-Ausgaben; hier mit Testwerten belegt.
-const baueMsg = (importedEinkauf, importedVerkauf, importedAusgaben, wsE, wsV, wsA, flachGenutzt) =>
-    eval(mMsg[0].replace(/^const msg = /, '(').replace(/;$/, ')'));
+const baueMsg = (importedEinkauf, importedVerkauf, importedAusgaben, wsE, wsV, wsA, flachGenutzt, abgelehnt = []) =>
+    eval(mMsg[0] + '\nmsg;');
 
 // Der gemessene Fall: Blatt Verkaeufe vorhanden, aber nichts uebernommen
 assert.strictEqual(baueMsg(29, 0, 0, {}, {}, null, false), '29 Einkäufe, 0 Verkäufe',
@@ -104,6 +106,56 @@ pass++; console.log('✓ Flach-Fallback meldet weiterhin seine Zeilen');
 assert.strictEqual(baueMsg(0, 0, 0, null, null, null, false), '0 Datensätze', 'Leerfall');
 pass++; console.log('✓ ohne jede Quelle bleibt es bei "0 Datensätze"');
 
+// Ein wegen der Kopfzeile ABGELEHNTES Blatt darf nicht als "0 Einkäufe" durchgehen —
+// es bekommt seine eigene Meldung und wuerde hier sonst als "war halt leer" gelesen.
+assert.strictEqual(baueMsg(0, 5, 0, {}, {}, null, false, [{ blatt: 'Einkäufe' }]), '5 Verkäufe',
+    'ein abgelehntes Blatt darf nicht als "0" in der Erfolgsmeldung stehen');
+pass++; console.log('✓ abgelehntes Blatt taucht nicht als "0" in der Erfolgsmeldung auf');
+
+// ---------------------------------------------------------------------------
+// 3b) Kopfzeilen-Pruefung (Fund 3): passt die Spaltenfolge nicht, wird abgewiesen
+// ---------------------------------------------------------------------------
+const mSpalten = SRC.match(/const IMPORT_SPALTEN = \{[\s\S]*?\n {8}\};/);
+assert.ok(mSpalten, 'IMPORT_SPALTEN nicht gefunden');
+const IMPORT_SPALTEN = eval('(' + mSpalten[0].replace(/^\s*const IMPORT_SPALTEN = /, '').replace(/;$/, '') + ')');
+
+const mNorm  = SRC.match(/const normSpalte = h => String[\s\S]*?g, ''\);/);
+assert.ok(mNorm, 'normSpalte nicht gefunden');
+const mPruef = SRC.match(/const pruefeKopfzeile = \(rows, art\) => \{[\s\S]*?\n {20}\};/);
+assert.ok(mPruef, 'pruefeKopfzeile nicht gefunden');
+// Der eval muss die Funktion ZURUECKGEBEN: ein `const` im eval bleibt in dessen eigenem
+// Scope und waere hier draussen nicht sichtbar.
+const pruefeKopfzeile = eval(mNorm[0] + '\n' + mPruef[0] + '\npruefeKopfzeile;');
+
+// Die eigene Vorlage muss durchgehen — sonst weist der Import sein eigenes Format ab.
+['einkauf', 'verkauf', 'ausgaben'].forEach(art => {
+    const kopf = IMPORT_SPALTEN[art].map(sp => sp.titel);
+    const r = pruefeKopfzeile([kopf], art);
+    assert.ok(r.ok, 'Die eigene Vorlage muss angenommen werden (' + art + '), erkannt: ' + r.treffer + '/' + r.gesamt);
+    assert.strictEqual(r.treffer, r.gesamt, 'Vorlage ' + art + ': alle Spalten muessen sitzen');
+});
+pass++; console.log('✓ die mitgelieferte Vorlage wird angenommen (alle Spalten erkannt)');
+
+// Die real gemessene Vinted-Kopfzeile muss abgewiesen werden — sie hat mit der Vorlage
+// nichts zu tun, lief aber bis 2026-09-03 stumm durch und erzeugte Unsinn.
+const vinted = ['Belegnummer (E-###)', 'Datum', 'Plattform / Ort', 'Artikel / Beschreibung',
+                'Farbe', 'Betrag (\u20ac)', 'Versand / Geb\u00fchren (\u20ac)', 'Zoll / EUSt (\u20ac)',
+                'Gesamtkosten (\u20ac)', 'Zahlungsart (Bar / Bank / PayPal)', 'Dateiname vom Beleg', 'Notiz'];
+const rV = pruefeKopfzeile([vinted], 'einkauf');
+assert.ok(!rV.ok, 'Die gemessene Vinted-Kopfzeile muss abgewiesen werden, erkannt: ' + rV.treffer);
+pass++; console.log('\u2713 die gemessene Vinted-Kopfzeile wird abgewiesen (' + rV.treffer + '/' + rV.gesamt + ' erkannt)');
+
+// Tolerant bleiben: Schreibweise darf abweichen, eine eigene Zusatzspalte hinten auch.
+const locker = ['datum', 'MARKE', 'Artikeltyp', 'Groesse', 'beschreibung', 'EK-Preis',
+                'Anzahl', 'Einkaufsquelle', 'Notizen', 'Meine eigene Spalte'];
+assert.ok(pruefeKopfzeile([locker], 'einkauf').ok, 'Schreibweise und Zusatzspalte duerfen nicht abweisen');
+pass++; console.log('\u2713 andere Schreibweise, fehlende Umlaute und Zusatzspalten gehen durch');
+
+// Eine einzelne Zufallsuebereinstimmung reicht nicht
+assert.ok(!pruefeKopfzeile([['Datum', 'x', 'y', 'z', 'a', 'b', 'c', 'd', 'e']], 'einkauf').ok,
+    'Eine einzige passende Spalte darf nicht genuegen');
+pass++; console.log('\u2713 eine einzelne zufaellige Uebereinstimmung genuegt nicht');
+
 // ---------------------------------------------------------------------------
 // 4) Die Klammer darf nicht mehr "leere Zeilen" behaupten
 // ---------------------------------------------------------------------------
@@ -114,4 +166,4 @@ assert.ok(!/leere Zeilen übersprungen/.test(SRC),
 assert.ok(/\$\{skipped\} Zeilen übersprungen/.test(SRC), 'Der Hinweis auf uebersprungene Zeilen fehlt');
 pass++; console.log('✓ uebersprungene Zeilen werden nicht mehr als "leer" behauptet');
 
-console.log('\n' + pass + '/8 Tests bestanden ✅');
+console.log('\n' + pass + '/13 Tests bestanden ✅');

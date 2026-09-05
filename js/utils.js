@@ -70,6 +70,32 @@ const Utils = {
         return _xlsxPromise;
     },
 
+    /** Waehlt das Blatt einer Arbeitsmappe, das nach einer Datentabelle AUSSIEHT.
+     *
+     *  Drei Importpfade griffen vorher fest auf `wb.SheetNames[0]`. An einer echten Datei
+     *  gemessen (Live-Test 1, 2026-09-03) war Blatt 0 die "ANLEITUNG", und der Lager-Import
+     *  meldete gruen "17 Zeilen geladen aus ANLEITUNG" — ueber Fliesstext. Eine Auswahl gab
+     *  es nicht, und die Kopfzeilensuche half nicht: die sucht die Zeile INNERHALB eines
+     *  Blattes, nicht das richtige Blatt.
+     *
+     *  Kriterium bewusst grob und formatfrei: eine Datentabelle hat mehrere Zeilen, die
+     *  mehrere gefuellte Zellen nebeneinander haben. Anleitungs-, Deckblatt- und Legenden-
+     *  Blaetter sind einspaltig und fallen damit heraus, ohne dass man Spaltennamen kennen
+     *  muss. Findet sich keines, bleibt es bei SheetNames[0] — nie schlechter als vorher.
+     *
+     *  @returns {string} Blattname. */
+    waehleDatenblatt(wb) {
+        const namen = (wb && wb.SheetNames) || [];
+        if (namen.length <= 1) return namen[0];
+        for (const name of namen) {
+            const aoa = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '', raw: false });
+            const breiteZeilen = aoa.filter(r => (r || []).filter(c => String(c || '').trim() !== '').length >= 2);
+            // Zwei solcher Zeilen heisst: Kopfzeile plus mindestens eine Datenzeile.
+            if (breiteZeilen.length >= 2) return name;
+        }
+        return namen[0];
+    },
+
     formatCurrency(amount) {
         const num = parseFloat(amount) || 0;
         return num.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '\u00a0\u20ac';

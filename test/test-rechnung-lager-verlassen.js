@@ -51,6 +51,20 @@ const abmeldungenVorGespeichert = (rechSrc.slice(0, gespeichertIdx).match(/RechA
 check('B4 der gesperrte Pfad meldet den Haken NICHT ab',
       abmeldungenVorGespeichert > abmeldungenVorGesperrt);
 
+// B5/B6: der ABGELEHNTE Speicherversuch ist der zweite Weg in denselben Zustand (von einer
+// Parallel-Session gemeldet: nicht die §14-Sperre, sondern "Bitte Kunden auswaehlen"). Nach
+// einem Validierungsfehler bleibt der Nutzer auf der Maske - der Haken MUSS scharf bleiben,
+// sonst ist die Verknuepfung verloren, sobald er danach wegnavigiert.
+const saveBody = (rechSrc.match(/async function saveInvoice\(\)[\s\S]*?\n    \}/) || [''])[0];
+check('B5 saveInvoice gefunden', saveBody.length > 200);
+const validierungsAbbruch = saveBody.indexOf('if (!invoice) return;');
+const ersteAbmeldung = saveBody.indexOf('RechApp.onLeave(null)');
+check('B5b Validierungsabbruch liegt VOR jeder Abmeldung (Haken bleibt scharf)',
+      validierungsAbbruch !== -1 && ersteAbmeldung !== -1 && validierungsAbbruch < ersteAbmeldung);
+const gesperrtNavigate = saveBody.indexOf("Dokument ist bereits gestellt/gesperrt");
+check('B6 auch der gesperrte Pfad meldet nicht ab, bevor er wegnavigiert',
+      gesperrtNavigate !== -1 && gesperrtNavigate < ersteAbmeldung);
+
 // ── C) Semantik von reconcileLagerOnCancel, nachgebaut ───────────────────────
 // verknuepft = was in der Maske steht, original = was die GESPEICHERTE Rechnung hatte.
 function reconcile(lager, currentIds, originalIds) {

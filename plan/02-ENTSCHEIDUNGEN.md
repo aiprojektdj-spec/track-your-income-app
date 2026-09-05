@@ -301,6 +301,60 @@ Und unverändert gilt: der XRechnung-Export läuft **ohne KoSIT-/Schematron-Vali
 sagt der Export-Toast selbst, und die Kategorie-`E`-Zuordnung für §25a gehört vor produktivem
 Versand durch den offiziellen Validator.
 
+### Kein Reparaturlauf für „verkauft ohne Umsatz" — gemessen, nicht geschätzt (2026-09-05)
+
+Fund 1.5 war real: die Rechnungsmaske markierte einen Lagerartikel schon beim Verknüpfen als
+verkauft, und wer sie ohne Speichern verließ, ließ ihn so stehen — aus Bestand und Lagerwert
+verschwunden, ohne dass ihm ein Umsatz gegenübersteht. Behoben in `69461b4` und `39df75a`
+(vier Ausgänge: eigene Sub-Nav, `beforeunload`, Top-Nav, eingebettete Sidebar).
+
+**Was bewusst *nicht* gebaut wird: ein Reparaturlauf, der beim Laden der Lager-Seite Artikel
+sucht, die als verkauft markiert sind, aber weder von einem Verkauf noch von einer
+Rechnungsposition referenziert werden — und sie automatisch zurücksetzt.**
+
+Grund ist eine Zählung, keine Schätzung. Am 2026-09-05 über alle acht Firmen direkt aus der
+IndexedDB (`oyi_maindata`, Schlüssel `<firmaId>__reselling_purchases` / `__reselling_sales` /
+`__rechnungsbuch_dokumente`), Kriterium `status === 'verkauft'` und nicht storniert und weder
+über `purchaseId`/`purchaseIds` noch über `lagerArtikelId` belegt:
+
+| Firma | Artikel | hängend |
+|---|---|---|
+| Reck & Schwarz GbR | 139 | **0** |
+| Demo | 202 | **0** |
+| Secondlife Vintage (3×) + secondlife | 1 | **0** |
+| ghhfk | 0 | **0** |
+| Test | 7 | 3 (unsere eigenen Testartikel) |
+
+**Null in jeder echten Firma**, auch in der GbR mit 139 Artikeln über Monate. Zwei Sessions haben
+unabhängig voneinander gezählt und kamen Zahl für Zahl auf dasselbe.
+
+Der Tausch wäre also: stille Selbstheilung in eine **GoBD-Buchhaltung** einbauen — Daten, die
+sich beim Seitenaufruf von selbst ändern — gegen ein Problem, das in über hundert echten
+Verkäufen nachweislich nie entstanden ist. Auch die mildere Variante, ein Hinweis-Dialog statt
+einer Korrektur, wäre eine Warnung vor etwas, das nicht vorkommt.
+
+**Wenn sich das ändern soll,** ist die Zählung die Bedingung, nicht das Bauchgefühl: erst wieder
+messen, und nur bei Treffern in einer echten Firma neu entscheiden. Die Abfrage läuft auch bei
+aktivem Whop-Gate — die Daten hängen am Origin, nicht an der Anmeldung.
+
+### KoSIT-Validierung der E-Rechnung — offen, weil sie eine neue Abhängigkeit wäre (2026-09-05)
+
+Der XRechnung-Export läuft ohne offizielle Schematron-Prüfung; der Toast beim Export sagt das
+selbst. Nach den §25a-Korrekturen in `e265a4b` (Kategorie E mit §14a-Abs.-6-Pflichttext, kein
+Kategorie K mehr bei innergemeinschaftlicher Lieferung) ist die Zuordnung die fachlich übliche,
+aber sie ist **nicht gegen den amtlichen Validator geprüft**.
+
+**Das ist keine Entscheidung gegen die Validierung, sondern eine offene Frage an den Betreiber.**
+Der KoSIT-Validator ist eine Java-Anwendung mit Schematron-Regelsatz. Damit fällt er unter Regel 6
+in [`../CLAUDE.md`](../CLAUDE.md): keine neue Abhängigkeit ohne Rückfrage — es gibt genau eine
+produktive (`@vercel/blob`), und der Verzicht auf einen Build-Schritt ist Architektur, nicht
+Zufall. Eine Session hat das am 2026-09-05 bewusst **nicht** nebenbei mitgenommen.
+
+Drei Wege stehen offen und sollten gegeneinander entschieden werden: gar nicht validieren und
+den Hinweis im Export deutlicher machen; einmalig manuell durch den Online-Validator vor dem
+ersten produktiven Versand; oder die Prüfung dauerhaft in CI, was die Java-Abhängigkeit
+bedeutet — aber nur dort, nicht im ausgelieferten Produkt.
+
 ### Der Banner ist zweistufig — die notwendige Speicherung bleibt ohne Ablehnen-Button
 
 **Geändert am 2026-08-15.** Bis dahin stand hier: „Der Cookie-Banner hat keinen Ablehnen-Button —

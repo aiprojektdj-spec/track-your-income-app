@@ -520,6 +520,11 @@ async function _ocrEnsureWorker() {
 function ocrDateiGewaehlt(input) {
     const f = input.files && input.files[0];
     _ocrBild = f || null;
+    // Vorschlaege gehoeren zu genau dem Bild, aus dem sie stammen. Wer ein zweites Bild
+    // waehlt — weil das erste das falsche war —, saehe sonst weiter die Chips des ersten,
+    // ueber den Feldern und neben der Vorschau des zweiten. Ein Klick darauf traegt Datum
+    // und Betrag des falschen Belegs ein, und dem Formular sieht man das hinterher nicht an.
+    _ocrChipsLeeren();
     const btn = document.getElementById('ocrStart');
     if (btn) btn.disabled = !_ocrBild || _ocrLaeuft;
     _ocrStatus(_ocrBild ? 'Bereit — auf „Beleg auslesen“ klicken.' : '', null);
@@ -575,6 +580,10 @@ function _ocrChipHtml(zielId, anzeige, wert, roh, hinweis) {
         ${hinweisHtml}
     </div>`;
 }
+
+// Alle Chips wegnehmen. Kein eigener Code: ein leeres Trefferobjekt laesst
+// _ocrChipsSetzen jeden der drei Container auf '' setzen.
+function _ocrChipsLeeren() { _ocrChipsSetzen({}); }
 
 function _ocrChipsSetzen(treffer) {
     const setze = (containerId, html) => {

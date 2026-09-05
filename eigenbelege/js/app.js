@@ -618,6 +618,15 @@ function ocrUebernehmen(zielId, wert) {
     const el = document.getElementById(zielId);
     if (!el) return;
     el.value = wert;
+    // Ein per Code gesetzter Wert loest KEIN input-Ereignis aus — der Browser feuert das nur
+    // bei Eingaben von Hand. Ohne dieses Ereignis bleibt _ebFormDirty false, und wer sein
+    // Formular ausschliesslich ueber die drei Chips fuellt, bekommt beim Wegklicken KEINE
+    // Warnung "Du hast ungespeicherte Eingaben" — der Beleg ist weg. Genau dagegen wurde
+    // die Warnung am 2026-08-11 gebaut; ohne diese Zeile haetten die Chips sie wieder
+    // ausgehebelt. Nebenbei erreicht das Ereignis auch den delegierten eb-recalc-Handler.
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    // Trotzdem noch einmal ausdruecklich: die Neuberechnung ist ein reines Nachrechnen und
+    // soll nicht davon abhaengen, dass am Feld ein data-action haengen bleibt.
     if (zielId === 'eb-brutto') recalcBetrag();
     el.focus();
 }

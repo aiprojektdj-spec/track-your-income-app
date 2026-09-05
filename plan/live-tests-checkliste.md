@@ -587,10 +587,11 @@ trägt IBAN-Fragment, Kartennummer, Terminal-ID und Steuernummer und hat das Rep
 gemessenen Bon, dessen Betragsfeld danebenliegt, wäre jede Zahl in der Werbung angreifbar
 (§5 UWG), und „automatisch" erst recht.
 
-> **Zwei Minuten, wenn du das nächste Mal ohnehin im Eigenbeleg-Formular stehst.** Zwei Fälle
-> rund um die Chips sind seit `56a98ff`/`e0e77a7` am Code behoben, aber **nicht im Browser
-> nachgestellt** — die Seite liegt hinter dem Whop-Gate, und einen Dev-Bypass gibt es bewusst
-> nicht. Beide Fixes habe ich am Code gegengeprüft, beide greifen; was fehlt, ist der Klick:
+> **Drei Minuten, wenn du das nächste Mal ohnehin im Eigenbeleg-Formular stehst.** Drei Fälle
+> rund um die Chips sind seit `56a98ff`/`e0e77a7`/`e947ebb` am Code behoben, aber **nicht im
+> Browser nachgestellt** — die Seite liegt hinter dem Whop-Gate, und einen Dev-Bypass gibt es
+> bewusst nicht. Alle drei Fixes habe ich am Code gegengeprüft, alle greifen; was fehlt, ist
+> der Klick:
 >
 > - [ ] **Bild mitten im Lauf wechseln.** „Beleg auslesen" starten und *während* der Erkennung
 >       ein anderes Bild wählen — das Dateifeld bleibt bedienbar, gesperrt wird nur der
@@ -601,6 +602,20 @@ gemessenen Bon, dessen Betragsfeld danebenliegt, wäre jede Zahl in der Werbung 
 > - [ ] **Zwei Bilder nacheinander, das zweite unbrauchbar.** Erwartung: beim Fehlschlag
 >       stehen **keine** Chips des ersten Laufs mehr neben „Belegerkennung nicht möglich" —
 >       sie sahen sonst aus wie das Ergebnis dieses Laufs.
+> - [ ] **Beleg nur über die Chips füllen, keine Taste anfassen, dann weg klicken.** Alle drei
+>       Vorschläge übernehmen (Datum, Verkäufer, Betrag) und ohne eine einzige Tastatureingabe
+>       auf einen anderen Menüpunkt gehen. Erwartung: die Rückfrage „Du hast ungespeicherte
+>       Eingaben" **muss** kommen. Sie kam vorher nicht: ein per Code gesetzter Wert löst kein
+>       `input`-Ereignis aus, und genau daran hängt `_ebFormDirty` — der Beleg war ohne
+>       Nachfrage weg. `ocrUebernehmen` schickt das Ereignis jetzt selbst hinterher
+>       ([`eigenbelege/js/app.js`](../eigenbelege/js/app.js)). Gegengeprüft: alle drei
+>       Chip-Ziele sind `<input>`, das Dirty-Tracking filtert auf `INPUT`/`TEXTAREA` und
+>       greift damit für alle drei.
+>
+>       **Das ist der wichtigste der drei.** Die Warnung wurde am 2026-08-11 gebaut, weil ein
+>       Fehlklick auf die Sub-Nav einen halb erfassten Beleg gelöscht hatte — und die Chips
+>       hatten sie ausgerechnet für den Fall ausgehebelt, in dem sie am meisten wert ist: ein
+>       Formular, das in drei Klicks entstanden ist und dessen Inhalt sonst nirgends steht.
 >
 > Beides berührt die Trefferquote oben nicht; es geht darum, dass ein Vorschlag nie zu einem
 > anderen Beleg gehört als dem, den man gerade ansieht. Genau daran hängt der Leitsatz der

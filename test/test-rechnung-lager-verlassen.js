@@ -65,6 +65,36 @@ const gesperrtNavigate = saveBody.indexOf("Dokument ist bereits gestellt/gesperr
 check('B6 auch der gesperrte Pfad meldet nicht ab, bevor er wegnavigiert',
       gesperrtNavigate !== -1 && gesperrtNavigate < ersteAbmeldung);
 
+// ── D) Der vierte Weg: eingebettet in app.html (Fund 1.6) ────────────────────
+// Die Rechnungs-App laeuft auch als Finanzen-Sub-Tab in app.html. Dort wechselt die Sidebar
+// clientseitig ueber App.navigate() — kein Unload (also kein beforeunload) und kein
+// RechApp.navigate(). Ohne einen Ausgang von aussen blieb genau der Zustand aus 1.5 stehen.
+const hostSrc = fs.readFileSync(path.join(__dirname, '..', 'js', 'app.js'), 'utf8');
+
+check('D1 RechApp exportiert einen oeffentlichen Ausloeser',
+      /runLeaveHook:\s*runLeaveHook/.test(appSrc) && /function runLeaveHook\(\)\s*\{\s*_runLeaveHook\(\);\s*\}/.test(appSrc));
+check('D2 die Haupt-App ruft ihn beim Seitenwechsel',
+      /sub\.runLeaveHook\(\)/.test(hostSrc) && /typeof RechApp !== 'undefined' \? RechApp : null/.test(hostSrc));
+check('D3 nur bei echtem Seitenwechsel, nicht bei Neuladen derselben Seite',
+      /if \(page !== this\.currentPage\) \{[\s\S]{0,400}?sub\.runLeaveHook\(\)/.test(hostSrc));
+
+// D4: Reihenfolge. Wird die Verwerfen-Rueckfrage verneint, bricht navigate() ab — dann darf
+// vorher nichts aufgeraeumt worden sein, sonst ist die Verknuepfung weg, obwohl der Nutzer
+// ausdruecklich auf der Seite geblieben ist.
+const hostFrage    = hostSrc.indexOf('Seite trotzdem verlassen?');
+const hostAufraeumen = hostSrc.indexOf('sub.runLeaveHook()');
+check('D4 aufgeraeumt wird erst NACH der Verwerfen-Rueckfrage',
+      hostFrage !== -1 && hostAufraeumen !== -1 && hostFrage < hostAufraeumen);
+
+// D5: und vor dem Austausch von #content — danach sind die .pos-lager-id-Felder weg, aus denen
+// reconcileLagerOnCancel seine currentIds liest, und der Abgleich liefe ins Leere.
+const hostSeitenwechsel = hostSrc.indexOf('this.currentPage = page;');
+check('D5 aufgeraeumt wird VOR dem Seitenwechsel',
+      hostSeitenwechsel !== -1 && hostAufraeumen < hostSeitenwechsel);
+
+check('D6 ein fehlender Haken bricht nichts ab (typeof-Guard plus try/catch)',
+      /typeof sub\.runLeaveHook === 'function'/.test(hostSrc) && /catch \(e\)[\s\S]{0,120}?Sub-App/.test(hostSrc));
+
 // ── C) Semantik von reconcileLagerOnCancel, nachgebaut ───────────────────────
 // verknuepft = was in der Maske steht, original = was die GESPEICHERTE Rechnung hatte.
 function reconcile(lager, currentIds, originalIds) {

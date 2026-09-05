@@ -569,6 +569,31 @@ const App = {
         }
         this._formDirty = false;
 
+        // ── H2: eingebettete Sub-Apps aufräumen lassen (Fund 1.6) ────────────
+        // Die Rechnungsmaske markiert einen Lagerartikel schon beim Verknüpfen als verkauft,
+        // damit er nicht in einer zweiten Rechnung landet — sie schreibt also in den Store,
+        // bevor die Rechnung existiert. Verlässt man sie, ohne zu speichern, muss das
+        // zurückgenommen werden. RechApp erledigt das selbst für die eigene Sub-Nav und über
+        // `beforeunload` für Tab-schließen, Reload und die Top-Nav (echte Links).
+        //
+        // **Diese** Navigation sieht sie nicht: die Sidebar von app.html wechselt clientseitig
+        // (`replaceState`, kein Unload) und ruft `RechApp.navigate()` nicht auf. Ohne den
+        // Aufruf hier blieb der Artikel als verkauft stehen — ohne Rechnung und ohne Umsatz.
+        //
+        // Erst NACH der Rückfrage oben: bleibt der Nutzer auf der Seite, darf nichts
+        // aufgeräumt werden. Der Haken löscht sich selbst, ein zweiter Aufruf ist folgenlos,
+        // und ist keiner gesetzt, passiert nichts — der Aufruf ist damit auch für alle
+        // anderen Seitenwechsel unschädlich.
+        if (page !== this.currentPage) {
+            [typeof RechApp !== 'undefined' ? RechApp : null,
+             typeof EBApp    !== 'undefined' ? EBApp    : null].forEach(sub => {
+                if (sub && typeof sub.runLeaveHook === 'function') {
+                    try { sub.runLeaveHook(); }
+                    catch (e) { console.warn('[App] Aufräumen der Sub-App fehlgeschlagen:', e); }
+                }
+            });
+        }
+
         // EÜR↔Steuertermine-Flag zurücksetzen wenn wir woanders hin navigieren
         if (page !== 'steuertermine' && page !== 'euer') {
             this._cameFromEuer = false;

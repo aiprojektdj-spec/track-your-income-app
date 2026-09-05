@@ -105,6 +105,15 @@ var RechApp = (function() {
     // den localStorage-Spiegel, die IndexedDB-Spiegelung kann dabei verloren gehen.
     window.addEventListener('beforeunload', _runLeaveHook);
 
+    // Vierter Weg, und der einzige, den RechApp nicht selbst sieht: die Rechnungs-App laeuft
+    // auch EINGEBETTET in app.html als Finanzen-Sub-Tab (js/app.js, pageMap.rechnungen ->
+    // RechApp.mount()). Daneben steht die Sidebar von app.html, und die wechselt clientseitig
+    // ueber App.navigate() — kein Unload, also kein beforeunload, und RechApp.navigate() laeuft
+    // dabei auch nicht. Ohne diesen Ausgang blieb dort genau der Zustand aus 01-AUFGABEN.md 1.5
+    // stehen: Lagerartikel verkauft, keine Rechnung, kein Umsatz (Fund 1.6).
+    // Der Wirt ruft das; mehrfaches Aufrufen ist harmlos, _runLeaveHook loescht sich selbst.
+    function runLeaveHook() { _runLeaveHook(); }
+
     function navigate(page, params) {
         params = params || {};
 
@@ -426,6 +435,7 @@ var RechApp = (function() {
         closeModal: closeModal,
         markClean: markClean,
         onLeave: onLeave,
+        runLeaveHook: runLeaveHook,
         mount: mount
     };
 })();

@@ -286,11 +286,20 @@ Rechnungsposition ([`rechnungen/js/rechnung.js:329`](../rechnungen/js/rechnung.j
 Die **Pflichtangabe nach §14a Abs. 6 UStG ist auf der PDF-Rechnung korrekt umgesetzt** und damit
 kein offener Punkt mehr.
 
-**Nicht entschieden, weiterhin offen:** die Pauschalmarge von 30 % nach §25a Abs. 3 Satz 2 UStG —
-und neu die **E-Rechnung**: `taxCategoryFor()` in
-[`rechnungen/js/xrechnung.js:48`](../rechnungen/js/xrechnung.js) kennt `differenzbesteuert` nicht
-und weist §25a-Positionen als „Steuerfreier Umsatz" aus. Die Kategorie `E` ist dabei vertretbar,
-der Begründungstext nicht. Details in der Recherche-Datei.
+**Nachtrag 2026-09-05 — E-Rechnung gefixt.** `taxCategoryFor()` in
+[`rechnungen/js/xrechnung.js`](../rechnungen/js/xrechnung.js) wies §25a-Positionen als
+„Steuerfreier Umsatz" aus und ließ die §14a-Abs.-6-Pflichtangabe in der XML ganz fehlen. Dabei kam
+heraus, dass eine differenzbesteuerte Lieferung an einen EU-Kunden mit USt-IdNr als **steuerfreie
+ig. Lieferung** (Kategorie `K`) gemeldet wurde — §25a Abs. 5 Satz 2 UStG nimmt genau diese
+Befreiung ausdrücklich aus, das war eine **Unterzahlung**. Die Ausfuhr (`G`) bleibt dagegen
+korrekt, weil dieselbe Norm sie nicht mit aufzählt. Abgesichert durch
+[`test/test-25a-xrechnung.js`](../test/test-25a-xrechnung.js), 23 Checks, gegen den Stand vor dem
+Fix gegengeprüft.
+
+**Nicht entschieden, weiterhin offen:** die Pauschalmarge von 30 % nach §25a Abs. 3 Satz 2 UStG.
+Und unverändert gilt: der XRechnung-Export läuft **ohne KoSIT-/Schematron-Validierung** — das
+sagt der Export-Toast selbst, und die Kategorie-`E`-Zuordnung für §25a gehört vor produktivem
+Versand durch den offiziellen Validator.
 
 ### Der Banner ist zweistufig — die notwendige Speicherung bleibt ohne Ablehnen-Button
 

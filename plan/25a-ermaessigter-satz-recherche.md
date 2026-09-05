@@ -89,10 +89,35 @@ differenzbesteuerter Umsatz ist nicht steuerfrei, er ist auf die Marge besteuert
 §14a-Abs.-6-Pflichtangabe, die die PDF-Rechnung korrekt trägt, fehlt der XML damit vollständig —
 obwohl BT-120 (`ExemptionReason`) genau der Ort dafür wäre.
 
-Naheliegende Behebung: in `taxCategoryFor()` vor dem Schluss-`return` auf `pos.differenzbesteuert`
-prüfen und denselben Warenart-Text setzen, den `rechnung.js` schon kennt. **Noch nicht gebaut** —
-die Datei gehörte am 2026-09-04 zum Arbeitsbereich einer parallelen Session, und XRechnung-Ausgabe
-ohne Validator-Gegenprobe zu ändern wäre leichtsinnig.
+**Gebaut am 2026-09-05.** `taxCategoryFor()` kennt jetzt `pos.differenzbesteuert` und setzt
+denselben Warenart-Text, den `rechnung.js` schon für den Ausdruck verwendet. Kategorie `E` bleibt.
+
+**Beim Bauen kamen drei weitere Fehler heraus, die derselbe blinde Fleck erzeugt hat:**
+
+1. **Die ig. Lieferung schlug §25a — eine Unterzahlung.** Eine differenzbesteuerte Position an
+   einen EU-Kunden mit USt-IdNr fiel in den `K`-Zweig und wurde als *steuerfreie*
+   innergemeinschaftliche Lieferung ausgewiesen. §25a Abs. 5 Satz 2 UStG nimmt genau diese
+   Befreiung ausdrücklich aus: „Die Steuerbefreiungen, **ausgenommen die Steuerbefreiung für
+   innergemeinschaftliche Lieferungen** (§ 4 Nr. 1 Buchstabe b, § 6a), bleiben unberührt." Der
+   Umsatz ist also steuerpflichtig, und die XML meldete ihn steuerfrei. Der `K`-Zweig wird für
+   differenzbesteuerte Positionen jetzt übersprungen.
+2. **Die Ausfuhr musste dagegen bleiben.** Dieselbe Norm zählt §4 Nr. 1a / §6 nicht mit auf — beim
+   Drittlandskunden gilt weiter Kategorie `G`. Das ist der Grund, warum die §25a-Prüfung *nach*
+   dem Drittland-Zweig steht und nicht davor.
+3. **Gleiche Kategorie, verschiedener Grund — der zweite verschwand still.** `catMap` war nur nach
+   Kategorie-Code verschlüsselt, der erste Grund gewann. Bisher fiel das nicht auf, weil alle
+   `E`-Fälle denselben Text trugen. Mit §25a wird der Fall real: zwei Warenarten auf einer
+   Rechnung, oder §25a neben einem sonstigen steuerfreien Umsatz. Beides hätte eine Pflichtangabe
+   verloren. Die Gründe werden jetzt gesammelt und zusammengefasst; die Zeilenebene (BT-128) trägt
+   den positionsgenauen Text ohnehin.
+
+**Abgesichert durch [`test/test-25a-xrechnung.js`](../test/test-25a-xrechnung.js)** — 23 Checks,
+der erste Harness für `xrechnung.js` überhaupt. Gegen die Fassung aus HEAD **vor** dem Fix
+gegengeprüft: dort fallen A1, A2, C1 und E1 durch, der Test greift also wirklich.
+
+> **Weiterhin keine Schematron-Validierung.** Der Export sagt das selbst im Toast: geprüft werden
+> Pflichtfelder, nicht die KoSIT-Regeln. Die Kategorie-`E`-Zuordnung für §25a ist die übliche, aber
+> vor produktivem Versand gehört die XML durch den offiziellen Validator.
 
 ### 2. §25a Abs. 7 Nr. 1 Buchst. c — real, aber für Stackr gegenstandslos
 

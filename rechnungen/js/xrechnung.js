@@ -42,12 +42,26 @@ var XRechnung = (function () {
     var EU_LAENDER = ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'GR', 'HU', 'IE', 'IT',
         'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK', 'ES'];
 
+    // §25a UStG Differenzbesteuerung — Pflichtangabe nach §14a Abs. 6 UStG, je Warenart der
+    // gesetzlich vorgeschriebene Wortlaut. Gleiche Texte wie im PDF-Ausdruck
+    // (rechnungen/js/rechnung.js); sie sind der ExemptionReason der XML-Zeile, denn BT-120 ist
+    // in EN 16931 der einzige Ort, an dem dieser Pflichttext transportiert werden kann.
+    var DIFF25A_REASON = {
+        gebraucht:     'Gebrauchtgegenstände/Sonderregelung',
+        kunst:         'Kunstgegenstände/Sonderregelung',
+        sammlerstueck: 'Sammlungsstücke und Antiquitäten/Sonderregelung'
+    };
+    function diff25aReason(pos) {
+        return DIFF25A_REASON[pos && pos.warenart] || DIFF25A_REASON.gebraucht;
+    }
+
     // EN 16931 Steuerkategorie + Befreiungsgrund je Position ermitteln. Unterscheidet Ware
     // (§6a UStG ig. Lieferung, steuerfrei) von Leistung (§13b UStG Reverse Charge) statt beide
     // pauschal auf einen Wert zu kollabieren — die Rechtsfolgen unterscheiden sich (Steuerschuldner!).
     function taxCategoryFor(rate, isKlein, pos, inv, kunde) {
         if (isKlein) return { code: 'E', reasonCode: 'VATEX-EU-O', reason: 'Umsatzsteuerbefreiung nach §19 UStG (Kleinunternehmer)' };
         if (rate > 0) return { code: 'S', reasonCode: null, reason: null };
+        var istDiff25a = !!(pos && pos.differenzbesteuert);
         var kundeLand = kunde && kunde.land;
         var istEU = !!(kundeLand && kundeLand !== 'DE' && EU_LAENDER.indexOf(kundeLand) !== -1);
         var hatUstId = !!(kunde && kunde.ustIdNr);
@@ -56,10 +70,24 @@ var XRechnung = (function () {
             if (art === 'leistung') {
                 return { code: 'AE', reasonCode: 'VATEX-EU-AE', reason: 'Steuerschuldnerschaft des Leistungsempfängers gemäß §13b UStG' };
             }
-            return { code: 'K', reasonCode: 'VATEX-EU-IC', reason: 'Steuerfreie innergemeinschaftliche Lieferung gemäß §4 Nr. 1b i.V.m. §6a UStG' };
+            // §25a Abs. 5 Satz 2 UStG nimmt die ig. Lieferung von den fortgeltenden Befreiungen
+            // AUSDRUECKLICH aus: „Die Steuerbefreiungen, ausgenommen die Steuerbefreiung für
+            // innergemeinschaftliche Lieferungen (§ 4 Nr. 1 Buchstabe b, § 6a), bleiben unberührt."
+            // Ein differenzbesteuerter Gegenstand an einen EU-Unternehmer ist also NICHT steuerfrei —
+            // Kategorie K waere hier eine Unterzahlung. Faellt bewusst auf §25a durch.
+            if (!istDiff25a) {
+                return { code: 'K', reasonCode: 'VATEX-EU-IC', reason: 'Steuerfreie innergemeinschaftliche Lieferung gemäß §4 Nr. 1b i.V.m. §6a UStG' };
+            }
         }
         var istDrittland = !!(kundeLand && kundeLand !== 'DE' && !istEU);
+        // Die Ausfuhrbefreiung bleibt nach §25a Abs. 5 Satz 2 UStG unberührt — anders als die
+        // ig. Lieferung oben. Ausfuhr geht deshalb auch bei Differenzbesteuerung vor.
         if (istDrittland) return { code: 'G', reasonCode: 'VATEX-EU-G', reason: 'Steuerfreie Ausfuhrlieferung gemäß §4 Nr. 1a i.V.m. §6 UStG' };
+        // §25a: kein offener USt-Ausweis, aber der Umsatz ist NICHT steuerfrei — er ist auf die
+        // Marge besteuert. Kategorie E ist dafuer die uebliche EN-16931-Zuordnung (BR-E-1..10);
+        // als Begruendung darf hier aber nicht „Steuerfreier Umsatz" stehen, sondern der
+        // §14a-Abs.-6-Pflichttext, der sonst nur im PDF steht und der XML ganz fehlte.
+        if (istDiff25a) return { code: 'E', reasonCode: null, reason: diff25aReason(pos) };
         return { code: 'E', reasonCode: null, reason: 'Steuerfreier Umsatz' };
     }
 
@@ -89,8 +117,18 @@ var XRechnung = (function () {
             if (rate > 0) {
                 mwstMap[rate] = round2((mwstMap[rate] || 0) + lineMwst);
             } else {
-                var cm = catMap[cat.code] || { basis: 0, reasonCode: cat.reasonCode, reason: cat.reason };
+                // Mehrere Gruende koennen auf DIESELBE Kategorie fallen — seit §25a real: zwei
+                // Warenarten auf einer Rechnung ergeben beide Kategorie E mit verschiedenem
+                // Pflichttext, ebenso §25a neben einem sonstigen steuerfreien Umsatz. Vorher
+                // gewann still der erste und der Rest verschwand; bei der §14a-Abs.-6-Angabe waere
+                // das der Verlust einer Pflichtangabe. EN 16931 laesst je Kategorie nur EINEN
+                // BT-120 zu, deshalb werden die Texte gesammelt und zusammengefasst — die
+                // Zeilenebene (BT-128) traegt den positionsgenauen Text ohnehin.
+                var cm = catMap[cat.code] || { basis: 0, reasonCode: cat.reasonCode, reasons: [] };
                 cm.basis = round2(cm.basis + line);
+                if (cat.reason && cm.reasons.indexOf(cat.reason) === -1) cm.reasons.push(cat.reason);
+                if (!cm.reasonCode && cat.reasonCode) cm.reasonCode = cat.reasonCode;
+                cm.reason = cm.reasons.join('; ');
                 catMap[cat.code] = cm;
             }
             lineItems.push({

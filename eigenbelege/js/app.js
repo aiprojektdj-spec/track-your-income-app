@@ -540,12 +540,21 @@ function ocrDateiGewaehlt(input) {
 async function ocrStarten() {
     if (!_ocrBild || _ocrLaeuft) return;
     _ocrLaeuft = true;
+    // Das Bild wird hier festgehalten: ein Lauf dauert Sekunden, und das Dateifeld bleibt
+    // waehrenddessen bedienbar. Wer mittendrin ein anderes Bild waehlt, bekaeme sonst am
+    // Ende die Vorschlaege des alten Bildes ueber den Feldern — neben der Vorschau des
+    // neuen. Verglichen wird unten, nach dem Warten.
+    const bild = _ocrBild;
     const btn = document.getElementById('ocrStart');
     if (btn) btn.disabled = true;
     _ocrStatus('Texterkennung wird geladen…', 0);
     try {
         const worker = await _ocrEnsureWorker();
-        const { data } = await worker.recognize(_ocrBild);
+        const { data } = await worker.recognize(bild);
+        if (_ocrBild !== bild) {
+            _ocrStatus('Es wurde ein anderes Bild gewaehlt — bitte erneut auslesen.', null);
+            return;
+        }
         const treffer = BelegOCR.extract(data && data.text ? data.text : '');
         _ocrChipsSetzen(treffer);
         const anzahl = ['datum', 'betrag', 'haendler'].filter(k => treffer[k]).length;
@@ -556,6 +565,9 @@ async function ocrStarten() {
         }
     } catch (err) {
         console.warn('[Eigenbelege] OCR fehlgeschlagen:', err);
+        // Auch hier die Chips raeumen: bleiben die eines frueheren Laufs stehen, waehrend
+        // daneben "nicht moeglich" steht, sehen sie aus wie das Ergebnis dieses Laufs.
+        _ocrChipsLeeren();
         _ocrStatus('Belegerkennung nicht moeglich. Die Felder lassen sich wie gewohnt von Hand ausfuellen.', null);
     } finally {
         _ocrLaeuft = false;

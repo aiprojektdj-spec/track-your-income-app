@@ -1,5 +1,9 @@
 # Whop-Sitzungsabriss: jeder Kunde fliegt stündlich raus
 
+> ✅ **Behoben am 2026-09-05 über Weg A (Refresh serverseitig in Redis).** Was gebaut wurde,
+> steht unten unter „Umsetzung“. Der Rest des Dokuments ist der Befund, wie er gefunden
+> wurde — absichtlich unverändert, damit nachvollziehbar bleibt, warum so entschieden wurde.
+
 **Gefunden 2026-09-04** beim Versuch, die Live-Tests durchzuführen — nicht gesucht, sondern
 dreimal hintereinander drübergestolpert. Alles unten ist am Code und an Whops Doku belegt,
 nichts davon ist geraten.
@@ -121,3 +125,53 @@ Support-Anfrage und den falschen Eindruck, das Abo sei weg.
   In der Praxis greift meist der userinfo-401 zuerst (er wird vorher aufgerufen, mit demselben
   Token) und führt zum vollständigen Logout. Beide Wege enden aber in einem Bildschirm, der
   eine Zahlungsaufforderung zeigt, obwohl nur ein Token abgelaufen ist.
+
+---
+
+## Umsetzung (2026-09-05)
+
+Weg A, mit dem Refresh-Token **serverseitig in Redis** — vom User so entschieden.
+
+| Datei | Was |
+|---|---|
+| [`api/whop-refresh.js`](../api/whop-refresh.js) | **neu.** Tauscht den Refresh-Token gegen einen frischen Access-Token, mit Rotation, Sperre gegen gleichzeitige Tabs und `revoke` fürs Abmelden |
+| [`api/whop-token.js`](../api/whop-token.js) | legt beim Login `refresh_token` + Access-Token unter einer zufälligen Sitzungs-ID (32 Byte) in Redis ab und gibt nur diese ID zurück, dazu `expires_in` |
+| [`js/whop-auth.js`](../js/whop-auth.js) | erneuert **vorausschauend** (5 Min. Puffer, wie Whop empfiehlt), versucht im 401-Zweig **erst eine Erneuerung** und meldet nur ab, wenn die scheitert; Abmelden widerruft die Sitzung serverseitig |
+| [`test/test-whop-refresh.js`](../test/test-whop-refresh.js) | **neu.** 28 Checks gegen den echten Handler |
+
+**Was der Client jetzt speichert:** eine Sitzungs-ID und den Ablaufzeitpunkt. Der Refresh-Token
+selbst kommt nie in den Browser — die Art.-5-Linie aus `js/whop-auth.js` bleibt damit intakt,
+und eine Sitzung ist serverseitig widerrufbar, was bei einem Refresh-Token im `localStorage`
+nicht ginge.
+
+**Der teuerste denkbare Fehler ist mit einem Test festgenagelt:** Whop entwertet den alten
+Refresh-Token bei jedem Gebrauch. Wer den alten weiterspeichert, baut eine Kette, die genau
+einmal funktioniert und beim zweiten Mal still stirbt — auffällig erst eine Stunde später.
+Checks D7/D8 laufen die zweite Runde durch und prüfen, dass dort `RT2` und nicht `RT1` geht.
+
+**Bewusste Entscheidungen dabei:**
+
+- **Fail-closed statt fail-open.** Die IP-Deckel ringsum sind fail-open (`02-ENTSCHEIDUNGEN.md`).
+  Der Token-Speicher kann das nicht sein: ohne Redis gibt es keinen Refresh-Token. Dieser Fall
+  endet mit 401 und Neuanmeldung — also exakt dem Verhalten von vorher, kein Rückschritt. Er
+  meldet sich über `alertOps`, damit er nicht als „Kunde loggt sich ständig neu ein“ im
+  Support landet.
+- **Netzfehler gegen Whop löschen die Sitzung nicht** (Check F2). Der Refresh-Token ist dabei
+  vermutlich noch gut; wer ihn wegwirft, meldet den Kunden wegen eines Schluckaufs ab.
+- **Zwei Tabs gleichzeitig** waren der Grund, den Access-Token mit in Redis zu legen: der
+  zweite Tab bekommt den noch gültigen zurück, statt ein zweites Mal zu rotieren und damit
+  den gerade erneuerten Token zu entwerten (Checks C1–C3, H1–H2).
+- **Keine neue Abhängigkeit, keine neue Env-Variable.** Redis läuft ohnehin schon für die
+  Rate-Limits.
+
+### Was noch nicht bewiesen ist
+
+Die 28 Checks decken die **Serverlogik** ab. Nicht bewiesen ist der Durchlauf am echten
+Whop-Token, denn dafür braucht es ein Deployment **und** eine Stunde Wartezeit, bis ein Token
+wirklich abläuft. Zwei Dinge gehören nach dem nächsten Deploy geprüft:
+
+1. Nach dem Login liegt `whop_session_id` im `localStorage` und `whop_token_exp` etwa eine
+   Stunde in der Zukunft. Fehlt die ID, hat Whop keinen `refresh_token` geliefert oder Redis
+   war nicht erreichbar — beides meldet sich über `alertOps`.
+2. Nach gut einer Stunde Arbeit im Tab: **kein** Anmeldebildschirm mehr. Im Netzwerk-Tab
+   erscheint stattdessen ein Aufruf an `/api/whop-refresh`.

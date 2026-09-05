@@ -85,7 +85,37 @@ module.exports = async function handler(req, res) {
             return res.status(400).json({ error: 'invalid_grant' });
         }
 
-        return res.status(200).json({ access_token: data.access_token });
+        // Refresh-Token serverseitig ablegen, Client bekommt nur eine Sitzungs-ID.
+        // Warum nicht in den Browser: s. Kopfkommentar in api/whop-refresh.js.
+        // Ohne Redis geht das nicht — dann verhaelt sich alles wie vor 2026-09-05
+        // (Sitzung endet nach einer Stunde), statt den Login ganz scheitern zu lassen.
+        var sessionId = null;
+        if (data.refresh_token && REDIS_URL && REDIS_TOKEN) {
+            try {
+                sessionId = require('crypto').randomBytes(32).toString('hex');
+                var expiresIn = parseInt(data.expires_in, 10);
+                if (!expiresIn || expiresIn < 0) expiresIn = 3600;
+                await redisCmd(['SET', 'whoprt:' + sessionId, JSON.stringify({
+                    rt:  data.refresh_token,
+                    at:  data.access_token,
+                    exp: Date.now() + expiresIn * 1000
+                }), 'EX', String(30 * 24 * 60 * 60)]);
+            } catch (e) {
+                // Nicht blockierend: der Login gelingt, nur die Erneuerung fehlt.
+                sessionId = null;
+                await alertOps('whop-token', 'session-nicht-gespeichert',
+                    'Refresh-Token konnte nicht abgelegt werden — Kunde fliegt nach einer Stunde raus: ' + (e && e.message));
+            }
+        } else if (!data.refresh_token) {
+            await alertOps('whop-token', 'kein-refresh-token',
+                'Whop lieferte keinen refresh_token — Token-Erneuerung nicht moeglich');
+        }
+
+        return res.status(200).json({
+            access_token: data.access_token,
+            expires_in:   parseInt(data.expires_in, 10) || 3600,
+            session_id:   sessionId
+        });
     } catch (err) {
         console.error('[whop-token] Fetch error:', err);
         return res.status(500).json({ error: 'Server error' });

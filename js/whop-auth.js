@@ -43,6 +43,12 @@ var AuthUI = (function () {
 
     var LS_TOKEN = 'whop_access_token';
     var LS_USER  = 'whop_user';
+    // Sitzungs-ID zum serverseitig liegenden Refresh-Token (api/whop-refresh.js). Der
+    // Refresh-Token selbst kommt bewusst NIE in den Browser — er ist langlebig und koennte
+    // beliebig neue Access-Tokens praegen. Die ID hier ist dagegen serverseitig widerrufbar.
+    var LS_SESSION   = 'whop_session_id';
+    var LS_TOKEN_EXP = 'whop_token_exp';   // ms seit Epoche, wann der Access-Token faellt
+    var REFRESH_BUFFER_MS = 5 * 60 * 1000; // so lange vor Ablauf schon erneuern (Whop-Empfehlung)
     // Gerätesperre: lokale Unternehmensdaten (companies.js REGISTRY_KEY etc.) sind NICHT an die
     // Whop-User-ID gebunden. Ohne diesen Marker würde nach einem Logout jeder andere Whop-Account
     // im selben Browserprofil sofort die vollen Geschäftsdaten des vorherigen Nutzers sehen.
@@ -93,6 +99,63 @@ var AuthUI = (function () {
             return payload.exp > Date.now() && (!expectedUid || payload.uid === expectedUid);
         } catch (e) { return false; }
     }
+    // ── Token-Erneuerung ──────────────────────────────────────
+    // Whops Access-Token laeuft nach einer Stunde ab. Ohne diesen Weg flog jeder Kunde
+    // stuendlich raus — s. plan/funde-whop-sitzungsabriss-2026-09-04.md.
+    function _sessionId() { try { return localStorage.getItem(LS_SESSION); } catch (e) { return null; } }
+    function _tokenExp()  { var v = parseInt(localStorage.getItem(LS_TOKEN_EXP), 10); return v > 0 ? v : 0; }
+    function _stampToken(accessToken, expiresIn) {
+        try {
+            localStorage.setItem(LS_TOKEN, accessToken);
+            var secs = parseInt(expiresIn, 10);
+            if (!secs || secs < 0) secs = 3600;
+            localStorage.setItem(LS_TOKEN_EXP, String(Date.now() + secs * 1000));
+        } catch (e) {}
+    }
+
+    // Holt einen neuen Access-Token. null = Erneuerung nicht moeglich (keine Sitzung, Sitzung
+    // abgelaufen, Server nicht erreichbar). Der Aufrufer entscheidet dann, ob Grace greift
+    // oder abgemeldet wird — hier wird bewusst NICHTS geloescht.
+    async function _refreshAccessToken() {
+        var sid = _sessionId();
+        if (!sid) return null;
+        try {
+            var res = await fetch('/api/whop-refresh', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ session_id: sid })
+            });
+            if (res.status === 401) {
+                // Sitzung serverseitig tot — die ID ist wertlos, weg damit.
+                try { localStorage.removeItem(LS_SESSION); } catch (e) {}
+                return null;
+            }
+            if (!res.ok) return null;   // 429/503: spaeter nochmal, Sitzung bleibt
+            var data = await res.json();
+            if (!data || !data.access_token) return null;
+            _stampToken(data.access_token, data.expires_in);
+            return data.access_token;
+        } catch (e) {
+            console.warn('[WhopAuth] Token-Erneuerung fehlgeschlagen:', e && e.message);
+            return null;
+        }
+    }
+
+    // Gibt einen Token zurueck, der noch mindestens REFRESH_BUFFER_MS gueltig ist — erneuert
+    // vorausschauend, damit der Kunde den Ablauf gar nicht erst bemerkt.
+    async function _validToken() {
+        var token = localStorage.getItem(LS_TOKEN);
+        if (!token) return null;
+        var exp = _tokenExp();
+        // exp === 0: Sitzung stammt aus der Zeit vor der Erneuerung. Nicht blind erneuern,
+        // sondern den Token normal pruefen lassen — der 401-Weg faengt ihn dann ab.
+        if (exp && exp - Date.now() < REFRESH_BUFFER_MS) {
+            var frisch = await _refreshAccessToken();
+            if (frisch) return frisch;
+        }
+        return token;
+    }
+
     function _cachedUser() { try { return JSON.parse(localStorage.getItem(LS_USER) || 'null'); } catch (e) { return null; } }
 
     // Whop nicht erreichbar (offline/flaky) → innerhalb der Frist weiterarbeiten,
@@ -239,7 +302,10 @@ var AuthUI = (function () {
                 await _onAuthorized(_cu);
                 return;
             }
-            var ok = await _validateAndContinue(token);
+            // Vorausschauend erneuern, bevor ueberhaupt jemand gegen Whop laeuft: liegt der
+            // Ablauf naeher als REFRESH_BUFFER_MS, holt _validToken einen frischen Token.
+            // Der Kunde merkt den Stundenwechsel dadurch gar nicht erst.
+            var ok = await _validateAndContinue(await _validToken() || token);
             if (ok) return;
         }
 
@@ -302,7 +368,14 @@ var AuthUI = (function () {
                 throw new Error(data.error_description || data.error || 'Token-Austausch fehlgeschlagen');
             }
 
-            localStorage.setItem(LS_TOKEN, data.access_token);
+            _stampToken(data.access_token, data.expires_in);
+            // Sitzungs-ID zum serverseitig abgelegten Refresh-Token. Fehlt sie (kein Redis,
+            // kein refresh_token von Whop), laeuft alles wie vor 2026-09-05: Sitzung endet
+            // nach einer Stunde. Kein Grund, den Login deswegen scheitern zu lassen.
+            try {
+                if (data.session_id) localStorage.setItem(LS_SESSION, data.session_id);
+                else localStorage.removeItem(LS_SESSION);
+            } catch (e) {}
             var ok = await _validateAndContinue(data.access_token);
             if (!ok) { _hideLoader(); _showLoginScreen('Kein aktives Stackr-Abo gefunden.'); }
         } catch (err) {
@@ -313,7 +386,11 @@ var AuthUI = (function () {
     }
 
     // ── Token validieren + Membership prüfen ──────────────────
-    async function _validateAndContinue(token) {
+    // allowRefresh=false beim Zweitversuch nach einer Erneuerung — verhindert eine
+    // Endlosschleife, falls auch der frische Token abgelehnt wird (dann ist es wirklich
+    // ein Entzug und kein Ablauf).
+    async function _validateAndContinue(token, allowRefresh) {
+        if (allowRefresh === undefined) allowRefresh = true;
         _updateLoader('Überprüfe Mitgliedschaft...');
         try {
             // Nutzer-Info via OIDC userinfo endpoint
@@ -321,9 +398,18 @@ var AuthUI = (function () {
                 headers: { 'Authorization': 'Bearer ' + token }
             });
             if (meRes.status === 401 || meRes.status === 403) {
-                // echter Auth-Fehler → Token ist ungültig, Grace ebenfalls verwerfen
+                // 401 heisst NICHT automatisch "Zugang entzogen" — der haeufigste Grund ist
+                // schlicht ein abgelaufener Token (Whop: eine Stunde). Bis 2026-09-05 wurden
+                // hier Token, Nutzer UND das Grace-Token geloescht, weshalb jeder Kunde
+                // stuendlich vor dem Anmeldebildschirm stand und die 4-Stunden-Frist nie
+                // griff. Erst erneuern, und nur wenn das scheitert, wirklich abmelden.
+                if (allowRefresh) {
+                    var frisch = await _refreshAccessToken();
+                    if (frisch) return await _validateAndContinue(frisch, false);
+                }
                 localStorage.removeItem(LS_TOKEN);
                 localStorage.removeItem(LS_USER);
+                try { localStorage.removeItem(LS_TOKEN_EXP); } catch (e) {}
                 _clearGrace();
                 return false;
             }
@@ -539,8 +625,22 @@ var AuthUI = (function () {
     // ── Abmelden ──────────────────────────────────────────────
     function _logout() {
         _removeGate('authUserMenu');
+        // Sitzung serverseitig beenden — genau dafuer liegt der Refresh-Token dort und nicht
+        // im Browser. keepalive, weil location.replace() gleich darunter die Seite abraeumt.
+        var sid = _sessionId();
+        if (sid) {
+            try {
+                fetch('/api/whop-refresh', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ session_id: sid, revoke: true }),
+                    keepalive: true
+                }).catch(function () {});
+            } catch (e) {}
+        }
         localStorage.removeItem(LS_TOKEN);
         localStorage.removeItem(LS_USER);
+        try { localStorage.removeItem(LS_SESSION); localStorage.removeItem(LS_TOKEN_EXP); } catch (e) {}
         _clearGrace();
         location.replace('/app.html'); // absolut: relativ 404et von /lager/, /rechnungen/, /eigenbelege/ aus
     }

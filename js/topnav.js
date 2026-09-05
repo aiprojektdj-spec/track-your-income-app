@@ -68,8 +68,18 @@
     // keinen Tab-Platz und macht den Weg einstufig. Zentral hier statt in vier HTML-Dateien,
     // damit die Nav nicht wieder auseinanderlaeuft (derselbe Grund wie fuer _html oben).
     function _injectCta(prefix) {
+        if (document.getElementById('topnavNewInvoice')) return;
         var ctrl = document.querySelector('.topnav-controls');
-        if (!ctrl || document.getElementById('topnavNewInvoice')) return;
+        if (!ctrl) {
+            // Dieses Skript laeuft direkt hinter #topnavApps, .topnav-controls steht im
+            // Markup aber DAHINTER und existiert zu diesem Zeitpunkt noch nicht. Ohne den
+            // Nachlauf haengt sich der Button still nie ein (im Browser aufgefallen, nicht
+            // beim Lesen des Codes).
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function () { _injectCta(prefix); }, { once: true });
+            }
+            return;
+        }
         var a = document.createElement('a');
         a.id = 'topnavNewInvoice';
         a.className = 'topnav-cta';

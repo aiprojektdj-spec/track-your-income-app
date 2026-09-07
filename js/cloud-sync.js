@@ -938,6 +938,12 @@ var CloudSync = (function () {
         // blockiert den Start nicht: schlägt sie fehl, bleibt der Alt-Eintrag liegen und alles
         // funktioniert wie bisher — _keyBytes() liest ihn weiter als Rückfall.
         _migrateKeyToIdb(_userId()).catch(function () {});
+        // Offene Löschungen nachholen, AUCH wenn Cloud-Sync deaktiviert ist: bisher hing der
+        // Retry allein an _syncAll(), und das kehrt bei deaktiviertem Sync sofort zurück. Der
+        // Toast „beim nächsten Sync-Versuch wird erneut versucht" war damit ein Versprechen,
+        // das genau im Löschfall nicht eingelöst wurde. retryPendingDeletions() selbst braucht
+        // nur ein Token.
+        retryPendingDeletions().catch(function (e) { console.warn('[CloudSync] Nachhol-Löschung:', e && e.message); });
         if (_hasMismatch() && typeof Utils !== 'undefined') {
             setTimeout(function () {
                 Utils.showToast('⛔ Cloud-Sync steht still: Schlüssel und Cloud-Daten passen nicht zusammen. ' +
@@ -1625,13 +1631,33 @@ var CloudSync = (function () {
     // Rückgabe true bedeutet: Redis-Snapshot UND alle Blob-Anhänge bestätigt gelöscht. Bei
     // false wurde die Löschung in die Retry-Queue eingereiht (kein stiller "Erfolg" trotz Fehler).
     async function deleteRemote(scope) {
-        if (!_enabled() || !_hasKey() || !_token()) return true; // Cloud-Sync nicht aktiv → nichts zu löschen
+        // Hier stand bis 2026-09-07 `if (!_enabled() || !_hasKey() || !_token()) return true`.
+        // Das war richtig für "nie synchronisiert", aber falsch für den häufigeren Fall
+        // "einmal synchronisiert, danach deaktiviert": der Snapshot liegt weiter in der Cloud,
+        // die Funktion meldete trotzdem Erfolg — und der Aufrufer in js/app.js zeigte darauf
+        // „Alle Daten gelöscht". Genau die Reihenfolge (erst Sync aus, dann löschen) ist die,
+        // die ein Nutzer wählt, der aufhören will. Art. 17 DSGVO verlangt eine BESTÄTIGTE
+        // Löschung, kein „vermutlich war da nichts".
+        //
+        // `oyi_sync_keymeta_<scope>` bzw. `oyi_sync_base_<scope>` überleben das Deaktivieren
+        // (_finishDisable entfernt nur das Enabled-Flag und auf Wunsch den Schlüssel) und sind
+        // damit der belastbare Hinweis darauf, dass dieser Scope je in der Cloud war.
+        var jeInDerCloud = !!(localStorage.getItem(LS_META(scope)) || localStorage.getItem(LS_BASE(scope)));
+        if (!jeInDerCloud && !_enabled()) return true;   // wirklich nie hochgeladen → nichts zu löschen
+        // Ohne Whop-Token ist kein Aufruf möglich. NICHT als Erfolg verbuchen, sondern einreihen —
+        // retryPendingDeletions() holt es nach, sobald wieder ein Token da ist.
+        if (!_token()) { _queuePendingDeletion({ kind: 'redis', scope: scope }); return false; }
         var blobOk = true;
         try {
             // Art. 17 DSGVO muss auch ausgelagerte Anhänge (Blob-Objekte) erfassen —
             // vor dem Löschen des Redis-Keys den aktuellen Stand pullen und alle
             // referenzierten Blob-URLs (Ledger-Overflow + Feld-Anhänge) einsammeln.
             try {
+                // Ohne Schlüssel lässt sich das Chiffrat nicht öffnen, also auch keine
+                // Anhang-URL daraus lesen. Der Redis-Snapshot unten wird trotzdem gelöscht —
+                // das braucht keinen Schlüssel. Ehrlich als Teil-Erfolg melden statt so zu tun,
+                // als sei alles weg.
+                if (!_hasKey()) throw new Error('kein_schluessel_fuer_anhang_cleanup');
                 var cur = await _api({ action: 'pull', scope: scope });
                 if (cur.status === 200 && cur.json.blob) {
                     var urls = [];

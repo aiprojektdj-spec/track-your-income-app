@@ -142,7 +142,11 @@ const Euer = {
             .map(x => ({
                 verkaufspreis: Math.max(0, ((parseFloat(x.sale.verkaufspreis) || 0) + (parseFloat(x.sale.versandkostenKaeufer) || 0)) - (diff25aRetourenBySaleId[x.sale.id] || 0)),
                 einkaufspreis: parseFloat(x.purchase.einkaufspreis) || 0,
-                warenart: x.purchase.warenart || 'gebraucht'
+                warenart: x.purchase.warenart || 'gebraucht',
+                // §25a Abs. 3 Satz 3 UStG — nur wenn der Artikel selbst so erfasst ist. Die
+                // Warenart wird mitgeprueft, damit ein Altbestand-Haken an einem Sammlerstueck
+                // keine Pauschale ausloest, fuer die es keine Rechtsgrundlage gibt.
+                pauschalmarge: !!(x.purchase.pauschalmarge && x.purchase.warenart === 'kunst')
             }));
         const diff25aInvoicePositionen = [];
         unsyncedInvoices.forEach(inv => {
@@ -153,7 +157,12 @@ const Euer = {
                 diff25aInvoicePositionen.push({
                     verkaufspreis: sign * (pos.menge || 0) * (pos.einzelpreis || 0),
                     einkaufspreis: sign * (linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0)),
-                    warenart: pos.warenart || (linkedPurch && linkedPurch.warenart) || 'gebraucht'
+                    warenart: pos.warenart || (linkedPurch && linkedPurch.warenart) || 'gebraucht',
+                    // Die Pauschale haengt am Lagerartikel, nicht an der Rechnungsposition — eine
+                    // frei eingetippte Position kennt keinen Einkaufspreis, den man als
+                    // "nicht ermittelbar" einstufen koennte. Gutschriften (sign -1) drehen die
+                    // Pauschale ueber den negativen Verkaufspreis mit, ohne Sonderbehandlung.
+                    pauschalmarge: !!(linkedPurch && linkedPurch.pauschalmarge && linkedPurch.warenart === 'kunst')
                 });
             });
         });

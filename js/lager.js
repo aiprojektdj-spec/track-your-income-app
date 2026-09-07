@@ -2576,6 +2576,13 @@ const Lager = {
                                     <option value="sammlerstueck" ${p.warenart === 'sammlerstueck' ? 'selected' : ''}>Sammlungsstücke und Antiquitäten</option>
                                 </select>
                                 <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Die Marge wird immer mit 19% versteuert: §25a Abs. 5 Satz 1 UStG schreibt den allgemeinen Steuersatz vor. Der ermäßigte Satz von 7% auf Kunst und Sammlungsstücke (seit 1.1.2025) gilt nur bei Regelbesteuerung, nie auf die Differenz. Die Warenart entscheidet stattdessen, welche Pflichtangabe §14a Abs. 6 UStG auf deiner Rechnung verlangt — „Gebrauchtgegenstände/Sonderregelung", „Kunstgegenstände/Sonderregelung" oder „Sammlungsstücke und Antiquitäten/Sonderregelung".</div>
+                                <div id="le_pauschal_wrap" style="display:${(p.differenzbesteuert && p.warenart === 'kunst') ? '' : 'none'};margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+                                    <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer;font-weight:400;">
+                                        <input type="checkbox" id="le_pauschalmarge" ${p.pauschalmarge ? 'checked' : ''} style="margin-top:2px;">
+                                        <span>Einkaufspreis nicht ermittelbar oder unbedeutend — Marge pauschal mit 30% des Verkaufspreises ansetzen</span>
+                                    </label>
+                                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">§25a Abs. 3 Satz 3 UStG. Gilt <strong>nur für Kunstgegenstände</strong> (Anlage 2 Nr. 53), nicht für Sammlungsstücke und Antiquitäten. Der Einkaufspreis oben wird dann für die Margenrechnung ignoriert. Ob dein Stück unter Nr. 53 fällt und ob ein Einkaufspreis „unbedeutend" ist, ist eine Einzelfallfrage — im Zweifel mit dem Steuerberater klären.</div>
+                                </div>
                             </div>
                         </div>
                         <div class="form-group">
@@ -2632,11 +2639,26 @@ const Lager = {
                     // Differenzbesteuerung §25a: Warenart-Auswahl nur bei aktivem Haken zeigen
                     const leDiffCheckbox = document.getElementById('le_differenzbesteuert');
                     const leWarenartWrap = document.getElementById('le_warenart_wrap');
+                    const leWarenartSel  = document.getElementById('le_warenart');
+                    const lePauschalWrap = document.getElementById('le_pauschal_wrap');
+                    const lePauschalBox  = document.getElementById('le_pauschalmarge');
+                    // Die Pauschalmarge nach §25a Abs. 3 Satz 3 UStG gilt NUR fuer Kunstgegenstaende
+                    // (Anlage 2 Nr. 53), nicht fuer Sammlungsstuecke/Antiquitaeten. Wer die Warenart
+                    // wieder wegstellt, darf keinen aktiven Haken zuruecklassen, sonst rechnet die UVA
+                    // eine Pauschale fuer Ware, fuer die es sie nicht gibt.
+                    const syncPauschal = () => {
+                        if (!lePauschalWrap) return;
+                        const erlaubt = !!(leDiffCheckbox?.checked && leWarenartSel?.value === 'kunst');
+                        lePauschalWrap.style.display = erlaubt ? '' : 'none';
+                        if (!erlaubt && lePauschalBox) lePauschalBox.checked = false;
+                    };
                     if (leDiffCheckbox && leWarenartWrap) {
                         leDiffCheckbox.addEventListener('change', () => {
                             leWarenartWrap.style.display = leDiffCheckbox.checked ? '' : 'none';
+                            syncPauschal();
                         });
                     }
+                    if (leWarenartSel) leWarenartSel.addEventListener('change', syncPauschal);
 
                     // Einkaufsquelle "Sonstiges" toggle
                     const leQuelleSelect = document.getElementById('le_einkaufsquelle');
@@ -2700,6 +2722,14 @@ const Lager = {
                             status:         newStatus,
                             differenzbesteuert: leDiffCheckbox?.checked || false,
                             warenart:       leDiffCheckbox?.checked ? document.getElementById('le_warenart').value : undefined,
+                            // §25a Abs. 3 Satz 3 UStG nur fuer Kunstgegenstaende (Anlage 2 Nr. 53).
+                            // Die Warenart wird hier NOCHMALS geprueft, nicht nur beim Umschalten der
+                            // Auswahl: sonst koennte ein Haken aus einem frueheren Speicherstand an
+                            // einem Sammlerstueck haengen bleiben und eine Pauschale ausloesen, fuer
+                            // die es keine Rechtsgrundlage gibt.
+                            pauschalmarge:  (leDiffCheckbox?.checked
+                                             && document.getElementById('le_warenart').value === 'kunst'
+                                             && document.getElementById('le_pauschalmarge')?.checked) || undefined,
                             tags:           (document.getElementById('le_tags')?.value || '').split(',').map(t=>t.trim()).filter(Boolean),
                             notizen:        document.getElementById('le_notizen').value.trim(),
                             lagerort: {

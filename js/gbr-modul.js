@@ -65,7 +65,9 @@ const GbrModul = {
             .filter(x => x.purchase && x.purchase.differenzbesteuert)
             .map(x => ({
                 verkaufspreis: Math.max(0, ((parseFloat(x.sale.verkaufspreis) || 0) + (parseFloat(x.sale.versandkostenKaeufer) || 0)) - (diff25aRetourenBySaleId[x.sale.id] || 0)),
-                einkaufspreis: parseFloat(x.purchase.einkaufspreis) || 0
+                einkaufspreis: parseFloat(x.purchase.einkaufspreis) || 0,
+                // §25a Abs. 3 Satz 3 UStG, nur Kunstgegenstaende (Anlage 2 Nr. 53) — siehe euer.js
+                pauschalmarge: !!(x.purchase.pauschalmarge && x.purchase.warenart === 'kunst')
             }));
         const diff25aInvoicePositionen = [];
         rechInvoices.forEach(inv => {
@@ -75,7 +77,8 @@ const GbrModul = {
                 const linkedPurch = pos.lagerArtikelId ? purchasesById[pos.lagerArtikelId] : null;
                 diff25aInvoicePositionen.push({
                     verkaufspreis: sign * (pos.menge || 0) * (pos.einzelpreis || 0),
-                    einkaufspreis: sign * (linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0))
+                    einkaufspreis: sign * (linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0)),
+                    pauschalmarge: !!(linkedPurch && linkedPurch.pauschalmarge && linkedPurch.warenart === 'kunst')
                 });
             });
         });

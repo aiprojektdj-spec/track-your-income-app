@@ -54,6 +54,20 @@ const UstVoranmeldung = {
         // Sortiert, damit Sammelverkauf und Retoure darauf denselben Schlüssel ergeben.
         const _ref25a = ids => (ids || []).filter(Boolean).map(String).sort().join('|');
         const _refSale25a = s => _ref25a(_linkedPurchases25a(s).map(p => p.id));
+        // §25a Abs. 3 Satz 3 UStG: Pauschalmarge von 30 % des Verkaufspreises, wenn der
+        // Einkaufspreis eines KUNSTGEGENSTANDS (Anlage 2 Nr. 53) nicht ermittelbar oder
+        // unbedeutend ist. Die Warenart wird mitgeprueft — fuer Sammlungsstuecke und
+        // Antiquitaeten (Nr. 54) sieht Satz 3 keine Pauschale vor.
+        const _istPauschal25a = p => !!(p && p.pauschalmarge && p.warenart === 'kunst');
+        // BEWUSSTE GRENZE beim Sammelverkauf: die Pauschale bemisst sich am Verkaufspreis DES
+        // Gegenstands. Haengen an einem Verkauf mehrere Lagerartikel, laesst sich der Erloes nicht
+        // verlaesslich auf sie aufteilen — dann bleibt es bei vk-ek fuer den ganzen Verkauf, statt
+        // 30 % auf einen Erloes anzusetzen, der zum groesseren Teil zu anderer Ware gehoert.
+        // Greift also nur, wenn der Verkauf genau einen Artikel betrifft und der pauschal ist.
+        const _saleIstPauschal25a = s => {
+            const ps = _linkedPurchases25a(s);
+            return ps.length === 1 && _istPauschal25a(ps[0]);
+        };
         const diff25aPositionenRoh = [];
 
         // Brutto-Umsätze nach Steuersatz aufteilen (Feld: steuersatz, Default: 19 nur wenn nicht gesetzt)
@@ -125,14 +139,21 @@ const UstVoranmeldung = {
                             const linkedPurch = pos.lagerArtikelId ? purchasesById25a[pos.lagerArtikelId] : null;
                             const vk = (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0);
                             const ek = linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0);
+                            const istPauschal = _istPauschal25a(linkedPurch);
                             if (sign === -1) {
                                 // Gutschrift auf einen §25a-Artikel (§17 UStG Korrektur): die URSPRÜNGLICH
                                 // versteuerte Marge (max(0,vk-ek)) zurücknehmen. NICHT die negierten vk/ek
                                 // erneut auf 0 klemmen lassen — sonst verschwindet die Korrektur bei
                                 // vollständiger Stornierung spurlos (die schon gezahlte USt bliebe stehen).
-                                diff25aPositionenRoh.push({ margeKorrektur: -Math.max(0, vk - ek), satz: 19, ref: _ref25a([pos.lagerArtikelId]) });
+                                // Bei Pauschalmarge war die urspruengliche Marge 30 % des Verkaufspreises,
+                                // nicht vk-ek — sonst naehme die Gutschrift einen Betrag zurueck, der nie
+                                // versteuert wurde.
+                                const urspruenglich = istPauschal
+                                    ? vk * SteuerBerechnung.pauschalmargeSatz(this._year)
+                                    : vk - ek;
+                                diff25aPositionenRoh.push({ margeKorrektur: -Math.max(0, urspruenglich), satz: 19, ref: _ref25a([pos.lagerArtikelId]) });
                             } else {
-                                diff25aPositionenRoh.push({ verkaufspreis: vk, einkaufspreis: ek, ref: _ref25a([pos.lagerArtikelId]) });
+                                diff25aPositionenRoh.push({ verkaufspreis: vk, einkaufspreis: ek, ref: _ref25a([pos.lagerArtikelId]), pauschalmarge: istPauschal, jahr: this._year });
                             }
                             return;
                         }
@@ -155,7 +176,7 @@ const UstVoranmeldung = {
             Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate))
                 .forEach(s => {
                     if (_istDiff25aSale(s)) {
-                        diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s), ref: _refSale25a(s) });
+                        diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s), ref: _refSale25a(s), pauschalmarge: _saleIstPauschal25a(s), jahr: this._year });
                         return;
                     }
                     _perRateGroups(s).forEach(function (g) {
@@ -169,7 +190,7 @@ const UstVoranmeldung = {
             // separaten Rechnungs-Pfad, der Rechnungs-Umsätze schon zählt, also KEIN _invoiceId-Ausschluss.
             const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
             sales.filter(_istDiff25aSale).forEach(s => {
-                diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s), ref: _refSale25a(s) });
+                diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s), ref: _refSale25a(s), pauschalmarge: _saleIstPauschal25a(s), jahr: this._year });
             });
             const salesOhneDiff25a = sales.filter(s => !_istDiff25aSale(s));
             // Satzgenau summieren (_perRateGroups) statt pro Sale nur EINEN Satz anzunehmen —
@@ -223,7 +244,11 @@ const UstVoranmeldung = {
                 // mindern. Anteilig zur ursprünglichen Marge zurücknehmen (§17 UStG).
                 const originalVk = parseFloat(linked.verkaufspreis) || 0;
                 const originalEk = _sumEk25a(linked);
-                const originalMarge = Math.max(0, originalVk - originalEk);
+                // Bei Pauschalmarge war die urspruenglich versteuerte Marge 30 % des Verkaufspreises
+                // und nicht vk-ek — sonst naehme die Retoure einen Betrag zurueck, den es nie gab.
+                const originalMarge = _saleIstPauschal25a(linked)
+                    ? Math.max(0, originalVk * SteuerBerechnung.pauschalmargeSatz(this._year))
+                    : Math.max(0, originalVk - originalEk);
                 const erstattung = parseFloat(r.erstattungBetrag) || 0;
                 const anteil = originalVk !== 0 ? Math.min(1, erstattung / Math.abs(originalVk)) : 0;
                 diff25aPositionenRoh.push({ margeKorrektur: -(originalMarge * anteil), satz: 19, ref: _refSale25a(linked) });
@@ -253,7 +278,15 @@ const UstVoranmeldung = {
             const ueber750Refs = new Set(
                 diff25aPositionenRoh.filter(p => p.einkaufspreis > 750 && p.ref).map(p => p.ref)
             );
-            const _istUeber750 = p => p.einkaufspreis > 750 ||
+            // Pauschalmarge-Positionen gehoeren ebenfalls NICHT in die Gesamtdifferenz. §25a Abs. 4
+            // laesst sie nur fuer Gegenstaende zu, deren Einkaufspreis 750 EUR "nicht uebersteigt" —
+            // bei einem Gegenstand, dessen Einkaufspreis gerade nicht ermittelbar ist, laesst sich
+            // diese Voraussetzung nicht bejahen. Bewusst die vorsichtige Lesart: in der
+            // Einzeldifferenz wird die Marge auf jeden Fall versteuert, waehrend sie in der
+            // Gesamtdifferenz gegen Verluste anderer Gegenstaende aufgerechnet werden koennte —
+            // das waere die Richtung, die Geld kostet. Faellt sonst still in den falschen Topf,
+            // weil `undefined > 750` false ergibt.
+            const _istUeber750 = p => p.einkaufspreis > 750 || p.pauschalmarge === true ||
                 (p.margeKorrektur != null && p.ref && ueber750Refs.has(p.ref));
             const ueber750 = diff25aPositionenRoh.filter(_istUeber750);
             diff25a = SteuerBerechnung.margeGesamtdifferenz(

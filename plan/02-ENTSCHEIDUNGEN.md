@@ -296,10 +296,18 @@ korrekt, weil dieselbe Norm sie nicht mit aufzählt. Abgesichert durch
 [`test/test-25a-xrechnung.js`](../test/test-25a-xrechnung.js), 23 Checks, gegen den Stand vor dem
 Fix gegengeprüft.
 
-**Nicht entschieden, weiterhin offen:** die Pauschalmarge von 30 % nach §25a Abs. 3 Satz 2 UStG.
-Und unverändert gilt: der XRechnung-Export läuft **ohne KoSIT-/Schematron-Validierung** — das
-sagt der Export-Toast selbst, und die Kategorie-`E`-Zuordnung für §25a gehört vor produktivem
-Versand durch den offiziellen Validator.
+**Nachtrag 2026-09-05 — Pauschalmarge gebaut.** §25a Abs. 3 **Satz 3** UStG (nicht Satz 2, wie
+diese Datei zuvor zitierte): 30 % des Verkaufspreises, wenn der Einkaufspreis eines
+**Kunstgegenstands** (Anlage 2 Nr. 53) nicht ermittelbar oder unbedeutend ist. Sammlungsstücke und
+Antiquitäten sind ausdrücklich nicht erfasst, die Warenart wird deshalb überall mitgeprüft. Die
+30 % sind ein Bruttobetrag — Satz 4 hält die USt aus der Bemessungsgrundlage heraus, sie wird also
+herausgerechnet und nicht aufgeschlagen. Details und die zwei Auslegungsentscheidungen
+(Sammelverkauf, Ausschluss aus der Gesamtdifferenz) in der Recherche-Datei; abgesichert durch
+[`test/test-25a-pauschalmarge.js`](../test/test-25a-pauschalmarge.js), 29 Checks.
+
+**Weiterhin offen:** der XRechnung-Export läuft **ohne KoSIT-/Schematron-Validierung** — das sagt
+der Export-Toast selbst, und die Kategorie-`E`-Zuordnung für §25a gehört vor produktivem Versand
+durch den offiziellen Validator.
 
 ### Kein Reparaturlauf für „verkauft ohne Umsatz" — gemessen, nicht geschätzt (2026-09-05)
 

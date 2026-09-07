@@ -99,6 +99,38 @@ const SteuerBerechnung = {
     },
 
     // ── §25a UStG Differenzbesteuerung ──────────────────────────────────────
+
+    // Pauschalmarge nach §25a Abs. 3 Satz 3 UStG: „Lässt sich der Einkaufspreis eines
+    // Kunstgegenstandes (Nummer 53 der Anlage 2) nicht ermitteln oder ist der Einkaufspreis
+    // unbedeutend, wird der Betrag, nach dem sich der Umsatz bemisst, mit 30 Prozent des
+    // Verkaufspreises angesetzt."
+    //
+    // Jahresfunktion nach Arbeitsregel 7, obwohl es bis heute nur einen Wert gibt — ein
+    // Gesetzeswert gehört nie in eine jahresfeste Konstante.
+    pauschalmargeSatz(year) {
+        return 0.30;
+    },
+
+    // Rohmarge EINER Position, vor Floor und vor Korrektur.
+    //
+    // Der Aufrufer entscheidet über pos.pauschalmarge, ob Abs. 3 Satz 3 greift — der Rechenkern
+    // prüft die Tatbestandsmerkmale NICHT. Sie sind keine Rechenfrage: „Kunstgegenstand nach
+    // Nummer 53 der Anlage 2" ist eine Zollrechts-/Sachverständigenfrage, und ob ein
+    // Einkaufspreis „unbedeutend" ist, ebenso. Deshalb ist die Prüfung dort angesiedelt, wo der
+    // Nutzer sie beantwortet, nicht hier.
+    //
+    // Die Pauschale ersetzt vk−ek vollständig; ein etwaiger Einkaufspreis wird bewusst ignoriert,
+    // denn der Tatbestand setzt ja gerade voraus, dass es keinen brauchbaren gibt. pos.jahr ist
+    // optional — ohne Angabe gilt der heutige Satz.
+    //
+    // Die USt wird anschließend über nettoAusBrutto() herausgerechnet, nicht aufgeschlagen:
+    // §25a Abs. 3 Satz 4 UStG, „Die Umsatzsteuer gehört nicht zur Bemessungsgrundlage." Die 30 %
+    // sind also ein Bruttobetrag, genau wie die gewöhnliche Marge vk−ek.
+    _margeRoh(pos) {
+        const vk = parseFloat(pos.verkaufspreis) || 0;
+        if (pos.pauschalmarge) return vk * this.pauschalmargeSatz(pos.jahr);
+        return vk - (parseFloat(pos.einkaufspreis) || 0);
+    },
     // Beide Funktionen sind reine Rechenkerne: Aufrufer filtert vorher nach Periode/Jahr
     // (wie bei allen anderen Funktionen hier) und, für Gesamtdifferenz, nach EK ≤750€.
 
@@ -126,7 +158,7 @@ const SteuerBerechnung = {
             const key = (pos.ref !== undefined && pos.ref !== null && pos.ref !== '') ? 'r:' + pos.ref : 'i:' + i;
             if (!gruppen.has(key)) gruppen.set(key, { summe: 0, satz: pos.satz });
             const g = gruppen.get(key);
-            g.summe += (parseFloat(pos.verkaufspreis) || 0) - (parseFloat(pos.einkaufspreis) || 0) + (parseFloat(pos.margeKorrektur) || 0);
+            g.summe += this._margeRoh(pos) + (parseFloat(pos.margeKorrektur) || 0);
             if (g.satz == null) g.satz = pos.satz;
         });
         let margeBrutto = 0, margeNetto = 0;
@@ -148,7 +180,7 @@ const SteuerBerechnung = {
     // die Summe einrechenbar, da hier (anders als Einzeldifferenz) kein Floor pro Position existiert.
     margeGesamtdifferenz(positionen, vortragAusVorperiode, satz) {
         const summe = (positionen || []).reduce((s, pos) =>
-            s + (parseFloat(pos.verkaufspreis) || 0) - (parseFloat(pos.einkaufspreis) || 0) + (parseFloat(pos.margeKorrektur) || 0), 0
+            s + this._margeRoh(pos) + (parseFloat(pos.margeKorrektur) || 0), 0
         ) + (parseFloat(vortragAusVorperiode) || 0);
         const bemessungsgrundlage = Math.max(0, summe);
         const neuerVortrag = Math.min(0, summe);

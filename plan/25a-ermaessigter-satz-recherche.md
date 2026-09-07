@@ -135,12 +135,53 @@ nicht berührt. Und Stackr kennt die Abs.-2-Option nirgends. Ein Guard hätte al
 bewachen. **Wird nicht gebaut**, solange es keine Abs.-2-Unterstützung gibt; käme sie, gehört der
 Ausschluss zu ihr.
 
-### 3. Pauschalmarge 30 % — bleibt offen
+### 3. Pauschalmarge 30 % — gebaut am 2026-09-05
 
-§25a Abs. 3 Satz 2 UStG: Ist der Einkaufspreis eines Kunstgegenstands nicht ermittelbar oder
-unbedeutend, sind **30 % des Verkaufspreises** als Bemessungsgrundlage anzusetzen. Kennt Stackr
-nicht. Eigener Fall, unabhängig vom Steuersatz, weiterhin ungeprüft — und auch hier gilt dann
-Abs. 5 Satz 1: auf die so ermittelte Marge 19 %.
+> **Zitierkorrektur:** Diese Datei nannte bisher „Abs. 3 **Satz 2**". Der Normtext, an der
+> Primärquelle geholt, weist die Pauschale **Satz 3** zu — Satz 2 regelt die Fälle des §3 Abs. 1b
+> und §10 Abs. 5. Satz 4 ist der Satz, der die USt aus der Bemessungsgrundlage heraushält.
+
+Wortlaut Satz 3: *„Lässt sich der Einkaufspreis eines Kunstgegenstandes (Nummer 53 der Anlage 2)
+nicht ermitteln oder ist der Einkaufspreis unbedeutend, wird der Betrag, nach dem sich der Umsatz
+bemisst, mit 30 Prozent des Verkaufspreises angesetzt."*
+
+Daraus folgen drei Dinge, die den Bau bestimmt haben:
+
+1. **Nur Kunstgegenstände (Anlage 2 Nr. 53).** Sammlungsstücke und Antiquitäten (Nr. 54) sind
+   ausdrücklich **nicht** erfasst. Die Warenart wird deshalb an *jeder* Stelle mitgeprüft, nicht
+   nur beim Setzen des Hakens — ein Altbestand-Haken an einem Sammlerstück darf keine Pauschale
+   auslösen.
+2. **Die 30 % sind ein Bruttobetrag.** Satz 4: *„Die Umsatzsteuer gehört nicht zur
+   Bemessungsgrundlage."* Die USt wird also aus den 30 % **heraus**gerechnet, nicht aufgeschlagen.
+   Der Test sichert genau das ab (300 € → 252,10 netto / 47,90 USt, nicht 357,00).
+3. **Die Pauschale ersetzt vk−ek vollständig.** Ein trotzdem erfasster Einkaufspreis wird
+   ignoriert — der Tatbestand setzt ja gerade voraus, dass es keinen brauchbaren gibt.
+
+**Umgesetzt** in `SteuerBerechnung._margeRoh()`, gespeist aus Lager (Erfassung), EÜR, GbR-Modul und
+UVA. `pauschalmargeSatz(year)` ist eine **Jahresfunktion** nach Arbeitsregel 7, obwohl es bis heute
+nur einen Wert gibt. Beide §17-Korrekturwege (Gutschrift, Retoure) nehmen die **Pauschale** zurück
+und nicht vk−ek — sonst zöge eine Retoure einen Betrag ab, der nie versteuert wurde.
+
+**Zwei Entscheidungen, die der Normtext nicht ausdrücklich hergibt:**
+
+- **Sammelverkauf:** Hängen an einem Verkauf mehrere Lagerartikel, lässt sich der Erlös nicht
+  verlässlich auf sie aufteilen. Die Pauschale greift dann **nicht** — es bleibt bei vk−ek für den
+  ganzen Verkauf, statt 30 % auf einen Erlös anzusetzen, der zum größeren Teil zu anderer Ware
+  gehört.
+- **Gesamtdifferenz:** Pauschalpositionen sind davon **ausgenommen**. §25a Abs. 4 lässt sie nur für
+  Gegenstände zu, deren Einkaufspreis 750 € *„nicht übersteigt"* — bei einem Gegenstand, dessen
+  Einkaufspreis gerade nicht ermittelbar ist, lässt sich das nicht bejahen. Bewusst die vorsichtige
+  Lesart: in der Einzeldifferenz wird die Marge auf jeden Fall versteuert, in der Gesamtdifferenz
+  könnte sie gegen Verluste anderer Gegenstände aufgerechnet werden — das wäre die Richtung, die
+  Geld kostet. Ohne diese Regel wären sie **still** in den falschen Topf gerutscht, weil
+  `undefined > 750` false ergibt.
+
+Abgesichert durch [`test/test-25a-pauschalmarge.js`](../test/test-25a-pauschalmarge.js) — 29 Checks,
+davon 8 Quelltextprüfungen gegen ein stilles Abhängen der Verdrahtung.
+
+**Nicht browser-verifiziert:** Die Erfassungsmaske im Lager liegt hinter dem Whop-Gate, das auf
+localhost strukturell nicht durchlaufen werden kann. Der Haken gehört beim nächsten Live-Test auf
+Produktion gegengeprüft — sichtbar nur bei Warenart „Kunstgegenstände".
 
 ---
 

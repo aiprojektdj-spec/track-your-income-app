@@ -208,7 +208,7 @@ decken Export, Aufruf, beide Reihenfolgebedingungen und den `typeof`-Guard ab.
 > steht am Code, mit benannten Belegstellen; ein Durchklick im Finanzen-Tab wäre die noch
 > fehlende Bestätigung.
 
-### 1.7 Steuerberater-Nur-Lese-Modus greift im Rechnungsmodul gar nicht ⚠️
+### 1.7 StB-Nur-Lese-Modus griff im Rechnungsmodul gar nicht · ✅ gefixt 2026-09-05, Rest offen
 
 Vorklärung zu Live-Test 3 (Steuerberater-Zugang), 2026-09-05, am Code gemessen. Der Test selbst
 braucht zwei Accounts und wartet auf den Betreiber — **dieser Teil nicht.**
@@ -278,19 +278,46 @@ eingestufte zerschösse dem Berater die Ansicht — **eine unsauber erzeugte All
 gefährlicher als die heutige Denylist.** Und selbst eine perfekte Allowlist hülfe im
 Rechnungsmodul nicht, weil dort 89 Schreibwege gar kein `data-action` tragen.
 
-Der richtige Ort ist **eine Schicht tiefer: der Store.** Ist die aktive Firma `_readonly`,
-verweigert `Store` die schreibenden Methoden — das deckt jeden Weg ab, den Namensregex, die
-direkte Bindung und die Konsole gleichermaßen, und es ist **eine** Stelle statt 174.
+**Gebaut am 2026-09-05: der Guard sitzt jetzt eine Schicht tiefer, im Store.** Ist die aktive
+Firma `_readonly`, verweigert `Store` die schreibenden Methoden — das deckt Namensregex, direkte
+Bindung und Konsole gleichermaßen ab, und es ist **eine** Stelle statt 174 Aktionsnamen.
 
-> **Der Haken dabei, und deshalb nicht nebenbei gebaut:** derselbe Store schreibt die
-> Mandantendaten beim Sync-Pull. Ein pauschales Verbot bräche genau das Befüllen der
-> Nur-Lese-Firma. Der Guard muss also zwischen nutzerausgelösten Schreibvorgängen und
-> Sync-Anwendung unterscheiden — etwa über ein ausdrückliches Flag, das nur der Sync-Pfad setzt.
-> Das ist ein Eingriff in `js/store.js`, die zentralste Datei des Repos, und gehört mit einem
-> eigenen Harness gebaut, nicht zwischen zwei anderen Aufgaben.
+Abgesichert sind die **drei** Nutzer-Schreibwege: `set()`, `setAsync()` und `_rechSet()`. Der
+dritte war der wichtige — über ihn läuft das Rechnungsbuch, das die Oberflächensperre nie
+erreichte. Dazu eine ausdrückliche frühe Abweisung in `saveRechInvoice()`, die `null`
+zurückgibt: der Aufrufer wertet den Rückgabewert aus und hätte sonst „Dokument gespeichert!"
+gemeldet, obwohl nichts geschrieben wurde. **Eine lügende Bestätigung ist schlimmer als eine
+Fehlermeldung.**
+
+> **Der befürchtete Haken war keiner.** Die Sorge war, ein Store-Guard bräche das Befüllen der
+> Nur-Lese-Firma durch den Sync. Am Code nachgesehen: der Sync schreibt **nie** über die
+> öffentliche API. Er nutzt `Store.syncApplyKeys()` und direktes `localStorage.setItem`
+> ([`js/cloud-sync.js`](../js/cloud-sync.js), `_applyMerged`) — beides läuft an
+> `set()`/`_rechSet()` vorbei. Die Trennung war also schon da; sie musste nur genutzt werden.
+> Ein Flag brauchte es nicht. **Wer diese Trennung aufhebt, bricht den Guard** — deshalb steht
+> sie als eigene Prüfung im Harness.
+>
+> Ebenfalls geprüft, weil es den Berater einsperren würde: `setCompany()` schreibt nur eine
+> Variable im Speicher und ist damit nicht gesperrt. Der Firmenwechsel bleibt möglich.
+>
+> Und gemessen statt vermutet: die Registry-Prüfung kostet **3,3 µs pro `set()`** — bei einem
+> Import mit 527 Datensätzen rund **1,7 ms**. Kein Caching nötig.
+
+`test/test-stb-store-guard.js` ist neu, 14 Prüfungen: die Entscheidungsfunktion, die Verdrahtung
+an allen drei Wegen, die Gegenprobe zum Sync, der Firmenwechsel und die Drosselung des Toasts.
+`test/test-store-gobd-fixes.js` brauchte zwei Stub-Methoden mehr — es schneidet `saveRechInvoice`
+aus der Quelle und führt sie gegen ein Mock-Objekt aus.
+
+**Was damit NICHT erledigt ist:** die Oberfläche lässt die Klicks weiterhin zu, sie laufen jetzt
+nur ins Leere. `uva-mark` und `app-ust-switch-regel` erscheinen dem Berater weiter als bedienbar,
+und im Rechnungsmodul sind es 89 direkte Bindungen. Der Store fängt sie ab — aber eine Oberfläche,
+die etwas anbietet, das dann nicht geht, ist nur die zweitbeste Lösung. Die Denylist auf eine
+Allowlist umzustellen bleibt offen; sie ist jetzt aber **kein Sicherheitsthema mehr, sondern
+eines der Bedienbarkeit.**
 
 > **Nicht im Browser nachgestellt** — dafür bräuchte es den zweiten Account, auf den Live-Test 3
-> ohnehin wartet. Belegt sind Zählung, Handler-Zuordnung und Bindungsart am Quelltext.
+> ohnehin wartet. Belegt sind Zählung, Handler-Zuordnung, Bindungsart und die Verdrahtung am
+> Quelltext.
 
 ### 1.0 OCR-Belegerkennung · ✅ erledigt 2026-08-27
 

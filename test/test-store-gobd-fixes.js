@@ -44,6 +44,11 @@ function mockStore(initialInvoices) {
         _rechSet(key, val) { if (key === 'dokumente') this._docs = val; },
         _docs: initialInvoices || [],
         _stampRecord(r) { r.updatedAt = Date.now(); return r; },
+        // Seit 2026-09-05 fragt saveRechInvoice die Nur-Lese-Sperre ab (Fund 1.7).
+        // Hier ist die eigene Firma aktiv, also frei — die Sperre selbst prüft
+        // test/test-stb-store-guard.js.
+        _isReadonlyCompany() { return false; },
+        _refuseReadonly() { return false; },
         _isRechInvoiceLocked() { return false; },
         _warnIfPeriodLocked() {},
         generateId() { return 'inv_' + Math.random().toString(36).slice(2); },

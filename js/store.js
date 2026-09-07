@@ -257,6 +257,9 @@ const Store = {
 
     // Wie set(), aber liefert ein Promise das erst nach erfolgreichem IDB-Schreibvorgang resolved
     async setAsync(key, value) {
+        // Dritter Nutzer-Schreibweg neben set() und _rechSet() — ohne diesen Guard waere
+        // die Sperre umgehbar, indem man den asynchronen Weg nimmt.
+        if (this._isReadonlyCompany()) return this._refuseReadonly(key);
         const fullKey = this._prefix + key;
         const str = JSON.stringify(value);
         this._cache[fullKey] = str;
@@ -998,12 +1001,59 @@ const Store = {
         } catch { return null; }
     },
 
+    // ── Steuerberater-Nur-Lese-Modus: Schreibsperre an der Wurzel (Fund 1.7) ──
+    // Bis 2026-09-05 hing die Sperre allein an der Oberflaeche: einem Namens-Regex ueber
+    // data-action (js/stb-share.js) plus acht CSS-Suffixen. Beides erreichte das
+    // Rechnungsmodul nicht — dort stehen 18 data-action-Attribute gegen 89 direkte
+    // addEventListener-Bindungen, und der Speichern-Knopf der Rechnung ist eine davon.
+    // Ein Berater konnte in der Mandantenansicht eine Rechnung speichern.
+    //
+    // Hier ist die Stelle, an der ALLE Nutzerpfade zusammenlaufen: Namensregex, direkte
+    // Bindung und Konsole gleichermassen. Eine Stelle statt 174 Aktionsnamen.
+    //
+    // Der Sync ist NICHT betroffen und muss es auch nicht sein: er befuellt die
+    // Mandantenfirma ueber syncApplyKeys() und direktes localStorage.setItem
+    // (js/cloud-sync.js, _applyMerged) — beides laeuft an set()/_rechSet() vorbei.
+    // Genau diese Trennung macht den Guard hier ueberhaupt moeglich; wer sie aufhebt,
+    // bricht das Befuellen der Nur-Lese-Firma.
+    //
+    // setCompany() schreibt nur eine Variable im Speicher, der Firmenwechsel bleibt also
+    // moeglich — der Berater sitzt nicht fest.
+    _isReadonlyCompany() {
+        try {
+            const active = localStorage.getItem('oyi_active_company');
+            if (!active) return false;
+            const list = JSON.parse(localStorage.getItem('oyi_companies') || '[]');
+            for (let i = 0; i < list.length; i++) {
+                if (list[i] && list[i].id === active) return !!list[i]._readonly;
+            }
+        } catch (e) { /* kaputte Registry: lieber schreiben lassen als die App lahmlegen */ }
+        return false;
+    },
+
+    // Absichtlich mit Drosselung: ein einzelner Speichervorgang schreibt oft mehrere
+    // Schluessel, ein Toast pro Schluessel waere eine Lawine.
+    _roToastTs: 0,
+    _refuseReadonly(key) {
+        console.warn('[Store] Schreibversuch in der Nur-Lese-Ansicht abgewiesen:', key);
+        const jetzt = Date.now();
+        if (jetzt - this._roToastTs > 3000) {
+            this._roToastTs = jetzt;
+            if (typeof Utils !== 'undefined' && Utils.showToast) {
+                Utils.showToast('Nur-Lese-Ansicht — die Daten des Mandanten koennen hier nicht geaendert werden.', 'warning');
+            }
+        }
+        return false;
+    },
+
     set(key, value) {
+        if (this._isReadonlyCompany()) return this._refuseReadonly(key);
         const fullKey = this._prefix + key;
         const str = JSON.stringify(value);
         this._cache[fullKey] = str;
         this._idbPut(fullKey, str);
         this._triggerAutoBackup();
+        return true;
     },
 
     _rechGet(key) {
@@ -1014,11 +1064,15 @@ const Store = {
     },
 
     _rechSet(key, value) {
+        // Derselbe Guard wie in set() — und hier der wichtigere: das Rechnungsbuch war
+        // der Teil, den die Oberflaechensperre gar nicht erreichte (Fund 1.7).
+        if (this._isReadonlyCompany()) return this._refuseReadonly(key);
         const fullKey = this._rechPrefix + key;
         const str = JSON.stringify(value);
         this._cache[fullKey] = str;
         this._idbPut(fullKey, str);
         this._triggerAutoBackup();
+        return true;
     },
 
     // ---- Wiederkehrende Rechnungen (Regeln) ----
@@ -2221,6 +2275,12 @@ const Store = {
     },
 
     saveRechInvoice(invoice) {
+        // Frueh und ausdruecklich abweisen, nicht erst unten in _rechSet: der Aufrufer
+        // (rechnungen/js/rechnung.js) wertet den Rueckgabewert aus und meldet sonst
+        // "Dokument gespeichert!", obwohl nichts geschrieben wurde. Eine luegende
+        // Bestaetigung ist schlimmer als eine Fehlermeldung — der Nutzer haelt die
+        // Rechnung fuer erstellt (Fund 1.7).
+        if (this._isReadonlyCompany()) { this._refuseReadonly('rech_dokumente'); return null; }
         const invoices = this._rechGet('dokumente') || [];
         // "Neu" MUSS anhand des persistierten Bestands bestimmt werden (idx<0), nicht anhand von
         // !invoice.id — der Aufrufer (buildInvoiceObject in rechnungen/js/rechnung.js) vergibt die

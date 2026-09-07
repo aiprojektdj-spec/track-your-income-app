@@ -1,6 +1,6 @@
 # `ALERT_WEBHOOK_URL` einrichten — Schritt für Schritt
 
-**Stand: 2026-09-03**, Auslöser-Tabelle und Gegenprobe gegen den Code geprüft. Gehört zu
+**Stand: 2026-09-07**, Auslöser-Tabelle und Gegenprobe gegen den Code geprüft. Gehört zu
 `api/_alert.js`, offener Punkt aus [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md)
 („Rate-Limits fallen bei Redis-Ausfall offen").
 
@@ -9,10 +9,12 @@ einem Redis-Ausfall fallen die Deckel weg, statt zahlende Kunden auszusperren. D
 richtige Entscheidung, hat aber eine Kehrseite: **du merkst es nicht.** Bisher steht der Vorfall
 nur als `console.error` im Vercel-Log, das niemand im Alltag liest.
 
-**Eine Ausnahme, die den Namen „fail-open" nicht verdient:** Fehlt die Redis-Env ganz, antwortet
+**Zwei Ausnahmen, die den Namen „fail-open" nicht verdienen:** Fehlt die Redis-Env ganz, antwortet
 `api/sync.js` mit `500 server_misconfigured` — der Cloud-Sync ist dann für alle Kunden aus, nicht
-bloß ungedeckelt. Dieser eine Alarm (`sync` / `redis-env-missing`) meldet also einen echten
-Ausfall, kein stilles Risiko. Details in der Tabelle unten.
+bloß ungedeckelt. Genauso `api/whop-refresh.js`: ohne Redis `503 refresh_unavailable`, womit die
+Token-Erneuerung tot ist und jeder Kunde nach einer Stunde aus dem Gate fällt. Diese beiden
+Alarme (`sync`/`redis-env-missing`, `whop-refresh`/`redis-fehlt`) melden einen echten Ausfall,
+kein stilles Risiko. Details in der Tabelle unten.
 
 Ist `ALERT_WEBHOOK_URL` nicht gesetzt, verhält sich alles exakt wie heute — kein Netzverkehr, nur
 das Log. Es geht also nichts kaputt, wenn du das hier nie machst; du bleibst nur blind.
@@ -85,12 +87,12 @@ Slack-Incoming-Webhook, weil `text` das Feld ist, das Slack erwartet:
 }
 ```
 
-**15 Aufrufstellen in fünf Endpunkten, 13 verschiedene `source:event`-Paare** (entprellt wird
-je Paar). Gegen den Code geprüft am 2026-09-04:
+**19 Aufrufstellen in sechs Endpunkten, 17 verschiedene `source:event`-Paare** (entprellt wird
+je Paar). Gegen den Code geprüft am 2026-09-07:
 
 | `source` | `event` | Bedeutung |
 |---|---|---|
-| `sync` | `redis-env-missing` | **Kein offener Deckel, sondern Totalausfall:** `api/sync.js` antwortet dann `500 server_misconfigured`, der Cloud-Sync ist für alle Kunden aus. Dringlichster Alarm der Liste. |
+| `sync` | `redis-env-missing` | **Kein offener Deckel, sondern Totalausfall:** `api/sync.js` antwortet dann `500 server_misconfigured`, der Cloud-Sync ist für alle Kunden aus. Einer der zwei Totalausfälle in dieser Liste. |
 | `sync` | `ip-rate-limit-open` | IP-Zähler vor dem Whop-Call nicht erreichbar — Limit greift nicht |
 | `sync` | `rate-limit-open` | Nutzer-Zähler nicht erreichbar — Limit greift nicht |
 | `blob-upload` | `redis-env-missing` | Redis-Env fehlt — Byte-Budget **und** Rate-Limit komplett aus, Upload läuft aber weiter |
@@ -99,21 +101,27 @@ je Paar). Gegen den Code geprüft am 2026-09-04:
 | `whop-access` | `ip-rate-limit-open` | Zugangs-Check ohne IP-Deckel (Redis-Fehler) |
 | `whop-access` | `rate-limit-inaktiv` | Zugangs-Check ohne IP-Deckel (Redis-Env fehlt) |
 | `whop-access` | `grace-token-aus` | `WHOP_GRACE_PRIVATE_KEY` fehlt oder ist ungültig — **kein Kunde** bekommt mehr ein Offline-Grace-Token. Fällt sonst erst auf, wenn jemand offline aus dem Gate fliegt. |
+| `whop-refresh` | `redis-fehlt` | **Kein offener Deckel, sondern Totalausfall:** `api/whop-refresh.js` antwortet `503 refresh_unavailable`, die Token-Erneuerung ist aus — **jeder** Kunde fliegt nach einer Stunde raus. Landet im Support sonst als „ich muss mich ständig neu anmelden". |
+| `whop-refresh` | `rate-limit-open` | Erneuerungs-Endpunkt ohne IP-Deckel (Redis-Fehler) |
 | `whop-token` | `rate-limit-open` | Login-Endpunkt ohne IP-Deckel (Redis-Fehler) |
 | `whop-token` | `rate-limit-inaktiv` | Login-Endpunkt ohne IP-Deckel (Redis-Env fehlt) |
+| `whop-token` | `session-nicht-gespeichert` | Login gelang, aber der Refresh-Token ließ sich nicht ablegen — **dieser eine Kunde** fliegt nach einer Stunde raus |
+| `whop-token` | `kein-refresh-token` | Whop lieferte keinen `refresh_token` — Erneuerung für diese Sitzung unmöglich |
 | `blob-cleanup` | `cron-secret-missing` | `CRON_SECRET` nicht gesetzt — der tägliche Aufräum-Job läuft ins Leere |
 | `blob-cleanup` | `cleanup-failed` | Aufräum-Job abgebrochen — verwaiste Chunks bleiben liegen, Blob-Speicher wächst |
 
-Zwei Muster, die für Make-Filter wichtig sind: `whop-access` sendet **nie** `rate-limit-open`,
-sondern `ip-rate-limit-open`. Und `…-inaktiv` heißt „Env fehlt", `…-open` heißt „Redis antwortet
-nicht" — ein Filter auf `rate-limit-open` allein verpasst die Hälfte. Willst du nur eine Regel:
+Drei Muster, die für Make-Filter wichtig sind: `whop-access` sendet **nie** `rate-limit-open`,
+sondern `ip-rate-limit-open`. `…-inaktiv` heißt „Env fehlt", `…-open` heißt „Redis antwortet
+nicht" — ein Filter auf `rate-limit-open` allein verpasst die Hälfte. Und dieselbe Ursache hat
+drei Namen: `redis-env-missing` (sync, blob-upload), `rate-limit-inaktiv` (whop-access,
+whop-token) und `redis-fehlt` (whop-refresh). Willst du nur eine Regel:
 filtere gar nicht, es sind ohnehin höchstens ein paar Meldungen pro Ausfall.
 
-**Drei Alarme melden keinen offenen Deckel, sondern fehlende Konfiguration** und treffen alle
-Kunden gleichzeitig: `sync`/`redis-env-missing` (Sync komplett aus), `whop-access`/
-`grace-token-aus` (kein Offline-Grace) und `blob-cleanup`/`cron-secret-missing`. Kommt einer davon
-direkt nach einem Deployment, ist fast immer eine Environment-Variable nicht gesetzt oder nur für
-das falsche Environment hinterlegt.
+**Vier Alarme melden keinen offenen Deckel, sondern fehlende Konfiguration** und treffen alle
+Kunden gleichzeitig: `sync`/`redis-env-missing` (Sync komplett aus), `whop-refresh`/`redis-fehlt`
+(Token-Erneuerung aus), `whop-access`/`grace-token-aus` (kein Offline-Grace) und `blob-cleanup`/
+`cron-secret-missing`. Kommt einer davon direkt nach einem Deployment, ist fast immer eine
+Environment-Variable nicht gesetzt oder nur für das falsche Environment hinterlegt.
 
 **Was der Alarm bewusst nicht kann:** Er meldet fehlgeschlagene Läufe, aber keine
 *ausbleibenden*. Wird der Cron in Vercel abgeschaltet oder läuft er nie an, bleibt es still — ein
@@ -134,8 +142,8 @@ Vercel → Cron Jobs auf den letzten Lauf.
 Der ehrlichste Test wäre ein echter Redis-Ausfall — den willst du nicht herbeiführen.
 
 **Eine Variable namens `REDIS_URL` gibt es nicht** — eine frühere Fassung dieser Anleitung nannte
-sie, wer sie verstellt, ändert gar nichts und hält den Alarm fälschlich für kaputt. Alle vier
-Endpunkte lesen:
+sie, wer sie verstellt, ändert gar nichts und hält den Alarm fälschlich für kaputt. Alle fünf
+Redis-Endpunkte lesen (`blob-cleanup` kommt ohne Redis aus):
 
 ```
 UPSTASH_REDIS_REST_URL   || KV_REST_API_URL

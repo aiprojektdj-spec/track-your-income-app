@@ -208,7 +208,7 @@ decken Export, Aufruf, beide Reihenfolgebedingungen und den `typeof`-Guard ab.
 > steht am Code, mit benannten Belegstellen; ein Durchklick im Finanzen-Tab wäre die noch
 > fehlende Bestätigung.
 
-### 1.7 Steuerberater-Nur-Lese-Modus: die Schreibsperre ist ein Namens-Regex und hat Löcher
+### 1.7 Steuerberater-Nur-Lese-Modus greift im Rechnungsmodul gar nicht ⚠️
 
 Vorklärung zu Live-Test 3 (Steuerberater-Zugang), 2026-09-05, am Code gemessen. Der Test selbst
 braucht zwei Accounts und wartet auf den Betreiber — **dieser Teil nicht.**
@@ -244,16 +244,53 @@ seine eigene Sicht darauf, ohne es zu merken, und entscheidet danach womöglich 
 den er selbst erzeugt hat. Eine Periode, die als eingereicht dasteht, ohne es zu sein, ist genau
 die Sorte Irrtum, die niemand nachprüft.
 
-**Zu tun — und das ist bewusst keine Ein-Zeilen-Änderung:** `mark|switch` in `WRITE_RE`
-nachzutragen schließt die zwei bekannten Löcher und lässt die Bauart unverändert; beim nächsten
-neuen Aktionsnamen steht dieselbe Frage wieder offen. Richtig wäre die **Umkehrung zur
-Allowlist**: lesende Aktionen ausdrücklich benennen, alles andere sperren. Das ist ein Eingriff
-mit Regressionsrisiko (117 Namen wollen durchgesehen werden) und gehört in eine eigene Sitzung,
-zusammen mit einem Harness, der die Liste gegen alle `data-action`-Vorkommen prüft und bei einer
-neuen, nicht eingeordneten Aktion fehlschlägt.
+**Nachtrag vom 2026-09-05, und er ändert die Bewertung: die zwei Namen sind nicht das Problem.**
+Beim Versuch, die Denylist zur Allowlist umzubauen, kamen zwei größere Löcher heraus. Die Sperre
+hat drei Schichten, und **keine davon greift im Rechnungsmodul**:
+
+| Schicht | Mechanik | Reichweite |
+|---|---|---|
+| CSS ([`css/style.css:3004`](../css/style.css)) | `[data-action$="-save"]` u. ä., **8 Suffixe** | nur Aktionen, die genau so enden |
+| JS-Chokepoint ([`js/actions.js:26`](../js/actions.js)) | `WRITE_RE` über den Namen | 57 von 174 — **und nur der zentrale Router** |
+| `eb-*`- und `rech-*`-Router | — | **gar nicht** |
+
+1. **Die eigenen Router umgehen die Sperre vollständig.** Der Kopfkommentar von
+   [`js/actions.js`](../js/actions.js) sagt es selbst: „Namespaces `eb-*` / `rech-*` haben eigene
+   Router … und laufen an dieser Registry vorbei." Gegengeprüft: `StbShare` kommt in
+   `eigenbelege/js/app.js` und in **keiner** Datei unter `rechnungen/js/` vor. Damit ist jede
+   Aktion dieser beiden Module ungeprüft — auch `eb-delete` und `eb-alle-loeschen`.
+
+2. **Im Rechnungsmodul greift die Sperre strukturell nicht.** Dort gibt es **18**
+   `data-action`-Attribute, aber **89 direkte `addEventListener('click', …)`-Bindungen**. Der
+   Speichern-Knopf der Rechnung ist eine davon:
+   `document.getElementById('invSave').addEventListener('click', saveInvoice)`
+   ([`rechnungen/js/rechnung.js:792`](../rechnungen/js/rechnung.js)) — **ohne `data-action`**.
+   Er ist damit für den Chokepoint unsichtbar *und* für die CSS-Regel, die ein
+   `data-action`-Attribut zum Matchen braucht. Eine Navigationssperre gibt es nicht; der
+   Berater bewegt sich normal durch die Mandantenfirma. **Er kann dort eine Rechnung
+   speichern.**
+
+**Zu tun — und die Allowlist ist es nicht.** Ich habe den Umbau versucht und wieder verworfen:
+eine maschinelle Einordnung der 174 Namen lieferte 92 „schreibend" / 76 „lesend", darunter
+`close-modal`, `navigate`, `reload`, `print-page` und `uva-export` als angeblich schreibend. Eine
+falsch als lesend eingestufte Aktion ließe einen Schreibvorgang durch, eine falsch als schreibend
+eingestufte zerschösse dem Berater die Ansicht — **eine unsauber erzeugte Allowlist ist
+gefährlicher als die heutige Denylist.** Und selbst eine perfekte Allowlist hülfe im
+Rechnungsmodul nicht, weil dort 89 Schreibwege gar kein `data-action` tragen.
+
+Der richtige Ort ist **eine Schicht tiefer: der Store.** Ist die aktive Firma `_readonly`,
+verweigert `Store` die schreibenden Methoden — das deckt jeden Weg ab, den Namensregex, die
+direkte Bindung und die Konsole gleichermaßen, und es ist **eine** Stelle statt 174.
+
+> **Der Haken dabei, und deshalb nicht nebenbei gebaut:** derselbe Store schreibt die
+> Mandantendaten beim Sync-Pull. Ein pauschales Verbot bräche genau das Befüllen der
+> Nur-Lese-Firma. Der Guard muss also zwischen nutzerausgelösten Schreibvorgängen und
+> Sync-Anwendung unterscheiden — etwa über ein ausdrückliches Flag, das nur der Sync-Pfad setzt.
+> Das ist ein Eingriff in `js/store.js`, die zentralste Datei des Repos, und gehört mit einem
+> eigenen Harness gebaut, nicht zwischen zwei anderen Aufgaben.
 
 > **Nicht im Browser nachgestellt** — dafür bräuchte es den zweiten Account, auf den Live-Test 3
-> ohnehin wartet. Belegt sind Zählung und Handler-Zuordnung am Quelltext.
+> ohnehin wartet. Belegt sind Zählung, Handler-Zuordnung und Bindungsart am Quelltext.
 
 ### 1.0 OCR-Belegerkennung · ✅ erledigt 2026-08-27
 

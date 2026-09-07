@@ -2223,6 +2223,18 @@ document.addEventListener('click', function (e) {
     var el = e.target.closest('[data-action]');
     if (!el || String(el.dataset.action).indexOf('eb-') !== 0) return;
     var d = el.dataset;
+    // Steuerberater-Nur-Lese-Modus. Dieser Router laeuft bewusst am zentralen Chokepoint in
+    // js/actions.js vorbei (eigener Namespace, s. Kopfkommentar dort) — und damit lief bis
+    // 2026-09-05 auch die Schreibsperre daran vorbei: eb-delete, eb-edit, eb-save-einstellungen
+    // und eb-alle-loeschen waren in der Mandantenansicht ungeprueft (01-AUFGABEN.md 1.7).
+    // Dieselbe Entscheidungsfunktion wie im zentralen Router, damit es nur EINE Liste gibt.
+    if (typeof window.StbShare !== 'undefined' && StbShare.blocks && StbShare.blocks(d.action)) {
+        e.preventDefault();
+        if (typeof Utils !== 'undefined' && Utils.showToast) {
+            Utils.showToast('Nur-Lese-Ansicht — Änderungen sind hier deaktiviert.', 'warning');
+        }
+        return;
+    }
     switch (d.action) {
         case 'eb-navigate':           navigate(d.page); break;
         case 'eb-view':               viewBeleg(d.id); break;

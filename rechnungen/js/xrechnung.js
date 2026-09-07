@@ -300,7 +300,12 @@ var XRechnung = (function () {
             xml += '      </ram:BuyerTradeParty>\n';
         }
 
-        // BuyerReference (Leitweg-ID — optional but recommended for B2G)
+        // BuyerReference (BT-10) — nach BR-DE-15 Kardinalität 1..1, also in JEDER XRechnung
+        // Pflicht und nicht nur im B2G-Fall. Der Kommentar hier nannte sie bis 2026-09-05
+        // „optional but recommended for B2G", was zu XML-Dateien führte, die das Empfangssystem
+        // mit genau dieser Regelnummer zurückweist. validatePflichtfelder() blockiert den Export
+        // jetzt, wenn sie fehlt; die Bedingung bleibt trotzdem stehen, weil der Generator auch
+        // aus anderen Pfaden (Wiederkehrende) aufgerufen wird und dann kein leeres Tag schreiben soll.
         if (inv.leitwegId) {
             xml += '      <ram:BuyerReference>' + esc(inv.leitwegId) + '</ram:BuyerReference>\n';
         }
@@ -442,7 +447,68 @@ var XRechnung = (function () {
             if (!kunde.strasse && !kunde.plz) missing.push('Empfängeradresse');
         }
         if (!(inv.positionen && inv.positionen.length)) missing.push('mindestens eine Rechnungsposition');
+        // BR-DE-15: BT-10 (Käuferreferenz) hat in der XRechnung die Kardinalität 1..1 — sie ist in
+        // JEDER XRechnung Pflicht, nicht nur bei Rechnungen an Behörden. Fehlt sie, weist das
+        // Empfangssystem die Rechnung mit genau dieser Regelnummer zurück. Im B2G-Fall ist der
+        // Inhalt die Leitweg-ID; im B2B-Fall darf der Rechnungssteller eine eigene Käuferreferenz
+        // vergeben. Bis 2026-09-05 gab der Generator BuyerReference nur aus, WENN das Feld gefüllt
+        // war, und der Kommentar dort nannte es „optional" — die erzeugte Datei war damit
+        // regelmäßig eine, die der Empfänger ablehnt.
+        if (!inv.leitwegId) missing.push('Käuferreferenz/Leitweg-ID (BT-10, Pflicht nach BR-DE-15)');
         return missing;
+    }
+
+    // Regelprüfungen auf dem ERZEUGTEN XML. Anders als validatePflichtfelder(), das die Eingaben
+    // ansieht, rechnet das hier gegen das Ergebnis — Fehler, die erst beim Zusammenbauen entstehen,
+    // fallen sonst niemandem auf.
+    //
+    // AUSDRÜCKLICH KEIN ERSATZ für den KoSIT-Validator: der ist eine Java-Anwendung mit dem
+    // vollständigen Schematron-Regelsatz und käme als neue Abhängigkeit ins Repo, das heute genau
+    // eine produktive hat. Geprüft wird hier eine Teilmenge, die ohne jede Abhängigkeit auskommt —
+    // die arithmetischen Konsistenzregeln und die Befreiungsgründe je Kategorie.
+    function pruefeRegeln(xml) {
+        var funde = [];
+        var num = function (tag, quelle) {
+            var re = new RegExp('<ram:' + tag + '>([-0-9.]+)</ram:' + tag + '>', 'g');
+            var out = [], m;
+            while ((m = re.exec(quelle)) !== null) out.push(parseFloat(m[1]));
+            return out;
+        };
+        var rund = function (n) { return Math.round((n + Number.EPSILON) * 100) / 100; };
+
+        // BR-CO-10: Summe der Zeilenbeträge muss der Zeilensumme des Belegs entsprechen.
+        var zeilen = num('LineTotalAmount', xml);
+        var summeZeilen = zeilen.slice(0, -1).reduce(function (s, n) { return s + n; }, 0);
+        var kopfZeilensumme = zeilen.length ? zeilen[zeilen.length - 1] : 0;
+        if (zeilen.length > 1 && rund(summeZeilen) !== rund(kopfZeilensumme)) {
+            funde.push('BR-CO-10: Summe der Zeilenbeträge (' + rund(summeZeilen) +
+                       ') weicht von der Zeilensumme im Beleg (' + rund(kopfZeilensumme) + ') ab');
+        }
+
+        // BR-CO-15: Gesamtbetrag mit USt = Gesamtbetrag ohne USt + USt-Gesamtbetrag.
+        var ohne  = num('TaxBasisTotalAmount', xml)[0];
+        var mit   = num('GrandTotalAmount', xml)[0];
+        var steuer = (xml.match(/<ram:TaxTotalAmount[^>]*>([-0-9.]+)</) || [])[1];
+        if (ohne != null && mit != null && steuer != null &&
+            rund(ohne + parseFloat(steuer)) !== rund(mit)) {
+            funde.push('BR-CO-15: Gesamtbetrag mit USt (' + mit + ') entspricht nicht ' +
+                       'Netto (' + ohne + ') + USt (' + steuer + ')');
+        }
+
+        // BR-E-10/BR-K-10/BR-AE-10/BR-G-10: jede Steueraufschlüsselung mit einer Kategorie ohne
+        // USt braucht einen Befreiungsgrund. Ohne ihn ist die Rechnung formal unvollständig — und
+        // bei §25a ginge genau die Pflichtangabe nach §14a Abs. 6 UStG verloren.
+        var bloecke = xml.split('<ram:ApplicableTradeTax>').slice(1);
+        bloecke.forEach(function (b) {
+            var cat = (b.match(/<ram:CategoryCode>([A-Z]+)</) || [])[1];
+            var satz = parseFloat((b.match(/<ram:RateApplicablePercent>([-0-9.]+)</) || [])[1]);
+            if (!cat || cat === 'S' || satz > 0) return;
+            if (!/<ram:ExemptionReason>[^<]+</.test(b)) {
+                funde.push('BR-' + cat + '-10: Steueraufschlüsselung der Kategorie ' + cat +
+                           ' ohne Befreiungsgrund');
+            }
+        });
+        return funde;
     }
 
     /** Download XRechnung XML for the given invoice */
@@ -459,11 +525,24 @@ var XRechnung = (function () {
         }
 
         var xml = generate(inv, settings, kunde);
+
+        // Regelverstöße im erzeugten XML melden, aber den Export NICHT blockieren: anders als bei
+        // fehlenden Pflichtfeldern ist die Datei hier vorhanden und der Nutzer kann sie brauchen,
+        // etwa um sie selbst durch den KoSIT-Validator zu schicken. Ein stiller Fehlschlag wäre
+        // schlimmer als eine Warnung.
+        var verstoesse = pruefeRegeln(xml);
+
         var safeNr = (inv.nummer || inv.id).replace(/[^a-zA-Z0-9_\-]/g, '_');
         var filename = 'XRechnung_' + safeNr + '.xml';
         Utils.downloadFile(xml, filename, 'application/xml; charset=utf-8');
-        Utils.showToast('XRechnung exportiert: ' + filename + ' — Pflichtfelder geprüft, aber KEINE vollständige KoSIT-/Schematron-Validierung. Vor produktivem Versand mit dem offiziellen KoSIT-Validator prüfen.', 'success', 7000);
+        if (verstoesse.length) {
+            Utils.showToast('XRechnung exportiert, aber mit ' + verstoesse.length + ' Regelverstoß' +
+                (verstoesse.length === 1 ? '' : 'en') + ': ' + verstoesse.join(' · ') +
+                ' — bitte vor dem Versand klären.', 'warning', 12000);
+            return;
+        }
+        Utils.showToast('XRechnung exportiert: ' + filename + ' — Pflichtfelder und ein Teil der EN-16931-Regeln geprüft (Beträge, Befreiungsgründe, BR-DE-15). Das ersetzt KEINE vollständige KoSIT-/Schematron-Validierung: vor dem ersten produktiven Versand einmal mit dem offiziellen KoSIT-Validator gegenprüfen.', 'success', 9000);
     }
 
-    return { generate: generate, download: download, validatePflichtfelder: validatePflichtfelder };
+    return { generate: generate, download: download, validatePflichtfelder: validatePflichtfelder, pruefeRegeln: pruefeRegeln };
 })();

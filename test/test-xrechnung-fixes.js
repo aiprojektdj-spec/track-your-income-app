@@ -108,11 +108,23 @@ const settingsBase = { firmenname: 'Test GmbH', adresse: 'Musterstr. 1', plz: '1
 
 // ── 5) validatePflichtfelder(): erkennt fehlende §14-Pflichtangaben ──────────
 {
+    // Seit 2026-09-05 gehört die Käuferreferenz (BT-10) dazu: BR-DE-15 gibt ihr in der XRechnung
+    // die Kardinalität 1..1, sie ist also in JEDER XRechnung Pflicht und nicht nur bei Behörden.
+    // Dieser Fall stand hier vorher OHNE leitwegId und galt trotzdem als vollständig — die so
+    // beschriebene Rechnung hätte das Empfangssystem zurückgewiesen. Korrigiert wurde die
+    // Erwartung, nicht die Regel.
     var vollstaendig = XRechnung.validatePflichtfelder(
-        { nummer: 'RE-8', datum: '2026-03-01', positionen: [{ menge: 1, einzelpreis: 10, mwstSatz: 19 }] },
+        { nummer: 'RE-8', datum: '2026-03-01', leitwegId: 'KDN-8', positionen: [{ menge: 1, einzelpreis: 10, mwstSatz: 19 }] },
         settingsBase, { firma: 'K', strasse: 'S', plz: '1', ort: 'O' }
     );
     check('Vollständige Rechnung -> keine fehlenden Pflichtfelder', vollstaendig.length === 0);
+
+    var ohneKaeuferreferenz = XRechnung.validatePflichtfelder(
+        { nummer: 'RE-8', datum: '2026-03-01', positionen: [{ menge: 1, einzelpreis: 10, mwstSatz: 19 }] },
+        settingsBase, { firma: 'K', strasse: 'S', plz: '1', ort: 'O' }
+    );
+    check('BR-DE-15: fehlende Käuferreferenz (BT-10) wird erkannt',
+          ohneKaeuferreferenz.some(m => /BT-10/.test(m)));
 
     var unvollstaendig = XRechnung.validatePflichtfelder(
         { nummer: '', datum: '2026-03-01', positionen: [] },

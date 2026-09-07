@@ -236,9 +236,9 @@ var Rechnung = (function() {
         // nicht bedienbar, obwohl die halbe Arbeit getan war. Die Leitweg-ID ist bei
         // Rechnungen an öffentliche Auftraggeber Pflichtangabe; ohne sie weist die
         // Rechnungseingangsplattform des Bundes/der Länder die XRechnung zurück.
-        html += '<div class="form-group"><label class="form-label" for="invLeitwegId">Leitweg-ID <span style="font-weight:400;color:var(--text-muted);">(nur bei Rechnungen an Behörden)</span></label>';
-        html += '<input class="form-input" type="text" id="invLeitwegId" maxlength="80" placeholder="z.B. 04011000-1234512345-06" value="' + Utils.escapeHtml(leitwegId) + '">';
-        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Teilt dir der öffentliche Auftraggeber mit. Landet als <code>BuyerReference</code> in der XRechnung — ohne sie weisen die Rechnungseingangsplattformen des Bundes und der Länder die Rechnung zurück.</div></div>';
+        html += '<div class="form-group"><label class="form-label" for="invLeitwegId">Käuferreferenz / Leitweg-ID <span style="font-weight:400;color:var(--text-muted);">(Pflicht für die XRechnung)</span></label>';
+        html += '<input class="form-input" type="text" id="invLeitwegId" maxlength="80" placeholder="z.B. 04011000-1234512345-06 oder eine eigene Referenz" value="' + Utils.escapeHtml(leitwegId) + '">';
+        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Landet als <code>BuyerReference</code> (BT-10) in der XRechnung und ist dort nach Regel BR-DE-15 <strong>immer</strong> Pflicht — nicht nur bei Behörden. Bei einem öffentlichen Auftraggeber trägst du die <strong>Leitweg-ID</strong> ein, die er dir mitteilt; bei allen anderen Kunden genügt eine <strong>eigene Referenz</strong>, etwa deine Kunden- oder Auftragsnummer. Fehlt das Feld, weist das Empfangssystem die Rechnung zurück. Für die PDF-Rechnung wird es nicht gebraucht.</div></div>';
         html += '</div></div>';
 
         // Eigenbelege-Verknüpfung

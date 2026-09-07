@@ -363,6 +363,30 @@ den Hinweis im Export deutlicher machen; einmalig manuell durch den Online-Valid
 ersten produktiven Versand; oder die Prüfung dauerhaft in CI, was die Java-Abhängigkeit
 bedeutet — aber nur dort, nicht im ausgelieferten Produkt.
 
+**Nachtrag desselben Tages — die abhängigkeitsfreie Teilmenge ist gebaut.** Die Java-Frage bleibt
+offen wie oben beschrieben; unabhängig davon prüft `XRechnung.pruefeRegeln()` jetzt in reinem JS,
+was sich ohne Schematron prüfen lässt: die arithmetischen Konsistenzregeln BR-CO-10 und BR-CO-15
+sowie BR-E-10 und Geschwister (jede Kategorie ohne USt braucht einen Befreiungsgrund). Verstöße
+**blockieren den Export nicht**, sondern werden gemeldet — die Datei ist ja erzeugt und der Nutzer
+kann sie brauchen, etwa um sie selbst durch den Validator zu schicken.
+
+**Dabei kam ein handfester Fehler heraus: BR-DE-15 war nicht umgesetzt.** BT-10 (Käuferreferenz)
+hat in der XRechnung die Kardinalität **1..1** — sie ist in *jeder* XRechnung Pflicht, nicht nur
+bei Rechnungen an Behörden. Der Generator gab `BuyerReference` nur aus, *wenn* das Feld gefüllt
+war, der Kommentar dort nannte es „optional but recommended for B2G", und das Eingabefeld war mit
+„nur bei Rechnungen an Behörden" beschriftet. Wer also einer normalen Firma eine XRechnung
+schickte, erzeugte eine Datei, die das Empfangssystem mit genau dieser Regelnummer zurückweist.
+
+Der Export **blockiert jetzt**, wenn BT-10 fehlt. Das ist eine spürbare Verhaltensänderung, aber
+die richtige: die Datei wäre ohnehin abgelehnt worden, und ein stiller Export wäre die
+schlechtere Überraschung. Im B2G-Fall gehört die Leitweg-ID hinein, im B2B-Fall genügt eine
+eigene Referenz (Kunden- oder Auftragsnummer) — das sagt das Feld jetzt auch.
+
+Abgesichert durch [`test/test-xrechnung-regeln.js`](../test/test-xrechnung-regeln.js), 15 Checks.
+`test/test-xrechnung-fixes.js` hielt eine Rechnung **ohne** Käuferreferenz für vollständig; dort
+wurde die **Erwartung** korrigiert, nicht die Regel — die so beschriebene Rechnung wäre
+zurückgewiesen worden.
+
 ### Der Banner ist zweistufig — die notwendige Speicherung bleibt ohne Ablehnen-Button
 
 **Geändert am 2026-08-15.** Bis dahin stand hier: „Der Cookie-Banner hat keinen Ablehnen-Button —

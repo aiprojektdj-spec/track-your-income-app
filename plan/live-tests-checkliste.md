@@ -288,22 +288,45 @@ Kassenbuch | EÜR | Vorlagen`, 189 Einkaufs- und 338 Verkaufszeilen.
 Der Mock-Test ist bestanden, der echte steht aus. **Braucht zwei getrennte Browserprofile**, nicht
 zwei Tabs — die Gerätesperre hängt an `oyi_device_owner_uid`.
 
-> **Teilweise schon belegt:** Am 2026-08-23 lief in Produktion ein Zwei-Geräte-Lauf mit echtem
-> Konto (zweites Gerät als Inkognito-Fenster). Bestanden hat dabei der **Einstieg auf dem
-> zweiten Gerät**: Erkennung, Code-Eingabe, Landung im Dashboard der richtigen Firma, keine
-> Dublette angelegt. **Nicht** abgedeckt und unten weiterhin offen: der Konfliktfall, die
-> Art.-17-Löschung und der Sync-Punkt in der Topbar.
+> **Drei der sieben Punkte sind am 2026-09-07 vorab am Code geklärt** — zwei tragen, einer war
+> kaputt und ist inzwischen behoben. Das ersetzt den Durchlauf nicht, sagt aber, was zu erwarten
+> ist und wo man nachsieht, wenn es abweicht:
+>
+> - **Konfliktfall (CAS) trägt.** [`api/sync.js`](../api/sync.js) setzt per Lua-Skript nur, wenn
+>   die gespeicherte Version der erwarteten entspricht, sonst kommt 409 mit dem aktuellen
+>   Serverstand zurück. `_syncScope()` in [`js/cloud-sync.js`](../js/cloud-sync.js) macht daraus
+>   pull → merge → retry, bis zu drei Versuche; danach ein sauberer Fehler statt eines
+>   Überschreibens. Verbleibende Konflikte landen in `oyi_sync_conflicts`, überleben den Reload
+>   und öffnen einen Dialog. **Stiller Datenverlust ist damit unwahrscheinlich** — beim
+>   Durchklicken geht es darum, ob der Dialog auch wirklich erscheint.
+> - **Der Tooltip stimmt wörtlich.** Das Format ist
+>   `'(' + name + ', ' + (i + 1) + ' von ' + zuSyncen.length + ')'` — also genau
+>   `(Firma, 2 von 3)`. Nur die Sichtbarkeit des drehenden Punktes ist noch zu prüfen.
+> - ⚠️ **Die Art.-17-Löschung war kaputt, in genau der Reihenfolge, die unten steht.**
+>   `deleteRemote()` begann mit `if (!_enabled() || !_hasKey() || !_token()) return true;`.
+>   Richtig für „nie synchronisiert", falsch für **„einmal synchronisiert, danach deaktiviert"**:
+>   der Snapshot blieb in Redis liegen, die Funktion meldete Erfolg, und
+>   [`js/app.js`](../js/app.js) zeigte darauf **„Alle Daten gelöscht"**. Dazu kam, dass der
+>   Wiederholversuch allein an `_syncAll()` hing, das bei deaktiviertem Sync sofort zurückkehrt —
+>   der Toast „beim nächsten Sync-Versuch wird erneut versucht" war im Löschfall wirkungslos.
+>   **Behoben in `75b2b95`**, 12 Checks in
+>   [`test/test-art17-loeschung-nach-deaktivieren.js`](../test/test-art17-loeschung-nach-deaktivieren.js),
+>   gegen den Vorher-Stand gegengeprüft (dort fallen fünf durch). **Der Punkt unten ist damit
+>   nicht erledigt, sondern erst jetzt sinnvoll prüfbar.**
 
 - [ ] Profil A: Sync aktivieren, Code notieren
 - [ ] Profil B: mit demselben Code koppeln → kommen die Daten an?
 - [ ] In A eine Buchung anlegen, in B synchronisieren → ist sie da?
 - [ ] **Konfliktfall:** in A **und** B dieselbe Buchung ändern, dann beide syncen. Erwartung: CAS
-      erkennt den Versionssprung, kein stiller Datenverlust
+      erkennt den Versionssprung, kein stiller Datenverlust — **Code geprüft, Dialog beobachten**
 - [ ] Firma in A anlegen → taucht sie in B im Firmenumschalter auf, ohne Neuladen?
 - [ ] Sync-Punkt in der Topbar: dreht er sichtbar während des Laufs und zeigt der Tooltip
-      `(Firma, 2 von 3)`?
+      `(Firma, 2 von 3)`? — **Format am Code belegt, Sichtbarkeit offen**
 - [ ] Löschung nach Art. 17 DSGVO: Sync in A deaktivieren und Daten löschen → ist der Blob weg?
-
+      **War kaputt, seit `75b2b95` behoben — bitte genau diese Reihenfolge prüfen.**
+      Gegenprobe ohne zweites Profil möglich: nach dem Löschen in der Konsole
+      `await CloudSync.retryPendingDeletions()` und dann `localStorage.getItem('oyi_sync_pending_deletions')`
+      — steht dort `[]` oder nichts, ist nichts hängengeblieben.
 ### 3. Steuerberater-Zugang mit zwei Accounts · ~20 Min
 
 > **Zwei der vier Punkte sind am 2026-09-05 vorab am Code geklärt** — sie brauchen dich nur noch

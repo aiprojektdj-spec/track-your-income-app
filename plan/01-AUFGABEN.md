@@ -449,6 +449,30 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
 > braucht, meldest du dich einmal im Browser-Pane an; die Session bleibt danach erhalten. Ein
 > Dev-Bypass im Code ist ausdrücklich nicht gewünscht.
 
+### 2.5 Zwei Produktfragen zur Cloud-Löschung (2026-09-07)
+
+Beide fielen beim Vorklären von Live-Test 2 an. Der eigentliche Fehler ist behoben (`75b2b95`,
+siehe [`live-tests-checkliste.md`](live-tests-checkliste.md) Punkt 2) — was bleibt, sind zwei
+Entscheidungen, die keine Session allein treffen sollte.
+
+**a) Anhänge ohne Schlüssel.** Sind Schlüssel **und** Snapshot weg, lassen sich die ausgelagerten
+Anhänge (Logos, Belegfotos, PDFs) nicht mehr aufzählen — ihre URLs standen nur im Chiffrat.
+`deleteRemote()` meldet in dem Fall ehrlich einen Teil-Erfolg, aber die Blob-Objekte bleiben
+liegen. Für Art. 17 DSGVO ist das unbefriedigend: es sind fremde personenbezogene Daten in einem
+Store, den niemand mehr adressieren kann.
+
+**b) `reset_all` ist die Löschung, heißt aber „Reset".** Ein vollständiger, serverseitiger Weg
+existiert bereits und braucht **keinen** Schlüssel: der Knopf „Cloud-Daten verwerfen & neu
+aufsetzen" ruft `action: 'reset_all'` und räumt zusätzlich per `BlobAttachments.purgeAll()` die
+Anhänge weg. Er ist nur als Reparaturweg präsentiert und im Sync-Panel versteckt — also genau
+dort, wo ein Nutzer nach dem Deaktivieren nicht mehr hinschaut.
+
+**Zu entscheiden:** ob „Alle Daten löschen" bei fehlendem Schlüssel automatisch auf `reset_all`
+zurückfallen soll (löscht dann **alle** Firmen dieses Kontos, nicht nur die eine — das ist der
+Haken), oder ob es dafür einen eigenen, klar benannten Knopf „Cloud-Daten endgültig löschen"
+gibt. Die Frage ist nicht technisch, sondern eine Abwägung zwischen Vollständigkeit und dem
+Risiko, dass jemand mehr löscht als gewollt.
+
 ### 2.4 Produktentscheidungen · ✅ alle getroffen (2026-08-23)
 
 **Hier steht nichts mehr offen.** Alle sieben Fragen sind entschieden und in

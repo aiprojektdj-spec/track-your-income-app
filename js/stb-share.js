@@ -228,10 +228,24 @@ var StbShare = (function () {
     }
     // Schreib-Aktionen im Read-Only-Modus blocken (zentraler Chokepoint in js/actions.js).
     // Server erzwingt read-only bereits hart; das hier ist die UX-Sperre.
-    var WRITE_RE  = /(^|-)(save|add|new|create|edit|update|delete|del|remove|storno|cancel|import|submit|confirm|apply|pay|book|buchen|anlegen|speichern|loeschen|erstellen|aendern|finish|enable|disable|generate|send|upload)(-|$)/i;
+    // `mark` und `switch` sind am 2026-09-09 dazugekommen. Beide decken einen belegten
+    // Schreibvorgang ab, der bis dahin durchrutschte (01-AUFGABEN.md 1.7):
+    //   uva-mark             -> Store.saveUstPeriode + Store.setDifferenzVortrag
+    //                           (markiert eine USt-Voranmeldung als eingereicht)
+    //   app-ust-switch-regel -> Store.saveSettings({ustMode:'regel'})
+    // Ausgezaehlt, damit nichts Unbeteiligtes mitgesperrt wird: `mark` trifft repo-weit NUR
+    // uva-mark; `switch` trifft ausserdem co-switch, den Firmenwechsel — der steht deshalb
+    // in ALLOW_SET, sonst kaeme der Berater aus der Mandantenansicht nicht mehr heraus.
+    // `pick` waere der naechste Kandidat gewesen und ist bewusst NICHT drin: app-pick-ust und
+    // lg-pick-swatch fassen nur das DOM an, gesperrt wuerden sie ohne Not.
+    var WRITE_RE  = /(^|-)(save|add|new|create|edit|update|delete|del|remove|storno|cancel|import|submit|confirm|apply|pay|book|buchen|anlegen|speichern|loeschen|erstellen|aendern|finish|enable|disable|generate|send|upload|mark|switch)(-|$)/i;
     // stb-cancel-invite steht hier, weil WRITE_RE auf "cancel" anspringt — ein Abbrechen ist
     // aber nie ein Schreibvorgang, und ein nicht klickbarer Abbrechen-Button ist eine Sackgasse.
-    var ALLOW_SET = { 'stb-exit': 1, 'close-modal': 1, 'navigate': 1, 'reload': 1, 'stop': 1, 'goto': 1, 'print-page': 1, 'stb-cancel-invite': 1 };
+    // co-switch steht hier, weil WRITE_RE seit 2026-09-09 auf "switch" anspringt — der
+    // Firmenwechsel ist aber der EINZIGE Weg aus der Mandantenansicht zurueck zu den eigenen
+    // Daten. Ihn zu sperren hiesse, den Berater einzusperren. Er schreibt auch nichts an den
+    // Mandantendaten: CompanyManager.switchTo() setzt die aktive Firma um.
+    var ALLOW_SET = { 'stb-exit': 1, 'close-modal': 1, 'navigate': 1, 'reload': 1, 'stop': 1, 'goto': 1, 'print-page': 1, 'stb-cancel-invite': 1, 'co-switch': 1 };
     function blocks(name) { return isReadonly() && !ALLOW_SET[name] && WRITE_RE.test(name); }
 
     // ── UI: eigener Freigabe-Code ─────────────────────────────────────────────

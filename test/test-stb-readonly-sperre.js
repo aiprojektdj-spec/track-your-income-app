@@ -46,14 +46,20 @@ check('B3 der eb-Check sitzt VOR dem switch, sonst laeuft der Handler trotzdem',
 // C) Bekannte, bewusst offene Luecken. Schlaegt einer dieser Tests fehl, ist die Luecke
 // geschlossen worden - dann gehoert 01-AUFGABEN.md 1.7 nachgezogen und der Test hierher
 // umgeschrieben. Ein gruener Test bedeutet hier also NICHT "alles gut".
-check('C1 BEKANNTE LUECKE: uva-mark schreibt, wird aber nicht gesperrt',
-      !blockt('uva-mark'));
-check('C2 BEKANNTE LUECKE: app-ust-switch-regel schreibt, wird aber nicht gesperrt',
-      !blockt('app-ust-switch-regel'));
-check('C3 BEKANNTE LUECKE: invSave traegt kein data-action, keine Schicht sieht ihn',
+check('C1 uva-mark ist gesperrt (war bis 2026-09-09 offen)', blockt('uva-mark'));
+check('C2 app-ust-switch-regel ist gesperrt (war bis 2026-09-09 offen)',
+      blockt('app-ust-switch-regel'));
+// Gegenprobe zur Erweiterung: "switch" trifft auch den Firmenwechsel. Waere der gesperrt,
+// kaeme der Berater aus der Mandantenansicht nicht mehr heraus.
+check('C1b co-switch bleibt trotz "switch" in WRITE_RE erlaubt',
+      WRITE_RE.test('co-switch') && !blockt('co-switch'));
+// "pick" ist bewusst NICHT aufgenommen: die drei pick-Aktionen fassen nur das DOM an.
+check('C1c app-pick-ust bleibt frei (reine DOM-Manipulation)', !blockt('app-pick-ust'));
+check('C1d lg-pick-swatch bleibt frei (reine DOM-Manipulation)', !blockt('lg-pick-swatch'));
+check('C3 invSave traegt weiterhin kein data-action - nur die ID-Regel und der Store greifen',
       /getElementById\('invSave'\)\.addEventListener/.test(rechSrc)
       && !/data-action[^>]*invSave|invSave[^>]*data-action/.test(rechSrc));
-check('C4 BEKANNTE LUECKE: kein rechnungen/js-Modul kennt StbShare',
+check('C4 kein rechnungen/js-Modul kennt StbShare - dort traegt allein der Store-Guard',
       !/StbShare/.test(rechSrc));
 
 // D) Die CSS-Schicht ist Suffix-basiert und deshalb noch enger als der Regex
@@ -61,6 +67,14 @@ const suffixe = (cssSrc.match(/body\.stb-readonly \[data-action\$=/g) || []).len
 check('D1 CSS blendet ueber Suffixe aus (dokumentiert: 8 Stueck)', suffixe === 8);
 check('D2 CSS greift nicht bei Namen, die nicht auf das Suffix enden',
       !/body\.stb-readonly \[data-action\$="-mark"\]/.test(cssSrc));
+// Das Rechnungsmodul vergibt IDs statt data-action - dort haelt nur eine ID-Regel.
+check('D3 der Speichern-Knopf der Rechnung wird ausgeblendet',
+      /body\.stb-readonly #invSave/.test(cssSrc));
+check('D4 auch die Einstiege "Neue Rechnung"/"Neues Angebot"',
+      ['#dashNewInvoice','#dashNewOffer','#emptyNewInvoice','#emptyNewOffer']
+        .every(id => cssSrc.includes('body.stb-readonly ' + id)));
+check('D5 Vorschau und Abbrechen bleiben sichtbar (lesend bzw. Ausweg)',
+      !/body\.stb-readonly #invPreview/.test(cssSrc) && !/body\.stb-readonly #invCancel/.test(cssSrc));
 
 console.log('');
 console.log(pass + '/' + total + ' bestanden');

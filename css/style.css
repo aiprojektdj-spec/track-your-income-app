@@ -3010,6 +3010,18 @@ body.stb-readonly [data-action$="-create"],
 body.stb-readonly [data-action$="-storno"],
 body.stb-readonly [data-action$="-import"] { display: none !important; }
 
+/* Rechnungsmodul: dort greifen die Suffix-Regeln oben nicht, weil die Knoepfe gar kein
+   data-action tragen — 18 Attribute stehen dort 89 direkten addEventListener-Bindungen
+   gegenueber (01-AUFGABEN.md 1.7). Der Store weist die Schreibvorgaenge inzwischen ab, aber
+   ein Knopf, der sich druecken laesst und dann nichts tut, ist die zweitbeste Loesung.
+   Deshalb hier ueber die IDs, die das Modul stabil vergibt. Bewusst NICHT dabei: invPreview
+   und invCancel — Vorschau ist lesend, und Abbrechen muss erst recht moeglich bleiben. */
+body.stb-readonly #invSave,
+body.stb-readonly #dashNewInvoice,
+body.stb-readonly #dashNewOffer,
+body.stb-readonly #emptyNewInvoice,
+body.stb-readonly #emptyNewOffer { display: none !important; }
+
 /* ============================================
    Akademie — Merkkästen (js/akademie.js)
    ============================================ */

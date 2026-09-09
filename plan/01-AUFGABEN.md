@@ -308,12 +308,30 @@ an allen drei Wegen, die Gegenprobe zum Sync, der Firmenwechsel und die Drosselu
 `test/test-store-gobd-fixes.js` brauchte zwei Stub-Methoden mehr — es schneidet `saveRechInvoice`
 aus der Quelle und führt sie gegen ein Mock-Objekt aus.
 
-**Was damit NICHT erledigt ist:** die Oberfläche lässt die Klicks weiterhin zu, sie laufen jetzt
-nur ins Leere. `uva-mark` und `app-ust-switch-regel` erscheinen dem Berater weiter als bedienbar,
-und im Rechnungsmodul sind es 89 direkte Bindungen. Der Store fängt sie ab — aber eine Oberfläche,
-die etwas anbietet, das dann nicht geht, ist nur die zweitbeste Lösung. Die Denylist auf eine
-Allowlist umzustellen bleibt offen; sie ist jetzt aber **kein Sicherheitsthema mehr, sondern
-eines der Bedienbarkeit.**
+**Die Oberfläche ist am 2026-09-09 nachgezogen worden.** Der Store fing die Klicks zwar ab, aber
+ein Knopf, der sich drücken lässt und dann nichts tut, ist die zweitbeste Lösung. Zwei gezielte
+Ergänzungen statt des großen Umbaus:
+
+- **`WRITE_RE` kennt jetzt `mark` und `switch`** — damit sind die beiden belegten Schreibwege
+  `uva-mark` und `app-ust-switch-regel` auch an der Oberfläche gesperrt. Ausgezählt, bevor es
+  hineinkam: `mark` trifft repo-weit **nur** `uva-mark`; `switch` trifft zusätzlich `co-switch`,
+  den Firmenwechsel — der steht deshalb in `ALLOW_SET`, sonst käme der Berater aus der
+  Mandantenansicht nicht mehr heraus. **`pick` ist bewusst draußen geblieben:**
+  `app-pick-ust` und `lg-pick-swatch` fassen nur das DOM an, sie wären ohne Not gesperrt worden.
+- **Das Rechnungsmodul über IDs statt `data-action`.** Dort greifen die Suffix-Regeln nicht, weil
+  die Knöpfe kein `data-action` tragen. `#invSave` und die vier Einstiege
+  (`#dashNewInvoice`, `#dashNewOffer`, `#emptyNewInvoice`, `#emptyNewOffer`) sind jetzt in
+  `body.stb-readonly` ausgeblendet. **`#invPreview` und `#invCancel` ausdrücklich nicht** —
+  Vorschau ist lesend, und Abbrechen muss erst recht möglich bleiben.
+
+`test/test-stb-readonly-sperre.js` ist von 13 auf **19 Prüfungen** gewachsen. Die vier
+C-Prüfungen, die vorher die *offenen* Lücken festhielten, sind in positive umgeschrieben — sie
+sind beim Fix erwartungsgemäß fehlgeschlagen und haben damit genau das getan, wofür sie da waren.
+
+**Offen bleibt der Umbau der Denylist zur Allowlist.** Er ist aber **kein Sicherheitsthema mehr**:
+der Store fängt jeden Weg ab, und die beiden namentlich bekannten Löcher sind zu. Was bliebe, wäre
+Gründlichkeit — ein neuer Aktionsname ist weiterhin standardmäßig erlaubt, und die 112 nicht
+einzeln geprüften Namen sind nicht einzeln geprüft.
 
 > **Nicht im Browser nachgestellt** — dafür bräuchte es den zweiten Account, auf den Live-Test 3
 > ohnehin wartet. Belegt sind Zählung, Handler-Zuordnung, Bindungsart und die Verdrahtung am

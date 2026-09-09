@@ -583,14 +583,25 @@ Risiko, dass jemand mehr löscht als gewollt.
 
 | Rang | Aufgabe | Warum | Aufwand |
 |---|---|---|---|
-| 1 | **2.1 ENV-Variablen in Vercel** | Einzige offene Sicherheitslücke, reine Konfiguration | 10 Min |
-| 2 | **2.2 Whop-Mails** | Verhindert Rückbuchungen bei der 135-€-Verlängerung | 1 h |
-| 3 | **2.3 Live-Tests** | Sechs Funktionen sind gebaut, aber nie unter echten Bedingungen gelaufen | mehrere Sitzungen |
+| 1 | **2.2 Whop-Mails** | Verhindert Rückbuchungen bei der 135-€-Verlängerung; beide Texte liegen fertig entworfen | 1 h |
+| 2 | **2.5 Cloud-Löschung entscheiden** | Zwei Produktfragen, keine Technik. Solange sie offen sind, bleibt die Art.-17-Löschung unvollständig | Entscheidung |
+| 3 | **2.3 Live-Tests** | Drei der sieben Punkte sind noch nie unter echten Bedingungen gelaufen | mehrere Sitzungen |
 
-**Abschnitt 1 ist leer.** Es gibt derzeit keine Code-Aufgabe, die eine Session greifen könnte:
-1.0b ist am 2026-08-25 fertig geworden, 1.0 (OCR) am 2026-08-27, F6 ist seit 2026-08-21 durch.
-Offen ist dort nur noch eine Messung an echten Belegen — die braucht Bonfotos und damit dich.
+> **Korrigiert am 2026-09-09.** Auf Rang 1 stand bis dahin „2.1 ENV-Variablen in Vercel — einzige
+> offene Sicherheitslücke". Das war seit dem 2026-08-23 erledigt und am 2026-09-01 auf Produktion
+> gegengemessen: `/api/whop-access` antwortet mit `has_access: true`, **`owner: true`** und einem
+> Grace-Token. Die Zeile schickte also auf etwas längst Erledigtes — genau die Sorte Veralten, vor
+> der diese Datei oben selbst warnt.
 
-Rang 1–3 hängen damit **ausschließlich an dir**. Für Rang 1 liegt seit `327112b` eine
-Schritt-für-Schritt-Anleitung bereit: [`r3-owner-ids-anleitung.md`](r3-owner-ids-anleitung.md),
-inklusive des Falls, dass man sich als Owner aussperrt.
+**Abschnitt 1 ist leer** — keine Code-Aufgabe, die eine Session greifen könnte. Die Funde 1.3 bis
+1.7 aus den Live-Tests sind alle gefixt; die OCR-Messung an echten Belegen ist am 2026-08-30
+gelaufen (**2 von 3**, siehe [`live-tests-checkliste.md`](live-tests-checkliste.md) Punkt 7).
+
+Der einzige Rest dort ist der Umbau der StB-Schreibsperre von einer Denylist auf eine Allowlist
+(1.7). Er ist **kein Sicherheitsthema mehr** — der Store-Guard fängt seit dem 2026-09-05 jeden
+Schreibweg ab —, sondern Gründlichkeit: ein neuer Aktionsname ist an der Oberfläche weiterhin
+standardmäßig erlaubt.
+
+**Rang 1–3 hängen ausschließlich an dir.** Was sich ohne dich vorklären ließ, ist vorgeklärt: bei
+den Live-Tests 2, 3 und 4 sind je zwei bis drei Unterpunkte am Code beantwortet, mit
+Erwartungswert und Fundstelle — nachzulesen jeweils im Kasten über der Checkliste des Punkts.

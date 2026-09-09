@@ -328,6 +328,31 @@ Ergänzungen statt des großen Umbaus:
 C-Prüfungen, die vorher die *offenen* Lücken festhielten, sind in positive umgeschrieben — sie
 sind beim Fix erwartungsgemäß fehlgeschlagen und haben damit genau das getan, wofür sie da waren.
 
+**Nachtrag 2026-09-09: der Store-Guard war selbst unvollständig.** Beim Nachprüfen kamen zwei
+Umgehungen heraus, beide derselben Bauart — Methoden, die **nicht** über `set()` schreiben,
+sondern direkt in `_cache` und `_idbPut`:
+
+1. **Das GoBD-Protokoll.** `_addAuditEntry` schreibt direkt, und `savePurchase()` ruft es **vor**
+   `this.set()`. In der Mandantenansicht wäre also der Protokolleintrag entstanden und der
+   eigentliche Schreibvorgang danach abgewiesen worden — **ein Protokoll, das eine Änderung
+   verzeichnet, die es nie gab.** Das ist schlimmer als gar keines, weil es glaubwürdig aussieht.
+2. **16 weitere Schreibmethoden**, ausgezählt statt geschätzt: Fahrtenbuch, **Kassenbuch**,
+   Retouren, Materialwirtschaft, Steuertermine, Plattformgebühren. Von 58 Schreibmethoden liefen
+   42 über `set()`/`_rechSet()` und **16 daran vorbei**. Die Retouren wiegen dabei besonders, weil
+   sie über `margeKorrektur` in die USt-Voranmeldung fließen: eine gelöschte Retoure verändert
+   still die Bemessungsgrundlage einer womöglich schon eingereichten Periode.
+
+Alle 18 sind jetzt abgesichert; `null` als Rückgabe ist sicher, weil repo-weit kein Aufrufer den
+Rückgabewert auswertet (nachgesehen, nicht angenommen). **Die eigentliche Absicherung ist aber
+Prüfung G2** in `test/test-stb-store-guard.js`: sie zählt die Schreibmethoden selbst aus und
+schlägt fehl, sobald **eine neue** direkt schreibt, ohne den Guard zu tragen. Gegen den Stand vor
+dem Fix gehalten meldet sie 16, gegen den heutigen 0 — sie hat also Zähne.
+
+> **Was dabei ausdrücklich kein Fund war:** `deleteFahrt` und `deleteKassenEintrag` löschen trotz
+> ihres Namens **nicht** physisch, sondern stornieren (GoBD §146 AO) — und `saveSaleMulti` legt
+> nur neu an, es gibt dort keinen festgeschriebenen Satz zu schützen. Alle drei sahen nach
+> Asymmetrie aus und waren beim Nachsehen korrekt.
+
 **Offen bleibt der Umbau der Denylist zur Allowlist.** Er ist aber **kein Sicherheitsthema mehr**:
 der Store fängt jeden Weg ab, und die beiden namentlich bekannten Löcher sind zu. Was bliebe, wäre
 Gründlichkeit — ein neuer Aktionsname ist weiterhin standardmäßig erlaubt, und die 112 nicht

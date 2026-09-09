@@ -62,6 +62,10 @@ function mockStore(initialEintraege) {
         isLocked() { return false; },
         _idbPut() {},
         _triggerAutoBackup() {},
+        // Seit 2026-09-09 fragen die Kassenbuch-Methoden die Nur-Lese-Sperre ab
+        // (01-AUFGABEN.md 1.7). Hier ist die eigene Firma aktiv, also frei.
+        _isReadonlyCompany() { return false; },
+        _refuseReadonly() { return false; },
         _addAuditEntry(action, entityType, entityId, oldV, newV, details) {
             auditCalls.push({ action, entityType, entityId, oldV, newV, details });
         },

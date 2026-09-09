@@ -2951,6 +2951,7 @@ const Store = {
     },
 
     saveRetoure(r) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('saveRetoure'); return null; }
         const all = this.getRetouren();
         if (!r.id) { r.id = this.generateId(); r.createdAt = new Date().toISOString(); r.nummer = this.nextRetourenNumber(); }
         const idx = all.findIndex(x => x.id === r.id);
@@ -2963,6 +2964,7 @@ const Store = {
     },
 
     deleteRetoure(id) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('deleteRetoure'); return null; }
         const all = this.getRetouren().filter(r => r.id !== id);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'retouren'] = str;
@@ -2976,6 +2978,7 @@ const Store = {
     },
 
     saveFahrt(f) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('saveFahrt'); return null; }
         const all = this.getFahrten();
         const isNew = !f.id;
         if (isNew) { f.id = this.generateId(); f.createdAt = new Date().toISOString(); }
@@ -2992,6 +2995,7 @@ const Store = {
     },
 
     deleteFahrt(id, grund) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('deleteFahrt'); return null; }
         // GoBD §146 AO: Physisches Löschen verboten — Eintrag stornieren statt löschen
         const all = this.getFahrten();
         const idx = all.findIndex(f => f.id === id);
@@ -3015,6 +3019,7 @@ const Store = {
     },
 
     saveKassenEintrag(e) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('saveKassenEintrag'); return null; }
         const all = this.getKassenbuch();
         const isNew = !e.id;
         if (isNew) { e.id = this.generateId(); e.createdAt = new Date().toISOString(); }
@@ -3034,6 +3039,7 @@ const Store = {
     },
 
     deleteKassenEintrag(id, grund) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('deleteKassenEintrag'); return null; }
         // GoBD §146 AO: Physisches Löschen verboten — Eintrag stornieren statt löschen
         const all = this.getKassenbuch();
         const idx = all.findIndex(e => e.id === id);
@@ -3057,6 +3063,7 @@ const Store = {
     },
 
     saveSteuertermin(t) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('saveSteuertermin'); return null; }
         const all = this.getSteuertermine();
         if (!t.id) { t.id = this.generateId(); t.createdAt = new Date().toISOString(); }
         const idx = all.findIndex(x => x.id === t.id);
@@ -3069,6 +3076,7 @@ const Store = {
     },
 
     deleteSteuertermin(id) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('deleteSteuertermin'); return null; }
         const all = this.getSteuertermine().filter(t => t.id !== id);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'steuertermine'] = str;
@@ -3095,6 +3103,7 @@ const Store = {
     },
 
     savePlattformGebuehren(data) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('savePlattformGebuehren'); return null; }
         const str = JSON.stringify(data);
         this._cache[this._prefix + 'plattformgebuehren'] = str;
         this._idbPut(this._prefix + 'plattformgebuehren', str);
@@ -3114,6 +3123,7 @@ const Store = {
     },
 
     saveFahrtOrte(orte) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('saveFahrtOrte'); return null; }
         const str = JSON.stringify(orte);
         this._cache[this._prefix + 'fahrtenbuch_orte'] = str;
         this._idbPut(this._prefix + 'fahrtenbuch_orte', str);
@@ -3136,6 +3146,7 @@ const Store = {
     },
 
     saveMaterialBestandItem(item) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('saveMaterialBestandItem'); return null; }
         const all = this.getMaterialBestand();
         if (!item.id) { item.id = this.generateId(); item.erstelltAm = new Date().toISOString(); }
         const idx = all.findIndex(x => x.id === item.id);
@@ -3148,6 +3159,7 @@ const Store = {
     },
 
     deleteMaterialBestandItem(id) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('deleteMaterialBestandItem'); return null; }
         const all = this.getMaterialBestand().filter(x => x.id !== id);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'materiallager_bestand'] = str;
@@ -3160,6 +3172,7 @@ const Store = {
     },
 
     saveMaterialEinkauf(e) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('saveMaterialEinkauf'); return null; }
         const all = this.getMaterialEinkauefe();
         if (!e.id) { e.id = this.generateId(); e.erstelltAm = new Date().toISOString(); }
         const idx = all.findIndex(x => x.id === e.id);
@@ -3172,6 +3185,7 @@ const Store = {
     },
 
     deleteMaterialEinkauf(id) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('deleteMaterialEinkauf'); return null; }
         const all = this.getMaterialEinkauefe().filter(x => x.id !== id);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'materiallager_einkauefe'] = str;
@@ -3184,6 +3198,7 @@ const Store = {
     },
 
     saveMaterialVerbrauchEintrag(v) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('saveMaterialVerbrauchEintrag'); return null; }
         const all = this.getMaterialVerbrauch();
         if (!v.id) { v.id = this.generateId(); v.erstelltAm = new Date().toISOString(); }
         const idx = all.findIndex(x => x.id === v.id);
@@ -3196,6 +3211,7 @@ const Store = {
     },
 
     deleteMaterialVerbrauchEintrag(id) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('deleteMaterialVerbrauchEintrag'); return null; }
         const all = this.getMaterialVerbrauch().filter(x => x.id !== id);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'materiallager_verbrauch'] = str;

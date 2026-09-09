@@ -77,6 +77,28 @@ check('F1 _addAuditEntry schreibt direkt in Cache und IDB, nicht ueber set()',
 check('F2 _addAuditEntry ist trotzdem abgesichert', guard2.test(auditBody));
 check('F3 auch die Batch-Variante', guard2.test(batchBody));
 
+// -- G) Vollstaendigkeit: KEINE Schreibmethode darf am Guard vorbeischreiben --
+// Die eigentliche Absicherung gegen Rueckfall. 16 Methoden schrieben direkt in _cache und
+// _idbPut statt ueber set() - darunter Kassenbuch, Fahrtenbuch und Retouren. Eine neue
+// Methode, die denselben Weg nimmt, faellt hier auf, statt still ein Loch zu reissen.
+const schreibMethoden = [...new Set(
+  (storeSrc.match(/^    (?:save|delete|storno|add|update)[A-Za-z]*\s*\(/gm) || [])
+    .map(s => s.trim().replace(/\s*\($/, ''))
+)];
+const ungeschuetzt = schreibMethoden.filter(m => {
+  const i = storeSrc.indexOf('    ' + m + '(');
+  if (i < 0) return false;
+  const j = storeSrc.indexOf('    },', i);
+  const b = storeSrc.slice(i, j > 0 ? j : i + 2500);
+  const direkt = b.includes('_idbPut(') || /_cache\[[^\]]*\]\s*=/.test(b);
+  const ueberSet = /this\.(set|setAsync|_rechSet)\(/.test(b);
+  return direkt && !ueberSet && !b.includes('_isReadonlyCompany');
+});
+check('G1 mindestens 40 Schreibmethoden erkannt (Suchmuster greift noch)',
+      schreibMethoden.length >= 40);
+check('G2 keine Schreibmethode umgeht den Guard: ' + (ungeschuetzt.join(', ') || 'keine'),
+      ungeschuetzt.length === 0);
+
 console.log('');
 console.log(pass + '/' + total + ' bestanden');
 process.exit(pass === total ? 0 : 1);

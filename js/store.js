@@ -1130,7 +1130,14 @@ const Store = {
         return prevEntry.timestamp;
     },
 
+    // Das Protokoll schreibt bewusst NICHT ueber set(), sondern direkt in Cache und IDB —
+    // deshalb braucht es den Readonly-Guard eigens. Ohne ihn entstuende in der
+    // Mandantenansicht ein Protokolleintrag fuer eine Aenderung, die gar nicht passiert:
+    // savePurchase() ruft _addAuditEntry VOR this.set(), und set() weist dann ab. Ein
+    // GoBD-Protokoll, das Vorgaenge verzeichnet, die es nie gab, ist schlimmer als keines.
+    // Kein Aufrufer wertet den Rueckgabewert aus (repo-weit geprueft), null ist also sicher.
     _addAuditEntry(action, entityType, entityId, oldValues, newValues, details) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('audit_log'); return null; }
         const log = this.getAuditLog();
         // Hash-chain: prevHash = checksum of last entry (GoBD Rz.64 — Unveränderlichkeit)
         const prevEntry = log.length ? log[log.length - 1] : null;
@@ -1163,6 +1170,8 @@ const Store = {
     // Wie _addAuditEntry, aber für viele Einträge in EINER Schreiboperation (Bulk-Import).
     // Hash-Chain bleibt identisch (jeder prevHash = checksum des Vorgängers) → verifyAuditChain() bleibt gültig.
     _addAuditEntriesBatch(items) {
+        // Gleiche Umgehung, gleicher Guard wie in _addAuditEntry.
+        if (this._isReadonlyCompany()) { this._refuseReadonly('audit_log'); return null; }
         if (!items || !items.length) return 0;
         const log = this.getAuditLog();
         let prevEntry = log.length ? log[log.length - 1] : null;

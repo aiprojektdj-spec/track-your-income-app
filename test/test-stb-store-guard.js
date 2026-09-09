@@ -34,6 +34,7 @@ check('A4 unbekannte ID sperrt nicht (sonst legt eine kaputte Registry die App l
 
 // ── B) Verdrahtung an allen drei Nutzer-Schreibwegen ─────────────────────────
 const guard = /if \(this\._isReadonlyCompany\(\)\) return this\._refuseReadonly/;
+const guard2 = /if \(this\._isReadonlyCompany\(\)\)/;
 function rumpf(name) {
   const i = storeSrc.indexOf(name);
   return i < 0 ? '' : storeSrc.slice(i, i + 1200);
@@ -64,6 +65,17 @@ check('D1 setCompany schreibt nicht ueber set() und ist damit nicht gesperrt',
 check('E1 _refuseReadonly drosselt die Meldung', /_roToastTs/.test(storeSrc) && /> 3000/.test(storeSrc));
 check('E2 und liefert false, damit Aufrufer den Fehlschlag sehen koennen',
       /_refuseReadonly\(key\) \{[\s\S]{0,600}?return false;/.test(storeSrc));
+
+// -- F) Das Protokoll schreibt am Guard vorbei und braucht einen eigenen --
+// savePurchase() ruft _addAuditEntry VOR this.set(). Ohne eigenen Guard entstuende in der
+// Mandantenansicht ein GoBD-Eintrag fuer eine Aenderung, die gar nicht stattfand.
+const auditIdx  = storeSrc.indexOf('    _addAuditEntry(action, entityType, entityId,');
+const auditBody = auditIdx < 0 ? '' : storeSrc.slice(auditIdx, auditIdx + 2600);
+const batchBody = rumpf('    _addAuditEntriesBatch(items) {');
+check('F1 _addAuditEntry schreibt direkt in Cache und IDB, nicht ueber set()',
+      auditBody.includes('_cache[this._auditKey] = str;') && auditBody.includes('_idbPut(this._auditKey'));
+check('F2 _addAuditEntry ist trotzdem abgesichert', guard2.test(auditBody));
+check('F3 auch die Batch-Variante', guard2.test(batchBody));
 
 console.log('');
 console.log(pass + '/' + total + ' bestanden');

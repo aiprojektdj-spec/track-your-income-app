@@ -1,8 +1,9 @@
 # Stackr Web 1.7
 
 Buchhaltung für Selbstständige. Vanilla JS, **kein Build-Schritt**, statisches Hosting auf Vercel
-plus 5 Serverless-Endpunkte in `api/`. Auth und Zahlung über **Whop**. Buchhaltungsdaten liegen
-local-first im Browser; Cloud-Sync speichert ausschließlich Chiffrat.
+plus 6 Serverless-Endpunkte in `api/` (`_alert.js` ist Helfer, kein Endpunkt). Auth und Zahlung
+über **Whop**. Buchhaltungsdaten liegen local-first im Browser; Cloud-Sync speichert
+ausschließlich Chiffrat.
 
 Antworten, Code-Kommentare und Commit-Messages auf **Deutsch**.
 
@@ -39,7 +40,7 @@ anders: nicht anfassen, per `send_message` abstimmen.
    0.20.3 in `js/vendor/` mit SHA-256 in `js/vendor/VERSIONS.md`.
 7. **Gesetzeswerte gehören in eine Jahresfunktion**, nie in eine jahresfeste Konstante — auch
    wenn heute nur ein Wert existiert. Muster: `App._getUstGrenzen(year)` in
-   [js/app.js:1061](js/app.js:1061).
+   [js/app.js:1099](js/app.js:1099) — bei Zeilendrift über den Namen suchen, nicht über die Zahl.
 8. **CSP steht in `vercel.json` pro Route, nie global** — Browser schneiden mehrere
    CSP-Header, ein globaler würde die spezifischen aushebeln.
 
@@ -49,7 +50,8 @@ anders: nicht anfassen, per `send_message` abstimmen.
   No-Cache-Header, und der Cache hängt am Origin: Reload, Cache-Bust-Query und neuer Tab liefern
   trotzdem alten Code. Neuen Eintrag in `.claude/launch.json` anlegen, Port = höchster
   vorhandener + 1.
-- **Rechenlogik über `test/`** — 32 Node-Harnesses, cache-immun, gute Vorlage für neue Tests:
+- **Rechenlogik über `test/`** — die Node-Harnesses dort sind cache-immun und gute Vorlage für
+  neue Tests. Wie viele es sind, sagt die Schleife selbst, nicht diese Zeile:
   ```bash
   for f in test/*.js; do node "$f" >/dev/null 2>&1 || echo "FAIL $f"; done
   ```

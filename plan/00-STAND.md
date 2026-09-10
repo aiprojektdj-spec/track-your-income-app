@@ -40,8 +40,8 @@ das Gerät nie.
 | Zugang | Hard-Gate `AuthUI.boot()`, kein Free-Tier im Web |
 | Architektur | Vanilla JS, **kein Build-Schritt**, 1 Produktiv-Abhängigkeit (`@vercel/blob`) |
 | Umfang | 28 registrierte Module + 3 Sub-Apps (Rechnungen, Lager, Eigenbelege) |
-| Serverless | 5 Endpunkte in `api/` |
-| Tests | 32 Node-Harnesses in `test/`, cache-immun |
+| Serverless | 6 Endpunkte in `api/` (`ls api/*.js \| grep -v '/_'` — `_alert.js` ist Helfer) |
+| Tests | Node-Harnesses in `test/`, cache-immun — Zahl über `ls test/*.js \| wc -l`, am 2026-09-10 waren es 52 |
 | Hosting | Vercel; Cloud-Sync über Upstash Redis (Frankfurt) + Vercel Blob |
 
 ---
@@ -118,4 +118,4 @@ Diese Punkte sind am Code verifiziert und **gehören ins Marketing** — dort st
 | `plan/OFFEN.md` | ältere Statusliste — **von `01-AUFGABEN.md` abgelöst**, nur noch Archiv |
 | `plan/uebergabe-2026-08-12.md` | Übergabe vom 12.08. — **von diesen vier Dateien abgelöst** |
 | `plan/PLAN.md` | Archiv der Prompt-Texte. **Nicht als Arbeitsliste benutzen** — enthält viel Erledigtes ohne Markierung |
-| `test/` | 32 Node-Harnesses, cache-immun, gute Vorlage für neue Rechen-Tests |
+| `test/` | Node-Harnesses, cache-immun, gute Vorlage für neue Rechen-Tests |

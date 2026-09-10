@@ -169,7 +169,7 @@ Das war ein echter Fund (T1): ab 1.1.2027 hätte Stackr still zu niedrig gerechn
 2025er-Daten wurden schon vorher falsch bewertet.
 
 **Sondern so** — das Muster steht als `App._getUstGrenzen(year)` in
-[`js/app.js:1061`](../js/app.js), gefixt in [`js/ausgaben.js:37`](../js/ausgaben.js):
+[`js/app.js:1099`](../js/app.js), gefixt in [`js/ausgaben.js:37`](../js/ausgaben.js):
 ```javascript
 _getKsaWerte(year) {
     if (year >= 2027) return { satz: 0.050, bagatelle: 1000 };

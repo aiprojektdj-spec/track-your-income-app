@@ -38,7 +38,7 @@ Cache-Bust und neuer Tab liefern trotzdem alten Code.
 >
 > 1. **Das Gate braucht `api/`.** `js/whop-auth.js` ruft `/api/whop-token` und
 >    `/api/whop-access` **gleichursprünglich** auf. `python -m http.server` liefert nur
->    statische Dateien; die fünf Endpunkte in `api/` sind Vercel-Functions und existieren
+>    statische Dateien; die Endpunkte in `api/` sind Vercel-Functions und existieren
 >    lokal nicht. Der Zugangs-Check kann dort also nie zustande kommen.
 > 2. **Die Sitzung hängt am Origin.** `localStorage` ist pro Origin getrennt, und dort liegen
 >    `whop_access_token` und `whop_grace_token`. `localhost:4340` ist ein anderer Origin als

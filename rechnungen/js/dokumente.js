@@ -91,7 +91,7 @@ var Dokumente = (function() {
         // Reset button
         html += '<div class="filter-group" style="justify-content:flex-end;">';
         html += '<label class="form-label">&nbsp;</label>';
-        html += '<button class="btn btn-small btn-outline" id="filterReset" title="Filter zur\u00FCcksetzen" style="height:34px;padding:0 12px;"><i class="ti ti-filter-off"></i></button>';
+        html += '<button class="btn btn-small btn-outline" id="filterReset" title="Filter zur\u00FCcksetzen" aria-label="Filter zur\u00FCcksetzen" style="height:34px;padding:0 12px;"><i class="ti ti-filter-off"></i></button>';
         html += '</div>';
 
         html += '</div>';

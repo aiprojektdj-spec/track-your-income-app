@@ -308,9 +308,9 @@ const Fahrtenbuch = {
                     <td class="table-actions">
                         ${isSt ? '' : (!Store.canEdit(f)
                             ? `<span title="Periode festgeschrieben — nur Storno möglich" style="font-size:11px;opacity:.7;"><i class="ti ti-lock"></i></span>
-                               <button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Stornieren"><i class="ti ti-trash"></i></button>`
-                            : `<button class="btn btn-small" data-edit-fahrt="${f.id}" title="Bearbeiten"><i class="ti ti-pencil"></i></button>
-                               <button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Stornieren"><i class="ti ti-trash"></i></button>`)}
+                               <button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Stornieren" aria-label="Fahrt ${Utils.escapeHtml(f.nummer || '')} vom ${Utils.formatDate(f.datum)} stornieren"><i class="ti ti-trash"></i></button>`
+                            : `<button class="btn btn-small" data-edit-fahrt="${f.id}" title="Bearbeiten" aria-label="Fahrt ${Utils.escapeHtml(f.nummer || '')} vom ${Utils.formatDate(f.datum)} bearbeiten"><i class="ti ti-pencil"></i></button>
+                               <button class="btn btn-small btn-danger" data-delete-fahrt="${f.id}" title="Stornieren" aria-label="Fahrt ${Utils.escapeHtml(f.nummer || '')} vom ${Utils.formatDate(f.datum)} stornieren"><i class="ti ti-trash"></i></button>`)}
                     </td>
                 </tr>`;
             }).join('');

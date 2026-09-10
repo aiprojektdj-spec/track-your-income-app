@@ -207,7 +207,7 @@ var RechDashboard = (function() {
                 html += '<span style="padding:3px 8px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;background:' + st.bg + ';color:' + st.color + ';">' + st.label + '</span>';
                 html += '</td>';
                 html += '<td style="padding:10px 14px;white-space:nowrap;text-align:right;display:flex;gap:6px;justify-content:flex-end;">';
-                html += '<button class="btn btn-small dash-view" data-id="' + inv.id + '" style="font-size:11px;"><i class="ti ti-eye" style="font-size:12px;"></i></button>';
+                html += '<button class="btn btn-small dash-view" data-id="' + inv.id + '" style="font-size:11px;" aria-label="Rechnung ' + (inv.nummer || '') + ' ansehen"><i class="ti ti-eye" style="font-size:12px;"></i></button>';
                 html += '<button class="btn btn-small btn-primary dash-edit" data-id="' + inv.id + '" style="font-size:11px;"><i class="ti ti-edit" style="font-size:12px;"></i> Bearbeiten</button>';
                 html += '</td></tr>';
             });

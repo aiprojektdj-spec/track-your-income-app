@@ -128,9 +128,9 @@ const Afa = {
                 <td>
                     ${!Store.canEdit(a)
                         ? `<span title="Jahr festgeschrieben — nur Storno möglich" style="font-size:11px;opacity:.7;"><i class="ti ti-lock"></i></span>
-                           <button class="btn btn-sm btn-danger" data-action="afa-storno" data-args='["${a.id}"]'  title="Stornieren"><i class="ti ti-trash"></i></button>`
-                        : `<button class="btn btn-sm" data-action="afa-edit" data-args='["${a.id}"]'  title="Bearbeiten"><i class="ti ti-pencil"></i></button>
-                           <button class="btn btn-sm btn-danger" data-action="afa-storno" data-args='["${a.id}"]'  title="Stornieren"><i class="ti ti-trash"></i></button>`}
+                           <button class="btn btn-sm btn-danger" data-action="afa-storno" data-args='["${a.id}"]'  title="Stornieren" aria-label="Anlage ${Utils.escapeHtml(a.bezeichnung || '')} stornieren"><i class="ti ti-trash"></i></button>`
+                        : `<button class="btn btn-sm" data-action="afa-edit" data-args='["${a.id}"]'  title="Bearbeiten" aria-label="Anlage ${Utils.escapeHtml(a.bezeichnung || '')} bearbeiten"><i class="ti ti-pencil"></i></button>
+                           <button class="btn btn-sm btn-danger" data-action="afa-storno" data-args='["${a.id}"]'  title="Stornieren" aria-label="Anlage ${Utils.escapeHtml(a.bezeichnung || '')} stornieren"><i class="ti ti-trash"></i></button>`}
                 </td>
             </tr>`;
         }).join('');

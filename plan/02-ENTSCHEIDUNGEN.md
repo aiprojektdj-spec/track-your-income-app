@@ -55,21 +55,43 @@ der geschriebene (bei einem Produkt, das mit „deine Daten verlassen dein Gerä
 kann das jeder nachprüfen); praktisch keine Lieferketten-Fläche (**eine** Produktiv-Abhängigkeit
 statt hunderter transitiver Pakete); keine Build-Fäulnis.
 
-**Wechselpunkt, falls doch:** wenn der Anwendungscode deutlich über die jetzigen ~1,8 MB wächst
-**oder** die zwei parallel laufenden Chart-Bibliotheken (~800 KB) grundsätzlich angegangen
-werden. Vorher bringt F2 mehr und kostet fast nichts.
+**Wechselpunkt, falls doch:** ~~wenn der Anwendungscode deutlich über die jetzigen ~1,8 MB
+wächst **oder**~~ wenn die zwei parallel laufenden Chart-Bibliotheken (~800 KB) grundsätzlich
+angegangen werden. Vorher bringt F2 mehr und kostet fast nichts.
+
+> **Die Größen-Schwelle war am 2026-09-10 längst gerissen — und hat niemanden erreicht.**
+> Gemessen: **2,33 MB** allein in `js/` ohne Vendor-Bibliotheken (+29 % gegenüber den ~1,8 MB),
+> **2,96 MB** mit den drei Sub-Apps (+65 %). Unter jeder Lesart also überschritten, still, weil
+> niemand nachgemessen hat.
+>
+> **Die Entscheidung bleibt trotzdem: kein Build-Schritt.** Die drei Gründe oben hängen nicht an
+> der Dateigröße — der ausgelieferte Code ist der geschriebene, egal ob er 1,8 oder 3 MB wiegt.
+> Die Schwelle war von Anfang an der falsche Auslöser: sie misst etwas, das keinen der drei
+> Gründe berührt.
+>
+> Deshalb ist sie hier durchgestrichen statt hochgesetzt. Was bleibt, ist der zweite Auslöser
+> (die zwei Chart-Bibliotheken) — der zeigt auf konkrete Doppelarbeit, nicht auf eine Zahl.
+> Nachmessen, falls die Größe doch einmal interessiert:
+>
+> ```bash
+> find js -name '*.js' | grep -v vendor | xargs wc -c | tail -1
+> ```
+>
+> Kommt die Frage vom Betreiber zurück, ist sie damit bewusst beantwortet und nicht übersehen.
 
 ### Rate-Limits fallen bei Redis-Ausfall offen
 
-Alle vier API-Endpunkte behandeln Redis-Fehler beim Rate-Limit als nicht-blockierend.
+Alle fünf Endpunkte mit Rate-Limit behandeln Redis-Fehler als nicht-blockierend (`sync.js`,
+`blob-upload.js`, `whop-token.js`, `whop-access.js`, `whop-refresh.js` — `blob-cleanup.js` hat
+keines).
 
 **Warum:** Ein zahlender Kunde darf nicht an einem Redis-Ausfall scheitern. Fail-open ist hier
 die richtige Entscheidung. ~~**Einzige Empfehlung:** Die `console.error`-Zeilen sollten einen
 Alert auslösen statt nur im Log zu versanden.~~ **Erledigt 2026-08-16:** `api/_alert.js` meldet
 jeden offenen Deckel an `ALERT_WEBHOOK_URL` (Slack- und Make.com-kompatibel), entprellt auf eine
-Meldung je Ereignis und 5 Minuten. Neun Stellen in vier Endpunkten, inklusive des
-Blob-Byte-Budgets, das dieselbe Fail-open-Eigenschaft hat. Ist die Variable nicht gesetzt,
-verhält sich alles wie vorher. **Noch zu tun: `ALERT_WEBHOOK_URL` in Vercel setzen** — ohne sie
+Meldung je Ereignis und 5 Minuten. **19 Stellen in sechs Endpunkten** (`grep -rn "alertOps('"
+api/*.js | wc -l`), inklusive des Blob-Byte-Budgets, das dieselbe Fail-open-Eigenschaft hat.
+Ist die Variable nicht gesetzt, verhält sich alles wie vorher. **Noch zu tun: `ALERT_WEBHOOK_URL` in Vercel setzen** — ohne sie
 bleibt es beim Log. Schritt für Schritt in [`alert-webhook-anleitung.md`](alert-webhook-anleitung.md);
 am 2026-09-09 weiterhin offen, weil nur der Betreiber an die Vercel-Umgebung kommt.
 

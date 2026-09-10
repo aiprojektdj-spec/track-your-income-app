@@ -62,7 +62,42 @@ fällig, und die Antwort sollte bewusst fallen statt durch Nichtbeachtung.
 
 ---
 
+## ✅ Abgearbeitet am 2026-09-10
+
+Alle fünf Befunde sind erledigt. Der Abschnitt „Was ich nicht geändert habe" darunter ist damit
+überholt — er bleibt stehen, weil er festhält, warum es beim Messen zunächst blieb.
+
+| # | Was daraus wurde |
+|---|---|
+| 1 | `CLAUDE.md` und `plan/00-STAND.md` sagen jetzt **6** und nennen `_alert.js` ausdrücklich als Helfer. In `live-tests-checkliste.md` ist die Zahl **entfernt statt korrigiert**: der Absatz ist ein datiertes Protokoll vom 2026-09-01, und da waren es tatsächlich fünf — `api/whop-refresh.js` kam erst am 2026-09-05 dazu (`b7d826b`). Das Argument dort hängt nicht an der Zahl. |
+| 2 | Die feste Harness-Zahl ist **ganz raus**. Sie war schon beim Messen falsch (32 statt 50) und einen Tag später wieder (52). In `CLAUDE.md` zählt jetzt die Schleife selbst, in `00-STAND.md` steht der Messbefehl neben einer datierten Momentaufnahme. |
+| 3 | `1061` → **`1099`**, an beiden Stellen. In `CLAUDE.md` zusätzlich der Hinweis, bei Drift über den Funktionsnamen zu suchen — diese Zeilennummer ist jetzt zum wiederholten Mal gewandert. |
+| 4 | **19 Stellen in sechs Endpunkten**, mit dem `grep` daneben. Dabei ein sechster Fund im selben Absatz: „Alle vier API-Endpunkte behandeln Redis-Fehler…" — es sind **fünf** mit Rate-Limit, `blob-cleanup.js` hat gar keines. Beide Zeilen jetzt mit Dateinamen statt bloßer Zahl. |
+| 5 | Die Schwelle ist **durchgestrichen, nicht hochgesetzt** — siehe unten. |
+
+### Befund 5: die Antwort ist gefallen
+
+**Kein Build-Schritt, Entscheidung unverändert** — aber jetzt bewusst statt durch Nichtbeachtung.
+
+Der Punkt, der beim Messen noch nicht klar war: die Schwelle war nicht zu niedrig angesetzt, sie
+war **der falsche Auslöser**. Die drei Gründe gegen einen Build-Schritt (ausgelieferter Code =
+geschriebener Code, keine Lieferketten-Fläche, keine Build-Fäulnis) berühren die Dateigröße an
+keiner Stelle. Eine Schwelle, deren Reißen die Begründung nicht anfasst, kann man beliebig
+hochsetzen und sie bleibt nutzlos — sie erzeugt nur beim nächsten Mal wieder stille Drift.
+
+Sie ist deshalb in `02-ENTSCHEIDUNGEN.md` durchgestrichen. Stehen bleibt der zweite Auslöser aus
+demselben Satz, die zwei parallel laufenden Chart-Bibliotheken (~800 KB): der zeigt auf konkrete
+Doppelarbeit statt auf eine Zahl. Der Messbefehl steht dort weiterhin, falls die Größe doch
+einmal interessiert.
+
+**Das ist eine Entscheidung des Betreibers, nicht meine** — sie ist hier nur so festgehalten,
+dass sie beim nächsten Lesen sichtbar ist und überstimmt werden kann.
+
+---
+
 ## Was ich nicht geändert habe, und warum
+
+> **Überholt seit 2026-09-10** (siehe oben) — steht als Begründung der Zwischenzeit.
 
 **Nichts davon ist repariert.** Zwei Gründe:
 

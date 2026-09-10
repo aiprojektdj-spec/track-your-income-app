@@ -17,3 +17,10 @@ css/vendor/fonts/* -text binary
 # js/vendor/*.js greift dort nicht — Muster mit Schraegstrich sind verankert, und * geht
 # nicht ueber /. Ohne diese Zeile haengt der SHA-256 in VERSIONS.md am Zufall.
 js/vendor/tessdata/* -text binary
+
+# KoSIT-Proben (2026-09-09): dieselbe Begruendung aus einem anderen Anlass. Die vier
+# Beispielrechnungen sind der eingecheckte Referenzstand dessen, was xrechnung.js erzeugt —
+# ihr Zweck ist der Diff nach einem Eingriff in den Generator. Der erzeugt LF; ohne diese
+# Zeile bekaemen die Dateien beim Checkout CRLF, und jeder Vergleich meldete eine Aenderung
+# in jeder Zeile, obwohl sich nichts geaendert hat.
+kosit-proben/*.xml -text

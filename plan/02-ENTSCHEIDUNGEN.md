@@ -1,10 +1,21 @@
 # Bewusst so — und warum
 
-**Stand: 2026-08-14.** Einstieg: [`00-STAND.md`](00-STAND.md)
+**Stand: 2026-09-09.** Einstieg: [`00-STAND.md`](00-STAND.md)
 
 Diese Datei existiert, damit dieselben Dinge nicht bei jedem Audit erneut als Fund gemeldet
 werden. Alles hier ist **geprüft und bewusst so entschieden**. Wer einen dieser Punkte trotzdem
 ändern will, sollte vorher die Begründung entkräften können.
+
+> **Zwei Lesehinweise, aus der Sanierung am 2026-09-09 gelernt:**
+>
+> 1. **Die Zeilenverweise driften.** Sechs davon zeigten am 2026-09-09 ins Leere oder auf den
+>    falschen Block; sie sind korrigiert, veralten aber beim nächsten Eingriff wieder. Im Zweifel
+>    nach dem Bezeichner greppen, nicht der Zeilennummer glauben — und diese Datei ist wie jede
+>    Plandatei **kein Ersatz für den Blick in den Code** (Regel 3 der [`../CLAUDE.md`](../CLAUDE.md)).
+> 2. **Eine Entscheidung, die gebaut wurde, gehört umgeschrieben, nicht nur ergänzt.** OCR stand
+>    hier dreimal, in drei Zuständen, und las sich in der jüngsten Fassung als offener Auftrag —
+>    obwohl das Feature seit dem 2026-08-27 fertig ausgeliefert ist. Überholte Fassungen gehören
+>    in den `<details>`-Block, nicht in den laufenden Text.
 
 ---
 
@@ -29,8 +40,10 @@ Der komplette Blob wird bei jeder Änderung übertragen.
 **Warum nicht fixen:** CAS (optimistische Nebenläufigkeit über Versionsvergleich) und der
 Merge-Algorithmus sind korrekt und getestet. Ein Delta-Verfahren würde beides erheblich
 verkomplizieren und genau dort Fehler einführen, wo heute keine sind — bei der Datenintegrität.
-**Stattdessen:** Ver-/Entschlüsselung in einen Web Worker (F6 in
-[`01-AUFGABEN.md`](01-AUFGABEN.md)), damit die UI nicht einfriert.
+~~**Stattdessen:** Ver-/Entschlüsselung in einen Web Worker (F6 in
+[`01-AUFGABEN.md`](01-AUFGABEN.md)), damit die UI nicht einfriert.~~ **F6 ist erledigt seit
+2026-08-21** — Krypto-Worker und Sync-Rückmeldung (`617bfc3`, Aufgaben 1.1 und 1.2). Der Verzicht
+auf Delta-Sync bleibt davon unberührt.
 
 ### Kein Build-System — vorerst
 
@@ -57,7 +70,8 @@ jeden offenen Deckel an `ALERT_WEBHOOK_URL` (Slack- und Make.com-kompatibel), en
 Meldung je Ereignis und 5 Minuten. Neun Stellen in vier Endpunkten, inklusive des
 Blob-Byte-Budgets, das dieselbe Fail-open-Eigenschaft hat. Ist die Variable nicht gesetzt,
 verhält sich alles wie vorher. **Noch zu tun: `ALERT_WEBHOOK_URL` in Vercel setzen** — ohne sie
-bleibt es beim Log.
+bleibt es beim Log. Schritt für Schritt in [`alert-webhook-anleitung.md`](alert-webhook-anleitung.md);
+am 2026-09-09 weiterhin offen, weil nur der Betreiber an die Vercel-Umgebung kommt.
 
 ### Kein Mehrbenutzer-/Teamzugang
 
@@ -68,8 +82,10 @@ die einzige Freigabe.
 verschwiegen werden.~~ **Erledigt 2026-08-16:** FAQ-Eintrag „Können mehrere Personen mit
 demselben Konto arbeiten?" in `index.html` — benennt das Nein, den StB-Lesezugang als Ausnahme
 und die GbR-Gewinnverteilung, und sagt ausdrücklich, wann Stackr das falsche Werkzeug ist.
-*(`landing-v2.html` hat den Eintrag noch nicht — die Datei wurde von einer parallelen Session
-gehalten.)*
+**Nachgezogen am 2026-09-09:** `landing-v2.html` hat den inhaltsgleichen Eintrag jetzt auch — die
+Datei war beim ersten Anlauf von einer parallelen Session gehalten. Beide Landings sind über
+[`vercel.json`](../vercel.json) ausgeliefert; wenn eine von beiden eine Aussage über den
+Funktionsumfang bekommt, gehört sie in **beide**, sonst laufen sie auseinander.
 
 ---
 
@@ -88,7 +104,7 @@ der Local-First-Entscheidung. Sie gehören so kommuniziert — nicht als Rückst
 **Empfehlung für ELSTER:** nicht bauen, sondern zur Haltung machen — *„Deine Steuerdaten
 verlassen dein Gerät nie, auch nicht für die Übermittlung"* — plus eine Schritt-für-Schritt-
 Anleitung nach dem CSV-Export. Kostet fast nichts und macht aus der Lücke ein Argument.
-**Die Anleitung ist gebaut** (`js/euer.js:1074`): Modal mit drei Schritten statt eines Toasts,
+**Die Anleitung ist gebaut** ([`js/euer.js:1083`](../js/euer.js)): Modal mit drei Schritten statt eines Toasts,
 inklusive Hinweis, dass Z64 eine Sammelzeile ist. Offen bleibt nur der Marketing-Teil.
 
 **Preisrecherche zu den vier Lücken:** [`server-kosten-psd2-2026-08-16.md`](server-kosten-psd2-2026-08-16.md)
@@ -98,9 +114,10 @@ Aggregator kostet 3–4 € je Kunde und Monat, also **24–32 % vom Nettoerlös
 Sockelbetrag 500–2.000 € im Monat ab Tag 1. Der vorhandene CAMT.053-/MT940-Import
 (`js/bank-import.js`) deckt denselben Bedarf zum Preis eines Klicks im Online-Banking.
 
-**Die eine Ausnahme:** **OCR** lässt sich als **Browser-OCR** (Tesseract.js) bauen, ohne die
-Zusage zu brechen. Das wäre eine Aussage, die kein Wettbewerber machen kann: *Belegerkennung,
-bei der der Beleg dein Gerät nie verlässt.* Spezifikation liegt vor (`9567630`).
+**Die eine Ausnahme:** **OCR** ließ sich als **Browser-OCR** bauen, ohne die Zusage zu brechen —
+und **ist seit dem 2026-08-27 gebaut**, siehe „OCR ist gebaut" weiter unten. Von den fünf Lücken
+in diesem Abschnitt ist damit die einzige geschlossen, die sich ohne Server schließen ließ. Die
+vier in der Tabelle bleiben, was sie sind: die Kehrseite der Local-First-Entscheidung.
 
 ---
 
@@ -118,9 +135,12 @@ Falls das je aufgemacht wird: **nach Firmenanzahl staffeln, nie nach Features.**
 wie die E-Rechnung hinter einen höheren Tarif zu legen, ist der Fehler, den Stackr dem
 Wettbewerb vorhält.
 
-**Offen und davon unberührt:** das Steuerberater-Modell. Der StB-Zugang ist gebaut und
+~~**Offen und davon unberührt:** das Steuerberater-Modell. Der StB-Zugang ist gebaut und
 kostenlos, eine Kanzlei mit 40 Mandanten zahlt nichts. Wenn das angegangen wird, dann zusammen
-mit dem Grant-Deckel (R4) — erst das Leck schließen, dann Preis verlangen.
+mit dem Grant-Deckel (R4) — erst das Leck schließen, dann Preis verlangen.~~ **Beides ist
+seither entschieden:** Der Grant-Deckel (R4) ist gebaut, und der StB-Zugang bleibt bewusst
+kostenlos — er ist ein Vertriebskanal, kein entgangener Umsatz. Siehe „Steuerberater-Zugang
+bleibt kostenlos — entschieden 2026-08-23". **An dieser Stelle ist nichts mehr offen.**
 
 ### Zielgruppe: die EÜR-Rechtsformen stehen vorn — entschieden 2026-08-21
 
@@ -158,23 +178,38 @@ Die ursprüngliche Angabe „12 Module" war aus nichts ableitbar und hat die App
 verkauft. Umgesetzt an allen vier Stellen der Landingpage in `7635b2f`; im Browser gegengeprüft,
 dass die einzige verbliebene Modulzahl die 9 der Akademie ist.
 
-### OCR wird doch gebaut — Zurückstellung aufgehoben (2026-08-27)
+### OCR ist gebaut — Browser-OCR, und wird nicht beworben (2026-08-27)
 
-**Der User hat die Zurückstellung vom 2026-08-16 aufgehoben:** „OCR muss fertig werden, eigene
-Session." Der Trustpilot-Auslöser gilt nicht mehr als Bedingung — es wird gebaut, ohne auf
-Bewertungen zu warten.
+**Fasst die drei früheren OCR-Eintragungen zusammen** (Zurückstellung 2026-08-16, „wird gebaut"
+2026-08-23, Aufhebung der Zurückstellung 2026-08-27). Die ersten beiden stehen im
+`<details>`-Block weiter unten; hier gilt nur noch dieser Absatz.
 
-**Was das bedeutet:**
+**Das Feature ist fertig und ausgeliefert** — Belegerkennung ausschließlich im Browser, wie
+festgelegt. Am Code nachzählbar: [`js/beleg-ocr.js`](../js/beleg-ocr.js), Tesseract vollständig
+lokal in `js/vendor/` (`tesseract.min.js`, Worker, zwei WASM-Kerne, `tessdata/deu.traineddata.gz`,
+alle mit SHA-256 in `js/vendor/VERSIONS.md` und `-text binary` in `.gitattributes`), abgesichert
+durch [`test/test-beleg-ocr.js`](../test/test-beleg-ocr.js) und
+[`test/test-ocr-worker-csp.js`](../test/test-ocr-worker-csp.js). In
+[`01-AUFGABEN.md`](01-AUFGABEN.md) ist es Aufgabe 1.0, erledigt am 2026-08-27.
 
-- OCR ist wieder **aktiver Auftrag** in [`01-AUFGABEN.md`](01-AUFGABEN.md), Abschnitt 1.
-- Umsetzung **in einer eigenen Session**, nicht nebenbei — ausdrückliche Vorgabe. Startpunkt:
-  [`session-prompt-ocr-2026-08-27.md`](session-prompt-ocr-2026-08-27.md).
-- Die Rahmenbedingungen der Spezifikation bleiben unverändert gültig, insbesondere: **nur
-  Browser-OCR**, keine Server-Variante auch nicht als Fallback.
+**Keine Server-OCR, auch nicht als Fallback** — das bräche dieselbe Zusage, an der PSD2 und die
+ELSTER-Direktübermittlung gescheitert sind. Das ist der Punkt, an dem Local-First vom
+Zugeständnis zum Verkaufsargument wird: *Belegerkennung, bei der der Beleg dein Gerät nie
+verlässt* kann kein Wettbewerber mit Server-OCR behaupten. Es ist zugleich **keine neue
+Abhängigkeit** im Sinne von Regel 6 — nichts kommt aus `npm`, alles liegt versioniert im Repo.
 
-**Die CSP-Freigabe liegt bereits vor** und muss nicht erneut eingeholt werden: `'wasm-unsafe-eval'`
-darf auf `/app.html` und `/eigenbelege` gesetzt werden, Landing, Rechtstexte und `/api/*` behalten
-die harte CSP (Abschnitt 7 der Spezifikation, beantwortet 2026-08-12).
+**Die vorab erteilte CSP-Freigabe wurde nicht gebraucht — und ist damit erledigt, nicht offen.**
+Hier stand, `'wasm-unsafe-eval'` dürfe auf `/app.html` und `/eigenbelege` gesetzt werden. Die
+Umsetzung kam ohne aus; [`eigenbelege/index.html:9`](../eigenbelege/index.html) hält ausdrücklich
+fest: „`'wasm-unsafe-eval'` ist NICHT noetig und wurde bewusst nicht gesetzt". **Eine stehende
+Erlaubnis, die niemand einlöst, ist eine Einladung für die nächste Session** — deshalb gilt sie
+als verbraucht: Wer sie doch braucht, holt sie neu ein. Hintergrund in Abschnitt 7 der
+Spezifikation (beantwortet 2026-08-12).
+
+**Die Betragserkennung bleibt in Beobachtung.** Die Rückfallregel steht auf sehr wenigen echten
+Bons; drei Fehler daran sind gefunden und geschlossen, ein vierter Umbau wartet bewusst auf mehr
+gemessene Belege — [`funde-betragsregel-2026-08-30.md`](funde-betragsregel-2026-08-30.md). Das
+ist kein offener Fehler, sondern die Bedingung, unter der weitergebaut wird.
 
 **OCR wird auf der Landingpage nicht beworben — entschieden 2026-08-27.**
 
@@ -194,9 +229,54 @@ hinschreiben kann. Dann gehört die gemessene Zahl in die Aussage, nicht das Wor
 *Nicht zu verwechseln mit der Zurückstellung vom 2026-08-16: Der Bau ist ausdrücklich freigegeben.
 Zurückgehalten wird nur die Bewerbung.*
 
+**Am 2026-09-09 gegengeprüft: `index.html` enthält kein einziges Vorkommen von „OCR",
+„Belegerkennung" oder „Texterkennung".** Die Zurückhaltung wird eingehalten.
+
 *Der Einwand aus der Zurückstellung bleibt der Vollständigkeit halber festgehalten — kein Kunde
 hat die Belegerfassung bisher als Schmerz genannt, die Annahme stammt aus dem Wettbewerbsvergleich.
 Der User hat das abgewogen und anders entschieden. Kein Grund, die Frage erneut aufzuwerfen.*
+
+### Top-of-Funnel: die Demo wird ausgebaut, die Kartenpflicht bleibt — entschieden 2026-08-23
+
+Seit der Local-Einstellung führt der einzige Weg über Landing → Checkout **mit Kartenpflicht**.
+Drei Wege standen zur Wahl; gewählt ist der **Ausbau der bestehenden interaktiven Demo**
+(`index.html`, Abschnitt `#demo` — Dashboard, Buchungen, EÜR, GoBD-Protokoll).
+
+**Nicht gewählt und warum:**
+
+- **Trial ohne Kartenpflicht** hätte die größte Conversion-Wirkung, verlangt aber eine
+  Whop-Umkonfiguration und eine erneute Prüfung der **§356a-Widerrufsklausel** — die wartet
+  ohnehin auf den Anwalt. Ein Widerrufsrecht, das nicht trägt, ist bei einem Trial-Modell der
+  teuerste Fehler.
+- **Read-only-Tier** wäre ein echter Free-Tier gegen den Wettbewerb, aber der größte Bauaufwand
+  (Gate-Logik, Feature-Flags, Rechtstexte) — und kannibalisiert womöglich das Abo.
+
+Die Demo ist der billigste Hebel: kein Eingriff ins Gate, keine Rechtstext-Änderung, kein
+Missbrauchsrisiko. Sie existiert bereits und ist echt („kein Video und keine Animation").
+
+**Umgesetzt am 2026-08-25** (`69361f1`, `b6be27c`, `cb95d40`) — Aufgabe 1.0b in
+[`01-AUFGABEN.md`](01-AUFGABEN.md). *Die inhaltsgleiche Fassung vom 2026-08-16 steht im
+`<details>`-Block; maßgeblich ist dieser Absatz.*
+
+### Steuerberater-Zugang bleibt kostenlos — entschieden 2026-08-23
+
+Der StB-Zugang wird **nicht bepreist**. Begründung: Steuerberater, die Stackr im Mandat sehen,
+empfehlen es weiter — der Zugang ist ein Vertriebskanal, kein entgangener Umsatz.
+
+**Wichtig, weil in älteren Notizen anders vermerkt:** Der Grant-Deckel aus **R4 ist bereits
+gebaut**. `MAX_GRANTS` steht per Default auf 10 aktive Freigaben je Owner
+([`api/sync.js:156`](../api/sync.js)) und wird in [`api/sync.js:508`](../api/sync.js) mit einem
+`409 grant_limit` durchgesetzt, anhebbar über `SYNC_MAX_GRANTS` ohne Codeänderung. Ein Pro-Abo
+kann also **nicht** unbegrenzt Gratiszugänge erzeugen. Die Kanzlei mit 40 Mandanten ist davon
+unberührt: der Deckel zählt Freigaben **pro Owner**, nicht pro Kanzlei — 40 Mandanten sind
+40 Owner mit je einer Freigabe.
+
+*(Die Fassung vom 2026-08-16 im `<details>`-Block lässt die Preisfrage noch offen und will erst
+die laufenden Freigaben zählen. Sie ist mit diesem Absatz beantwortet — maßgeblich ist dieser.)*
+
+Damit ist an dieser Stelle **nichts zu bauen**.
+
+---
 
 <details>
 <summary>Überholt: die Zurückstellung vom 2026-08-16</summary>
@@ -241,7 +321,7 @@ lässt Gate-Logik wie Rechtstexte unberührt. Ausbau statt Umbau.
 ### Steuerberater-Zugang bleibt vorerst kostenlos — erst messen (2026-08-16)
 
 Der Zugang ist gebaut, der Grant-Deckel aus R4 steht (`SYNC_MAX_GRANTS`, Default 10 in
-[`api/sync.js:147`](../api/sync.js)). Das Leck ist zu, die Preisfrage bleibt offen.
+[`api/sync.js:156`](../api/sync.js)). Das Leck ist zu, die Preisfrage bleibt offen.
 
 **Vor jeder Preisentscheidung steht eine Zahl, die niemand hat:** Wie viele Freigaben laufen
 überhaupt? Whop weiß das nicht, es steht in Upstash (`grantsby:<userId>`). Solange die Antwort
@@ -257,8 +337,8 @@ Der Zugang ist gebaut, der Grant-Deckel aus R4 steht (`SYNC_MAX_GRANTS`, Default
 
 ### Die §25a-Marge wird mit 19 % gerechnet — der ermäßigte Satz gilt dafür nie (2026-09-03)
 
-Die fest verdrahteten 19 in [`js/euer.js:165`](../js/euer.js),
-[`js/gbr-modul.js:85`](../js/gbr-modul.js) und an vier Stellen in
+Die fest verdrahteten 19 in [`js/euer.js:174`](../js/euer.js),
+[`js/gbr-modul.js:88`](../js/gbr-modul.js) und an vier Stellen in
 [`js/ustvoranmeldung.js`](../js/ustvoranmeldung.js) sind **kein Vereinfachungs-Provisorium,
 sondern der Gesetzeswortlaut**:
 
@@ -345,7 +425,25 @@ einer Korrektur, wäre eine Warnung vor etwas, das nicht vorkommt.
 messen, und nur bei Treffern in einer echten Firma neu entscheiden. Die Abfrage läuft auch bei
 aktivem Whop-Gate — die Daten hängen am Origin, nicht an der Anmeldung.
 
-### KoSIT-Validierung der E-Rechnung — offen, weil sie eine neue Abhängigkeit wäre (2026-09-05)
+### KoSIT-Validierung: einmalig manuell — entschieden 2026-09-09
+
+**Beantwortet die Frage, die der folgende Abschnitt gestellt hat.** Von den drei Wegen — gar
+nicht validieren, einmalig manuell, dauerhaft in CI — ist **einmalig manuell vor dem ersten
+produktiven Versand** gewählt. Damit bleibt Regel 6 der [`../CLAUDE.md`](../CLAUDE.md) unberührt:
+keine Java-Abhängigkeit, kein CI-Aufbau, der bisher nicht existiert.
+
+**Vier Beispielrechnungen liegen fertig erzeugt in [`../kosit-proben/`](../kosit-proben)**, aus
+dem ausgelieferten Generator, nicht aus einer Sonderfassung: Regelfall 19/7 als Gegenprobe,
+§25a-Gebrauchtgegenstand (Kategorie `E`), gemischt `S`+`E`, und §25a an einen EU-Kunden mit
+USt-IdNr — der Fall, der bis `e265a4b` fälschlich als `K` gemeldet wurde. Alle vier passieren
+`XRechnung.pruefeRegeln()` ohne Beanstandung; genau deshalb sind sie der interessante Test.
+Ablauf, Fundstellen und der Datenschutzvorbehalt beim Hochladen stehen in
+[`kosit-validierung-2026-09-09.md`](kosit-validierung-2026-09-09.md).
+
+**Was der Lauf nicht beantwortet:** ob Kategorie `E` die steuerlich richtige Zuordnung für §25a
+ist. Der Validator prüft die Form, nicht die Subsumtion — die steht im Abschnitt darüber.
+
+### KoSIT-Validierung der E-Rechnung — die Herleitung (2026-09-05)
 
 Der XRechnung-Export läuft ohne offizielle Schematron-Prüfung; der Toast beim Export sagt das
 selbst. Nach den §25a-Korrekturen in `e265a4b` (Kategorie E mit §14a-Abs.-6-Pflichttext, kein
@@ -452,11 +550,11 @@ Inhalte verkettet, nicht Zeiten.
 **Warum nicht vollständig lösbar:** Bei einer App ohne Serverzwang geht es nicht. Der externe
 Cloud-Anker (serverseitiges `ts` in `api/sync.js`) ist die richtige Antwort — er ist nur opt-in.
 ~~**Empfehlung:** den Anker im Protokoll-Modul bewerben statt still anbieten.~~ **Erledigt:**
-`js/protokoll.js:328` zeigt eine eigene Karte, die den Zustand offen benennt — grün mit
+`js/protokoll.js:342` zeigt eine eigene Karte, die den Zustand offen benennt — grün mit
 „Externer Zeitnachweis aktiv", sonst gelb mit dem Hinweis, dass die Kette ohne Anker nur
 geräteintern beweiskräftig ist, plus dem Weg dorthin. Die Schwelle ist `CloudSync.isHealthy()`,
 nicht ein bloßes Eingeschaltet-Flag. Inzwischen erkennt das Log zusätzlich Uhr-Rücksprünge
-(`41b21b6`), und `js/cloud-sync.js:1645` prüft die Anker täglich von selbst.
+(`41b21b6`), und `js/cloud-sync.js:1815` prüft die Anker täglich von selbst.
 
 ---
 
@@ -517,52 +615,6 @@ sinnvoll (469 von 660 `parseFloat`-Aufrufen sind abgesichert). Das Muster ist ü
 `parseFloat(…) || 0` — und das fängt `NaN` ab, aber **nicht `-500`**. Negative Verkaufspreise und
 negative Plattformgebühren landen ungeprüft in der EÜR. **Wie bei den Hex-Farben taugt die
 Rohzahl nicht als Kennzahl** — die Triage in der Funddatei ist der Punkt.
-
-### Top-of-Funnel: die Demo wird ausgebaut, die Kartenpflicht bleibt — entschieden 2026-08-23
-
-Seit der Local-Einstellung führt der einzige Weg über Landing → Checkout **mit Kartenpflicht**.
-Drei Wege standen zur Wahl; gewählt ist der **Ausbau der bestehenden interaktiven Demo**
-(`index.html`, Abschnitt `#demo` — Dashboard, Buchungen, EÜR, GoBD-Protokoll).
-
-**Nicht gewählt und warum:**
-
-- **Trial ohne Kartenpflicht** hätte die größte Conversion-Wirkung, verlangt aber eine
-  Whop-Umkonfiguration und eine erneute Prüfung der **§356a-Widerrufsklausel** — die wartet
-  ohnehin auf den Anwalt. Ein Widerrufsrecht, das nicht trägt, ist bei einem Trial-Modell der
-  teuerste Fehler.
-- **Read-only-Tier** wäre ein echter Free-Tier gegen den Wettbewerb, aber der größte Bauaufwand
-  (Gate-Logik, Feature-Flags, Rechtstexte) — und kannibalisiert womöglich das Abo.
-
-Die Demo ist der billigste Hebel: kein Eingriff ins Gate, keine Rechtstext-Änderung, kein
-Missbrauchsrisiko. Sie existiert bereits und ist echt („kein Video und keine Animation").
-
-### Steuerberater-Zugang bleibt kostenlos — entschieden 2026-08-23
-
-Der StB-Zugang wird **nicht bepreist**. Begründung: Steuerberater, die Stackr im Mandat sehen,
-empfehlen es weiter — der Zugang ist ein Vertriebskanal, kein entgangener Umsatz.
-
-**Wichtig, weil in älteren Notizen anders vermerkt:** Der Grant-Deckel aus **R4 ist bereits
-gebaut**. `MAX_GRANTS` steht per Default auf 10 aktive Freigaben je Owner und wird in
-[`api/sync.js:499`](../api/sync.js) mit einem `409 grant_limit` durchgesetzt, anhebbar über
-`SYNC_MAX_GRANTS` ohne Codeänderung. Ein Pro-Abo kann also **nicht** unbegrenzt Gratiszugänge
-erzeugen. Die Kanzlei mit 40 Mandanten ist davon unberührt: der Deckel zählt Freigaben **pro
-Owner**, nicht pro Kanzlei — 40 Mandanten sind 40 Owner mit je einer Freigabe.
-
-Damit ist an dieser Stelle **nichts zu bauen**.
-
-### OCR wird gebaut — als Browser-OCR — entschieden 2026-08-23
-
-Die letzte Feature-Lücke gegen sevDesk und lexoffice, die weder gesetzlich erzwungen noch
-architekturbedingt blockiert ist. Umsetzung ausschließlich als **Browser-OCR (Tesseract.js)**:
-der Beleg verlässt das Gerät nie.
-
-Das ist der Punkt, an dem Local-First vom Zugeständnis zum Verkaufsargument wird — *Belegerkennung,
-bei der der Beleg dein Gerät nie verlässt* kann kein Wettbewerber mit Server-OCR behaupten.
-Spezifikation inklusive der nötigen CSP-Freigabe liegt in
-[`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md) (`9567630`).
-
-**Keine Server-OCR, auch nicht als Fallback** — das bräche dieselbe Zusage, an der PSD2 und
-ELSTER-Direktübermittlung gescheitert sind.
 
 ---
 

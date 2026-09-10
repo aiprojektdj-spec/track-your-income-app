@@ -794,6 +794,19 @@
             </button>
             <div class="faq-a">Ja. Stackr erzeugt E-Rechnungen im XRechnung-Format (EN 16931) und prüft eingehende E-Rechnungen deiner Lieferanten. Beides ist im Preis enthalten — nicht erst in einem höheren Tarif.</div>
         </div>
+        <!-- Die fehlende ELSTER-Direktübermittlung gehört zur Haltung gemacht, nicht verschwiegen
+             (plan/02-ENTSCHEIDUNGEN.md, Abschnitt "Automatisierung, die einen Server mit
+             Klartextzugriff bräuchte"): ERiC ist eine native Bibliothek und liefe serverseitig —
+             dieser Server sähe die Umsatzsteuerdaten im Klartext. Der Wettbewerb wirbt mit der
+             Direktübermittlung, also sucht ein Vergleicher hier danach. Alles Behauptete ist
+             belegt: Kennzahlen in js/ustvoranmeldung.js, EÜR-Zeilen und Anleitung in js/euer.js. -->
+        <div class="faq-item">
+            <button class="faq-q" data-action="faq">
+                Kann Stackr direkt an ELSTER übermitteln?
+                <span class="arrow">+</span>
+            </button>
+            <div class="faq-a">Nein, und das ist Absicht. Eine Direktübermittlung braucht einen Server, der deine Steuerdaten im Klartext sieht — den gibt es bei Stackr nicht. Stackr rechnet stattdessen alle Werte fertig aus, beschriftet sie mit den ELSTER-Kennzahlen und Formularzeilen und legt dir eine Anleitung daneben. Das Übertragen dauert ein paar Minuten und machst du selbst. Dafür verlassen deine Steuerdaten dein Gerät nie — auch nicht für die Übermittlung.</div>
+        </div>
         <!-- Der fehlende Teamzugang gehört offen benannt statt verschwiegen (plan/02-ENTSCHEIDUNGEN.md):
              er ist eine bewusste Folge der Gerätesperre, die die lokalen Daten an EINE Whop-User-ID
              bindet. Wer zu zweit bucht, merkt es am ersten Tag — dann lieber vorher ehrlich sein,

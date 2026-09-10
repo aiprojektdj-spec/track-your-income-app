@@ -105,7 +105,23 @@ der Local-First-Entscheidung. Sie gehören so kommuniziert — nicht als Rückst
 verlassen dein Gerät nie, auch nicht für die Übermittlung"* — plus eine Schritt-für-Schritt-
 Anleitung nach dem CSV-Export. Kostet fast nichts und macht aus der Lücke ein Argument.
 **Die Anleitung ist gebaut** ([`js/euer.js:1083`](../js/euer.js)): Modal mit drei Schritten statt eines Toasts,
-inklusive Hinweis, dass Z64 eine Sammelzeile ist. Offen bleibt nur der Marketing-Teil.
+inklusive Hinweis, dass Z64 eine Sammelzeile ist. ~~Offen bleibt nur der Marketing-Teil.~~
+
+**Erledigt am 2026-09-09 — der Marketing-Teil steht:** FAQ-Eintrag „Kann Stackr direkt an ELSTER
+übermitteln?" in `index.html` **und** `landing-v2.html`. Er beginnt mit „Nein, und das ist
+Absicht", nennt den Grund (ein Server, der die Steuerdaten im Klartext sähe) und endet auf der
+Zusage. Die Kennzahlen-Aufzählung ist bewusst **nicht** drin — sie war der technischste Teil des
+Entwurfs und sagt einem Interessenten nichts.
+
+**Warum der Eintrag überhaupt sein muss:** sevDesk und lexoffice werben mit der
+Direktübermittlung. Wer vergleicht, sucht danach — und findet ohne den Eintrag *nichts*, was
+schlechter ist als ein begründetes Nein. Vorher kam „ELSTER" auf der Landing überhaupt nicht vor,
+obwohl die App die Kennzahlen fertig ausrechnet.
+
+**Belegbarkeit vor dem Formulieren geprüft** (§5 UWG, und diese Zielgruppe prüft): die
+ELSTER-Kennzahlen stehen in [`js/ustvoranmeldung.js`](../js/ustvoranmeldung.js), die Zeilen der
+Anlage EÜR und der CSV-Export in [`js/euer.js`](../js/euer.js), die dreischrittige Anleitung im
+Modal ebenda. Kein Satz des Eintrags geht über das hinaus, was die App tut.
 
 **Preisrecherche zu den vier Lücken:** [`server-kosten-psd2-2026-08-16.md`](server-kosten-psd2-2026-08-16.md)
 — Kernbefund: der Server ist nicht das Kostenproblem (er läuft längst), und die einzige

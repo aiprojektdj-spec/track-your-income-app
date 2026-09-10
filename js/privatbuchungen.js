@@ -14,17 +14,16 @@ const Privatbuchungen = {
         const einlagen  = yearData.filter(b => b.typ === 'einlage').reduce((s, b) => s + (parseFloat(b.betrag) || 0), 0);
         const saldo     = einlagen - entnahmen;
 
-        // Kapitalverlauf: Einnahmen aus EÜR für dieses Jahr
-        const startDate = `${year}-01-01`;
-        const endDate   = `${year}-12-31`;
-        const sales    = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
-        const expenses = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
-        const purchases = Store.getPurchases().filter(p => Utils.isInPeriod(p.datum, startDate, endDate));
-        const bruttoEin = sales.reduce((s, v) => s + (parseFloat(v.verkaufspreis) || 0) + (parseFloat(v.versandkostenKaeufer) || 0), 0);
-        const ausgaben  = purchases.reduce((s, p) => s + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1), 0)
-                        + expenses.reduce((s, e) => s + (parseFloat(e.betrag) || 0), 0)
-                        + sales.reduce((s, v) => s + (parseFloat(v.versandkostenVerkaufer) || 0), 0);
-        const gewinn    = bruttoEin - ausgaben;
+        // Betriebsgewinn für den Entnahme-Vergleich: kommt aus der EÜR, wird hier nicht
+        // zweitgerechnet. Bis zum 2026-09-09 stand hier eine eigene Formel (Brutto-Einnahmen
+        // minus Wareneinkauf, sonstige Ausgaben und Verkäufer-Versand). Sie ließ AfA,
+        // Fahrtkosten, Eigenbelege, Materialverbrauch, Retouren und Plattformgebühren aus und
+        // wies dadurch einen zu hohen Gewinn aus — ausgerechnet in der Kachel, die "Betriebs-
+        // gewinn (EÜR)" heißt und unten die Warnung "Entnahmen übersteigen den Gewinn" auslöst.
+        // Fund A1 in plan/funde-vollaudit-2026-09-09.md.
+        const gewinn = (typeof Euer !== 'undefined' && typeof Euer._berechne === 'function')
+            ? Euer._berechne(year, 0, 'jahr').gewinn
+            : 0;
 
         // Jahresauswahl
         const yearOptions = Array.from({ length: 8 }, (_, i) => 2020 + i)

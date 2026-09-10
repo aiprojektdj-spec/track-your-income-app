@@ -27,17 +27,29 @@ const Gewerbesteuer = {
         return (parseFloat(Rechtsform.getConfig().gewStFreibetrag) || 0) > 0;
     },
 
+    // Der Gewinn kommt aus der EÜR und wird hier NICHT zweitgerechnet.
+    //
+    // Bis zum 2026-09-09 stand hier eine eigene Formel. Sie ließ AfA, Fahrtkosten, Eigenbelege,
+    // Materialverbrauch, Retouren, Plattformgebühren und den Verkäufer-Versand aus und rechnete
+    // bei Regelbesteuerung mit Brutto statt Netto. Der zusätzliche Orphan-Guard der EÜR fehlte
+    // ebenfalls: Verkäufe, deren Rechnung storniert wurde, zählten weiter mit. Der
+    // Gewerbeertrag fiel dadurch systematisch zu hoch aus — zulasten des Nutzers, weil daraus
+    // unmittelbar Messbetrag und Steuerschuld entstehen. Gleichzeitig zeigte
+    // js/euer.js::_renderGewerbesteuerBlock() für dasselbe Jahr eine andere Zahl, weil es den
+    // korrekten EÜR-Gewinn übergeben bekam: zwei Seiten, zwei Gewerbesteuerbeträge.
+    // Fund A2 in plan/funde-vollaudit-2026-09-09.md.
+    //
+    // Erhebungszeitraum der Gewerbesteuer ist das Kalenderjahr (§14 GewStG). Deshalb fest
+    // 'jahr' — unabhängig davon, welchen Zeitraum die EÜR-Ansicht gerade zeigt. _berechne()
+    // liest dafür kein this und setzt keinen State, überschreibt die Ansicht also nicht.
     _calcGewinn(year) {
-        const sales     = Store.getSales().filter(s => new Date(s.datum).getFullYear() === year);
-        const purchases = Store.getPurchases().filter(p => new Date(p.datum).getFullYear() === year);
-        const expenses  = Store.getExpenses().filter(e => new Date(e.datum).getFullYear() === year);
-
-        let einnahmen = 0, ausgaben = 0;
-        sales.forEach(s => einnahmen += (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0));
-        purchases.forEach(p => ausgaben += (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1));
-        expenses.forEach(e => ausgaben += parseFloat(e.betrag) || 0);
-
-        return einnahmen - ausgaben;
+        if (typeof Euer === 'undefined' || typeof Euer._berechne !== 'function') {
+            // Kann im Browser nicht eintreten (app.html lädt js/euer.js vor dieser Datei).
+            // Falls doch: lieber sichtbar nichts ausweisen als eine geratene Steuer.
+            console.error('[Gewerbesteuer] js/euer.js nicht geladen — Gewinn nicht ermittelbar');
+            return 0;
+        }
+        return Euer._berechne(year, 0, 'jahr').gewinn;
     },
 
     _calc(year) {

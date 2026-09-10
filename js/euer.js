@@ -21,55 +21,38 @@ const Euer = {
         </div>`;
     },
 
-    render() {
-        const viewTabs = this._renderViewTabs();
-
-        if (this._view === 'uva') {
-            return viewTabs + (typeof UstVoranmeldung !== 'undefined' ? UstVoranmeldung.render() : '');
-        }
-
-        // Kapitalgesellschaften (immer) sowie gewerbliche EU/GbR/eGbR über der §141-AO-Schwelle
-        // nutzen Bilanz statt EÜR.
-        if (typeof Rechtsform !== 'undefined' && Rechtsform.brauchtBilanzStattEuer(this._selectedYear)) {
-            const istKapges     = Rechtsform.isKapitalgesellschaft();
-            const istHandelsges = !istKapges && Rechtsform.getConfig().bilanzPflicht;
-            return `${viewTabs}<div class="page-header"><h2><i class="ti ti-file-analytics" style="margin-right:6px;"></i> EÜR</h2></div>
-            <div class="card" style="padding:40px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:12px;">📊</div>
-                <div style="font-weight:700;font-size:16px;margin-bottom:8px;">EÜR nicht verfügbar</div>
-                <div style="color:var(--text-muted);margin-bottom:16px;">
-                    ${istKapges
-                        ? `Als ${Rechtsform.get()} bist du bilanzpflichtig.<br>Nutze stattdessen die Bilanz / GuV.`
-                        : istHandelsges
-                        ? `Als ${Rechtsform.get()} bist du kraft HGB Kaufmann und damit bilanzpflichtig — unabhängig von Umsatz oder Gewinn.<br><span style="font-size:12px;">Bilanzierung ist in Stackr in Planung — sprich in der Zwischenzeit mit deinem Steuerberater.</span>`
-                        : `Dein Umsatz oder Gewinn hat die §141-AO-Schwelle (800.000 € Umsatz bzw. 80.000 € Gewinn) überschritten.<br>Du bist voraussichtlich ab dem übernächsten Jahr bilanzierungspflichtig.<br><span style="font-size:12px;">Bilanzierung ist in Stackr in Planung — sprich in der Zwischenzeit mit deinem Steuerberater.</span>`
-                    }
-                </div>
-                <button class="btn btn-primary" data-action="navigate" data-args=\'["bilanz"]\'>→ Bilanz / GuV öffnen</button>
-            </div>`;
-        }
-
+    // ── Rechenkern der EÜR ───────────────────────────────────────────────────
+    // Bewusst getrennt vom Rendern: die Methode fasst kein DOM an, setzt keinen State und
+    // gibt nur Zahlen zurück. Damit ist sie von außen aufrufbar — js/gewerbesteuer.js zieht
+    // den Gewinn hier heraus, statt ihn ein zweites Mal und mit anderem Ergebnis zu rechnen
+    // (Fund A1/A2, plan/funde-vollaudit-2026-09-09.md: vier Module rechneten vier Gewinne).
+    //
+    // Wer hier etwas ändert, ändert damit auch Gewerbesteuer und jede weitere Stelle, die
+    // den Gewinn bezieht — das ist der Zweck. Eine zweite Formel daneben ist keine Option.
+    //
+    // year/month/period kommen als Parameter statt aus this._selectedYear/_selectedMonth/
+    // _period, damit ein Aufrufer ein anderes Jahr auswerten kann, ohne die Ansicht der EÜR
+    // umzustellen. period: "jahr" | "monat" | "quartal" | "custom".
+    _berechne(year, month, period) {
         const settings = Store.getSettings();
         const ustMode = settings.ustMode || 'klein';
         const isRegel = ustMode === 'regel';
 
-        const year = this._selectedYear;
-        const month = this._selectedMonth;
 
         let startDate, endDate, periodLabel;
 
-        if (this._period === 'monat') {
+        if (period === 'monat') {
             startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
             const nextM = new Date(year, month + 1, 0);
             endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(nextM.getDate()).padStart(2, '0')}`;
             periodLabel = Utils.getMonthName(month) + ' ' + year;
-        } else if (this._period === 'quartal') {
+        } else if (period === 'quartal') {
             const qStart = Math.floor(month / 3) * 3;
             startDate = `${year}-${String(qStart + 1).padStart(2, '0')}-01`;
             const qEnd = new Date(year, qStart + 3, 0);
             endDate = `${qEnd.getFullYear()}-${String(qEnd.getMonth() + 1).padStart(2, '0')}-${String(qEnd.getDate()).padStart(2, '0')}`;
             periodLabel = `Q${Math.floor(month / 3) + 1} ${year}`;
-        } else if (this._period === 'custom') {
+        } else if (period === 'custom') {
             startDate = this._customStart || `${year}-01-01`;
             endDate = this._customEnd || `${year}-12-31`;
             periodLabel = `${Utils.formatDate(startDate)} - ${Utils.formatDate(endDate)}`;
@@ -200,7 +183,7 @@ const Euer = {
         const periodStart = new Date(startDate);
         const periodEnd   = new Date(endDate);
         const daysInPeriod = Math.max(1, Math.round((periodEnd - periodStart) / (1000 * 60 * 60 * 24)) + 1);
-        const afaRatio = this._period === 'jahr' ? 1 : (daysInPeriod / daysInYear);
+        const afaRatio = period === 'jahr' ? 1 : (daysInPeriod / daysInYear);
         const afaKosten = afaAnlagen.reduce((sum, a) => {
             if (typeof Afa !== 'undefined' && Afa._calcJahresAfa) {
                 return sum + Afa._calcJahresAfa(a, year) * afaRatio;
@@ -323,7 +306,6 @@ const Euer = {
         const summeAusgaben = isRegel ? (abzugsfaehig - vorsteuer) : abzugsfaehig;
 
         const gewinn = summeEinnahmen - summeAusgaben;
-        this._lastGewinn = gewinn; // für Gewerbesteuer-Live-Update
 
         // ── Chart-Daten ────────────────────────────────────────────────────────
         // Monatliche Einnahmen/Ausgaben für das gesamte Jahr (unabhängig vom Zeitraum-Filter)
@@ -347,7 +329,66 @@ const Euer = {
         if (sonstigeAusgaben> 0) { donutLabels.push('Betriebsausgaben'); donutValues.push(sonstigeAusgaben); }
         if (eigenbelegeAusgaben>0){ donutLabels.push('Eigenbelege');     donutValues.push(eigenbelegeAusgaben); }
 
+        return {
+            settings, ustMode, isRegel, year, month, startDate, endDate, periodLabel, storniertInvIds,
+            sales, periodPurchases, expenses, syncedInvoiceIds, unsyncedInvoices, rechnungenNetting,
+            rechnungsEinnahmen, salesBrutto, bruttoEinnahmen, wareneinkauf, purchasesByIdEuer,
+            diff25aRetourenBySaleId, diff25aSalesPositionen, diff25aInvoicePositionen,
+            diff25aPositionen, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview, versandkosten,
+            plattformgebuehren, fahrtkosten, materialKosten, afaAnlagen, daysInYear, periodStart,
+            periodEnd, daysInPeriod, afaRatio, afaKosten, stornierteSaleIds, retourenErstattungen,
+            nettoEinnahmen, salesNettoWeighted, retourenNettoWeighted, ustAusRechnungen, ustEinnahmen,
+            summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
+            eigenbelegeInPeriod, eigenbelegeAusgaben, eigenbelegeVorsteuer, abzugsfaehig, vorsteuer,
+            summeAusgaben, gewinn, monthlyData, donutLabels, donutValues
+        };
+    },
+
+    render() {
+        const viewTabs = this._renderViewTabs();
+
+        if (this._view === 'uva') {
+            return viewTabs + (typeof UstVoranmeldung !== 'undefined' ? UstVoranmeldung.render() : '');
+        }
+
+        // Kapitalgesellschaften (immer) sowie gewerbliche EU/GbR/eGbR über der §141-AO-Schwelle
+        // nutzen Bilanz statt EÜR.
+        if (typeof Rechtsform !== 'undefined' && Rechtsform.brauchtBilanzStattEuer(this._selectedYear)) {
+            const istKapges     = Rechtsform.isKapitalgesellschaft();
+            const istHandelsges = !istKapges && Rechtsform.getConfig().bilanzPflicht;
+            return `${viewTabs}<div class="page-header"><h2><i class="ti ti-file-analytics" style="margin-right:6px;"></i> EÜR</h2></div>
+            <div class="card" style="padding:40px;text-align:center;">
+                <div style="font-size:48px;margin-bottom:12px;">📊</div>
+                <div style="font-weight:700;font-size:16px;margin-bottom:8px;">EÜR nicht verfügbar</div>
+                <div style="color:var(--text-muted);margin-bottom:16px;">
+                    ${istKapges
+                        ? `Als ${Rechtsform.get()} bist du bilanzpflichtig.<br>Nutze stattdessen die Bilanz / GuV.`
+                        : istHandelsges
+                        ? `Als ${Rechtsform.get()} bist du kraft HGB Kaufmann und damit bilanzpflichtig — unabhängig von Umsatz oder Gewinn.<br><span style="font-size:12px;">Bilanzierung ist in Stackr in Planung — sprich in der Zwischenzeit mit deinem Steuerberater.</span>`
+                        : `Dein Umsatz oder Gewinn hat die §141-AO-Schwelle (800.000 € Umsatz bzw. 80.000 € Gewinn) überschritten.<br>Du bist voraussichtlich ab dem übernächsten Jahr bilanzierungspflichtig.<br><span style="font-size:12px;">Bilanzierung ist in Stackr in Planung — sprich in der Zwischenzeit mit deinem Steuerberater.</span>`
+                    }
+                </div>
+                <button class="btn btn-primary" data-action="navigate" data-args=\'["bilanz"]\'>→ Bilanz / GuV öffnen</button>
+            </div>`;
+        }
+
+
+        // Zahlen kommen aus _berechne() — ab hier ist nur noch Darstellung. Die beiden
+        // State-Felder setzt bewusst render() und nicht _berechne(): ein fremder Aufrufer
+        // (js/gewerbesteuer.js) darf die zuletzt angezeigte EÜR nicht überschreiben.
+        const _d = this._berechne(this._selectedYear, this._selectedMonth, this._period);
+        const {
+            ustMode, isRegel, year, month, startDate, endDate, periodLabel, sales, periodPurchases,
+            expenses, unsyncedInvoices, rechnungsEinnahmen, bruttoEinnahmen, wareneinkauf,
+            diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview, versandkosten, plattformgebuehren,
+            fahrtkosten, materialKosten, afaAnlagen, afaKosten, retourenErstattungen, nettoEinnahmen,
+            ustEinnahmen, summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
+            eigenbelegeAusgaben, vorsteuer, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues
+        } = _d;
+
+        this._lastGewinn = gewinn; // für Gewerbesteuer-Live-Update
         this._lastRenderData = { sales, periodPurchases, expenses, eigenbelegeRaw, startDate, endDate, periodLabel, summeEinnahmen, summeAusgaben, gewinn, wareneinkauf, versandkosten, plattformgebuehren, fahrtkosten, materialKosten, sonstigeAusgaben, eigenbelegeAusgaben, afaKosten, monthlyData, donutLabels, donutValues, chartYear: year, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview };
+
 
         // GbR-Gewinnverteilung Block
         const gbrBlock = (typeof GbR !== 'undefined') ? GbR.renderEuerBlock(gewinn, year) : '';

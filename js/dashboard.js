@@ -429,30 +429,35 @@ const Dashboard = {
         this.init();
     },
 
+    // Einnahmen, Ausgaben und Gewinn kommen aus der EÜR — hier wird nicht zweitgerechnet.
+    //
+    // Bis zum 2026-09-09 stand hier eine eigene Formel. Sie ließ AfA, Fahrtkosten, Eigenbelege,
+    // Materialverbrauch und Retouren aus und zählte den vom Käufer gezahlten Versand nicht als
+    // Einnahme, obwohl sie die Plattformgebühr sehr wohl auf ihn berechnete (Fund A1/A3,
+    // plan/funde-vollaudit-2026-09-09.md). Die Spalte hieß trotzdem "Gewinn" und stand damit
+    // neben einer EÜR, die für dasselbe Jahr etwas anderes sagte.
+    //
+    // Bei Regelbesteuerung sind die Werte damit NETTO (die vereinnahmte USt ist ein
+    // Durchlaufposten und kein Gewinn) — vorher waren sie brutto.
+    //
+    // anzahl/avgVK bleiben Vertriebskennzahlen und werden weiter direkt aus den Verkäufen
+    // gebildet: "Ø Verkaufspreis" ist der Verkaufspreis, nicht der anteilige Gewinn.
     _getYearStats(year) {
-        const startDate = `${year}-01-01`;
-        const endDate   = `${year}-12-31`;
-        const allPurchases = Store.getPurchases();
-        const allSales     = Store.getSales();
-        const allExpenses  = Store.getExpenses();
-        const sales     = allSales.filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
-        const purchases = allPurchases.filter(p => Utils.isInPeriod(p.datum, startDate, endDate));
-        const expenses  = allExpenses.filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
-        const einnahmen = sales.reduce((sum, s) => sum + (parseFloat(s.verkaufspreis) || 0), 0);
-        const purchaseCost = purchases.reduce((sum, p) => sum + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1), 0);
-        const expCost = expenses.reduce((sum, e) => sum + (parseFloat(e.betrag) || 0), 0);
-        const shipping = sales.reduce((sum, s) => sum + (parseFloat(s.versandkostenVerkaufer) || 0), 0);
-        const fees = sales.reduce((sum, s) => {
-            const vk = parseFloat(s.verkaufspreis) || 0;
-            const vkK = parseFloat(s.versandkostenKaeufer) || 0;
-            const pct = parseFloat(s.plattformgebuehrProzent) || 0;
-            return sum + (vk + vkK) * pct / 100;
-        }, 0);
-        const ausgaben = purchaseCost + expCost + shipping + fees;
-        const gewinn = einnahmen - ausgaben;
-        const marge = einnahmen > 0 ? (gewinn / einnahmen * 100) : 0;
-        const avgVK = sales.length > 0 ? einnahmen / sales.length : 0;
-        return { einnahmen, ausgaben, gewinn, marge, anzahl: sales.length, avgVK };
+        if (typeof Euer === 'undefined' || typeof Euer._berechne !== 'function') {
+            console.error('[Dashboard] js/euer.js nicht geladen — keine Jahreszahlen ermittelbar');
+            return { einnahmen: 0, ausgaben: 0, gewinn: 0, marge: 0, anzahl: 0, avgVK: 0 };
+        }
+        const d = Euer._berechne(year, 0, 'jahr');
+        const anzahl = d.sales.length;
+        const vkSumme = d.sales.reduce((sum, s) => sum + (parseFloat(s.verkaufspreis) || 0), 0);
+        return {
+            einnahmen: d.summeEinnahmen,
+            ausgaben:  d.summeAusgaben,
+            gewinn:    d.gewinn,
+            marge:     d.summeEinnahmen > 0 ? (d.gewinn / d.summeEinnahmen * 100) : 0,
+            anzahl:    anzahl,
+            avgVK:     anzahl > 0 ? vkSumme / anzahl : 0,
+        };
     },
 
     _renderJahresvergleich(currentYear) {

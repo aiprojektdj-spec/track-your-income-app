@@ -16,8 +16,11 @@ Token-Erneuerung tot ist und jeder Kunde nach einer Stunde aus dem Gate fällt. 
 Alarme (`sync`/`redis-env-missing`, `whop-refresh`/`redis-fehlt`) melden einen echten Ausfall,
 kein stilles Risiko. Details in der Tabelle unten.
 
-Ist `ALERT_WEBHOOK_URL` nicht gesetzt, verhält sich alles exakt wie heute — kein Netzverkehr, nur
-das Log. Es geht also nichts kaputt, wenn du das hier nie machst; du bleibst nur blind.
+**Seit 2026-09-10 bist du ohne Webhook nicht mehr blind, nur langsamer:** derselbe Alarm landet
+zusätzlich als JSON-Objekt im Blob-Speicher, den du ohnehin hast — siehe
+[Ohne Make.com: der Blob-Alarmspeicher](#ohne-makecom-der-blob-alarmspeicher) weiter unten.
+Der Webhook bleibt trotzdem der Weg, der dich *sofort* erreicht; der Blob-Speicher sagt dir erst,
+wenn du hinschaust.
 
 ---
 
@@ -180,11 +183,64 @@ Kommt binnen ~1 Minute keine Meldung, prüfe der Reihe nach: Szenario in Make ak
 neu deployt. Achtung Entprellung: derselbe Alarm kommt frühestens nach 5 Minuten erneut — ein
 zweiter Testaufruf direkt danach bleibt absichtlich still.
 
+## Ohne Make.com: der Blob-Alarmspeicher
+
+**Stand 2026-09-10.** `api/_alert.js` hat zwei Ziele, unabhängig voneinander:
+
+| Ziel | Env | Wann es greift | Was du davon hast |
+|---|---|---|---|
+| Webhook | `ALERT_WEBHOOK_URL` | sofort | Mail/Slack/Telegram, du erfährst es ohne hinzusehen |
+| Blob-Objekt | `BLOB_READ_WRITE_TOKEN` | sofort | nachträglich lesbar, 30 Tage Historie — aber nur, wenn du nachsiehst |
+
+Der Token ist in Produktion durch die Blob-Integration **ohnehin gesetzt**. Das Ziel ist also
+aktiv, ohne dass du etwas tust. Nur wenn *beide* fehlen, bleibt es wie früher beim reinen
+`console.error`.
+
+**Warum ausgerechnet Blob:** Es ist ein anderes System als Redis. Genau der Ausfall, der hier
+gemeldet wird, betrifft es nicht. In Redis zu schreiben wäre zirkulär gewesen — dasselbe
+Argument, an dem der Dead-Man-Switch scheitert.
+
+**Was es rettet:** Auf dem Hobby-Plan reichen die Vercel-Logs 30–60 Minuten zurück. Ein
+Cron-Fehler um 04:00 UTC ist dort morgens um neun nicht mehr auffindbar. Im Blob-Speicher schon.
+
+### Nachsehen, was passiert ist
+
+Ein Einzeiler, kein Login nötig — liest den Token aus `.env.local`:
+
+```bash
+node -e "const t=require('fs').readFileSync('.env.local','utf8').match(/^BLOB_READ_WRITE_TOKEN=\"?([^\"\r\n]+)/m)[1];fetch('https://blob.vercel-storage.com/?prefix=stackr/alerts/&limit=1000',{headers:{authorization:'Bearer '+t}}).then(r=>r.json()).then(async j=>{const b=(j.blobs||[]).sort((x,y)=>new Date(y.uploadedAt)-new Date(x.uploadedAt));console.log(b.length+' Alarme');for(const x of b.slice(0,20)){const p=await(await fetch(x.url)).json();console.log(p.ts+'  '+p.env+'  '+p.source+' — '+p.event+(p.detail?': '+p.detail:''))}})"
+```
+
+**Leere Liste heißt: nichts gemeldet.** Das ist der Normalfall und der gute Fall — anders als
+beim Log, wo Leere auch „ist rausgerollt“ bedeuten kann.
+
+### Aufbau und Grenzen
+
+- **Pfad:** `stackr/alerts/JJJJ-MM-TT/<source>_<event>_HH-MM-SS-mmmZ<zufallssuffix>`, UTC.
+  Der Tagesordner passt zum `ts`-Feld derselben Nutzlast.
+- **Inhalt:** exakt dieselbe Nutzlast wie beim Webhook, als eingerücktes JSON.
+- **Aufräumen:** `api/blob-cleanup.js` löscht täglich um 04:00 UTC alles unter `stackr/alerts/`,
+  das älter als **30 Tage** ist — zweiter Durchgang neben `stackr/tmp/`. Die Antwort des
+  Cron-Jobs nennt beide Zahlen: `{"ok":true,"deleted":<tmp>,"alertsDeleted":<alarme>}`.
+- **Entprellung gilt genauso:** höchstens ein Objekt je `source:event` und 5 Minuten und Instanz.
+  Ein Redis-Ausfall erzeugt also keine Objektflut.
+- **Kein Request kippt daran:** 2 Sekunden Timeout, Fehler werden geschluckt, und ein
+  fehlgeschlagenes `put` löst ausdrücklich **keinen** neuen Alarm aus — das wäre eine Schleife.
+- **Restgrenze:** Blob kennt nur `access: 'public'`. Die URL trägt einen Zufallssuffix und ist
+  ohne Token nicht auffindbar — dieselbe dokumentierte Restgrenze wie bei den Anhängen
+  ([`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md)). Kundendaten stehen nicht drin, nur
+  Betriebsmeldungen; `detail` ist auf 500 Zeichen gekürzt.
+
+**Der Job, den dieses Ziel NICHT erledigt:** Es weckt dich nicht. Ein Totalausfall wie
+`whop-refresh`/`redis-fehlt` wirft jeden Kunden nach einer Stunde aus dem Gate — das willst du
+per Mail erfahren, nicht beim nächsten Nachsehen. Der Webhook oben bleibt also fällig.
+
 ## Was ohne Vercel schon bewiesen ist
 
-`test/test-alert-ops.js` prüft die Mechanik lokal gegen eine fetch-Attrappe: kein Netzverkehr ohne
-`ALERT_WEBHOOK_URL`, Entprellung je Ereignis, Nutzlast-Felder, Timeout-/Fehlerfestigkeit,
-Map-Deckel. 12/12 grün am 2026-09-02.
+`test/test-alert-ops.js` prüft die Mechanik lokal gegen Attrappen für `fetch` und für
+`@vercel/blob`: kein Netzverkehr und kein `put`, wenn beide Ziele fehlen; Entprellung je
+Ereignis für beide Ziele; Nutzlast-Felder; Timeout-/Fehlerfestigkeit; Map-Deckel; Blob-Pfad,
+-Optionen und -Inhalt; entschärfte Pfadsegmente. **23/23 grün am 2026-09-10.**
 
 ```bash
 node test/test-alert-ops.js
@@ -192,3 +248,8 @@ node test/test-alert-ops.js
 
 Was dieser Test **nicht** abdeckt und nur die Gegenprobe oben zeigt: dass Make die Nutzlast
 annimmt, und dass `ALERT_WEBHOOK_URL` in Vercel tatsächlich ankommt.
+
+Der **Blob-Weg dagegen ist echt durchgestochen**, nicht nur gegen eine Attrappe: am
+2026-09-10 lokal mit dem produktiven `BLOB_READ_WRITE_TOKEN` ein Alarm geschrieben, das
+Objekt unter `stackr/alerts/2026-09-10/` wiedergefunden, den Inhalt zurückgelesen und das
+Testobjekt wieder gelöscht. Vercel nimmt die `put`-Optionen also an.

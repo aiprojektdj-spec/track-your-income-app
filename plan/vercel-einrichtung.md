@@ -41,11 +41,17 @@ Dauerzustand — wer sie liest, prüft besser nach.
 | `WHOP_GRACE_PRIVATE_KEY` | **nur Production** | 16.07. |
 | `WHOP_OWNER_IDS`, `SYNC_OWNER_IDS` | Production + Preview | 25.08. |
 
-**Die einzige Lücke: `ALERT_WEBHOOK_URL` fehlt komplett.** Kein Alarm verlässt das System — weder
-`grace-token-aus` noch `cron-secret-missing` noch irgendein fail-open gelaufenes Rate-Limit. Der
-Code dafür steht, es fehlt nur das Ziel: [`alert-webhook-anleitung.md`](alert-webhook-anleitung.md).
-Zusammen mit der Hobby-Log-Grenze weiter unten heißt das: **stille Ausfälle sind derzeit auf
-keinem Weg sichtbar.**
+**Die verbliebene Lücke: `ALERT_WEBHOOK_URL` fehlt komplett.** Keine Meldung erreicht dich von
+selbst — weder `grace-token-aus` noch `cron-secret-missing` noch ein fail-open gelaufenes
+Rate-Limit. Der Code dafür steht, es fehlt nur das Ziel:
+[`alert-webhook-anleitung.md`](alert-webhook-anleitung.md).
+
+**Seit 2026-09-10 ist das aber nicht mehr gleichbedeutend mit blind.** `api/_alert.js` legt
+jeden Alarm zusätzlich unter `stackr/alerts/` im Blob-Speicher ab — `BLOB_READ_WRITE_TOKEN`
+ist ohnehin gesetzt, das Ziel ist also ohne Zutun aktiv und überlebt einen Redis-Ausfall, weil
+Blob ein anderes System ist. Damit ist die Hobby-Log-Grenze weiter unten entschärft: ein
+Vorfall von heute Nacht ist morgen früh noch nachlesbar. Der Unterschied, der bleibt: der
+Blob-Speicher **weckt dich nicht**, du musst nachsehen — Einzeiler in der Alarm-Anleitung.
 
 Zwei Nebenbefunde: der Grace-Schlüssel ist nachweislich der **richtige** (ein Grace-Token aus
 einem angemeldeten Browser verifiziert gegen den eingebauten Public Key — Methode unten), gilt
@@ -160,7 +166,7 @@ Diese braucht man nur, wenn man am Standardverhalten etwas ändern will:
 
 | Variable | Default im Code | Wofür |
 |---|---|---|
-| `ALERT_WEBHOOK_URL` | — (aus) | Alarm bei stillen Ausfällen. Siehe [`alert-webhook-anleitung.md`](alert-webhook-anleitung.md). |
+| `ALERT_WEBHOOK_URL` | — (aus) | Sofort-Alarm bei stillen Ausfällen. Ohne sie meldet `api/_alert.js` weiterhin nach `stackr/alerts/` im Blob — nachlesbar, aber nicht zugestellt. Siehe [`alert-webhook-anleitung.md`](alert-webhook-anleitung.md). |
 | `WHOP_API_KEY` | — (aus) | Aktiviert den Company-Membership-Scan als **Fallback**, wenn der Nutzer-Token beim Zugangs-Check abgelehnt wird. Ohne ihn ist der Zugang in dem Fall schlicht nicht feststellbar. Muss ein `apik_…`-Key sein — ein `sk_live_…` hat am 2026-07-13 zahlende Kunden ausgesperrt. |
 | `WHOP_ACCESS_IDS` | `prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f` | Welche Whop-Produkte als Zugang gelten. Der Default steht im Code — nur setzen, wenn sich die Produkte ändern. |
 | `BLOB_MAX_BYTES` | `10737418240` (10 GB) | Byte-Budget je Nutzer und Fenster |
@@ -182,7 +188,10 @@ unterscheiden kann.
 "crons": [ { "path": "/api/blob-cleanup", "schedule": "0 4 * * *" } ]
 ```
 
-Täglich 4:00 UTC, räumt verwaiste Chunks unter `stackr/tmp/` weg. Braucht `CRON_SECRET` **und**
+Täglich 4:00 UTC, räumt **zwei** Präfixe weg: verwaiste Chunks unter `stackr/tmp/` (älter als
+24 h) und abgelegte Betriebsalarme unter `stackr/alerts/` (älter als 30 Tage, seit 2026-09-10).
+Die Antwort nennt beide Zahlen: `{"ok":true,"deleted":<tmp>,"alertsDeleted":<alarme>}` —
+`deleted` behält dabei absichtlich seine alte Bedeutung. Braucht `CRON_SECRET` **und**
 `BLOB_READ_WRITE_TOKEN`. Vercel schickt den Secret automatisch als
 `Authorization: Bearer $CRON_SECRET`, sobald die Variable gesetzt ist — du musst dafür nichts
 weiter konfigurieren als die Variable selbst.
@@ -202,6 +211,11 @@ node -e "const t=require('fs').readFileSync('.env.local','utf8').match(/^BLOB_RE
 
 Steht dort etwas mit deutlich über 24 h, hat der Job zuletzt nicht aufgeräumt. Sonst sind es
 normale Reste abgebrochener Uploads, die der nächste Lauf abholt.
+
+**Gegen die Log-Grenze hilft seit 2026-09-10 zusätzlich `stackr/alerts/`:** schlug ein Lauf
+*fehl*, liegt der Alarm dort 30 Tage lang, auch wenn das Log längst weg ist. Nur ein Lauf, der
+gar nicht erst startet, bleibt weiter stumm — dafür gibt es nach wie vor nur die
+tmp/-Gegenprobe oben.
 
 ---
 

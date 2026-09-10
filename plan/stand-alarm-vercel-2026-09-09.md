@@ -1,7 +1,8 @@
 # Stand: Alarm und Vercel-Konfiguration
 
-**Stand: 2026-09-09.** Übergabe für den Komplex „stille Ausfälle sichtbar machen". Sagt, was
-belegt ist, was offen ist und wer es machen muss. Die beiden Anleitungen daneben sagen, *wie*:
+**Stand: 2026-09-10** (Erstfassung 2026-09-09). Übergabe für den Komplex „stille Ausfälle
+sichtbar machen". Sagt, was belegt ist, was offen ist und wer es machen muss. Die beiden
+Anleitungen daneben sagen, *wie*:
 
 - [`alert-webhook-anleitung.md`](alert-webhook-anleitung.md) — `ALERT_WEBHOOK_URL` einrichten,
   Make.com-Szenario, alle 17 Alarm-Auslöser
@@ -14,8 +15,10 @@ belegt ist, was offen ist und wer es machen muss. Die beiden Anleitungen daneben
 
 Die Rate-Limits und Byte-Deckel sind bewusst **fail-open**: fällt Redis aus, fallen die Deckel weg,
 statt zahlende Kunden auszusperren. Der Preis dieser Entscheidung ist, dass man den Ausfall nicht
-merkt — genau dafür wurde der Alarm in `api/_alert.js` gebaut. **Der Alarm ist fertig und
-getestet, aber er hat kein Ziel:** `ALERT_WEBHOOK_URL` ist in Vercel nicht gesetzt.
+merkt — genau dafür wurde der Alarm in `api/_alert.js` gebaut. **Seit 2026-09-10 hat der Alarm
+ein Ziel, das ohne Einrichtung funktioniert:** jede Meldung landet zusätzlich unter
+`stackr/alerts/` im Blob-Speicher. Was weiter fehlt, ist der Weg, der dich *von selbst* erreicht —
+`ALERT_WEBHOOK_URL` ist in Vercel nach wie vor nicht gesetzt.
 
 ---
 
@@ -23,24 +26,36 @@ getestet, aber er hat kein Ziel:** `ALERT_WEBHOOK_URL` ist in Vercel nicht geset
 
 | Was | Wie belegt |
 |---|---|
-| Alarm-Mechanik funktioniert | `node test/test-alert-ops.js` → **12/12** am 2026-09-09: kein Netzverkehr ohne `ALERT_WEBHOOK_URL`, Entprellung je Ereignis, Nutzlast-Felder, Timeout- und Fehlerfestigkeit, Map-Deckel |
-| 17 Auslöser in sechs Endpunkten | `grep -rn "alertOps('" api/*.js` — Tabelle vollständig in der Alarm-Anleitung |
+| Alarm-Mechanik funktioniert | `node test/test-alert-ops.js` → **23/23** am 2026-09-10: kein Netzverkehr **und kein Blob-`put`**, wenn beide Ziele fehlen; Entprellung je Ereignis für beide Ziele; Nutzlast-Felder; Timeout- und Fehlerfestigkeit; Map-Deckel; Blob-Pfad, -Optionen, -Inhalt; entschärfte Pfadsegmente |
+| Blob-Ziel schreibt wirklich | Nicht nur gegen die Attrappe: am 2026-09-10 lokal mit dem produktiven `BLOB_READ_WRITE_TOKEN` ein Alarm geschrieben, unter `stackr/alerts/2026-09-10/` wiedergefunden, Inhalt zurückgelesen, Testobjekt gelöscht |
+| 17 Auslöser in sechs Endpunkten | `grep -rn "alertOps('" api/*.js` → **19 Stellen, 17 Paare** am 2026-09-10 nachgezählt — Tabelle vollständig in der Alarm-Anleitung |
 | Alle Pflichtvariablen sind gesetzt | Dashboard + Endpunkt-Gegenproben, Tabelle in der Vercel-Anleitung |
 | Grace-Schlüssel ist der richtige | Grace-Token aus angemeldetem Browser verifiziert gegen den eingebauten Public Key |
-| Cron läuft und räumt auf | unter `stackr/tmp/` lag nichts älter als 24 h |
+| Cron läuft und räumt auf | am 2026-09-10 nachgeprüft: unter `stackr/tmp/` ein Objekt mit 23,0 h, nichts älter als 24 h |
+| Gesamte Suite trägt den Umbau | **52 Node-Harnesses, 0 Fehlschläge** am 2026-09-10 |
 
 ## Was offen ist
 
-**1. `ALERT_WEBHOOK_URL` fehlt — die einzige echte Lücke.** Solange sie fehlt, verlässt **keine**
-Meldung das System: kein `grace-token-aus`, kein `cron-secret-missing`, kein offen gelaufenes
-Rate-Limit. Verschärfend kommt dazu, dass die Vercel-Logs auf dem Hobby-Plan nur 30 Minuten bzw.
-1 Stunde zurückreichen — ein Cron-Lauf um 04:00 UTC ist dort grundsätzlich nicht mehr einsehbar.
+**1. `ALERT_WEBHOOK_URL` fehlt — die verbliebene Lücke, seit 2026-09-10 aber eine kleinere.**
 
-> **Beides zusammen heißt: stille Ausfälle sind derzeit auf keinem Weg sichtbar.** Nicht per
-> Alarm, nicht im Log. Man erfährt davon durch einen Kunden oder gar nicht.
+Der Satz, der hier vorher stand — *stille Ausfälle sind auf keinem Weg sichtbar* — gilt so nicht
+mehr. `api/_alert.js` hat jetzt zwei Ziele:
 
-Das ist **kein Codeproblem** und nichts, was eine weitere Session lösen kann — es sind zwei
-Schritte in fremden Oberflächen, beide beim Betreiber:
+| Ziel | Env | Zustand | Was es leistet |
+|---|---|---|---|
+| Blob-Objekt unter `stackr/alerts/` | `BLOB_READ_WRITE_TOKEN` | **aktiv**, war ohnehin gesetzt | 30 Tage Historie, nachträglich lesbar — aber nur, wenn jemand nachsieht |
+| Webhook | `ALERT_WEBHOOK_URL` | **fehlt** | erreicht dich von selbst, ohne hinzusehen |
+
+Bewusst Blob und **nicht Redis**: Blob ist ein anderes System und überlebt genau den Ausfall, der
+gemeldet werden soll. Damit ist auch die Hobby-Log-Grenze entschärft — ein Cron-Fehler um
+04:00 UTC ist morgens um neun im Log weg, im Blob-Speicher nicht.
+
+> **Was bleibt: niemand wird geweckt.** Ein Totalausfall wie `whop-refresh`/`redis-fehlt` wirft
+> jeden Kunden nach einer Stunde aus dem Gate. Das steht dann sauber belegt im Blob — aber du
+> erfährst es trotzdem durch ein Support-Ticket, wenn du nicht zufällig nachsiehst.
+
+Diesen Rest kann **keine Session lösen** — es sind zwei Schritte in fremden Oberflächen, beide
+beim Betreiber:
 
 1. Make.com-Szenario anlegen (~10 Min), Webhook-URL kopieren
 2. `ALERT_WEBHOOK_URL` in Vercel eintragen, **neu deployen** (ohne Redeploy greift nichts)
@@ -48,15 +63,23 @@ Schritte in fremden Oberflächen, beide beim Betreiber:
 Danach übernimmt die Gegenprobe aus der Alarm-Anleitung — die kann eine Session fahren, sobald die
 Preview-URL steht.
 
+**Bis dahin die Ersatzhandlung, ohne Login und aus dem Repo heraus:** der Lese-Einzeiler auf
+`prefix=stackr/alerts/` in der
+[Alarm-Anleitung](alert-webhook-anleitung.md#ohne-makecom-der-blob-alarmspeicher). Leere Liste
+heißt: nichts gemeldet — Normalfall und guter Fall. Anders als beim Log, wo Leere auch
+„ist rausgerollt" bedeuten kann.
+
 **2. Kein Offline-Grace auf Preview.** `WHOP_GRACE_PRIVATE_KEY` ist nur für Production gesetzt.
 Für den Alltag richtig; nur beim Testen gegen ein Preview-Deployment sollte man wissen, dass
 Offline-Grace dort nicht existiert und ein Ausfall dieses Wegs kein echter Befund ist.
 
-**3. Der Dead-Man-Switch fehlt bewusst.** Der Alarm meldet fehlgeschlagene Cron-Läufe, aber keine
-*ausbleibenden*. Ein echter Wächter bräuchte gespeicherten Zustand, und der läge in Redis — also
-genau in dem System, dessen Ausfall er melden soll. Ersatz ist die Blob-Gegenprobe in der
-Vercel-Anleitung: liegt unter `stackr/tmp/` etwas deutlich älter als 24 h, hat der Job nicht
-aufgeräumt.
+**3. Der Dead-Man-Switch fehlt bewusst — die Lücke ist jetzt aber schmaler.** Ein echter Wächter
+bräuchte gespeicherten Zustand, und der läge in Redis — also genau in dem System, dessen Ausfall
+er melden soll. Das Argument steht unverändert. Was sich geändert hat: ein Cron-Lauf, der
+**fehlschlägt**, hinterlässt seit 2026-09-10 30 Tage lang eine Spur unter `stackr/alerts/`, auch
+wenn das Hobby-Log längst weg ist. Stumm bleibt allein der Lauf, der **gar nicht erst startet** —
+dafür weiter die Gegenprobe aus der Vercel-Anleitung: liegt unter `stackr/tmp/` etwas deutlich
+älter als 24 h, hat der Job nicht aufgeräumt.
 
 ---
 
@@ -81,6 +104,7 @@ wird aber von keinem Endpunkt gelesen.
 | `5bb6400` | Alarm-Anleitung: `whop-refresh` fehlte komplett in der Auslöser-Tabelle (13 Paare dokumentiert, 17 im Code) |
 | `cf49f80` | `vercel-einrichtung.md` angelegt: 20 Variablen gegen `api/` geprüft |
 | `e5b2db5` | dieselbe Datei gegen das echte Dashboard geprüft, drei Korrekturen |
+| 2026-09-10 | zweites Alarm-Ziel gebaut: `stackr/alerts/` im Blob, Aufräumen im Cron, Tests 12→23 |
 
 Der erste Commit ist der Grund, warum es die Drift-Liste daneben gibt
 ([`doku-drift-2026-09-09.md`](doku-drift-2026-09-09.md)): eine Tabelle, die vier Alarme nicht

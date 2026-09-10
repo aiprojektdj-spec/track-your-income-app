@@ -92,9 +92,21 @@ Alert auslösen statt nur im Log zu versanden.~~ **Erledigt 2026-08-16:** `api/_
 jeden offenen Deckel an `ALERT_WEBHOOK_URL` (Slack- und Make.com-kompatibel), entprellt auf eine
 Meldung je Ereignis und 5 Minuten. **19 Stellen in sechs Endpunkten** (`grep -rn "alertOps('"
 api/*.js | wc -l`), inklusive des Blob-Byte-Budgets, das dieselbe Fail-open-Eigenschaft hat.
-Ist die Variable nicht gesetzt, verhält sich alles wie vorher. **Noch zu tun: `ALERT_WEBHOOK_URL` in Vercel setzen** — ohne sie
-bleibt es beim Log. Schritt für Schritt in [`alert-webhook-anleitung.md`](alert-webhook-anleitung.md);
-am 2026-09-09 weiterhin offen, weil nur der Betreiber an die Vercel-Umgebung kommt.
+
+**Nachtrag 2026-09-10 — zweites Ziel, damit die Meldung nicht am fehlenden Webhook hängt:**
+`api/_alert.js` legt dieselbe Nutzlast zusätzlich als JSON unter `stackr/alerts/` im
+Blob-Speicher ab. Bewusst Blob und **nicht Redis**: Blob ist ein anderes System und überlebt
+genau den Ausfall, der gemeldet werden soll — dasselbe Argument, an dem der Dead-Man-Switch
+scheitert. `BLOB_READ_WRITE_TOKEN` ist in Produktion ohnehin gesetzt, das Ziel ist also ohne
+Zutun aktiv; `api/blob-cleanup.js` räumt dort nach 30 Tagen auf. Nur wenn **beide** Ziele
+fehlen, bleibt es wie früher beim reinen `console.error`. Belegt durch `test/test-alert-ops.js`
+(23/23) und einen echten Schreib-Lese-Lösch-Durchstich gegen den produktiven Blob-Store.
+
+**Weiterhin zu tun: `ALERT_WEBHOOK_URL` in Vercel setzen** — ohne sie ist der Vorfall zwar
+nachlesbar, erreicht dich aber nicht von selbst. Bei einem Totalausfall wie
+`whop-refresh`/`redis-fehlt` ist das der Unterschied zwischen einer Mail und einem
+Support-Ticket. Schritt für Schritt in [`alert-webhook-anleitung.md`](alert-webhook-anleitung.md);
+am 2026-09-10 weiterhin offen, weil nur der Betreiber an die Vercel-Umgebung kommt.
 
 ### Kein Mehrbenutzer-/Teamzugang
 

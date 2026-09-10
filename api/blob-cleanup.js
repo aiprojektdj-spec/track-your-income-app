@@ -1,7 +1,14 @@
-// Vercel Cron (vercel.json, täglich 04:00 UTC) — räumt verwaiste Chunk-Temp-Objekte auf.
-// api/blob-upload.js löscht Chunks normalerweise direkt nach 'commit'; verwaist nur,
-// wenn ein Client mitten im Multi-Chunk-Upload abbricht (Tab-Crash, Netzausfall).
-// Betrifft NUR den 'stackr/tmp/'-Präfix — echte Anhänge (stackr/attachments/) bleiben unangetastet.
+// Vercel Cron (vercel.json, täglich 04:00 UTC) — räumt zwei Präfixe auf.
+//
+//   stackr/tmp/     → verwaiste Chunk-Temp-Objekte, älter als 24 h.
+//                     api/blob-upload.js löscht Chunks normalerweise direkt nach 'commit';
+//                     verwaist nur, wenn ein Client mitten im Multi-Chunk-Upload abbricht
+//                     (Tab-Crash, Netzausfall).
+//   stackr/alerts/  → abgelegte Betriebsalarme (api/_alert.js), älter als 30 Tage.
+//                     Ohne diesen Durchgang wüchse der Alarmspeicher unbegrenzt — dasselbe
+//                     Argument, das es für tmp/ schon gab.
+//
+// Echte Anhänge (stackr/attachments/) bleiben in beiden Fällen unangetastet.
 var { list, del } = require('@vercel/blob');
 
 // Meldet stillschweigende Degradierung an ALERT_WEBHOOK_URL, siehe api/_alert.js.
@@ -10,7 +17,26 @@ var { list, del } = require('@vercel/blob');
 // weiter. Ohne Alarm faellt das erst ueber die Rechnung auf.
 var alertOps = require('./_alert.js').alertOps;
 
-var MAX_AGE_MS = 24 * 60 * 60 * 1000; // alles älter als 24h unter tmp/ ist mit Sicherheit verwaist
+var TMP_MAX_AGE_MS   = 24 * 60 * 60 * 1000;      // alles älter als 24 h unter tmp/ ist mit Sicherheit verwaist
+var ALERT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 Tage Alarm-Historie — lang genug, um einen
+                                                 // Ausfall nachträglich zu belegen, kurz genug,
+                                                 // dass der Speicher nicht zuläuft
+
+// Ein Durchgang über einen Präfix. Gibt die Zahl der gelöschten Objekte zurück.
+// Wirft weiter — der Aufrufer meldet den Fehler als 'cleanup-failed'.
+async function sweep(prefix, maxAgeMs, now) {
+    var token = process.env.BLOB_READ_WRITE_TOKEN, deleted = 0, cursor;
+    do {
+        var page = await list({ prefix: prefix, cursor: cursor, limit: 1000, token: token });
+        var stale = (page.blobs || []).filter(function (b) {
+            var ts = b && b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
+            return ts && (now - ts) > maxAgeMs;
+        });
+        if (stale.length) { await del(stale.map(function (b) { return b.url; }), { token: token }); deleted += stale.length; }
+        cursor = page.hasMore ? page.cursor : undefined;
+    } while (cursor);
+    return deleted;
+}
 
 module.exports = async function handler(req, res) {
     // Vercel Cron sendet 'Authorization: Bearer $CRON_SECRET', wenn CRON_SECRET gesetzt ist.
@@ -26,17 +52,12 @@ module.exports = async function handler(req, res) {
     if (req.headers['authorization'] !== 'Bearer ' + secret) return res.status(401).json({ error: 'unauthorized' });
 
     try {
-        var deleted = 0, cursor, now = Date.now();
-        do {
-            var page = await list({ prefix: 'stackr/tmp/', cursor: cursor, limit: 1000, token: process.env.BLOB_READ_WRITE_TOKEN });
-            var stale = (page.blobs || []).filter(function (b) {
-                var ts = b && b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
-                return ts && (now - ts) > MAX_AGE_MS;
-            });
-            if (stale.length) { await del(stale.map(function (b) { return b.url; }), { token: process.env.BLOB_READ_WRITE_TOKEN }); deleted += stale.length; }
-            cursor = page.hasMore ? page.cursor : undefined;
-        } while (cursor);
-        return res.status(200).json({ ok: true, deleted: deleted });
+        var now = Date.now();
+        var deleted      = await sweep('stackr/tmp/',    TMP_MAX_AGE_MS,   now);
+        var alertsDeleted = await sweep('stackr/alerts/', ALERT_MAX_AGE_MS, now);
+        // 'deleted' behält seine alte Bedeutung (nur tmp/), damit die Gegenprobe in
+        // plan/vercel-einrichtung.md weiter stimmt. Der zweite Wert kommt additiv dazu.
+        return res.status(200).json({ ok: true, deleted: deleted, alertsDeleted: alertsDeleted });
     } catch (e) {
         // Nach bestandener Auth — hier ist der Aufrufer wirklich der Cron, ein Fehler also echt.
         await alertOps('blob-cleanup', 'cleanup-failed', e && e.message);

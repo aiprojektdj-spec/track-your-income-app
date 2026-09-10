@@ -62,10 +62,11 @@ fällig, und die Antwort sollte bewusst fallen statt durch Nichtbeachtung.
 
 ---
 
-## ✅ Abgearbeitet am 2026-09-10
+## Abgearbeitet am 2026-09-10
 
-Alle fünf Befunde sind erledigt. Der Abschnitt „Was ich nicht geändert habe" darunter ist damit
-überholt — er bleibt stehen, weil er festhält, warum es beim Messen zunächst blieb.
+**Befund 1–4 erledigt, Befund 5 gemessen und dem Betreiber vorgelegt.** Der Abschnitt „Was ich
+nicht geändert habe" darunter ist damit überholt — er bleibt stehen, weil er festhält, warum es
+beim Messen zunächst blieb.
 
 | # | Was daraus wurde |
 |---|---|
@@ -73,25 +74,30 @@ Alle fünf Befunde sind erledigt. Der Abschnitt „Was ich nicht geändert habe"
 | 2 | Die feste Harness-Zahl ist **ganz raus**. Sie war schon beim Messen falsch (32 statt 50) und einen Tag später wieder (52). In `CLAUDE.md` zählt jetzt die Schleife selbst, in `00-STAND.md` steht der Messbefehl neben einer datierten Momentaufnahme. |
 | 3 | `1061` → **`1099`**, an beiden Stellen. In `CLAUDE.md` zusätzlich der Hinweis, bei Drift über den Funktionsnamen zu suchen — diese Zeilennummer ist jetzt zum wiederholten Mal gewandert. |
 | 4 | **19 Stellen in sechs Endpunkten**, mit dem `grep` daneben. Dabei ein sechster Fund im selben Absatz: „Alle vier API-Endpunkte behandeln Redis-Fehler…" — es sind **fünf** mit Rate-Limit, `blob-cleanup.js` hat gar keines. Beide Zeilen jetzt mit Dateinamen statt bloßer Zahl. |
-| 5 | Die Schwelle ist **durchgestrichen, nicht hochgesetzt** — siehe unten. |
+| 5 | **Offen.** Die Messung steht in `02-ENTSCHEIDUNGEN.md`, der Schwellensatz selbst ist unverändert — siehe unten. |
 
-### Befund 5: die Antwort ist gefallen
+### Befund 5 ist noch offen, und das ist Absicht
 
-**Kein Build-Schritt, Entscheidung unverändert** — aber jetzt bewusst statt durch Nichtbeachtung.
+Meine erste Fassung hat die Schwelle in `02-ENTSCHEIDUNGEN.md` durchgestrichen und „kein
+Build-Schritt" als gefallene Entscheidung hingeschrieben. **Das war zu weit.** Eine parallele
+Session hat es zurückgegeben, zu Recht: die Schwelle stammt vom Betreiber, und sie ersatzlos zu
+streichen ist etwas anderes, als eine falsche Zahl zu berichtigen. Die vier anderen Befunde sind
+Korrekturen; dieser ist eine Produktentscheidung.
 
-Der Punkt, der beim Messen noch nicht klar war: die Schwelle war nicht zu niedrig angesetzt, sie
-war **der falsche Auslöser**. Die drei Gründe gegen einen Build-Schritt (ausgelieferter Code =
+Zurückgenommen. Was jetzt in `02-ENTSCHEIDUNGEN.md` steht: der ursprüngliche Satz unverändert,
+darunter die Messung mit Datum und Messbefehl, dazu das Argument **als Vorlage, nicht als
+Beschluss**. Wer die Datei liest, weiß damit beides — dass die Schwelle gerissen ist und dass die
+Frage offen ist.
+
+Das Argument, das dem Betreiber vorliegt: Die Schwelle ist nicht zu niedrig angesetzt, sie ist
+**der falsche Auslöser**. Die drei Gründe gegen einen Build-Schritt (ausgelieferter Code =
 geschriebener Code, keine Lieferketten-Fläche, keine Build-Fäulnis) berühren die Dateigröße an
-keiner Stelle. Eine Schwelle, deren Reißen die Begründung nicht anfasst, kann man beliebig
-hochsetzen und sie bleibt nutzlos — sie erzeugt nur beim nächsten Mal wieder stille Drift.
+keiner Stelle. Eine Schwelle, deren Reißen die Begründung nicht anfasst, hilft auch hochgesetzt
+nicht — sie erzeugt beim nächsten Mal wieder stille Drift. Tragfähig bliebe der zweite Auslöser
+aus demselben Satz, die zwei parallel laufenden Chart-Bibliotheken (~800 KB): der zeigt auf
+konkrete Doppelarbeit statt auf eine Zahl.
 
-Sie ist deshalb in `02-ENTSCHEIDUNGEN.md` durchgestrichen. Stehen bleibt der zweite Auslöser aus
-demselben Satz, die zwei parallel laufenden Chart-Bibliotheken (~800 KB): der zeigt auf konkrete
-Doppelarbeit statt auf eine Zahl. Der Messbefehl steht dort weiterhin, falls die Größe doch
-einmal interessiert.
-
-**Das ist eine Entscheidung des Betreibers, nicht meine** — sie ist hier nur so festgehalten,
-dass sie beim nächsten Lesen sichtbar ist und überstimmt werden kann.
+**Nachzuziehen, sobald das Wort des Betreibers da ist.**
 
 ---
 

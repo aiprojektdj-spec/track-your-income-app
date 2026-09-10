@@ -55,29 +55,30 @@ der geschriebene (bei einem Produkt, das mit „deine Daten verlassen dein Gerä
 kann das jeder nachprüfen); praktisch keine Lieferketten-Fläche (**eine** Produktiv-Abhängigkeit
 statt hunderter transitiver Pakete); keine Build-Fäulnis.
 
-**Wechselpunkt, falls doch:** ~~wenn der Anwendungscode deutlich über die jetzigen ~1,8 MB
-wächst **oder**~~ wenn die zwei parallel laufenden Chart-Bibliotheken (~800 KB) grundsätzlich
-angegangen werden. Vorher bringt F2 mehr und kostet fast nichts.
+**Wechselpunkt, falls doch:** wenn der Anwendungscode deutlich über die jetzigen ~1,8 MB wächst
+**oder** die zwei parallel laufenden Chart-Bibliotheken (~800 KB) grundsätzlich angegangen
+werden. Vorher bringt F2 mehr und kostet fast nichts.
 
-> **Die Größen-Schwelle war am 2026-09-10 längst gerissen — und hat niemanden erreicht.**
-> Gemessen: **2,33 MB** allein in `js/` ohne Vendor-Bibliotheken (+29 % gegenüber den ~1,8 MB),
-> **2,96 MB** mit den drei Sub-Apps (+65 %). Unter jeder Lesart also überschritten, still, weil
-> niemand nachgemessen hat.
->
-> **Die Entscheidung bleibt trotzdem: kein Build-Schritt.** Die drei Gründe oben hängen nicht an
-> der Dateigröße — der ausgelieferte Code ist der geschriebene, egal ob er 1,8 oder 3 MB wiegt.
-> Die Schwelle war von Anfang an der falsche Auslöser: sie misst etwas, das keinen der drei
-> Gründe berührt.
->
-> Deshalb ist sie hier durchgestrichen statt hochgesetzt. Was bleibt, ist der zweite Auslöser
-> (die zwei Chart-Bibliotheken) — der zeigt auf konkrete Doppelarbeit, nicht auf eine Zahl.
-> Nachmessen, falls die Größe doch einmal interessiert:
+> ⚠️ **Die Größen-Schwelle ist gerissen — die Entscheidung darüber steht noch aus.**
+> Gemessen am **2026-09-10**: **2,33 MB** allein in `js/` ohne Vendor-Bibliotheken (+29 %
+> gegenüber den ~1,8 MB), **2,96 MB** mit den drei Sub-Apps (+65 %). Unter jeder Lesart also
+> überschritten — still, weil niemand nachgemessen hat. Nachmessen:
 >
 > ```bash
 > find js -name '*.js' | grep -v vendor | xargs wc -c | tail -1
 > ```
 >
-> Kommt die Frage vom Betreiber zurück, ist sie damit bewusst beantwortet und nicht übersehen.
+> **Was daraus folgt, entscheidet der Betreiber.** Die Schwelle stammt von ihm; sie zu streichen
+> oder hochzusetzen ist keine Doku-Korrektur. Zur Vorlage liegt dieses Argument:
+>
+> Die drei Gründe oben hängen an keiner Stelle an der Dateigröße — der ausgelieferte Code *ist*
+> der geschriebene, ob er 1,8 oder 3 MB wiegt. Die Schwelle misst also etwas, das keinen der
+> drei Gründe berührt. Wäre das richtig, hülfe Hochsetzen nichts: sie erzeugte beim nächsten Mal
+> nur wieder stille Drift, und der tragfähige Auslöser bliebe der zweite aus demselben Satz —
+> die zwei Chart-Bibliotheken, die auf konkrete Doppelarbeit zeigen statt auf eine Zahl.
+>
+> Bis zu seinem Wort bleibt der Satz oben unverändert stehen. Wer hier vorbeikommt, weiß damit
+> beides: dass die Schwelle gerissen ist, und dass die Frage offen und nicht übersehen ist.
 
 ### Rate-Limits fallen bei Redis-Ausfall offen
 

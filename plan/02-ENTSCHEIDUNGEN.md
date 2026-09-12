@@ -56,15 +56,35 @@ kann das jeder nachprüfen); praktisch keine Lieferketten-Fläche (**eine** Prod
 statt hunderter transitiver Pakete); keine Build-Fäulnis.
 
 **Wechselpunkt, falls doch — entschieden 2026-09-12:** wenn das beim **Erstaufruf von `app.html`
-eager geladene JavaScript** deutlich über die heutigen **2,43 MB in 63 Dateien** wächst. Im
-Browser nachmessen, nicht auf der Platte:
+eager geladene JavaScript** deutlich über die heutigen **2 767 160 Bytes in 65 Dateien**
+(2,64 MiB) wächst. Im Browser nachmessen, nicht auf der Platte — der Befehl gibt direkt die
+Zahl aus, die man mit der Schwelle vergleicht:
 
 ```js
-performance.getEntriesByType('resource').filter(r => r.name.endsWith('.js'))
+performance.getEntriesByType('resource')
+  .filter(r => new URL(r.name).pathname.endsWith('.js'))
+  .filter(r => !/tesseract|apexcharts|chart\.min|xlsx/i.test(r.name))
+  .reduce((n, r) => n + r.decodedBodySize, 0)
 ```
 
-**Nicht mitgezählt wird, was erst bei Bedarf kommt:** Tesseract (8,9 MB), ApexCharts, Chart.js
-und SheetJS. Genau diese Unterscheidung konnte die alte Schwelle nicht treffen.
+Gegenprobe von der Platte, wenn kein Browser zur Hand ist. Sie zählt dieselben Dateien, liest
+aber den **Arbeitsbaum** — Abweichungen im Kilobyte-Bereich sind uncommittete Änderungen anderer
+Sessions, keine Messfehler:
+
+```bash
+grep -o '<script[^>]*src="[^"]*"' app.html | sed 's/.*src="//;s/"//;s/?.*//;s|^/||' | xargs wc -c | tail -1
+```
+
+> ⚠️ **Das `.pathname` im ersten Filter ist nicht kosmetisch.** Ein `r.name.endsWith('.js')`
+> übersieht jede Datei mit Cache-Bust-Query — konkret `js/app.js?v=2` (209 659 B, die **größte
+> Datei der App**) und `js/user-plan.js?v=2`. Das sind 63 Dateien / 2,43 MiB statt 65 / 2,64 MiB,
+> also **8 % zu wenig, und ausgerechnet der dickste Brocken fehlt**. Am 2026-09-12 stand genau
+> dieser Filter hier und hat die Schwelle zu niedrig angesetzt; nachgemessen und korrigiert
+> am selben Tag.
+
+**Nicht mitgezählt wird, was erst bei Bedarf kommt:** Tesseract (7 970 224 B ≈ 7,6 MiB),
+SheetJS (951 904 B), ApexCharts (539 664 B) und Chart.js (205 399 B). Genau diese Unterscheidung
+konnte die alte Schwelle nicht treffen.
 
 <details>
 <summary>Warum die alte ~1,8-MB-Schwelle ersetzt wurde (2026-09-10 gerissen, 2026-09-12 entschieden)</summary>
@@ -80,8 +100,8 @@ Doku-Drift-Prüfung, nicht daher, dass jemand etwas gemerkt hätte.
 
 **Und sie maß das Falsche.** Die drei Gründe oben hängen an keiner Stelle an der Dateigröße —
 der ausgelieferte Code *ist* der geschriebene, ob er 1,8 oder 3 MB wiegt. Vor allem aber wog
-sie Code, der **nie geladen wird**: Die 8,9 MB Tesseract-WASM liegen auf der Platte und kommen
-erst, wenn jemand einen Beleg scannt.
+sie Code, der **nie geladen wird**: Die knapp 8 MB Tesseract-WASM (`js/vendor/tesseract*`,
+gemessen 7 970 224 B) liegen auf der Platte und kommen erst, wenn jemand einen Beleg scannt.
 
 **Deshalb ersetzt statt gestrichen.** Die Byte-Zahl war ein Stellvertreter für die eigentliche
 Frage — *wann tut die fehlende Optimierung dem Nutzer weh* —, und die Antwort darauf ist eine

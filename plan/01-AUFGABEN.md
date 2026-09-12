@@ -219,7 +219,9 @@ alles andere gilt als Lesezugriff. Eine Denylist über Bezeichner ist genau die 
 still Lücken hat — jede neue Aktion, deren Name kein gelistetes Verb enthält, ist automatisch
 erlaubt, ohne dass jemand eine Entscheidung getroffen hätte.
 
-**Gezählt:** 174 `data-action`-Namen im Repo, **57 gesperrt, 117 nicht.** Das meiste davon ist zu
+**Gezählt am 2026-09-05:** 174 `data-action`-Namen im Repo, **57 gesperrt, 117 nicht.**
+*(Nachgemessen am 2026-09-12 über die echte `blocks()`-Logik, also `WRITE_RE` minus `ALLOW_SET`:
+**59 gesperrt, 115 nicht** — die Gesamtzahl 174 ist unverändert.)* Das meiste davon ist zu
 Recht offen (Exporte, Tabs, Filter, Navigation, Kopieren). Fünf Kandidaten habe ich einzeln
 nachgeschlagen statt vom Namen zu schließen — **zwei davon schreiben wirklich in den Store:**
 
@@ -228,10 +230,18 @@ nachgeschlagen statt vom Namen zu schließen — **zwei davon schreiben wirklich
 | `uva-mark` | `UstVoranmeldung._markEingereicht()` | `Store.saveUstPeriode(…)` **und** `Store.setDifferenzVortrag(…)` |
 | `app-ust-switch-regel` | `App._ustSwitchToRegel(key)` | `Store.saveSettings({ustMode:'regel'})` |
 
-Beide rutschen durch, weil `WRITE_RE` weder `mark` noch `switch` kennt. Beide sind steuerlich
+~~Beide rutschen durch, weil `WRITE_RE` weder `mark` noch `switch` kennt.~~ Beide sind steuerlich
 relevant: das eine markiert eine **USt-Voranmeldung als eingereicht** und fixiert dabei den
 §25a-Vortrag für die Folgeperiode, das andere stellt die **Besteuerungsform** des Mandanten von
 Kleinunternehmer auf Regelbesteuerung um.
+
+> **Diese zwei sind zu — seit 2026-09-09.** `mark` und `switch` stehen inzwischen in `WRITE_RE`
+> ([`js/stb-share.js:241`](../js/stb-share.js)), am 2026-09-12 gegen den Code nachgemessen:
+> `blocks('uva-mark')` und `blocks('app-ust-switch-regel')` liefern beide `true`. Dabei ist
+> `co-switch` bewusst in `ALLOW_SET` gelandet — der Firmenwechsel ist der einzige Weg aus der
+> Mandantenansicht heraus, ihn zu sperren hieße den Berater einsperren. **Der strukturelle Teil
+> des Befunds bleibt offen** (siehe Nachtrag unten): dass diese zwei Namen jetzt passen, ändert
+> nichts daran, dass die Zuordnung über Namen läuft.
 
 Die anderen drei geprüften (`lgp-bulk-mwst`, `lgp-bulk-dup`, `eb-clear-lager`) schreiben **nur ins
 Formular**, kein `Store.save*`. Die restlichen 112 sind **nicht** einzeln geprüft.
@@ -251,7 +261,7 @@ hat drei Schichten, und **keine davon greift im Rechnungsmodul**:
 | Schicht | Mechanik | Reichweite |
 |---|---|---|
 | CSS ([`css/style.css:3004`](../css/style.css)) | `[data-action$="-save"]` u. ä., **8 Suffixe** | nur Aktionen, die genau so enden |
-| JS-Chokepoint ([`js/actions.js:26`](../js/actions.js)) | `WRITE_RE` über den Namen | 57 von 174 — **und nur der zentrale Router** |
+| JS-Chokepoint ([`js/actions.js:26`](../js/actions.js)) | `WRITE_RE` minus `ALLOW_SET`, beides in [`js/stb-share.js`](../js/stb-share.js) | 59 von 174 (Stand 2026-09-12) — **und nur der zentrale Router** |
 | `eb-*`- und `rech-*`-Router | — | **gar nicht** |
 
 1. **Die eigenen Router umgehen die Sperre vollständig.** Der Kopfkommentar von

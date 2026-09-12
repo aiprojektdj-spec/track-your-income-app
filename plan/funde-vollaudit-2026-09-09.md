@@ -22,13 +22,14 @@ In drei pfad-gescopten Commits:
 | **A3** Dashboard: Käufer-Versand fehlte als Einnahme | ✅ behoben (mit A1) |
 | **A4** Storno-Filter fehle | ❌ **Fund war falsch, zurückgezogen** — siehe unten |
 | **A5** Zeitzonen-Jahreszuordnung Gewerbesteuer | ✅ entfällt — die Stelle ist ersatzlos weg |
+| **A6** eine **fünfte** Gewinnermittlung in `gbr-modul.js` | ✅ behoben am 2026-09-12 — Feststellungserklärung und §141-AO-Weiche hingen daran |
 | **B1** `ui-lab.html` ohne Gate, CSP, `noindex` | ✅ behoben, im Browser gegen die echte CSP geprüft |
-| **B2** `X-XSS-Protection` veraltet | offen (Randnotiz, praktisch folgenlos) |
-| **C** 20 Module ohne Test | teilweise — zwei neue Harnesse, 49 Checks |
+| **B2** `X-XSS-Protection` veraltet | ✅ behoben am 2026-09-12 — Wert jetzt `0` |
+| **C** 20 Module ohne Test | teilweise — drei neue Harnesse, 99 Checks; `rechtsform` dazugekommen |
 | **D1** Icon-Buttons ohne `aria-label` | ✅ behoben, 11 Stellen (2 mehr als gemeldet) |
 | **E** `robots.txt`-Drift | ✅ behoben |
 
-Testsuite: **52 Harnesse, alle grün** (vorher 50).
+Testsuite: **53 Harnesse, alle grün** (vor dem Audit 50).
 
 ---
 
@@ -46,9 +47,12 @@ der schwerwiegendste Fund.
 
 ## A. Rechenlogik und Steuer — schwerwiegend
 
-### A1 — Vier Bildschirme rechnen vier verschiedene Gewinne
+### A1 — Fünf Bildschirme rechnen fünf verschiedene Gewinne
 
-Neben [`js/euer.js:283`](../js/euer.js:283) gibt es **drei weitere, voneinander unabhängige
+> Die Überschrift hieß bis zum 2026-09-12 „Vier Bildschirme". Die fünfte Stelle
+> (`gbr-modul.js`) kam erst beim Abarbeiten der letzten offenen Aufgabe ans Licht — siehe **A6**.
+
+Neben [`js/euer.js:283`](../js/euer.js:283) gibt es **vier weitere, voneinander unabhängige
 Gewinnermittlungen**. Keine davon fragt die EÜR; jede baut die Formel neu — und jede lässt etwas
 anderes weg.
 
@@ -58,6 +62,7 @@ anderes weg.
 | [`dashboard.js:451`](../js/dashboard.js:451) | ja | ja | **nein** | **nein** | **nein** | **nein** | **nein** | **nein** |
 | [`privatbuchungen.js:27`](../js/privatbuchungen.js:27) | **nein** | ja | **nein** | **nein** | **nein** | **nein** | **nein** | **nein** |
 | [`gewerbesteuer.js:30`](../js/gewerbesteuer.js:30) | **nein** | **nein** | **nein** | **nein** | **nein** | **nein** | **nein** | **nein** |
+| [`gbr-modul.js:23`](../js/gbr-modul.js:23) *(A6)* | **nein** | **nein** | **nein** | **nein** | **nein** | **nein** | ja | ja |
 
 **Beleg.** Ein Minimaldatensatz — ein Verkauf (1.000 € + 50 € Käufer-Versand, 40 €
 Verkäufer-Versand, 10 % Gebühr), ein Einkauf (2 × 300 €), eine Ausgabe (200 €), dazu 800 € AfA,
@@ -80,7 +85,7 @@ Summe der ausgelassenen Posten: 800 AfA + 150 Fahrt + 90 Material + 120 Eigenbel
 
 ### A2 — Die Gewerbesteuer wird aus der falschen Zahl berechnet — ✅ GEFIXT 2026-09-09
 
-> **Erledigt, noch nicht committet.** `_calcGewinn()` rechnet nicht mehr selbst, sondern zieht
+> **Erledigt und committet (`2295373`).** `_calcGewinn()` rechnet nicht mehr selbst, sondern zieht
 > den Gewinn aus `Euer._berechne(year, 0, 'jahr')`. Dafür wurde der Rechenkern der EÜR
 > (299 Zeilen) aus `render()` in die eigene Methode `_berechne(year, month, period)` gelöst:
 > DOM-frei, ohne State-Nebenwirkung, von außen aufrufbar. `render()` bezieht seine Werte
@@ -90,7 +95,7 @@ Summe der ausgelassenen Posten: 800 AfA + 150 Fahrt + 90 Material + 120 Eigenbel
 > Nachgewiesen: die Rechenlogik ist **zeilenweise identisch** verschoben (270 gegen 270
 > normalisierte Zeilen, keine Abweichung), `render()` läuft in einem echten Aufruf ohne
 > `ReferenceError` durch, und `test/test-gewinn-eine-quelle.js` hält mit 22 Checks fest, dass
-> beide Wege denselben Wert liefern. 51 von 51 Harnessen grün.
+> beide Wege denselben Wert liefern. Inzwischen 53 von 53 Harnessen grün.
 >
 > **Korrektur an meiner eigenen Schätzung unten:** „ein Löschen plus ein Aufruf" war zu
 > optimistisch — `euer.js` hatte keine aufrufbare Berechnungsfunktion, die musste erst
@@ -145,6 +150,42 @@ Dashboard-Gewinn ist dadurch für sich genommen zu niedrig — unabhängig von a
 aus, deren **Rechnung** storniert wurde (`storniertInvIds`, Orphan-Guard). Diesen Schritt macht
 keines der drei anderen Module. Ein Verkauf, dessen Rechnung storniert ist, zählt dort weiter
 mit. Mit der Umstellung auf `Euer._berechne()` löst sich das mit auf.
+
+### A6 — Es war eine **fünfte** Gewinnermittlung — ✅ GEFIXT 2026-09-12
+
+> **Nachtrag vom 2026-09-12.** Aufgefallen beim Schreiben des Tests für `js/rechtsform.js` —
+> also erst, als die zuletzt genannte offene Aufgabe angefasst wurde. A1 sprach von vier
+> Gewinnermittlungen; es waren fünf.
+
+[`js/gbr-modul.js::_calcJahresgewinn`](../js/gbr-modul.js:23) rechnete den Jahresgewinn der GbR
+selbst. Der Kommentar darüber behauptete „dieselbe Rechenbasis wie euer.js/bilanz.js" — und für
+USt-Netting, Retouren, Rechnungen und §25a stimmte das sogar. Auf der Ausgabenseite nicht:
+**AfA, Fahrtkosten, Eigenbelege, Materialverbrauch, Plattformgebühren und der
+Verkäufer-Versand kamen in der gesamten Datei an keiner Stelle vor.**
+
+Das wiegt schwerer als A2, weil der Wert an drei Stellen landet:
+
+1. **`_exportFeststellung()`** — der Gewinn geht in die **Feststellungserklärung ans Finanzamt**
+   und über `GbR.berechneVerteilungMitSonder()` in die Gewinnanteile der einzelnen
+   Gesellschafter.
+2. **`Rechtsform.ueberschreitetAO141Schwelle()`** — reißt der überhöhte Gewinn die
+   80.000-€-Grenze des §141 AO, **sperrt [`js/euer.js:356`](../js/euer.js:356) die EÜR-Seite
+   vollständig ab** („EÜR nicht verfügbar") und verweist auf eine Bilanzpflicht, die gar nicht
+   besteht. Ein Rechenfehler nimmt dem Nutzer damit seine Gewinnermittlung weg.
+3. Die KPI-Kacheln der GbR-Übersicht.
+
+**Fix:** wie A2 — `Euer._berechne(year, 0, 'jahr')` als Quelle. Die Identität
+`gewinn = einnahmen − wareneinkauf − betriebsausgaben` bleibt exakt erhalten, die §25a-Werte
+kommen jetzt aus derselben Stelle statt aus einer Teilkopie.
+
+**Zu beachten:** Es entsteht die Kette `euer.render() → Rechtsform.brauchtBilanzStattEuer() →
+GbrModul._calcJahresgewinn() → Euer._berechne()`. Die ist zirkelfrei, **weil `_berechne()` keine
+Rechtsform-Weiche kennt** — die steht in `render()` vor dem Aufruf. Wer sie nach `_berechne()`
+hineinzieht, baut eine Endlosschleife. Der Hinweis steht als Warnung im Code.
+
+Nebenbefund derselben Runde: `test-25a-pauschalmarge.js` prüfte per Quelltext, ob `gbr-modul.js`
+die §25a-Warenart mitprüft. Diese zweite Kopie ist mit dem Fix verschwunden; der Check prüft
+jetzt den Bezug zur EÜR statt der Kopie.
 
 ### A5 — Zeitzonenabhängige Jahreszuordnung (klein, aber inkonsistent)
 

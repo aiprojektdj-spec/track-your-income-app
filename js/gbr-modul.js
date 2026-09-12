@@ -15,79 +15,49 @@ const GbrModul = {
     _getGewSt()     { return Store.get('gbr_gewst') || {}; },
     _saveGewSt(d)   { Store.set('gbr_gewst', d); },
 
-    // ── Jahresgewinn berechnen ────────────────────────────────────
-    // Nutzt SteuerBerechnung (Single Source of Truth für USt-Netting, s. js/steuer-berechnung.js),
-    // dieselbe Rechenbasis wie euer.js/bilanz.js. Fixt dabei 3 Bugs der Vorversion:
-    // 0%-Steuersatz fiel fälschlich auf 19% zurück (SteuerBerechnung behandelt 0% als gültig),
-    // Rechnungen/Gutschriften wurden komplett ignoriert, Retouren wurden nicht abgezogen.
+    // ── Jahreszahlen der GbR ──────────────────────────────────────
+    // Kommen aus der EÜR und werden hier NICHT zweitgerechnet.
+    //
+    // Bis zum 2026-09-12 stand hier eine eigene Ermittlung. Der Kommentar darüber behauptete
+    // "dieselbe Rechenbasis wie euer.js/bilanz.js" — das stimmte für das USt-Netting, für
+    // Retouren, Rechnungen und §25a, aber nicht für die Ausgabenseite: AfA, Fahrtkosten,
+    // Eigenbelege, Materialverbrauch, Plattformgebühren und der Verkäufer-Versand kamen in
+    // dieser Datei an keiner Stelle vor. Der Gewinn fiel dadurch zu hoch aus — an drei
+    // Stellen mit Folgen:
+    //
+    //   1. _exportFeststellung() — der Wert geht in die Feststellungserklärung ans Finanzamt
+    //      und über GbR.berechneVerteilungMitSonder() in die Gewinnanteile der Gesellschafter.
+    //   2. Rechtsform.ueberschreitetAO141Schwelle() — reißt der überhöhte Gewinn die
+    //      80.000-€-Grenze des §141 AO, sperrt js/euer.js die EÜR-Seite ganz ab
+    //      ("EÜR nicht verfügbar") und verweist auf eine Bilanzpflicht, die nicht besteht.
+    //   3. Die KPI-Kacheln der GbR-Übersicht.
+    //
+    // Fund A6, plan/funde-vollaudit-2026-09-09.md — dasselbe Muster wie A1/A2.
+    //
+    // ACHTUNG Aufrufkette: js/euer.js render() fragt Rechtsform.brauchtBilanzStattEuer(),
+    // das hier landet und Euer._berechne() aufruft. Zirkelfrei ist das nur, weil _berechne()
+    // selbst keine Rechtsform-Weiche kennt — die steht in render() VOR dem Aufruf. Wer die
+    // Weiche nach _berechne() hineinzieht, baut eine Endlosschleife.
     _calcJahresgewinn(year) {
-        const y = String(year);
-        // GbR ist eigenes USt-Steuersubjekt (§19 UStG-Grenze separat von anderen Companies) —
-        // Beträge müssen bei Regelbesteuerung netto in den Gewinn einfließen, USt ist Durchlaufposten.
-        const settings = Store.getSettings();
-        const isRegel = (settings.ustMode || 'klein') === 'regel';
-        const salesRaw  = (Store.getSales     ? Store.getSales(true) : Store.get('sales')     || []);
-        const sales     = salesRaw.filter(s => (s.datum||'').startsWith(y) && !s.storniert);
-        const purchases = (Store.getPurchases ? Store.getPurchases() : Store.get('purchases') || []).filter(p => (p.datum||'').startsWith(y) && !p.storniert);
-        // Fix: las vorher aus totem Key 'ausgaben' statt 'expenses' → Betriebsausgaben waren immer 0.
-        const ausgaben  = (Store.getExpenses ? Store.getExpenses() : Store.get('expenses') || []).filter(a => (a.datum||'').startsWith(y));
-        const retouren  = (Store.getRetouren ? Store.getRetouren() : []).filter(r => (r.datum||'').startsWith(y));
-        const rechInvoices = (Store.getRechInvoices ? Store.getRechInvoices() : []).filter(inv =>
-            (inv.datum||'').startsWith(y) && inv.status === 'bezahlt' && !inv._storniert &&
-            (inv.typ === 'rechnung' || inv.typ === 'gutschrift'));
-
-        const salesNetting = SteuerBerechnung.nettoSales(sales, isRegel);
-        const retNetting   = SteuerBerechnung.nettoRetouren(retouren, salesRaw, isRegel);
-        const invNetting   = SteuerBerechnung.nettoRechnungen(rechInvoices);
-        const purchNetting = SteuerBerechnung.nettoPurchases(purchases);
-        const expNetting   = SteuerBerechnung.nettoExpenses(ausgaben);
-
-        const einnahmen = isRegel
-            ? (salesNetting.netto - retNetting.netto) + invNetting.netto
-            : (salesNetting.brutto - retNetting.brutto) + invNetting.netto; // Rechnungspositionen sind immer netto gespeichert
-        const wareneinkauf = isRegel ? purchNetting.netto : purchNetting.brutto;
-        const betriebsausgaben = isRegel ? expNetting.netto : expNetting.brutto;
-
-        // ── §25a UStG Differenzbesteuerung: informative Aufschlüsselung ──────────
-        // Rein informativ, kein Einfluss auf gewinn oben (s. euer.js für ausführliche Erläuterung
-        // desselben Musters). Maßgeblich für die USt-Schuld ist die USt-Voranmeldung.
-        const purchasesById = {};
-        purchases.forEach(p => { purchasesById[p.id] = p; });
-        (Store.getPurchases ? Store.getPurchases(true) : []).forEach(p => { if (!purchasesById[p.id]) purchasesById[p.id] = p; });
-        // §25a-Retouren: Erstattungsbetrag mindert den Verkaufspreis der zurückgegebenen Position vor
-        // der Margenbildung (analog zu euer.js/ustvoranmeldung.js, s. plan/OFFEN.md §2.1b).
-        const diff25aRetourenBySaleId = {};
-        retouren.filter(r => r.saleId).forEach(r => {
-            diff25aRetourenBySaleId[r.saleId] = (diff25aRetourenBySaleId[r.saleId] || 0) + (parseFloat(r.erstattungBetrag) || 0);
-        });
-        const diff25aSalesPositionen = sales
-            .map(s => ({ sale: s, purchase: purchasesById[s.purchaseId] || (s.purchaseIds && s.purchaseIds[0] ? purchasesById[s.purchaseIds[0]] : null) }))
-            .filter(x => x.purchase && x.purchase.differenzbesteuert)
-            .map(x => ({
-                verkaufspreis: Math.max(0, ((parseFloat(x.sale.verkaufspreis) || 0) + (parseFloat(x.sale.versandkostenKaeufer) || 0)) - (diff25aRetourenBySaleId[x.sale.id] || 0)),
-                einkaufspreis: parseFloat(x.purchase.einkaufspreis) || 0,
-                // §25a Abs. 3 Satz 3 UStG, nur Kunstgegenstaende (Anlage 2 Nr. 53) — siehe euer.js
-                pauschalmarge: !!(x.purchase.pauschalmarge && x.purchase.warenart === 'kunst')
-            }));
-        const diff25aInvoicePositionen = [];
-        rechInvoices.forEach(inv => {
-            const sign = inv.typ === 'gutschrift' ? -1 : 1;
-            (inv.positionen || []).forEach(pos => {
-                if (!pos.differenzbesteuert) return;
-                const linkedPurch = pos.lagerArtikelId ? purchasesById[pos.lagerArtikelId] : null;
-                diff25aInvoicePositionen.push({
-                    verkaufspreis: sign * (pos.menge || 0) * (pos.einzelpreis || 0),
-                    einkaufspreis: sign * (linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0)),
-                    pauschalmarge: !!(linkedPurch && linkedPurch.pauschalmarge && linkedPurch.warenart === 'kunst')
-                });
-            });
-        });
-        const diff25aPositionen = diff25aSalesPositionen.concat(diff25aInvoicePositionen);
-        const diff25aUmsatz = diff25aPositionen.reduce((s, p) => s + p.verkaufspreis, 0);
-        const diff25aWareneinkauf = diff25aPositionen.reduce((s, p) => s + p.einkaufspreis, 0);
-        const diff25aMargePreview = SteuerBerechnung.margeEinzeldifferenz(diff25aPositionen.map(p => Object.assign({ satz: 19 }, p)));
-
-        return { einnahmen, wareneinkauf, betriebsausgaben, gewinn: einnahmen - wareneinkauf - betriebsausgaben, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview };
+        if (typeof Euer === 'undefined' || typeof Euer._berechne !== 'function') {
+            // Kann im Browser nicht eintreten (app.html lädt js/euer.js vor dieser Datei).
+            console.error('[GbR] js/euer.js nicht geladen — Jahreszahlen nicht ermittelbar');
+            return { einnahmen: 0, wareneinkauf: 0, betriebsausgaben: 0, gewinn: 0,
+                     diff25aUmsatz: 0, diff25aWareneinkauf: 0, diff25aMargePreview: 0 };
+        }
+        const d = Euer._berechne(year, 0, 'jahr');
+        return {
+            einnahmen:    d.summeEinnahmen,
+            wareneinkauf: d.wareneinkauf,
+            // Alles außer Wareneinkauf. Bei Regelbesteuerung ist die Vorsteuer darin bereits
+            // gegengerechnet (s. summeAusgaben in js/euer.js); die Identität
+            // gewinn = einnahmen − wareneinkauf − betriebsausgaben bleibt damit exakt.
+            betriebsausgaben: d.summeAusgaben - d.wareneinkauf,
+            gewinn:       d.gewinn,
+            diff25aUmsatz:       d.diff25aUmsatz,
+            diff25aWareneinkauf: d.diff25aWareneinkauf,
+            diff25aMargePreview: d.diff25aMargePreview,
+        };
     },
 
     // ── Haupt-Render ──────────────────────────────────────────────

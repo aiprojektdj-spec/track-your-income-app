@@ -129,8 +129,14 @@ check('H4 UVA prueft die Warenart mit',
       /pauschalmarge\s*&&\s*p\.warenart\s*===\s*'kunst'/.test(uva));
 check('H5 EUER prueft die Warenart mit',
       /pauschalmarge\s*&&[\s\S]{0,40}warenart\s*===\s*'kunst'/.test(euer));
-check('H6 GbR prueft die Warenart mit',
-      /pauschalmarge\s*&&[\s\S]{0,40}warenart\s*===\s*'kunst'/.test(gbr));
+// js/gbr-modul.js hielt bis zum 2026-09-12 eine eigene Kopie dieser Pruefung, weil es den
+// Jahresgewinn selbst rechnete. Seit Fund A6 (plan/funde-vollaudit-2026-09-09.md) bezieht es
+// diff25aUmsatz/-Wareneinkauf/-MargePreview aus Euer._berechne(); die Warenart-Pruefung liegt
+// damit an genau einer Stelle — der aus H5. Geprueft wird deshalb der Bezug statt der Kopie.
+check('H6 GbR bezieht die 25a-Werte aus der EUER',
+      /Euer\._berechne/.test(gbr) && /diff25aMargePreview:\s*d\.diff25aMargePreview/.test(gbr));
+check('H6b GbR haelt keine zweite Warenart-Kopie mehr',
+      !/pauschalmarge\s*&&[\s\S]{0,40}warenart\s*===\s*'kunst'/.test(gbr));
 check('H7 Lager speichert nur bei Warenart kunst',
       /pauschalmarge:[\s\S]{0,300}le_warenart[\s\S]{0,40}===\s*'kunst'/.test(lager));
 

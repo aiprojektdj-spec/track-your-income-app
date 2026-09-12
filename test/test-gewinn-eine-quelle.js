@@ -271,5 +271,67 @@ check('Gewerbesteuer._calcGewinn() === Euer._berechne().gewinn', gewGewinn === d
         html.indexOf('übersteigen den Betriebsgewinn') === -1);
 }
 
+// ── 9) gbr-modul.js zieht dieselbe Zahl ──────────────────────────────────────
+// _calcJahresgewinn() speist die Feststellungserklaerung, die Gewinnverteilung auf die
+// Gesellschafter und die §141-AO-Schwelle. Es war die fuenfte eigene Gewinnformel und
+// fiel erst beim Testen von js/rechtsform.js auf (Fund A6).
+{
+    const gbrSrc = fs.readFileSync(__dirname + '/../js/gbr-modul.js', 'utf8');
+    const jgBody = extractMethod(gbrSrc, '_calcJahresgewinn(year) {', /\n    \},/);
+    const _calcJahresgewinn = new Function('year', jgBody);
+
+    global.Euer = { _berechne: (y, m, p) => _berechne.call({}, y, m, p) };
+    const j = _calcJahresgewinn.call({}, 2026);
+
+    check('gbr-modul._calcJahresgewinn(): Gewinn = EUER-Gewinn',
+        Math.abs(j.gewinn - d.gewinn) < 0.01);
+    check('gbr-modul: Identitaet gewinn = einnahmen - wareneinkauf - betriebsausgaben',
+        Math.abs(j.gewinn - (j.einnahmen - j.wareneinkauf - j.betriebsausgaben)) < 0.01);
+    check('gbr-modul: AfA/Fahrt/Material/Eigenbeleg stecken in den Betriebsausgaben',
+        j.betriebsausgaben > 800 + 150 + 90 + 120 - 0.01);
+
+    const ohneEuer = (() => {
+        const e = global.Euer; delete global.Euer;
+        const err = console.error; console.error = () => {};
+        const r = _calcJahresgewinn.call({}, 2026);
+        console.error = err; global.Euer = e; return r;
+    })();
+    check('gbr-modul: ohne js/euer.js -> Nullen statt geratener Zahlen', ohneEuer.gewinn === 0);
+
+    // Die Datei darf die ausgelassenen Posten auch nicht mehr selbst zu rechnen versuchen.
+    check('gbr-modul: rechnet den Gewinn nicht mehr selbst',
+        gbrSrc.indexOf('einnahmen - wareneinkauf - betriebsausgaben,') === -1);
+}
+
+// ── 10) §141 AO: die Folge des ueberhoehten Gewinns ──────────────────────────
+// Reisst der Gewinn die 80.000-EUR-Grenze, sperrt js/euer.js die EUER-Seite ganz ab und
+// verweist auf eine Bilanz. Mit der alten, zu hohen Zahl traf das Betriebe, die die
+// Schwelle in Wahrheit gar nicht erreichten.
+{
+    const rfSrc = fs.readFileSync(__dirname + '/../js/rechtsform.js', 'utf8');
+    const schwelleBody = extractMethod(rfSrc, 'ueberschreitetAO141Schwelle(year) {', /\n    \},/);
+    const _schwelle = new Function('year', schwelleBody);
+    const self = { AO141_UMSATZ_GRENZE: 800000, AO141_GEWINN_GRENZE: 80000 };
+
+    // Betrieb mit 85.000 EUR vor AfA & Co., davon 20.000 EUR AfA/Fahrt/Material/Eigenbelege.
+    // Echter Gewinn 65.000 EUR — unter der Schwelle.
+    global.GbrModul = { _calcJahresgewinn: () => ({ einnahmen: 300000, gewinn: 65000 }) };
+    check('§141 AO: echter Gewinn 65.000 reisst die Schwelle NICHT',
+        _schwelle.call(self, 2026) === false);
+
+    global.GbrModul = { _calcJahresgewinn: () => ({ einnahmen: 300000, gewinn: 85000 }) };
+    check('§141 AO: alte, ueberhoehte Zahl 85.000 haette sie gerissen',
+        _schwelle.call(self, 2026) === true);
+
+    global.GbrModul = { _calcJahresgewinn: () => ({ einnahmen: 850000, gewinn: 10000 }) };
+    check('§141 AO: Umsatzgrenze 800.000 greift unabhaengig vom Gewinn',
+        _schwelle.call(self, 2026) === true);
+
+    const gbrWeg = global.GbrModul; delete global.GbrModul;
+    check('§141 AO: ohne GbrModul keine Bilanzpflicht behaupten',
+        _schwelle.call(self, 2026) === false);
+    global.GbrModul = gbrWeg;
+}
+
 console.log('\n' + pass + '/' + total + ' Checks bestanden');
 if (pass !== total) process.exit(1);

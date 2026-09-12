@@ -77,7 +77,7 @@ grep -o '<script[^>]*src="[^"]*"' app.html | sed 's/.*src="//;s/"//;s/?.*//;s|^/
 
 > ⚠️ **Das `.pathname` im ersten Filter ist nicht kosmetisch.** Ein `r.name.endsWith('.js')`
 > übersieht jede Datei mit Cache-Bust-Query — konkret `js/app.js?v=2` (209 659 B, die **größte
-> Datei der App**) und `js/user-plan.js?v=2`. Das sind 63 Dateien / 2,43 MiB statt 65 / 2,64 MiB,
+> Datei der App**) und `js/user-plan.js?v=3`. Das sind 63 Dateien / 2,43 MiB statt 65 / 2,64 MiB,
 > also **8 % zu wenig, und ausgerechnet der dickste Brocken fehlt**. Am 2026-09-12 stand genau
 > dieser Filter hier und hat die Schwelle zu niedrig angesetzt; nachgemessen und korrigiert
 > am selben Tag.
@@ -118,9 +118,14 @@ Ladepfad.** Dass zwei Diagramm-APIs dieselbe Aufgabe erledigen, bleibt ein Wartu
 Ladezeit-Argument taugt es nicht, und als Auslöser für ein Build-System schon gar nicht.
 
 **Der eigentliche Hebel liegt gar nicht im Code.** Messung vom 2026-09-12, Erstaufruf `app.html`
-auf frischem Port: 73 Requests, 3,66 MB dekomprimiert. Größter Einzelposten ist die
-Tabler-Symbolschrift mit **447 KB plus 204 KB CSS = 651 KB allein für Symbole** — mehr als beide
-Chart-Bibliotheken zusammen. Wer hier Ladezeit sucht, fängt dort an, nicht beim Bundling.
+auf frischem Port: 73 Requests, 3 659 474 B (3,49 MiB) dekomprimiert. Größter Einzelposten ist
+die Tabler-Symbolschrift mit **457 384 B plus 208 958 B CSS = 666 342 B (651 KiB) allein für
+Symbole** — mehr als beide Chart-Bibliotheken zusammen. Wer hier Ladezeit sucht, fängt dort an,
+nicht beim Bundling.
+
+*(Einheiten in diesem Abschnitt durchgehend binär — MiB/KiB, also 1024er-Schritte. Derselbe
+Wert in Dezimal-MB gelesen klingt um 5 % größer und hat beim Gegenlesen schon einmal wie eine
+Abweichung ausgesehen, wo keine war.)*
 
 *(Die Zeitwerte derselben Messung — DOMContentLoaded 225 ms — taugen nur als Nulllinie:
 localhost, ohne Kompression und ohne Netzlatenz. Eine Aussage über echte Nutzer bräuchte eine

@@ -1909,6 +1909,64 @@ const App = {
         return { usedKB, usedMB, usedGB, pct: 0, color, limitMB: null };
     },
 
+    // ── Dubletten-Befund für den Fernsupport ─────────────────────────────────
+    // Meldet ein Kunde "alles doppelt", lässt sich aus der Ferne nicht unterscheiden,
+    // welcher der beiden Fälle vorliegt — und die Fälle haben nichts miteinander zu tun:
+    //   • gleiche ID mehrfach  → derselbe Datensatz liegt zweimal im Array. Kein
+    //     Schreibpfad erzeugt das; dann hat eine Migration oder ein Merge danebengegriffen.
+    //   • gleicher Inhalt bei verschiedenen IDs → zwei echte Speichervorgänge, also ein
+    //     doppelt ausgelöstes Formular oder ein zweimal gelaufener Import.
+    //   • ohne ID → dedupliziert nirgends mehr, weder Backup-Merge noch Cloud-Sync
+    //     (beide schlüsseln über id). Solche Sätze vermehren sich bei jedem Merge.
+    // Absichtlich nur ZAHLEN, keine Inhalte: der Report trägt die Zusage "keine
+    // Geschäftsdaten" und soll ohne Rückfrage weitergeschickt werden können.
+    // Gescannt wird der Store-Cache über ALLE Firmen, nicht nur die aktive — der Kunde
+    // weiß in der Regel nicht, in welcher Firma der Befund steckt.
+    _DUBLETTEN_QUELLEN: [
+        { re: /^(.*?)reselling_purchases$/,     art: 'Einkauf/Lager', feld: 'einkaufspreis' },
+        { re: /^(.*?)reselling_sales$/,         art: 'Verkaeufe',     feld: 'verkaufspreis' },
+        { re: /^(.*?)reselling_expenses$/,      art: 'Ausgaben',      feld: 'betrag' },
+        { re: /^(.*?)rechnungsbuch_dokumente$/, art: 'Rechnungen',    feld: 'nummer' }
+    ],
+
+    _dublettenBefund() {
+        const zeilen = [];
+        const cache = (typeof Store !== 'undefined' && Store._cache) ? Store._cache : {};
+        Object.keys(cache).forEach(k => {
+            const q = this._DUBLETTEN_QUELLEN.find(x => x.re.test(k));
+            if (!q) return;
+            let arr;
+            try { arr = JSON.parse(cache[k]); } catch (e) { return; }
+            if (!Array.isArray(arr) || arr.length === 0) return;
+
+            const proId = {}, proInhalt = {};
+            let ohneId = 0;
+            arr.forEach(r => {
+                if (!r || typeof r !== 'object') return;
+                if (r.id === undefined || r.id === null || r.id === '') ohneId++;
+                else proId[r.id] = (proId[r.id] || 0) + 1;
+                // JSON.stringify statt eines Trennzeichens: quotet und escapet die
+                // Felder selbst. Ein einfaches join() koennte zwei verschiedene
+                // Feldbelegungen zur selben Signatur verkleben und damit Dubletten
+                // melden, die keine sind.
+                const sig = JSON.stringify([r.datum, r.beschreibung || r.marke || '', r[q.feld]]);
+                proInhalt[sig] = (proInhalt[sig] || 0) + 1;
+            });
+            const dubId     = Object.keys(proId).filter(x => proId[x] > 1).length;
+            const dubInhalt = Object.keys(proInhalt).filter(x => proInhalt[x] > 1).length;
+            const firma = (k.match(q.re)[1] || '').replace(/__$/, '') || '(ohne Firma)';
+
+            zeilen.push(
+                q.art.padEnd(14) + firma.padEnd(24) +
+                'n=' + String(arr.length).padStart(5) +
+                '  gleiche ID: ' + dubId +
+                '  gleicher Inhalt: ' + dubInhalt +
+                '  ohne ID: ' + ohneId
+            );
+        });
+        return zeilen;
+    },
+
     _buildDiagnoseReport() {
         let errors = [];
         try { errors = JSON.parse(localStorage.getItem('stackr_error_log') || '[]'); } catch (e) {}
@@ -1924,9 +1982,25 @@ const App = {
             'Firma (id): ' + (co ? co.id : '—'),
             'Speicher genutzt: ' + si.usedKB + ' KB',
             '',
-            'Fehlerprotokoll (letzte ' + errors.length + ' Einträge, keine Geschäftsdaten):',
+            'Dubletten-Befund (nur Zahlen, keine Geschäftsdaten, alle Firmen):',
             '------------------------------------------------------------'
         ];
+        let dubletten = [];
+        try { dubletten = this._dublettenBefund(); } catch (e) { dubletten = ['Prüfung fehlgeschlagen: ' + (e && e.message)]; }
+        if (dubletten.length === 0) {
+            lines.push('Keine Datensätze gefunden.');
+        } else {
+            dubletten.forEach(z => lines.push(z));
+            lines.push('');
+            lines.push('Lesart: "gleiche ID" > 0 heißt, derselbe Datensatz liegt mehrfach im');
+            lines.push('Array (Merge-/Migrationsfehler). "gleicher Inhalt" > 0 bei eindeutigen');
+            lines.push('IDs heißt, es gab zwei echte Speichervorgänge (Schreibpfad/Import).');
+            lines.push('"ohne ID" > 0 ist immer ein Befund: solche Sätze dedupliziert weder');
+            lines.push('der Backup-Merge noch der Cloud-Sync, beide schlüsseln über die ID.');
+        }
+        lines.push('');
+        lines.push('Fehlerprotokoll (letzte ' + errors.length + ' Einträge, keine Geschäftsdaten):');
+        lines.push('------------------------------------------------------------');
         if (errors.length === 0) {
             lines.push('Keine Fehler protokolliert.');
         } else {

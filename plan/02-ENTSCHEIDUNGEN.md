@@ -55,30 +55,58 @@ der geschriebene (bei einem Produkt, das mit „deine Daten verlassen dein Gerä
 kann das jeder nachprüfen); praktisch keine Lieferketten-Fläche (**eine** Produktiv-Abhängigkeit
 statt hunderter transitiver Pakete); keine Build-Fäulnis.
 
-**Wechselpunkt, falls doch:** wenn der Anwendungscode deutlich über die jetzigen ~1,8 MB wächst
-**oder** die zwei parallel laufenden Chart-Bibliotheken (~800 KB) grundsätzlich angegangen
-werden. Vorher bringt F2 mehr und kostet fast nichts.
+**Wechselpunkt, falls doch — entschieden 2026-09-12:** wenn das beim **Erstaufruf von `app.html`
+eager geladene JavaScript** deutlich über die heutigen **2,43 MB in 63 Dateien** wächst. Im
+Browser nachmessen, nicht auf der Platte:
 
-> ⚠️ **Die Größen-Schwelle ist gerissen — die Entscheidung darüber steht noch aus.**
-> Gemessen am **2026-09-10**: **2,33 MB** allein in `js/` ohne Vendor-Bibliotheken (+29 %
-> gegenüber den ~1,8 MB), **2,96 MB** mit den drei Sub-Apps (+65 %). Unter jeder Lesart also
-> überschritten — still, weil niemand nachgemessen hat. Nachmessen:
->
-> ```bash
-> find js -name '*.js' | grep -v vendor | xargs wc -c | tail -1
-> ```
->
-> **Was daraus folgt, entscheidet der Betreiber.** Die Schwelle stammt von ihm; sie zu streichen
-> oder hochzusetzen ist keine Doku-Korrektur. Zur Vorlage liegt dieses Argument:
->
-> Die drei Gründe oben hängen an keiner Stelle an der Dateigröße — der ausgelieferte Code *ist*
-> der geschriebene, ob er 1,8 oder 3 MB wiegt. Die Schwelle misst also etwas, das keinen der
-> drei Gründe berührt. Wäre das richtig, hülfe Hochsetzen nichts: sie erzeugte beim nächsten Mal
-> nur wieder stille Drift, und der tragfähige Auslöser bliebe der zweite aus demselben Satz —
-> die zwei Chart-Bibliotheken, die auf konkrete Doppelarbeit zeigen statt auf eine Zahl.
->
-> Bis zu seinem Wort bleibt der Satz oben unverändert stehen. Wer hier vorbeikommt, weiß damit
-> beides: dass die Schwelle gerissen ist, und dass die Frage offen und nicht übersehen ist.
+```js
+performance.getEntriesByType('resource').filter(r => r.name.endsWith('.js'))
+```
+
+**Nicht mitgezählt wird, was erst bei Bedarf kommt:** Tesseract (8,9 MB), ApexCharts, Chart.js
+und SheetJS. Genau diese Unterscheidung konnte die alte Schwelle nicht treffen.
+
+<details>
+<summary>Warum die alte ~1,8-MB-Schwelle ersetzt wurde (2026-09-10 gerissen, 2026-09-12 entschieden)</summary>
+
+Hier stand: „wenn der Anwendungscode deutlich über die jetzigen ~1,8 MB wächst **oder** die zwei
+parallel laufenden Chart-Bibliotheken (~800 KB) grundsätzlich angegangen werden."
+
+**Beide Hälften des Satzes waren unbrauchbar geworden — jede auf ihre Weise.**
+
+**Die Zahl war gerissen, ohne dass es jemanden erreicht hat.** Gemessen am 2026-09-10: 2,33 MB
+in `js/` ohne Vendor (+29 %), 2,96 MB mit den Sub-Apps (+65 %). Der Befund kam aus einer
+Doku-Drift-Prüfung, nicht daher, dass jemand etwas gemerkt hätte.
+
+**Und sie maß das Falsche.** Die drei Gründe oben hängen an keiner Stelle an der Dateigröße —
+der ausgelieferte Code *ist* der geschriebene, ob er 1,8 oder 3 MB wiegt. Vor allem aber wog
+sie Code, der **nie geladen wird**: Die 8,9 MB Tesseract-WASM liegen auf der Platte und kommen
+erst, wenn jemand einen Beleg scannt.
+
+**Deshalb ersetzt statt gestrichen.** Die Byte-Zahl war ein Stellvertreter für die eigentliche
+Frage — *wann tut die fehlende Optimierung dem Nutzer weh* —, und die Antwort darauf ist eine
+bessere Kennzahl, nicht gar keine. Ohne jede Schwelle fiele die Frage künftig einfach weg.
+
+**Die zweite Hälfte ist ersatzlos entfallen, weil sie schlicht nicht mehr stimmt.** Die zwei
+Chart-Bibliotheken laufen **nicht** parallel: Beide werden längst lazy geladen — ApexCharts über
+`_ensureApexCharts()` ([`js/dashboard.js:11`](../js/dashboard.js), ebenso
+`eigenbelege/js/app.js`), Chart.js über `_ensureChartJs()`
+([`js/statistiken.js:300`](../js/statistiken.js)); [`app.html:256`](../app.html) hält
+ausdrücklich fest, dass es nicht mehr eager geladen wird. Im Browser gegengeprüft: nach dem
+Erstaufruf sind `ApexCharts` und `Chart` beide `undefined`. **Die 800 KB liegen in keinem
+Ladepfad.** Dass zwei Diagramm-APIs dieselbe Aufgabe erledigen, bleibt ein Wartungsthema — als
+Ladezeit-Argument taugt es nicht, und als Auslöser für ein Build-System schon gar nicht.
+
+**Der eigentliche Hebel liegt gar nicht im Code.** Messung vom 2026-09-12, Erstaufruf `app.html`
+auf frischem Port: 73 Requests, 3,66 MB dekomprimiert. Größter Einzelposten ist die
+Tabler-Symbolschrift mit **447 KB plus 204 KB CSS = 651 KB allein für Symbole** — mehr als beide
+Chart-Bibliotheken zusammen. Wer hier Ladezeit sucht, fängt dort an, nicht beim Bundling.
+
+*(Die Zeitwerte derselben Messung — DOMContentLoaded 225 ms — taugen nur als Nulllinie:
+localhost, ohne Kompression und ohne Netzlatenz. Eine Aussage über echte Nutzer bräuchte eine
+Messung in Produktion.)*
+
+</details>
 
 ### Rate-Limits fallen bei Redis-Ausfall offen
 

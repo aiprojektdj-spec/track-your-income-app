@@ -10,7 +10,7 @@ const Rechtsform = {
         'Einzelunternehmen': {
             label:      'Einzelunternehmen',
             kurz:       'EU',
-            gewinnermittlung: 'euer',        // EÜR (unter 600k Umsatz / 60k Gewinn)
+            gewinnermittlung: 'euer',        // EÜR unterhalb der §141-AO-Grenzen, s. AO141_*_GRENZE
             bilanzPflicht:    false,          // nur wenn HGB-Grenzen überschritten
             bilanzOptional:   true,           // freiwillig möglich
             gewerbesteuer:    true,

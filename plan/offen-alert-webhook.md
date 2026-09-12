@@ -47,6 +47,10 @@ Repo, braucht nur den Token aus `.env.local`, keinen Vercel-Zugriff.
 wo Leere auch „ist längst rausgerollt" bedeuten kann; auf dem Hobby-Plan reicht es nur 30 Minuten
 bis 1 Stunde zurück.
 
+**Letzte Kontrolle: 2026-09-12 — 0 Alarme**, Speicher erreichbar. Gleichzeitig lief
+`node test/test-alert-ops.js` mit 23/23 grün: die Mechanik dahinter ist intakt, es fehlt
+weiterhin nur das Ziel.
+
 ## Woran man merkt, dass es erledigt ist
 
 - In Vercel steht `ALERT_WEBHOOK_URL` unter Settings → Environment Variables, **und** danach wurde

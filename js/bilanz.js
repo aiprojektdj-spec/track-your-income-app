@@ -78,14 +78,24 @@ const Bilanz = {
         const ausgabenKat = expNetting.byKategorie;
         const betriebsausgabenGesamt = expNetting.netto;
 
-        // AfA aus Anlagevermögen
-        const afaItems = Store.get('afa_items') || [];
-        const afaJahr = afaItems.reduce((s, item) => {
-            if (!item.aktiv) return s;
-            const nd = parseInt(item.nutzungsdauer) || 1;
-            const ak = parseFloat(item.anschaffungskosten) || 0;
-            return s + (ak / nd);
-        }, 0);
+        // AfA aus dem Anlagenverzeichnis (§7 EStG) — über js/afa.js, nicht selbst gerechnet.
+        //
+        // Bis zum 2026-09-13 stand hier `Store.get('afa_items')`. Diesen Key schreibt NIEMAND:
+        // das Anlagenverzeichnis liegt unter `afa_anlagen` und wird über Store.getAfaAnlagen()
+        // gelesen (js/afa.js, js/euer.js, js/steuerberater.js). Die Abschreibung in der GuV war
+        // damit immer 0. Ein zweiter Fehler hätte auch mit dem richtigen Key gegriffen: der
+        // Filter fragte `item.aktiv`, ein Feld, das es an einer Anlage nicht gibt — maßgeblich
+        // ist `storniert`. Getroffen hat das ausgerechnet GmbH, UG, OHG, KG und GmbH & Co. KG,
+        // also die Rechtsformen, die keine EÜR aufstellen dürfen und deshalb keine zweite
+        // Ansicht haben, in der die AfA korrekt erschiene.
+        //
+        // Auch die Höhe stimmte nicht: `ak / nd` ist stur linear und ignoriert die Monatsregel
+        // im Anschaffungsjahr (§7 Abs. 1 S. 4 EStG), die GWG-Sofortabschreibung (§6 Abs. 2) und
+        // die degressive AfA mit ihrem jahresabhängigen Satz (§7 Abs. 2). All das kann
+        // Afa._calcJahresAfa() bereits, geprüft in test/test-afa-degressiv-linear.js.
+        const afaJahr = (typeof Afa !== 'undefined' && Afa._totalAfaFuerJahr)
+            ? Afa._totalAfaFuerJahr(year)
+            : 0;
 
         // Rohertrag
         const rohertrag = umsatzerloese - wareneinsatz;
@@ -261,16 +271,20 @@ const Bilanz = {
         const yd = this._getYearData(year);
         const a  = yd.aktiva || {};
 
-        // AfA-Anlagevermögen
-        const afaItems = Store.get('afa_items') || [];
-        const anlagevermoegen = afaItems.reduce((s, item) => {
-            if (!item.aktiv) return s;
-            const ak = parseFloat(item.anschaffungskosten) || 0;
-            const nd = parseInt(item.nutzungsdauer) || 1;
-            const alter = new Date().getFullYear() - new Date(item.anschaffungsdatum || item.datum).getFullYear();
-            const restwert = Math.max(0, ak - (ak / nd * Math.min(alter, nd)));
-            return s + restwert;
-        }, 0);
+        // Anlagevermögen = Summe der Buchwerte zum Bilanzstichtag, über js/afa.js.
+        //
+        // Dieselbe tote Quelle wie in _calcGuV() (s. dort): `afa_items` schreibt niemand, und
+        // `item.aktiv` gibt es nicht — das Anlagevermögen auf der Aktivseite war immer 0.
+        // Damit fehlte in der Bilanz nicht nur ein Posten, es fehlte Bilanzsumme.
+        //
+        // Der alte Restwert rechnete zudem gegen `new Date().getFullYear()`, also gegen HEUTE
+        // statt gegen das Bilanzjahr: eine Bilanz für 2024 hätte den Buchwert von 2026 gezeigt.
+        // Afa._buchwertEnde(asset, year) rechnet stichtagsgenau und kennt dieselben Methoden
+        // wie die Jahres-AfA.
+        const afaAktiv = (typeof Afa !== 'undefined' && Afa._buchwertEnde && Store.getAfaAnlagen)
+            ? Store.getAfaAnlagen().filter(a => !a.storniert)
+            : [];
+        const anlagevermoegen = afaAktiv.reduce((s, a) => s + Afa._buchwertEnde(a, year), 0);
 
         // Manuelle Aktiva-Posten
         const posten = a.posten || [];
@@ -290,11 +304,12 @@ const Bilanz = {
                     <tbody>
                         <tr><td colspan="2" style="font-weight:700;color:var(--text-muted);">ANLAGEVERMÖGEN</td></tr>
                         <tr><td>Sachanlagen (AfA-Restwerte)</td><td style="text-align:right">${Utils.formatCurrency(anlagevermoegen)}</td></tr>
-                        ${afaItems.filter(i => i.aktiv).slice(0, 5).map(item => {
-                            const ak = parseFloat(item.anschaffungskosten) || 0;
-                            const nd = parseInt(item.nutzungsdauer) || 1;
-                            const alter = new Date().getFullYear() - new Date(item.anschaffungsdatum || item.datum).getFullYear();
-                            const rw = Math.max(0, ak - (ak / nd * Math.min(alter, nd)));
+                        ${afaAktiv.slice(0, 5).map(item => {
+                            // Derselbe Buchwert wie in der Summe darüber — nicht noch einmal
+                            // von Hand gerechnet. Die frühere Fassung hier war die dritte Kopie
+                            // der kaputten Logik: toter Key, Filter auf das nicht existierende
+                            // Feld `aktiv`, stur lineare Rechnung gegen das HEUTIGE Jahr.
+                            const rw = Afa._buchwertEnde(item, year);
                             return `<tr><td style="padding-left:28px;font-size:11px;color:var(--text-muted);">${Utils.escapeHtml((item.bezeichnung || item.name || '').substring(0, 30))}</td><td style="text-align:right;font-size:11px;">${Utils.formatCurrency(rw)}</td></tr>`;
                         }).join('')}
 

@@ -1922,10 +1922,14 @@ const Akademie = {
         const fullyListedCount = purchases.filter(p => p.foto && p.beschreibung && p.beschreibung.trim().length > 0).length;
 
         // Audit-Log-Einträge
+        // Bis zum 2026-09-13 stand hier Store.get('audits') — ein Key, den niemand schreibt.
+        // Das GoBD-Protokoll liegt firmenpräfixiert unter 'audit_log' und wird über
+        // Store.getAuditLog() gelesen. Die Zahl war damit immer 0, und das Achievement
+        // "Audit-Saubermann" (100+ Einträge, s. AUSZEICHNUNGEN oben) war unerreichbar.
+        // Derselbe Fehlertyp wie in js/bilanz.js (b7dea74).
         let auditEntries = 0;
         try {
-            const audits = Store.get('audits') || [];
-            auditEntries = audits.length;
+            auditEntries = (Store.getAuditLog ? Store.getAuditLog() : []).length;
         } catch (e) {}
 
         // Anzahl unique Bulk-Sessions

@@ -246,7 +246,18 @@ var StbShare = (function () {
     // Daten. Ihn zu sperren hiesse, den Berater einzusperren. Er schreibt auch nichts an den
     // Mandantendaten: CompanyManager.switchTo() setzt die aktive Firma um.
     var ALLOW_SET = { 'stb-exit': 1, 'close-modal': 1, 'navigate': 1, 'reload': 1, 'stop': 1, 'goto': 1, 'print-page': 1, 'stb-cancel-invite': 1, 'co-switch': 1 };
-    function blocks(name) { return isReadonly() && !ALLOW_SET[name] && WRITE_RE.test(name); }
+    // Gegenstueck zu ALLOW_SET: Namen, die belegt schreiben, aber kein Verb aus WRITE_RE tragen.
+    // Warum nicht einfach das Verb ergaenzen — die Frage stellt sich bei jedem Eintrag hier:
+    //   app-ust-dismiss -> App._ustDismissThreshold() -> Store.set(warnKey, '1')
+    //     `dismiss` in WRITE_RE aufzunehmen waere falsch. Das Verb trifft repo-weit auch
+    //     app-dismiss-backup-banner, und der schreibt nur eine UI-Vorliebe per localStorage,
+    //     keine Mandantendaten — der Berater koennte dann ein Banner nicht mehr wegklicken.
+    //     Dieselbe Ueberlegung wie bei `pick` (s. o.), nur mit umgekehrtem Ausgang: dort war
+    //     der Treffer harmlos und das Verb blieb draussen, hier ist EIN Name schreibend und
+    //     bekommt einen Einzeleintrag, statt ein Verb mit Kollateralschaden einzufuehren.
+    // Gefunden am 2026-09-13 beim Durchsehen der 114 ungesperrten Namen (01-AUFGABEN.md 1.7).
+    var BLOCK_SET = { 'app-ust-dismiss': 1 };
+    function blocks(name) { return isReadonly() && !ALLOW_SET[name] && (!!BLOCK_SET[name] || WRITE_RE.test(name)); }
 
     // ── UI: eigener Freigabe-Code ─────────────────────────────────────────────
     function _noApp() { if (typeof App === 'undefined' || !App.showModal) { _toast('Bitte im Haupt-Dashboard öffnen.', 'info'); return true; } return false; }

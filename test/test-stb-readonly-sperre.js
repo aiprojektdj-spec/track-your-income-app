@@ -16,6 +16,7 @@ const actSrc  = P('js/actions.js');
 const ebSrc   = P('eigenbelege/js/app.js');
 const cssSrc  = P('css/style.css');
 const rechSrc = P('rechnungen/js/rechnung.js');
+const euerSrc = P('js/euer.js');
 
 let pass = 0, total = 0;
 const check = (name, cond) => { total++; if (cond) { pass++; console.log('OK   ' + name); } else console.error('FAIL ' + name); };
@@ -23,7 +24,11 @@ const check = (name, cond) => { total++; if (cond) { pass++; console.log('OK   '
 // Regex und Allowlist im Wortlaut aus der Quelle schneiden, nicht abtippen.
 const WRITE_RE  = eval(stbSrc.match(/var WRITE_RE\s*=\s*(\/.*\/i);/)[1]);
 const ALLOW_SET = eval('(' + stbSrc.match(/var ALLOW_SET\s*=\s*(\{[^}]*\});/)[1] + ')');
-const blockt = n => !ALLOW_SET[n] && WRITE_RE.test(n);
+// Tolerant gelesen: verschwindet BLOCK_SET, soll C5 sauber fehlschlagen statt den ganzen
+// Harness mit einem TypeError abzuraeumen - die uebrigen Pruefungen sollen weiterlaufen.
+const _mBlock   = stbSrc.match(/var BLOCK_SET\s*=\s*(\{[^}]*\});/);
+const BLOCK_SET = _mBlock ? eval('(' + _mBlock[1] + ')') : {};
+const blockt = n => !ALLOW_SET[n] && (!!BLOCK_SET[n] || WRITE_RE.test(n));
 
 // A) Die Entscheidungsfunktion selbst
 check('A1 typische Schreibnamen werden gesperrt',
@@ -56,6 +61,16 @@ check('C1b co-switch bleibt trotz "switch" in WRITE_RE erlaubt',
 // "pick" ist bewusst NICHT aufgenommen: die drei pick-Aktionen fassen nur das DOM an.
 check('C1c app-pick-ust bleibt frei (reine DOM-Manipulation)', !blockt('app-pick-ust'));
 check('C1d lg-pick-swatch bleibt frei (reine DOM-Manipulation)', !blockt('lg-pick-swatch'));
+// Gefunden am 2026-09-13 beim Durchsehen aller 114 ungesperrten Namen: app-ust-dismiss
+// schreibt (Store.set), traegt aber kein Verb aus WRITE_RE. Geloest ueber BLOCK_SET statt
+// ueber ein neues Verb - C5b sagt, warum.
+check('C5 app-ust-dismiss ist gesperrt (ueber BLOCK_SET, war bis 2026-09-13 offen)',
+      blockt('app-ust-dismiss'));
+check('C5b app-dismiss-backup-banner bleibt frei - genau deshalb kein Verb "dismiss"',
+      !blockt('app-dismiss-backup-banner'));
+check('C5c "dismiss" ist NICHT in WRITE_RE gelandet (sonst faellt C5b)',
+      !WRITE_RE.test('app-dismiss-backup-banner'));
+
 check('C3 invSave traegt weiterhin kein data-action - nur die ID-Regel und der Store greifen',
       /getElementById\('invSave'\)\.addEventListener/.test(rechSrc)
       && !/data-action[^>]*invSave|invSave[^>]*data-action/.test(rechSrc));
@@ -75,6 +90,21 @@ check('D4 auch die Einstiege "Neue Rechnung"/"Neues Angebot"',
         .every(id => cssSrc.includes('body.stb-readonly ' + id)));
 check('D5 Vorschau und Abbrechen bleiben sichtbar (lesend bzw. Ausweg)',
       !/body\.stb-readonly #invPreview/.test(cssSrc) && !/body\.stb-readonly #invCancel/.test(cssSrc));
+
+// E) Die Attribut-Luecke. Der Chokepoint prueft blocks() NUR fuer data-action und
+// data-action-submit; an -input/-change/-blur haengen weitere Namen, die ein Namensfilter
+// deshalb grundsaetzlich nicht erreicht. euer-hebesatz war der belegte Schreibfall darin
+// (Store.saveSettings) und ist am Markup geloest, nicht ueber den Namen.
+check('E1 der Chokepoint prueft weiterhin nur data-action und -submit (Luecke dokumentiert)',
+      /attr === 'data-action' \|\| attr === 'data-action-submit'/.test(actSrc));
+check('E2 euer-hebesatz haengt an data-action-input, wird vom Namensfilter also nie erreicht',
+      /data-action-input="euer-hebesatz"/.test(euerSrc));
+check('E3 das Hebesatz-Feld wird in der Nur-Lese-Ansicht auf readonly gesetzt',
+      /StbShare\.isReadonly\(\)/.test(euerSrc) && /\breadonly\b/.test(euerSrc));
+check('E4 das readonly-Attribut steht wirklich am Hebesatz-Feld',
+      /data-action-input="euer-hebesatz"\$\{hebesatzRo\}/.test(euerSrc));
+check('E5 nur lesen, nicht verstecken - der Berater soll den Hebesatz weiter sehen',
+      !/body\.stb-readonly #gewstHebesatz/.test(cssSrc));
 
 console.log('');
 console.log(pass + '/' + total + ' bestanden');

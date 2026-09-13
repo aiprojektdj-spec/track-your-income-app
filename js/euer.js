@@ -687,6 +687,16 @@ const Euer = {
         const gewerbesteuer = steuermessbetrag * (hebesatz / 100);
         const istGewPflichtig = gewinn > freibetrag;
         const rechtsformLabel = typeof Rechtsform !== 'undefined' ? Rechtsform.get() : 'Einzelunternehmen';
+        // Nur-Lese-Ansicht des Steuerberaters: das Feld haengt an data-action-input, und der
+        // zentrale Chokepoint (js/actions.js) prueft StbShare.blocks() NUR fuer data-action und
+        // data-action-submit. Ein Namensfilter erreicht dieses Feld also grundsaetzlich nicht —
+        // deshalb hier am Markup. Der Store weist den Schreibvorgang ohnehin ab; ohne readonly
+        // rechnete die Anzeige aber live mit einem Hebesatz weiter, der nirgends gespeichert
+        // wird. Ein Berater entschiede dann auf einem Stand, den er selbst erzeugt hat.
+        // Gefunden am 2026-09-13 (01-AUFGABEN.md 1.7).
+        const hebesatzRo = (typeof StbShare !== 'undefined' && StbShare.isReadonly && StbShare.isReadonly())
+            ? ' readonly title="Nur-Lese-Ansicht — der Hebesatz des Mandanten kann hier nicht geändert werden."'
+            : '';
 
         return `
         <div class="card" style="margin-top:20px;" id="euerGewStCard">
@@ -707,7 +717,7 @@ const Euer = {
                                 Hebesatz der Gemeinde
                                 <input type="number" id="gewstHebesatz" value="${hebesatz}" min="200" max="900" step="50"
                                     style="width:70px;margin-left:8px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);"
-                                    data-action-input="euer-hebesatz">
+                                    data-action-input="euer-hebesatz"${hebesatzRo}>
                                 %
                                 <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">(Ø Deutschland: 400%)</span>
                             </td>

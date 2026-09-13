@@ -167,12 +167,18 @@ const Statistiken = {
             if (!platData[p]) platData[p] = { umsatz: 0, count: 0, gewinn: 0, ek: 0 };
             platData[p].umsatz += parseFloat(s.verkaufspreis) || 0;
             platData[p].count++;
+            // Menge mitrechnen: einkaufspreis ist der Stückpreis, ein Verkauf nimmt den
+            // ganzen Einkaufssatz mit (Store.saveSale setzt den Satz komplett auf 'verkauft',
+            // es gibt keine Teilmenge). Ohne den Faktor stand der Gewinn je Plattform zu hoch.
             let ek = 0;
             if (s.purchaseIds && s.purchaseIds.length > 0) {
-                s.purchaseIds.forEach(pid => { const p2 = allPurchases.find(x => x.id === pid); if (p2) ek += parseFloat(p2.einkaufspreis) || 0; });
+                s.purchaseIds.forEach(pid => {
+                    const p2 = allPurchases.find(x => x.id === pid);
+                    if (p2) ek += (parseFloat(p2.einkaufspreis) || 0) * (parseInt(p2.anzahl) || 1);
+                });
             } else if (s.purchaseId) {
                 const p2 = allPurchases.find(x => x.id === s.purchaseId);
-                ek = p2 ? (parseFloat(p2.einkaufspreis) || 0) : 0;
+                ek = p2 ? (parseFloat(p2.einkaufspreis) || 0) * (parseInt(p2.anzahl) || 1) : 0;
             }
             platData[p].ek += ek;
             const net = Utils.calculateNetRevenue(s.verkaufspreis, s.versandkostenKaeufer, s.plattformgebuehrProzent, s.versandkostenVerkaufer);
@@ -596,17 +602,20 @@ const Statistiken = {
             let ek = 0;
             let purchaseDatum = null;
 
+            // Menge mitrechnen wie in allen uebrigen EK-Summen dieser Datei — ohne den Faktor
+            // stand "Gewinn pro Marke" hier anders als im Diagramm derselben Seite (das ihn
+            // mit Menge bildet). Zwei Zahlen, ein Name, ein Bildschirm.
             if (s.purchaseIds && s.purchaseIds.length > 0) {
                 s.purchaseIds.forEach(pid => {
                     const p = allPurchases.find(x => x.id === pid);
                     if (p) {
-                        ek += parseFloat(p.einkaufspreis) || 0;
+                        ek += (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
                         if (!purchaseDatum || (p.datum && p.datum < purchaseDatum)) purchaseDatum = p.datum;
                     }
                 });
             } else if (s.purchaseId) {
                 const p = allPurchases.find(x => x.id === s.purchaseId);
-                if (p) { ek = parseFloat(p.einkaufspreis) || 0; purchaseDatum = p.datum; }
+                if (p) { ek = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1); purchaseDatum = p.datum; }
             }
 
             const vk    = parseFloat(s.verkaufspreis) || 0;

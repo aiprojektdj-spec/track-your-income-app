@@ -23,13 +23,15 @@ In drei pfad-gescopten Commits:
 | **A4** Storno-Filter fehle | ❌ **Fund war falsch, zurückgezogen** — siehe unten |
 | **A5** Zeitzonen-Jahreszuordnung Gewerbesteuer | ✅ entfällt — die Stelle ist ersatzlos weg |
 | **A6** eine **fünfte** Gewinnermittlung in `gbr-modul.js` | ✅ behoben am 2026-09-12 — Feststellungserklärung und §141-AO-Weiche hingen daran |
+| **A7** `bilanz.js` las die AfA aus einem toten Key | ✅ behoben am 2026-09-13 (`b7dea74`) — AfA und Anlagevermögen waren immer 0 |
+| **A8** derselbe tote Key in `akademie.js` | ✅ behoben am 2026-09-13 (`bede2ce`) |
 | **B1** `ui-lab.html` ohne Gate, CSP, `noindex` | ✅ behoben, im Browser gegen die echte CSP geprüft |
 | **B2** `X-XSS-Protection` veraltet | ✅ behoben am 2026-09-12 — Wert jetzt `0` |
-| **C** 20 Module ohne Test | teilweise — drei neue Harnesse, 99 Checks; `rechtsform` dazugekommen |
+| **C** Module ohne Test | teilweise — vier neue Harnesse, 121 Checks; Zählung korrigiert auf **24 von 56** |
 | **D1** Icon-Buttons ohne `aria-label` | ✅ behoben, 11 Stellen (2 mehr als gemeldet) |
 | **E** `robots.txt`-Drift | ✅ behoben |
 
-Testsuite: **53 Harnesse, alle grün** (vor dem Audit 50).
+Testsuite: **56 Harnesse, alle grün** (vor dem Audit 50; drei davon aus einer Parallel-Session).
 
 ---
 
@@ -37,11 +39,15 @@ Testsuite: **53 Harnesse, alle grün** (vor dem Audit 50).
 
 Das Vollaudit vom August 2026 hat 17 Themen über rund 70 Funde abgearbeitet. Dieselben Themen
 erneut zu fahren, hätte wenig gebracht. Der Einstieg war deshalb die Frage, **wo das Repo bisher
-gar nicht hingeschaut hat**: 20 der 48 Module haben keinerlei Testabdeckung, und genau dort liegt
-der schwerwiegendste Fund.
+gar nicht hingeschaut hat**: rund die Hälfte der Module hat keinerlei Testabdeckung, und genau
+dort liegen die schwersten Funde — A1, A6 und A7 kamen alle aus ungetestetem Code.
 
 **Ausgangslage:** 50 von 50 Testharnessen grün. ~39.000 Zeilen JS, 1.659 Zeilen `api/`,
 5.067 Zeilen HTML, 4.691 Zeilen CSS.
+
+> Die Zeilen- und Modulzahlen in diesem Bericht sind Momentaufnahmen vom 2026-09-09 und driften.
+> Die Abdeckungszahl stand zunächst als „20 von 48" hier und war doppelt falsch — siehe die
+> Korrektur in **Kategorie C**. Im Zweifel neu messen, nicht diesen Bericht zitieren.
 
 ---
 
@@ -187,6 +193,58 @@ Nebenbefund derselben Runde: `test-25a-pauschalmarge.js` prüfte per Quelltext, 
 die §25a-Warenart mitprüft. Diese zweite Kopie ist mit dem Fix verschwunden; der Check prüft
 jetzt den Bezug zur EÜR statt der Kopie.
 
+### A7 — Die Bilanz las die Abschreibung aus einem Key, den niemand schreibt — ✅ GEFIXT 2026-09-13
+
+> **Nachtrag vom 2026-09-13**, gefunden beim Prüfen von `js/bilanz.js` — dem Modul, das im
+> letzten Bericht als „nächster sinnvoller Schritt" benannt war.
+
+[`js/bilanz.js`](../js/bilanz.js) holte das Anlagenverzeichnis über `Store.get('afa_items')`.
+**Diesen Schlüssel schreibt nirgends jemand.** Die Anlagen liegen unter `afa_anlagen` und werden
+über `Store.getAfaAnlagen()` gelesen — so wie `afa.js`, `euer.js` und `steuerberater.js` es tun.
+Der Aufruf lieferte also immer eine leere Liste.
+
+Folge an drei Stellen:
+
+1. **GuV:** Die AfA war immer 0, der Jahresüberschuss entsprechend zu hoch — und damit die
+   Bemessungsgrundlage für Körperschaft- und Gewerbesteuer.
+2. **Aktivseite:** Das Anlagevermögen war immer 0. Der Bilanz fehlte nicht nur ein Posten, ihr
+   fehlte **Bilanzsumme**.
+3. Die Einzelaufstellung der Anlagen darunter blieb leer.
+
+Getroffen hat das GmbH, UG, OHG, KG und GmbH & Co. KG — die Rechtsformen, die **keine EÜR
+aufstellen dürfen** und deshalb keine zweite Ansicht haben, in der die Abschreibung korrekt
+erschienen wäre.
+
+Zwei weitere Fehler steckten in derselben Stelle: Gefiltert wurde auf `item.aktiv` — ein Feld,
+das es an einer Anlage nicht gibt (maßgeblich ist `storniert`); mit dem richtigen Key hätte
+also *trotzdem* alles herausgefallen. Und `ak / nd` ist stur linear: ohne Monatsregel im
+Anschaffungsjahr (§7 Abs. 1 S. 4 EStG), ohne GWG-Sofortabschreibung (§6 Abs. 2), ohne degressive
+AfA (§7 Abs. 2). Die Aktivseite rechnete ihren Restwert zudem gegen `new Date().getFullYear()`
+statt gegen das Bilanzjahr — eine Bilanz für 2024 zeigte den Buchwert von heute.
+
+`js/afa.js` konnte all das längst: `_totalAfaFuerJahr(year)` und `_buchwertEnde(asset, year)`.
+
+**Anders als A1/A6 ist eine eigene Rechnung hier fachlich richtig:** Eine GuV nach §4 Abs. 1
+EStG/HGB folgt der Periodenabgrenzung, die EÜR dem Zufluss-/Abflussprinzip (§4 Abs. 3). Der
+EÜR-Gewinn darf hier gerade **nicht** übernommen werden. Geändert wurde nur die AfA-Quelle.
+
+**Beim Fixen selbst fast ein Folgefehler:** Eine dritte Stelle sprach weiter die gelöschte
+Variable `afaItems` an. `node --check` sieht so etwas nicht (die Syntax ist gültig), ein Regex
+auch nicht — erst der Aufruf wirft den `ReferenceError`. `test/test-bilanz.js` führt
+`_renderAktiva()` deshalb wirklich aus. Commit `b7dea74`.
+
+### A8 — Derselbe tote Key in der Akademie — ✅ GEFIXT 2026-09-13
+
+Ein Sweep über **alle** `Store.get('<literal>')`-Aufrufe nach dem A7-Fund brachte einen zweiten
+Fall: [`js/akademie.js`](../js/akademie.js) zählte die Protokolleinträge über
+`Store.get('audits')` statt `Store.getAuditLog()`. Die Zahl war immer 0, das Achievement
+„Audit-Saubermann" (100+ dokumentierte Änderungen) damit unerreichbar. Commit `bede2ce`.
+
+**Ausdrücklich kein Fund** sind die übrigen Sweep-Treffer — `Store.get('ausgaben')` und
+`Store.get('retouren')` in `bilanz.js`, `koerperschaftsteuer.js`, `vorsteuer.js` und
+`oesterreich.js`. Sie stehen samt und sonders hinter `Store.getExpenses ? … : …`, also in einem
+Fallback-Zweig, der nie läuft. Hier notiert, damit der nächste Sweep nicht dieselbe Runde dreht.
+
 ### A5 — Zeitzonenabhängige Jahreszuordnung (klein, aber inkonsistent)
 
 [`js/gewerbesteuer.js:31-33`](../js/gewerbesteuer.js:31) grenzt das Jahr mit
@@ -235,8 +293,15 @@ XSS-Auditor entfernt, und in den Browsern, die ihn noch kennen, konnte er selbst
 
 ## C. Testabdeckung
 
-50 von 50 Harnessen laufen grün — das ist belastbar. Die Lücke ist nicht die Qualität der
-Tests, sondern ihre **Verteilung**: 20 Module haben keinen einzigen.
+Die Harnesse laufen grün — das ist belastbar. Die Lücke ist nicht die Qualität der Tests,
+sondern ihre **Verteilung**.
+
+> **Korrektur vom 2026-09-13:** Hier stand „20 von 48 Modulen". Beide Zahlen waren falsch.
+> `js/` enthält **56** Module, und die Abdeckung war zu optimistisch gemessen: Die Heuristik
+> zählte jede *Erwähnung* eines Modulnamens in `test/` als Abdeckung — auch eine, die bloß im
+> Kommentar stand. Schärfer gezählt (lädt ein Test die Datei per `js/<name>.js` wirklich?) sind
+> es **24 von 56**. `bilanz.js` galt nach der alten Zählung als abgedeckt und war es nicht —
+> genau dort lag dann Fund A7.
 
 Rechenrelevant und ungetestet:
 

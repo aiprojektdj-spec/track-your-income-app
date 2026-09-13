@@ -210,13 +210,30 @@ const Utils = {
         return el.value || '';
     },
 
+    // Nettoerlös eines Verkaufs: was nach Plattformgebühr und Porto beim Verkäufer bleibt.
+    //
+    // Der vom Käufer gezahlte Versand gehört auf die EINNAHMEN-Seite. Bis zum 2026-09-13 stand
+    // hier `vk - plattformGebuehr - vkVerkaufer`: die Gebühr wurde auf `(vk + vkKaeufer)`
+    // berechnet, der Käufer-Versand also als Kostenbasis anerkannt — als Einnahme aber nicht
+    // gebucht. Das Ergebnis war um genau `versandkostenKaeufer` zu niedrig.
+    //
+    // Beispiel: 100 € Verkauf, 5 € Käufer-Versand, 10 % Gebühr, 4 € Porto. Der Käufer zahlt
+    // 105 €, die Plattform behält 10,50 €, das Porto kostet 4 € — beim Verkäufer bleiben
+    // 90,50 €. Die alte Formel sagte 85,50 €.
+    //
+    // Das ist Fund A3 aus plan/funde-vollaudit-2026-09-09.md an seiner Wurzel. Der Fix vom
+    // 2026-09-09 traf nur Dashboard._getYearStats(); diese Hilfsfunktion blieb stehen und
+    // speist weiterhin js/buchungen.js (Nettoerlös-Vorschau im Verkaufsformular),
+    // js/dashboard.js und fünf Stellen in js/statistiken.js. js/euer.js zählt
+    // `verkaufspreis + versandkostenKaeufer` seit jeher zur Einnahme — jetzt stimmen beide
+    // überein.
     calculateNetRevenue(verkaufspreis, versandkostenKaeufer, plattformgebuehrProzent, versandkostenVerkaufer) {
         const vk = parseFloat(verkaufspreis) || 0;
         const vkKaeufer = parseFloat(versandkostenKaeufer) || 0;
         const gebProzent = parseFloat(plattformgebuehrProzent) || 0;
         const vkVerkaufer = parseFloat(versandkostenVerkaufer) || 0;
         const plattformGebuehr = (vk + vkKaeufer) * (gebProzent / 100);
-        return vk - plattformGebuehr - vkVerkaufer;
+        return vk + vkKaeufer - plattformGebuehr - vkVerkaufer;
     },
 
     getMonthName(monthIndex) {

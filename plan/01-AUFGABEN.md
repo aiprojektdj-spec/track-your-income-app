@@ -372,6 +372,46 @@ einzeln geprüften Namen sind nicht einzeln geprüft.
 > ohnehin wartet. Belegt sind Zählung, Handler-Zuordnung, Bindungsart und die Verdrahtung am
 > Quelltext.
 
+**Nachtrag 2026-09-13: die 112 offenen Namen sind jetzt durchgesehen — zwei schreiben.**
+
+Nicht als Allowlist-Umbau (der bleibt verworfen), sondern mit der Methode, die oben schon getragen
+hat: Handler nachschlagen statt vom Namen schließen, diesmal maschinell für alle statt für fünf
+Kandidaten. Gemessen am 2026-09-13, kein Worktree im Weg (`git worktree list`): **173 Namen an
+`data-action`/`-submit`, 59 gesperrt, 114 nicht.** Von den 114 ließen sich 110 einem Handler in der
+zentralen Registry zuordnen; die vier übrigen (`eb-*`, `eb-filter`, `eb-ocr-file`, `eb-recalc`)
+gehören zum eigenen Router der Eigenbelege und stehen als Lücke schon oben.
+
+| Aktion | Handler | Schreibt | Warum ungesperrt |
+|---|---|---|---|
+| `app-ust-dismiss` | `App._ustDismissThreshold()` | `Store.set(warnKey, '1')` | `dismiss` steht nicht in `WRITE_RE` |
+| `euer-hebesatz` | `Euer._updateHebesatz()` | `Store.saveSettings()` | hängt an `data-action-input` — **dort prüft der Chokepoint gar nicht** |
+
+**Der zweite Fund ist der strukturell interessante.** [`js/actions.js:26`](../js/actions.js) ruft
+`blocks()` nur für `data-action` und `data-action-submit` auf, begründet mit „nur echte
+Mutations-Events, damit Ansicht/Filter frei bleiben". An `-input`, `-change` und `-blur` hängen
+aber **25 weitere Namen**, und die sind vom Namensfilter grundsätzlich nicht erreichbar — gleich
+wie sie heißen. `euer-hebesatz` schreibt den **Gewerbesteuer-Hebesatz des Mandanten** in die
+Einstellungen, während der Berater tippt.
+
+**Beide sind ungefährlich, weil der Store-Guard darunter greift:** `saveSettings()` läuft über
+`set()` ([`js/store.js:1049`](../js/store.js)), und `set()` weist `_readonly`-Firmen ab. Es bleibt
+also bei dem, was oben schon steht — die Namensschicht ist Kosmetik, die Absicherung sitzt im
+Store. Neu ist nur, dass das jetzt **ausgezählt** ist statt vermutet.
+
+**Fixes bewusst nicht gebaut, aus drei Gründen:**
+
+1. `js/app.js` und `js/euer.js` hielten beim Nachmessen parallele Sessions.
+2. Für `app-ust-dismiss` wäre `dismiss` in `WRITE_RE` **falsch**: das Verb trifft repo-weit auch
+   `app-dismiss-backup-banner`, und der schreibt nur eine UI-Vorliebe per `localStorage`, keine
+   Mandantendaten — der Berater könnte dann ein Banner nicht mehr wegklicken. Dieselbe Überlegung
+   wie bei `pick`, das deshalb draußen blieb. Es bräuchte ein `BLOCK_SET` neben `ALLOW_SET`, also
+   neue Mechanik statt eines Verbs.
+3. Für `euer-hebesatz` hilft kein Name. Entweder prüft der Chokepoint `-input`/`-change` mit —
+   dann muss `u-date-finish` in `ALLOW_SET`, der einzige dortige `WRITE_RE`-Treffer, und der
+   formatiert bloß ein Datumsfeld — oder das Feld wird in `body.stb-readonly` auf `readonly`
+   gesetzt. Letzteres ist ehrlicher, gehört aber in `js/euer.js`.
+
+
 ### 1.0 OCR-Belegerkennung · ✅ erledigt 2026-08-27
 
 Gebaut nach [`ocr-belegerkennung-2026-08-12.md`](ocr-belegerkennung-2026-08-12.md) und
@@ -547,11 +587,36 @@ aufsetzen" ruft `action: 'reset_all'` und räumt zusätzlich per `BlobAttachment
 Anhänge weg. Er ist nur als Reparaturweg präsentiert und im Sync-Panel versteckt — also genau
 dort, wo ein Nutzer nach dem Deaktivieren nicht mehr hinschaut.
 
-**Zu entscheiden:** ob „Alle Daten löschen" bei fehlendem Schlüssel automatisch auf `reset_all`
+~~**Zu entscheiden:** ob „Alle Daten löschen" bei fehlendem Schlüssel automatisch auf `reset_all`
 zurückfallen soll (löscht dann **alle** Firmen dieses Kontos, nicht nur die eine — das ist der
 Haken), oder ob es dafür einen eigenen, klar benannten Knopf „Cloud-Daten endgültig löschen"
-gibt. Die Frage ist nicht technisch, sondern eine Abwägung zwischen Vollständigkeit und dem
-Risiko, dass jemand mehr löscht als gewollt.
+gibt.~~
+
+**✅ Entschieden und gebaut am 2026-09-13 (`ef76686`).** Der Betreiber hat **zwei getrennte
+Knöpfe** gewählt, benannt nach ihrer Reichweite — kein stiller Rückfall: Wer eine Firma meint,
+darf nicht versehentlich alle löschen.
+
+| Knopf | Weg | Reichweite | Braucht Schlüssel |
+|---|---|---|---|
+| „Daten dieser Firma loeschen" | `deleteRemote(scope)` | aktive Firma | ja, sonst bleiben die Anhänge liegen |
+| „Alle Cloud-Daten dieses Kontos loeschen" | `deleteAllRemote()` — **neu** | alle Firmen | **nein** |
+
+`deleteAllRemote()` ruft dieselben zwei Server-Aktionen wie der Reset-Knopf (`reset_all` +
+`BlobAttachments.purgeAll()`), mintet aber **keinen neuen Schlüssel** und zeigt keinen neuen
+Code. Genau das war der Unterschied, den die alte Lage vermissen ließ: Der vorhandene
+vollständige Weg war ein *Reset zum Weiterarbeiten* und drückte dem Aufhörenden am Ende einen
+frischen Wiederherstellungscode in die Hand.
+
+**Die scharfe Kante ist die Reihenfolge, nicht der Umfang:** Bei einem Serverfehler wird
+**nichts** lokal aufgeräumt. Wer dort zu früh löscht, nimmt dem Nutzer den Schlüssel für den
+zweiten Versuch, während die Cloud-Daten liegen bleiben — die Sackgasse, die es hier schon
+einmal gab. Abgesichert durch [`test/test-cloud-delete-all.js`](../test/test-cloud-delete-all.js),
+18 Checks, von denen die Hälfte prüft, was bei einem Fehlschlag **nicht** passiert.
+
+**Nicht im Browser gegengeprüft:** Der Dialog sitzt hinter dem Whop-Gate, und auf localhost ist
+der Login strukturell unmöglich. Gehört in die nächste Live-Test-Sitzung (§2.3) — dort reicht
+ein Blick, ob beide Knöpfe erscheinen und der zweite die Warnung „betrifft alle Firmen" zeigt.
+**Den Löschweg selbst dabei nicht an echten Daten auslösen.**
 
 ### 2.4 Produktentscheidungen · ✅ alle getroffen (2026-08-23)
 

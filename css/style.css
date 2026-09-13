@@ -1140,6 +1140,23 @@ a:hover { color: var(--accent-light); }
     transition: border-color 0.18s var(--ease-calm), box-shadow 0.18s var(--ease-calm), background 0.18s var(--ease-calm);
 }
 
+/* iOS Safari zoomt beim Fokus in JEDES Feld unter 16px hinein — und zoomt danach nicht von
+   selbst zurueck. Die 13,5px oben sind also auf dem iPhone keine Stilfrage, sondern ein
+   Bedienfehler: nach dem ersten Tippen steht die halbe Oberflaeche ausserhalb des Bildschirms.
+   Bewusst NICHT ueber max-width: ein iPad im Querformat ist breiter als jeder Handy-Breakpoint
+   und zoomt genauso. `hover:none` + `pointer:coarse` trifft das Geraet statt die Fensterbreite,
+   der Desktop behaelt seine 13,5px.
+   Ausnahme, die hier absichtlich NICHT mitgezogen wird: `.bulk-table` setzt weiter unten
+   12px !important, damit die Bulk-Eingabe auf schmalen Schirmen ueberhaupt in die Tabelle
+   passt. Dort bleibt der Zoom — Dichte gegen Zoom ist eine Abwaegung, keine Panne. */
+@media (hover: none) and (pointer: coarse) {
+    .form-input,
+    .form-select,
+    .form-textarea {
+        font-size: 16px;
+    }
+}
+
 .form-input::placeholder,
 .form-textarea::placeholder {
     color: var(--text-muted);

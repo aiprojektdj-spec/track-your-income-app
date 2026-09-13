@@ -1608,13 +1608,32 @@ const App = {
             // vorgeschalteten Screen — companies.js `showOnboarding()` wird dafür nicht mehr aufgerufen.
             if (!CompanyManager.getActiveId()) {
                 const farbe = CompanyManager.FARBEN[Math.floor(Math.random() * CompanyManager.FARBEN.length)].hex;
-                const co = CompanyManager.create(d.firmenname, farbe, d.branche, 'DE');
-                if (!co) return false; // Plan-Limit (max. 1 Firma ohne Pro) hat schon einen Toast gezeigt
-                localStorage.setItem(CompanyManager.ACTIVE_KEY, co.id);
-                Store._companyId = co.id;
-                CompanyManager.migrateExistingData(co.id);
-                const switcherEl = document.getElementById('companySwitcher');
-                if (switcherEl) switcherEl.innerHTML = CompanyManager.renderSwitcherBtn();
+                // try/catch, weil hier der ERSTE Schreibvorgang eines neuen Kunden stattfindet:
+                // CompanyManager.create() -> _save() -> localStorage.setItem, alle drei ohne
+                // eigene Fehlerbehandlung. Ein QuotaExceededError (voller Speicher, Safari im
+                // privaten Modus) lief bisher bis in den Click-Handler von "Weiter" durch und
+                // starb dort. Der Nutzer sah nichts: kein Toast, kein Schritt weiter, nichts.
+                // js/error-logger.js protokolliert den Wurf zwar, ZEIGT ihn aber nicht — der
+                // Vorfall war nur ueber den Diagnose-Export auffindbar.
+                // Denselben Fix gab es schon einmal (13e20ab, 2026-07-11) fuer
+                // _submitOnboarding(); der Wizard-Umbau am 2026-07-16 hat die Funktion ersetzt
+                // und die Absicherung dabei verloren. 13e20ab liegt bis heute unmerged auf
+                // feature/csp-phase-c.
+                // Der Schutz liegt um den GANZEN Block, nicht nur um create(): das
+                // setItem(ACTIVE_KEY) direkt danach schreibt in denselben vollen Speicher und
+                // wirft aus demselben Grund.
+                try {
+                    const co = CompanyManager.create(d.firmenname, farbe, d.branche, 'DE');
+                    if (!co) return false; // Plan-Limit (max. 1 Firma ohne Pro) hat schon einen Toast gezeigt
+                    localStorage.setItem(CompanyManager.ACTIVE_KEY, co.id);
+                    Store._companyId = co.id;
+                    CompanyManager.migrateExistingData(co.id);
+                    const switcherEl = document.getElementById('companySwitcher');
+                    if (switcherEl) switcherEl.innerHTML = CompanyManager.renderSwitcherBtn();
+                } catch (err) {
+                    Utils.showToast('❌ Firma konnte nicht angelegt werden: ' + (err && err.message ? err.message : err), 'error');
+                    return false;
+                }
             } else {
                 // Die Firma entsteht schon in Schritt 1. Wer aus Schritt 2 zurückgeht und einen
                 // Tippfehler im Firmennamen korrigiert, lief bis 2026-08-11 in den if-Zweig

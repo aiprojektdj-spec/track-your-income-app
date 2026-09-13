@@ -32,10 +32,63 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Dieser Abschnitt ist wieder leer** (Stand 2026-09-04). Alle drei Funde aus Live-Test 5 sind
-gefixt und stehen unten als ✅ — jeweils mit dem, was sich beim Bauen gegenüber der
-ursprünglichen Fundbeschreibung als falsch herausgestellt hat. Das ist bei zweien von dreien
-passiert, also beim Lesen der Fundtexte einkalkulieren.
+**Stand 2026-09-13: zwei offene Punkte, siehe 1.8 und 1.9.** Hier stand bis heute „dieser
+Abschnitt ist wieder leer" (vom 2026-09-04). Das stimmte nicht mehr: Fund C des Vollaudits lebte
+nur im Auditbericht und war nie in diese Liste gewandert, und am 2026-09-13 kamen die offenen
+DATEV-Punkte dazu.
+
+Die drei Funde aus Live-Test 5 sind weiterhin gefixt und stehen unten als ✅ — jeweils mit dem,
+was sich beim Bauen gegenüber der ursprünglichen Fundbeschreibung als falsch herausgestellt hat.
+Das ist bei zweien von dreien passiert, also beim Lesen der Fundtexte einkalkulieren.
+
+### 1.8 Harnesse für die ungetesteten Rechenmodule (Fund C des Vollaudits)
+
+Quelle: [`funde-vollaudit-2026-09-09.md`](funde-vollaudit-2026-09-09.md), Kategorie C. Stand
+2026-09-13: **24 von 56 Modulen** werden von keinem Test tatsächlich geladen.
+
+Das ist keine Fleißaufgabe, sondern der Hebel hinter den schwersten Funden des Audits: A1, A6
+und A7 kamen **alle** aus ungetestetem Code. `bilanz.js` galt sogar als abgedeckt, weil eine zu
+lockere Zählung bloße *Erwähnungen* eines Modulnamens mitzählte — dort lag dann A7 (AfA und
+Anlagevermögen waren immer 0).
+
+Schon erledigt: `test-gewinn-eine-quelle.js`, `test-euer-nebenmodule.js`, `test-rechtsform.js`,
+`test-bilanz.js`.
+
+Offen, nach Rechenrelevanz:
+
+| Zeilen | Modul | Warum es zählt |
+|---|---|---|
+| 705 | `statistiken` | **in Arbeit** (Parallel-Session, Stand 2026-09-13) |
+| 635 | `materiallager` | speist die Materialkosten der EÜR |
+| 422 | `datev` | ✅ hat seit `fc28401` einen Harness, s. 1.9 |
+| 650 | `fahrtenbuch` | speist Z50 der EÜR |
+| 952 | `i18n` | keine Rechenlogik, aber jede Oberfläche hängt daran |
+
+**Vor dem Greifen abstimmen** — an diesem Repo arbeiten mehrere Sessions gleichzeitig.
+
+### 1.9 DATEV-Stapel: zwei Punkte, die eine Festlegung brauchen
+
+Aus `fc28401` (Parallel-Session, 2026-09-13). Drei Fehler sind dort schon gefixt — fehlende
+Menge bei Sammel-Einkäufen, HTML-Escaping in den Buchungstexten (`Reck & Schwarz` wurde zu
+`Reck &amp; Schwarz`), und eine Kopfzeile, die 20 Felder schmaler war als die Datenzeilen. Neu
+dazu: `test/test-datev-export.js`. Details in
+[`funde-datev-2026-09-13.md`](funde-datev-2026-09-13.md).
+
+Offen geblieben sind zwei Punkte, die **nicht** durch Raten zu schließen sind:
+
+**(a) Ist 96 die richtige Spaltenzahl?** `js/datev.js` setzt Kopf und Zeilen jetzt aus derselben
+`SPALTEN`-Liste, die Breiten stimmen also zueinander. Ob 96 der von DATEV-Formatversion 12
+verlangten Spaltenzahl entspricht, ist damit **nicht** beantwortet — dafür braucht es die
+offizielle Formatbeschreibung.
+
+**(b) Der Stapel liest vier von neun Quellen.** Verifiziert am 2026-09-13: `js/datev.js` greift
+auf `getSales`, `getPurchases`, `getExpenses` und `getRechInvoices` zu. Es fehlen **Fahrtkosten,
+AfA, Materialverbrauch, Retouren und Eigenbelege** — alles Posten, die in der EÜR sehr wohl
+zählen. Der Export an den Steuerberater ist damit unvollständig.
+
+Bewusst nicht nebenbei gefixt: AfA, Plattformgebühren und Retouren brauchen je eine
+Buchungsregel (Konto, Gegenkonto, BU-Schlüssel). Das ist eine fachliche Festlegung, keine
+Fleißaufgabe — und gehört eher in Abschnitt 2.
 
 ### 1.3 Doppelte Artikelnummer beim **Anlegen** · ✅ erledigt 2026-09-03 (`dddea9d`)
 

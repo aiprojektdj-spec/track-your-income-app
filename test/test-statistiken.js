@@ -19,6 +19,26 @@ function check(name, cond) {
 
 const statSrc = fs.readFileSync(__dirname + '/../js/statistiken.js', 'utf8');
 
+// ── Die Nettoerloes-Formel wird NICHT nachgebaut, sondern geladen ───────────
+// Erste Fassung dieses Harness hatte sie als Mock nachgebildet. Einen Tag spaeter wurde
+// Utils.calculateNetRevenue an der Wurzel korrigiert (Fund A3, 90d6719: der Kaeufer-Versand
+// zaehlte als Gebuehrenbasis, aber nicht als Einnahme) — der Mock blieb gruen und zeigte
+// trotzdem die alte Welt. Genau die Drift, gegen die ein Harness da sein soll.
+function extractMethod(src, startMarker, endMarkerRe) {
+    const startIdx = src.indexOf(startMarker);
+    assert.ok(startIdx !== -1, 'Marker nicht gefunden: ' + startMarker);
+    const rest = src.slice(startIdx + startMarker.length);
+    const m = rest.match(endMarkerRe);
+    assert.ok(m, 'Ende-Marker nicht gefunden nach ' + startMarker);
+    return rest.slice(0, m.index);
+}
+const utilsSrc = fs.readFileSync(__dirname + '/../js/utils.js', 'utf8');
+const calculateNetRevenue = new Function(
+    'verkaufspreis', 'versandkostenKaeufer', 'plattformgebuehrProzent', 'versandkostenVerkaufer',
+    extractMethod(utilsSrc,
+        'calculateNetRevenue(verkaufspreis, versandkostenKaeufer, plattformgebuehrProzent, versandkostenVerkaufer) {',
+        /\n    \},/));
+
 // ── Modul laden ────────────────────────────────────────────────────────────
 // Kein Modulsystem: Store, Utils und ein Mini-DOM kommen als Parameter herein. Die
 // Diagramm-Leinwaende liefert das Fake-DOM als null zurueck — _createChart steigt dann
@@ -45,10 +65,7 @@ function lade(o) {
         // erzeugten HTML exakt zurueckparsen, ohne an einer Formatierung zu haengen.
         formatCurrency: (n) => '[[' + (Math.round((parseFloat(n) || 0) * 100) / 100).toFixed(2) + ']]',
         formatDate: (x) => String(x),
-        calculateNetRevenue: (vk, vkK, pct, vkV) => {
-            const a = parseFloat(vk) || 0, b = parseFloat(vkK) || 0;
-            return a - (a + b) * ((parseFloat(pct) || 0) / 100) - (parseFloat(vkV) || 0);
-        },
+        calculateNetRevenue: calculateNetRevenue,   // echte Funktion aus js/utils.js, s. oben
     };
     const document = {
         getElementById: (id) => {
@@ -149,12 +166,13 @@ console.log('\n── B. PStTG-Meldeschwelle ───────────�
 // § 4 Abs. 5 PStTG: freigestellt ist nur, wer UNTER 30 Verkaeufen UND UNTER 2.000 € bleibt.
 // Ab 30 Verkaeufen ODER 2.000 € wird gemeldet — beide Grenzen einzeln geprueft, weil ein
 // Dreher hier dem Nutzer "alles in Ordnung" anzeigt, waehrend die Plattform laengst meldet.
-function plattform(anzahlVerkaeufe, preisJeVerkauf) {
+function plattform(anzahlVerkaeufe, preisJeVerkauf, jahr) {
     const sales = [];
     for (let i = 0; i < anzahlVerkaeufe; i++) {
         sales.push(Object.assign({}, VERKAUF, { id: 's' + i, verkaufspreis: preisJeVerkauf }));
     }
     const { S, abschnitte } = lade({ sales });
+    S._period = String(jahr || 2026);   // fest, damit die Pruefung nicht am Kalender haengt
     S._renderPlatformAnalyse(sales, []);
     return abschnitte['platAnalyseSection'].innerHTML;
 }
@@ -167,6 +185,10 @@ check('B3 1.999 € aus wenigen Verkaeufen bleiben unter der Schwelle',
     plattform(2, 999.5).includes('✓ OK'));
 check('B4 2.000 € loesen die Meldepflicht aus, auch bei einem einzigen Verkauf',
     plattform(1, 2000).includes('⚠️ Meldepflicht'));
+check('B5 Vor Inkrafttreten des PStTG (2022) gibt es keine Meldepflicht',
+    plattform(50, 500, 2022).includes('✓ OK'));
+check('B6 Im ersten Geltungsjahr 2023 greift sie',
+    plattform(50, 500, 2023).includes('⚠️ Meldepflicht'));
 
 console.log('\n── C. Gewinn je Plattform ────────────────────────────────────');
 
@@ -215,8 +237,11 @@ console.log('\n── C. Gewinn je Plattform ───────────�
     });
     const { S: S6, abschnitte: a6 } = lade({ sales: [mitGebuehr] });
     S6._renderPlatformAnalyse([mitGebuehr], []);
-    check('C7 Plattformgebuehr bemisst sich an Verkaufspreis plus Kaeufer-Versand (100 − 11 − 5 = 84)',
-        betraege(zeile(a6['platAnalyseSection'].innerHTML, 'Vinted')).includes(84));
+    // Fund A3, an der Wurzel behoben (90d6719): Der Kaeufer-Versand ist Einnahme UND
+    // Gebuehrenbasis — nicht nur Gebuehrenbasis. Der Kaeufer zahlt 110, davon gehen 10 %
+    // Gebuehr auf die vollen 110 (= 11) und 5 eigenes Porto ab: 94 bleiben.
+    check('C7 Kaeufer-Versand ist Einnahme und Gebuehrenbasis zugleich (100 + 10 − 11 − 5 = 94)',
+        betraege(zeile(a6['platAnalyseSection'].innerHTML, 'Vinted')).includes(94));
 }
 
 console.log('\n── D. Profitabilitaet je Marke und Typ ───────────────────────');
@@ -249,7 +274,19 @@ console.log('\n── E. Regressionswaechter ───────────�
     check('E2 Es sind unveraendert 14 Summen — keine ist beim Fix verlorengegangen', alle === 14);
 
     check('E3 Die PStTG-Schwelle steht als ODER im Code, nicht als UND',
-        /count\s*>=\s*30\s*\|\|\s*[\w.]*umsatz\s*>=\s*2000/.test(statSrc));
+        /count\s*>=\s*schwelle\.verkaeufe\s*\|\|\s*[\w.]*umsatz\s*>=\s*schwelle\.verguetung/.test(statSrc));
+
+    // CLAUDE.md Regel 7: Gesetzeswerte gehoeren in eine Jahresfunktion, nie in eine
+    // jahresfeste Konstante — auch wenn es heute nur einen Stand gibt.
+    const { S } = lade({});
+    check('E4 Die Schwellen kommen aus einer Jahresfunktion, nicht aus festen Zahlen',
+        typeof S._getPstTgSchwellen === 'function' &&
+        S._getPstTgSchwellen(2026).verkaeufe === 30 &&
+        S._getPstTgSchwellen(2026).verguetung === 2000);
+    check('E5 Die Jahresfunktion kennt den Stand vor dem PStTG',
+        S._getPstTgSchwellen(2022).verkaeufe === Infinity);
+    check('E6 Im Vergleich stehen keine nackten Gesetzeszahlen mehr',
+        !/count\s*>=\s*30\b/.test(statSrc) && !/umsatz\s*>=\s*2000\b/.test(statSrc));
 }
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');

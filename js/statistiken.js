@@ -160,6 +160,16 @@ const Statistiken = {
         };
     },
 
+    // PStTG-Meldeschwellen je Jahr. Freigestellt ist nur, wer BEIDE unterschreitet
+    // (§ 4 Abs. 5 Nr. 4 PStTG) — gemeldet wird also ab 30 Verkäufen ODER 2.000 €.
+    // Als Jahresfunktion, obwohl es heute nur einen Stand gibt: Gesetzeswerte gehören nie in
+    // eine jahresfeste Konstante (CLAUDE.md Regel 7, Muster App._getUstGrenzen). Die Werte
+    // gelten seit Inkrafttreten des PStTG am 2023-01-01 unverändert.
+    _getPstTgSchwellen(year) {
+        if (year >= 2023) return { verkaeufe: 30, verguetung: 2000 };
+        return { verkaeufe: Infinity, verguetung: Infinity };  // vor 2023 gab es keine Meldepflicht
+    },
+
     _renderPlatformAnalyse(sales, allPurchases) {
         const platData = {};
         sales.forEach(s => {
@@ -189,8 +199,11 @@ const Statistiken = {
         if (entries.length === 0) return;
 
         // PStTG status
+        const jahr = parseInt(this._period) ||
+                     (this._customEnd ? parseInt(String(this._customEnd).slice(0, 4)) : new Date().getFullYear());
+        const schwelle = this._getPstTgSchwellen(jahr);
         const pstpgRows = entries.map(([plat, v]) => {
-            const pflicht = v.count >= 30 || v.umsatz >= 2000;
+            const pflicht = v.count >= schwelle.verkaeufe || v.umsatz >= schwelle.verguetung;
             const avgVK = v.count > 0 ? v.umsatz / v.count : 0;
             return `<tr>
                 <td>${Utils.escapeHtml(plat)}</td>

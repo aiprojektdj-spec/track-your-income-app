@@ -62,6 +62,15 @@ curl -X POST -H "Content-Type: application/json" -d '{"text":"[Stackr] sync — 
 
 Danach kennt Make alle Felder und du kannst sie im Mail-Modul auswählen.
 
+> **Nachtrag 2026-09-13 — Schritt 3 ist Komfort, keine Voraussetzung.** Die von Hand getippten
+> `{{3.feld}}`-Verweise lösen auch dann auf, wenn Make die Struktur nie „erkannt" hat; der
+> Hinweis *„No data detected"* betrifft nur die Auswahlliste beim Klicken. Praktisch geprüft am
+> 2026-09-13 gegen das echte Szenario.
+>
+> **Und: schick den Testaufruf mit `charset=utf-8`.** Ohne den Parameter dekodiert Make den Rumpf
+> als Latin-1 — `[Stackr] sync — ...` kommt dann als `[Stackr] sync � ...` an. Genau deshalb
+> steht der Parameter seit 2026-09-13 auch in `api/_alert.js`.
+
 ## 4. In Vercel eintragen
 
 Projekt `track-your-income-app` → Settings → Environment Variables → **Add New**:

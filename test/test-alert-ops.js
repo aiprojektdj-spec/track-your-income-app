@@ -1,6 +1,7 @@
 // Regressionstest: api/_alert.js — Betriebs-Alarm bei offenem Fail-open-Deckel (2026-08-15)
 //  A) Ohne ALERT_WEBHOOK_URL wird KEIN Netzverkehr erzeugt (Verhalten wie vorher).
-//  B) Mit Webhook geht genau EINE Meldung raus, Wiederholungen werden entprellt.
+//  B) Mit Webhook geht genau EINE Meldung raus, Wiederholungen werden entprellt —
+//     inklusive charset=utf-8 im Content-Type (Fund 2026-09-13, s. dort).
 //  C) Verschiedene Ereignisse entprellen sich NICHT gegenseitig.
 //  D) Nach Ablauf des Entprell-Fensters wird wieder gemeldet.
 //  E) alertOps wirft nie — ein kaputter Webhook darf keinen Request kippen.
@@ -53,7 +54,7 @@ let calls = [];
 function stubFetch(mode) {
     calls = [];
     global.fetch = function (url, opts) {
-        calls.push({ url: url, body: JSON.parse(opts.body) });
+        calls.push({ url: url, body: JSON.parse(opts.body), headers: opts.headers });
         if (mode === 'throw')  return Promise.reject(new Error('webhook kaputt'));
         if (mode === 'status') return Promise.resolve({ ok: false, status: 500 });
         return Promise.resolve({ ok: true, status: 200 });
@@ -85,6 +86,10 @@ console.error = function () {};
     check('B4 strukturierte Felder fuer Make.com',   calls[0].body.source === 'sync' &&
                                                      calls[0].body.event  === 'rate-limit-open');
     check('B5 Zeitstempel ist ISO',                  /^\d{4}-\d{2}-\d{2}T/.test(calls[0].body.ts));
+    // B6 haengt an einem echten Fund vom 2026-09-13: ohne charset dekodiert Make.com
+    // den Rumpf als Latin-1, und der Gedankenstrich in JEDEM text-Feld kam kaputt an.
+    check('B6 Content-Type nennt charset=utf-8',
+          /charset=utf-8/i.test(String(calls[0].headers && calls[0].headers['Content-Type'])));
 
     // ── C: anderes Ereignis wird nicht mitentprellt ───────────────────────────
     await alertOps('sync', 'ip-rate-limit-open', 'auch weg');

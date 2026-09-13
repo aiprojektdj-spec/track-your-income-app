@@ -101,7 +101,13 @@ async function _sendWebhook(payload) {
     try {
         await fetch(ALERT_URL, {
             method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
+            // charset MUSS mitgeschickt werden. Laut RFC 8259 ist application/json
+            // immer UTF-8 und der Parameter ueberfluessig — Make.com haelt sich nicht
+            // daran und dekodiert ohne ihn als Latin-1. Am 2026-09-13 gegen das echte
+            // Szenario belegt: ohne charset kam '[Stackr] sync — ...' als '[Stackr]
+            // sync � ...' an, mit charset sauber. Der Gedankenstrich steckt in JEDEM
+            // text-Feld, und 'detail' traegt deutsche Fehlertexte.
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
             body:    JSON.stringify(payload),
             signal:  AbortSignal.timeout(2000) // kurz: der Fehlerpfad soll nicht hängen
         });

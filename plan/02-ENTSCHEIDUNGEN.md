@@ -155,11 +155,12 @@ Zutun aktiv; `api/blob-cleanup.js` räumt dort nach 30 Tagen auf. Nur wenn **bei
 fehlen, bleibt es wie früher beim reinen `console.error`. Belegt durch `test/test-alert-ops.js`
 (23/23) und einen echten Schreib-Lese-Lösch-Durchstich gegen den produktiven Blob-Store.
 
-**Weiterhin zu tun: `ALERT_WEBHOOK_URL` in Vercel setzen** — ohne sie ist der Vorfall zwar
-nachlesbar, erreicht dich aber nicht von selbst. Bei einem Totalausfall wie
-`whop-refresh`/`redis-fehlt` ist das der Unterschied zwischen einer Mail und einem
-Support-Ticket. Schritt für Schritt in [`alert-webhook-anleitung.md`](alert-webhook-anleitung.md);
-am 2026-09-10 weiterhin offen, weil nur der Betreiber an die Vercel-Umgebung kommt.
+**Erledigt 2026-09-13: `ALERT_WEBHOOK_URL` ist gesetzt** (Production und Preview) und das
+Make-Szenario `stackr-ops-alert` ist aktiv — Webhook → Mail, zwei Testläufe mit Success.
+Dabei fiel auf, dass Make `application/json` **ohne** `charset` als Latin-1 dekodiert; der
+Gedankenstrich aus jedem `text`-Feld kam zerstört an. `api/_alert.js` schickt den Parameter
+jetzt mit, `test/test-alert-ops.js` B6 hält das fest. Stand und der eine noch fehlende
+Beweis: [`offen-alert-webhook.md`](offen-alert-webhook.md).
 
 ### Kein Mehrbenutzer-/Teamzugang
 

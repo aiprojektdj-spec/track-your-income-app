@@ -1,62 +1,64 @@
-# Offen: `ALERT_WEBHOOK_URL` setzen
+# Erledigt: `ALERT_WEBHOOK_URL` ist gesetzt
 
-**Stand: 2026-09-12.** Kurzfassung mit genau einem offenen Punkt. Das *Wie* steht ausführlich in
-[`alert-webhook-anleitung.md`](alert-webhook-anleitung.md), der Zusammenhang in
-[`stand-alarm-vercel-2026-09-09.md`](stand-alarm-vercel-2026-09-09.md) — diese Datei wiederholt
-beides absichtlich nicht, sie sagt nur, was noch fehlt und woran man merkt, dass es erledigt ist.
+**Stand: 2026-09-13.** Der Punkt, der hier als offen stand, ist eingerichtet. Diese Datei sagt
+jetzt nur noch, was belegt ist und welcher eine Beweis noch aussteht. Das *Wie* steht weiter in
+[`alert-webhook-anleitung.md`](alert-webhook-anleitung.md).
 
-## Der Punkt
+## Was eingerichtet wurde
 
-`ALERT_WEBHOOK_URL` ist in Vercel nicht gesetzt (letzter belegter Stand: 2026-09-10, im Dashboard
-nachgesehen). Zwei Schritte, beide in fremden Oberflächen — **keine Session kann das für dich
-tun**, weil dafür deine Accounts nötig sind:
+| Teil | Stand |
+|---|---|
+| Make.com-Szenario `stackr-ops-alert` (ID 7387031) | angelegt, **Active** |
+| Modul 1 | Webhooks → Custom webhook, Hook `stackr-ops-alert` |
+| Modul 2 | Email → *Send an Email to a Team Member* an aiprojektdj@gmail.com |
+| Betreff | `Stackr-Alarm: {{3.source}} - {{3.event}}` |
+| Inhalt | `text`, `source`, `event`, `detail`, `env`, `ts` — als HTML |
+| `ALERT_WEBHOOK_URL` in Vercel | gesetzt für **Production und Preview**, Typ *Secret* |
+| Deployment | Redeploy desselben Commits mit den neuen Einstellungen, **Ready** |
 
-1. **Make.com-Szenario anlegen** (~10 Min), Webhook-URL kopieren →
-   [Schritte 1–3](alert-webhook-anleitung.md#1-makecom-szenario-anlegen-10-min)
-2. **In Vercel eintragen und neu deployen** →
-   [Schritt 4](alert-webhook-anleitung.md#4-in-vercel-eintragen)
-   Ohne Redeploy greift die Variable nicht. Das ist der häufigste Fehler.
+Preview ist absichtlich mit dabei: ohne sie wäre die
+[Gegenprobe](alert-webhook-anleitung.md#gegenprobe-nach-dem-deployment) nicht fahrbar. Development
+bewusst **nicht** — lokale Läufe sollen den Webhook nicht bespielen.
 
-Danach kann eine Session die
-[Gegenprobe](alert-webhook-anleitung.md#gegenprobe-nach-dem-deployment) fahren — dafür reicht die
-Preview-URL, die Webhook-URL brauche ich nicht und will sie auch nicht.
+**Kein API-Key am Hook.** `api/_alert.js` schickt keinen `x-make-apikey`-Header; ein Key in Make
+würde jeden Alarm still abweisen.
 
-## Warum es sich trotz Blob-Speicher noch lohnt
+## Was belegt ist
 
-Seit 2026-09-10 schreibt `api/_alert.js` jede Meldung zusätzlich unter `stackr/alerts/` in den
-Blob-Speicher (30 Tage, ohne Einrichtung aktiv). Der Vorfall **geht** also nicht mehr verloren.
+Zwei echte Testaufrufe am 2026-09-13, beide in der Make-Historie als **Success** mit
+**2 operations** (Webhook *und* Mail-Modul gelaufen):
 
-Was weiter fehlt, ist der Weg, der dich von selbst erreicht:
+- 14:44:30 — Betreff `Stackr-Alarm: sync - rate-limit-open`, alle Felder aufgelöst.
+- 14:46:33 — Umlaut-Probe, siehe Fund unten.
 
-| | Blob-Speicher | Webhook |
-|---|---|---|
-| Vorfall wird festgehalten | ja | ja |
-| Du erfährst davon, ohne hinzusehen | **nein** | ja |
+Bemerkenswert: **die Feldverweise lösen auf, obwohl Make die Datenstruktur nie „erkannt" hat.**
+Der Hinweis *„No data detected"* im Webhook-Modul betrifft nur die Auswahlliste beim Klicken;
+von Hand getippte `{{3.feld}}`-Verweise funktionieren unabhängig davon. Der Testaufruf aus
+Schritt 3 der Anleitung ist damit Komfort, keine Voraussetzung.
 
-Der Unterschied wird konkret bei `whop-refresh`/`redis-fehlt`: Token-Erneuerung tot, **jeder**
-Kunde fliegt nach einer Stunde aus dem Gate. Das steht dann sauber belegt im Blob — und du
-erfährst es per Support-Ticket, wenn du nicht zufällig nachsiehst.
+## Der Fund dabei: fehlender `charset`
 
-## Bis dahin: einmal die Woche nachsehen
+Der erste Testaufruf kam als `[Stackr] sync � rate-limit-open` an — der Gedankenstrich zerstört.
+Der zweite, identisch bis auf `Content-Type: application/json; charset=utf-8`, kam sauber an,
+samt `ä ö ü ß`.
 
-Der Lese-Einzeiler steht unter
-[Nachsehen, was passiert ist](alert-webhook-anleitung.md#nachsehen-was-passiert-ist). Läuft aus dem
-Repo, braucht nur den Token aus `.env.local`, keinen Vercel-Zugriff.
+Laut RFC 8259 ist `application/json` immer UTF-8 und der Parameter überflüssig — Make hält sich
+nicht daran und dekodiert ohne ihn als Latin-1. Da `' — '` in **jedem** `text`-Feld steckt und
+`detail` deutsche Fehlertexte trägt, hätte das jede Alarm-Mail getroffen. Gefixt in
+`api/_alert.js`, abgesichert durch `test/test-alert-ops.js` B6.
 
-**Leere Liste heißt: nichts gemeldet** — Normalfall und guter Fall. Anders als beim Vercel-Log,
-wo Leere auch „ist längst rausgerollt" bedeuten kann; auf dem Hobby-Plan reicht es nur 30 Minuten
-bis 1 Stunde zurück.
+## Was noch aussteht
 
-**Letzte Kontrolle: 2026-09-12 — 0 Alarme**, Speicher erreichbar. Gleichzeitig lief
-`node test/test-alert-ops.js` mit 23/23 grün: die Mechanik dahinter ist intakt, es fehlt
-weiterhin nur das Ziel.
+**Ein Beweis fehlt: dass Vercels Variable zur Laufzeit wirklich bei `api/_alert.js` ankommt.**
+Belegt ist bisher die Kette *Webhook → Make → Mail* und dass die Variable gesetzt und deployt
+ist — nicht aber ein Alarm, der den ganzen Weg aus dem laufenden Code genommen hat.
 
-## Woran man merkt, dass es erledigt ist
+Dazu muss etwas echt fehlschlagen. Die beiden Wege:
 
-- In Vercel steht `ALERT_WEBHOOK_URL` unter Settings → Environment Variables, **und** danach wurde
-  deployt.
-- Der Testaufruf aus [Schritt 3](alert-webhook-anleitung.md#3-struktur-beibringen--mit-einem-echten-testaufruf)
-  ist in Make angekommen.
-- Die Gegenprobe hat eine echte Meldung erzeugt (`[Stackr] sync — redis-env-missing`, `env: preview`).
+1. **Die dokumentierte Gegenprobe** — auf **Preview** `KV_REST_API_URL` auf Unsinn setzen, Preview
+   deployen, `POST /api/sync` (braucht kein Token, der Redis-Check läuft vor der Tokenprüfung),
+   danach **zurücksetzen und erneut deployen**. Kostet einen kaputten Preview-Zustand auf Zeit.
+2. **Beim nächsten echten Vorfall** — kostet nichts, sagt aber erst dann Bescheid.
 
-Dann kann diese Datei weg.
+Bis dahin bleibt der Blob-Speicher der zweite, unabhängige Weg: `api/_alert.js` schreibt jede
+Meldung zusätzlich unter `stackr/alerts/`, 30 Tage lang, ohne Einrichtung.

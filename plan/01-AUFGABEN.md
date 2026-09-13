@@ -44,7 +44,14 @@ Das ist bei zweien von dreien passiert, also beim Lesen der Fundtexte einkalkuli
 ### 1.8 Harnesse für die ungetesteten Rechenmodule (Fund C des Vollaudits)
 
 Quelle: [`funde-vollaudit-2026-09-09.md`](funde-vollaudit-2026-09-09.md), Kategorie C. Stand
-2026-09-13: **24 von 56 Modulen** werden von keinem Test tatsächlich geladen.
+2026-09-13, nachgemessen: **21 von 56 Modulen** werden von keinem Harness geladen.
+
+**Die Zahl allein führt in die Irre:** „kein Harness lädt es" ist nicht „ungeprüft". Von den 21
+sind drei dormant (`schweiz`, `oesterreich`, `svs` — seit der CH/AT-Entfernung nicht im Produkt)
+und sieben reine Oberfläche (`landing`, `landing-v2`, `ui-lab`, `theme`, `topnav`,
+`cookie-banner`, `page-shell`). Es bleiben elf mit Geldbezug. Bei `fahrtenbuch`, `retouren` und
+`materiallager` ist zudem die **Wirkung auf die EÜR** bereits durch
+`test/test-euer-nebenmodule.js` abgedeckt — offen ist dort die Modullogik selbst.
 
 Das ist keine Fleißaufgabe, sondern der Hebel hinter den schwersten Funden des Audits: A1, A6
 und A7 kamen **alle** aus ungetestetem Code. `bilanz.js` galt sogar als abgedeckt, weil eine zu

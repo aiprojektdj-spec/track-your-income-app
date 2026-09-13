@@ -313,9 +313,29 @@ sondern ihre **Verteilung**.
 > **Korrektur vom 2026-09-13:** Hier stand „20 von 48 Modulen". Beide Zahlen waren falsch.
 > `js/` enthält **56** Module, und die Abdeckung war zu optimistisch gemessen: Die Heuristik
 > zählte jede *Erwähnung* eines Modulnamens in `test/` als Abdeckung — auch eine, die bloß im
-> Kommentar stand. Schärfer gezählt (lädt ein Test die Datei per `js/<name>.js` wirklich?) sind
-> es **24 von 56**. `bilanz.js` galt nach der alten Zählung als abgedeckt und war es nicht —
-> genau dort lag dann Fund A7.
+> Kommentar stand. `bilanz.js` galt danach als abgedeckt und war es nicht — genau dort lag dann
+> Fund A7.
+>
+> **Zweite Korrektur, am selben Tag:** Die schärfere Zahl stand kurz als „24 von 56" hier. Nach
+> zwei weiteren Harnessen aus einer Parallel-Session sind es **21 von 56** (Stand 2026-09-13,
+> nachgemessen).
+
+**Und die Zahl allein führt in die Irre** — der Hinweis kam aus einer Parallel-Session und
+trifft zu: *„kein Harness lädt das Modul"* ist nicht dasselbe wie *„ungeprüft"*. Die 21 zerfallen
+in drei sehr ungleiche Gruppen:
+
+| Gruppe | Module | Bewertung |
+|---|---|---|
+| **Dormant** | `schweiz`, `oesterreich`, `svs` | seit der CH/AT-Entfernung nicht im Produkt — kein Testbedarf |
+| **Reine Oberfläche** | `landing`, `landing-v2`, `ui-lab`, `theme`, `topnav`, `cookie-banner`, `page-shell` | keine Rechenlogik; gehören in eine Oberflächenprüfung, nicht in einen Rechenharness |
+| **Offen mit Geldbezug** | `fahrtenbuch`, `materiallager`, `retouren`, `oss`, `protokoll`, `steuerberater`, `companies`, `webhooks`, `blob-attachments`, `error-logger`, `i18n` | hier lohnt Arbeit |
+
+Und selbst innerhalb der dritten Gruppe ist zu unterscheiden: `fahrtenbuch`, `retouren` und
+`materiallager` laden zwar kein eigener Harness — ihre **Wirkung auf die EÜR** deckt
+`test/test-euer-nebenmodule.js` aber ab. Ungeprüft ist dort die Modullogik selbst, nicht der
+Beitrag zum Gewinn.
+
+Wer die Zahl weiterträgt, sollte diese Unterscheidung mitnehmen.
 
 Rechenrelevant und ungetestet:
 

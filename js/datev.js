@@ -61,6 +61,12 @@ var DatevExport = (function () {
 
     // ── CSV helpers ─────────────────────────────────────────────────────
     // DATEV uses semicolons, fields with special chars in double-quotes
+    //
+    // Das hier ist die einzige noetige Entschaerfung — KEIN Utils.escapeHtml auf den
+    // Buchungstexten. Eine CSV ist kein HTML: escapeHtml machte aus der Firma
+    // "Reck & Schwarz" ein "Reck &amp; Schwarz", und genau so stand es dann beim
+    // Steuerberater im Stapel. Die Rechnungszeile hat den Kundennamen immer schon roh
+    // durchgereicht — dieselbe Datei war also in sich widerspruechlich.
     function csvField(v) {
         if (v == null) return '';
         var s = String(v);
@@ -190,7 +196,7 @@ var DatevExport = (function () {
                     gegenkonto:   accounts.bank,
                     datum:        s.datum,
                     belegfeld1:   s.id ? s.id.slice(0, 12) : '',
-                    buchungstext: ('Verkauf ' + Utils.escapeHtml(s.plattform || '') + ' ' + Utils.escapeHtml((s.marke || '') + ' ' + (s.artikeltyp || ''))).slice(0, 60),
+                    buchungstext: ('Verkauf ' + (s.plattform || '') + ' ' + ((s.marke || '') + ' ' + (s.artikeltyp || ''))).slice(0, 60),
                     buSchluessel: '',
                 });
             });
@@ -198,7 +204,11 @@ var DatevExport = (function () {
 
         // Wareneinkäufe
         purchases.forEach(function (p) {
-            var ek = parseFloat(p.einkaufspreis || 0);
+            // Menge mitrechnen — wie ueberall sonst im Haus: js/euer.js:104, js/statistiken.js
+            // und js/lager.js bilden durchgehend einkaufspreis * (anzahl || 1). Ohne den Faktor
+            // meldet der Stapel bei einem Sammel-Einkauf von 10 Stueck ein Zehntel der Ausgabe,
+            // und der Steuerberater bucht zu wenig Betriebsausgabe.
+            var ek = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
             if (ek <= 0) return;
             var ustSatz = parseInt(p.ustSatz != null ? p.ustSatz : 19);
             var warenKonto;
@@ -212,7 +222,7 @@ var DatevExport = (function () {
                 gegenkonto:   accounts.bank,
                 datum:        p.datum,
                 belegfeld1:   p.artikelNr || p.id.slice(0, 12),
-                buchungstext: ('EK ' + Utils.escapeHtml((p.marke || '') + ' ' + (p.artikeltyp || ''))).slice(0, 60),
+                buchungstext: ('EK ' + ((p.marke || '') + ' ' + (p.artikeltyp || ''))).slice(0, 60),
                 buSchluessel: ustSatz > 0 ? '' : '40',
             });
         });
@@ -229,7 +239,7 @@ var DatevExport = (function () {
                 gegenkonto:   accounts.bank,
                 datum:        e.datum,
                 belegfeld1:   e.belegnummer || e.id.slice(0, 12),
-                buchungstext: Utils.escapeHtml(e.bezeichnung || e.kategorie || 'Ausgabe').slice(0, 60),
+                buchungstext: String(e.bezeichnung || e.kategorie || 'Ausgabe').slice(0, 60),
                 buSchluessel: '',
             });
         });
@@ -254,7 +264,12 @@ var DatevExport = (function () {
         ].join(';');
 
         // ── Column headers (Zeile 2) ────────────────────────────────────
-        var header2 = [
+        // Diese Liste ist die EINZIGE Quelle fuer die Spaltenbreite: die Datenzeilen unten
+        // leiten ihre Feldzahl daraus ab. Vorher stand dort die feste Zahl 116, waehrend die
+        // Liste 96 Namen hat — Kopfzeile und Datenzeilen waren also 20 Felder auseinander,
+        // und eine CSV, deren Kopf schmaler ist als ihre Zeilen, laesst sich nicht importieren.
+        // Gemessen am 2026-09-13, siehe plan/funde-datev-2026-09-13.md.
+        var SPALTEN = [
             'Umsatz (ohne Soll/Haben-Kz)',
             'Soll/Haben-Kennzeichen',
             'WKZ Umsatz',
@@ -351,12 +366,14 @@ var DatevExport = (function () {
             'Festschreibung',
             'Leistungsdatum',
             'Datum Zuord. Steuerperiode'
-        ].map(function (h) { return '"' + h + '"'; }).join(';');
+        ];
+        var header2 = SPALTEN.map(function (h) { return '"' + h + '"'; }).join(';');
 
         // ── Data rows ───────────────────────────────────────────────────
         var dataLines = rows.map(function (r) {
-            // 115 columns — we fill the key ones, rest empty
-            var cols = new Array(116).fill('');
+            // Genau so breit wie die Kopfzeile — die Schluesselfelder werden gefuellt, der Rest
+            // bleibt leer. Breite NIE hart hinschreiben, sonst driftet sie wieder auseinander.
+            var cols = new Array(SPALTEN.length).fill('');
             cols[0]  = amtDe(r.umsatz);
             cols[1]  = r.sh;
             cols[2]  = 'EUR';

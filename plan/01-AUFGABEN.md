@@ -474,7 +474,9 @@ Einstellungen, während der Berater tippt.
 also bei dem, was oben schon steht — die Namensschicht ist Kosmetik, die Absicherung sitzt im
 Store. Neu ist nur, dass das jetzt **ausgezählt** ist statt vermutet.
 
-**Fixes bewusst nicht gebaut, aus drei Gründen:**
+**Fixes bewusst nicht gebaut, aus drei Gründen:** *(überholt — beide gebaut am 2026-09-13 in
+`8d180d4`, siehe Abschluss unten. Die drei Gründe bleiben stehen, weil sie erklären, warum es
+`BLOCK_SET` geworden ist und nicht ein weiteres Verb.)*
 
 1. `js/app.js` und `js/euer.js` hielten beim Nachmessen parallele Sessions.
 2. Für `app-ust-dismiss` wäre `dismiss` in `WRITE_RE` **falsch**: das Verb trifft repo-weit auch
@@ -486,6 +488,28 @@ Store. Neu ist nur, dass das jetzt **ausgezählt** ist statt vermutet.
    dann muss `u-date-finish` in `ALLOW_SET`, der einzige dortige `WRITE_RE`-Treffer, und der
    formatiert bloß ein Datumsfeld — oder das Feld wird in `body.stb-readonly` auf `readonly`
    gesetzt. Letzteres ist ehrlicher, gehört aber in `js/euer.js`.
+
+**Beide zu, am 2026-09-13 (`8d180d4`).** Sobald die Dateien frei waren:
+
+- `app-ust-dismiss` über ein neues **`BLOCK_SET`** in [`js/stb-share.js`](../js/stb-share.js) —
+  Gegenstück zu `ALLOW_SET`, für Namen, die belegt schreiben, aber kein Verb tragen. Grund 2
+  oben ist damit nicht widerlegt, sondern umgesetzt: ein Einzeleintrag statt eines Verbs mit
+  Kollateralschaden.
+- `euer-hebesatz` per `readonly` am Markup, sobald `StbShare.isReadonly()`. **Nicht versteckt** —
+  der Hebesatz gehört zur Ansicht, nur nicht zur Bearbeitung.
+
+`test/test-stb-readonly-sperre.js` von 19 auf **27** Prüfungen, neuer Block E für die
+Attribut-Lücke. Die drei Fix-Prüfungen (`C5`, `E3`, `E4`) wurden gegen den Stand davor gehalten
+und fallen dort alle drei — sie sind keine Tautologien. Suite 59 Harnesses, 0 Fehlschläge.
+Weiterhin nicht im Browser nachgestellt: dafür braucht es den zweiten Account aus Live-Test 3.
+
+> **Zur Historie:** Der Nachtrag oben steckt in **`b5eeeb7`** („Aufgabe 2.5 abgehakt"), dessen
+> Message ihn nicht erwähnt — er wurde beim Committen einer parallelen Session aus dem
+> Working Tree mitgenommen. Kein Datenverlust, nur eine falsche Zuordnung in der Historie.
+> Lehrreich ist der Mechanismus: `git commit -- <pfad>` nimmt die **Working-Tree-Fassung**, nicht
+> den Stand, den man eben mit `git diff` geprüft hat. Regel 1 schützt vor fremden *Dateien*,
+> nicht vor fremden *Hunks* in derselben Datei — dort hilft nur, unmittelbar vor dem `add` noch
+> einmal zu schauen.
 
 
 ### 1.0 OCR-Belegerkennung · ✅ erledigt 2026-08-27

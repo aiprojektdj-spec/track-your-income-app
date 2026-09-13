@@ -58,11 +58,34 @@ Offen, nach Rechenrelevanz:
 
 | Zeilen | Modul | Warum es zählt |
 |---|---|---|
-| 705 | `statistiken` | **in Arbeit** (Parallel-Session, Stand 2026-09-13) |
+| 705 | `statistiken` | ✅ erledigt `f048e33` — vier von vierzehn Einkaufssummen rechneten ohne Menge |
+| 422 | `datev` | ✅ Harness seit `fc28401`, zwei Punkte offen → s. 1.9 |
 | 635 | `materiallager` | speist die Materialkosten der EÜR |
-| 422 | `datev` | ✅ hat seit `fc28401` einen Harness, s. 1.9 |
 | 650 | `fahrtenbuch` | speist Z50 der EÜR |
 | 952 | `i18n` | keine Rechenlogik, aber jede Oberfläche hängt daran |
+
+Der `statistiken`-Harness hat nebenbei einen Fund derselben Klasse wie A1 zutage gefördert,
+nur **innerhalb einer Datei**: „Gewinn pro Marke" stand zweimal auf derselben Seite mit zwei
+verschiedenen Zahlen — das Diagramm rechnete mit Menge, die Tabelle darunter ohne.
+
+### 1.10 Käufer-Versand: Fund A3 saß tiefer als gedacht · ✅ erledigt 2026-09-13 (`90d6719`)
+
+Hier stand ursprünglich ein dritter offener Punkt aus der `statistiken`-Runde. Beim Nachgehen
+zeigte sich, dass er dieselbe Wurzel hat wie **A3** und sich in einer Zeile schließen ließ.
+
+`Utils.calculateNetRevenue` berechnete die Plattformgebühr auf
+`(verkaufspreis + versandkostenKaeufer)` — erkannte den Käufer-Versand also als Kostenbasis an,
+buchte ihn aber nicht als Einnahme. Der Nettoerlös war um genau `versandkostenKaeufer` zu
+niedrig, an **sieben** Aufrufstellen: `js/buchungen.js` (Vorschau im Verkaufsformular),
+`js/dashboard.js` und fünf Stellen in `js/statistiken.js`.
+
+Der A3-Fix vom 2026-09-09 hatte nur `Dashboard._getYearStats()` erreicht; die gemeinsame
+Hilfsfunktion blieb stehen. `js/euer.js` zählt `verkaufspreis + versandkostenKaeufer` seit jeher
+zur Einnahme — beide Wege stimmen jetzt überein. `test/test-net-revenue.js`, 12 Prüfungen.
+
+**Lehre für die Fundliste:** Ein Fix an der Stelle, an der ein Fund *auffällt*, schließt ihn
+nicht unbedingt. A3 wurde am Dashboard entdeckt und dort behoben — die Wurzel lag in `utils.js`.
+Bei jedem Fund lohnt die Frage, ob die fehlerhafte Rechnung eine geteilte Funktion hat.
 
 **Vor dem Greifen abstimmen** — an diesem Repo arbeiten mehrere Sessions gleichzeitig.
 

@@ -19,7 +19,7 @@ In drei pfad-gescopten Commits:
 |---|---|
 | **A1** vier divergierende Gewinnermittlungen | ✅ behoben — alle vier Stellen ziehen aus `Euer._berechne()` |
 | **A2** Gewerbesteuer aus falscher Zahl | ✅ behoben |
-| **A3** Dashboard: Käufer-Versand fehlte als Einnahme | ✅ behoben (mit A1) |
+| **A3** Käufer-Versand fehlte als Einnahme | ✅ behoben — Dashboard 2026-09-09, **die Wurzel in `utils.js` erst 2026-09-13** (`90d6719`) |
 | **A4** Storno-Filter fehle | ❌ **Fund war falsch, zurückgezogen** — siehe unten |
 | **A5** Zeitzonen-Jahreszuordnung Gewerbesteuer | ✅ entfällt — die Stelle ist ersatzlos weg |
 | **A6** eine **fünfte** Gewinnermittlung in `gbr-modul.js` | ✅ behoben am 2026-09-12 — Feststellungserklärung und §141-AO-Weiche hingen daran |
@@ -129,7 +129,21 @@ strukturell zulasten des Nutzers: Die Gewerbesteuer-Seite weist systematisch zu 
 aufbereitet (`euer.js` hält ihn in `_lastGewinn`). Eine zweite Formel ist nicht zu retten, nur zu
 entfernen.
 
-### A3 — Dashboard: Käufer-Versand fehlt als Einnahme, zählt aber in der Gebührenbasis
+### A3 — Käufer-Versand fehlt als Einnahme, zählt aber in der Gebührenbasis
+
+> **Nachtrag vom 2026-09-13: der Fix vom 2026-09-09 war unvollständig.** Er traf nur
+> `Dashboard._getYearStats()`. Dieselbe Rechnung steht in `Utils.calculateNetRevenue`
+> (`js/utils.js`) — und die speist **sieben** Aufrufstellen: `js/buchungen.js` (die
+> Nettoerlös-Vorschau im Verkaufsformular), `js/dashboard.js` und fünf Stellen in
+> `js/statistiken.js`. Überall war der Nettoerlös um genau `versandkostenKaeufer` zu niedrig:
+> bei 100 € Verkauf, 5 € Käufer-Versand, 10 % Gebühr und 4 € Porto wurden 85,50 € statt
+> 90,50 € ausgewiesen. Behoben in `90d6719`, `test/test-net-revenue.js` (12 Prüfungen).
+> Gefunden hat es eine Parallel-Session beim Bauen des `statistiken`-Harness.
+>
+> **Die Lehre ist allgemeiner als der Fund:** Ein Fix dort, wo ein Fehler *auffällt*, schließt
+> ihn nicht unbedingt. A3 fiel im Dashboard auf und wurde dort behoben — die Wurzel lag eine
+> Ebene tiefer in einer geteilten Hilfsfunktion. Bei jedem Fund gehört die Frage dazu, ob die
+> fehlerhafte Rechnung anderswo noch einmal steht.
 
 [`js/dashboard.js:441`](../js/dashboard.js:441) summiert die Einnahmen nur aus `verkaufspreis`.
 Sieben Zeilen darunter ([`:445-449`](../js/dashboard.js:445)) berechnet dieselbe Funktion die

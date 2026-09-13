@@ -72,10 +72,17 @@ function _shouldSend(key, now) {
 // eingefroren, sobald die Antwort raus ist — die Meldung käme nie an.
 // Wirft nie: weder ein kaputter Webhook noch ein streikender Blob-Store darf
 // einen Request kippen — beide Ziele schlucken ihre Fehler selbst.
+//
+// Rückgabe: true, wenn die Meldung an die Ziele ging, false, wenn die Entprellung
+// sie geschluckt hat. Alle 19 echten Aufrufstellen ignorieren den Wert — er ist
+// allein für den Selbsttest in api/blob-cleanup.js da, der sonst nicht
+// unterscheiden könnte zwischen „nichts gesendet" und „binnen 5 Minuten schon
+// einmal gesendet". Ob der Webhook am anderen Ende ankam, sagt er NICHT: die
+// Fehler dort werden bewusst geschluckt.
 async function alertOps(source, event, detail) {
     var now = Date.now();
     var key = source + ':' + event;
-    if (!_shouldSend(key, now)) return;
+    if (!_shouldSend(key, now)) return false;
 
     var text = '[Stackr] ' + source + ' — ' + event +
                (detail ? ': ' + String(detail).slice(0, 500) : '');
@@ -93,6 +100,16 @@ async function alertOps(source, event, detail) {
     // Beide Ziele parallel: keines darf auf das andere warten, keines darf werfen.
     // Promise.all ist hier gefahrlos, weil beide Helfer ihre Fehler selbst schlucken.
     await Promise.all([_sendWebhook(payload), _writeBlob(payload, now)]);
+    return true;
+}
+
+// Welche Ziele dieser laufende Prozess sieht — ohne die Werte preiszugeben.
+// Beide Variablen werden oben beim Laden des Moduls gelesen, und genau das ist
+// die Frage, die der Selbsttest beantworten soll: kommt ALERT_WEBHOOK_URL aus
+// Vercels Einstellungen wirklich im Code an? Eine ausgelieferte URL wäre ein
+// Zugangsweg ins Make-Szenario — deshalb nur true/false.
+function alertZiele() {
+    return { webhook: !!ALERT_URL, blob: !!BLOB_TOKEN };
 }
 
 // Ziel 1 — Webhook. Wirft nie.
@@ -153,4 +170,4 @@ function _safe(s) {
     return String(s || 'unbekannt').replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 60);
 }
 
-module.exports = { alertOps: alertOps };
+module.exports = { alertOps: alertOps, alertZiele: alertZiele };

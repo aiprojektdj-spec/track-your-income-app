@@ -9,6 +9,8 @@
 //  G) Zweites Ziel Vercel Blob (2026-09-10): ohne BLOB_READ_WRITE_TOKEN kein put,
 //     mit Token liegt dieselbe Nutzlast unter 'stackr/alerts/<datum>/', ein
 //     streikender Blob-Store wirft nicht durch, und beide Ziele stoeren sich nicht.
+//  H) Rueckgabewert (true gesendet / false entprellt) und alertZiele() — beides
+//     traegt den Selbsttest '?probe=1' in api/blob-cleanup.js (2026-09-13).
 // _alert.js ist ein reines CommonJS-Modul ohne DOM/localStorage und laesst sich
 // deshalb — anders als die js/*.js — direkt require()n.
 'use strict';
@@ -178,6 +180,28 @@ console.error = function () {};
     check('G10 Pfadsegmente sind entschaerft',
           puts.length === 1 &&
           puts[0].pathname.indexOf('stackr/alerts/' + heute + '/sync----attachments_ev-1_') === 0);
+
+    // ── H: Rueckgabewert und Ziel-Auskunft (2026-09-13) ───────────────────────
+    // Traegt den Selbsttest '?probe=1' in api/blob-cleanup.js: der muss unterscheiden
+    // koennen zwischen 'nichts gesendet' und 'binnen 5 Minuten schon gesendet', und er
+    // muss fragen koennen, ob ALERT_WEBHOOK_URL im laufenden Prozess ueberhaupt
+    // ankommt — ohne die URL selbst auszuliefern.
+    stubFetch('ok');
+    alertOps = freshAlert('https://hook.example/rueckgabe', 'vercel_blob_rw_TESTTOKEN');
+    let ersteMeldung  = await alertOps('selbsttest', 'webhook-probe', 'x');
+    let zweiteMeldung = await alertOps('selbsttest', 'webhook-probe', 'x');
+    check('H1 erste Meldung gibt true zurueck',            ersteMeldung  === true);
+    check('H2 entprellte Meldung gibt false zurueck',      zweiteMeldung === false);
+    check('H3 und es ging wirklich nur eine raus',         calls.length === 1);
+
+    let ziele = require(MOD).alertZiele();
+    check('H4 alertZiele meldet beide Ziele aktiv',        ziele.webhook === true && ziele.blob === true);
+    check('H5 alertZiele liefert die URL NICHT aus',
+          JSON.stringify(ziele).indexOf('hook.example') === -1);
+
+    freshAlert(null, null);
+    ziele = require(MOD).alertZiele();
+    check('H6 ohne Env meldet alertZiele beide Ziele aus', ziele.webhook === false && ziele.blob === false);
 
     console.error = realError;
     console.log('\n' + pass + '/' + total + ' Checks bestanden');

@@ -15,7 +15,9 @@ var { list, del } = require('@vercel/blob');
 // Hier besonders wichtig: an diesem Endpunkt haengt kein Mensch. Schlaegt er fehl, beschwert
 // sich niemand — die verwaisten Chunks bleiben einfach liegen und der Blob-Speicher waechst
 // weiter. Ohne Alarm faellt das erst ueber die Rechnung auf.
-var alertOps = require('./_alert.js').alertOps;
+var _alert     = require('./_alert.js');
+var alertOps   = _alert.alertOps;
+var alertZiele = _alert.alertZiele;
 
 var TMP_MAX_AGE_MS   = 24 * 60 * 60 * 1000;      // alles älter als 24 h unter tmp/ ist mit Sicherheit verwaist
 var ALERT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 Tage Alarm-Historie — lang genug, um einen
@@ -50,6 +52,32 @@ module.exports = async function handler(req, res) {
     // Bewusst OHNE Alarm: ein falsches Bearer-Token kommt von aussen, nicht vom Cron. Sonst
     // koennte jeder Fremdaufruf Meldungen ausloesen.
     if (req.headers['authorization'] !== 'Bearer ' + secret) return res.status(401).json({ error: 'unauthorized' });
+
+    // ?probe=1 — Selbsttest der Alarmkette, VOR dem Aufräumlauf und ohne ihn.
+    //
+    // Beantwortet die eine Frage, die test/test-alert-ops.js nicht beantworten kann,
+    // weil es gegen Attrappen läuft: kommt ALERT_WEBHOOK_URL aus Vercels Einstellungen
+    // zur Laufzeit wirklich bei api/_alert.js an? Der dokumentierte Weg dafür war bis
+    // 2026-09-13, auf Preview die Redis-Env zu verbiegen und zweimal zu deployen —
+    // das hier kostet einen curl und hinterlässt keinen kaputten Zustand.
+    //
+    // Kein neuer Zugangsweg: die Bearer-Prüfung oben ist schon durch, und wer
+    // CRON_SECRET hat, kann ohnehin den weit mächtigeren Löschlauf auslösen. Eine
+    // Alarmflut ist ausgeschlossen, weil die Entprellung in _alert.js für dieses
+    // source:event-Paar genauso gilt wie für jedes andere.
+    if ((req.query && req.query.probe === '1') || /[?&]probe=1(&|$)/.test(req.url || '')) {
+        var ziele = alertZiele();
+        var gemeldet = await alertOps('selbsttest', 'webhook-probe',
+            'Selbsttest von Hand ausgeloest — kein Ausfall');
+        return res.status(200).json({
+            ok:       true,
+            probe:    true,
+            env:      process.env.VERCEL_ENV || 'unknown',
+            webhook:  ziele.webhook,   // ALERT_WEBHOOK_URL im laufenden Code sichtbar?
+            blob:     ziele.blob,      // BLOB_READ_WRITE_TOKEN desgleichen
+            gemeldet: gemeldet         // false = Entprellung, binnen 5 Min schon geschickt
+        });
+    }
 
     try {
         var now = Date.now();

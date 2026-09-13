@@ -29,6 +29,26 @@ ein so gebauter Commit 27 statt 4 Dateien erfasst und die fremde D1-Arbeit (`js/
 Pathspec neu committen — ein Pathspec-Commit lässt den übrigen Index stehen, die fremde Arbeit
 bleibt also genau so vorgemerkt, wie die andere Session sie hinterlassen hat.
 
+### Nachkontrolle auf Hunk-Ebene — die Dateiebene reicht nicht
+
+```bash
+git show <sha> -U0 --format="" | grep "^@@"     # mehr Hunk-Köpfe als eigene Blöcke = fremde Arbeit drin
+```
+
+**Das ist die einzige Kontrolle, die den häufigsten Fall dieses Repos fängt: zwei Sessions in
+*derselben* Datei.** Der Pathspec schützt vor fremden **Dateien**, nicht vor fremden **Hunks** —
+`git commit -- <pfad>` nimmt immer die ganze Working-Tree-Fassung. Und Vorher-Prüfen kann das
+prinzipiell nicht abdecken: Zwischen `git diff` und `git add` bleibt ein Fenster offen, und in
+diesem Repo schreibt in diesem Fenster jemand.
+
+Am 2026-09-13 genau so passiert: `git diff --stat` zeigte 28 eigene Zeilen, der Commit `b5eeeb7`
+hatte 68 — 40 Zeilen einer Parallel-Session an `01-AUFGABEN.md` §1.7 gingen mit, unter einer
+Commit-Message, die nur von einem ganz anderen Thema sprach. `git show --name-only` hätte das
+**nicht** gezeigt, `git diff --cached --stat` ebenso wenig: Die Datei war ja zu Recht dabei.
+
+**Zweiter, kostenloser Indikator:** Weicht die Zeilenzahl in der `git commit`-Ausgabe von der
+des eigenen `git diff --stat` ab, ist etwas dazugekommen. 68 statt 28 fällt sofort auf.
+
 - [ ] Nur eigene Dateien im Commit — `git diff --cached --stat` gegengelesen
 - [ ] Erledigte Aufgabe **im selben Commit** in [`01-AUFGABEN.md`](01-AUFGABEN.md) abgehakt
 - [ ] Wenn beim Bauen etwas anders war als in der Aufgabe beschrieben: **Korrektur in die Liste**,
@@ -56,6 +76,16 @@ Am 2026-08-11/12 liefen bis zu **fünf Sessions gleichzeitig** im selben Verzeic
   mtime-Abgleich gegen `lastActivityAt`. **Achtung:** `lastActivityAt` ist UTC, mtimes sind
   lokal, CEST = UTC+2. Eine Session hat schon einmal eine fremde Änderung falsch zugeordnet
   und daraus einen falschen Fund gebaut.
+- **Aus `git log` ist die Session-Zuordnung nicht rekonstruierbar** — alle Commits tragen
+  denselben Autor. Der harte Beleg ist die **Hunk-Geometrie**: `git show <sha> -U0 --format="" |
+  grep "^@@"` bei beiden Kandidaten, dann die Zeilenbereiche vergleichen. Disjunkt heißt fremd.
+  Am 2026-09-13 ging die Zuordnung an **einem Tag zweimal in beide Richtungen** schief — erst
+  bekam eine Session drei fremde Commits zugeschrieben, dann entschuldigte sich jemand bei ihr
+  für 40 Zeilen, die von einer **dritten** stammten. Beide Male eine plausible Vermutung ohne
+  Beleg, beide Male widerlegt, indem die Hunks verglichen wurden.
+- **Nie „steckt schon in `<sha>`" in den eigenen Commit schreiben, solange die Urheberschaft
+  nicht belegt ist.** Das schreibt die Fehlzuordnung ein zweites Mal fest, dann unter dem
+  falschen Namen. Lieber offen lassen, bis die richtige Session geantwortet hat.
 
 **Der häufigste Fehler:** Ein Audit meldet einen Fund, der zwischenzeitlich längst gefixt wurde.
 **Immer gegen den Code prüfen, nie gegen ältere Plandateien** — auch nicht gegen diese hier.

@@ -151,6 +151,19 @@ Vercel → Cron Jobs auf den letzten Lauf.
 
 ## Gegenprobe nach dem Deployment
 
+> ⚠️ **Diese Gegenprobe lässt sich derzeit nicht durchführen — sie steht hier als Bauplan, nicht
+> als Handlungsanweisung.** Sie setzt durchgehend ein **Preview-Deployment** voraus, und laut
+> Prüfung einer parallelen Session vom 2026-09-13 gibt es keines: alles geht von `master` direkt
+> nach Production. Wer den Ablauf unten trotzdem abarbeitet, setzt Preview-Variablen für eine
+> Umgebung, die nie deployt wird, und wartet anschließend auf eine Meldung, die nicht kommen kann.
+> **Nicht ersatzweise in Production ausführen** — der Ablauf legt den Cloud-Sync für alle Kunden
+> still, genau das ist ja der Punkt.
+>
+> Für den noch fehlenden Nachweis (dass `ALERT_WEBHOOK_URL` zur Laufzeit wirklich bei
+> `api/_alert.js` ankommt) baut eine dritte Session gerade einen gefahrlosen Weg: `?probe=1` in
+> `api/blob-cleanup.js`. Sobald der liegt, gehört dieser Abschnitt darauf umgeschrieben oder
+> ersetzt. Der Rest des Abschnitts bleibt bis dahin nützlich, weil er die `||`-Falle erklärt.
+
 Der ehrlichste Test wäre ein echter Redis-Ausfall — den willst du nicht herbeiführen.
 
 **Eine Variable namens `REDIS_URL` gibt es nicht** — eine frühere Fassung dieser Anleitung nannte

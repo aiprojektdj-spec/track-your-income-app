@@ -881,10 +881,14 @@ const GbR = {
         const fahrtkosten = Store.getFahrten()
             .filter(f => Utils.isInPeriod(f.datum, startDate, endDate))
             .reduce((sum, f) => sum + (parseFloat(f.kosten) || 0), 0);
-        const materialKosten = Store.getMaterialVerbrauch()
-            .filter(v => !v.storniert && v.grund === 'verkauf' && Utils.isInPeriod(v.datum, startDate, endDate))
-            .reduce((sum, v) => sum + (parseFloat(v.kosten) || 0), 0);
-        const pauschalAusgabenBrutto = versandkosten + plattformgebuehren + fahrtkosten + materialKosten;
+        // Verpackungsmaterial: der EINKAUF ist die Betriebsausgabe, nicht der Verbrauch
+        // (§11 Abs. 2 EStG, Abflussprinzip) — und Einkaeufe mit ausgabeId stecken bereits in
+        // sonstigeAusgaben, sonst waere derselbe Euro zweimal abgezogen. Ausfuehrliche
+        // Begruendung in js/euer.js bei materialEinkauf; beide Formeln muessen gleich rechnen.
+        const materialEinkauf = Store.getMaterialEinkauefe()
+            .filter(e => !e.ausgabeId && e.lieferant !== 'Ausgabe' && Utils.isInPeriod(e.datum, startDate, endDate))
+            .reduce((sum, e) => sum + (parseFloat(e.gesamtkosten) || 0), 0);
+        const pauschalAusgabenBrutto = versandkosten + plattformgebuehren + fahrtkosten + materialEinkauf;
         const pauschalAusgabenNetto = isRegel ? (pauschalAusgabenBrutto / 1.19) : pauschalAusgabenBrutto;
         // Sonstige Ausgaben netto zum tatsächlichen Satz je Ausgabe
         const sonstigeAusgaben = expenses.reduce((sum, e) => {
@@ -926,9 +930,11 @@ const GbR = {
                 fahrtkosten:        Store.getFahrten()
                     .filter(f => Utils.isInPeriod(f.datum, startDate, endDate))
                     .reduce((s, f) => s + (parseFloat(f.kosten) || 0), 0),
-                material:           Store.getMaterialVerbrauch()
-                    .filter(v => !v.storniert && v.grund === 'verkauf' && Utils.isInPeriod(v.datum, startDate, endDate))
-                    .reduce((s, v) => s + (parseFloat(v.kosten) || 0), 0),
+                // Gleiche Quelle wie in der Gewinnformel oben — diese Aufstellung ist der
+                // Beleg zur Zahl, sie darf nicht aus einem anderen Topf schoepfen.
+                material:           Store.getMaterialEinkauefe()
+                    .filter(e => !e.ausgabeId && e.lieferant !== 'Ausgabe' && Utils.isInPeriod(e.datum, startDate, endDate))
+                    .reduce((s, e) => s + (parseFloat(e.gesamtkosten) || 0), 0),
                 sonstige:           expenses.reduce((s, e) => s + (parseFloat(e.betrag) || 0), 0),
             }
         };

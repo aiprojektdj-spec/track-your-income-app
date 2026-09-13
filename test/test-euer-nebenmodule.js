@@ -35,7 +35,10 @@ const _berechne = new Function('year', 'month', 'period',
 function baue(over) {
     const o = Object.assign({
         sales: [], purchases: [], expenses: [], retouren: [],
-        fahrten: [], material: [], afaAnlagen: [], afaProJahr: 0,
+        // `material` = Verbrauch (Bestandssicht), `materialEinkaeufe` = Einkaeufe.
+        // Die EUER liest seit 2026-09-13 die EINKAEUFE — der Verbrauch bleibt im
+        // Grundgeruest, damit die Gegenprobe "Verbrauch wirkt NICHT mehr" moeglich ist.
+        fahrten: [], material: [], materialEinkaeufe: [], afaAnlagen: [], afaProJahr: 0,
         ustMode: 'klein',
     }, over || {});
     const aktiv = (l) => l.filter(x => !x.storniert);
@@ -52,6 +55,7 @@ function baue(over) {
         getRetouren:          () => o.retouren,
         getFahrten:           () => o.fahrten,
         getMaterialVerbrauch: () => o.material,
+        getMaterialEinkauefe: () => o.materialEinkaeufe,
         getAfaAnlagen:        () => o.afaAnlagen,
         _syncReadRaw:         () => [],
     };
@@ -99,17 +103,62 @@ const VERKAUF = { id: 's1', datum: '2026-03-01', verkaufspreis: 1000, versandkos
     check('Retoure zu aktivem Verkauf wird abgezogen', Math.abs(d.retourenErstattungen - 300) < 0.01);
 }
 
-// ── Materialverbrauch (Verpackung) ───────────────────────────────────────────
+// ── Verpackungsmaterial: EINKAUF statt Verbrauch ─────────────────────────────
+// Die EUER kennt keine Bestandsbewertung fuer Umlaufvermoegen: Betriebsausgabe ist die
+// Zahlung (§11 Abs. 2 EStG), nicht der Verbrauch. Bis 2026-09-13 zog diese Datei den
+// Verbrauch ab — zusammen mit dem Haken "ins Materiallager buchen" im Ausgabenformular
+// ergab das einen doppelten Abzug desselben Euros.
+{
+    const d = baue({ sales: [VERKAUF], materialEinkaeufe: [
+        { datum: '2026-05-01', gesamtkosten: 90 },
+        { datum: '2025-05-04', gesamtkosten: 30 },                          // Vorjahr
+    ]});
+    check('Material: nur Einkaeufe im Zeitraum',
+        Math.abs(d.materialEinkauf - 90) < 0.01);
+    check('Materialeinkauf mindert den Gewinn', Math.abs(d.gewinn - 910) < 0.01);
+}
+
+// Gegenprobe: der Verbrauch darf die EUER NICHT mehr beruehren.
 {
     const d = baue({ sales: [VERKAUF], material: [
         { datum: '2026-05-01', kosten: 90, grund: 'verkauf' },
-        { datum: '2026-05-02', kosten: 50, grund: 'schwund' },              // kein Verkauf
-        { datum: '2026-05-03', kosten: 40, grund: 'verkauf', storniert: true },
-        { datum: '2025-05-04', kosten: 30, grund: 'verkauf' },              // Vorjahr
     ]});
-    check('Material: nur grund="verkauf", unstorniert, im Zeitraum',
-        Math.abs(d.materialKosten - 90) < 0.01);
-    check('Material mindert den Gewinn', Math.abs(d.gewinn - 910) < 0.01);
+    check('Verbrauch allein aendert den Gewinn nicht mehr', Math.abs(d.gewinn - 1000) < 0.01);
+    check('Verbrauch allein erzeugt keine Materialkosten', Math.abs(d.materialEinkauf - 0) < 0.01);
+}
+
+// Der eigentliche Fund: Ausgabe MIT Materiallager-Haken. Die Ausgabe zaehlt, der daraus
+// entstandene Einkauf (ausgabeId gesetzt) nicht noch einmal.
+{
+    const d = baue({
+        sales: [VERKAUF],
+        expenses: [{ datum: '2026-05-01', betrag: 90, kategorie: 'Verpackung' }],
+        materialEinkaeufe: [{ datum: '2026-05-01', gesamtkosten: 90, ausgabeId: 'e1' }],
+        material: [{ datum: '2026-06-01', kosten: 90, grund: 'verkauf' }],   // spaeterer Verbrauch
+    });
+    check('Ausgabe + verknuepfter Einkauf: nur EINMAL abgezogen',
+        Math.abs(d.summeAusgaben - 90) < 0.01);
+    check('Ausgabe + verknuepfter Einkauf: Gewinn 910 statt 820 (kein Doppelabzug)',
+        Math.abs(d.gewinn - 910) < 0.01);
+}
+
+// Altdaten ohne ausgabeId: der Marker `lieferant: 'Ausgabe'` haelt sie ebenfalls heraus.
+{
+    const d = baue({
+        sales: [VERKAUF],
+        expenses: [{ datum: '2026-05-01', betrag: 90, kategorie: 'Verpackung' }],
+        materialEinkaeufe: [{ datum: '2026-05-01', gesamtkosten: 90, lieferant: 'Ausgabe' }],
+    });
+    check('Altdaten-Marker verhindert den Doppelabzug ebenfalls',
+        Math.abs(d.gewinn - 910) < 0.01);
+}
+
+// Ein im Materiallager direkt erfasster Einkauf (freier Lieferantentext) zaehlt dagegen.
+{
+    const d = baue({ sales: [VERKAUF], materialEinkaeufe: [
+        { datum: '2026-05-01', gesamtkosten: 90, lieferant: 'Amazon' },
+    ]});
+    check('Direkt erfasster Einkauf zaehlt normal', Math.abs(d.gewinn - 910) < 0.01);
 }
 
 // ── Fahrtenbuch ──────────────────────────────────────────────────────────────
@@ -143,7 +192,8 @@ const VERKAUF = { id: 's1', datum: '2026-03-01', verkaufspreis: 1000, versandkos
         getSettings: () => ({ ustMode: 'klein' }),
         getSales: () => [], getPurchases: () => [], getExpenses: () => [],
         getRechInvoices: () => [], getRetouren: () => [], getFahrten: () => [],
-        getMaterialVerbrauch: () => [], getAfaAnlagen: () => [{ id: 'a1' }],
+        getMaterialVerbrauch: () => [], getMaterialEinkauefe: () => [],
+        getAfaAnlagen: () => [{ id: 'a1' }],
         _syncReadRaw: () => [],
     };
     global.Afa = { _calcJahresAfa: () => 3650 };   // 10 EUR pro Tag
@@ -158,7 +208,7 @@ const VERKAUF = { id: 's1', datum: '2026-03-01', verkaufspreis: 1000, versandkos
     const d = baue({
         sales: [VERKAUF],
         retouren: [{ datum: '2026-04-01', erstattungBetrag: 100, saleId: null }],
-        material: [{ datum: '2026-05-01', kosten: 90, grund: 'verkauf' }],
+        materialEinkaeufe: [{ datum: '2026-05-01', gesamtkosten: 90 }],
         fahrten:  [{ datum: '2026-02-01', kosten: 150 }],
         afaAnlagen: [{ id: 'a1' }], afaProJahr: 800,
     });

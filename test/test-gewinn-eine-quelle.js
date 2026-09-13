@@ -60,7 +60,11 @@ global.Store = {
     getRechInvoices:     () => [],
     getRetouren:         () => [{ datum: '2026-07-01', erstattungBetrag: 100, saleId: null }],
     getFahrten:          () => [{ datum: '2026-05-01', kosten: 150 }],
+    // Seit 2026-09-13 lesen die Gewinnformeln den EINKAUF, nicht den Verbrauch
+    // (§11 Abs. 2 EStG). Der Verbrauchseintrag bleibt im Grundgeruest stehen: taucht er
+    // in einer der Formeln wieder auf, faellt die Summe unten sofort auseinander.
     getMaterialVerbrauch:() => [{ datum: '2026-05-01', kosten: 90, grund: 'verkauf' }],
+    getMaterialEinkauefe:() => [{ datum: '2026-05-01', gesamtkosten: 90, lieferant: 'Amazon' }],
     getAfaAnlagen:       () => [{ id: 'a1' }],
     _syncReadRaw:        () => EIGENBELEGE,
 };
@@ -84,7 +88,7 @@ const d = _berechne.call({}, 2026, 0, 'jahr');
 check('Euer._berechne(): Gewinn = -1155 EUR', Math.abs(d.gewinn - (-1155)) < 0.01);
 check('Euer._berechne(): AfA enthalten (800)',            Math.abs(d.afaKosten - 800) < 0.01);
 check('Euer._berechne(): Fahrtkosten enthalten (150)',    Math.abs(d.fahrtkosten - 150) < 0.01);
-check('Euer._berechne(): Material enthalten (90)',        Math.abs(d.materialKosten - 90) < 0.01);
+check('Euer._berechne(): Materialeinkauf enthalten (90)', Math.abs(d.materialEinkauf - 90) < 0.01);
 check('Euer._berechne(): Eigenbelege enthalten (120)',    Math.abs(d.eigenbelegeAusgaben - 120) < 0.01);
 check('Euer._berechne(): Retoure mindert Einnahmen (100)',Math.abs(d.retourenErstattungen - 100) < 0.01);
 check('Euer._berechne(): Plattformgebuehr auf VK+Versand (105)', Math.abs(d.plattformgebuehren - 105) < 0.01);

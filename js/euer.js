@@ -171,10 +171,32 @@ const Euer = {
         const fahrtkosten = Store.getFahrten().filter(f => Utils.isInPeriod(f.datum, startDate, endDate))
             .reduce((sum, f) => sum + (parseFloat(f.kosten) || 0), 0);
 
-        // Materialverbrauch (Verpackung) aus Materiallager
-        const materialKosten = Store.getMaterialVerbrauch()
-            .filter(v => !v.storniert && v.grund === 'verkauf' && Utils.isInPeriod(v.datum, startDate, endDate))
-            .reduce((sum, v) => sum + (parseFloat(v.kosten) || 0), 0);
+        // Verpackungsmaterial (Materiallager) — abgezogen wird der EINKAUF, nicht der Verbrauch.
+        //
+        // Bis 2026-09-13 stand hier der Verbrauch (grund === 'verkauf'). Das war aus zwei
+        // Gruenden falsch:
+        //
+        // 1. Systematisch: die EUER kennt keine Bestandsbewertung fuer Umlaufvermoegen. Eine
+        //    Betriebsausgabe entsteht mit der Zahlung (§11 Abs. 2 EStG), nicht mit dem
+        //    Verbrauch — §4 Abs. 3 Satz 4 EStG nimmt davon nur bestimmte Wirtschaftsgueter
+        //    aus (Anteile, Grundstuecke u.ae.), Verpackungsmaterial gehoert nicht dazu.
+        //    Genau so behandelt diese Datei den Wareneinkauf schon immer, s. Kommentar oben.
+        //
+        // 2. Praktisch ein DOPPELABZUG: wer Material ueber das Ausgabenformular mit dem Haken
+        //    "ins Materiallager buchen" erfasst (js/ausgaben.js), erzeugt eine Ausgabe UND
+        //    einen Materialeinkauf. Die Ausgabe steckt bereits in sonstigeAusgaben; kam beim
+        //    Verkauf der Verbrauch obendrauf, war derselbe Euro zweimal abgezogen. Der Gewinn
+        //    war damit zu niedrig — die gefaehrliche Richtung.
+        //
+        // Einkaeufe MIT ausgabeId sind genau diese Faelle und werden uebersprungen. `lieferant
+        // === 'Ausgabe'` faengt Altdaten ab, die vor der Verknuepfung entstanden sind.
+        const materialEinkauf = Store.getMaterialEinkauefe()
+            .filter(e => !e.ausgabeId && e.lieferant !== 'Ausgabe' && Utils.isInPeriod(e.datum, startDate, endDate))
+            .reduce((sum, e) => sum + (parseFloat(e.gesamtkosten) || 0), 0);
+
+        // Der Verbrauch wird hier bewusst NICHT mehr gelesen. Er bleibt im Materiallager
+        // sichtbar (js/materiallager.js) und in den Statistiken als Margenrechnung je Verkauf
+        // (js/statistiken.js) — beides sind Bestandssichten, keine EUER-Groessen.
 
         // AfA / Abschreibungen (§7 EStG) — aus dem Anlagenverzeichnis
         // Bei Jahresauswertung: voller Jahres-AfA-Betrag; bei Teilzeitraum: zeitanteilig
@@ -263,7 +285,7 @@ const Euer = {
         // Ausgaben gesamt
         // Kleinunternehmer: Brutto-Ausgaben (USt ist echter Kostenfaktor, kein Vorsteuerabzug)
         // Regelbesteuerung: Netto-Ausgaben (USt wird als Vorsteuer abgezogen = Durchlaufposten)
-        const abzugsfaehig = wareneinkauf + versandkosten + plattformgebuehren + fahrtkosten + materialKosten + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten;
+        const abzugsfaehig = wareneinkauf + versandkosten + plattformgebuehren + fahrtkosten + materialEinkauf + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten;
 
         // ── Vorsteuer: tatsächlicher USt-Satz pro Einkauf (Fix: war pauschal /1.19) ──
         // Purchases können jetzt ustSatz = 19 | 7 | 0 tragen.
@@ -324,7 +346,7 @@ const Euer = {
         const donutLabels = ['Wareneinkauf','Versandkosten','Plattformgebühren'];
         const donutValues = [wareneinkauf, versandkosten, plattformgebuehren];
         if (fahrtkosten     > 0) { donutLabels.push('Fahrtkosten');      donutValues.push(fahrtkosten); }
-        if (materialKosten  > 0) { donutLabels.push('Verpackung');       donutValues.push(materialKosten); }
+        if (materialEinkauf  > 0) { donutLabels.push('Verpackung');       donutValues.push(materialEinkauf); }
         if (afaKosten       > 0) { donutLabels.push('AfA');              donutValues.push(afaKosten); }
         if (sonstigeAusgaben> 0) { donutLabels.push('Betriebsausgaben'); donutValues.push(sonstigeAusgaben); }
         if (eigenbelegeAusgaben>0){ donutLabels.push('Eigenbelege');     donutValues.push(eigenbelegeAusgaben); }
@@ -335,7 +357,7 @@ const Euer = {
             rechnungsEinnahmen, salesBrutto, bruttoEinnahmen, wareneinkauf, purchasesByIdEuer,
             diff25aRetourenBySaleId, diff25aSalesPositionen, diff25aInvoicePositionen,
             diff25aPositionen, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview, versandkosten,
-            plattformgebuehren, fahrtkosten, materialKosten, afaAnlagen, daysInYear, periodStart,
+            plattformgebuehren, fahrtkosten, materialEinkauf, afaAnlagen, daysInYear, periodStart,
             periodEnd, daysInPeriod, afaRatio, afaKosten, stornierteSaleIds, retourenErstattungen,
             nettoEinnahmen, salesNettoWeighted, retourenNettoWeighted, ustAusRechnungen, ustEinnahmen,
             summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
@@ -381,13 +403,13 @@ const Euer = {
             ustMode, isRegel, year, month, startDate, endDate, periodLabel, sales, periodPurchases,
             expenses, unsyncedInvoices, rechnungsEinnahmen, bruttoEinnahmen, wareneinkauf,
             diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview, versandkosten, plattformgebuehren,
-            fahrtkosten, materialKosten, afaAnlagen, afaKosten, retourenErstattungen, nettoEinnahmen,
+            fahrtkosten, materialEinkauf, afaAnlagen, afaKosten, retourenErstattungen, nettoEinnahmen,
             ustEinnahmen, summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
             eigenbelegeAusgaben, vorsteuer, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues
         } = _d;
 
         this._lastGewinn = gewinn; // für Gewerbesteuer-Live-Update
-        this._lastRenderData = { sales, periodPurchases, expenses, eigenbelegeRaw, startDate, endDate, periodLabel, summeEinnahmen, summeAusgaben, gewinn, wareneinkauf, versandkosten, plattformgebuehren, fahrtkosten, materialKosten, sonstigeAusgaben, eigenbelegeAusgaben, afaKosten, monthlyData, donutLabels, donutValues, chartYear: year, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview };
+        this._lastRenderData = { sales, periodPurchases, expenses, eigenbelegeRaw, startDate, endDate, periodLabel, summeEinnahmen, summeAusgaben, gewinn, wareneinkauf, versandkosten, plattformgebuehren, fahrtkosten, materialEinkauf, sonstigeAusgaben, eigenbelegeAusgaben, afaKosten, monthlyData, donutLabels, donutValues, chartYear: year, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview };
 
 
         // GbR-Gewinnverteilung Block
@@ -576,9 +598,9 @@ const Euer = {
                                 <td>Fahrtkosten <span style="font-size:11px;color:var(--text-muted);">(Fahrtenbuch – §9 EStG)</span></td>
                                 <td style="text-align:right">${Utils.formatCurrency(fahrtkosten)}</td>
                             </tr>` : ''}
-                            ${materialKosten > 0 ? `<tr>
-                                <td>Verpackungsmaterial (verbraucht) <span style="font-size:11px;color:var(--text-muted);">(Materiallager)</span></td>
-                                <td style="text-align:right">${Utils.formatCurrency(materialKosten)}</td>
+                            ${materialEinkauf > 0 ? `<tr>
+                                <td>Verpackungsmaterial (eingekauft) <span style="font-size:11px;color:var(--text-muted);">(Materiallager – ohne Einkäufe, die schon als Ausgabe erfasst sind)</span></td>
+                                <td style="text-align:right">${Utils.formatCurrency(materialEinkauf)}</td>
                             </tr>` : ''}
                             ${afaKosten > 0 ? `<tr>
                                 <td>Abschreibungen AfA <span style="font-size:11px;color:var(--text-muted);">(§7 EStG – ${afaAnlagen.length} Anlage(n)${this._period !== 'jahr' ? ', zeitanteilig' : ''})</span>
@@ -840,7 +862,7 @@ const Euer = {
                 ['− Versandkosten', -d.versandkosten, 'var(--danger)'],
                 ['− Plattformgebühren', -d.plattformgebuehren, 'var(--danger)'],
                 d.fahrtkosten > 0   ? ['− Fahrtkosten', -d.fahrtkosten, 'var(--danger)'] : null,
-                d.materialKosten > 0? ['− Verpackungsmaterial', -d.materialKosten, 'var(--danger)'] : null,
+                d.materialEinkauf > 0? ['− Verpackungsmaterial', -d.materialEinkauf, 'var(--danger)'] : null,
                 d.afaKosten > 0     ? ['− AfA / Abschreibungen', -d.afaKosten, 'var(--danger)'] : null,
                 d.sonstigeAusgaben > 0 ? ['− Betriebsausgaben', -d.sonstigeAusgaben, 'var(--danger)'] : null,
                 d.eigenbelegeAusgaben > 0 ? ['− Eigenbelege', -d.eigenbelegeAusgaben, 'var(--danger)'] : null,
@@ -1090,7 +1112,11 @@ const Euer = {
                 const sonstAusg = sExp.reduce((s, e) => s + (parseFloat(e.betrag)||0), 0);
                 const platGeb = sSales.reduce((s, x) => { const vk=parseFloat(x.verkaufspreis)||0; const vkK=parseFloat(x.versandkostenKaeufer)||0; const pct=parseFloat(x.plattformgebuehrProzent)||0; return s+(vk+vkK)*pct/100; }, 0);
                 const versand = sSales.reduce((s, x) => s + (parseFloat(x.versandkostenVerkaufer)||0), 0);
-                const sMat = Store.getMaterialVerbrauch().filter(v => !v.storniert && v.grund==='verkauf' && Utils.isInPeriod(v.datum, sDate, eDate)).reduce((s,v)=>s+(parseFloat(v.kosten)||0),0);
+                // Wie oben in _berechne(): der EINKAUF ist die Betriebsausgabe, nicht der
+                // Verbrauch — und Einkaeufe mit ausgabeId stecken schon in sonstAusg.
+                // Muss mit _berechne() uebereinstimmen, sonst weicht die ELSTER-Zeile von
+                // der angezeigten EUER ab (test/test-euer-material-einkauf.js sichert das).
+                const sMat = Store.getMaterialEinkauefe().filter(e => !e.ausgabeId && e.lieferant !== 'Ausgabe' && Utils.isInPeriod(e.datum, sDate, eDate)).reduce((s,e)=>s+(parseFloat(e.gesamtkosten)||0),0);
                 const sEB = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; const _k = (_ebCo?_ebCo+'__':'')+'eigenbelege_belege'; return (typeof Store !== 'undefined' ? Store._syncReadRaw(_k) : JSON.parse(localStorage.getItem(_k)||'[]')) || []; } catch{return[];} })()
                     .filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, sDate, eDate))
                     .reduce((s,b)=>s+(parseFloat(b.betragNetto)||parseFloat(b.betragBrutto)||0),0);

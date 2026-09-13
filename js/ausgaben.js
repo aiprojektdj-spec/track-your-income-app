@@ -383,7 +383,11 @@ const Ausgaben = {
                 try { belegFoto = await Utils.sanitizeImageFile(belegFotoFile); }
                 catch (err) { Utils.showToast(err.message || 'Beleg-Foto konnte nicht gelesen werden', 'error'); return; }
             }
-            Store.saveExpense({
+            // Rueckgabewert festhalten: traegt die vergebene id und verknuepft unten den
+            // Materialeinkauf mit GENAU dieser Ausgabe. Ohne die Verknuepfung stuende der
+            // Betrag zweimal in der EUER — einmal als Betriebsausgabe, einmal als
+            // Materialeinkauf (s. Kommentar bei saveMaterialEinkauf weiter unten).
+            const gespeicherteAusgabe = Store.saveExpense({
                 datum,
                 kategorie: document.getElementById('exp_kategorie').value,
                 beschreibung: document.getElementById('exp_beschreibung').value.trim(),
@@ -412,7 +416,14 @@ const Ausgaben = {
                                 : kostenProEinheit;
                             mat.bestand = neuerBestand;
                             Store.saveMaterialBestandItem(mat);
-                            Store.saveMaterialEinkauf({ datum, materialId: matId, materialName: mat.name, einheit: mat.einheit || 'Stück', menge, gesamtkosten: betrag, kostenProEinheit, lieferant: 'Ausgabe' });
+                            // ausgabeId verknuepft diesen Einkauf mit der Ausgabe von oben.
+                            // Die EUER zieht Materialeinkaeufe als Betriebsausgabe ab
+                            // (Abflussprinzip §4 Abs. 3 EStG) und MUSS die hier entstandenen
+                            // ueberspringen — ihr Betrag steckt schon in den Betriebsausgaben.
+                            // `lieferant: 'Ausgabe'` bleibt als Anzeigetext und als Rueckfall
+                            // fuer Altdaten stehen, taugt aber nicht als Schluessel: der Text
+                            // laesst sich im Materiallager frei eintippen.
+                            Store.saveMaterialEinkauf({ datum, materialId: matId, materialName: mat.name, einheit: mat.einheit || 'Stück', menge, gesamtkosten: betrag, kostenProEinheit, lieferant: 'Ausgabe', ausgabeId: gespeicherteAusgabe && gespeicherteAusgabe.id });
                             Utils.showToast(`${menge} × ${Utils.escapeHtml(mat.name)} ins Materiallager eingebucht`, 'success');
                         }
                     }

@@ -2157,10 +2157,19 @@ const App = {
                 <p style="color:var(--text-secondary);font-size:12px;margin-bottom:10px;">Falls Daten verloren gegangen sind — das System prüft alle verfügbaren Quellen (Auto-Backups, localStorage-Spiegel, raw localStorage).</p>
                 <button class="btn btn-danger" id="emergencyRecoverBtn"><i class="ti ti-search"></i> Verfügbare Backups prüfen &amp; wiederherstellen</button>
             </div>
+            <!-- Zwei getrennte Wege, weil sie unterschiedlich weit reichen und der eine den
+                 anderen nicht ersetzen kann (Entscheidung 2026-09-13, plan/01-AUFGABEN.md §2.5):
+                 "diese Firma" braucht den Schluessel, um die Anhang-URLs aus dem Chiffrat zu
+                 lesen — ohne ihn bleiben Blob-Objekte unadressierbar liegen. Der Konto-Weg
+                 kommt ohne Schluessel aus, loescht dafuer aber ALLE Firmen. -->
             <div class="section">
-                <div class="section-title">Alle Daten loeschen</div>
-                <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;">Achtung: Alle Geschaeftsdaten werden geloescht! Das Aenderungsprotokoll (Audit-Log) bleibt gemaess GoBD erhalten.</p>
-                <button class="btn btn-danger" id="clearAllBtn">Geschaeftsdaten loeschen</button>
+                <div class="section-title">Daten loeschen</div>
+                <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;">Achtung: Alle Geschaeftsdaten dieser Firma werden geloescht! Das Aenderungsprotokoll (Audit-Log) bleibt gemaess GoBD erhalten.</p>
+                <button class="btn btn-danger" id="clearAllBtn">Daten dieser Firma loeschen</button>
+                <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+                    <p style="margin-bottom:10px;color:var(--text-secondary);font-size:12px;line-height:1.6;">Willst du <strong>ganz aufhoeren</strong>, reicht der Knopf oben nicht: Er loescht nur die aktive Firma, und ohne Wiederherstellungscode bleiben ausgelagerte Anhaenge (Logos, Belegfotos, PDFs) in der Cloud liegen. Der Weg hier loescht den kompletten Cloud-Bestand dieses Kontos &mdash; <strong>alle Firmen</strong> &mdash; und braucht keinen Code.</p>
+                    <button class="btn btn-danger" id="wipeCloudBtn">Alle Cloud-Daten dieses Kontos loeschen</button>
+                </div>
             </div>
         `;
         this.showModal('Backup & Daten', body, '');
@@ -3085,6 +3094,61 @@ const App = {
             });
         });
 
+        // Konto-weite Cloud-Löschung (Art. 17 DSGVO). Bewusst ein eigener Knopf statt eines
+        // stillen Rückfalls im Firmen-Löschen: Wer eine Firma meint, darf nicht versehentlich
+        // alle löschen — und wer aufhören will, braucht einen Weg, der ohne Wiederherstellungs-
+        // code auskommt. Nicht zu verwechseln mit "Cloud-Daten verwerfen & neu aufsetzen" im
+        // Sync-Panel: das ist ein Reset, der danach einen NEUEN Code ausgibt.
+        const wipeCloudBtn = document.getElementById('wipeCloudBtn');
+        if (wipeCloudBtn) wipeCloudBtn.addEventListener('click', () => {
+            if (typeof CloudSync === 'undefined') { Utils.showToast('Cloud-Sync ist auf dieser Seite nicht geladen.', 'warning'); return; }
+            const body = `
+                <div style="margin-bottom:16px;padding:14px;background:rgba(220,38,38,0.1);border-radius:8px;border:2px solid var(--danger);">
+                    <div style="font-weight:700;color:var(--danger);font-size:16px;margin-bottom:8px;">⛔ Betrifft alle Firmen dieses Kontos</div>
+                    <p style="color:var(--text-secondary);font-size:13px;margin:0 0 8px;">
+                        Gelöscht wird der <strong>gesamte verschlüsselte Cloud-Bestand</strong> dieses Whop-Kontos — jede Firma, nicht nur die gerade aktive — samt aller ausgelagerten Anhänge (Logos, Belegfotos, PDFs). Dafür ist <strong>kein Wiederherstellungscode nötig</strong>.
+                    </p>
+                    <p style="color:var(--text-secondary);font-size:12px;margin:0 0 8px;">
+                        ✅ <strong>Bleibt erhalten:</strong> deine <strong>lokalen</strong> Daten auf diesem Gerät und das Änderungsprotokoll. Gelöscht wird nur, was in der Cloud liegt. Cloud-Sync wird dabei ausgeschaltet.
+                    </p>
+                    <p style="color:var(--text-secondary);font-size:12px;margin:0;">
+                        ℹ️ Die Anker-Liste des Audit-Logs bleibt bestehen — sie enthält keine Geschäftsdaten, sondern nur Prüfsummen, und ist dein GoBD-Nachweis gegen nachträgliche Änderungen.
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" style="color:var(--danger);">Tippe <strong>LÖSCHEN</strong> zur Bestätigung:</label>
+                    <input type="text" class="form-input" id="wipeCloudConfirm" maxlength="50" placeholder="LÖSCHEN" autocomplete="off">
+                </div>
+            `;
+            const footer = `
+                <button class="btn" data-action="close-modal">Abbrechen</button>
+                <button class="btn btn-danger" id="wipeCloudGo" disabled>Endgültig löschen</button>
+            `;
+            this.showModal('Alle Cloud-Daten löschen', body, footer);
+            const inp = document.getElementById('wipeCloudConfirm');
+            const go  = document.getElementById('wipeCloudGo');
+            inp.addEventListener('input', () => { go.disabled = inp.value !== 'LÖSCHEN'; });
+            go.addEventListener('click', async () => {
+                if (inp.value !== 'LÖSCHEN') return;
+                go.disabled = true; go.textContent = '⏳ Lösche…';
+                const r = await CloudSync.deleteAllRemote();
+                if (!r || !r.ok) {
+                    // Kein Teil-Erfolg vortäuschen: Bei Serverfehler ist nichts gelöscht, und der
+                    // Schlüssel liegt absichtlich noch da, damit ein zweiter Versuch möglich ist.
+                    Utils.showToast(r && r.grund === 'kein_token'
+                        ? 'Bitte zuerst mit Whop anmelden — ohne Anmeldung ist keine Cloud-Löschung möglich.'
+                        : 'Löschung fehlgeschlagen — es wurde nichts entfernt. Bitte Internetverbindung prüfen und erneut versuchen.', 'error', 9000);
+                    go.disabled = false; go.textContent = 'Endgültig löschen';
+                    return;
+                }
+                Utils.showToast(r.blobsOk
+                    ? '✅ Alle Cloud-Daten dieses Kontos wurden gelöscht. Deine lokalen Daten sind unberührt.'
+                    : '✅ Cloud-Daten gelöscht — die Anhänge konnten nicht alle bestätigt werden. Bitte in einigen Minuten erneut ausführen.', r.blobsOk ? 'success' : 'warning', 10000);
+                this.closeModal();
+                location.reload();
+            });
+        });
+
         document.getElementById('clearAllBtn').addEventListener('click', () => {
             // Gesichertes Löschen: Nutzer muss "LÖSCHEN" tippen
             const body = `
@@ -3137,7 +3201,14 @@ const App = {
                     if (cloudOk) {
                         Utils.showToast('Alle Daten gelöscht', 'warning');
                     } else {
-                        Utils.showToast('Lokale Daten gelöscht — Cloud-Löschung fehlgeschlagen. Bitte Internetverbindung prüfen; beim nächsten Sync-Versuch wird erneut versucht.', 'error');
+                        // Zwei verschiedene Ursachen, zwei verschiedene Auswege: Ohne Schlüssel
+                        // ist der Cloud-Snapshot zwar weg, die Anhang-URLs standen aber nur im
+                        // Chiffrat — die Retry-Queue kann sie nicht nachholen, weil sie sie nie
+                        // erfahren wird. Dafür gibt es den Konto-Weg, der ohne Schlüssel auskommt.
+                        const ohneSchluessel = (typeof CloudSync !== 'undefined' && CloudSync.hasKey && !CloudSync.hasKey());
+                        Utils.showToast(ohneSchluessel
+                            ? 'Lokale Daten gelöscht. Ohne Wiederherstellungscode konnten ausgelagerte Anhänge nicht mitgelöscht werden — dafür gibt es unter „Backup & Daten" den Knopf „Alle Cloud-Daten dieses Kontos löschen".'
+                            : 'Lokale Daten gelöscht — Cloud-Löschung fehlgeschlagen. Bitte Internetverbindung prüfen; beim nächsten Sync-Versuch wird erneut versucht.', 'error', 12000);
                     }
                     this.closeModal();
                     location.reload();

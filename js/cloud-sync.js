@@ -1694,6 +1694,44 @@ var CloudSync = (function () {
             return false;
         }
     }
+
+    // Art. 17 DSGVO über ALLE Firmen dieses Kontos — und der einzige Weg, der auch **ohne
+    // Schlüssel** vollständig löscht. deleteRemote(scope) oben muss die Anhang-URLs aus dem
+    // Chiffrat lesen und lässt sie ohne Schlüssel zwangsläufig liegen; hier kennt der Server
+    // die Scope-Liste selbst (`scopes:<userId>`), und BlobAttachments.purgeAll() räumt über
+    // den Nutzer-Präfix des Blob-Stores statt über einzelne URLs. Genau deshalb gibt es
+    // diesen zweiten Weg: Sonst blieben fremde personenbezogene Daten in einem Store liegen,
+    // den nach dem Schlüsselverlust niemand mehr adressieren kann.
+    //
+    // Bewusster Unterschied zu _finishReset(), das dieselben zwei Server-Aufrufe macht: Dort
+    // wird anschließend ein NEUER Schlüssel gemintet und ein neuer Wiederherstellungscode
+    // gezeigt — das ist ein Reset zum Weiterarbeiten. Wer endgültig löscht, will keinen
+    // neuen Code präsentiert bekommen. Deshalb hier: aufräumen, Sync ausschalten, Schluss.
+    //
+    // Die Anker-Listen (`syncanchor:*`) bleiben auch hier stehen — sie enthalten keine
+    // Klardaten, sind aber die GoBD-Tamper-Evidence. Begründung in api/sync.js bei reset_all.
+    async function deleteAllRemote() {
+        var uid = _userId();
+        if (!_token() || !uid) return { ok: false, grund: 'kein_token' };
+        var redisOk = false;
+        try {
+            var res = await _api({ action: 'reset_all' });
+            redisOk = (res.status === 200);
+            if (!redisOk) console.warn('[CloudSync] deleteAllRemote: HTTP ' + res.status);
+        } catch (e) {
+            console.warn('[CloudSync] deleteAllRemote reset:', e && e.message);
+        }
+        // Bei Serverfehler NICHT lokal aufräumen: sonst verliert der Nutzer den Schlüssel,
+        // mit dem er es noch einmal versuchen könnte, und die Cloud-Daten blieben liegen.
+        if (!redisOk) return { ok: false, grund: 'server' };
+        var blobsOk = false;
+        try { blobsOk = await BlobAttachments.purgeAll(); } catch (e) { blobsOk = false; }
+        await _wipeLocalSyncState(uid);
+        localStorage.removeItem(LS_ENABLED);
+        _setMismatch(false);
+        return { ok: true, blobsOk: blobsOk };
+    }
+
     // Sammelt alle { __blobref__ } URLs aus einem keys-Objekt (Records + einzelne Objekte) ein.
     function _collectBlobRefs(keys, out) {
         function visit(obj) {
@@ -1882,6 +1920,7 @@ var CloudSync = (function () {
         foreignLoad: foreignLoad,
         foreignUnload: foreignUnload,
         deleteRemote: deleteRemote,
+        deleteAllRemote: deleteAllRemote,
         retryPendingDeletions: retryPendingDeletions,
         _finishEnable: _finishEnable,
         _finishConnect: _finishConnect,

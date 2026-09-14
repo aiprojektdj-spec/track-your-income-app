@@ -143,8 +143,11 @@ keines).
 die richtige Entscheidung. ~~**Einzige Empfehlung:** Die `console.error`-Zeilen sollten einen
 Alert auslösen statt nur im Log zu versanden.~~ **Erledigt 2026-08-16:** `api/_alert.js` meldet
 jeden offenen Deckel an `ALERT_WEBHOOK_URL` (Slack- und Make.com-kompatibel), entprellt auf eine
-Meldung je Ereignis und 5 Minuten. **19 Stellen in sechs Endpunkten** (`grep -rn "alertOps('"
-api/*.js | wc -l`), inklusive des Blob-Byte-Budgets, das dieselbe Fail-open-Eigenschaft hat.
+Meldung je Ereignis und 5 Minuten. **20 Stellen in sechs Endpunkten** (Stand 2026-09-14,
+`grep -rn "alertOps('" api/*.js | wc -l`), inklusive des Blob-Byte-Budgets, das dieselbe
+Fail-open-Eigenschaft hat. *Die Zahl wächst mit jedem neuen Deckel — sie stand am 2026-08-16 bei
+neun und am 2026-09-10 bei 19. Deshalb der Befehl daneben: nachzählen dauert zwei Sekunden,
+und die Zahl hier ist im Zweifel älter als der Code.*
 
 **Nachtrag 2026-09-10 — zweites Ziel, damit die Meldung nicht am fehlenden Webhook hängt:**
 `api/_alert.js` legt dieselbe Nutzlast zusätzlich als JSON unter `stackr/alerts/` im

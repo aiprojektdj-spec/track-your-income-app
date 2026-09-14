@@ -67,8 +67,8 @@ und `redis-env-missing` setzt voraus, dass man die Redis-Env kaputtmacht. Die do
 > in der Anleitung, Commit `0c5c4b0`, dort inzwischen korrigiert.
 
 Vorhanden sind Previews also, aber alle **älter als die Variable** (2026-09-13): der jüngste vom
-2026-08-30 steht auf **Error**, die übrigen aus Juli liegen vor `api/_alert.js`. Ein Branch muss
-also geschoben werden. Und `KV_REST_API_*` ist für **Production und Preview** gesetzt — ein Preview
+2026-08-30 steht auf **Error**, die übrigen aus Juni und Juli liegen vor `api/_alert.js`. Ein
+Branch muss also geschoben werden. Und `KV_REST_API_*` ist für **Production und Preview** gesetzt — ein Preview
 feuert `redis-env-missing` nicht von selbst.
 
 ### Der Selbsttest ist gebaut — ein `curl` statt eines Branches

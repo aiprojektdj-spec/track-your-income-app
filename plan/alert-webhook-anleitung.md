@@ -157,18 +157,27 @@ Vercel → Cron Jobs auf den letzten Lauf.
 >
 > **Korrektur 2026-09-14:** Hier stand bis eben, es gebe überhaupt kein Preview-Deployment. Das
 > war falsch und stammte von mir. Previews aus Feature-Branches gibt es sehr wohl
-> (`a11y/gate-overlay-namen`, `fix/whop-access-gate`, `feature/csp-phase-c` …). **Die Falle:** die
+> (`a11y/gate-overlay-namen`, `feature/csp-phase-c`, `fix/error-sweep` …). **Die Falle:** die
 > Deployments-Liste in Vercel ist **standardmäßig auf `Environment Production` gefiltert**, und der
 > aktive Filter sieht in der Leiste aus wie ein anklickbarer Vorschlag. Richtig zählen lässt sich
 > über `…/deployments?environment=preview`.
 >
 > **Teuer bleibt es trotzdem, aus zwei anderen Gründen.** Erstens sind alle vorhandenen Previews
 > älter als `ALERT_WEBHOOK_URL` (angelegt 2026-09-13) und tragen sie deshalb nicht: der jüngste ist
-> vom **2026-08-30 und steht auf Error**, die übrigen stammen aus Juli und liegen damit sogar vor
-> `api/_alert.js` (2026-08-16) — dort existiert der Alarm gar nicht. Man muss also einen Branch
-> schieben. Zweitens sind `KV_REST_API_URL`, `KV_REST_API_TOKEN` und `KV_REST_API_READ_ONLY_TOKEN`
+> vom **2026-08-30 und steht auf Error**, die übrigen stammen aus Juni und Juli und liegen damit
+> sogar vor `api/_alert.js` (2026-08-16) — dort existiert der Alarm gar nicht. Man muss also
+> einen Branch schieben. Zweitens sind `KV_REST_API_URL`, `KV_REST_API_TOKEN` und `KV_REST_API_READ_ONLY_TOKEN`
 > für **Production *und* Preview** gesetzt: ein Preview feuert `redis-env-missing` nicht von
 > selbst, kaputtmachen muss man es weiterhin selbst.
+>
+> Wie alt die Branches wirklich sind, sagt nicht dieser Absatz, sondern:
+> ```bash
+> git for-each-ref --sort=-committerdate --format='%(committerdate:short)  %(refname:short)' refs/remotes/origin
+> ```
+> Am 2026-09-14 waren es sechs Branches neben `master`, der älteste `hotfix/sync-userinfo` vom
+> 2026-06-26. **Achtung:** Vercel behält Preview-Deployments, auch wenn der Branch längst weg
+> ist — `fix/whop-access-gate` hat dort noch ein Deployment vom 12.07., auf `origin` existiert
+> der Branch nicht mehr. Dashboard-Liste und Branch-Liste sind also nicht dasselbe.
 >
 > **Nicht ersatzweise in Production ausführen** — der Ablauf legt den Cloud-Sync für alle Kunden
 > still, genau das ist ja der Punkt.

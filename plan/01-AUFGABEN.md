@@ -775,9 +775,14 @@ ein Blick, ob beide Knöpfe erscheinen und der zweite die Warnung „betrifft al
 > Grace-Token. Die Zeile schickte also auf etwas längst Erledigtes — genau die Sorte Veralten, vor
 > der diese Datei oben selbst warnt.
 
-**Abschnitt 1 ist leer** — keine Code-Aufgabe, die eine Session greifen könnte. Die Funde 1.3 bis
-1.7 aus den Live-Tests sind alle gefixt; die OCR-Messung an echten Belegen ist am 2026-08-30
-gelaufen (**2 von 3**, siehe [`live-tests-checkliste.md`](live-tests-checkliste.md) Punkt 7).
+**Abschnitt 1 ist seit dem 2026-09-13 nicht mehr leer** — hier stand bis dahin das Gegenteil,
+und zwar noch, nachdem der Abschnittskopf oben bereits korrigiert war. Zwei Stellen derselben
+Datei widersprachen sich also einen Tag lang. Offen sind dort **1.8** (Harnesse für die Module
+ohne Abdeckung) und **1.9** (die zwei DATEV-Punkte).
+
+Die Funde 1.3 bis 1.7 aus den Live-Tests sind alle gefixt; die OCR-Messung an echten Belegen ist
+am 2026-08-30 gelaufen (**2 von 3**, siehe [`live-tests-checkliste.md`](live-tests-checkliste.md)
+Punkt 7).
 
 Der einzige Rest dort ist der Umbau der StB-Schreibsperre von einer Denylist auf eine Allowlist
 (1.7). Er ist **kein Sicherheitsthema mehr** — der Store-Guard fängt seit dem 2026-09-05 jeden

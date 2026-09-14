@@ -27,7 +27,7 @@ In drei pfad-gescopten Commits:
 | **A8** derselbe tote Key in `akademie.js` | ✅ behoben am 2026-09-13 (`bede2ce`) |
 | **B1** `ui-lab.html` ohne Gate, CSP, `noindex` | ✅ behoben, im Browser gegen die echte CSP geprüft |
 | **B2** `X-XSS-Protection` veraltet | ✅ behoben am 2026-09-12 — Wert jetzt `0` |
-| **C** Module ohne Test | teilweise — vier neue Harnesse, 121 Checks; Zählung korrigiert auf **24 von 56** |
+| **C** Module ohne Test | teilweise — **21 von 56** laden kein Harness, davon 11 mit Geldbezug; Einordnung unten in Kategorie C |
 | **D1** Icon-Buttons ohne `aria-label` | ✅ behoben, 11 Stellen (2 mehr als gemeldet) |
 | **E** `robots.txt`-Drift | ✅ behoben |
 

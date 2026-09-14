@@ -61,16 +61,41 @@ und `redis-env-missing` setzt voraus, dass man die Redis-Env kaputtmacht. Die do
 **Preview-Deployment — und davon gibt es keins**: alles geht von `master` direkt nach Production.
 Man müsste also erst einen Branch schieben.
 
-> **Wird gerade gelöst, besser als hier beschrieben.** Eine Parallel-Session baut am 2026-09-13
-> einen Selbsttest `?probe=1` in `api/blob-cleanup.js`: er meldet, ob `ALERT_WEBHOOK_URL` im
-> laufenden Prozess ankommt — ohne die URL auszuliefern — und `alertOps` gibt dazu neu
-> zurück, ob gesendet oder entprellt wurde. Das beantwortet die Frage unten ohne Branch, ohne
-> kaputte Preview und ohne echten Ausfall. Sobald das committet ist, ersetzt es den Absatz hier.
+### Der Selbsttest ist gebaut — ein `curl` statt eines Branches
 
-**Empfehlung bis dahin: nicht erzwingen.** Was noch unbelegt ist, ist ausgerechnet das mechanisch
+**Committet am 2026-09-13 als `482166f`**, am 2026-09-14 gegen den Code nachgeprüft (nicht gegen
+die Ankündigung). `api/blob-cleanup.js` kennt jetzt `?probe=1`:
+
+```bash
+curl -s -H "Authorization: Bearer $CRON_SECRET" "https://DEINE-DOMAIN/api/blob-cleanup?probe=1"
+```
+
+Antwort: `{ok, probe:true, env, webhook, blob, gemeldet}`. `webhook` und `blob` sagen, ob
+`ALERT_WEBHOOK_URL` bzw. `BLOB_READ_WRITE_TOKEN` **im laufenden Prozess** ankommen — als
+Ja/Nein, die URL selbst wird nie ausgeliefert. `gemeldet: false` heißt nur „binnen fünf Minuten
+schon geschickt" (Entprellung), nicht „fehlgeschlagen".
+
+Am Code gegengelesen, weil ein Selbsttest hinter einem Secret genau die Stelle ist, an der man
+sich nicht auf eine Zusage verlässt:
+
+| Geprüft | Befund |
+|---|---|
+| Reihenfolge | `?probe=1` wird **nach** der Bearer-Prüfung ausgewertet ([`api/blob-cleanup.js:68`](../api/blob-cleanup.js), Prüfung in Zeile 54) — kein neuer Zugangsweg |
+| Aufräumlauf | Der Zweig kehrt **vor** `try {` zurück: in diesem Modus kein `list`, kein `del` |
+| Geheimnisse | Die Antwort trägt nur Booleans, nirgends die URL |
+| Alarmflut | Die Entprellung gilt für `selbsttest`/`webhook-probe` wie für jedes Paar |
+| Tests | `test/test-alert-selbsttest.js` 26/26, `test/test-alert-ops.js` 30/30 — selbst nachgefahren |
+
+> ⚠️ **Noch nicht belegt: der Lauf gegen Produktion.** Der Selbsttest lief bisher nur lokal gegen
+> Attrappen. Es fehlen zwei Dinge, die keine Session hat: das **Deployment dieses Commits** und
+> `CRON_SECRET` — das liegt weder in `.env.local` noch hat eine Session Vercel-Zugang. Der
+> `curl` oben ist also die Anleitung, nicht das Protokoll.
+
+**Bis dahin gilt weiter: nicht erzwingen.** Was unbelegt bleibt, ist ausgerechnet das mechanisch
 Unverdächtigste — ein `process.env.ALERT_WEBHOOK_URL`, dieselbe Mechanik, über die ein Dutzend
-anderer Variablen nachweislich ankommt. Der Aufwand (Branch anlegen, Preview-Redis zerstören,
-zurücksetzen, zweimal deployen) steht dazu in keinem Verhältnis.
+anderer Variablen nachweislich ankommt. Der alte Weg (Branch anlegen, Preview-Redis zerstören,
+zurücksetzen, zweimal deployen) steht dazu in keinem Verhältnis — und ist jetzt ohnehin durch
+den `curl` ersetzt.
 
 ## Die beiden Ziele prüfen sich jetzt gegenseitig
 

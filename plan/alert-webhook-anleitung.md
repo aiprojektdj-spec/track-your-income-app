@@ -99,8 +99,8 @@ Slack-Incoming-Webhook, weil `text` das Feld ist, das Slack erwartet:
 }
 ```
 
-**19 Aufrufstellen in sechs Endpunkten, 17 verschiedene `source:event`-Paare** (entprellt wird
-je Paar). Gegen den Code geprüft am 2026-09-07:
+**20 Aufrufstellen in sechs Endpunkten, 18 verschiedene `source:event`-Paare** (entprellt wird
+je Paar). Gegen den Code geprüft am 2026-09-14:
 
 | `source` | `event` | Bedeutung |
 |---|---|---|
@@ -121,6 +121,7 @@ je Paar). Gegen den Code geprüft am 2026-09-07:
 | `whop-token` | `kein-refresh-token` | Whop lieferte keinen `refresh_token` — Erneuerung für diese Sitzung unmöglich |
 | `blob-cleanup` | `cron-secret-missing` | `CRON_SECRET` nicht gesetzt — der tägliche Aufräum-Job läuft ins Leere |
 | `blob-cleanup` | `cleanup-failed` | Aufräum-Job abgebrochen — verwaiste Chunks bleiben liegen, Blob-Speicher wächst |
+| `selbsttest` | `webhook-probe` | **Die einzige Zeile hier, die keinen Ausfall meldet.** Wird von Hand über `?probe=1` ausgelöst (s. u.), `detail` lautet „Selbsttest von Hand ausgeloest — kein Ausfall". Wer eine Alarmmail mit dieser Quelle bekommt, hat sie selbst angefordert. |
 
 Drei Muster, die für Make-Filter wichtig sind: `whop-access` sendet **nie** `rate-limit-open`,
 sondern `ip-rate-limit-open`. `…-inaktiv` heißt „Env fehlt", `…-open` heißt „Redis antwortet
@@ -151,18 +152,31 @@ Vercel → Cron Jobs auf den letzten Lauf.
 
 ## Gegenprobe nach dem Deployment
 
-> ⚠️ **Diese Gegenprobe lässt sich derzeit nicht durchführen — sie steht hier als Bauplan, nicht
-> als Handlungsanweisung.** Sie setzt durchgehend ein **Preview-Deployment** voraus, und laut
-> Prüfung einer parallelen Session vom 2026-09-13 gibt es keines: alles geht von `master` direkt
-> nach Production. Wer den Ablauf unten trotzdem abarbeitet, setzt Preview-Variablen für eine
-> Umgebung, die nie deployt wird, und wartet anschließend auf eine Meldung, die nicht kommen kann.
+> ⚠️ **Diese Gegenprobe ist möglich, aber teuer — sie steht hier als Bauplan, nicht als
+> Handlungsanweisung.**
+>
+> **Korrektur 2026-09-14:** Hier stand bis eben, es gebe überhaupt kein Preview-Deployment. Das
+> war falsch und stammte von mir. Previews aus Feature-Branches gibt es sehr wohl
+> (`a11y/gate-overlay-namen`, `fix/whop-access-gate`, `feature/csp-phase-c` …). **Die Falle:** die
+> Deployments-Liste in Vercel ist **standardmäßig auf `Environment Production` gefiltert**, und der
+> aktive Filter sieht in der Leiste aus wie ein anklickbarer Vorschlag. Richtig zählen lässt sich
+> über `…/deployments?environment=preview`.
+>
+> **Teuer bleibt es trotzdem, aus zwei anderen Gründen.** Erstens sind alle vorhandenen Previews
+> älter als `ALERT_WEBHOOK_URL` (angelegt 2026-09-13) und tragen sie deshalb nicht: der jüngste ist
+> vom **2026-08-30 und steht auf Error**, die übrigen stammen aus Juli und liegen damit sogar vor
+> `api/_alert.js` (2026-08-16) — dort existiert der Alarm gar nicht. Man muss also einen Branch
+> schieben. Zweitens sind `KV_REST_API_URL`, `KV_REST_API_TOKEN` und `KV_REST_API_READ_ONLY_TOKEN`
+> für **Production *und* Preview** gesetzt: ein Preview feuert `redis-env-missing` nicht von
+> selbst, kaputtmachen muss man es weiterhin selbst.
 > **Nicht ersatzweise in Production ausführen** — der Ablauf legt den Cloud-Sync für alle Kunden
 > still, genau das ist ja der Punkt.
 >
-> Für den noch fehlenden Nachweis (dass `ALERT_WEBHOOK_URL` zur Laufzeit wirklich bei
-> `api/_alert.js` ankommt) baut eine dritte Session gerade einen gefahrlosen Weg: `?probe=1` in
-> `api/blob-cleanup.js`. Sobald der liegt, gehört dieser Abschnitt darauf umgeschrieben oder
-> ersetzt. Der Rest des Abschnitts bleibt bis dahin nützlich, weil er die `||`-Falle erklärt.
+> **Nimm stattdessen den Selbsttest** — er beantwortet dieselbe Frage mit einem `curl`, ohne
+> Branch, ohne kaputte Umgebung: [Selbsttest der Alarmkette](#selbsttest-der-alarmkette-probe1)
+> weiter unten. Der Rest dieses Abschnitts bleibt trotzdem lesenswert, weil er die `||`-Falle
+> zwischen `UPSTASH_…` und `KV_…` erklärt, und als ehrlichster Weg richtig bleibt: nur der
+> echte Ausfall beweist auch, dass der *Auslöser* feuert, nicht bloß die Kette dahinter.
 
 Der ehrlichste Test wäre ein echter Redis-Ausfall — den willst du nicht herbeiführen.
 
@@ -204,6 +218,39 @@ Kommt binnen ~1 Minute keine Meldung, prüfe der Reihe nach: Szenario in Make ak
 („Scheduling" ON), `ALERT_WEBHOOK_URL` im **Preview**-Environment gesetzt, nach dem Setzen
 neu deployt. Achtung Entprellung: derselbe Alarm kommt frühestens nach 5 Minuten erneut — ein
 zweiter Testaufruf direkt danach bleibt absichtlich still.
+
+## Selbsttest der Alarmkette (`?probe=1`)
+
+**Seit `482166f` gibt es den kurzen Weg.** Er beantwortet genau die Frage, die weder die
+Attrappen-Tests noch die Make-Historie beantworten können: *Kommt `ALERT_WEBHOOK_URL` aus Vercels
+Einstellungen im laufenden Code überhaupt an?* Ein Aufruf, kein Deployment, kein kaputter Zustand:
+
+```bash
+curl -s -H "Authorization: Bearer $CRON_SECRET" "https://DEINE-DOMAIN/api/blob-cleanup?probe=1"
+```
+
+```json
+{"ok":true,"probe":true,"env":"production","webhook":true,"blob":true,"gemeldet":true}
+```
+
+| Beobachtung | Was sie bedeutet |
+|---|---|
+| `webhook:false` | **Der bisher unbelegte Link ist es.** Die Variable erreicht den laufenden Prozess nicht — falsches Environment gewählt, oder nach dem Setzen nicht neu deployt. |
+| `webhook:true` **und** Mail kommt an | Die ganze Kette ist belegt, Ende der offenen Frage. |
+| `webhook:true`, aber **keine** Mail | Nicht Vercel, sondern die Make-Seite: Szenario inaktiv oder Modul kaputt. |
+| `gemeldet:false` | Entprellung — dasselbe Paar ging in den letzten 5 Minuten schon raus (oder eine andere Serverless-Instanz hat geantwortet). Kein Fehler, einfach später erneut. |
+
+Drei Eigenschaften, die den Aufruf ungefährlich machen — am Code nachgesehen, nicht angenommen:
+
+- **Kein neuer Zugangsweg.** Die `Bearer`-Prüfung gegen `CRON_SECRET` liegt **vor** dem
+  Probe-Zweig. Wer das Secret hat, könnte ohnehin den weit mächtigeren Löschlauf auslösen.
+- **Der Aufräumlauf bleibt unberührt.** Der Zweig kehrt vor `list`/`del` zurück; es wird nichts
+  gelöscht und nichts durchsucht.
+- **Die Webhook-URL steht nie in der Antwort** — nur das Ja/Nein, ob sie ankommt.
+
+Dass er wirklich meldet statt nur zu behaupten, prüft `test/test-alert-selbsttest.js`
+(**26/26 grün am 2026-09-14**). Noch nicht belegt: ein Lauf gegen die echte Produktion — dafür
+braucht es ein Deployment dieses Commits und den Aufruf mit dem echten `CRON_SECRET`.
 
 ## Ohne Make.com: der Blob-Alarmspeicher
 
@@ -262,14 +309,19 @@ per Mail erfahren, nicht beim nächsten Nachsehen. Der Webhook oben bleibt also 
 `test/test-alert-ops.js` prüft die Mechanik lokal gegen Attrappen für `fetch` und für
 `@vercel/blob`: kein Netzverkehr und kein `put`, wenn beide Ziele fehlen; Entprellung je
 Ereignis für beide Ziele; Nutzlast-Felder; Timeout-/Fehlerfestigkeit; Map-Deckel; Blob-Pfad,
--Optionen und -Inhalt; entschärfte Pfadsegmente. **23/23 grün am 2026-09-10.**
+-Optionen und -Inhalt; entschärfte Pfadsegmente; seit Block H auch der Rückgabewert von
+`alertOps` und `alertZiele`, auf denen der Selbsttest aufsetzt. **30/30 grün am 2026-09-14**,
+dazu `test/test-alert-selbsttest.js` mit **26/26**.
 
 ```bash
 node test/test-alert-ops.js
 ```
 
-Was dieser Test **nicht** abdeckt und nur die Gegenprobe oben zeigt: dass Make die Nutzlast
-annimmt, und dass `ALERT_WEBHOOK_URL` in Vercel tatsächlich ankommt.
+Was diese Tests **nicht** abdecken, weil sie gegen Attrappen laufen: dass Make die Nutzlast
+annimmt, und dass `ALERT_WEBHOOK_URL` in Vercel tatsächlich ankommt. Das Erste ist seit den zwei
+echten Testaufrufen vom 2026-09-13 belegt, für das Zweite gibt es seither den
+[Selbsttest](#selbsttest-der-alarmkette-probe1) — beides Fragen, die eine Attrappe prinzipiell
+nicht beantworten kann, egal wie viele Prüfungen man ihr hinzufügt.
 
 Der **Blob-Weg dagegen ist echt durchgestochen**, nicht nur gegen eine Attrappe: am
 2026-09-10 lokal mit dem produktiven `BLOB_READ_WRITE_TOKEN` ein Alarm geschrieben, das

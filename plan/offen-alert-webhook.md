@@ -58,8 +58,18 @@ Dazu muss etwas echt fehlschlagen, und kein Alarm lässt sich gefahrlos auslöse
 `grace-token-aus` feuert erst **nach** gültigem Whop-Token ([`api/whop-access.js:258`](../api/whop-access.js)),
 und `redis-env-missing` setzt voraus, dass man die Redis-Env kaputtmacht. Die dokumentierte
 [Gegenprobe](alert-webhook-anleitung.md#gegenprobe-nach-dem-deployment) bräuchte zusätzlich ein
-**Preview-Deployment — und davon gibt es keins**: alles geht von `master` direkt nach Production.
-Man müsste also erst einen Branch schieben.
+**frisches Preview-Deployment**.
+
+>
+> **Korrektur 2026-09-14:** Hier stand, es gebe überhaupt keins. Falsch — die Deployments-Liste in
+> Vercel ist standardmäßig auf `Environment Production` gefiltert, und der aktive Filter sieht aus
+> wie ein Vorschlag (`…/deployments?environment=preview` zählt richtig). Der Irrtum stand kurz auch
+> in der Anleitung, Commit `0c5c4b0`, dort inzwischen korrigiert.
+
+Vorhanden sind Previews also, aber alle **älter als die Variable** (2026-09-13): der jüngste vom
+2026-08-30 steht auf **Error**, die übrigen aus Juli liegen vor `api/_alert.js`. Ein Branch muss
+also geschoben werden. Und `KV_REST_API_*` ist für **Production und Preview** gesetzt — ein Preview
+feuert `redis-env-missing` nicht von selbst.
 
 ### Der Selbsttest ist gebaut — ein `curl` statt eines Branches
 

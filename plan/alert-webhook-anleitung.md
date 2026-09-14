@@ -169,6 +169,7 @@ Vercel → Cron Jobs auf den letzten Lauf.
 > schieben. Zweitens sind `KV_REST_API_URL`, `KV_REST_API_TOKEN` und `KV_REST_API_READ_ONLY_TOKEN`
 > für **Production *und* Preview** gesetzt: ein Preview feuert `redis-env-missing` nicht von
 > selbst, kaputtmachen muss man es weiterhin selbst.
+>
 > **Nicht ersatzweise in Production ausführen** — der Ablauf legt den Cloud-Sync für alle Kunden
 > still, genau das ist ja der Punkt.
 >

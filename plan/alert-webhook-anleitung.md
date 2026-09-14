@@ -1,6 +1,6 @@
 # `ALERT_WEBHOOK_URL` einrichten — Schritt für Schritt
 
-**Stand: 2026-09-07**, Auslöser-Tabelle und Gegenprobe gegen den Code geprüft. Gehört zu
+**Stand: 2026-09-14**, Auslöser-Tabelle gegen den Code nachgezählt. Gehört zu
 `api/_alert.js`, offener Punkt aus [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md)
 („Rate-Limits fallen bei Redis-Ausfall offen").
 

@@ -48,6 +48,28 @@ function check(name, cond) {
     else { console.error('✗ FAIL ' + name); process.exitCode = 1; }
 }
 
+// Ein Themenblock. Bricht er ab, zaehlt das als EIN Fehlschlag und die uebrigen Bloecke laufen
+// weiter. Das gehaertete check() oben reicht dafuer nicht: ein Harness ruft echten Modulcode
+// auf, und dieser Aufruf steht ausserhalb jedes check(). Am 2026-09-15 mit einer
+// API-Mutation nachgestellt (Store.getSettings in js/euer.js umbenannt) — der Aufruf von
+// _berechne() warf, und der ganze Harness starb, obwohl die Haelfte der Pruefungen mit dem
+// Schaden nichts zu tun hatte.
+//
+// Eine Parallel-Session hat denselben Weg unabhaengig gefunden und einen Nebeneffekt
+// beobachtet, der sich lohnt: die Zahl der abgebrochenen Bloecke misst die Schadensbreite —
+// ein Block heisst angekratzt, alle heissen im Kern kaputt.
+//
+// Wichtig an ihrer Erfahrung: eine Gegenprobe, die nur die FIXTURES kaputtmacht, prueft die
+// eigenen Testdaten, nicht den Harness. Sie muss dort ansetzen, wo der Code bricht.
+function block(name, fn) {
+    try { fn(); }
+    catch (e) {
+        total++;
+        console.error('✗ FAIL Block "' + name + '" abgebrochen: ' + (e && e.message));
+        process.exitCode = 1;
+    }
+}
+
 // ── Datensatz ────────────────────────────────────────────────────────────────
 // Zwei Verkaeufe (einer storniert), ein Einkauf, eine Ausgabe, dazu je ein Posten
 // aus den Modulen, die die alte Gewerbesteuer-Formel ignorierte.
@@ -99,7 +121,14 @@ const euerSrc = fs.readFileSync(__dirname + '/../js/euer.js', 'utf8');
 const berechneBody = extractMethod(euerSrc, '_berechne(year, month, period) {', /\n    \},/);
 const _berechne = new Function('year', 'month', 'period', berechneBody);
 
-const d = _berechne.call({}, 2026, 0, 'jahr');
+// Der Aufruf selbst in einem try: bricht _berechne() weg — etwa weil eine Store-Methode
+// umbenannt wurde —, soll der Harness die restlichen Bloecke trotzdem durchlaufen und sagen,
+// wie weit der Schaden reicht. Ohne das stirbt hier alles, und die Ausgabe ist ein Stacktrace.
+let d = null, dFehler = null;
+try { d = _berechne.call({}, 2026, 0, 'jahr'); } catch (e) { dFehler = e; }
+check('Euer._berechne(): laeuft ueberhaupt durch', () => { if (dFehler) throw dFehler; return !!d; });
+d = d || {};
+
 check('Euer._berechne(): Gewinn = -1155 EUR', Math.abs(d.gewinn - (-1155)) < 0.01);
 check('Euer._berechne(): AfA enthalten (800)',            Math.abs(d.afaKosten - 800) < 0.01);
 check('Euer._berechne(): Fahrtkosten enthalten (150)',    Math.abs(d.fahrtkosten - 150) < 0.01);
@@ -113,12 +142,12 @@ check('Euer._berechne(): stornierter Verkauf zaehlt nicht mit', () => d.sales.le
 // Wichtig, weil js/gewerbesteuer.js die Methode fuer ein anderes Jahr aufruft als das,
 // welches die EUER-Ansicht gerade zeigt. Wuerde _berechne() _lastRenderData setzen,
 // wuerde ein Blick auf die Gewerbesteuer die angezeigte EUER ueberschreiben.
-{
+block('State-Freiheit', () => {
     const self = {};
     _berechne.call(self, 2026, 0, 'jahr');
     check('_berechne(): setzt kein _lastGewinn/_lastRenderData',
         self._lastGewinn === undefined && self._lastRenderData === undefined);
-}
+});
 
 // ── 3) Gewerbesteuer._calcGewinn(): identischer Wert, keine zweite Formel ─────
 const gewSrc = fs.readFileSync(__dirname + '/../js/gewerbesteuer.js', 'utf8');
@@ -126,22 +155,28 @@ const calcGewinnBody = extractMethod(gewSrc, '_calcGewinn(year) {', /\n    \},/)
 const _calcGewinn = new Function('year', calcGewinnBody);
 
 global.Euer = { _berechne: (y, m, p) => _berechne.call({}, y, m, p) };
-const gewGewinn = _calcGewinn.call({}, 2026);
+// Zweiter Top-Level-Aufruf von Produktivcode, derselbe Schutz wie oben bei `d`:
+// _calcGewinn() geht ueber Euer._berechne() und wirft mit, wenn dort etwas bricht.
+let gewGewinn = null, gewFehler = null;
+try { gewGewinn = _calcGewinn.call({}, 2026); } catch (e) { gewFehler = e; }
+check('Gewerbesteuer._calcGewinn(): laeuft ueberhaupt durch',
+    () => { if (gewFehler) throw gewFehler; return gewGewinn !== null; });
+
 check('Gewerbesteuer._calcGewinn() = Euer-Gewinn (-1155)', Math.abs(gewGewinn - (-1155)) < 0.01);
 check('Gewerbesteuer._calcGewinn() === Euer._berechne().gewinn', gewGewinn === d.gewinn);
 
 // Erhebungszeitraum ist das Kalenderjahr (§14 GewStG) — die Periode muss fest 'jahr' sein,
 // egal was die EUER-Ansicht gerade zeigt.
-{
+block('Rechenkern', () => {
     let gesehen = null;
     global.Euer = { _berechne: (y, m, p) => { gesehen = { y, p }; return { gewinn: 0 }; } };
     _calcGewinn.call({}, 2024);
     check('_calcGewinn(): fragt Jahr 2024 als Periode "jahr" ab',
         gesehen && gesehen.y === 2024 && gesehen.p === 'jahr');
-}
+});
 
 // Fehlt js/euer.js, darf keine geratene Zahl entstehen.
-{
+block('Gewerbesteuer-Periode', () => {
     const echteEuer = global.Euer;
     delete global.Euer;
     const err = console.error; console.error = () => {};
@@ -149,7 +184,7 @@ check('Gewerbesteuer._calcGewinn() === Euer._berechne().gewinn', gewGewinn === d
     console.error = err;
     check('_calcGewinn(): ohne js/euer.js -> 0 statt geratener Gewinn', g === 0);
     global.Euer = echteEuer;
-}
+});
 
 // ── 4) Gegenprobe: was die alte Formel geliefert haette ──────────────────────
 // Wortlaut der bis 2026-09-09 in js/gewerbesteuer.js stehenden Berechnung.
@@ -159,7 +194,7 @@ check('Gewerbesteuer._calcGewinn() === Euer._berechne().gewinn', gewGewinn === d
 // liefert sie mit). Die alte Formel sah also sehr wohl nur aktive Verkaeufe; ihr Fehler
 // lag ausschliesslich in den ausgelassenen Ausgabenarten. Eine erste Fassung dieses Tests
 // unterstellte hier faelschlich fehlende Storno-Filterung und kam dadurch auf zu hohe Werte.
-{
+block('Gewerbesteuer-Fallback', () => {
     let einnahmen = 0, ausgaben = 0;
     SALES_AKTIV.forEach(s => einnahmen += s.verkaufspreis + s.versandkostenKaeufer);
     PURCHASES.forEach(p => ausgaben += p.einkaufspreis * p.anzahl);
@@ -171,11 +206,11 @@ check('Gewerbesteuer._calcGewinn() === Euer._berechne().gewinn', gewGewinn === d
     // Genau die Posten, die der alten Formel fehlten:
     check('Gegenprobe: Luecke = AfA + Fahrt + Material + Eigenbeleg + Gebuehr + Versand + Retoure',
         Math.abs((alt - d.gewinn) - (800 + 150 + 90 + 120 + 105 + 40 + 100)) < 0.01);
-}
+});
 
 // ── 5) Steuerliche Auswirkung ueber dem Freibetrag (§11 Abs. 1 GewStG) ───────
 // Unterhalb von 24.500 EUR faellt der Unterschied nicht auf — darueber voll.
-{
+block('Gegenprobe alte Formel', () => {
     const gewStVon = (g) => {
         const ertrag = Math.floor(Math.max(0, g - 24500) / 100) * 100;
         return ertrag * 0.035 * 4;   // Messzahl 3,5 %, Hebesatz 400 %
@@ -187,14 +222,14 @@ check('Gewerbesteuer._calcGewinn() === Euer._berechne().gewinn', gewGewinn === d
         Math.abs(gewStVon(altGross) - 3570) < 0.01);
     check('Freibetrag-Fall: auf den EUER-Verlust faellt keine GewSt an',
         gewStVon(euerGross) === 0);
-}
+});
 
 // ── 6) render() laeuft nach der Trennung weiter durch ────────────────────────
 // Der Rechenkern wurde am 2026-09-09 aus render() herausgeloest; render() bezieht seine
 // ~38 Werte seitdem per Destrukturierung aus _berechne(). Faellt dabei ein Bezeichner
 // unter den Tisch, gibt es keinen Syntaxfehler — die Seite bricht erst zur Laufzeit im
 // Browser mit einem ReferenceError. Deshalb wird render() hier wirklich ausgefuehrt.
-{
+block('Freibetrag-Fall', () => {
     global.Rechtsform = {
         brauchtBilanzStattEuer: () => false,
         isKapitalgesellschaft:  () => false,
@@ -226,11 +261,11 @@ check('Gewerbesteuer._calcGewinn() === Euer._berechne().gewinn', gewGewinn === d
         Math.abs(self._lastGewinn - d.gewinn) < 0.01);
     check('render(): fuellt _lastRenderData (von _renderDetailSection gebraucht)',
         Object.keys(self._lastRenderData).length === 25);
-}
+});
 
 // ── 7) dashboard.js zieht dieselbe Zahl ──────────────────────────────────────
 // _getYearStats() speist den Jahresvergleich ("Gewinn"/"Marge") und das Gewinn-Chart.
-{
+block('render()', () => {
     const dashSrc = fs.readFileSync(__dirname + '/../js/dashboard.js', 'utf8');
     const statsBody = extractMethod(dashSrc, '_getYearStats(year) {', /\n    \},/);
     const _getYearStats = new Function('year', statsBody);
@@ -269,13 +304,13 @@ check('Gewerbesteuer._calcGewinn() === Euer._berechne().gewinn', gewGewinn === d
     })();
     check('dashboard: ohne js/euer.js -> Nullen statt geratener Zahlen',
         ohneEuer.gewinn === 0 && ohneEuer.einnahmen === 0);
-}
+});
 
 // ── 8) privatbuchungen.js zieht dieselbe Zahl ────────────────────────────────
 // Der Gewinn ist dort eine lokale Variable in render(); geprueft wird deshalb das
 // erzeugte HTML — genau der Wert, den die Kachel "Betriebsgewinn (EÜR)" anzeigt und
 // an dem die Warnung "Entnahmen uebersteigen den Gewinn" haengt.
-{
+block('Dashboard', () => {
     const privSrc = fs.readFileSync(__dirname + '/../js/privatbuchungen.js', 'utf8');
     const renderBody = extractMethod(privSrc, 'render() {', /\n    \},/);
     const privRender = new Function(renderBody);
@@ -298,13 +333,13 @@ check('Gewerbesteuer._calcGewinn() === Euer._berechne().gewinn', gewGewinn === d
     // gewinn > 0 gebunden. Vorher stand dort ein Gewinn von 210 -> Warnung bei 500 Entnahme.
     check('privatbuchungen: keine Entnahme-Warnung bei Verlust',
         html.indexOf('übersteigen den Betriebsgewinn') === -1);
-}
+});
 
 // ── 9) gbr-modul.js zieht dieselbe Zahl ──────────────────────────────────────
 // _calcJahresgewinn() speist die Feststellungserklaerung, die Gewinnverteilung auf die
 // Gesellschafter und die §141-AO-Schwelle. Es war die fuenfte eigene Gewinnformel und
 // fiel erst beim Testen von js/rechtsform.js auf (Fund A6).
-{
+block('Privatbuchungen', () => {
     const gbrSrc = fs.readFileSync(__dirname + '/../js/gbr-modul.js', 'utf8');
     const jgBody = extractMethod(gbrSrc, '_calcJahresgewinn(year) {', /\n    \},/);
     const _calcJahresgewinn = new Function('year', jgBody);
@@ -330,13 +365,13 @@ check('Gewerbesteuer._calcGewinn() === Euer._berechne().gewinn', gewGewinn === d
     // Die Datei darf die ausgelassenen Posten auch nicht mehr selbst zu rechnen versuchen.
     check('gbr-modul: rechnet den Gewinn nicht mehr selbst',
         gbrSrc.indexOf('einnahmen - wareneinkauf - betriebsausgaben,') === -1);
-}
+});
 
 // ── 10) §141 AO: die Folge des ueberhoehten Gewinns ──────────────────────────
 // Reisst der Gewinn die 80.000-EUR-Grenze, sperrt js/euer.js die EUER-Seite ganz ab und
 // verweist auf eine Bilanz. Mit der alten, zu hohen Zahl traf das Betriebe, die die
 // Schwelle in Wahrheit gar nicht erreichten.
-{
+block('GbR-Modul', () => {
     const rfSrc = fs.readFileSync(__dirname + '/../js/rechtsform.js', 'utf8');
     const schwelleBody = extractMethod(rfSrc, 'ueberschreitetAO141Schwelle(year) {', /\n    \},/);
     const _schwelle = new Function('year', schwelleBody);
@@ -360,7 +395,7 @@ check('Gewerbesteuer._calcGewinn() === Euer._berechne().gewinn', gewGewinn === d
     check('§141 AO: ohne GbrModul keine Bilanzpflicht behaupten',
         _schwelle.call(self, 2026) === false);
     global.GbrModul = gbrWeg;
-}
+});
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');
 if (pass !== total) process.exit(1);

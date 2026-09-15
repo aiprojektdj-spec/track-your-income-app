@@ -515,6 +515,29 @@ const Materiallager = {
         });
     },
 
+    /** Gleitender Durchschnittspreis beim Materialeinkauf.
+     *
+     *  Steht als eigene Funktion da, weil sie die einzige Rechenlogik dieses Moduls ist und
+     *  im submit-Handler darunter von keinem Harness erreichbar war (Fund C des Vollaudits,
+     *  plan/01-AUFGABEN.md 1.8). Reine Funktion: liest nichts, schreibt nichts, gibt den neuen
+     *  Stueckpreis zurueck.
+     *
+     *  Gerundet wird auf DREI Nachkommastellen, nicht auf zwei — bei Verpackungsmaterial liegen
+     *  Stueckpreise regelmaessig im Cent-Bruchteil (Polybeutel ~0,038 EUR). Auf zwei Stellen
+     *  gerundet waeren das 0,04 EUR, also 5 % Abweichung, die sich ueber den Bestand aufsummiert.
+     */
+    _mischpreis(altBestand, altKosten, menge, neuPreis) {
+        const ab = parseInt(altBestand) || 0;
+        const ak = parseFloat(altKosten) || 0;
+        const m  = parseInt(menge) || 0;
+        const np = parseFloat(neuPreis) || 0;
+        const neuerBestand = ab + m;
+        // Ohne Bestand gibt es nichts zu mitteln — dann gilt der neue Preis unveraendert.
+        // Das greift auch bei der ersten Lieferung einer Materialart (altBestand 0).
+        if (neuerBestand <= 0) return np;
+        return Math.round(((ab * ak + m * np) / neuerBestand) * 1000) / 1000;
+    },
+
     _bindEinkauf() {
         const mengeEl = document.getElementById('mle_menge');
         const gesamtEl = document.getElementById('mle_gesamt');
@@ -542,14 +565,10 @@ const Materiallager = {
             if (!mat) return;
             const kostenProEinheit = menge > 0 ? Math.round(gesamt / menge * 1000) / 1000 : 0;
 
-            // Gleitender Durchschnitt
+            // Gleitender Durchschnitt — Rechnung in _mischpreis(), damit sie testbar ist
             const altBestand = parseInt(mat.bestand) || 0;
-            const altKosten = parseFloat(mat.kostenProEinheit) || 0;
-            const neuerBestand = altBestand + menge;
-            mat.kostenProEinheit = neuerBestand > 0
-                ? Math.round(((altBestand * altKosten + menge * kostenProEinheit) / neuerBestand) * 1000) / 1000
-                : kostenProEinheit;
-            mat.bestand = neuerBestand;
+            mat.kostenProEinheit = this._mischpreis(altBestand, mat.kostenProEinheit, menge, kostenProEinheit);
+            mat.bestand = altBestand + menge;
             Store.saveMaterialBestandItem(mat);
 
             Store.saveMaterialEinkauf({

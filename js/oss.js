@@ -5,7 +5,18 @@
 const OSS = {
     _year: new Date().getFullYear(),
 
-    SCHWELLE: 10000,
+    // §3c Abs. 4 UStG — EU-weite Fernverkaufsschwelle, als Jahresfunktion statt als Konstante
+    // (Regel 7 der CLAUDE.md: Gesetzeswerte gehören in eine Jahresfunktion, auch wenn heute nur
+    // ein Wert existiert). Hier ist das keine Formsache: die Prüfung stellt Vorjahr und
+    // laufendes Jahr nebeneinander, und beide müssen gegen die IHREM Jahr zustehende Schwelle
+    // gemessen werden. Mit einer festen Zahl wäre diese Unterscheidung gar nicht formulierbar.
+    //
+    // 10.000 € gelten EU-weit seit dem 01.07.2021 (Digitalpaket). Davor galten länderspezifische
+    // Lieferschwellen (35.000/100.000 € je Zielland), die Stackr nicht abbildet — für frühere
+    // Jahre steht deshalb derselbe Wert, was für ein Werkzeug ab 2021 unschädlich ist.
+    _getSchwelle(year) {
+        return 10000;
+    },
 
     // Referenz-Regelsätze – bei ermäßigt besteuerten Waren/Leistungen im Zielland manuell prüfen
     RATES_STAND: '2026-01-01',
@@ -35,8 +46,16 @@ const OSS = {
 
     _netto(inv) {
         // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
+        //
+        // Beim Einzelpreis stand bis zum 2026-09-15 `parseFloat(p.einzelpreis || 0)` — das `|| 0`
+        // INNERHALB der Klammer. Es fängt nur leer/null/undefined ab; ein nicht-numerischer Wert
+        // ("k.A.", ein Importrest) kommt als NaN heraus und steckt die ganze Summe an. Und ein
+        // NaN-Jahresumsatz ist im Schwellenvergleich immer false: die OSS-Schwelle gälte als nie
+        // gerissen, der Nutzer bliebe ungewarnt und versteuerte weiter mit deutscher USt, obwohl
+        // §3c Abs. 4 UStG das Bestimmungsland verlangt. Ein stiller Fehler, der zur
+        // Steuerpflichtverletzung führt. Bei `menge` daneben stand die Klammer immer richtig.
         const sign = inv.typ === 'gutschrift' ? -1 : 1;
-        return sign * (inv.positionen || []).reduce((s, p) => s + (parseFloat(p.menge) || 0) * parseFloat(p.einzelpreis || 0), 0);
+        return sign * (inv.positionen || []).reduce((s, p) => s + (parseFloat(p.menge) || 0) * (parseFloat(p.einzelpreis) || 0), 0);
     },
 
     _calcLaender(year) {
@@ -60,7 +79,7 @@ const OSS = {
         // §3c Abs. 4 UStG: "nicht überschritten"/"nicht übersteigt" -> bei exakt 10.000,00 €
         // greift die Ausnahme (Ursprungslandprinzip) noch. Erst der Umsatz, der die Schwelle
         // tatsächlich UEBERsteigt, loest das Bestimmungslandprinzip aus -> strikt '>'.
-        if (this._jahresumsatz(year - 1) > this.SCHWELLE) {
+        if (this._jahresumsatz(year - 1) > this._getSchwelle(year - 1)) {
             return new Set(this._getB2CInvoices(year).map(({ inv }) => inv.id));
         }
         const sorted = this._getB2CInvoices(year).slice().sort((a, b) => (a.inv.datum || '').localeCompare(b.inv.datum || ''));
@@ -69,7 +88,7 @@ const OSS = {
         sorted.forEach(({ inv }) => {
             if (ueberschritten) { ids.add(inv.id); return; }
             kumuliert += this._netto(inv);
-            if (kumuliert > this.SCHWELLE) { ueberschritten = true; ids.add(inv.id); }
+            if (kumuliert > this._getSchwelle(year)) { ueberschritten = true; ids.add(inv.id); }
         });
         return ids;
     },
@@ -94,8 +113,8 @@ const OSS = {
         // nach einem Überschreitungsjahr gilt das Bestimmungslandprinzip ab dem ersten Euro
         const vorjahrUmsatz = this._jahresumsatz(year - 1);
         // strikt '>' -> siehe Begruendung bei _ueberSchwelleInvoiceIds()
-        const ueberSchwelle = umsatz > this.SCHWELLE || vorjahrUmsatz > this.SCHWELLE;
-        const nurWegenVorjahr = ueberSchwelle && umsatz <= this.SCHWELLE;
+        const ueberSchwelle = umsatz > this._getSchwelle(year) || vorjahrUmsatz > this._getSchwelle(year - 1);
+        const nurWegenVorjahr = ueberSchwelle && umsatz <= this._getSchwelle(year);
         const byLand = this._calcLaender(year);
         const laender = Object.keys(byLand).sort();
 
@@ -116,7 +135,7 @@ const OSS = {
                 <div>
                     <div class="card-label">EU-Fernverkauf-Umsatz ${year} (netto, B2C, alle EU-Länder außer DE)</div>
                     <div class="card-value" style="font-size:1.6rem;">${Utils.formatCurrency(umsatz)}</div>
-                    <div class="card-subtitle">Schwelle: ${Utils.formatCurrency(this.SCHWELLE)} / Jahr (§3c UStG, EU-weit kumuliert)</div>
+                    <div class="card-subtitle">Schwelle: ${Utils.formatCurrency(this._getSchwelle(year))} / Jahr (§3c UStG, EU-weit kumuliert)</div>
                 </div>
                 <div style="text-align:right;">
                     ${ueberSchwelle
@@ -125,7 +144,7 @@ const OSS = {
                 </div>
             </div>
             <div style="margin-top:14px;height:8px;background:var(--bg-secondary);border-radius:4px;overflow:hidden;">
-                <div style="height:100%;width:${Math.min(100, (umsatz / this.SCHWELLE) * 100)}%;background:${ueberSchwelle ? 'var(--danger)' : 'var(--accent)'};"></div>
+                <div style="height:100%;width:${Math.min(100, (umsatz / this._getSchwelle(year)) * 100)}%;background:${ueberSchwelle ? 'var(--danger)' : 'var(--accent)'};"></div>
             </div>
         </div>
 

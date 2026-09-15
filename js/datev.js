@@ -143,7 +143,11 @@ var DatevExport = (function () {
             var mwstMap = {};
             (inv.positionen || []).forEach(function (pos) {
                 // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
-                var ln = (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0);
+                // `|| 0` gehoert AUSSERHALB von parseFloat — sonst wird ein nicht-numerischer
+                // Einzelpreis zu NaN und die Buchungszeile unbrauchbar. Dasselbe Muster stand
+                // an mehreren Stellen im Projekt; test/test-parsefloat-klammer.js haelt sie
+                // alle fest und nennt die Zahl, damit sie hier nicht veraltet.
+                var ln = (parseFloat(pos.menge) || 0) * (parseFloat(pos.einzelpreis) || 0);
                 netto += ln;
                 var rate = isKlein ? 0 : (parseInt(pos.mwstSatz) || 0);
                 if (rate > 0) mwstMap[rate] = (mwstMap[rate] || 0) + ln * rate / 100;
@@ -229,7 +233,7 @@ var DatevExport = (function () {
 
         // Sonstige Ausgaben
         expenses.forEach(function (e) {
-            var betrag = parseFloat(e.betrag || 0);
+            var betrag = parseFloat(e.betrag) || 0;
             if (betrag <= 0) return;
             var konto = kontoForKategorie(e.kategorie, skr);
             rows.push({

@@ -106,7 +106,13 @@ var XRechnung = (function () {
             // (z.B. Korrekturzeile) darf nicht stillschweigend zu 1 werden (EN 16931 BR-Konsistenz).
             var mengeRaw = (pos.menge !== undefined && pos.menge !== null && pos.menge !== '') ? parseFloat(pos.menge) : 1;
             var menge   = isNaN(mengeRaw) ? 1 : mengeRaw;
-            var preis   = parseFloat(pos.einzelpreis || 0);
+            // `|| 0` gehoert AUSSERHALB von parseFloat: die Fassung
+            // `parseFloat(pos.einzelpreis || 0)` faengt nur leer/null/undefined ab, ein
+            // nicht-numerischer Wert wird NaN — und ein NaN-Zeilenbetrag macht das erzeugte
+            // XML nach EN 16931 ungueltig, die Rechnung wird beim Empfaenger abgelehnt.
+            // Die Menge darueber ist gegen genau das schon abgesichert, der Preis war es nicht.
+            // Vierter Fund desselben Musters am 2026-09-15, s. test/test-parsefloat-klammer.js.
+            var preis   = parseFloat(pos.einzelpreis) || 0;
             // BR-CO-10: Zeilenbeträge werden EINZELN gerundet, dann summiert — nicht die
             // ungerundete Summe separat runden (sonst Differenz zwischen Kopf- und Zeilensumme).
             var line    = round2(menge * preis);

@@ -137,7 +137,11 @@ const UstVoranmeldung = {
                         // §25a: kein normaler Steuersatz — Marge wird separat unten in Kz. 81 eingerechnet.
                         if (pos.differenzbesteuert) {
                             const linkedPurch = pos.lagerArtikelId ? purchasesById25a[pos.lagerArtikelId] : null;
-                            const vk = (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0);
+                            // `|| 0` gehört AUSSERHALB von parseFloat — sonst ergibt ein
+                            // nicht-numerischer Einzelpreis NaN, die §25a-Marge wird NaN und
+                            // landet so in Kz. 81 der Voranmeldung. Dasselbe Muster stand an
+                            // mehreren Stellen im Projekt, s. test/test-parsefloat-klammer.js.
+                            const vk = (parseFloat(pos.menge) || 0) * (parseFloat(pos.einzelpreis) || 0);
                             const ek = linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0);
                             const istPauschal = _istPauschal25a(linkedPurch);
                             if (sign === -1) {
@@ -158,7 +162,7 @@ const UstVoranmeldung = {
                             return;
                         }
                         // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
-                        const netto = sign * (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0);
+                        const netto = sign * (parseFloat(pos.menge) || 0) * (parseFloat(pos.einzelpreis) || 0);
                         const rate  = parseInt(pos.mwstSatz);
                         if (rate === 7) bruttoUmsatz7 += netto * 1.07;
                         else if (rate === 19 || isNaN(rate)) bruttoUmsatz19 += netto * 1.19;
@@ -222,7 +226,7 @@ const UstVoranmeldung = {
                     (i.positionen || []).forEach(pos => {
                         if (parseInt(pos.mwstSatz) !== 0) return;
                         betroffen = true;
-                        betrag += sign * (parseFloat(pos.menge) || 0) * parseFloat(pos.einzelpreis || 0);
+                        betrag += sign * (parseFloat(pos.menge) || 0) * (parseFloat(pos.einzelpreis) || 0);
                     });
                     if (betroffen) { istEuHinweisAnzahl++; istEuHinweisBetrag += betrag; }
                 });

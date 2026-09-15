@@ -9,18 +9,25 @@
 // false. Eine Schwellenpruefung `summe > GRENZE` meldet dann nicht etwa einen Fehler, sondern
 // schlicht "Schwelle nicht erreicht".
 //
-// Gefunden am 2026-09-15 in js/oss.js beim Bauen des OSS-Harness, danach per Sweep an zwei
-// weiteren Stellen mit demselben Muster:
+// Gefunden am 2026-09-15 in js/oss.js beim Bauen des OSS-Harness. Die schwersten Stellen lagen
+// dort, wo die Zahl das Haus verlaesst: die OSS-Schwelle nach §3c Abs. 4 UStG (NaN heisst "nie
+// gerissen" — der Nutzer bleibt ungewarnt und versteuert weiter mit deutscher USt), die
+// §25a-Marge fuer Kz. 81 der Voranmeldung, die Buchungszeilen des DATEV-Stapels und der
+// Zeilenbetrag der E-Rechnung, wo ein "NaN" im XML sie nach EN 16931 ungueltig macht.
 //
-//   js/oss.js:39              OSS-Schwelle §3c Abs. 4 UStG — NaN heisst "nie gerissen", der
-//                             Nutzer bleibt ungewarnt und versteuert weiter mit deutscher USt
-//   js/ustvoranmeldung.js     §25a-Marge fuer Kz. 81 der Voranmeldung — geht ans Finanzamt
-//   js/datev.js               Netto und MwSt je Buchungszeile — geht an den Steuerberater
+// Dieser Harness prueft bewusst NICHT die einzelnen Fundstellen, sondern dass das MUSTER im
+// Projekt nicht wiederkehrt. Das ist die Lehre aus Fund A3 (plan/funde-vollaudit-2026-09-09.md):
+// ein Fix dort, wo ein Fehler auffaellt, schliesst ihn nicht unbedingt.
 //
-// Alle drei am 2026-09-15 gefixt. Dieser Harness prueft nicht die drei Stellen einzeln,
-// sondern dass das MUSTER nicht zurueckkommt — auch nicht an einer vierten Stelle. Das ist
-// die Lehre aus Fund A3 (plan/funde-vollaudit-2026-09-09.md): ein Fix dort, wo ein Fehler
-// auffaellt, schliesst ihn nicht unbedingt.
+// Wie viele Stellen es am Ende waren, steht absichtlich nicht hier — es wurde in zwei Runden
+// mehr, und eine Zahl im Kopfkommentar veraltet schneller, als sie jemand nachzieht. Die Bloecke
+// unten nennen die Fundstellen jeweils dort, wo sie geprueft werden.
+//
+// Zur Geschichte dieses Harness gehoert, dass er zweimal selbst zu eng war und "sauber" meldete,
+// waehrend das Muster weiterlebte: einmal im Regex (nur Punktzugriffe auf bekannte Feldnamen),
+// einmal im Suchraum (eine Verzeichnisliste, die lager/js nannte — ein Verzeichnis, das es nicht
+// gibt). Beides steht bei den betroffenen Bloecken. Wer hier etwas ergaenzt, ergaenzt auch die
+// Gegenprobe dazu: ein Waechter ohne Gegenprobe beweist nur, dass er nichts findet.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -40,20 +47,43 @@ function codeOhneKommentare(datei) {
 }
 
 // Alle .js im Projekt ausser vendor und node_modules.
+// Rekursiv statt fester Verzeichnisliste — korrigiert am 2026-09-15.
+//
+// Hier stand `['js', 'api', 'rechnungen/js', 'lager/js', 'eigenbelege/js']`, und darunter ein
+// `if (!fs.existsSync(p)) return;`. Das Verzeichnis `lager/js` GIBT ES NICHT: die Sub-App liegt
+// als lager/page.js. Der Sweep hat sie also nie angesehen und das still getan — genau derselbe
+// Fehler wie der, den dieser Harness bewacht, nur eine Ebene höher. Eine neue Sub-App oder ein
+// verschobenes Modul wäre genauso lautlos herausgefallen.
+//
+// Deshalb: rekursiv suchen und nur das ausschliessen, was bewusst nicht geprueft wird.
 function alleModule() {
     const wurzel = path.join(__dirname, '..');
-    const dirs = ['js', 'api', 'rechnungen/js', 'lager/js', 'eigenbelege/js'];
+    const AUS = ['node_modules', 'vendor', 'test', 'graphify-out', 'scripts', '.git', 'kosit-proben'];
     const out = [];
-    dirs.forEach(d => {
-        const p = path.join(wurzel, d);
-        if (!fs.existsSync(p)) return;
-        fs.readdirSync(p).filter(f => f.endsWith('.js')).forEach(f => out.push(path.join(p, f)));
-    });
+    (function lauf(dir) {
+        fs.readdirSync(dir, { withFileTypes: true }).forEach(e => {
+            if (AUS.includes(e.name)) return;
+            const p = path.join(dir, e.name);
+            if (e.isDirectory()) lauf(p);
+            else if (e.name.endsWith('.js')) out.push(p);
+        });
+    })(wurzel);
     return out;
 }
 
 const module_ = alleModule();
-check('Der Sweep findet ueberhaupt Dateien', module_.length > 40);
+// Eine Zahlenschwelle allein sagt nichts: `> 40` war schon durch js/ allein erfuellt, auch
+// als saemtliche Sub-Apps fehlten. Deshalb namentlich pruefen, dass die Aussenposten dabei
+// sind — das sind die, die bei einer Verzeichnisliste als erstes durchrutschen.
+{
+    const rel = module_.map(f => path.relative(path.join(__dirname, '..'), f).replace(/\\/g, '/'));
+    const MUSS = ['js/euer.js', 'api/sync.js', 'rechnungen/js/xrechnung.js',
+                  'lager/page.js', 'eigenbelege/js/app.js'];
+    const fehlen = MUSS.filter(m => !rel.includes(m));
+    check('Der Sweep erfasst auch die Sub-Apps, nicht nur js/', fehlen.length === 0);
+    fehlen.forEach(f => console.error('   → nicht erfasst: ' + f));
+    check('Der Sweep findet ueberhaupt Dateien', module_.length > 40);
+}
 
 // ── Das Muster darf nirgends mehr stehen ─────────────────────────────────────
 // Gesucht wird `parseFloat( <irgendwas> || 0 )` auf einem Feld, das gerechnet wird.
@@ -97,7 +127,11 @@ const FELDER = ['einzelpreis', 'menge', 'betrag', 'einkaufspreis', 'verkaufsprei
     // Rueckfallwert dahinter (`(parseFloat(x || 0)) || y`). Nachgerechnet: NaN || y === y.
     // Modul ist seit der CH/AT-Entfernung dormant (plan/ch-at-removal-web.md).
     const ERLAUBT = ['oesterreich.js'];
-    const weit = /parseFloat\(\s*[^()]*\|\|\s*0\s*\)/g;
+    // parseInt und Number haben dasselbe Verhalten: parseInt('abc' || 0) und
+    // Number('abc' || 0) sind beide NaN. Im Projekt kommen sie in dieser Form derzeit nicht
+    // vor — der Waechter deckt sie trotzdem ab, damit die Luecke nicht erst auffaellt,
+    // wenn jemand die naechste Formatierfunktion so schreibt.
+    const weit = /(?:parseFloat|parseInt|Number)\(\s*[^()]*\|\|\s*0\s*\)/g;
     const treffer = [];
     module_.forEach(datei => {
         if (ERLAUBT.some(a => datei.endsWith(a))) return;
@@ -115,6 +149,9 @@ const FELDER = ['einzelpreis', 'menge', 'betrag', 'einkaufspreis', 'verkaufsprei
     weit.lastIndex = 0;
     check('Die weite Suche erkennt die alte Form ueberhaupt',
         weit.test('return parseFloat(n || 0).toFixed(2);'));
+    weit.lastIndex = 0;
+    check('…auch bei parseInt und Number',
+        weit.test('var a = parseInt(n || 0);') && (weit.lastIndex = 0, weit.test('var b = Number(n || 0);')));
     weit.lastIndex = 0;
     check('…und schlaegt bei der richtigen Form nicht an',
         !weit.test('return (parseFloat(n) || 0).toFixed(2);'));

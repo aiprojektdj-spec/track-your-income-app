@@ -121,6 +121,26 @@ Das ist der eigentliche Ersatz für den fehlenden Beweis, und er kostet nichts:
 Der erste echte Vorfall beantwortet die offene Frage also nebenbei — und bis dahin läuft nichts
 ins Leere, weil der Blob-Speicher unabhängig mitschreibt (30 Tage, ohne Einrichtung).
 
+## Kontrolljournal
+
+Solange der Webhook der einzige Weg ist, der von selbst meldet, bleibt der Blick in den
+Blob-Speicher die Routine — er läuft aus dem Repo, ohne Vercel-Zugriff. Befehle stehen unter
+[Nachsehen, was passiert ist](alert-webhook-anleitung.md#nachsehen-was-passiert-ist) und in der
+[Cron-Gegenprobe](vercel-einrichtung.md).
+
+| Datum | `stackr/alerts/` | `stackr/tmp/` |
+|---|---|---|
+| 2026-09-12 | 0 Alarme | — |
+| **2026-09-15** | **0 Alarme** | 1 Objekt, 21,7 h → Cron räumt auf |
+
+**Leere Liste ist der gute Fall** — anders als beim Vercel-Log, wo Leere auch „ist längst
+rausgerollt" bedeuten kann (Hobby-Plan: 30–60 Minuten).
+
+**Und sie sagt noch etwas:** Der Selbsttest schreibt selbst einen Eintrag — `selbsttest`/
+`webhook-probe` ist eine reguläre Zeile der Auslöser-Tabelle. **0 Alarme heißt also auch: der
+`?probe=1`-Aufruf ist noch nicht gelaufen.** Umgekehrt ist das die Abnahme: taucht nach dem Aufruf
+hier ein `selbsttest`-Eintrag auf, ist damit zugleich das Blob-Ziel unabhängig bestätigt.
+
 ## Nebenbefund: `BLOB_READ_WRITE_TOKEN` liegt offen
 
 Vercel markiert die Variable mit **„Needs Attention"**:

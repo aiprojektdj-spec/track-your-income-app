@@ -67,9 +67,32 @@ Offen, nach Rechenrelevanz:
 |---|---|---|
 | 705 | `statistiken` | ✅ erledigt `f048e33` — vier von vierzehn Einkaufssummen rechneten ohne Menge |
 | 422 | `datev` | ✅ Harness seit `fc28401`, zwei Punkte offen → s. 1.9 |
-| 635 | `materiallager` | speist die Materialkosten der EÜR |
-| 650 | `fahrtenbuch` | speist Z50 der EÜR |
-| 952 | `i18n` | keine Rechenlogik, aber jede Oberfläche hängt daran |
+| 635 | `materiallager` | ✅ erledigt 2026-09-15 (`25e1945`) — die Mittelung war von keinem Test erreichbar |
+| 650 | `fahrtenbuch` | ✅ erledigt 2026-09-15 (`26a1004`) — 37 Checks, Regel-7-Hinweis offen |
+| 952 | `i18n` | ✅ erledigt 2026-09-15 (`9373cbd`) — 15 Checks, kein Fund |
+
+**Damit ist die Tabelle leer.** Drei Anmerkungen, die die Commits nicht transportieren:
+
+**Der gleitende Durchschnittspreis im Materiallager stand inline im submit-Handler** und war
+damit für jeden Harness strukturell unerreichbar — nicht bloß ungetestet. Er liegt jetzt als
+`Materiallager._mischpreis()` daneben, das Verhalten ist unverändert, und drei Quelltext-Wachen
+verhindern, dass er zurückwandert. **Das ist das eigentliche Muster hinter Fund C:** Nicht
+Faulheit hat die Lücken erzeugt, sondern Rechnungen, die in Event-Handlern wohnen.
+
+**Ein Test kann grün sein und trotzdem nichts prüfen.** Die erste Fassung des
+Fahrtenbuch-Harness fing eine *entfernte* Cent-Rundung mit **null** Checks — weil sie mit
+Toleranz verglich und `7 × 0,30` in JavaScript `2.1000000000000005` ergibt. Sowohl ein
+Epsilon-Vergleich als auch `toFixed(2)` halten das für richtig. Wo Rundung der Prüfgegenstand
+ist, muss **strikt** verglichen werden. Alle drei Harnesse wurden deshalb gegen absichtlich
+eingebaute Fehler gegengeprüft, bevor sie eingecheckt wurden; die Trefferzahlen stehen in den
+Commit-Messages.
+
+**Offen geblieben, bewusst:** Die Kilometersätze 0,30 und 0,20 €/km stehen als **jahresfeste
+Konstanten** in `js/fahrtenbuch.js`. Das verletzt Regel 7 der [`../CLAUDE.md`](../CLAUDE.md)
+(Gesetzeswerte gehören in eine Jahresfunktion, Muster `App._getUstGrenzen(year)`). Ändert der
+Gesetzgeber den Satz, rechnet Stackr rückwirkend auch abgeschlossene Jahre neu. `test-fahrtenbuch.js`
+hält den Zustand in D4 fest, damit er nicht in Vergessenheit gerät. **Nicht nebenbei gefixt** —
+das ist eine Änderung an steuerlicher Rechenlogik und gehört entschieden.
 
 Der `statistiken`-Harness hat nebenbei einen Fund derselben Klasse wie A1 zutage gefördert,
 nur **innerhalb einer Datei**: „Gewinn pro Marke" stand zweimal auf derselben Seite mit zwei

@@ -26,10 +26,12 @@ kann oder nicht kann, die Production anders macht.
 
 ---
 
-## Stand am 2026-09-09 — was tatsächlich gesetzt ist
+## Stand am 2026-09-15 — was tatsächlich gesetzt ist
 
-Im Dashboard nachgesehen, dazu die Endpunkte gegen Produktion geprüft. Momentaufnahme, kein
-Dauerzustand — wer sie liest, prüft besser nach.
+Im Dashboard nachgesehen (2026-09-09), `ALERT_WEBHOOK_URL` am 2026-09-13 dazugekommen. **Diese
+Tabelle ist eine Momentaufnahme und altert schneller als der Rest der Datei** — sie ist das
+einzige hier, das man nicht am Code nachmessen kann. Wer sie liest, prüft im Dashboard nach;
+für die vier Variablen, die sich ohne Login belegen lassen, steht die Gegenprobe unten.
 
 | Variable | Umgebungen | seit |
 |---|---|---|
@@ -40,18 +42,20 @@ Dauerzustand — wer sie liest, prüft besser nach.
 | `CRON_SECRET` | Production **und** Preview (zwei Einträge) | 16.07. |
 | `WHOP_GRACE_PRIVATE_KEY` | **nur Production** | 16.07. |
 | `WHOP_OWNER_IDS`, `SYNC_OWNER_IDS` | Production + Preview | 25.08. |
+| `ALERT_WEBHOOK_URL` | Production + Preview, Typ *Secret* | **13.09.** |
 
-**Die verbliebene Lücke: `ALERT_WEBHOOK_URL` fehlt komplett.** Keine Meldung erreicht dich von
-selbst — weder `grace-token-aus` noch `cron-secret-missing` noch ein fail-open gelaufenes
-Rate-Limit. Der Code dafür steht, es fehlt nur das Ziel:
-[`alert-webhook-anleitung.md`](alert-webhook-anleitung.md).
+**Keine Lücke mehr — `ALERT_WEBHOOK_URL` ist seit dem 2026-09-13 gesetzt und deployt.** Hier stand
+bis zum 2026-09-15 das Gegenteil („fehlt komplett"); nachgezogen zusammen mit derselben
+Falschaussage in [`stand-alarm-vercel-2026-09-09.md`](stand-alarm-vercel-2026-09-09.md). Das
+Einrichtungsprotokoll mit den Belegen steht in
+[`offen-alert-webhook.md`](offen-alert-webhook.md).
 
-**Seit 2026-09-10 ist das aber nicht mehr gleichbedeutend mit blind.** `api/_alert.js` legt
-jeden Alarm zusätzlich unter `stackr/alerts/` im Blob-Speicher ab — `BLOB_READ_WRITE_TOKEN`
-ist ohnehin gesetzt, das Ziel ist also ohne Zutun aktiv und überlebt einen Redis-Ausfall, weil
-Blob ein anderes System ist. Damit ist die Hobby-Log-Grenze weiter unten entschärft: ein
-Vorfall von heute Nacht ist morgen früh noch nachlesbar. Der Unterschied, der bleibt: der
-Blob-Speicher **weckt dich nicht**, du musst nachsehen — Einzeiler in der Alarm-Anleitung.
+**Der Alarm hat damit zwei voneinander unabhängige Ziele**, und das ist mehr als doppelt gemoppelt:
+der Webhook (Make.com → Mail) erreicht dich von selbst, das Blob-Objekt unter `stackr/alerts/`
+hält 30 Tage vor und überlebt einen Redis-Ausfall, weil Blob ein anderes System ist. Fällt eines
+aus, sagt dir das andere welches — kommt ein Blob-Eintrag ohne Mail, ist es der Webhook; kommt
+eine Mail ohne Eintrag, ist es `BLOB_READ_WRITE_TOKEN`. Nebenbei entschärft der Blob-Speicher die
+Hobby-Log-Grenze weiter unten: ein Vorfall von heute Nacht ist morgen früh noch nachlesbar.
 
 Zwei Nebenbefunde: der Grace-Schlüssel ist nachweislich der **richtige** (ein Grace-Token aus
 einem angemeldeten Browser verifiziert gegen den eingebauten Public Key — Methode unten), gilt

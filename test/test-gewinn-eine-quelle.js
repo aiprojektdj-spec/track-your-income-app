@@ -27,9 +27,24 @@ function extractMethod(src, startMarker, endMarkerRe) {
 }
 
 let pass = 0, total = 0;
+// `cond` darf ein Wert ODER eine Funktion sein. Der Grund fuer die Funktionsform: faellt in
+// js/euer.js ein Feld aus dem Rueckgabeobjekt, wirft ein Zugriff wie `d.sales.length` schon
+// beim Auswerten des ARGUMENTS — der Harness stirbt dann an einem TypeError, statt die
+// Fehlschlaege aufzuzaehlen. Er meldet den Rueckfall zwar ueber den Exit-Code, aber nicht, wie
+// weit er reicht. Am 2026-09-15 in einer Mutations-Gegenprobe nachgestellt (Feld `sales` aus
+// der Rueckgabe entfernt): genau dieser Absturz. Eine Parallel-Session hatte dasselbe
+// unabhaengig in ihrem Retouren-Harness. Als Funktion uebergeben, wird die Ausnahme hier
+// gefangen und zaehlt als Fehlschlag — ein Waechter soll beissen koennen, ohne sich zu
+// verschlucken.
 function check(name, cond) {
     total++;
-    if (cond) { pass++; console.log('✓ ' + name); }
+    let ok = false;
+    try {
+        ok = (typeof cond === 'function') ? !!cond() : !!cond;
+    } catch (e) {
+        console.error('   (Ausnahme statt Ergebnis: ' + (e && e.message) + ')');
+    }
+    if (ok) { pass++; console.log('✓ ' + name); }
     else { console.error('✗ FAIL ' + name); process.exitCode = 1; }
 }
 
@@ -92,7 +107,7 @@ check('Euer._berechne(): Materialeinkauf enthalten (90)', Math.abs(d.materialEin
 check('Euer._berechne(): Eigenbelege enthalten (120)',    Math.abs(d.eigenbelegeAusgaben - 120) < 0.01);
 check('Euer._berechne(): Retoure mindert Einnahmen (100)',Math.abs(d.retourenErstattungen - 100) < 0.01);
 check('Euer._berechne(): Plattformgebuehr auf VK+Versand (105)', Math.abs(d.plattformgebuehren - 105) < 0.01);
-check('Euer._berechne(): stornierter Verkauf zaehlt nicht mit', d.sales.length === 1);
+check('Euer._berechne(): stornierter Verkauf zaehlt nicht mit', () => d.sales.length === 1);
 
 // ── 2) _berechne() fasst keinen State an ─────────────────────────────────────
 // Wichtig, weil js/gewerbesteuer.js die Methode fuer ein anderes Jahr aufruft als das,
@@ -221,7 +236,17 @@ check('Gewerbesteuer._calcGewinn() === Euer._berechne().gewinn', gewGewinn === d
     const _getYearStats = new Function('year', statsBody);
 
     global.Euer = { _berechne: (y, m, p) => _berechne.call({}, y, m, p) };
-    const st = _getYearStats.call({}, 2026);
+    // Der Aufruf steht bewusst in einem try: _getYearStats() ist PRODUKTIVCODE und greift auf
+    // d.sales zu. Faellt das Feld aus der Rueckgabe von _berechne(), wirft es hier — also
+    // ausserhalb jedes check(), und der Harness stuerbe ab, statt die restlichen Fehlschlaege
+    // zu zeigen. Ein gehaertetes check() allein reicht dafuer nicht; der Aufruf muss mit.
+    let st = null, statsFehler = null;
+    try { st = _getYearStats.call({}, 2026); } catch (e) { statsFehler = e; }
+    check('dashboard._getYearStats(): laeuft ueberhaupt durch', () => {
+        if (statsFehler) throw statsFehler;
+        return !!st;
+    });
+    st = st || {};
 
     check('dashboard._getYearStats(): Gewinn = EUER-Gewinn', Math.abs(st.gewinn - d.gewinn) < 0.01);
     check('dashboard._getYearStats(): Einnahmen = summeEinnahmen',

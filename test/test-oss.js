@@ -23,6 +23,22 @@ function check(name, cond) {
     if (cond) { pass++; console.log('✓ ' + name); }
     else { console.error('✗ FAIL ' + name); process.exitCode = 1; }
 }
+// Ein Harness ruft echten Modulcode auf — genau das macht ihn wertvoll, und genau deshalb
+// kann der Aufruf selbst werfen. Ohne diese Klammer stirbt der Lauf an der ersten Ausnahme,
+// und man erfaehrt nicht, was sonst noch kaputt ist: ein Stacktrace statt einer Fundliste.
+// Nachgemessen am 2026-09-15 in einer Spiegelkopie: bei einer gebrochenen Modul-API starben
+// alle vier Harnesse dieser Session, statt zu melden.
+let blockNr = 0;
+function block(fn) {
+    blockNr++;
+    const nr = blockNr;
+    try { fn(); }
+    catch (e) {
+        total++;
+        console.error('✗ FAIL Block ' + nr + ' bricht mit einer Ausnahme ab: ' + e.message);
+        process.exitCode = 1;
+    }
+}
 
 const ossSrc = fs.readFileSync(__dirname + '/../js/oss.js', 'utf8');
 
@@ -59,7 +75,7 @@ const KUNDEN = ['AT','FR','IT','PL','US','DE'].map(l => kunde(l));
 
 console.log('\n── A. Wer ueberhaupt als EU-Fernverkauf zaehlt ───────────────');
 
-{
+block(() => {
     const umsatz = (inv, kd) => lade({ invoices: inv, customers: kd || KUNDEN })._jahresumsatz(2026);
 
     check('A1 EU-Privatkunde zaehlt', umsatz([re('AT', 500, '2026-03-01')]) === 500);
@@ -97,11 +113,11 @@ console.log('\n── A. Wer ueberhaupt als EU-Fernverkauf zaehlt ────�
     })._calcLaender(2026);
     check('A11 Aufteilung nach Bestimmungsland summiert je Land',
         proLand.AT === 400 && proLand.FR === 200);
-}
+});
 
 console.log('\n── B. §3c Abs. 4 Satz 1 — prospektiv, nicht rueckwirkend ─────');
 
-{
+block(() => {
     // Vier Rechnungen, die zusammen genau ueber die Schwelle laufen:
     // 4.000 + 4.000 = 8.000, dann 3.000 -> 11.000 reisst sie, dann noch eine.
     const inv = [
@@ -118,9 +134,9 @@ console.log('\n── B. §3c Abs. 4 Satz 1 — prospektiv, nicht rueckwirkend �
         ids.has(inv[2].id));
     check('B3 Alles danach ebenfalls', ids.has(inv[3].id));
     check('B4 Genau zwei von vier Rechnungen sind betroffen', ids.size === 2);
-}
+});
 
-{
+block(() => {
     // §3c Abs. 4 UStG sagt "nicht ueberschritten" — bei exakt 10.000,00 € gilt die Ausnahme noch.
     // Ein '>=' statt '>' wuerde hier faelschlich das Bestimmungslandprinzip ausloesen.
     const exakt = [re('AT', 6000, '2026-02-01'), re('FR', 4000, '2026-04-01')];
@@ -131,9 +147,9 @@ console.log('\n── B. §3c Abs. 4 Satz 1 — prospektiv, nicht rueckwirkend �
     const idsCent = lade({ invoices: einCent, customers: KUNDEN })._ueberSchwelleInvoiceIds(2026);
     check('B6 Ein Cent darueber reisst sie — und trifft genau die zweite Rechnung',
         idsCent.size === 1 && idsCent.has(einCent[1].id));
-}
+});
 
-{
+block(() => {
     // Die Laufsumme muss chronologisch sein, nicht in Eingabereihenfolge: sonst haengt das
     // Ergebnis davon ab, in welcher Reihenfolge Rechnungen erfasst wurden.
     const unsortiert = [
@@ -153,11 +169,11 @@ console.log('\n── B. §3c Abs. 4 Satz 1 — prospektiv, nicht rueckwirkend �
     ];
     check('B8 Eine Gutschrift senkt die Laufsumme, die Schwelle bleibt ungerissen',
         lade({ invoices: mitGutschrift, customers: KUNDEN })._ueberSchwelleInvoiceIds(2026).size === 0);
-}
+});
 
 console.log('\n── C. §3c Abs. 4 Satz 2 — Vorjahr wirkt rueckwirkend ─────────');
 
-{
+block(() => {
     const vorjahrDrueber = [
         re('AT', 11000, '2025-05-01'),   // Vorjahr ueber der Schwelle
         re('FR', 100,   '2026-02-01'),   // laufendes Jahr: winzig
@@ -174,11 +190,11 @@ console.log('\n── C. §3c Abs. 4 Satz 2 — Vorjahr wirkt rueckwirkend ─�
     const vorjahrDrunter = [re('AT', 9999, '2025-05-01'), re('FR', 100, '2026-02-01')];
     check('C3 Vorjahr knapp darunter: das laufende Jahr faengt wieder bei null an',
         lade({ invoices: vorjahrDrunter, customers: KUNDEN })._ueberSchwelleInvoiceIds(2026).size === 0);
-}
+});
 
 console.log('\n── D. Steuersaetze und Kleinunternehmer ──────────────────────');
 
-{
+block(() => {
     const O = lade({});
     check('D1 Alle 26 uebrigen EU-Laender haben einen Regelsatz hinterlegt',
         Object.keys(O.EU_VAT_RATES).length === 26 && !O.EU_VAT_RATES.DE);
@@ -190,11 +206,11 @@ console.log('\n── D. Steuersaetze und Kleinunternehmer ───────
     const klein = lade({ ustMode: 'klein' });
     check('D4 Kleinunternehmer bekommen die Seite gar nicht erst',
         klein.render().includes('Nur für Regelbesteuerer'));
-}
+});
 
 console.log('\n── E. Was die Seite zeigt vs. was die UVA meldet ─────────────');
 
-{
+block(() => {
     // Dokumentierter Stand, kein Wunschverhalten: _calcLaender() summiert ALLE B2C-Rechnungen
     // des Jahres, auch die vor dem Ueberschreiten der Schwelle. Die Laendertabelle und der
     // CSV-Export der Seite legen darauf den Ziellandsatz — waehrend js/ustvoranmeldung.js die
@@ -217,7 +233,7 @@ console.log('\n── E. Was die Seite zeigt vs. was die UVA meldet ────
     check('E4 Die Laendertabelle zieht ihre Zahlen unveraendert aus _calcLaender',
         /_calcLaender\(year\)/.test(ossSrc) &&
         !/ueberSchwelleInvoiceIds\(year\)[\s\S]{0,400}_exportCSV/.test(ossSrc));
-}
+});
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');
 assert.strictEqual(pass, total, 'OSS: ' + (total - pass) + ' Pruefung(en) fehlgeschlagen');

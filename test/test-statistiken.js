@@ -16,6 +16,22 @@ function check(name, cond) {
     if (cond) { pass++; console.log('✓ ' + name); }
     else { console.error('✗ FAIL ' + name); process.exitCode = 1; }
 }
+// Ein Harness ruft echten Modulcode auf — genau das macht ihn wertvoll, und genau deshalb
+// kann der Aufruf selbst werfen. Ohne diese Klammer stirbt der Lauf an der ersten Ausnahme,
+// und man erfaehrt nicht, was sonst noch kaputt ist: ein Stacktrace statt einer Fundliste.
+// Nachgemessen am 2026-09-15 in einer Spiegelkopie: bei einer gebrochenen Modul-API starben
+// alle vier Harnesse dieser Session, statt zu melden.
+let blockNr = 0;
+function block(fn) {
+    blockNr++;
+    const nr = blockNr;
+    try { fn(); }
+    catch (e) {
+        total++;
+        console.error('✗ FAIL Block ' + nr + ' bricht mit einer Ausnahme ab: ' + e.message);
+        process.exitCode = 1;
+    }
+}
 
 const statSrc = fs.readFileSync(__dirname + '/../js/statistiken.js', 'utf8');
 
@@ -105,7 +121,7 @@ const RECHNUNG = {
 
 console.log('\n── A. Zeitraumfilter ─────────────────────────────────────────');
 
-{
+block(() => {
     const { S } = lade({
         sales: [VERKAUF, Object.assign({}, VERKAUF, { id: 's2', datum: '2025-03-01' })],
         purchases: [{ id: 'p1', datum: '2026-01-01', einkaufspreis: 10 },
@@ -124,9 +140,9 @@ console.log('\n── A. Zeitraumfilter ─────────────�
 
     S._period = 'alle';
     check('A4 Ohne Jahresangabe bleibt alles stehen', S._getFilteredData().sales.length === 2);
-}
+});
 
-{
+block(() => {
     const { S } = lade({ sales: [], purchases: [], invoices: [RECHNUNG] });
     S._period = '2026';
     check('A5 Bezahlte Rechnung zaehlt zum Umsatz', S._getFilteredData().unsyncedRevenue === 200);
@@ -159,7 +175,7 @@ console.log('\n── A. Zeitraumfilter ─────────────�
     S7._period = '2026';
     check('A11 Massgeblich ist das Zahlungsdatum, nicht das Rechnungsdatum',
         S7._getFilteredData().unsyncedRevenue === 0);
-}
+});
 
 console.log('\n── B. PStTG-Meldeschwelle ────────────────────────────────────');
 
@@ -192,7 +208,7 @@ check('B6 Im ersten Geltungsjahr 2023 greift sie',
 
 console.log('\n── C. Gewinn je Plattform ────────────────────────────────────');
 
-{
+block(() => {
     // Der Fund vom 2026-09-13: Ein Verkauf nimmt den ganzen Einkaufssatz mit
     // (Store.saveSale setzt ihn komplett auf 'verkauft'), einkaufspreis ist der Stueckpreis.
     // Zehn Stueck a 20 € kosteten in dieser Auswertung 20 € statt 200 € — der Gewinn je
@@ -242,11 +258,11 @@ console.log('\n── C. Gewinn je Plattform ───────────�
     // Gebuehr auf die vollen 110 (= 11) und 5 eigenes Porto ab: 94 bleiben.
     check('C7 Kaeufer-Versand ist Einnahme und Gebuehrenbasis zugleich (100 + 10 − 11 − 5 = 94)',
         betraege(zeile(a6['platAnalyseSection'].innerHTML, 'Vinted')).includes(94));
-}
+});
 
 console.log('\n── D. Profitabilitaet je Marke und Typ ───────────────────────');
 
-{
+block(() => {
     const sale = Object.assign({}, VERKAUF, { purchaseId: 'p1', verkaufspreis: 300, datum: '2026-03-11' });
     const einkauf = { id: 'p1', datum: '2026-03-01', einkaufspreis: 20, anzahl: 10 };
     const { S, abschnitte } = lade({ sales: [sale], purchases: [einkauf] });
@@ -259,11 +275,11 @@ console.log('\n── D. Profitabilitaet je Marke und Typ ───────�
         betraege(zeile(html, 'Acme')).includes(100));
     check('D2 Typen-Tabelle rechnet genauso', betraege(zeile(html, 'Regal')).includes(100));
     check('D3 Standzeit kommt aus dem Einkaufsdatum (10 Tage)', /\b10\b/.test(zeile(html, 'Acme')));
-}
+});
 
 console.log('\n── E. Regressionswaechter ────────────────────────────────────');
 
-{
+block(() => {
     // Der eigentliche Schutz: nicht ein Wert, sondern die Bauart. Vor dem 2026-09-13 trugen
     // 10 von 14 Einkaufssummen die Menge und 4 nicht — genau so entstehen zwei Zahlen mit
     // demselben Namen. Kommt eine neue Summe ohne Menge dazu, faellt diese Pruefung.
@@ -287,7 +303,7 @@ console.log('\n── E. Regressionswaechter ───────────�
         S._getPstTgSchwellen(2022).verkaeufe === Infinity);
     check('E6 Im Vergleich stehen keine nackten Gesetzeszahlen mehr',
         !/count\s*>=\s*30\b/.test(statSrc) && !/umsatz\s*>=\s*2000\b/.test(statSrc));
-}
+});
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');
 assert.strictEqual(pass, total, 'Statistiken: ' + (total - pass) + ' Pruefung(en) fehlgeschlagen');

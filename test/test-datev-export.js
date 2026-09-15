@@ -18,6 +18,22 @@ function check(name, cond) {
     if (cond) { pass++; console.log('✓ ' + name); }
     else { console.error('✗ FAIL ' + name); process.exitCode = 1; }
 }
+// Ein Harness ruft echten Modulcode auf — genau das macht ihn wertvoll, und genau deshalb
+// kann der Aufruf selbst werfen. Ohne diese Klammer stirbt der Lauf an der ersten Ausnahme,
+// und man erfaehrt nicht, was sonst noch kaputt ist: ein Stacktrace statt einer Fundliste.
+// Nachgemessen am 2026-09-15 in einer Spiegelkopie: bei einer gebrochenen Modul-API starben
+// alle vier Harnesse dieser Session, statt zu melden.
+let blockNr = 0;
+function block(fn) {
+    blockNr++;
+    const nr = blockNr;
+    try { fn(); }
+    catch (e) {
+        total++;
+        console.error('✗ FAIL Block ' + nr + ' bricht mit einer Ausnahme ab: ' + e.message);
+        process.exitCode = 1;
+    }
+}
 
 const datevSrc = fs.readFileSync(__dirname + '/../js/datev.js', 'utf8');
 
@@ -85,7 +101,7 @@ const RECHNUNG  = { id: 'i1', typ: 'rechnung', status: 'versendet', datum: '2026
 
 console.log('\n── A. Dateigeruest ───────────────────────────────────────────');
 
-{
+block(() => {
     const z = baue({ purchases: [EINKAUF] });
     check('A1 Kopfzeile nennt EXTF-Format und Buchungsstapel',
         z[0].startsWith('"EXTF";700;21;"Buchungsstapel";12'));
@@ -102,11 +118,11 @@ console.log('\n── A. Dateigeruest ──────────────
         datevSrc.includes("join('\\r\\n')") && !z[0].includes('\n'));
     check('A5 Spaltenbreite steht nirgends mehr als feste Zahl im Code',
         !/new Array\(\s*\d+\s*\)/.test(datevSrc));
-}
+});
 
 console.log('\n── B. Betraege, Datum, Waehrung ──────────────────────────────');
 
-{
+block(() => {
     const r = buchungen({ purchases: [EINKAUF] })[0];
     check('B1 Betrag mit Dezimalkomma und zwei Stellen', r[0] === '20,00');
     check('B2 Soll/Haben-Kennzeichen gesetzt', r[1] === 'S');
@@ -114,11 +130,11 @@ console.log('\n── B. Betraege, Datum, Waehrung ─────────�
     check('B4 Belegdatum im Format TTMM (Jahr steht im Kopf)', r[9] === '0102');
     const krumm = buchungen({ expenses: [Object.assign({}, AUSGABE, { betrag: 12.345 })] })[0];
     check('B5 Betrag wird kaufmaennisch auf zwei Stellen gerundet', krumm[0] === '12,35');
-}
+});
 
 console.log('\n── C. Einnahmen ──────────────────────────────────────────────');
 
-{
+block(() => {
     const r = buchungen({ invoices: [RECHNUNG], customers: [] })[0];
     check('C1 Rechnung 19 % bucht brutto im Haben auf 8400 (SKR03)',
         r[0] === '238,00' && r[1] === 'H' && r[6] === '8400' && r[7] === '1800');
@@ -149,11 +165,11 @@ console.log('\n── C. Einnahmen ───────────────
 
     const beides = buchungen({ invoices: [RECHNUNG], sales: [VERKAUF] });
     check('C7 Direktverkauf faellt nicht weg, nur weil eine Rechnung existiert', beides.length === 2);
-}
+});
 
 console.log('\n── D. Soll- und Ist-Versteuerung ─────────────────────────────');
 
-{
+block(() => {
     const offen = Object.assign({}, RECHNUNG, { status: 'versendet' });
     const soll = buchungen({ invoices: [offen] });
     check('D1 Soll-Versteuerung bucht die versendete Rechnung zum Rechnungsdatum',
@@ -176,11 +192,11 @@ console.log('\n── D. Soll- und Ist-Versteuerung ─────────�
     check('D4 Entwuerfe und Angebote werden nie gebucht',
         entwurf.length === 0 &&
         buchungen({ invoices: [Object.assign({}, RECHNUNG, { typ: 'angebot' })] }).length === 0);
-}
+});
 
 console.log('\n── E. Ausgaben ───────────────────────────────────────────────');
 
-{
+block(() => {
     const r = buchungen({ purchases: [EINKAUF] })[0];
     check('E1 Wareneinkauf 19 % bucht im Soll auf 3400', r[1] === 'S' && r[6] === '3400');
 
@@ -229,11 +245,11 @@ console.log('\n── E. Ausgaben ───────────────�
     });
     check('E10 Buchungen stehen nach Belegdatum sortiert',
         sortiert[0][9] === '0501' && sortiert[1][9] === '0111');
-}
+});
 
 console.log('\n── F. Buchungstext und CSV-Entschaerfung ─────────────────────');
 
-{
+block(() => {
     // Der zweite Fund vom 2026-09-13: Utils.escapeHtml lief ueber die Buchungstexte. Aus
     // "Reck & Schwarz" wurde "Reck &amp; Schwarz" — im Stapel des Steuerberaters. Die
     // Rechnungszeile hat den Kundennamen immer schon roh durchgereicht, dieselbe Datei war
@@ -263,11 +279,11 @@ console.log('\n── F. Buchungstext und CSV-Entschaerfung ──────�
     check('F7 Belegfeld 1 traegt Rechnungsnummer bzw. Artikelnummer',
         buchungen({ invoices: [RECHNUNG] })[0][10] === 'RE-1' &&
         buchungen({ purchases: [Object.assign({}, EINKAUF, { artikelNr: 'SV-1042' })] })[0][10] === 'SV-1042');
-}
+});
 
 console.log('\n── G. Welche Quellen der Stapel ueberhaupt liest ─────────────');
 
-{
+block(() => {
     // Diese Pruefung ist der Waechter ueber den dritten Fund vom 2026-09-13: der Stapel
     // liest vier Quellen, die EUER acht. Fahrtkosten, AfA, Materialverbrauch, Retouren,
     // Eigenbelege sowie Versandkosten und Plattformgebuehren des Verkaeufers fehlen also
@@ -293,7 +309,7 @@ console.log('\n── G. Welche Quellen der Stapel ueberhaupt liest ────
     const fehlendeQuellen = ['getFahrten', 'getAfaAnlagen', 'getRetouren'];
     check('G2 Die bekannte Luecke zu den EUER-Quellen ist unveraendert',
         fehlendeQuellen.every(q => !datevSrc.includes('Store.' + q)));
-}
+});
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');
 assert.strictEqual(pass, total, 'DATEV-Export: ' + (total - pass) + ' Pruefung(en) fehlgeschlagen');

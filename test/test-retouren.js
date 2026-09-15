@@ -25,6 +25,22 @@ function check(name, cond) {
     if (cond) { pass++; console.log('✓ ' + name); }
     else { console.error('✗ FAIL ' + name); process.exitCode = 1; }
 }
+// Ein Harness ruft echten Modulcode auf — genau das macht ihn wertvoll, und genau deshalb
+// kann der Aufruf selbst werfen. Ohne diese Klammer stirbt der Lauf an der ersten Ausnahme,
+// und man erfaehrt nicht, was sonst noch kaputt ist: ein Stacktrace statt einer Fundliste.
+// Nachgemessen am 2026-09-15 in einer Spiegelkopie: bei einer gebrochenen Modul-API starben
+// alle vier Harnesse dieser Session, statt zu melden.
+let blockNr = 0;
+function block(fn) {
+    blockNr++;
+    const nr = blockNr;
+    try { fn(); }
+    catch (e) {
+        total++;
+        console.error('✗ FAIL Block ' + nr + ' bricht mit einer Ausnahme ab: ' + e.message);
+        process.exitCode = 1;
+    }
+}
 
 // Erstes Element oder ein leeres Objekt. Ohne das stirbt der Harness bei einem Rueckfall an
 // einer TypeError-Exception, statt die fehlgeschlagenen Pruefungen aufzuzaehlen — nachgestellt
@@ -100,7 +116,7 @@ const VERKAUF = { id: 's1', datum: '2026-03-01', verkaufspreis: 100, marke: 'Acm
 
 console.log('\n── A. Schutz gegen unsinnige Betraege ────────────────────────');
 
-{
+block(() => {
     const t = lade(formular({ rt_vkPreis: '-50' }));
     t.absenden();
     check('A1 Negativer Verkaufspreis wird abgewiesen, nichts gespeichert',
@@ -128,11 +144,11 @@ console.log('\n── A. Schutz gegen unsinnige Betraege ───────�
     t5.absenden();
     check('A5 Bei unsinnigem Betrag wird auch kein Verkauf storniert',
         t5.protokoll.storniertSale.length === 0);
-}
+});
 
 console.log('\n── B. Unbeschaedigt: der Artikel geht zurueck ins Lager ──────');
 
-{
+block(() => {
     const t = lade(formular({ rt_zustand: 'Unbeschädigt', rt_saleId: 's1' }), { sales: [VERKAUF] });
     t.absenden();
 
@@ -147,11 +163,11 @@ console.log('\n── B. Unbeschaedigt: der Artikel geht zurueck ins Lager ─�
         /Unbeschädigt/.test(erst(t.protokoll.storniertSale).grund || ''));
     check('B5 Die Retoure selbst wird gespeichert und traegt den Verkauf',
         t.protokoll.gespeichert.length === 1 && t.protokoll.gespeichert[0].saleId === 's1');
-}
+});
 
 console.log('\n── C. Beschaedigt: der Artikel ist abzuschreiben ─────────────');
 
-{
+block(() => {
     const t = lade(formular({ rt_zustand: 'Beschädigt', rt_saleId: 's1' }), { sales: [VERKAUF] });
     t.absenden();
 
@@ -181,11 +197,11 @@ console.log('\n── C. Beschaedigt: der Artikel ist abzuschreiben ────
     t4.absenden();
     check('C7 Ein Verkauf ohne Lagerbezug erzeugt kein Storno ins Leere',
         t4.protokoll.storniertPurchase.length === 0 && t4.protokoll.gespeichert.length === 1);
-}
+});
 
 console.log('\n── D. Retoure ohne verknuepften Verkauf ──────────────────────');
 
-{
+block(() => {
     const t = lade(formular({ rt_saleId: '' }));
     t.absenden();
     check('D1 Ohne Verknuepfung wird nichts storniert',
@@ -200,11 +216,11 @@ console.log('\n── D. Retoure ohne verknuepften Verkauf ───────
     t2.absenden();
     check('D3 Ein ins Leere zeigender Verkauf bricht das Speichern nicht ab',
         t2.protokoll.storniertSale.length === 0 && t2.protokoll.gespeichert.length === 1);
-}
+});
 
 console.log('\n── E. Uebernommene Werte und Jahressumme ─────────────────────');
 
-{
+block(() => {
     const t = lade(formular({ rt_vkPreis: '120.50', rt_erstattung: '99.99', rt_notizen: '  Karton nass  ' }));
     t.absenden();
     const r = erst(t.protokoll.gespeichert);
@@ -229,7 +245,7 @@ console.log('\n── E. Uebernommene Werte und Jahressumme ──────�
     check('E4 Die Jahressumme zaehlt nur das gefilterte Jahr',
         html2026.includes('150.5') && !html2026.includes('1149.5'));
     check('E5 Ohne Filter zaehlt sie alles', htmlAlle.includes('1149.5'));
-}
+});
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');
 assert.strictEqual(pass, total, 'Retouren: ' + (total - pass) + ' Pruefung(en) fehlgeschlagen');

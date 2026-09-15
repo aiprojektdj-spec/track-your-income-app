@@ -28,7 +28,11 @@ var XRechnung = (function () {
     function isoDate(d) { return d ? String(d).replace(/-/g, '') : ''; }
 
     // Numeric: always 2 decimal places
-    function amt(n) { return parseFloat(n || 0).toFixed(2); }
+    // `|| 0` gehoert AUSSERHALB von parseFloat — sonst liefert ein nicht-numerischer Wert
+    // die Zeichenkette "NaN" ins XML, und die Rechnung ist nach EN 16931 ungueltig.
+    // amt() bekommt an Zeile 224 mit li.einzelpreis ein ROHES Feld, nicht nur gerechnete
+    // Summen; der Fix an der Zeilensumme allein reichte deshalb nicht.
+    function amt(n) { return (parseFloat(n) || 0).toFixed(2); }
 
     // UN/ECE unit code mapping
     function unitCode(einheit) {

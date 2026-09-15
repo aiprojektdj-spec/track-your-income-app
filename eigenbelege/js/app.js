@@ -996,7 +996,10 @@ async function saveBeleg(e, editId) {
         return;
     }
 
-    const brutto   = parseFloat(bruttoRaw || 0);
+    // `|| 0` ausserhalb von parseFloat. Hier kein lebender Fehler — das Feld ist type="number",
+    // ein unsinniger Wert kommt als leerer String an und wird oben abgefangen. Die Klammer
+    // haengt den Schutz aber vom Feldtyp ab; so gilt er auch nach einem UI-Umbau.
+    const brutto   = (parseFloat(bruttoRaw) || 0);
     const mwstSatz = parseInt(document.getElementById('eb-mwst').value || 0);
     const { netto, mwst } = calcMwst(brutto, mwstSatz);
     const id  = editId || EB.genId();

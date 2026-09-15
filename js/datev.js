@@ -78,7 +78,8 @@ var DatevExport = (function () {
 
     // Betrag: DATEV uses comma as decimal separator, no thousands separator
     function amtDe(n) {
-        return parseFloat(n || 0).toFixed(2).replace('.', ',');
+        // `|| 0` ausserhalb von parseFloat, sonst steht "NaN" in der Umsatzspalte des Stapels
+        return (parseFloat(n) || 0).toFixed(2).replace('.', ',');
     }
 
     // Date: TT.MM → DATEV date format for Belegdatum

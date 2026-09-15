@@ -76,6 +76,50 @@ const FELDER = ['einzelpreis', 'menge', 'betrag', 'einkaufspreis', 'verkaufsprei
     treffer.forEach(t => console.error('   → ' + t));
 }
 
+// ── Dasselbe Muster in JEDER Form, nicht nur auf bekannten Feldnamen ─────────
+// Ergaenzt am 2026-09-15. Die Pruefung oben verlangt einen Punktzugriff auf einen Feldnamen
+// aus FELDER. Deshalb meldete sie "kein Treffer", waehrend `parseFloat(n || 0)` mit einer
+// NACKTEN Variablen noch an fuenf Stellen stand — und zwar ausgerechnet in Formatierern:
+//
+//   rechnungen/js/xrechnung.js  amt()    → bekommt in Zeile 224 mit li.einzelpreis ein ROHES
+//                                          Feld; "NaN" im XML macht die Rechnung nach
+//                                          EN 16931 ungueltig
+//   js/datev.js                 amtDe()  → schreibt die Umsatzspalte des Buchungsstapels
+//   js/utils.js                 formatCurrency() → "NaN €" quer durch die App
+//   js/steuerberater.js         fmtCur()
+//   eigenbelege/js/app.js       Bruttobetrag (dort kein lebender Fehler, s. Kommentar dort)
+//
+// Ein Waechter, der "sauber" meldet, waehrend das Muster weiterlebt, ist schaedlicher als
+// keiner: er erzeugt Sicherheit, die es nicht gibt. Deshalb hier bewusst weit gefasst, mit
+// einer kurzen, begruendeten Ausnahmeliste statt einer engen Suche.
+{
+    // Einzige erlaubte Ausnahme: ein AEUSSERES `||` faengt das NaN ab und setzt einen eigenen
+    // Rueckfallwert dahinter (`(parseFloat(x || 0)) || y`). Nachgerechnet: NaN || y === y.
+    // Modul ist seit der CH/AT-Entfernung dormant (plan/ch-at-removal-web.md).
+    const ERLAUBT = ['oesterreich.js'];
+    const weit = /parseFloat\(\s*[^()]*\|\|\s*0\s*\)/g;
+    const treffer = [];
+    module_.forEach(datei => {
+        if (ERLAUBT.some(a => datei.endsWith(a))) return;
+        const src = codeOhneKommentare(datei);
+        let m;
+        while ((m = weit.exec(src)) !== null) {
+            treffer.push(path.relative(path.join(__dirname, '..'), datei) + ': ' + m[0].trim());
+        }
+    });
+    check('Auch mit nackter Variable steht das Muster nirgends mehr', treffer.length === 0);
+    treffer.forEach(t => console.error('   → ' + t));
+
+    // Gegenprobe, damit die weite Suche nicht bloss deshalb gruen ist, weil sie nichts findet:
+    // sie muss die alte Form erkennen, wenn man sie ihr vorlegt.
+    weit.lastIndex = 0;
+    check('Die weite Suche erkennt die alte Form ueberhaupt',
+        weit.test('return parseFloat(n || 0).toFixed(2);'));
+    weit.lastIndex = 0;
+    check('…und schlaegt bei der richtigen Form nicht an',
+        !weit.test('return (parseFloat(n) || 0).toFixed(2);'));
+}
+
 // ── Die drei behobenen Stellen tragen jetzt die richtige Form ────────────────
 {
     const erwartet = [

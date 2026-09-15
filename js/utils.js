@@ -106,7 +106,8 @@ const Utils = {
     },
 
     formatNumber(num) {
-        return parseFloat(num || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // `|| 0` ausserhalb von parseFloat — sonst zeigt die App "NaN €" statt "0,00 €"
+        return (parseFloat(num) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     },
 
     formatDate(dateStr) {

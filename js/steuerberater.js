@@ -161,7 +161,8 @@ var Steuerberater = (function () {
         Utils.showToast('Steuerberater-Paket exportiert: ' + filename, 'success');
     }
 
-    function fmtCur(n) { return parseFloat(n || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }); }
+    // `|| 0` ausserhalb von parseFloat — der Steuerberater-Export darf kein "NaN €" zeigen
+    function fmtCur(n) { return (parseFloat(n) || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }); }
     function fmtDt(s) { if (!s) return '—'; var p = s.split('-'); if (p.length < 3) return s; return p[2] + '.' + p[1] + '.' + p[0]; }
     function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 

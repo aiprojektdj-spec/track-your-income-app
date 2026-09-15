@@ -185,8 +185,17 @@ Vercel → Cron Jobs auf den letzten Lauf.
 > **Nimm stattdessen den Selbsttest** — er beantwortet dieselbe Frage mit einem `curl`, ohne
 > Branch, ohne kaputte Umgebung: [Selbsttest der Alarmkette](#selbsttest-der-alarmkette-probe1)
 > weiter unten. Der Rest dieses Abschnitts bleibt trotzdem lesenswert, weil er die `||`-Falle
-> zwischen `UPSTASH_…` und `KV_…` erklärt, und als ehrlichster Weg richtig bleibt: nur der
-> echte Ausfall beweist auch, dass der *Auslöser* feuert, nicht bloß die Kette dahinter.
+> zwischen `UPSTASH_…` und `KV_…` erklärt.
+>
+> **Nachtrag 2026-09-15 — die Auslöser-Seite ist inzwischen abgedeckt.** Hier stand, nur der echte
+> Ausfall beweise auch, dass der *Auslöser* feuert und nicht bloß die Kette dahinter. Das gilt
+> jetzt nur noch für die Produktion: `test/test-alert-ausloeser.js` (`1f7ecf9`, 14/14) fährt die
+> echten Handler gegen eine fehlende Redis-Env und prüft Paar, Antwortcode und `detail`-Text —
+> `sync`/`redis-env-missing` → `500`, `whop-refresh`/`redis-fehlt` → `503`,
+> `blob-cleanup`/`cron-secret-missing` → `500`, dazu die Gegenprobe, dass **mit** gesetzter Env
+> nichts gemeldet wird. Damit ist belegt, dass ein echter Ausfall bis `alertOps` durchläuft;
+> unbelegt bleibt allein, ob `ALERT_WEBHOOK_URL` in Vercel zur Laufzeit ankommt — und dafür ist
+> der Selbsttest da.
 
 Der ehrlichste Test wäre ein echter Redis-Ausfall — den willst du nicht herbeiführen.
 
@@ -210,7 +219,16 @@ beide anfassen.
    `https://example.invalid` setzen. Notiere dir vorher die echten Werte.
 2. Preview neu deployen — Env-Variablen greifen erst mit dem nächsten Deployment.
 3. Einen POST auf `/api/sync` der **Preview-URL** schicken. Ein Token braucht es nicht: der
-   Redis-Check in `api/sync.js` läuft noch vor der Token-Prüfung.
+   Redis-Check in `api/sync.js` läuft noch vor der Token-Prüfung — genau das hält
+   `test/test-alert-ausloeser.js` fest, indem es den Aufruf **ohne** `Authorization`-Header fährt.
+
+> **Falle, wenn du andere Endpunkte von Hand nachstellst: der Token sitzt nicht überall gleich.**
+> `api/sync.js` liest ihn aus dem **`Authorization`-Header** ([Zeile 215](../api/sync.js)),
+> `api/whop-access.js` dagegen aus dem **Rumpf** als `req.body.token`
+> ([Zeile 210](../api/whop-access.js)). Wer bei `whop-access` den Header setzt, landet in einem
+> `400` und erreicht den Alarmzweig nie — der Aufruf sieht aus wie ein Fehlschlag des Alarms und
+> ist in Wahrheit ein Fehler des Aufrufs. Aufgefallen beim Schreiben des Auslöser-Tests am
+> 2026-09-15.
 
    ```bash
    curl -s -X POST -H "Content-Type: application/json" -d '{}' https://DEINE-PREVIEW.vercel.app/api/sync
@@ -323,8 +341,15 @@ Ereignis für beide Ziele; Nutzlast-Felder; Timeout-/Fehlerfestigkeit; Map-Decke
 `alertOps` und `alertZiele`, auf denen der Selbsttest aufsetzt. **30/30 grün am 2026-09-14**,
 dazu `test/test-alert-selbsttest.js` mit **26/26**.
 
+**Seit 2026-09-15 ist auch die Strecke davor abgedeckt** — die war bis dahin die eigentliche
+Lücke: `test-alert-ops.js` beweist, was `alertOps` tut, aber nicht, dass ein echter Ausfall
+dort je ankommt. `test/test-alert-ausloeser.js` (**14/14**) fährt dafür die echten Handler gegen
+eine fehlende Redis-Env und prüft Paar, Antwortcode und `detail`-Text — mit Gegenprobe, dass bei
+gesetzter Env **nichts** gemeldet wird. `blob-upload` ist ausgespart, weil beide Paare hinter der
+Whop-Auth liegen; auf Funktionsebene deckt `test-blob-budget.js` sie ab.
+
 ```bash
-node test/test-alert-ops.js
+node test/test-alert-ops.js && node test/test-alert-selbsttest.js && node test/test-alert-ausloeser.js
 ```
 
 Was diese Tests **nicht** abdecken, weil sie gegen Attrappen laufen: dass Make die Nutzlast

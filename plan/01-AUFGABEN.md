@@ -41,7 +41,7 @@ Die drei Funde aus Live-Test 5 sind weiterhin gefixt und stehen unten als ✅ �
 was sich beim Bauen gegenüber der ursprünglichen Fundbeschreibung als falsch herausgestellt hat.
 Das ist bei zweien von dreien passiert, also beim Lesen der Fundtexte einkalkulieren.
 
-### 1.8 Harnesse für die ungetesteten Rechenmodule (Fund C des Vollaudits)
+### 1.8 Harnesse für die ungetesteten Rechenmodule (Fund C des Vollaudits) · ✅ erledigt 2026-09-15 (`d399034`)
 
 Quelle: [`funde-vollaudit-2026-09-09.md`](funde-vollaudit-2026-09-09.md), Kategorie C. Stand
 2026-09-13, nachgemessen: **21 von 56 Modulen** werden von keinem Harness geladen.
@@ -664,9 +664,14 @@ Neuaufsetzen dorthin zurückgeführt.
 > Ein neues Projekt oder eine neue Umgebung ohne diese Variablen hat **keinen Owner-Bypass**.
 > Das ist die Absicht — fällt aber erst beim Anmelden auf.
 
-**Noch offen:** der funktionale Beweis. Nach dem nächsten Login muss `/api/whop-access` mit
-`"owner": true` antworten. Kommt stattdessen der „Stackr Pro aktivieren"-Bildschirm, stimmt
-die ID nicht — sie steht dort unten als Freigabe-Code zum Kopieren.
+**✅ Auch der funktionale Beweis ist erbracht** — am 2026-09-01 auf Produktion gegengemessen:
+`/api/whop-access` antwortet mit `has_access: true`, **`owner: true`** und einem Grace-Token.
+
+> **Korrigiert am 2026-09-15.** Hier stand bis dahin „Noch offen: der funktionale Beweis" —
+> während die Fußnote unter der Rang-Tabelle derselben Datei genau diese Messung seit dem
+> 2026-09-09 festhält. Zwei Stellen, ein Widerspruch, und die Aufgabenbeschreibung war die
+> veraltete. Bleibt nur: nach einem Wechsel der Whop-User-ID erneut prüfen — kommt der
+> „Stackr Pro aktivieren"-Bildschirm, stimmt die ID nicht; sie steht dort als Freigabe-Code.
 
 ---
 ### 2.2 Zwei Whop-Mails konfigurieren (N4)
@@ -748,6 +753,32 @@ der Login strukturell unmöglich. Gehört in die nächste Live-Test-Sitzung (§2
 ein Blick, ob beide Knöpfe erscheinen und der zweite die Warnung „betrifft alle Firmen" zeigt.
 **Den Löschweg selbst dabei nicht an echten Daten auslösen.**
 
+### 2.6 Alarmkette abnehmen — ein `curl` (2026-09-15)
+
+Der Betriebs-Alarm ist seit dem 2026-09-13 an **beiden** Zielen scharf: Blob-Log unter
+`stackr/alerts/` und Make-Szenario `stackr-ops-alert`. Belegt ist die Kette *Webhook → Make →
+Mail* (zwei Testläufe, Success) und dass `ALERT_WEBHOOK_URL` gesetzt und deployt ist.
+
+**Nicht belegt ist, dass die Variable zur Laufzeit bei `api/_alert.js` ankommt.** Dafür gibt es
+den Selbsttest — `CRON_SECRET` steht nicht in `.env.local`, deshalb kannst nur du ihn aufrufen:
+
+```bash
+curl -s -H "Authorization: Bearer $CRON_SECRET" "https://track-your-income-app.vercel.app/api/blob-cleanup?probe=1"
+```
+
+`webhook:false` wäre der gesuchte Befund (Variable kommt nicht an); `gemeldet:false` heißt nur
+Entprellung. Der Modus läuft vor dem Aufräumen und löst weder `list` noch `del` aus.
+
+**Eine Prüfung, zwei Belege:** Der Selbsttest schreibt selbst einen Eintrag
+(`selbsttest`/`webhook-probe`). Taucht der danach unter `stackr/alerts/` auf, ist damit zugleich
+das Blob-Ziel unabhängig bestätigt. Die Kontrolle danach kann jede Session fahren.
+
+**Zweiter Punkt derselben Ecke:** `BLOB_READ_WRITE_TOKEN` trägt in Vercel „Needs Attention" —
+der Wert liegt als lesbare Config-Variable statt als *Secret*. Kein Ausfall, reine Hygiene.
+**Reihenfolge beachten**, sonst sind Blob-Uploads von Kundenanhängen bis zum Redeploy tot: erst
+rotieren **und** als Secret neu anlegen, dann deployen, dann `.env.local` nachziehen. Details in
+[`offen-alert-webhook.md`](offen-alert-webhook.md).
+
 ### 2.4 Produktentscheidungen · ✅ alle getroffen (2026-08-23)
 
 **Hier steht nichts mehr offen.** Alle sieben Fragen sind entschieden und in
@@ -789,9 +820,16 @@ ein Blick, ob beide Knöpfe erscheinen und der zweite die Warnung „betrifft al
 | Rang | Aufgabe | Warum | Aufwand |
 |---|---|---|---|
 | 1 | **2.2 Whop-Mails** | Verhindert Rückbuchungen bei der 135-€-Verlängerung; beide Texte liegen fertig entworfen | 1 h |
-| 2 | **2.5 Cloud-Löschung entscheiden** | Zwei Produktfragen, keine Technik. Solange sie offen sind, bleibt die Art.-17-Löschung unvollständig | Entscheidung |
-| 3 | **2.3 Live-Tests** | Drei der sieben Punkte sind noch nie unter echten Bedingungen gelaufen | mehrere Sitzungen |
+| 2 | **2.6 Alarm abnehmen** | Ein `curl`. Schließt den letzten unbelegten Link der Alarmkette und bestätigt nebenbei das Blob-Ziel | 5 min |
+| 3 | **1.9 (b) DATEV-Buchungsregeln** | Der Stapel liest vier von neun Quellen — Fahrtkosten, AfA, Materialverbrauch, Retouren und Eigenbelege fehlen. Der Export an den Steuerberater ist unvollständig, und die Regeln kann keine Session raten | Festlegung |
+| 4 | **2.3 Live-Tests** | Drei der sieben Punkte sind noch nie unter echten Bedingungen gelaufen | mehrere Sitzungen |
 
+> **Korrigiert am 2026-09-15 — zum zweiten Mal dieselbe Sorte Fehler.** Auf Rang 2 stand
+> „2.5 Cloud-Löschung entscheiden". Das ist seit dem 2026-09-13 **entschieden und gebaut**
+> (`ef76686`, zwei getrennte Knöpfe) — die Zeile schickte erneut auf etwas Erledigtes, genau wie
+> Rang 1 bis zum 2026-09-09. **Wer hier etwas abhakt, hakt es an zwei Stellen ab:** im Abschnitt
+> *und* in dieser Tabelle.
+>
 > **Korrigiert am 2026-09-09.** Auf Rang 1 stand bis dahin „2.1 ENV-Variablen in Vercel — einzige
 > offene Sicherheitslücke". Das war seit dem 2026-08-23 erledigt und am 2026-09-01 auf Produktion
 > gegengemessen: `/api/whop-access` antwortet mit `has_access: true`, **`owner: true`** und einem
@@ -800,8 +838,15 @@ ein Blick, ob beide Knöpfe erscheinen und der zweite die Warnung „betrifft al
 
 **Abschnitt 1 ist seit dem 2026-09-13 nicht mehr leer** — hier stand bis dahin das Gegenteil,
 und zwar noch, nachdem der Abschnittskopf oben bereits korrigiert war. Zwei Stellen derselben
-Datei widersprachen sich also einen Tag lang. Offen sind dort **1.8** (Harnesse für die Module
-ohne Abdeckung) und **1.9** (die zwei DATEV-Punkte).
+Datei widersprachen sich also einen Tag lang. Offen ist dort **1.9** (die zwei DATEV-Punkte) —
+und der **Regel-7-Rest aus 1.8**: die Kilometersätze 0,30 und 0,20 €/km stehen als jahresfeste
+Konstanten in `js/fahrtenbuch.js`, `test-fahrtenbuch.js` hält den Zustand in D4 fest.
+
+> **Korrigiert am 2026-09-15 — dieselbe Sorte Widerspruch, ein drittes Mal.** Hier stand
+> „Offen sind dort **1.8** … und **1.9**", während `d399034` die Tabelle in 1.8 am selben Tag
+> geleert hatte. Der Commit hat den Abschnitt erledigt, aber weder dessen Kopf abgehakt noch
+> diesen Absatz. **Eine Aufgabe steht in dieser Datei an drei Stellen:** im Abschnitt, in dessen
+> Kopfzeile und hier unten (plus ggf. in der Rang-Tabelle). Wer abhakt, hakt alle ab.
 
 Die Funde 1.3 bis 1.7 aus den Live-Tests sind alle gefixt; die OCR-Messung an echten Belegen ist
 am 2026-08-30 gelaufen (**2 von 3**, siehe [`live-tests-checkliste.md`](live-tests-checkliste.md)

@@ -15,8 +15,23 @@ const CompanyManager = {
 
     BRANCHEN: ['Reselling', 'E-Commerce', 'Dienstleistung', 'Handwerk', 'Sonstiges'],
 
+    // Gibt IMMER ein Array zurueck. Der catch faengt nur kaputtes JSON ab; gueltiges JSON, das
+    // kein Array ist, lief bis zum 2026-09-15 durch — `null`, `42`, `"text"` oder ein Objekt.
+    // Jeder Aufrufer arbeitet danach mit .find(), .filter() oder .push(), und alle vier Werte
+    // lassen das werfen. Betroffen waeren getActive(), create(), switchTo(), rename(),
+    // updateColor() und delete(), also die komplette Firmenverwaltung — und da getActive()
+    // beim Start laeuft, waere die App unbenutzbar statt nur diese eine Funktion.
+    //
+    // Der Registry-Key wird von drei Stellen geschrieben (hier und zweimal in js/cloud-sync.js);
+    // alle drei legen normalerweise ein Array ab. Ein abgebrochener Sync, ein Restore aus einem
+    // beschaedigten Backup oder ein Eingriff von Hand reichen aber, und der Schaden waere total.
+    // Eine leere Liste ist dann der bessere Ausgang: die Firmen sind in IndexedDB weiterhin da,
+    // nur ihr Verzeichnis ist futsch — und das schreibt der naechste Sync neu.
     getAll() {
-        try { return JSON.parse(localStorage.getItem(this.REGISTRY_KEY) || '[]'); }
+        try {
+            const roh = JSON.parse(localStorage.getItem(this.REGISTRY_KEY) || '[]');
+            return Array.isArray(roh) ? roh : [];
+        }
         catch { return []; }
     },
 

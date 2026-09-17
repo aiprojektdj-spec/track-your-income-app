@@ -172,6 +172,21 @@ const VERKAUF = { id: 's1', datum: '2026-03-01', verkaufspreis: 1000, versandkos
     check('Fahrtkosten mindern den Gewinn', Math.abs(d.gewinn - 790) < 0.01);
 }
 
+// Stornierte Fahrten (2026-09-16). Das Fahrtenbuch storniert GoBD-konform: der Eintrag bleibt
+// mit seinem Betrag gespeichert und wird nur durchgestrichen angezeigt. js/fahrtenbuch.js:53
+// sagt ausdruecklich "stornierte Eintraege anzeigen aber nicht in Summen zaehlen" und filtert
+// selbst auf !storniert. Anders als getSales/getPurchases filtert Store.getFahrten() Stornos
+// aber NICHT heraus — die Pruefung muss also in der EUeR sitzen. Fehlt sie, zaehlt eine
+// stornierte Fahrt als Betriebsausgabe: Gewinn zu niedrig, Einkommensteuer zu niedrig.
+{
+    const d = baue({ sales: [VERKAUF], fahrten: [
+        { datum: '2026-02-01', kosten: 150 },
+        { datum: '2026-03-01', kosten: 400, storniert: true },   // storniert — darf nicht zaehlen
+    ]});
+    check('Stornierte Fahrt zaehlt nicht als Fahrtkosten', Math.abs(d.fahrtkosten - 150) < 0.01);
+    check('Stornierte Fahrt mindert den Gewinn nicht', Math.abs(d.gewinn - 850) < 0.01);
+}
+
 // ── AfA (§7 EStG) ────────────────────────────────────────────────────────────
 {
     const d = baue({ sales: [VERKAUF], afaAnlagen: [{ id: 'a1' }], afaProJahr: 800 });

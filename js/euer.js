@@ -167,8 +167,13 @@ const Euer = {
             return sum + (vk + vkK) * pct / 100;
         }, 0);
 
-        // Fahrtkosten aus Fahrtenbuch
-        const fahrtkosten = Store.getFahrten().filter(f => Utils.isInPeriod(f.datum, startDate, endDate))
+        // Fahrtkosten aus Fahrtenbuch.
+        // `!f.storniert` ist Pflicht und nicht redundant: Anders als getSales()/getPurchases()
+        // filtert Store.getFahrten() Stornos NICHT heraus — die Fahrtenliste soll sie GoBD-konform
+        // durchgestrichen zeigen. Bis 2026-09-16 fehlte die Pruefung hier, und eine stornierte
+        // Fahrt zaehlte voll als Betriebsausgabe (Gewinn zu niedrig -> Unterzahlung).
+        // Dieselbe Luecke stand in js/gbr.js und in der Drucksumme js/fahrtenbuch.js _print().
+        const fahrtkosten = Store.getFahrten().filter(f => !f.storniert && Utils.isInPeriod(f.datum, startDate, endDate))
             .reduce((sum, f) => sum + (parseFloat(f.kosten) || 0), 0);
 
         // Verpackungsmaterial (Materiallager) — abgezogen wird der EINKAUF, nicht der Verbrauch.

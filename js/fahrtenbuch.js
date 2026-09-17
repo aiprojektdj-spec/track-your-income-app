@@ -585,8 +585,14 @@ const Fahrtenbuch = {
 
     _print() {
         const fahrten = this._getFiltered(Store.getFahrten());
-        const totalKm = fahrten.reduce((s, f) => s + (parseFloat(f.gesamtKm || f.km) || 0), 0);
-        const totalKosten = fahrten.reduce((s, f) => s + (parseFloat(f.kosten) || 0), 0);
+        // Summen nur ueber aktive Fahrten — dieselbe Regel wie am Bildschirm (render(): GoBD,
+        // stornierte anzeigen, aber nicht in Summen zaehlen). Die LISTE bleibt vollstaendig,
+        // der Ausdruck zeigt Stornos weiter. Bis 2026-09-16 summierte der Ausdruck sie mit, und
+        // das gedruckte Fahrtenbuch — ein Beleg fuer das Finanzamt — nannte eine hoehere Summe
+        // als die App.
+        const aktiv = fahrten.filter(f => !f.storniert);
+        const totalKm = aktiv.reduce((s, f) => s + (parseFloat(f.gesamtKm || f.km) || 0), 0);
+        const totalKosten = aktiv.reduce((s, f) => s + (parseFloat(f.kosten) || 0), 0);
         const label = this._filterYear === 'all' ? 'Gesamt' : this._filterYear;
 
         const pw = window.open('', '_blank');

@@ -878,8 +878,9 @@ const GbR = {
             const vkK = parseFloat(s.versandkostenKaeufer) || 0;
             return sum + (vk + vkK) * ((parseFloat(s.plattformgebuehrProzent) || 0) / 100);
         }, 0);
+        // `!f.storniert`: getFahrten() filtert Stornos nicht selbst — siehe js/euer.js _berechne.
         const fahrtkosten = Store.getFahrten()
-            .filter(f => Utils.isInPeriod(f.datum, startDate, endDate))
+            .filter(f => !f.storniert && Utils.isInPeriod(f.datum, startDate, endDate))
             .reduce((sum, f) => sum + (parseFloat(f.kosten) || 0), 0);
         // Verpackungsmaterial: der EINKAUF ist die Betriebsausgabe, nicht der Verbrauch
         // (§11 Abs. 2 EStG, Abflussprinzip) — und Einkaeufe mit ausgabeId stecken bereits in
@@ -928,7 +929,7 @@ const GbR = {
                     return s + vk * ((parseFloat(sl.plattformgebuehrProzent) || 0) / 100);
                 }, 0),
                 fahrtkosten:        Store.getFahrten()
-                    .filter(f => Utils.isInPeriod(f.datum, startDate, endDate))
+                    .filter(f => !f.storniert && Utils.isInPeriod(f.datum, startDate, endDate))
                     .reduce((s, f) => s + (parseFloat(f.kosten) || 0), 0),
                 // Gleiche Quelle wie in der Gewinnformel oben — diese Aufstellung ist der
                 // Beleg zur Zahl, sie darf nicht aus einem anderen Topf schoepfen.

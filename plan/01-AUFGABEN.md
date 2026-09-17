@@ -41,7 +41,11 @@ Die drei Funde aus Live-Test 5 sind weiterhin gefixt und stehen unten als ✅ �
 was sich beim Bauen gegenüber der ursprünglichen Fundbeschreibung als falsch herausgestellt hat.
 Das ist bei zweien von dreien passiert, also beim Lesen der Fundtexte einkalkulieren.
 
-### 1.8 Harnesse für die ungetesteten Rechenmodule (Fund C des Vollaudits) · ✅ erledigt 2026-09-15 (`d399034`)
+### 1.8 Harnesse für die ungetesteten Rechenmodule (Fund C des Vollaudits) · **teilweise** — 6 von 11, Stand 2026-09-16
+
+> **Korrektur vom 2026-09-16.** Hier stand „✅ erledigt 2026-09-15 (`d399034`)". Das war
+> ungenau, und eine erste Richtigstellung („nur das Datum stimmte nicht") hätte es bloß
+> verschoben. Die genaue Lage steht am Ende dieses Abschnitts unter **Stand der elf Module**.
 
 Quelle: [`funde-vollaudit-2026-09-09.md`](funde-vollaudit-2026-09-09.md), Kategorie C. Stand
 2026-09-13, nachgemessen: **21 von 56 Modulen** werden von keinem Harness geladen.
@@ -97,6 +101,39 @@ das ist eine Änderung an steuerlicher Rechenlogik und gehört entschieden.
 Der `statistiken`-Harness hat nebenbei einen Fund derselben Klasse wie A1 zutage gefördert,
 nur **innerhalb einer Datei**: „Gewinn pro Marke" stand zweimal auf derselben Seite mit zwei
 verschiedenen Zahlen — das Diagramm rechnete mit Menge, die Tabelle darunter ohne.
+
+#### Stand der elf Module (gemessen 2026-09-16)
+
+**Die Tabelle oben war nie die ganze Aufgabe.** Sie nennt fünf Module; der Text am Anfang dieses
+Abschnitts nennt **elf mit Geldbezug**. „Damit ist die Tabelle leer" (`d399034`) stimmte also
+für die Tabelle — nicht für 1.8. `companies` etwa stand nie darin und bekam seinen Harness erst
+mit `3d333a7`, einen Tag *nach* dem Vermerk „erledigt".
+
+| Modul | Harness | |
+|---|---|---|
+| `fahrtenbuch` | `test-fahrtenbuch.js` | ✅ `26a1004` |
+| `materiallager` | `test-materiallager.js` | ✅ `25e1945` |
+| `i18n` | `test-i18n.js` | ✅ `9373cbd` |
+| `oss` | `test-oss.js` | ✅ `5f3719b` |
+| `retouren` | `test-retouren.js` | ✅ `5142d99` |
+| `companies` | `test-companies.js` | ✅ `3d333a7` |
+| `protokoll` | — | in Arbeit (Parallel-Session, 2026-09-16) |
+| `steuerberater` | — | **offen** |
+| `webhooks` | — | **offen** |
+| `blob-attachments` | — | **offen** |
+| `error-logger` | — | **offen** |
+
+Ob die letzten vier genug Rechenrelevanz haben, um einen Harness zu lohnen, ist eine berechtigte
+Frage — `error-logger` und `webhooks` rechnen nichts. Sie gehört aber **entschieden und hier
+vermerkt**, nicht durch ein „erledigt" überdeckt.
+
+**Warnung zur Messung, weil sie heute zweimal danebenlag:** Wer die Abdeckung per
+`grep "js/<name>.js" test/` zählt, übersieht jeden Harness, der die Datei mit
+`path.join(__dirname, '..', 'js', '<name>.js')` lädt — der String `js/<name>.js` kommt darin gar
+nicht vor. `test-materiallager.js` und `test-i18n.js` laden so; die Zählung meldete beide als
+ungetestet, obwohl sie es nicht sind. Die Tabelle oben ist deshalb nach **vorhandener
+Harness-Datei** erhoben, nicht nach einer Textsuche. Eine Gesamtzahl steht hier bewusst nicht:
+sie war in diesem Abschnitt schon zweimal falsch und hängt an genau dieser Messfrage.
 
 ### 1.10 Käufer-Versand: Fund A3 saß tiefer als gedacht · ✅ erledigt 2026-09-13 (`90d6719`)
 

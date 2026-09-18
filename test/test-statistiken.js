@@ -206,6 +206,20 @@ check('B5 Vor Inkrafttreten des PStTG (2022) gibt es keine Meldepflicht',
 check('B6 Im ersten Geltungsjahr 2023 greift sie',
     plattform(50, 500, 2023).includes('⚠️ Meldepflicht'));
 
+// Der Fall, der bis 2026-09-18 falsch lief: die Plattform meldet die Verguetung MIT dem vom
+// Kaeufer bezahlten Versand. 1.950 € Artikel + 80 € Versand = 2.030 € — gemeldet. Stackr zaehlte
+// nur den Artikelpreis und zeigte "✓ OK".
+block(() => {
+    const s = [Object.assign({}, VERKAUF, { verkaufspreis: 1950, versandkostenKaeufer: 80 })];
+    const { S, abschnitte } = lade({ sales: s });
+    S._period = '2026';
+    S._renderPlatformAnalyse(s, []);
+    const html = abschnitte['platAnalyseSection'].innerHTML;
+    check('B7 Kaeufer-Versand zaehlt zur PStTG-Schwelle (1.950 + 80 = 2.030 → Meldepflicht)',
+        html.includes('⚠️ Meldepflicht'));
+    check('B8 Die Umsatzspalte weist dieselben 2.030 € aus', betraege(zeile(html, 'Vinted'))[0] === 2030);
+});
+
 console.log('\n── C. Gewinn je Plattform ────────────────────────────────────');
 
 block(() => {

@@ -175,7 +175,13 @@ const Statistiken = {
         sales.forEach(s => {
             const p = s.verkaufsplattform || 'Unbekannt';
             if (!platData[p]) platData[p] = { umsatz: 0, count: 0, gewinn: 0, ek: 0 };
-            platData[p].umsatz += parseFloat(s.verkaufspreis) || 0;
+            // Umsatz mit Käufer-Versand — derselbe Begriff wie in EÜR, UVA und DATEV-Stapel, und
+            // seit 90d6719 auch in der Gewinnspalte daneben. Bis 2026-09-18 zählte hier nur der
+            // Artikelpreis, und daran hing das PStTG-Abzeichen: 1.950 € Artikel + 80 € Versand
+            // zeigte "✓ OK", während die Plattform 2.030 € meldet. Entschieden vom Betreiber
+            // (plan/funde-statistiken-2026-09-13.md); die Lesart "brutto, vor Gebühren" warnt im
+            // Zweifel früher, nicht später.
+            platData[p].umsatz += (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
             platData[p].count++;
             // Menge mitrechnen: einkaufspreis ist der Stückpreis, ein Verkauf nimmt den
             // ganzen Einkaufssatz mit (Store.saveSale setzt den Satz komplett auf 'verkauft',

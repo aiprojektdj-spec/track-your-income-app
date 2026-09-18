@@ -66,6 +66,21 @@ const OSS = {
         return byLand;
     },
 
+    // Nur der Teil, der tatsächlich dem Bestimmungslandprinzip unterliegt — dieselbe Auswahl,
+    // die js/ustvoranmeldung.js benutzt. Bis 2026-09-18 legten Ländertabelle und CSV-Export den
+    // Ziellandsatz auf den VOLLEN Jahresumsatz: im Überschreitungsjahr standen damit Rechnungen
+    // aus der Zeit vor der Schwelle, die deutsch versteuert und schon in der UStVA erklärt sind,
+    // ein zweites Mal im "OSS-Meldung Referenzdaten"-Export (plan/funde-oss-2026-09-15.md).
+    _calcLaenderOSS(year) {
+        const ids = this._ueberSchwelleInvoiceIds(year);
+        const byLand = {};
+        this._getB2CInvoices(year).forEach(({ inv, kunde }) => {
+            if (!ids.has(inv.id)) return;
+            byLand[kunde.land] = (byLand[kunde.land] || 0) + this._netto(inv);
+        });
+        return byLand;
+    },
+
     _jahresumsatz(year) {
         return this._getB2CInvoices(year).reduce((s, { inv }) => s + this._netto(inv), 0);
     },
@@ -116,6 +131,7 @@ const OSS = {
         const ueberSchwelle = umsatz > this._getSchwelle(year) || vorjahrUmsatz > this._getSchwelle(year - 1);
         const nurWegenVorjahr = ueberSchwelle && umsatz <= this._getSchwelle(year);
         const byLand = this._calcLaender(year);
+        const byLandOSS = this._calcLaenderOSS(year);
         const laender = Object.keys(byLand).sort();
 
         const yearOptions = Array.from({ length: 8 }, (_, i) => 2020 + i)
@@ -152,17 +168,19 @@ const OSS = {
             <div class="card-header"><div class="card-title">Aufteilung nach Bestimmungsland ${year}</div></div>
             <div class="table-container" style="border:none;">
                 <table class="data-table">
-                    <thead><tr><th>Land</th><th style="text-align:right">Nettoumsatz</th><th style="text-align:right">Regelsteuersatz (Referenz, Stand ${Utils.formatDate(this.RATES_STAND)})</th><th style="text-align:right">USt-Betrag (geschätzt)</th></tr></thead>
+                    <thead><tr><th>Land</th><th style="text-align:right">Nettoumsatz gesamt</th><th style="text-align:right">davon OSS-pflichtig</th><th style="text-align:right">Regelsteuersatz (Referenz, Stand ${Utils.formatDate(this.RATES_STAND)})</th><th style="text-align:right">USt-Betrag (geschätzt, nur OSS-pflichtiger Teil)</th></tr></thead>
                     <tbody>
-                        ${laender.length === 0 ? `<tr><td colspan="4" class="table-empty">Keine EU-Fernverkäufe an Privatkunden in ${year}</td></tr>` : ''}
+                        ${laender.length === 0 ? `<tr><td colspan="5" class="table-empty">Keine EU-Fernverkäufe an Privatkunden in ${year}</td></tr>` : ''}
                         ${laender.map(land => {
                             const netto = byLand[land];
+                            const nettoOSS = byLandOSS[land] || 0;
                             const known = Object.prototype.hasOwnProperty.call(this.EU_VAT_RATES, land);
                             const rate = known ? this.EU_VAT_RATES[land] : 0;
-                            const ust = netto * rate / 100;
+                            // Ziellandsatz nur auf den Teil ab dem Überschreiten — davor gilt deutsche USt.
+                            const ust = nettoOSS * rate / 100;
                             const rateCell = known ? `${rate}%` : '<span style="color:var(--danger)">⚠️ unbekannt</span>';
                             const ustCell  = known ? Utils.formatCurrency(ust) : '<span style="color:var(--danger)">⚠️ manuell prüfen</span>';
-                            return `<tr><td>${land}</td><td style="text-align:right">${Utils.formatCurrency(netto)}</td><td style="text-align:right">${rateCell}</td><td style="text-align:right">${ustCell}</td></tr>`;
+                            return `<tr><td>${land}</td><td style="text-align:right">${Utils.formatCurrency(netto)}</td><td style="text-align:right">${Utils.formatCurrency(nettoOSS)}</td><td style="text-align:right">${rateCell}</td><td style="text-align:right">${ustCell}</td></tr>`;
                         }).join('')}
                     </tbody>
                 </table>
@@ -194,18 +212,25 @@ const OSS = {
     _exportCSV() {
         const year = this._year;
         const byLand = this._calcLaender(year);
+        // Gemeldet wird nur der OSS-pflichtige Teil (ab dem Überschreiten der Schwelle bzw. bei
+        // Vorjahresüberschreitung ab dem ersten Euro) — genau wie in der UStVA. Der Gesamtumsatz
+        // steht zur Einordnung daneben, fließt aber nicht in die USt-Spalte.
+        const byLandOSS = this._calcLaenderOSS(year);
         const laender = Object.keys(byLand).sort();
         const rows = [
-            ['OSS-Meldung Referenzdaten', '', '', ''],
-            [`Jahr: ${year}`, '', '', ''],
-            [`Steuersätze Stand: ${Utils.formatDate(this.RATES_STAND)} — vor Meldung gegenprüfen`, '', '', ''],
-            ['', '', '', ''],
-            ['Land', 'Nettoumsatz EUR', 'Regelsteuersatz % (Referenz)', 'USt EUR (geschätzt)'],
+            ['OSS-Meldung Referenzdaten', '', '', '', ''],
+            [`Jahr: ${year}`, '', '', '', ''],
+            [`Steuersätze Stand: ${Utils.formatDate(this.RATES_STAND)} — vor Meldung gegenprüfen`, '', '', '', ''],
+            ['Gemeldet wird nur die Spalte "davon OSS-pflichtig"; der Rest ist deutsch versteuert (UStVA).', '', '', '', ''],
+            ['', '', '', '', ''],
+            ['Land', 'Nettoumsatz gesamt EUR', 'davon OSS-pflichtig EUR', 'Regelsteuersatz % (Referenz)', 'USt EUR (geschätzt, OSS-pflichtiger Teil)'],
             ...laender.map(land => {
                 const netto = byLand[land];
+                const nettoOSS = byLandOSS[land] || 0;
                 const known = Object.prototype.hasOwnProperty.call(this.EU_VAT_RATES, land);
                 const rate = known ? this.EU_VAT_RATES[land] : 0;
-                return [land, netto.toFixed(2), known ? rate : 'unbekannt — manuell prüfen', known ? (netto * rate / 100).toFixed(2) : ''];
+                return [land, netto.toFixed(2), nettoOSS.toFixed(2), known ? rate : 'unbekannt — manuell prüfen',
+                        known ? (nettoOSS * rate / 100).toFixed(2) : ''];
             }),
         ];
         Utils.downloadCSV(rows, `oss_${year}.csv`);

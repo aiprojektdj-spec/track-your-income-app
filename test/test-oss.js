@@ -50,7 +50,8 @@ function lade(o) {
         getRechInvoices:  () => d.invoices,
         getRechCustomers: () => d.customers,
     };
-    const Utils = { formatCurrency: (n) => String(n), formatDate: (x) => String(x), showToast: () => {}, downloadCSV: () => {} };
+    const Utils = { formatCurrency: (n) => String(n), formatDate: (x) => String(x), showToast: () => {},
+                    downloadCSV: (rows) => { if (d.csv) d.csv.push(rows); } };
     const Vorsteuer = { EU_LAENDER: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'] };
     const window = {};            // `if (window.Actions)` am Dateiende
     const document = { getElementById: () => null };
@@ -208,31 +209,56 @@ block(() => {
         klein.render().includes('Nur für Regelbesteuerer'));
 });
 
-console.log('\n── E. Was die Seite zeigt vs. was die UVA meldet ─────────────');
+console.log('\n── E. Seite und CSV melden, was die UStVA meldet ──────────────');
 
 block(() => {
-    // Dokumentierter Stand, kein Wunschverhalten: _calcLaender() summiert ALLE B2C-Rechnungen
-    // des Jahres, auch die vor dem Ueberschreiten der Schwelle. Die Laendertabelle und der
-    // CSV-Export der Seite legen darauf den Ziellandsatz — waehrend js/ustvoranmeldung.js die
-    // prospektive Auswahl aus _ueberSchwelleInvoiceIds() benutzt.
+    // Bis 2026-09-18 legten Laendertabelle und CSV-Export den Ziellandsatz auf den VOLLEN
+    // Jahresumsatz. Im Ueberschreitungsjahr standen damit Rechnungen aus der Zeit vor der
+    // Schwelle — deutsch versteuert, schon in der UStVA erklaert — ein zweites Mal im Export
+    // "OSS-Meldung Referenzdaten" (plan/funde-oss-2026-09-15.md).
     //
-    // In einem Ueberschreitungsjahr weichen beide also auseinander. Siehe
-    // plan/funde-oss-2026-09-15.md; diese Pruefung haelt die Luecke fest, damit sie nicht
-    // still waechst oder unbemerkt verschwindet.
+    // Die erste Fassung dieses Blocks pruefte nur die Hilfsfunktionen und blieb beim Fix gruen —
+    // sie haette die Luecke nie gemeldet. Jetzt wird die tatsaechliche Ausgabe gemessen: das
+    // HTML der Seite und die Zeilen des CSV.
+    //
+    // 8.000 € im Februar, 4.000 € im September nach AT: die Schwelle reisst mit der zweiten.
     const inv = [re('AT', 8000, '2026-02-01'), re('AT', 4000, '2026-09-01')];
-    const O = lade({ invoices: inv, customers: KUNDEN });
+    const csv = [];
+    const O = lade({ invoices: inv, customers: KUNDEN, csv });
+    O._year = 2026;
 
-    const seite = O._calcLaender(2026).AT;
+    const html = O.render();
+    const zeileAT = html.split('<tr>').filter(z => z.includes('<td>AT</td>'))[0] || '';
+    check('E1 Die Seite zeigt Gesamtumsatz UND den OSS-pflichtigen Teil getrennt',
+        zeileAT.includes('>12000<') && zeileAT.includes('>4000<'));
+    check('E2 Die geschaetzte USt steht nur auf dem OSS-pflichtigen Teil (20 % von 4.000 = 800)',
+        zeileAT.includes('>800<') && !zeileAT.includes('>2400<'));
+
+    O._exportCSV();
+    const rows = csv[0] || [];
+    const at = rows.find(r => r[0] === 'AT') || [];
+    check('E3 Der CSV-Export weist 12.000 gesamt und 4.000 OSS-pflichtig aus',
+        at[1] === '12000.00' && at[2] === '4000.00');
+    check('E4 Der CSV-Export meldet USt nur auf den OSS-pflichtigen Teil (800, nicht 2.400)',
+        at[4] === '800.00');
+
+    // Gegenprobe gegen die UStVA-Auswahl: dieselbe Zahl, aus derselben Funktion.
     const ids = O._ueberSchwelleInvoiceIds(2026);
     const uva = inv.filter(i => ids.has(i.id)).reduce((s, i) => s + i.positionen[0].einzelpreis, 0);
+    check('E5 OSS-Spalte und UStVA-Auswahl stimmen ueberein', parseFloat(at[2]) === uva);
+});
 
-    check('E1 Die Seite weist den vollen Jahresumsatz je Land aus', seite === 12000);
-    check('E2 Die UVA meldet nur den Teil ab dem Ueberschreiten', uva === 4000);
-    check('E3 Die Differenz ist genau der vorschwellige Umsatz (8.000 €)', seite - uva === 8000);
-
-    check('E4 Die Laendertabelle zieht ihre Zahlen unveraendert aus _calcLaender',
-        /_calcLaender\(year\)/.test(ossSrc) &&
-        !/ueberSchwelleInvoiceIds\(year\)[\s\S]{0,400}_exportCSV/.test(ossSrc));
+block(() => {
+    // Satz 2: Vorjahr ueber der Schwelle → alles ab dem ersten Euro OSS-pflichtig. Dann muessen
+    // Gesamt- und OSS-Spalte gleich sein; ein Fehler in die andere Richtung faellt hier auf.
+    const inv = [re('AT', 11000, '2025-05-01'), re('AT', 500, '2026-02-01')];
+    const csv = [];
+    const O = lade({ invoices: inv, customers: KUNDEN, csv });
+    O._year = 2026;
+    O._exportCSV();
+    const at = (csv[0] || []).find(r => r[0] === 'AT') || [];
+    check('E6 Nach einem Ueberschreitungsjahr ist der ganze Umsatz OSS-pflichtig',
+        at[1] === '500.00' && at[2] === '500.00');
 });
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');

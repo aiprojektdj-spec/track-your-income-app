@@ -60,6 +60,11 @@ Nicht selbst angefasst, weil die Funktion drei Nutzer hat (`statistiken`, `dashb
 
 ### Was davon offen bleibt: die Bemessungsgrundlage der PStTG-Schwelle
 
+> ✅ **Entschieden und umgesetzt am 2026-09-18:** Der Plattform-Umsatz zählt den Käufer-Versand
+> mit — derselbe Begriff wie EÜR, UVA und DATEV. Lesart „brutto, vor Plattformgebühren", weil sie
+> im Zweifel früher warnt. Prüfungen B7/B8 in `test/test-statistiken.js` nehmen genau den Fall
+> 1.950 € + 80 € unten.
+
 Der Wurzelfix hat den **Gewinn** korrigiert, nicht den **Umsatz**. `platData[…].umsatz` summiert
 weiterhin `verkaufspreis` allein. In derselben Tabelle steht damit heute:
 

@@ -166,7 +166,14 @@ dazu: `test/test-datev-export.js`. Details in
 
 Offen geblieben sind zwei Punkte, die **nicht** durch Raten zu schließen sind:
 
-**(a) Ist 96 die richtige Spaltenzahl?** `js/datev.js` setzt Kopf und Zeilen jetzt aus derselben
+**(a) ✅ erledigt 2026-09-18 (`4a6a218`) — nein, es sind 125.** Gegen die offizielle
+Formatbeschreibung auf developer.datev.de abgeglichen (Header, Buchungsstapel, Musterdatei):
+125 Spalten statt 96, Formatversion 13 statt 12, 31 statt 26 Header-Felder, alle Textfelder in
+Anführungszeichen, Datum im Header als `YYYYMMDD`, Dateipräfix `EXTF_`. `test-datev-export.js`
+Block I prüft das gegen die rohen Felder. **Offen bleibt nur**, ob die gesetzten BU-Schlüssel
+fachlich stimmen — das Format ist jetzt richtig, die Auswahl ist unverändert.
+
+*Ursprünglicher Text:* **Ist 96 die richtige Spaltenzahl?** `js/datev.js` setzt Kopf und Zeilen jetzt aus derselben
 `SPALTEN`-Liste, die Breiten stimmen also zueinander. Ob 96 der von DATEV-Formatversion 12
 verlangten Spaltenzahl entspricht, ist damit **nicht** beantwortet — dafür braucht es die
 offizielle Formatbeschreibung.

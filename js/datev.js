@@ -66,21 +66,11 @@ var DatevExport = (function () {
     }
 
     // ── CSV helpers ─────────────────────────────────────────────────────
-    // DATEV uses semicolons, fields with special chars in double-quotes
-    //
-    // Das hier ist die einzige noetige Entschaerfung — KEIN Utils.escapeHtml auf den
-    // Buchungstexten. Eine CSV ist kein HTML: escapeHtml machte aus der Firma
-    // "Reck & Schwarz" ein "Reck &amp; Schwarz", und genau so stand es dann beim
-    // Steuerberater im Stapel. Die Rechnungszeile hat den Kundennamen immer schon roh
-    // durchgereicht — dieselbe Datei war also in sich widerspruechlich.
-    function csvField(v) {
-        if (v == null) return '';
-        var s = String(v);
-        if (s.indexOf('"') > -1 || s.indexOf(';') > -1 || s.indexOf('\n') > -1) {
-            return '"' + s.replace(/"/g, '""') + '"';
-        }
-        return s;
-    }
+    // Das Quoting der Textfelder sitzt seit 2026-09-18 in buildCSV (txt/beleg), weil DATEV
+    // ALLE Textfelder in Anfuehrungszeichen verlangt, nicht nur die mit Sonderzeichen.
+    // Unveraendert gilt: KEIN Utils.escapeHtml auf Buchungstexten. Eine CSV ist kein HTML —
+    // escapeHtml machte aus der Firma "Reck & Schwarz" ein "Reck &amp; Schwarz", und genau
+    // so stand es dann beim Steuerberater im Stapel.
 
     // Betrag: DATEV uses comma as decimal separator, no thousands separator
     function amtDe(n) {
@@ -94,14 +84,6 @@ var DatevExport = (function () {
         var parts = isoDate.split('-');
         if (parts.length < 3) return isoDate;
         return parts[2] + parts[1]; // TTMM — no year (year is in header)
-    }
-
-    // Full date TT.MM.JJJJ for header fields
-    function fullDate(isoDate) {
-        if (!isoDate) return '';
-        var parts = isoDate.split('-');
-        if (parts.length < 3) return isoDate;
-        return parts[2] + '.' + parts[1] + '.' + parts[0];
     }
 
     /**
@@ -347,28 +329,68 @@ var DatevExport = (function () {
         // Sort by date
         rows.sort(function (a, b) { return (a.datum || '').localeCompare(b.datum || ''); });
 
-        // ── DATEV Header (Zeile 1) ──────────────────────────────────────
-        // Format: "EXTF";Versionsnummer;Datenkategorie;Formatname;Formatversion;...
-        var beraternr   = '00000';   // placeholder — user must fill in DATEV advisor number
-        var mandantennr = '00001';   // placeholder
+        // ── Aufbau nach der offiziellen DATEV-Formatbeschreibung ──────────
+        // Quelle: developer.datev.de, DATEV-Format > Header / Buchungsstapel / Einstieg
+        // (Musterdatei), abgerufen 2026-09-18. Bis dahin: Formatversion 12, 96 statt 125
+        // Spalten (es fehlten 10 der 20 Zusatzinformations-Paare und die Felder 117-125),
+        // ein 26- statt 31-Felder-Header mit Datumsangaben im falschen Format und Textfelder
+        // ohne Anfuehrungszeichen. Die befuellten Werte standen an den richtigen Positionen —
+        // falsch war die Huelle, und an der scheitert der Import.
+        var beraternr   = '00000';   // Platzhalter — die Kanzlei traegt ihre Beraternummer ein
+        var mandantennr = '00001';   // Platzhalter
         var wjBeginn    = year + '0101';
         var sachkontenlaenge = '4';
 
+        var now = new Date();
+        var pad = function (n, l) { return String(n).padStart(l || 2, '0'); };
+        // Feld 6 "Erzeugt am": YYYYMMDDHHMMSSFFF
+        var erzeugtAm = now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) +
+                        pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds()) +
+                        pad(now.getMilliseconds(), 3);
+        var ymd = function (iso) { return String(iso || '').replace(/-/g, ''); };  // YYYYMMDD, ohne Quotes
+
+        // Header: genau 31 Felder, Reihenfolge und Quoting wie in der Beschreibung.
         var header1 = [
-            '"EXTF"', '700', '21', '"Buchungsstapel"', '12', '', '', '', '', '',
-            beraternr, mandantennr, wjBeginn, sachkontenlaenge,
-            '"' + fullDate(vonDate) + '"',
-            '"' + fullDate(bisDate) + '"',
-            '"Stackr Export ' + year + '"',
-            '', '1', '0', '', '', '', '""', '""', '""'
+            '"EXTF"',                                 //  1 Kennzeichen (Export aus Drittanwendung)
+            '700',                                    //  2 Versionsnummer des Headers
+            '21',                                     //  3 Formatkategorie Buchungsstapel
+            '"Buchungsstapel"',                       //  4 Formatname
+            '13',                                     //  5 Formatversion (Buchungsstapel)
+            erzeugtAm,                                //  6 Erzeugt am
+            '',                                       //  7 Importiert (Leerfeld)
+            '"RE"',                                   //  8 Herkunft
+            '""',                                     //  9 Exportiert von
+            '""',                                     // 10 Importiert von
+            beraternr,                                // 11 Beraternummer
+            mandantennr,                              // 12 Mandantennummer
+            wjBeginn,                                 // 13 WJ-Beginn YYYYMMDD
+            sachkontenlaenge,                         // 14 Sachkontenlaenge
+            ymd(vonDate),                             // 15 Datum von
+            ymd(bisDate),                             // 16 Datum bis
+            '"Stackr Export ' + year + '"',           // 17 Bezeichnung (max. 30)
+            '""',                                     // 18 Diktatkuerzel
+            '1',                                      // 19 Buchungstyp: Finanzbuchfuehrung
+            '0',                                      // 20 Rechnungslegungszweck: unabhaengig
+            // 21 Festschreibung: 0 = keine. Bewusst — der Stapel ist ein Vorschlag an die
+            // Kanzlei, nicht die Endfassung. Default waere 1 (festgeschrieben).
+            '0',
+            '"EUR"',                                  // 22 WKZ
+            '',                                       // 23 reserviert
+            '""',                                     // 24 Derivatskennzeichen
+            '',                                       // 25 reserviert
+            '',                                       // 26 reserviert
+            '"' + (skr === 'SKR04' ? '04' : '03') + '"', // 27 Sachkontenrahmen
+            '',                                       // 28 ID der Branchenloesung
+            '',                                       // 29 reserviert
+            '""',                                     // 30 reserviert
+            '"Stackr"'                                // 31 Anwendungsinformation (max. 16)
         ].join(';');
 
-        // ── Column headers (Zeile 2) ────────────────────────────────────
-        // Diese Liste ist die EINZIGE Quelle fuer die Spaltenbreite: die Datenzeilen unten
-        // leiten ihre Feldzahl daraus ab. Vorher stand dort die feste Zahl 116, waehrend die
-        // Liste 96 Namen hat — Kopfzeile und Datenzeilen waren also 20 Felder auseinander,
-        // und eine CSV, deren Kopf schmaler ist als ihre Zeilen, laesst sich nicht importieren.
-        // Gemessen am 2026-09-13, siehe plan/funde-datev-2026-09-13.md.
+        // Zeile 2: die 125 Spaltenueberschriften, wortgleich aus der offiziellen Musterdatei
+        // (inklusive der dortigen Schreibweise "Zusatzinformation- Inhalt"). Diese Liste ist die
+        // EINZIGE Quelle fuer die Spaltenbreite: die Datenzeilen leiten ihre Feldzahl daraus ab.
+        // Nie eine Zahl hart hinschreiben — genau so waren Kopf und Zeilen am 2026-09-13 schon
+        // einmal 20 Felder auseinander.
         var SPALTEN = [
             'Umsatz (ohne Soll/Haben-Kz)',
             'Soll/Haben-Kennzeichen',
@@ -409,34 +431,54 @@ var DatevExport = (function () {
             'KOST1 - Kostenstelle',
             'KOST2 - Kostenstelle',
             'Kost-Menge',
-            'EU-Land u. UStID',
-            'EU-Steuersatz',
+            'EU-Land u. UStID (Bestimmung)',
+            'EU-Steuersatz (Bestimmung)',
             'Abw. Versteuerungsart',
             'Sachverhalt L+L',
             'Funktionsergänzung L+L',
             'BU 49 Hauptfunktionstyp',
             'BU 49 Hauptfunktionsnummer',
             'BU 49 Funktionsergänzung',
-            'Zusatzinformation- Art 1',
+            'Zusatzinformation - Art 1',
             'Zusatzinformation- Inhalt 1',
-            'Zusatzinformation- Art 2',
+            'Zusatzinformation - Art 2',
             'Zusatzinformation- Inhalt 2',
-            'Zusatzinformation- Art 3',
+            'Zusatzinformation - Art 3',
             'Zusatzinformation- Inhalt 3',
-            'Zusatzinformation- Art 4',
+            'Zusatzinformation - Art 4',
             'Zusatzinformation- Inhalt 4',
-            'Zusatzinformation- Art 5',
+            'Zusatzinformation - Art 5',
             'Zusatzinformation- Inhalt 5',
-            'Zusatzinformation- Art 6',
+            'Zusatzinformation - Art 6',
             'Zusatzinformation- Inhalt 6',
-            'Zusatzinformation- Art 7',
+            'Zusatzinformation - Art 7',
             'Zusatzinformation- Inhalt 7',
-            'Zusatzinformation- Art 8',
+            'Zusatzinformation - Art 8',
             'Zusatzinformation- Inhalt 8',
-            'Zusatzinformation- Art 9',
+            'Zusatzinformation - Art 9',
             'Zusatzinformation- Inhalt 9',
-            'Zusatzinformation- Art 10',
+            'Zusatzinformation - Art 10',
             'Zusatzinformation- Inhalt 10',
+            'Zusatzinformation - Art 11',
+            'Zusatzinformation- Inhalt 11',
+            'Zusatzinformation - Art 12',
+            'Zusatzinformation- Inhalt 12',
+            'Zusatzinformation - Art 13',
+            'Zusatzinformation- Inhalt 13',
+            'Zusatzinformation - Art 14',
+            'Zusatzinformation- Inhalt 14',
+            'Zusatzinformation - Art 15',
+            'Zusatzinformation- Inhalt 15',
+            'Zusatzinformation - Art 16',
+            'Zusatzinformation- Inhalt 16',
+            'Zusatzinformation - Art 17',
+            'Zusatzinformation- Inhalt 17',
+            'Zusatzinformation - Art 18',
+            'Zusatzinformation- Inhalt 18',
+            'Zusatzinformation - Art 19',
+            'Zusatzinformation- Inhalt 19',
+            'Zusatzinformation - Art 20',
+            'Zusatzinformation- Inhalt 20',
             'Stück',
             'Gewicht',
             'Zahlweise',
@@ -465,33 +507,58 @@ var DatevExport = (function () {
             'Kennzeichen SoBil-Buchung',
             'Festschreibung',
             'Leistungsdatum',
-            'Datum Zuord. Steuerperiode'
+            'Datum Zuord. Steuerperiode',
+            'Fälligkeit',
+            'Generalumkehr (GU)',
+            'Steuersatz',
+            'Land',
+            'Abrechnungsreferenz',
+            'BVV-Position',
+            'EU-Land u. UStID (Ursprung)',
+            'EU-Steuersatz (Ursprung)',
+            'Abw. Skontokonto'
         ];
-        var header2 = SPALTEN.map(function (h) { return '"' + h + '"'; }).join(';');
 
-        // ── Data rows ───────────────────────────────────────────────────
-        var dataLines = rows.map(function (r) {
-            // Genau so breit wie die Kopfzeile — die Schluesselfelder werden gefuellt, der Rest
-            // bleibt leer. Breite NIE hart hinschreiben, sonst driftet sie wieder auseinander.
-            var cols = new Array(SPALTEN.length).fill('');
-            cols[0]  = amtDe(r.umsatz);
-            cols[1]  = r.sh;
-            cols[2]  = 'EUR';
-            cols[3]  = '';   // Kurs
-            cols[4]  = '';   // Basis-Umsatz
-            cols[5]  = '';   // WKZ Basis
-            cols[6]  = r.konto;
-            cols[7]  = r.gegenkonto;
-            cols[8]  = r.buSchluessel || '';
-            cols[9]  = datevDate(r.datum);
-            cols[10] = csvField(r.belegfeld1);
-            cols[11] = '';   // Belegfeld2
-            cols[12] = '';   // Skonto
-            cols[13] = csvField(r.buchungstext);
+        // Textfelder (1-basiert) laut Formatbeschreibung — sie stehen IMMER in Anfuehrungszeichen,
+        // auch leer (""). Abgeleitet aus einer Zeile der offiziellen Musterdatei und gegen die
+        // Feldformate der Beschreibung geprueft; beide ergeben dieselbe Menge.
+        var TEXTFELDER = [2, 3, 6, 9, 11, 12, 14, 16, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 40, 42, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 91, 95, 96, 98, 102, 103, 105, 107, 109, 110, 112, 118, 120, 121, 123];
+        var istText = {};
+        TEXTFELDER.forEach(function (n) { istText[n - 1] = true; });
+
+        // Textfeld: immer quoten, Quotes verdoppeln. Steuerzeichen (Zeilenumbruch u.ae.) sind
+        // laut Beschreibung in Textfeldern unzulaessig und werden zu Leerzeichen.
+        var txt = function (v) {
+            return '"' + String(v == null ? '' : v).replace(/[\r\n\t]+/g, ' ').replace(/"/g, '""') + '"';
+        };
+        // Belegfeld 1: nur A-Z a-z 0-9 _ $ & % * + - / erlaubt, max. 36 Zeichen. Leerzeichen,
+        // Umlaute, Punkt, Komma, Doppelpunkt sind ausdruecklich unzulaessig — sie werden entfernt.
+        var beleg = function (v) {
+            return String(v == null ? '' : v).replace(/[^A-Za-z0-9_$&%*+\-\/]/g, '').slice(0, 36);
+        };
+
+        var header2 = SPALTEN.join(';');
+
+        // ── Datenzeilen ─────────────────────────────────────────────────
+        // Umsatz 0,00 ist laut Beschreibung unzulaessig (Feld 1: "darf nicht 0,00 sein") und
+        // haette auch keine Wirkung — solche Zeilen fallen weg, statt den Import zu blockieren.
+        var dataLines = rows.filter(function (r) { return Math.abs(parseFloat(r.umsatz) || 0) >= 0.005; })
+          .map(function (r) {
+            var cols = SPALTEN.map(function (_, i) { return istText[i] ? '""' : ''; });
+            cols[0]  = amtDe(Math.abs(parseFloat(r.umsatz) || 0));      //  1 Umsatz, immer positiv
+            cols[1]  = txt(r.sh);                                        //  2 Soll/Haben
+            cols[2]  = txt('EUR');                                       //  3 WKZ Umsatz
+            cols[6]  = r.konto;                                          //  7 Konto
+            cols[7]  = r.gegenkonto;                                     //  8 Gegenkonto
+            cols[8]  = txt(r.buSchluessel || '');                        //  9 BU-Schluessel, als Text
+            cols[9]  = datevDate(r.datum);                               // 10 Belegdatum TTMM
+            cols[10] = txt(beleg(r.belegfeld1));                         // 11 Belegfeld 1
+            cols[13] = txt(String(r.buchungstext || '').slice(0, 60));   // 14 Buchungstext
             return cols.join(';');
         });
 
         return [header1, header2].concat(dataLines).join('\r\n');
+
     }
 
     /** Render the DATEV export UI card */
@@ -539,7 +606,8 @@ var DatevExport = (function () {
             var skr  = document.getElementById('datevSkr').value;
             var gkEl = document.getElementById('datevGegenkonto');
             var csv  = buildCSV(year, skr, gkEl ? gkEl.value : 'privat');
-            var filename = 'DATEV_Buchungsstapel_' + year + '_' + skr + '.csv';
+            // Praefix EXTF_ ist laut Formatbeschreibung fest ("EXTF_....CSV").
+            var filename = 'EXTF_Buchungsstapel_' + year + '_' + skr + '.csv';
             // DATEV requires Windows-1252 encoding; we export UTF-8 with BOM as fallback
             var bom = '﻿';
             Utils.downloadFile(bom + csv, filename, 'text/csv; charset=utf-8');

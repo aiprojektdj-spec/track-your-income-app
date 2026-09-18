@@ -117,10 +117,13 @@ console.log('\n── A. Dateigeruest ──────────────
 
 block(() => {
     const z = baue({ purchases: [EINKAUF] });
-    check('A1 Kopfzeile nennt EXTF-Format und Buchungsstapel',
-        z[0].startsWith('"EXTF";700;21;"Buchungsstapel";12'));
+    // Formatversion 13 und Datum als YYYYMMDD ohne Anfuehrungszeichen: so verlangt es die
+    // offizielle Beschreibung (developer.datev.de, Header, abgerufen 2026-09-18). Bis dahin
+    // hielten A1/A2 das alte, falsche Format fest — Version 12 und "01.01.2026" in Quotes.
+    check('A1 Kopfzeile nennt EXTF-Format, Buchungsstapel und Formatversion 13',
+        z[0].startsWith('"EXTF";700;21;"Buchungsstapel";13;'));
     check('A2 Wirtschaftsjahr und Zeitraum stammen aus dem Exportjahr',
-        z[0].includes(';20260101;') && z[0].includes('"01.01.2026"') && z[0].includes('"31.12.2026"'));
+        z[0].includes(';20260101;4;20260101;20261231;'));
 
     // Der eigentliche Regressionsschutz: vor dem 2026-09-13 war die Kopfzeile 96 Felder
     // breit und jede Datenzeile 116 — eine CSV, die so nicht importierbar ist. Die Breite
@@ -413,6 +416,67 @@ block(() => {
     check('H25 alle drei Quellen zusammen ergeben drei Buchungen', dz.length === 3);
     check('H26 die neuen Zeilen sind so breit wie die Kopfzeile',
         dz.every(l => felder(l) === felder(alle[1])));
+});
+
+// ── I) Konformitaet mit der offiziellen Formatbeschreibung ──────────────────
+// Quelle: developer.datev.de > DATEV-Format > Header / Buchungsstapel / Einstieg (Musterdatei),
+// abgerufen 2026-09-18. Die Pruefungen lesen die ROHEN Felder (mit Anfuehrungszeichen), denn
+// genau das Quoting war falsch — der Parser spalten() oben entfernt es und haette es verdeckt.
+function roh(line) {
+    const out = []; let cur = '', q = false;
+    for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') { cur += c; if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+        else if (c === ';' && !q) { out.push(cur); cur = ''; }
+        else cur += c;
+    }
+    out.push(cur);
+    return out;
+}
+block(() => {
+    const z = baue({ purchases: [EINKAUF], invoices: [RECHNUNG] }, '2026', 'SKR03');
+    const h = roh(z[0]);
+    check('I1 Header hat genau 31 Felder', h.length === 31);
+    check('I2 Header Feld 6 "Erzeugt am" ist YYYYMMDDHHMMSSFFF (17 Ziffern)', /^20\d{15}$/.test(h[5]));
+    check('I3 Header Datum von/bis als YYYYMMDD ohne Anfuehrungszeichen',
+        h[14] === '20260101' && h[15] === '20261231');
+    check('I4 Header WKZ "EUR" und Sachkontenrahmen "03"', h[21] === '"EUR"' && h[26] === '"03"');
+    check('I5 Header Festschreibung 0 (Stapel bleibt fuer die Kanzlei aenderbar)', h[20] === '0');
+    const h04 = roh(baue({ purchases: [EINKAUF] }, '2026', 'SKR04')[0]);
+    check('I6 SKR04 meldet Sachkontenrahmen "04"', h04[26] === '"04"');
+
+    const kopf = z[1].split(';');
+    check('I7 Zeile 2 hat die 125 Spalten der Beschreibung', kopf.length === 125);
+    check('I8 Zeile 2 steht ohne Anfuehrungszeichen, wie in der Musterdatei', !z[1].includes('"'));
+    check('I9 erste und letzte Spalte wortgleich mit der Musterdatei',
+        kopf[0] === 'Umsatz (ohne Soll/Haben-Kz)' && kopf[124] === 'Abw. Skontokonto');
+    check('I10 alle 20 Zusatzinformations-Paare vorhanden (vorher nur 10)',
+        kopf.filter(k => /^Zusatzinformation/.test(k)).length === 40);
+
+    const dz = z.slice(2).filter(Boolean).map(roh);
+    check('I11 jede Datenzeile hat 125 Felder', dz.length === 2 && dz.every(r => r.length === 125));
+    check('I12 Soll/Haben steht in Anfuehrungszeichen ("S"/"H")', dz.every(r => /^"[SH]"$/.test(r[1])));
+    check('I13 BU-Schluessel ist ein Textfeld ("" oder "40")', dz.every(r => /^"\d{0,4}"$/.test(r[8])));
+    check('I14 Buchungstext steht immer in Anfuehrungszeichen', dz.every(r => /^".*"$/.test(r[13])));
+    check('I15 leere Textfelder sind "", leere Zahlfelder leer (Feld 16 vs. Feld 15)',
+        dz.every(r => r[15] === '""' && r[14] === ''));
+
+    // Belegfeld 1: nur A-Z a-z 0-9 _ $ & % * + - / — Leerzeichen, Punkt, Umlaut sind unzulaessig.
+    const bf = roh(baue({ expenses: [Object.assign({}, AUSGABE, { belegnummer: 'RE 12.3/Ä-x' })] })[2]);
+    check('I16 Belegfeld 1 wird auf den erlaubten Zeichensatz gekuerzt', bf[10] === '"RE123/-x"');
+    const lang = roh(baue({ expenses: [Object.assign({}, AUSGABE, { belegnummer: 'A'.repeat(50) })] })[2]);
+    check('I17 Belegfeld 1 hoechstens 36 Zeichen', lang[10] === '"' + 'A'.repeat(36) + '"');
+
+    // Steuerzeichen sind in Textfeldern unzulaessig — ein Zeilenumbruch zerreisst sonst die CSV.
+    const nl = baue({ expenses: [Object.assign({}, AUSGABE, { bezeichnung: 'Zeile1\nZeile2' })] });
+    check('I18 Zeilenumbruch im Buchungstext wird entschaerft', nl.length === 3 && nl[2].includes('"Zeile1 Zeile2"'));
+
+    // Feld 1 darf nicht 0,00 sein — eine Nullbuchung blockiert sonst den Import.
+    const null0 = baue({ expenses: [Object.assign({}, AUSGABE, { betrag: 0.001 })] });
+    check('I19 Umsatz, der auf 0,00 gerundet wuerde, erzeugt keine Zeile', null0.filter(Boolean).length === 2);
+
+    check('I20 Dateiname beginnt mit dem Pflicht-Praefix EXTF_',
+        /'EXTF_Buchungsstapel_'/.test(datevSrc) && !/'DATEV_Buchungsstapel_'/.test(datevSrc));
 });
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');

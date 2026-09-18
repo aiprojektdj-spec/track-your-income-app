@@ -44,6 +44,11 @@ function ladeMitDaten(o) {
     const d = Object.assign({
         settings: { ustMode: 'regel', ustVersteuerungsart: 'soll' },
         purchases: [], sales: [], expenses: [], invoices: [], customers: [],
+        // Seit 2026-09-17 im Stapel. `fahrten` kommt absichtlich UNGEFILTERT herein — der
+        // echte Store.getFahrten() filtert Stornos ebenfalls nicht, und genau darin lag der
+        // Fehler, den 19b5606 in der EUER geschlossen hat. Ein vorfilternder Shim haette ihn
+        // im Export nie zeigen koennen.
+        fahrten: [], materialEinkaeufe: [], eigenbelege: [],
     }, o || {});
     const Store = {
         getSettings:        () => d.settings,
@@ -52,6 +57,15 @@ function ladeMitDaten(o) {
         getAllExpensesRaw:  () => d.expenses,
         getRechInvoices:    () => d.invoices,
         getRechCustomers:   () => d.customers,
+        getFahrten:            () => d.fahrten,
+        getMaterialEinkauefe:  () => d.materialEinkaeufe,
+        // Eigenbelege gehen nicht ueber einen Getter, sondern ueber den company-praefixierten
+        // Schluessel. Der Shim beantwortet genau den Schluessel, den das Modul bildet.
+        _syncReadRaw:       (k) => (k === 'co_test__eigenbelege_belege' ? d.eigenbelege : []),
+    };
+    global.localStorage = {
+        getItem: (k) => (k === 'oyi_active_company' ? 'co_test' : null),
+        setItem: () => {}, removeItem: () => {},
     };
     // Wird absichtlich mitgegeben, obwohl der Buchungstext es nicht mehr benutzt: faellt
     // jemand zurueck auf escapeHtml, schlaegt Pruefung E1 an statt an einem ReferenceError.
@@ -284,31 +298,121 @@ block(() => {
 console.log('\n── G. Welche Quellen der Stapel ueberhaupt liest ─────────────');
 
 block(() => {
-    // Diese Pruefung ist der Waechter ueber den dritten Fund vom 2026-09-13: der Stapel
-    // liest vier Quellen, die EUER acht. Fahrtkosten, AfA, Materialverbrauch, Retouren,
-    // Eigenbelege sowie Versandkosten und Plattformgebuehren des Verkaeufers fehlen also
-    // im Export — die Einnahmen stehen vollstaendig drin, die Kosten nur zum Teil.
+    // Waechter ueber die Quellenliste des Stapels. Angelegt am 2026-09-13, als der Stapel vier
+    // Quellen las und die EUER acht; **fortgeschrieben am 2026-09-17**, als drei davon
+    // dazugekommen sind (Betreiberentscheidung, plan/01-AUFGABEN.md 1.9 b): Fahrtkosten,
+    // Material-EINKAUF und Eigenbelege.
     //
-    // Der Harness kann das nicht heilen (das ist eine Produktentscheidung, siehe
-    // plan/funde-datev-2026-09-13.md), aber er haelt den Stand fest: kommt eine Quelle
-    // dazu oder faellt eine weg, faellt diese Pruefung auf und zwingt zum Nachziehen.
+    // Der Waechter heilt nichts, er haelt den Stand fest: kommt eine Quelle dazu oder faellt
+    // eine weg, schlaegt die Pruefung an und zwingt zum Nachziehen. Genau so ist sie beim
+    // Erweitern auch angeschlagen.
     const gelesen = (datevSrc.match(/Store\.get[A-Za-z]+/g) || [])
         .map(s => s.replace('Store.', ''))
         .filter((v, i, a) => a.indexOf(v) === i).sort();
     const erwartet = ['getAllExpensesRaw', 'getAllPurchasesRaw', 'getAllSalesRaw',
                       'getExpenses', 'getPurchases', 'getRechCustomers',
-                      'getRechInvoices', 'getSales', 'getSettings'].sort();
+                      'getRechInvoices', 'getSales', 'getSettings',
+                      'getFahrten', 'getMaterialEinkauefe'].sort();
     check('G1 Der Stapel liest genau die bekannten Quellen — keine neue, keine verlorene',
-        JSON.stringify(gelesen) === JSON.stringify(erwartet));
+        JSON.stringify(gelesen) === JSON.stringify(erwartet),
+        'gelesen: ' + gelesen.join(', '));
 
     // Bewusst NICHT gegen js/euer.js gemessen: an dieser Datei arbeiten regelmaessig
     // parallele Sessions, und ihre Quellenliste aendert sich (am 2026-09-13 ist der
     // Materialverbrauch dort gerade durch den Materialeinkauf ersetzt worden). Ein Harness,
     // der an einer fremden Baustelle haengt, schlaegt aus fremden Gruenden fehl. Die Liste
     // steht deshalb hier, mit Datum.
-    const fehlendeQuellen = ['getFahrten', 'getAfaAnlagen', 'getRetouren'];
-    check('G2 Die bekannte Luecke zu den EUER-Quellen ist unveraendert',
+    //
+    // WAS NOCH FEHLT, und warum es fehlt (Stand 2026-09-17): AfA und Retouren brauchen je eine
+    // Buchungsregel, die Stackr nicht kennt — AfA bucht gegen das Anlagekonto des einzelnen
+    // Gegenstands, und das Anlagenverzeichnis fuehrt keines. Beides ist im Export-Hinweis
+    // benannt, damit die Kanzlei es nachtraegt, statt es zu uebersehen.
+    const fehlendeQuellen = ['getAfaAnlagen', 'getRetouren'];
+    check('G2 Die verbliebene Luecke (AfA, Retouren) ist unveraendert',
         fehlendeQuellen.every(q => !datevSrc.includes('Store.' + q)));
+
+    // Eigenbelege haben keinen Store-Getter — sie liegen company-praefixiert in localStorage.
+    // Ohne diesen Check faellt niemandem auf, wenn der Zugriff verschwindet, denn G1 sieht ihn
+    // nicht. Die Praefix-Pflicht selbst ist eine harte Projektregel.
+    check('G3 Eigenbelege werden company-praefixiert gelesen',
+        /oyi_active_company/.test(datevSrc) && /eigenbelege_belege/.test(datevSrc));
+});
+
+// ── H) Die drei am 2026-09-17 ergaenzten Quellen ────────────────────────────
+// Spaltenindizes im Buchungsstapel: 0 Umsatz, 1 Soll/Haben, 6 Konto, 7 Gegenkonto,
+// 9 Datum, 10 Belegfeld1, 13 Buchungstext.
+block(() => {
+    const FAHRT    = { id: 'f1', nummer: 'FB-1', datum: '2026-06-01', kosten: 30, von: 'Buero', nach: 'Kunde' };
+    const MATERIAL = { id: 'm1', datum: '2026-06-02', gesamtkosten: 45, materialName: 'Kartons', lieferant: 'Grosshandel' };
+    const EIGENBEL = { id: 'b1', belegNr: 'EB-1', belegDatum: '2026-06-03', betragNetto: 12.5,
+                       kategorie: 'Porto', bezeichnung: 'Parkschein' };
+
+    let z = buchungen({ fahrten: [FAHRT] });
+    check('H1 Fahrtkosten erzeugen eine Buchung', z.length === 1);
+    check('H2 Fahrtkosten auf das Reisekostenkonto (SKR03 4660)', z[0] && z[0][6] === '4660');
+    check('H3 Fahrtkosten gegen Privateinlage, nicht gegen Bank', z[0] && z[0][7] === '1890');
+    check('H4 Fahrtkosten als Soll (Ausgabe)', z[0] && z[0][1] === 'S');
+    check('H5 Belegfeld traegt die Fahrtnummer', z[0] && z[0][10] === 'FB-1');
+
+    // Der eigentliche Grund fuer H6: Stornos kommen ungefiltert aus dem Store.
+    z = buchungen({ fahrten: [FAHRT, { id: 'f2', datum: '2026-06-05', kosten: 400, storniert: true }] });
+    check('H6 stornierte Fahrt erzeugt KEINE Buchung', z.length === 1);
+
+    // Fahrrad/zu Fuss ergibt 0 EUR — eine Nullbuchung waere Muell im Stapel.
+    z = buchungen({ fahrten: [{ id: 'f3', datum: '2026-06-01', kosten: 0 }] });
+    check('H7 Fahrt mit 0 EUR erzeugt keine Buchung', z.length === 0);
+
+    z = buchungen({ materialEinkaeufe: [MATERIAL] });
+    check('H8 Material-Einkauf erzeugt eine Buchung', z.length === 1);
+    check('H9 Material auf Betriebsbedarf (SKR03 4980)', z[0] && z[0][6] === '4980');
+    check('H10 Material gegen BANK — hier ist echt Geld geflossen', z[0] && z[0][7] === '1800');
+
+    // Der wichtigste Filter des ganzen Blocks: Material, das schon als Ausgabe erfasst wurde,
+    // steckt bereits in expenses. Ohne ihn stuende derselbe Euro zweimal im Stapel.
+    z = buchungen({ materialEinkaeufe: [MATERIAL, { id: 'm2', datum: '2026-06-04', gesamtkosten: 99, ausgabeId: 'e9' }] });
+    check('H11 Material mit ausgabeId wird NICHT doppelt gebucht', z.length === 1);
+    z = buchungen({ materialEinkaeufe: [MATERIAL, { id: 'm3', datum: '2026-06-04', gesamtkosten: 99, lieferant: 'Ausgabe' }] });
+    check('H12 Material mit Lieferant "Ausgabe" wird NICHT doppelt gebucht', z.length === 1);
+
+    z = buchungen({ eigenbelege: [EIGENBEL] });
+    check('H13 Eigenbeleg erzeugt eine Buchung', z.length === 1);
+    check('H14 Eigenbeleg nach Kategorie kontiert (Porto -> 4230)', z[0] && z[0][6] === '4230');
+    check('H15 Eigenbeleg gegen Privateinlage', z[0] && z[0][7] === '1890');
+    // DATEV-Belegdatum ist TTMM, das Jahr kommt aus dem Kopf — "0306" ist der 03.06.
+    check('H16 Eigenbeleg nutzt belegDatum, nicht datum', z[0] && z[0][9] === '0306');
+    check('H17 Eigenbeleg ohne Vorsteuer (kein BU-Schluessel)', z[0] && !z[0][11]);
+
+    z = buchungen({ eigenbelege: [EIGENBEL, { id: 'b2', belegDatum: '2026-06-06', betragNetto: 80, storniert: true }] });
+    check('H18 stornierter Eigenbeleg erzeugt keine Buchung', z.length === 1);
+
+    // Zeitraum: alle drei Quellen muessen das Jahr respektieren.
+    z = buchungen({ fahrten: [{ id: 'f4', datum: '2025-06-01', kosten: 30 }],
+                    materialEinkaeufe: [{ id: 'm4', datum: '2025-06-01', gesamtkosten: 45 }],
+                    eigenbelege: [{ id: 'b3', belegDatum: '2025-06-01', betragNetto: 12 }] }, '2026');
+    check('H19 Vorjahresbelege bleiben aus dem Stapel', z.length === 0);
+
+    // SKR04 muss auf die andere Kontenwelt umschalten, inklusive Privateinlage 2180.
+    z = buchungen({ fahrten: [FAHRT] }, '2026', 'SKR04');
+    check('H20 SKR04: Reisekosten 6320', z[0] && z[0][6] === '6320');
+    check('H21 SKR04: Privateinlage 2180', z[0] && z[0][7] === '2180');
+
+    // Das waehlbare Gegenkonto (Betreiberentscheidung 2026-09-17).
+    const mod = ladeMitDaten({ fahrten: [FAHRT] });
+    const mitBank = mod.buildCSV('2026', 'SKR03', 'bank').split('\r\n').slice(2).map(spalten);
+    check('H22 Gegenkonto "bank" wird durchgereicht', mitBank[0] && mitBank[0][7] === '1800');
+    const mitUnsinn = mod.buildCSV('2026', 'SKR03', 'gibtsnicht').split('\r\n').slice(2).map(spalten);
+    check('H23 unbekanntes Gegenkonto faellt auf Privateinlage, nicht auf Bank',
+        mitUnsinn[0] && mitUnsinn[0][7] === '1890');
+    const ohneArg = mod.buildCSV('2026', 'SKR03').split('\r\n').slice(2).map(spalten);
+    check('H24 ohne Argument gilt Privateinlage', ohneArg[0] && ohneArg[0][7] === '1890');
+
+    // Alle drei zusammen, mit Breitenpruefung: eine Zeile, die schmaler ist als der Kopf,
+    // laesst sich nicht importieren — genau der Fund vom 2026-09-13.
+    const alle = baue({ fahrten: [FAHRT], materialEinkaeufe: [MATERIAL], eigenbelege: [EIGENBEL] });
+    const dz = alle.slice(2).filter(l => l.length);
+    check('H25 alle drei Quellen zusammen ergeben drei Buchungen', dz.length === 3);
+    check('H26 die neuen Zeilen sind so breit wie die Kopfzeile',
+        dz.every(l => felder(l) === felder(alle[1])));
 });
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');

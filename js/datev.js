@@ -23,9 +23,14 @@ var DatevExport = (function () {
         material:       '4980',  // Büro-/Betriebsbedarf
         afa:            '4840',  // Abschreibungen (AfA)
         sonstige:       '4900',  // Sonstige Betriebsausgaben
-        // Bank / Kasse
+        // Bank / Kasse / Privat
         bank:           '1800',  // Bank
         kasse:          '1000',  // Kasse
+        // Privateinlagen: Gegenkonto fuer Aufwand OHNE Zahlungsvorgang. Eine
+        // Kilometerpauschale und ein Eigenbeleg sind Betriebsausgabe, aber es verlaesst kein
+        // Geld das Geschaeftskonto — gegen 1800 gebucht stimmt beim Steuerberater der
+        // Bankbestand nicht mehr.
+        privat:         '1890',  // Privateinlagen (SKR03)
     };
 
     // ── SKR04 Konto-Mapping ─────────────────────────────────────────────
@@ -45,6 +50,7 @@ var DatevExport = (function () {
         sonstige:       '6850',
         bank:           '1800',
         kasse:          '1000',
+        privat:         '2180',  // Privateinlagen (SKR04)
     };
 
     // ── Kategorie → SKR-Konto (auch für Finanzen-Modul-Anzeige nutzbar) ──
@@ -102,10 +108,15 @@ var DatevExport = (function () {
      * Build DATEV Buchungsstapel CSV
      * @param {string} year  – e.g. '2025'
      * @param {string} skr   – 'SKR03' or 'SKR04'
+     * @param {string} gkOhneZahlung – Gegenkonto für Aufwand ohne Zahlungsvorgang
+     *        ('privat' | 'bank' | 'kasse'). Vorgabe 'privat', siehe renderCard().
      * @returns {string}     DATEV ASCII CSV with ANSI encoding hint
      */
-    function buildCSV(year, skr) {
+    function buildCSV(year, skr, gkOhneZahlung) {
         var accounts  = skr === 'SKR04' ? SKR04 : SKR03;
+        // Unbekannter Wert faellt auf 'privat' zurueck, nicht auf 'bank': Ein falsches
+        // Privatkonto ist beim Steuerberater eine Umbuchung, ein falscher Bankbestand eine Suche.
+        var gegenkontoOhneZahlung = accounts[gkOhneZahlung] || accounts.privat;
         var settings  = Store.getSettings ? Store.getSettings() : {};
         var isKlein   = settings.ustMode === 'klein';
         var isSoll    = (settings.ustVersteuerungsart || 'soll') !== 'ist';
@@ -248,6 +259,90 @@ var DatevExport = (function () {
                 buSchluessel: '',
             });
         });
+
+        // ── Fahrtkosten aus dem Fahrtenbuch ─────────────────────────────
+        // Bis 2026-09-17 fehlten die drei folgenden Quellen im Stapel: Der Steuerberater sah
+        // weniger Betriebsausgaben, als die EUeR des Nutzers auswies. Die Filter sind bewusst
+        // ZEICHENGLEICH mit js/euer.js _berechne — weicht einer davon ab, nennen EUeR und
+        // Stapel verschiedene Zahlen, und das faellt erst beim Abstimmen in der Kanzlei auf.
+        //
+        // `!f.storniert`: Store.getFahrten() filtert Stornos nicht selbst (die Fahrtenliste
+        // zeigt sie GoBD-konform durchgestrichen). Genau diese Pruefung fehlte bis 2026-09-16
+        // in der EUeR selbst — siehe 19b5606.
+        (Store.getFahrten ? Store.getFahrten() : [])
+            .filter(function (f) { return !f.storniert && f.datum >= vonDate && f.datum <= bisDate; })
+            .forEach(function (f) {
+                var betrag = parseFloat(f.kosten) || 0;
+                if (betrag <= 0) return;                      // Fahrrad/zu Fuss: 0 EUR, keine Buchung
+                rows.push({
+                    umsatz:       betrag,
+                    sh:           'S',
+                    konto:        accounts.fahrt,
+                    gegenkonto:   gegenkontoOhneZahlung,
+                    datum:        f.datum,
+                    belegfeld1:   f.nummer || String(f.id || '').slice(0, 12),
+                    buchungstext: ('Fahrt ' + (f.von || '') + ' - ' + (f.nach || '')).slice(0, 60),
+                    buSchluessel: '',                         // Pauschale: keine Vorsteuer
+                });
+            });
+
+        // ── Material-Einkaeufe (Verpackung) ─────────────────────────────
+        // `!e.ausgabeId && e.lieferant !== 'Ausgabe'` ist der wichtige Teil: Material, das schon
+        // als Ausgabe erfasst wurde, steckt bereits oben in expenses. Ohne diesen Filter stuende
+        // es zweimal im Stapel. Dieselbe Bedingung steht in js/euer.js.
+        //
+        // Der VERBRAUCH gehoert ausdruecklich NICHT hierher — die EUeR zieht den Einkauf ab
+        // (§11 Abs. 2 EStG, Abflussprinzip). Beides zu buchen waere ein Doppelabzug.
+        (Store.getMaterialEinkauefe ? Store.getMaterialEinkauefe() : [])
+            .filter(function (e) {
+                return !e.ausgabeId && e.lieferant !== 'Ausgabe' && e.datum >= vonDate && e.datum <= bisDate;
+            })
+            .forEach(function (e) {
+                var betrag = parseFloat(e.gesamtkosten) || 0;
+                if (betrag <= 0) return;
+                rows.push({
+                    umsatz:       betrag,
+                    sh:           'S',
+                    konto:        accounts.material,
+                    gegenkonto:   accounts.bank,              // echte Zahlung, anders als die Pauschale
+                    datum:        e.datum,
+                    belegfeld1:   String(e.id || '').slice(0, 12),
+                    buchungstext: ('Material ' + (e.materialName || '') + ' ' + (e.lieferant || '')).slice(0, 60),
+                    buSchluessel: '',
+                });
+            });
+
+        // ── Eigenbelege ─────────────────────────────────────────────────
+        // Company-praefixierter Schluessel, nie ungepraefixt lesen. Gleiche Herleitung wie in
+        // js/euer.js; es gibt dafuer keinen Store-Getter.
+        var eigenbelege = (function () {
+            try {
+                var co = localStorage.getItem('oyi_active_company') || '';
+                var k  = (co ? co + '__' : '') + 'eigenbelege_belege';
+                return (Store._syncReadRaw ? Store._syncReadRaw(k) : JSON.parse(localStorage.getItem(k) || '[]')) || [];
+            } catch (e) { return []; }
+        })();
+        eigenbelege
+            .filter(function (b) {
+                return !b.storniert && b.belegDatum && b.belegDatum >= vonDate && b.belegDatum <= bisDate;
+            })
+            .forEach(function (b) {
+                // Betragswahl wie in der EUeR: netto, sonst brutto.
+                var betrag = parseFloat(b.betragNetto) || parseFloat(b.betragBrutto) || 0;
+                if (betrag <= 0) return;
+                rows.push({
+                    umsatz:       betrag,
+                    sh:           'S',
+                    konto:        kontoForKategorie(b.kategorie, skr),
+                    gegenkonto:   gegenkontoOhneZahlung,
+                    datum:        b.belegDatum,
+                    belegfeld1:   b.belegNr || String(b.id || '').slice(0, 12),
+                    buchungstext: ('Eigenbeleg ' + (b.bezeichnung || b.kategorie || '')).slice(0, 60),
+                    // Ein Eigenbeleg begruendet grundsaetzlich KEINEN Vorsteuerabzug
+                    // (§15 Abs. 1 UStG verlangt eine Rechnung eines Dritten) — kein BU-Schluessel.
+                    buSchluessel: '',
+                });
+            });
 
         // Sort by date
         rows.sort(function (a, b) { return (a.datum || '').localeCompare(b.datum || ''); });
@@ -407,7 +502,7 @@ var DatevExport = (function () {
 
         var html = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">';
         html += '<div style="font-weight:700;font-size:15px;margin-bottom:4px;">DATEV-Export (Buchungsstapel)</div>';
-        html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Exportiert Einnahmen, Ausgaben und Wareneinkäufe im DATEV ASCII-Format für deinen Steuerberater.</div>';
+        html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Exportiert Einnahmen, Ausgaben, Wareneinkäufe, Fahrtkosten, Verpackungsmaterial und Eigenbelege im DATEV ASCII-Format für deinen Steuerberater.</div>';
         html += '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">';
         html += '<div><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Jahr</label>';
         html += '<select class="form-select" id="datevYear" style="min-width:90px;">';
@@ -418,9 +513,20 @@ var DatevExport = (function () {
         html += '<option value="SKR03">SKR 03</option>';
         html += '<option value="SKR04">SKR 04</option>';
         html += '</select></div>';
+        // Gegenkonto fuer Aufwand ohne Zahlungsvorgang. Vorbelegt mit Privateinlage, weil das
+        // der fachlich richtige Wert ist — wer nichts davon versteht, laesst es stehen und
+        // macht nichts falsch. Betroffen sind nur Kilometerpauschale und Eigenbelege;
+        // Material-Einkaeufe sind echte Zahlungen und gehen immer gegen Bank.
+        html += '<div><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;" for="datevGegenkonto">Gegenkonto ohne Zahlung</label>';
+        html += '<select class="form-select" id="datevGegenkonto" style="min-width:150px;" title="Womit werden Kilometerpauschale und Eigenbelege gegengebucht? Dort ist kein Geld geflossen.">';
+        html += '<option value="privat">Privateinlage (empfohlen)</option>';
+        html += '<option value="bank">Bank</option>';
+        html += '<option value="kasse">Kasse</option>';
+        html += '</select></div>';
         html += '<button class="btn btn-primary" id="datevExportBtn" style="align-self:flex-end;"><i class="ti ti-file-spreadsheet"></i> DATEV exportieren</button>';
         html += '</div>';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:10px;">⚠ Berater-Nr. und Mandanten-Nr. sind Platzhalter (00000 / 00001). Bitte vor dem Import in DATEV anpassen.</div>';
+        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Nicht enthalten: <strong>Abschreibungen (AfA)</strong> und <strong>Retouren</strong> — beide brauchen eine Kontenzuordnung, die Stackr nicht kennt. Stehen in deiner EÜR, müssen im Stapel nachgetragen werden.</div>';
         html += '</div>';
         return html;
     }
@@ -431,7 +537,8 @@ var DatevExport = (function () {
         btn.addEventListener('click', function () {
             var year = document.getElementById('datevYear').value;
             var skr  = document.getElementById('datevSkr').value;
-            var csv  = buildCSV(year, skr);
+            var gkEl = document.getElementById('datevGegenkonto');
+            var csv  = buildCSV(year, skr, gkEl ? gkEl.value : 'privat');
             var filename = 'DATEV_Buchungsstapel_' + year + '_' + skr + '.csv';
             // DATEV requires Windows-1252 encoding; we export UTF-8 with BOM as fallback
             var bom = '﻿';

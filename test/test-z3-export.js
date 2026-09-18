@@ -25,7 +25,13 @@ function load(data) {
         getAllSalesRaw:     () => data.verkaeufe || [],
         getAllExpensesRaw:  () => data.ausgaben || [],
         getKassenbuch:      () => data.kassenbuch || [],
-        getInvoices:        () => data.rechnungen || [],
+        // Die Rechnungen liegen unter 'dokumente' — getRechInvoices. Bis 2026-09-17 stubbte
+        // dieser Harness stattdessen getInvoices() und reichte die Daten damit durch einen
+        // Speicher, den die App nie beschreibt: gruen im Test, leer in der Realitaet.
+        getRechInvoices:    () => data.rechnungen || [],
+        // Absichtlich vergiftet statt weggelassen: greift jemand wieder auf den toten Speicher
+        // zurueck, faellt der Harness laut aus, statt still eine leere Tabelle zu bestaetigen.
+        getInvoices:        () => { throw new Error('Store.getInvoices ist der tote Speicher "invoices" — siehe js/protokoll.js'); },
         getAuditLog:        () => data.audit || [],
         getClosedYears: () => [], getSteuertermine: () => [], getSales: () => [], getSettings: () => ({})
     };
@@ -140,4 +146,54 @@ assert.strictEqual(leer.files.length, 0, 'keine Dateien');
 assert.ok(/keine Daten/.test(leer.toasts[leer.toasts.length - 1].m), 'Meldung statt leerem Export');
 pass++; console.log('✓ Zeitraum ohne Daten erzeugt keine leeren Dateien');
 
-console.log('\n' + pass + '/10 Tests bestanden ✅');
+// ── 10. Das Rechnungsbuch ist wirklich dabei — aus dem Speicher, den die App beschreibt ─────
+// Der Fund vom 2026-09-17: rechnungen.csv las Store.getInvoices() ('invoices'), einen Speicher,
+// den seit der Rechnungs-Sub-App niemand mehr beschreibt (kein einziger Store.saveInvoice-Aufruf
+// im Projekt). Die Tabelle war damit IMMER leer und wurde still weggelassen — mit dem Hinweis
+// "keine Daten im Zeitraum", also einer falschen Erklaerung. Der Pruefer bekam einen
+// Datentraeger ohne Ausgangsrechnungen.
+//
+// Die Dokumente hier tragen das echte Schema aus rechnungen/js/rechnung.js: Summen stehen NICHT
+// darin, nur positionen; Storno setzt status='storniert' und _storniert.
+const R_DOKS = {
+    einkaeufe: [], verkaeufe: [], ausgaben: [], audit: [], kassenbuch: [],
+    rechnungen: [
+        { id: 'r1', typ: 'rechnung', nummer: 'RE-2025-001', datum: '2025-04-01', faelligkeit: '2025-04-15',
+          kundeId: 'k1', leitwegId: '991-12345-67', status: 'bezahlt', isKlein: false,
+          positionen: [{ menge: 2, einzelpreis: 100, mwstSatz: 19 }] },
+        { id: 'r2', typ: 'rechnung', nummer: 'RE-2025-002', datum: '2025-05-01', kundeId: 'k2',
+          status: 'storniert', _storniert: true, isKlein: false,
+          positionen: [{ menge: 1, einzelpreis: 50, mwstSatz: 7 }] },
+        { id: 'r3', typ: 'rechnung', nummer: 'RE-2025-003', datum: '2025-06-01', kundeId: 'k3',
+          status: 'versendet', isKlein: true,
+          positionen: [{ menge: 3, einzelpreis: 10, mwstSatz: 19 }] }
+    ]
+};
+const rr = load(R_DOKS);
+rr.P.exportZ3(2025, 2025);
+const rechCsv = rr.files.find(f => f.name === 'rechnungen.csv');
+assert.ok(rechCsv, 'rechnungen.csv wird erzeugt — das Rechnungsbuch fehlt dem Pruefer nicht mehr');
+assert.strictEqual(rechCsv.rows.length, 4, 'Kopfzeile + drei Rechnungen');
+
+const spalte = (name) => rechCsv.rows[0].indexOf(name);
+const zeile  = (nummer) => rechCsv.rows.find(r => r.indexOf(nummer) !== -1);
+const z1 = zeile('RE-2025-001');
+// 2 x 100 = 200 netto, 19 % = 38 USt, 238 brutto. Dezimaltrenner ist das Komma, so wie es
+// index.xml mit <DecimalSymbol>,</DecimalSymbol> deklariert.
+assert.strictEqual(z1[spalte('Netto (EUR)')], '200', 'Netto aus den Positionen gerechnet');
+assert.strictEqual(z1[spalte('Umsatzsteuer (EUR)')], '38', 'USt aus dem Positionssatz gerechnet');
+assert.strictEqual(z1[spalte('Brutto (EUR)')], '238', 'Brutto = Netto + USt');
+assert.strictEqual(z1[spalte('Leitweg-ID')], '991-12345-67', 'Leitweg-ID uebernommen');
+
+const z3 = zeile('RE-2025-003');
+assert.strictEqual(z3[spalte('Umsatzsteuer (EUR)')], '0', 'Kleinunternehmer weist keine USt aus (§19 UStG)');
+assert.strictEqual(z3[spalte('Brutto (EUR)')], '30', 'Brutto = Netto bei §19');
+
+const z2 = zeile('RE-2025-002');
+assert.strictEqual(z2[spalte('Storniert')], 'ja', 'Storno erkannt, obwohl das Dokument kein storniert-Feld traegt');
+assert.ok(!/nicht enthalten/.test(rr.toasts[rr.toasts.length - 1].m) ||
+          !/Rechnungen/.test(rr.toasts[rr.toasts.length - 1].m),
+    'Rechnungen stehen nicht mehr unter den weggelassenen Tabellen');
+pass++; console.log('✓ Rechnungsbuch kommt aus dem echten Speicher, mit gerechneten Summen');
+
+console.log('\n' + pass + '/11 Tests bestanden ✅');

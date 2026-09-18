@@ -41,7 +41,9 @@ const Protokoll = {
             cols: [
                 ['id', 'Datensatz-ID', 'a'], ['datum', 'Belegdatum', 'd'], ['beschreibung', 'Bezeichnung', 'a'],
                 ['verkaufspreis', 'Verkaufspreis (EUR)', 'n'], ['versandKaeufer', 'Versand Käufer (EUR)', 'n'],
-                ['plattformgebuehr', 'Plattformgebühr (%)', 'n'], ['versandVerkaeufer', 'Versandkosten (EUR)', 'n'],
+                // Feld heisst am Datensatz plattformgebuehrProzent — 'plattformgebuehr' allein
+                // schreibt die App nie, die Spalte blieb also leer (nachgemessen 2026-09-17).
+                ['plattformgebuehrProzent', 'Plattformgebühr (%)', 'n'], ['versandVerkaeufer', 'Versandkosten (EUR)', 'n'],
                 ['verkaufsplattform', 'Verkaufsplattform', 'a'], ['kaeufer', 'Käufer', 'a'],
                 ['belegNr', 'Belegnummer', 'a'], ['storniert', 'Storniert', 'a'], ['notizen', 'Bemerkung', 'a']
             ]
@@ -62,13 +64,42 @@ const Protokoll = {
             cols: [
                 ['id', 'Datensatz-ID', 'a'], ['datum', 'Belegdatum', 'd'], ['art', 'Art', 'a'],
                 ['beschreibung', 'Bezeichnung', 'a'], ['betrag', 'Betrag (EUR)', 'n'],
-                ['bestandNach', 'Kassenbestand nach Buchung (EUR)', 'n'],
+                // Feld heisst am Eintrag 'bestand' (js/kassenbuch.js); 'bestandNach' gibt es nicht.
+                ['bestand', 'Kassenbestand nach Buchung (EUR)', 'n'],
                 ['belegNr', 'Belegnummer', 'a'], ['storniert', 'Storniert', 'a']
             ]
         },
         {
             file: 'rechnungen.csv', name: 'Rechnungen', desc: 'Ausgangsrechnungen (Rechnungsbuch)',
-            get: () => (Store.getInvoices ? Store.getInvoices() : []),
+            // Bis 2026-09-17 stand hier Store.getInvoices() — der liest den Schlüssel 'invoices',
+            // und den beschreibt die App seit der Rechnungs-Sub-App NICHT MEHR: kein einziger
+            // Aufruf von Store.saveInvoice() im Projekt, alle Dokumente liegen unter 'dokumente'
+            // (Store.getRechInvoices, _rechSet). js/protokoll.js war der letzte Leser des toten
+            // Speichers. Ergebnis: rechnungen.csv war IMMER leer und wurde von exportZ3() still
+            // weggelassen, mit dem irreführenden Hinweis "keine Daten im Zeitraum". Der Prüfer
+            // bekam einen Datenträger ohne Rechnungsbuch.
+            get: () => {
+                var docs = (Store.getRechInvoices ? Store.getRechInvoices() : []);
+                // Summen stehen nicht im Dokument (es speichert nur positionen) und müssen wie
+                // in js/datev.js gebildet werden — sonst blieben die drei Betragsspalten leer,
+                // und eine Rechnungstabelle ohne Beträge nützt dem Prüfer nichts.
+                return docs.map(function (d) {
+                    var netto = 0, ust = 0;
+                    (d.positionen || []).forEach(function (p) {
+                        var zeile = (parseFloat(p.menge) || 0) * (parseFloat(p.einzelpreis) || 0);
+                        netto += zeile;
+                        if (!d.isKlein) ust += zeile * (parseInt(p.mwstSatz) || 0) / 100;
+                    });
+                    return Object.assign({}, d, {
+                        gesamtNetto:  netto,
+                        gesamtUst:    ust,
+                        gesamtBrutto: netto + ust,
+                        // Storno trägt am Dokument kein 'storniert'-Feld, sondern beides zugleich
+                        // (Store.stornoRechInvoice setzt status='storniert' UND _storniert=true).
+                        storniert:    !!(d._storniert || d.status === 'storniert')
+                    });
+                });
+            },
             cols: [
                 ['id', 'Datensatz-ID', 'a'], ['nummer', 'Rechnungsnummer', 'a'], ['datum', 'Rechnungsdatum', 'd'],
                 ['faelligkeit', 'Fälligkeit', 'd'], ['kundeId', 'Kunden-ID', 'a'],

@@ -171,7 +171,14 @@ Offen geblieben sind zwei Punkte, die **nicht** durch Raten zu schließen sind:
 verlangten Spaltenzahl entspricht, ist damit **nicht** beantwortet — dafür braucht es die
 offizielle Formatbeschreibung.
 
-**(b) Der Stapel liest vier von neun Quellen.** Verifiziert am 2026-09-13: `js/datev.js` greift
+**(b) ✅ zum größeren Teil erledigt 2026-09-17 (`b2a86f3`).** Betreiberentscheidung: Fahrtkosten,
+Material-**Einkauf** und Eigenbelege sind im Stapel; neues Feld „Gegenkonto ohne Zahlung",
+vorbelegt mit Privateinlage (SKR03 1890 / SKR04 2180). **AfA und Retouren bleiben offen** — AfA
+braucht das Anlagekonto je Gegenstand, das das Anlagenverzeichnis nicht führt; die Export-Karte
+sagt das ausdrücklich. Unterwegs gefunden und vorab gefixt (`19b5606`): stornierte Fahrten
+zählten in EÜR, GbR und Fahrtenbuch-Ausdruck als Betriebsausgabe.
+
+*Ursprünglicher Text:* **Der Stapel liest vier von neun Quellen.** Verifiziert am 2026-09-13: `js/datev.js` greift
 auf `getSales`, `getPurchases`, `getExpenses` und `getRechInvoices` zu. Es fehlen **Fahrtkosten,
 AfA, Materialverbrauch, Retouren und Eigenbelege** — alles Posten, die in der EÜR sehr wohl
 zählen. Der Export an den Steuerberater ist damit unvollständig.

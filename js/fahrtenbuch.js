@@ -18,20 +18,55 @@ const Fahrtenbuch = {
         { id: 'sonstiges',      label: 'Sonstiges' },
     ],
 
+    // Die Saetze stehen NICHT hier, sondern in _getKmSaetze(year) — Regel 7 der CLAUDE.md:
+    // Gesetzeswerte gehoeren in eine Jahresfunktion. Die Beschriftung "(0,30 €/km)" wird zur
+    // Anzeige aus derselben Funktion gebildet (artLabel), damit Formular und Rechnung nie
+    // auseinanderlaufen.
     BERECHNUNGSARTEN: [
-        { id: 'pauschale_pkw',       label: 'Kilometerpauschale PKW (0,30 €/km)',      rate: 0.30 },
-        { id: 'pauschale_motorrad',  label: 'Kilometerpauschale Motorrad (0,20 €/km)', rate: 0.20 },
-        { id: 'fahrrad',             label: 'Fahrrad / Zu Fuß (0,00 €)',               rate: 0.00 },
-        { id: 'tatsaechlich',        label: 'Tatsächliche Kosten (manuell eingeben)',   rate: null },
+        { id: 'pauschale_pkw',       label: 'Kilometerpauschale PKW' },
+        { id: 'pauschale_motorrad',  label: 'Kilometerpauschale Motorrad' },
+        { id: 'fahrrad',             label: 'Fahrrad / Zu Fuß' },
+        { id: 'tatsaechlich',        label: 'Tatsächliche Kosten (manuell eingeben)' },
     ],
 
     WOCHENTAGE: ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'],
 
-    calcKosten(gesamtKm, berechnungsart, tatsKosten) {
+    /** Kilometersaetze fuer betriebliche Fahrten mit dem Privatfahrzeug, je Jahr.
+     *
+     *  Rechtsgrundlage: § 9 Abs. 1 Satz 3 Nr. 4a Satz 2 EStG i. V. m. § 5 Abs. 1 BRKG —
+     *  0,30 EUR/km fuer den PKW, 0,20 EUR/km fuer andere motorbetriebene Fahrzeuge. Fuer
+     *  Einzelunternehmer gilt derselbe Satz ueber H 4.12 EStH. Belegt am 2026-09-18, in 2025
+     *  und 2026 unveraendert.
+     *
+     *  Der Sinn der Jahresfunktion: Aendert der Gesetzgeber den Satz, bekommt diese Funktion
+     *  einen neuen Zweig — und Fahrten aus abgeschlossenen Jahren rechnen weiter mit ihrem
+     *  alten Satz. Mit einer festen Konstante haette ein Bearbeiten einer alten Fahrt sie
+     *  rueckwirkend zum neuen Satz umgerechnet.
+     *
+     *  Vor 2014 galten fuer Motorraeder und Fahrraeder andere Saetze. Sie sind bewusst NICHT
+     *  hinterlegt, weil sie hier nicht belegt sind und Stackr keine Daten aus der Zeit fuehrt;
+     *  wer sie braucht, ergaenzt einen Zweig mit Quelle, statt einen Wert zu raten.
+     */
+    _getKmSaetze(year) {
+        void year;  // aktuell ein Zweig; das naechste Aenderungsjahr bekommt ein `if (year >= …)`
+        return { pauschale_pkw: 0.30, pauschale_motorrad: 0.20, fahrrad: 0 };
+    },
+
+    /** Anzeigename mit dem Satz des angegebenen Jahres, z.B. "Kilometerpauschale PKW (0,30 €/km)". */
+    artLabel(art, year) {
+        const satz = this._getKmSaetze(year)[art.id];
+        if (typeof satz !== 'number') return art.label;
+        return art.label + ' (' + satz.toFixed(2).replace('.', ',') + (art.id === 'fahrrad' ? ' €)' : ' €/km)');
+    },
+
+    /** Kosten einer Fahrt. `datum` (YYYY-MM-DD) bestimmt das Jahr und damit den Satz; ohne
+     *  Datum gilt das laufende Jahr. */
+    calcKosten(gesamtKm, berechnungsart, tatsKosten, datum) {
         if (berechnungsart === 'tatsaechlich') return parseFloat(tatsKosten) || 0;
-        const art = this.BERECHNUNGSARTEN.find(a => a.id === berechnungsart);
-        if (!art || art.rate === null) return 0;
-        return Math.round(gesamtKm * art.rate * 100) / 100;
+        const year = parseInt(String(datum || '').slice(0, 4), 10) || new Date().getFullYear();
+        const satz = this._getKmSaetze(year)[berechnungsart];
+        if (typeof satz !== 'number') return 0;              // unbekannte Art: keine Kosten erfinden
+        return Math.round(gesamtKm * satz * 100) / 100;
     },
 
     getWochentag(datum) {
@@ -97,7 +132,7 @@ const Fahrtenbuch = {
 
             <div class="info-box" style="margin-bottom:12px;padding:10px 14px;background:var(--info-bg);border:1px solid var(--info);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);">
                 <strong style="color:var(--info);">💡 §9 EStG Pauschalen:</strong>
-                PKW: 0,30 €/km · Motorrad: 0,20 €/km · Fahrrad/Zu Fuß: 0,00 €.
+                ${(() => { const s = this._getKmSaetze(new Date().getFullYear()); const f = v => v.toFixed(2).replace('.', ','); return `PKW: ${f(s.pauschale_pkw)} €/km · Motorrad: ${f(s.pauschale_motorrad)} €/km · Fahrrad/Zu Fuß: ${f(s.fahrrad)} €.`; })()}
                 Fahrtkosten fließen automatisch in die EÜR ein.
             </div>
 
@@ -139,7 +174,7 @@ const Fahrtenbuch = {
             `<option value="${z.id}" ${f?.zweck === z.id ? 'selected' : ''}>${z.label}</option>`
         ).join('');
         const berechnungsartOpts = this.BERECHNUNGSARTEN.map(a =>
-            `<option value="${a.id}" ${berechnungsartDef === a.id ? 'selected' : ''}>${a.label}</option>`
+            `<option value="${a.id}" ${berechnungsartDef === a.id ? 'selected' : ''}>${this.artLabel(a, parseInt(String(f?.datum || '').slice(0, 4), 10) || new Date().getFullYear())}</option>`
         ).join('');
         const gesamtKm = f ? (f.hinUndRueck ? (f.km || 0) * 2 : (f.km || 0)) : 0;
 
@@ -471,7 +506,7 @@ const Fahrtenbuch = {
             const gesamtKm = hr ? km * 2 : km;
             const art = get('fb_berechnungsart')?.value || 'pauschale_pkw';
             const tk = parseFloat(get('fb_tatsKosten')?.value) || 0;
-            const kosten = this.calcKosten(gesamtKm, art, tk);
+            const kosten = this.calcKosten(gesamtKm, art, tk, Utils.getDateInputValue('fb_datum'));
             const gkEl = get('fb_gesamtkm');
             if (gkEl) gkEl.value = gesamtKm.toFixed(1) + ' km';
             const kdEl = get('fb_kosten_display');
@@ -569,13 +604,13 @@ const Fahrtenbuch = {
                 fahrzeug: get('fb_fahrzeug').value,
                 berechnungsart: art,
                 tatsaechlicheKosten: art === 'tatsaechlich' ? tk : null,
-                kosten: this.calcKosten(gesamtKm, art, tk),
+                kosten: this.calcKosten(gesamtKm, art, tk, Utils.getDateInputValue('fb_datum')),
                 zweck,
                 zweckSonstiges: get('fb_zweck_text')?.value.trim() || '',
                 notizen: get('fb_notizen').value.trim()
             });
 
-            Utils.showToast(this._editId ? 'Fahrt aktualisiert' : `Fahrt gespeichert (${Utils.formatCurrency(this.calcKosten(gesamtKm, art, tk))})`, 'success');
+            Utils.showToast(this._editId ? 'Fahrt aktualisiert' : `Fahrt gespeichert (${Utils.formatCurrency(this.calcKosten(gesamtKm, art, tk, Utils.getDateInputValue('fb_datum')))})`, 'success');
             this._editId = null;
             this._refresh();
         });

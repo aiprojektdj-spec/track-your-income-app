@@ -122,24 +122,39 @@ const nah = (a, b) => Math.abs(a - b) < 1e-9;
     check('C8 die uebergebene Liste bleibt unveraendert', fahrten[0].id === '1');
 })();
 
-// ── D) Gesetzeswerte ─────────────────────────────────────────────────────────
+// ── D) Gesetzeswerte in der Jahresfunktion (Regel 7) ─────────────────────────
+// Bis 2026-09-18 standen die Saetze als feste Konstanten in BERECHNUNGSARTEN und D4 hielt
+// fest, dass Regel 7 offen war. Jetzt kommen sie aus _getKmSaetze(year), und das Fahrtdatum
+// bestimmt das Jahr. Belegt: § 9 Abs. 1 Satz 3 Nr. 4a EStG i. V. m. § 5 BRKG.
 (() => {
+    const s26 = FB._getKmSaetze(2026);
+    check('D1 PKW-Satz 2026 ist 0,30 EUR/km', nah(s26.pauschale_pkw, 0.30));
+    check('D2 Motorrad-Satz 2026 ist 0,20 EUR/km', nah(s26.pauschale_motorrad, 0.20));
+
+    // Beschriftung wird aus derselben Funktion gebildet — Formular und Rechnung koennen nicht
+    // mehr auseinanderlaufen.
     const pkw = FB.BERECHNUNGSARTEN.find(a => a.id === 'pauschale_pkw');
     const krad = FB.BERECHNUNGSARTEN.find(a => a.id === 'pauschale_motorrad');
-    check('D1 PKW-Satz ist 0,30 EUR/km', nah(pkw.rate, 0.30));
-    check('D2 Motorrad-Satz ist 0,20 EUR/km', nah(krad.rate, 0.20));
-    // Die Beschriftung nennt denselben Wert wie die Rechnung — sonst steht im Formular etwas
-    // anderes, als hinterher gebucht wird.
-    check('D3 Beschriftung und Rechensatz stimmen ueberein',
-        pkw.label.indexOf('0,30') > -1 && krad.label.indexOf('0,20') > -1);
+    check('D3 Beschriftung zeigt den Satz aus der Jahresfunktion',
+        FB.artLabel(pkw, 2026) === 'Kilometerpauschale PKW (0,30 €/km)' &&
+        FB.artLabel(krad, 2026) === 'Kilometerpauschale Motorrad (0,20 €/km)');
+    check('D4 kein Satz steht mehr fest in BERECHNUNGSARTEN',
+        FB.BERECHNUNGSARTEN.every(a => a.rate === undefined));
 
-    // HINWEIS, kein Fehlschlag: Beide Saetze stehen als jahresfeste Konstanten da. Regel 7 der
-    // CLAUDE.md verlangt fuer Gesetzeswerte eine Jahresfunktion (Muster: App._getUstGrenzen).
-    // Aendert der Gesetzgeber den Satz, rechnet Stackr rueckwirkend auch alte Jahre neu.
-    // Bewusst nicht hier gefixt — das ist eine Aenderung an steuerlicher Rechenlogik und
-    // gehoert entschieden, nicht nebenbei gemacht.
-    check('D4 Hinweis: Saetze sind jahresfest (Regel 7 offen, siehe 01-AUFGABEN 1.8)',
-        /rate: 0\.30/.test(fbSrc) && !/rate\(year\)|_getKmSatz/.test(fbSrc));
+    // Der eigentliche Nachweis: Aendert sich der Satz ab einem Jahr, rechnet eine Fahrt aus
+    // dem Vorjahr weiter mit ihrem alten Satz. Simuliert mit einem Zweig fuer 2027.
+    const ctx = Object.create(FB);
+    ctx._getKmSaetze = y => (y >= 2027
+        ? { pauschale_pkw: 0.35, pauschale_motorrad: 0.25, fahrrad: 0 }
+        : FB._getKmSaetze(y));
+    check('D5 Fahrt aus 2026 rechnet mit dem Satz von 2026',
+        ctx.calcKosten(100, 'pauschale_pkw', null, '2026-12-31') === 30);
+    check('D6 Fahrt aus 2027 rechnet mit dem Satz von 2027',
+        ctx.calcKosten(100, 'pauschale_pkw', null, '2027-01-01') === 35);
+    check('D7 ohne Datum gilt das laufende Jahr',
+        FB.calcKosten(100, 'pauschale_pkw') === Math.round(100 * FB._getKmSaetze(new Date().getFullYear()).pauschale_pkw * 100) / 100);
+    check('D8 Quelltext-Wache: alle Aufrufer im Formular reichen das Fahrtdatum durch',
+        (fbSrc.match(/this\.calcKosten\(gesamtKm, art, tk, Utils\.getDateInputValue\('fb_datum'\)\)/g) || []).length === 3);
 })();
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');

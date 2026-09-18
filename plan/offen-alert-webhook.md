@@ -141,21 +141,30 @@ rausgerollt" bedeuten kann (Hobby-Plan: 30–60 Minuten).
 `?probe=1`-Aufruf ist noch nicht gelaufen.** Umgekehrt ist das die Abnahme: taucht nach dem Aufruf
 hier ein `selbsttest`-Eintrag auf, ist damit zugleich das Blob-Ziel unabhängig bestätigt.
 
-## Nebenbefund: `BLOB_READ_WRITE_TOKEN` liegt offen
+## Nebenbefund: `BLOB_READ_WRITE_TOKEN` — rotiert am 2026-09-17
 
-Vercel markiert die Variable mit **„Needs Attention"**:
+Vercel hatte die Variable mit **„Needs Attention"** markiert:
 
 > `BLOB_READ_WRITE_TOKEN` looks like a secret, but its value is visible to anyone with access.
 > Consider rotating at the source and saving as *Secret*.
 
-**Kein Ausfall, reine Hygiene** — der Token funktioniert, er liegt nur als lesbare
-Config-Variable statt als *Secret*. Zwei Dinge, die man vor dem Knopf „Rotate Blob Credentials"
-wissen sollte:
+**Erledigt:** am 2026-09-17 abends vom Betreiber über „Rotate Blob Credentials" rotiert und
+anschließend neu deployt. Am 2026-09-18 gegengeprüft: der alte Token aus `.env.local` bekommt
+von der Blob-API **HTTP 403**, er ist also wirklich entwertet.
 
-- Rotieren entwertet den laufenden Token **sofort**, während das aktive Deployment noch den alten
-  hält. Bis zum Redeploy wären Blob-Uploads von **Kundenanhängen** und der Alarmspeicher tot.
-- Derselbe Token steht in `.env.local`. Nach dem Rotieren geht der wöchentliche Lese-Einzeiler
-  nicht mehr, bis die Datei nachgezogen ist.
+**Korrektur zur alten Warnung:** Hier stand, Rotieren entwerte den laufenden Token *sofort*. Das
+stimmt nicht. Der Dialog bietet „Delay expiration of old secrets" an, Vorgabe **3 Stunden**. Der
+alte Token bleibt so lange gültig, ein Redeploy innerhalb dieser Frist verhindert jeden Ausfall.
+Nachgemessen: kurz nach der Rotation lieferte der alte Token noch HTTP 200, am Folgetag 403.
 
-Also bewusst liegengelassen. Wer es angeht: erst rotieren **und** als *Secret* neu anlegen, dann
-deployen, dann `.env.local` nachziehen — in dieser Reihenfolge.
+**Noch offen, nur der Betreiber:**
+
+- **`.env.local` nachziehen.** Die Datei trägt noch den alten Token (unverändert seit
+  2026-07-15). Bis dahin geht der Lese-Einzeiler für `stackr/alerts/` lokal nicht, das
+  Kontrolljournal oben pausiert. Den neuen Wert kann keine Session holen, weil keine
+  Vercel-Zugang hat.
+- **Typ *Secret* prüfen.** Rotieren ändert den Typ der Variable nicht. Verschwindet das
+  „Needs Attention" nicht, muss der Wert einmal als *Secret* neu angelegt werden.
+
+Ob die Produktion den neuen Token hat, zeigt der nächste Cron-Lauf um 04:00 UTC: fehlt er,
+kommt eine Mail `blob-cleanup - cleanup-failed`.

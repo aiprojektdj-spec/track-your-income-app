@@ -1,14 +1,17 @@
 // Belegerkennung: Extraktionsheuristik (Fund G4)
 //
-// Zerlegt den OCR-Rohtext eines Kassenbons in Datum, Bruttobetrag und Haendlername.
+// Zerlegt den OCR-Rohtext eines Kassenbons in Datum, Bruttobetrag, Haendlername sowie
+// USt-Satz und USt-Betrag (letztere seit 2026-09-21, Kriterium 2.1 des Anforderungsprofils
+// in plan/pruefliste-buchhaltung-2026-09-21.md).
 // Bewusst OHNE jeden Browser-Bezug: kein DOM, kein WASM, keine Abhaengigkeit auf
 // tesseract.js. Der Grund ist derselbe wie beim Zahlungsabgleich (js/bank-import.js,
 // Fund G3): die Regeln sind Heuristiken, sie werden sich aendern, und sie muessen
 // sich ohne Browser und ohne ~8 MB WASM pruefen lassen.
 //   Test: node test/test-beleg-ocr.js
 //
-// Die drei Regeln stammen aus plan/ocr-belegerkennung-2026-08-12.md, Abschnitt 5.
-// Wer sie aendert, aendert sie dort mit.
+// Die Regeln fuer Datum, Betrag und Haendler stammen aus
+// plan/ocr-belegerkennung-2026-08-12.md, Abschnitt 5. Wer sie aendert, aendert sie dort mit.
+// Die Steuerregel kam spaeter dazu und ist an Ort und Stelle begruendet.
 //
 // WICHTIG: Nichts hiervon traegt selbst etwas in ein Formular ein. Die Rueckgabe ist
 // ein Vorschlag, den der Nutzer per Klick uebernimmt — ein falsch vorbefuelltes Feld
@@ -299,6 +302,92 @@ var BelegOCR = (function () {
         return _konsensGegenprobe(gewinner, alle);
     }
 
+    // ── Umsatzsteuer ─────────────────────────────────────────────────────────
+    // Eigene Regel, KEINE Aufweichung von RE_TEILBETRAG. Der Ausschluss dort ist richtig
+    // und bleibt: eine MwSt-Zeile darf nie als Endbetrag gewinnen. Gesucht wird hier das
+    // Gegenteil — der Steuerwert als eigenes Feld, zusaetzlich zum Bruttobetrag.
+    //
+    // "steuer" ohne Grenze traefe auch die Steuernummer im Bonkopf; die zweite Liste
+    // nimmt sie wieder heraus. Sie steht auf praktisch jedem Beleg.
+    var RE_STEUERZEILE       = /mwst|mw\.?-?\s?st|umsatzsteuer|\bust\b|\bsteuer\b/i;
+    var RE_KEINE_STEUERZEILE = /steuernummer|st\.?-?nr|ust-?-?id|\buid\b|steuerberater/i;
+
+    // Ein Satz ist eine Zahl mit Prozentzeichen dahinter. Bewusst OHNE Liste der
+    // gueltigen Saetze: die sind Gesetzeswerte, und ein Beleg aus einem frueheren Jahr
+    // traegt einen frueheren Satz (Regel 7 der CLAUDE.md waere sonst verletzt — eine
+    // jahresfeste Konstante hier haette denselben Fehler wie jede andere). Die einzige
+    // Schranke ist Plausibilitaet: ueber 25 % ist in keiner Fassung ein Umsatzsteuersatz,
+    // sondern eine Rabatt- oder Trinkgeldangabe.
+    var RE_PROZENT = /(\d{1,2}(?:[.,]\d{1,2})?)\s*%/g;
+    var SATZ_OBERGRENZE = 25;
+
+    /**
+     * Sucht USt-Satz und USt-Betrag.
+     *
+     * @param {string[]} zeilen
+     * @param {number|null} brutto  Bruttobetrag aus findBetrag(), als Gegenprobe.
+     * @returns {{satz: object|null, betrag: object|null}}
+     *
+     * Zwei bewusste Zurueckhaltungen:
+     *   1. Stehen MEHRERE verschiedene Saetze auf dem Beleg (der normale Supermarktbon mit
+     *      7 % und 19 %), wird gar nichts vorgeschlagen. Ein einzelnes Feld kann einen
+     *      gemischten Beleg nicht abbilden, und der haeufigste Fehler waere, den groesseren
+     *      Satz auf den ganzen Betrag anzuwenden — zu hohe Vorsteuer, dieselbe Richtung wie
+     *      alle bisher gefundenen Betragsfehler.
+     *   2. Ein gelesener Steuerbetrag wird nur uebernommen, wenn er zum Brutto passt. Sonst
+     *      wird er aus Brutto und Satz GERECHNET und als solcher gekennzeichnet — gerechnet
+     *      ist bei genau einem Satz exakt, geraten waere es nur ohne Gegenprobe.
+     */
+    function findUst(zeilen, brutto) {
+        var saetze = {};        // Satz -> Rohtext der ersten Fundstelle
+        var kandidaten = [];    // Betraege, die auf einer Steuerzeile stehen
+
+        for (var i = 0; i < zeilen.length; i++) {
+            var z = zeilen[i];
+            if (!RE_STEUERZEILE.test(z) || RE_KEINE_STEUERZEILE.test(z)) continue;
+
+            var m;
+            RE_PROZENT.lastIndex = 0;
+            while ((m = RE_PROZENT.exec(z)) !== null) {
+                var p = parseFloat(m[1].replace(',', '.'));
+                if (!isFinite(p) || p <= 0 || p > SATZ_OBERGRENZE) continue;
+                if (saetze[p] === undefined) saetze[p] = m[0].trim();
+            }
+
+            // _betraegeDerZeile ueberspringt Werte mit nachfolgendem Prozentzeichen schon
+            // von sich aus — der Satz landet also nicht im Betragspool.
+            var b = _betraegeDerZeile(z);
+            for (var n = 0; n < b.length; n++) if (!b[n].negativ) kandidaten.push(b[n]);
+        }
+
+        var gefundene = Object.keys(saetze).map(Number).sort(function (a, b2) { return a - b2; });
+        if (gefundene.length !== 1) return { satz: null, betrag: null };
+
+        var satz = gefundene[0];
+        var satzTreffer = { wert: satz, roh: saetze[satz] };
+
+        var b2 = (typeof brutto === 'number' && isFinite(brutto)) ? brutto
+               : (brutto && typeof brutto.wert === 'number') ? brutto.wert
+               : null;
+        if (b2 === null || b2 <= 0) return { satz: satzTreffer, betrag: null };
+
+        // Der Steueranteil eines Bruttobetrags: brutto * satz / (100 + satz).
+        var soll = Math.round(b2 * satz / (100 + satz) * 100) / 100;
+
+        // Zwei Cent Spielraum: Kassen runden je Position, wir rechnen auf die Summe.
+        var treffer = null;
+        for (var k = 0; k < kandidaten.length; k++) {
+            if (Math.abs(kandidaten[k].wert - soll) <= 0.02) {
+                if (!treffer || Math.abs(kandidaten[k].wert - soll) < Math.abs(treffer.wert - soll)) {
+                    treffer = kandidaten[k];
+                }
+            }
+        }
+        if (treffer) return { satz: satzTreffer, betrag: { wert: treffer.wert, roh: treffer.roh } };
+
+        return { satz: satzTreffer, betrag: { wert: soll, roh: null, berechnet: true } };
+    }
+
     // ── Haendler ─────────────────────────────────────────────────────────────
     // Erste Zeile mit mindestens drei Buchstaben, die keine Zahl und keine
     // Adressfloskel ist. Der Bonkopf traegt den Namen fast immer zuerst.
@@ -359,13 +448,18 @@ var BelegOCR = (function () {
     // ── Einstieg ─────────────────────────────────────────────────────────────
     function extract(text) {
         if (typeof text !== 'string' || !text.trim()) {
-            return { datum: null, betrag: null, haendler: null };
+            return { datum: null, betrag: null, haendler: null, ustSatz: null, ustBetrag: null };
         }
         var zeilen = text.split(/\r?\n/);
+        var betrag = findBetrag(zeilen);
+        // Die Steuerregel bekommt den Bruttobetrag als Gegenprobe — deshalb erst danach.
+        var ust = findUst(zeilen, betrag ? betrag.wert : null);
         return {
-            datum:    findDatum(text),
-            betrag:   findBetrag(zeilen),
-            haendler: findHaendler(zeilen),
+            datum:     findDatum(text),
+            betrag:    betrag,
+            haendler:  findHaendler(zeilen),
+            ustSatz:   ust.satz,
+            ustBetrag: ust.betrag,
         };
     }
 
@@ -375,5 +469,6 @@ var BelegOCR = (function () {
         findDatum: findDatum,
         findBetrag: findBetrag,
         findHaendler: findHaendler,
+        findUst: findUst,
     };
 })();

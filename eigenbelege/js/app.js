@@ -419,102 +419,32 @@ function renderDashboard() {
 // Laeuft vollstaendig im Browser. tesseract.js, der WASM-Kern und das deutsche
 // Sprachmodell liegen unter js/vendor/ und werden NICHT beim Seitenstart geladen —
 // zusammen sind sie ein Vielfaches der uebrigen App. Erst der Klick auf
-// "Beleg auslesen" holt sie nach (Muster: _ensureApexCharts weiter oben).
+// "Beleg auslesen" holt sie nach (Muster: _ensureApexCharts weiter oben). Das Nachladen
+// und den Worker besorgt js/beleg-ocr-ui.js, die Heuristik js/beleg-ocr.js.
 //
-// Kein Bild verlaesst das Geraet. Genau deshalb liegen hier ~8 MB WASM statt eines
-// OCR-Endpunkts: ein Server-Aufruf waere die einzige Stelle der App, an der der
-// Server Klardaten saehe (s. plan/ocr-belegerkennung-2026-08-12.md, Abschnitt 1).
+// Kein Bild und kein PDF verlaesst das Geraet. Genau deshalb liegen unter js/vendor/
+// ~8 MB WASM statt eines OCR-Endpunkts: ein Server-Aufruf waere die einzige Stelle der
+// App, an der der Server Klardaten saehe (s. plan/ocr-belegerkennung-2026-08-12.md,
+// Abschnitt 1).
 //
 // KEIN PFLICHTPFAD: faellt hiervon irgendetwas aus, bleibt das Formular unveraendert
 // von Hand ausfuellbar. Und nichts wird automatisch eingetragen — die Treffer stehen
 // als anklickbare Chips ueber dem jeweiligen Feld. Ein falsch vorbefuelltes Feld ist
 // schlimmer als ein leeres.
 
-let _ocrWorker     = null;   // bleibt fuer weitere Belege derselben Sitzung stehen
-let _ocrBild       = null;   // vom Nutzer gewaehlte Datei — nie automatisch verarbeitet
-let _ocrLaeuft     = false;
-let _ocrLibPromise = null;
+let _ocrBild   = null;   // vom Nutzer gewaehlte Datei — nie automatisch verarbeitet
+let _ocrLaeuft = false;
 
-/** Lazy-load des Loaders (~63 KB). Kern und Sprachmodell holt danach der Worker. */
-function _ensureTesseract() {
-    if (typeof Tesseract !== 'undefined') return Promise.resolve();
-    if (_ocrLibPromise) return _ocrLibPromise;
-    _ocrLibPromise = new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = '/js/vendor/tesseract.min.js';
-        script.onload  = () => resolve();
-        script.onerror = () => { _ocrLibPromise = null; reject(new Error('tesseract.js nicht ladbar')); };
-        document.head.appendChild(script);
-    });
-    return _ocrLibPromise;
-}
-
-// tesseract.js waehlt den Kern sonst selbst — und wuerde bei einem Verzeichnis als
-// corePath zuerst die relaxedsimd-Variante anfragen, die wir bewusst nicht vendoriert
-// haben (das waeren 3,9 MB mehr fuer einen kaum messbaren Gewinn). Deshalb pruefen wir
-// SIMD selbst und uebergeben eine konkrete Datei.
-// WebAssembly.validate() kompiliert nicht und faellt daher nicht unter wasm-unsafe-eval;
-// schlaegt es fehl, ist der Nicht-SIMD-Kern die sichere Antwort.
-function _ocrHatSimd() {
-    try {
-        return WebAssembly.validate(new Uint8Array([
-            0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123,
-            3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11,
-        ]));
-    } catch (e) { return false; }
-}
-
+// Engine, Worker und PDF-Textschicht liegen seit dem 2026-09-21 in js/beleg-ocr-ui.js.
+// Sie hingen vorher nur hier, und das Anforderungsprofil verlangt die Erkennung auch bei
+// den Ausgaben (plan/pruefliste-buchhaltung-2026-09-21.md, Kriterium 2.1). Was hier
+// bleibt, ist die Zuordnung Treffer -> Feld: die kennt nur dieses Formular.
 function _ocrStatus(text, prozent) {
     const el = document.getElementById('ocrStatus');
     if (!el) return;
     if (!text) { el.style.display = 'none'; el.textContent = ''; return; }
     el.style.display = 'block';
-    const bar = prozent === null || prozent === undefined ? ''
-        : `<div style="height:4px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden">
-               <div style="height:100%;width:${Math.round(prozent * 100)}%;background:var(--accent);transition:width .2s"></div>
-           </div>`;
-    // text kommt aus unserem eigenen Code bzw. aus tesseract.js-Statusnamen,
-    // wird der Vollstaendigkeit halber trotzdem escaped.
-    el.innerHTML = `<span style="font-size:12px;color:var(--text-secondary)">${esc(text)}</span>${bar}`;
-}
-
-// Statusnamen von tesseract.js sind englisch und technisch — hier die drei, die der
-// Nutzer tatsaechlich zu sehen bekommt.
-const _OCR_STATUS_TEXT = {
-    'loading tesseract core':        'Texterkennung wird geladen…',
-    'initializing tesseract':        'Texterkennung wird gestartet…',
-    'loading language traineddata':  'Sprachmodell wird geladen…',
-    'initializing api':              'Texterkennung wird gestartet…',
-    'recognizing text':              'Beleg wird gelesen…',
-};
-
-async function _ocrEnsureWorker() {
-    if (_ocrWorker) return _ocrWorker;
-    await _ensureTesseract();
-    _ocrWorker = await Tesseract.createWorker('deu', 1, {
-        workerPath: '/js/vendor/tesseract-worker.min.js',
-        corePath:   _ocrHatSimd() ? '/js/vendor/tesseract-core-simd-lstm.wasm.js'
-                                  : '/js/vendor/tesseract-core-lstm.wasm.js',
-        langPath:   '/js/vendor/tessdata',
-        // NICHT AENDERN, ohne die CSP mitzuaendern. tesseract.js startet den Worker
-        // sonst aus einer blob:-URL — und ein blob:-Worker ERBT die CSP des Dokuments.
-        // Dann braeuchte script-src zusaetzlich 'wasm-unsafe-eval' (und worker-src
-        // blob:), weil der WASM-Kern im Worker kompiliert wird.
-        // So dagegen laeuft der Worker von einer gleichnamigen Datei auf 'self':
-        // erlaubt durch default-src, und seine eigene Antwort traegt keine CSP, also
-        // kompiliert das WASM ohne jede Aufweichung. Am Build geprueft, s.
-        // js/vendor/VERSIONS.md.
-        workerBlobURL: false,
-        // Das Sprachmodell kommt von unserem eigenen Origin und haengt im HTTP-Cache
-        // (Cache-Control 7 Tage, s. vercel.json). Ein zweiter Zwischenspeicher in
-        // IndexedDB brauchte eine eigene Erklaerung im Datenschutztext und spart nichts.
-        cacheMethod: 'none',
-        logger: m => {
-            const txt = _OCR_STATUS_TEXT[m.status];
-            if (txt) _ocrStatus(txt, m.progress);
-        },
-    });
-    return _ocrWorker;
+    el.innerHTML = BelegOcrUi.statusHtml(text, prozent);
 }
 
 function ocrDateiGewaehlt(input) {
@@ -528,11 +458,14 @@ function ocrDateiGewaehlt(input) {
     const btn = document.getElementById('ocrStart');
     if (btn) btn.disabled = !_ocrBild || _ocrLaeuft;
     _ocrStatus(_ocrBild ? 'Bereit — auf „Beleg auslesen“ klicken.' : '', null);
-    // Vorschau, damit sichtbar ist, welches Bild gleich gelesen wird.
+    // Vorschau, damit sichtbar ist, welches Bild gleich gelesen wird. Ein PDF gehoert
+    // NICHT in ein <img> — der Browser setzt die src, laedt nichts und zeigt ein kaputtes
+    // Bildsymbol. Das saehe aus wie ein Fehler, ist aber nur das falsche Element.
     const vor = document.getElementById('ocrPreview');
     if (vor) {
         if (vor.src && vor.src.startsWith('blob:')) URL.revokeObjectURL(vor.src);
-        if (_ocrBild) { vor.src = URL.createObjectURL(_ocrBild); vor.style.display = 'block'; }
+        const istBild = _ocrBild && /^image\//.test(_ocrBild.type || '');
+        if (istBild) { vor.src = URL.createObjectURL(_ocrBild); vor.style.display = 'block'; }
         else { vor.removeAttribute('src'); vor.style.display = 'none'; }
     }
 }
@@ -549,14 +482,16 @@ async function ocrStarten() {
     if (btn) btn.disabled = true;
     _ocrStatus('Texterkennung wird geladen…', 0);
     try {
-        const worker = await _ocrEnsureWorker();
-        const { data } = await worker.recognize(bild);
+        const treffer = await BelegOcrUi.lese(bild, _ocrStatus);
         if (_ocrBild !== bild) {
-            _ocrStatus('Es wurde ein anderes Bild gewaehlt — bitte erneut auslesen.', null);
+            _ocrStatus('Es wurde ein anderer Beleg gewaehlt — bitte erneut auslesen.', null);
             return;
         }
-        const treffer = BelegOCR.extract(data && data.text ? data.text : '');
         _ocrChipsSetzen(treffer);
+        // Der Eigenbeleg kennt drei Felder. USt-Satz und USt-Betrag liefert die Heuristik
+        // zwar mit, sie gehoeren hier aber nicht hin: ein Eigenbeleg begruendet
+        // grundsaetzlich keinen Vorsteuerabzug (s. js/datev.js), und ein Formular ohne
+        // passendes Feld haette fuer den Vorschlag kein Ziel.
         const anzahl = ['datum', 'betrag', 'haendler'].filter(k => treffer[k]).length;
         if (anzahl) {
             _ocrStatus(`${anzahl} von 3 Feldern erkannt — Vorschlag anklicken, um ihn zu uebernehmen.`, null);
@@ -568,30 +503,27 @@ async function ocrStarten() {
         // Auch hier die Chips raeumen: bleiben die eines frueheren Laufs stehen, waehrend
         // daneben "nicht moeglich" steht, sehen sie aus wie das Ergebnis dieses Laufs.
         _ocrChipsLeeren();
-        _ocrStatus('Belegerkennung nicht moeglich. Die Felder lassen sich wie gewohnt von Hand ausfuellen.', null);
+        // Ein PDF ohne Textschicht ist kein Ausfall, sondern eine Eigenschaft der Datei —
+        // und der Nutzer kann etwas dagegen tun. Deshalb steht die Meldung aus lese()
+        // hier woertlich statt der allgemeinen.
+        const istPdfHinweis = err && /Scan|Textschicht|auslesbaren Text/i.test(err.message || '');
+        _ocrStatus(istPdfHinweis
+            ? err.message
+            : 'Belegerkennung nicht moeglich. Die Felder lassen sich wie gewohnt von Hand ausfuellen.', null);
     } finally {
         _ocrLaeuft = false;
         if (btn) btn.disabled = !_ocrBild;
     }
 }
 
-function _ocrChipHtml(zielId, anzeige, wert, roh, hinweis) {
-    // hinweis steht nur da, wenn die Konsens-Gegenprobe zugeschlagen hat. Eine stille
-    // Korrektur waere wieder ein Raten — wer den Chip anklickt, soll sehen, dass der
-    // Rohtext etwas anderes hergab (Spezifikation Abschnitt 5a).
-    const hinweisHtml = hinweis
-        ? `<span style="font-size:11px;color:var(--warning,#f59e0b)">${esc(hinweis)}</span>`
-        : '';
-    return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-        <button type="button" class="btn btn-secondary btn-sm" data-action="eb-ocr-uebernehmen"
-                data-ziel="${esc(zielId)}" data-wert="${esc(String(wert))}"
-                style="padding:3px 10px;font-size:12px">
-            <i class="ti ti-wand"></i> ${esc(anzeige)} übernehmen
-        </button>
-        <span style="font-size:11px;color:var(--text-muted)">erkannt: „${esc(roh)}“</span>
-        ${hinweisHtml}
-    </div>`;
-}
+// Der Chip selbst ist feldunabhaengig und liegt deshalb in js/beleg-ocr-ui.js. Der
+// `hinweis` steht nur da, wenn die Konsens-Gegenprobe zugeschlagen hat: eine stille
+// Korrektur waere wieder ein Raten — wer den Chip anklickt, soll sehen, dass der Rohtext
+// etwas anderes hergab (Spezifikation Abschnitt 5a).
+// Eigener Aktionsname: in app.html laufen der eb-*-Router und die zentrale Registry aus
+// js/actions.js nebeneinander, und beide wuerden auf einen gemeinsamen Namen anspringen.
+const _ocrChipHtml = (zielId, anzeige, wert, roh, hinweis) =>
+    BelegOcrUi.chipHtml(zielId, anzeige, wert, roh, hinweis, 'eb-ocr-uebernehmen');
 
 // Alle Chips wegnehmen. Kein eigener Code: ein leeres Trefferobjekt laesst
 // _ocrChipsSetzen jeden der drei Container auf '' setzen.
@@ -615,20 +547,15 @@ function _ocrChipsSetzen(treffer) {
 }
 
 function ocrUebernehmen(zielId, wert) {
-    const el = document.getElementById(zielId);
+    // Das Nachreichen des input-Ereignisses steckt in BelegOcrUi.uebernehmen und ist dort
+    // begruendet: ohne es bliebe _ebFormDirty false, und wer sein Formular ausschliesslich
+    // ueber die Chips fuellt, bekaeme beim Wegklicken KEINE Warnung "Du hast ungespeicherte
+    // Eingaben" — der Beleg waere weg. Genau dagegen wurde die Warnung am 2026-08-11 gebaut.
+    const el = BelegOcrUi.uebernehmen(zielId, wert);
     if (!el) return;
-    el.value = wert;
-    // Ein per Code gesetzter Wert loest KEIN input-Ereignis aus — der Browser feuert das nur
-    // bei Eingaben von Hand. Ohne dieses Ereignis bleibt _ebFormDirty false, und wer sein
-    // Formular ausschliesslich ueber die drei Chips fuellt, bekommt beim Wegklicken KEINE
-    // Warnung "Du hast ungespeicherte Eingaben" — der Beleg ist weg. Genau dagegen wurde
-    // die Warnung am 2026-08-11 gebaut; ohne diese Zeile haetten die Chips sie wieder
-    // ausgehebelt. Nebenbei erreicht das Ereignis auch den delegierten eb-recalc-Handler.
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    // Trotzdem noch einmal ausdruecklich: die Neuberechnung ist ein reines Nachrechnen und
-    // soll nicht davon abhaengen, dass am Feld ein data-action haengen bleibt.
+    // Noch einmal ausdruecklich: die Neuberechnung ist ein reines Nachrechnen und soll nicht
+    // davon abhaengen, dass am Feld ein data-action haengen bleibt.
     if (zielId === 'eb-brutto') recalcBetrag();
-    el.focus();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -842,12 +769,12 @@ function renderNeu(editId=null) {
                 <span style="font-weight:400;color:var(--text-muted);font-size:12px">– optional</span>
             </div>
             <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">
-                Foto oder Scan des Belegs auswählen. Die Texterkennung läuft vollständig auf diesem Gerät —
-                <strong>das Bild wird nicht hochgeladen</strong>. Der erste Lauf lädt einmalig die
-                Erkennungsdateien und dauert deshalb länger.
+                Foto, Scan oder PDF des Belegs auswählen. Die Erkennung läuft vollständig auf diesem Gerät —
+                <strong>die Datei wird nicht hochgeladen</strong>. Bei einem PDF mit Textschicht geht es sofort;
+                bei Bildern lädt der erste Lauf einmalig die Erkennungsdateien und dauert deshalb länger.
             </div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-                <input type="file" accept="image/*" id="ocrFile" data-action="eb-ocr-file"
+                <input type="file" accept="image/*,application/pdf,.pdf" id="ocrFile" data-action="eb-ocr-file"
                        style="font-size:12px;max-width:100%">
                 <button type="button" class="btn btn-secondary btn-sm" id="ocrStart" data-action="eb-ocr-start" disabled>
                     <i class="ti ti-scan"></i> Beleg auslesen

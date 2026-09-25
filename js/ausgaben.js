@@ -71,6 +71,140 @@ const Ausgaben = {
         ).join('');
     },
 
+    // ── Belegerkennung im Ausgaben-Formular ─────────────────────────────────────────
+    // Motor: js/beleg-ocr-ui.js (Engine, Worker, PDF-Textschicht). Heuristik:
+    // js/beleg-ocr.js. Hier steht nur, welcher Treffer in welches Feld darf.
+    //
+    // Nichts wird automatisch eingetragen. Das ist keine Vorsicht um ihrer selbst willen:
+    // ein falsch vorbefuellter USt-Satz landet ueber js/vorsteuer.js direkt im
+    // Vorsteuerabzug, und ein zu hoch gelesener Betrag zieht ihn mit nach oben. Beide
+    // Fehler gehen in dieselbe Richtung — zu hohe Erstattung — und fallen beim
+    // Gegenlesen des Formulars nicht auf.
+    _ocrDatei: null,
+    _ocrLaeuft: false,
+
+    _ocrStatus(text, prozent) {
+        const el = document.getElementById('expOcrStatus');
+        if (!el) return;
+        if (!text) { el.style.display = 'none'; el.innerHTML = ''; return; }
+        el.style.display = 'block';
+        el.innerHTML = BelegOcrUi.statusHtml(text, prozent);
+    },
+
+    _ocrChipsSetzen(treffer) {
+        const setze = (id, html) => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = html;
+        };
+        const t = treffer || {};
+        const AKTION = 'exp-ocr-uebernehmen';
+
+        setze('expOcrChipDatum', t.datum
+            ? BelegOcrUi.chipHtml('exp_datum', Utils.formatDate(t.datum.wert), t.datum.wert, t.datum.roh, null, AKTION) : '');
+
+        setze('expOcrChipBetrag', t.betrag
+            ? BelegOcrUi.chipHtml('exp_betrag', Utils.formatCurrency(t.betrag.wert), t.betrag.wert.toFixed(2),
+                t.betrag.korrigiertVon || t.betrag.roh,
+                t.betrag.korrigiertVon
+                    ? `korrigiert auf ${t.betrag.roh} — dieser Betrag steht mehrfach auf dem Beleg`
+                    : null, AKTION) : '');
+
+        setze('expOcrChipLieferant', t.haendler
+            ? BelegOcrUi.chipHtml('exp_lieferant', t.haendler.wert, t.haendler.wert, t.haendler.roh, null, AKTION) : '');
+
+        // USt-Satz: nur anbieten, wenn das Auswahlfeld diesen Satz ueberhaupt kennt. Ein
+        // Beleg aus einem frueheren Jahr kann 16 % tragen — ein select.value, fuer den es
+        // keine Option gibt, faellt stillschweigend auf leer zurueck, und der Chip taete
+        // scheinbar nichts. Bewusst gegen die Optionen geprueft und nicht gegen eine Liste
+        // gueltiger Saetze im Code (Regel 7: Gesetzeswerte gehoeren nicht als Konstante her).
+        let ustHtml = '';
+        if (t.ustSatz) {
+            const sel = document.getElementById('exp_ustSatz');
+            const kennt = sel && Array.prototype.some.call(sel.options,
+                o => parseFloat(o.value) === t.ustSatz.wert);
+            if (kennt) {
+                // Der Steuerbetrag bekommt keinen eigenen Chip — das Formular speichert ihn
+                // nicht, es speichert den Satz. Er steht als Hinweis daneben, damit der
+                // Nutzer den Satz gegen die Zahl auf dem Beleg pruefen kann.
+                const hinweis = t.ustBetrag
+                    ? (t.ustBetrag.berechnet
+                        ? `Steueranteil ${Utils.formatCurrency(t.ustBetrag.wert)} — aus Betrag und Satz gerechnet`
+                        : `Steueranteil ${Utils.formatCurrency(t.ustBetrag.wert)} — so auf dem Beleg`)
+                    : null;
+                ustHtml = BelegOcrUi.chipHtml('exp_ustSatz', t.ustSatz.wert + ' %', String(t.ustSatz.wert),
+                    t.ustSatz.roh, hinweis, AKTION);
+            }
+        }
+        setze('expOcrChipUst', ustHtml);
+    },
+
+    _ocrChipsLeeren() { this._ocrChipsSetzen({}); },
+
+    async _ocrStarten() {
+        if (!this._ocrDatei || this._ocrLaeuft) return;
+        this._ocrLaeuft = true;
+        // Die Datei wird festgehalten: ein Lauf dauert Sekunden, und das Dateifeld bleibt
+        // bedienbar. Wer mittendrin eine andere waehlt, bekaeme sonst die Vorschlaege der
+        // alten ueber den Feldern.
+        const datei = this._ocrDatei;
+        const btn = document.getElementById('expOcrStart');
+        if (btn) btn.disabled = true;
+        try {
+            const treffer = await BelegOcrUi.lese(datei, (txt, p) => this._ocrStatus(txt, p));
+            if (this._ocrDatei !== datei) {
+                this._ocrStatus('Es wurde ein anderer Beleg gewaehlt — bitte erneut auslesen.', null);
+                return;
+            }
+            this._ocrChipsSetzen(treffer);
+            const felder = ['datum', 'betrag', 'haendler', 'ustSatz'];
+            const anzahl = felder.filter(k => treffer[k]).length;
+            this._ocrStatus(anzahl
+                ? `${anzahl} von ${felder.length} Feldern erkannt — Vorschlag anklicken, um ihn zu übernehmen.`
+                : 'Nichts Verwertbares erkannt. Bitte von Hand eintragen.', null);
+        } catch (err) {
+            console.warn('[Ausgaben] Belegerkennung fehlgeschlagen:', err);
+            this._ocrChipsLeeren();
+            // Ein PDF ohne Textschicht ist kein Ausfall, sondern eine Eigenschaft der Datei —
+            // und der Nutzer kann etwas dagegen tun. Deshalb die Meldung aus lese() woertlich.
+            const istPdfHinweis = err && /Scan|Textschicht|auslesbaren Text/i.test(err.message || '');
+            this._ocrStatus(istPdfHinweis
+                ? err.message
+                : 'Belegerkennung nicht möglich. Die Felder lassen sich wie gewohnt von Hand ausfüllen.', null);
+        } finally {
+            this._ocrLaeuft = false;
+            if (btn) btn.disabled = !this._ocrDatei;
+        }
+    },
+
+    _bindOcr() {
+        const file = document.getElementById('expOcrFile');
+        const start = document.getElementById('expOcrStart');
+        if (!file || !start) return;
+        this._ocrDatei = null;
+        this._ocrChipsLeeren();
+        this._ocrStatus('', null);
+
+        file.addEventListener('change', () => {
+            this._ocrDatei = (file.files && file.files[0]) || null;
+            // Vorschlaege gehoeren zu genau der Datei, aus der sie stammen. Wer eine zweite
+            // waehlt, saehe sonst weiter die Chips der ersten — und ein Klick darauf traegt
+            // Datum und Betrag des falschen Belegs ein.
+            this._ocrChipsLeeren();
+            start.disabled = !this._ocrDatei || this._ocrLaeuft;
+            this._ocrStatus(this._ocrDatei ? 'Bereit — auf „Beleg auslesen“ klicken.' : '', null);
+        });
+        start.addEventListener('click', () => this._ocrStarten());
+
+        if (typeof Actions !== 'undefined' && Actions.register) {
+            Actions.register({
+                'exp-ocr-uebernehmen': function () {
+                    // `this` ist der Chip-Button; Ziel und Wert haengen als data-Attribute dran.
+                    BelegOcrUi.uebernehmen(this.getAttribute('data-ziel'), this.getAttribute('data-wert'));
+                }
+            });
+        }
+    },
+
     _ustSatzBadge(v) {
         const norm = this._normUstSatz(v);
         if (norm === 'unklar') return `<span class="badge badge-warning" title="USt-Satz nicht klassifiziert — kein automatischer Vorsteuerabzug, bitte nachpflegen">USt: unklar</span>`;
@@ -197,9 +331,34 @@ const Ausgaben = {
                     <div class="card-title">Neue Ausgabe</div>
                 </div>
                 <form id="expenseForm">
+                    <!-- Belegerkennung. Motor in js/beleg-ocr-ui.js, Heuristik in js/beleg-ocr.js.
+                         Steht hier seit dem 2026-09-21: der Vorsteuerabzug haengt an den Ausgaben,
+                         nicht an den Eigenbelegen — und genau dorthin gehoeren USt-Satz und
+                         USt-Betrag aus dem Beleg (Kriterium 2.1 des Anforderungsprofils,
+                         plan/pruefliste-buchhaltung-2026-09-21.md). -->
+                    <div class="card" style="padding:14px 16px;margin-bottom:14px;background:var(--bg-secondary);border:1px dashed var(--border);border-radius:var(--radius);">
+                        <div style="font-weight:600;font-size:13px;margin-bottom:4px;">
+                            <i class="ti ti-scan"></i> Beleg auslesen
+                            <span style="font-weight:400;color:var(--text-muted);font-size:12px;">– optional</span>
+                        </div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">
+                            Foto, Scan oder PDF des Belegs auswählen. Die Erkennung läuft vollständig auf diesem Gerät —
+                            <strong>die Datei wird nicht hochgeladen</strong>. Bei einem PDF mit Textschicht geht es sofort;
+                            bei Bildern lädt der erste Lauf einmalig die Erkennungsdateien und dauert deshalb länger.
+                            Erkannte Werte werden <em>nie</em> automatisch eingetragen — sie stehen als Vorschlag über dem Feld.
+                        </div>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                            <input type="file" accept="image/*,application/pdf,.pdf" id="expOcrFile" style="font-size:12px;max-width:100%;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="expOcrStart" disabled>
+                                <i class="ti ti-scan"></i> Beleg auslesen
+                            </button>
+                        </div>
+                        <div id="expOcrStatus" style="display:none;margin-top:10px;"></div>
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Datum</label>
+                            <div id="expOcrChipDatum"></div>
                             <input type="date" class="form-input" id="exp_datum" value="${Utils.todayISO()}">
                         </div>
                         <div class="form-group">
@@ -211,12 +370,14 @@ const Ausgaben = {
                         </div>
                         <div class="form-group">
                             <label class="form-label">Betrag</label>
+                            <div id="expOcrChipBetrag"></div>
                             <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="exp_betrag" placeholder="0,00">
                         </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">USt-Satz *</label>
+                            <div id="expOcrChipUst"></div>
                             <select class="form-select" id="exp_ustSatz">${this._ustSatzOptions('unklar')}</select>
                             <div class="form-hint" style="font-size:12px;color:var(--text-muted);">
                                 Bestimmt den Vorsteuerabzug (Vorsteuer-Übersicht). „Unklar" = kein automatischer Abzug, bis nachgepflegt — wird NIE automatisch als 19% behandelt.
@@ -237,6 +398,7 @@ const Ausgaben = {
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Lieferant / Aussteller</label>
+                            <div id="expOcrChipLieferant"></div>
                             <input type="text" class="form-input" id="exp_lieferant" maxlength="200" placeholder="Name des Rechnungsausstellers">
                         </div>
                         <div class="form-group">
@@ -367,6 +529,8 @@ const Ausgaben = {
         const datumInput = document.getElementById('exp_datum');
         if (datumInput) datumInput.addEventListener('change', updateKsaHint);
         updateKsaHint();
+
+        this._bindOcr();
 
         // Form submit
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {

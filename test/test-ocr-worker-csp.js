@@ -41,10 +41,19 @@ function check(name, cond, detail) {
 // ── 1. Die Option ist überhaupt gesetzt ────────────────────────────────────────────────
 // Fehlt sie, gilt der tesseract.js-Standard — und der ist `true`, also der blob:-Weg.
 // Ein stillschweigendes Verlassen auf den Default wäre schon der Fehler.
-const appSrc = lies('eigenbelege', 'js', 'app.js');
-const treffer = appSrc.match(/workerBlobURL\s*:\s*(true|false)/);
-check('workerBlobURL ist in eigenbelege/js/app.js ausdrücklich gesetzt', !!treffer,
+// Seit dem 2026-09-21 steht der Worker nicht mehr in eigenbelege/js/app.js, sondern im
+// gemeinsamen Unterbau js/beleg-ocr-ui.js — die Belegerkennung haengt jetzt auch im
+// Ausgaben-Formular (Kriterium 2.1, plan/pruefliste-buchhaltung-2026-09-21.md). Damit
+// gilt dieselbe Kopplung fuer ZWEI Routen: /eigenbelege und /app.html.
+const uiSrc = lies('js', 'beleg-ocr-ui.js');
+const treffer = uiSrc.match(/workerBlobURL\s*:\s*(true|false)/);
+check('workerBlobURL ist in js/beleg-ocr-ui.js ausdrücklich gesetzt', !!treffer,
       'nicht gefunden — tesseract.js faellt sonst auf den blob:-Weg zurueck');
+
+// Gegenprobe, dass der Umzug vollstaendig war: eine zweite Kopie der Option waere eine
+// zweite Stelle, die dieser Test nicht mitliest.
+check('keine zweite Worker-Konfiguration in eigenbelege/js/app.js',
+      !/workerBlobURL/.test(lies('eigenbelege', 'js', 'app.js')));
 
 const blobWorker = treffer ? treffer[1] === 'true' : true;
 
@@ -54,19 +63,32 @@ const blobWorker = treffer ? treffer[1] === 'true' : true;
 // also nicht, die Direktive an einer Stelle zu setzen. Genau deshalb werden hier beide
 // geprueft und nicht nur eine.
 const vercel = JSON.parse(lies('vercel.json'));
-const route  = (vercel.headers || []).find(h => /eigenbeleg/.test(h.source || ''));
-check('vercel.json hat eine CSP-Route fuer /eigenbelege', !!route);
+const cspVonRoute = muster => {
+    const r = (vercel.headers || []).find(h => muster.test(h.source || ''));
+    return r
+        ? ((r.headers || []).find(k => /Content-Security-Policy/i.test(k.key || '')) || {}).value || ''
+        : null;
+};
+const cspEigenbelege = cspVonRoute(/eigenbeleg/);
+const cspApp         = cspVonRoute(/^\/app\.html$/);
+check('vercel.json hat eine CSP-Route fuer /eigenbelege', cspEigenbelege !== null);
+check('vercel.json hat eine CSP-Route fuer /app.html',     cspApp !== null);
 
-const headerCsp = route
-    ? ((route.headers || []).find(k => /Content-Security-Policy/i.test(k.key || '')) || {}).value || ''
-    : '';
-const metaSrc   = lies('eigenbelege', 'index.html');
-const metaCsp   = (metaSrc.match(/http-equiv="Content-Security-Policy"[^>]*content="([^"]*)"/i) || [])[1] || '';
+const metaCspVon = (...p) =>
+    (lies(...p).match(/http-equiv="Content-Security-Policy"[^>]*content="([^"]*)"/i) || [])[1] || '';
+
+// Beide Seiten laden die Belegerkennung. Geprueft wird die strengste Kombination: was an
+// EINER der vier Stellen fehlt, fehlt effektiv ueberall — Browser schneiden mehrere CSPs.
+const headerCsp = [cspEigenbelege, cspApp].filter(c => c !== null).join(' ;; ');
+const metaCsp   = [metaCspVon('eigenbelege', 'index.html'), metaCspVon('app.html')].join(' ;; ');
 
 // Nur die echten Direktiven zaehlen, nicht die Erwaehnung in einem Kommentar daneben —
 // im Kopf von eigenbelege/index.html steht ausdruecklich, warum die Direktive FEHLT.
-const hatWasm   = c => /script-src[^;]*'wasm-unsafe-eval'/.test(c);
-const hatBlobWk = c => /worker-src[^;]*blob:/.test(c);
+// Die zusammengesetzte Zeichenkette enthaelt zwei CSPs. `jede` verlangt die Direktive in
+// BEIDEN — eine davon genuegt nicht, sonst waere die haertere Route nicht abgedeckt.
+const jede      = (c, re) => c.split(' ;; ').every(teil => re.test(teil));
+const hatWasm   = c => jede(c, /script-src[^;]*'wasm-unsafe-eval'/);
+const hatBlobWk = c => jede(c, /worker-src[^;]*blob:/);
 
 const wasmErlaubt   = hatWasm(headerCsp) && hatWasm(metaCsp);
 const blobWkErlaubt = hatBlobWk(headerCsp) && hatBlobWk(metaCsp);

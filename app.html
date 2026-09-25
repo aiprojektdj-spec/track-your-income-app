@@ -320,6 +320,17 @@
     <script defer src="rechnungen/js/wiederkehrend.js"></script>
     <script defer src="rechnungen/js/app.js"></script>
 
+    <!-- ── Belegerkennung: Heuristik (~5 KB) und gemeinsamer Unterbau (Engine-Nachladen,
+         Worker, PDF-Textschicht, Chips). tesseract.js und der WASM-Kern stehen NICHT hier,
+         die holt js/beleg-ocr-ui.js erst beim Klick auf "Beleg auslesen" nach.
+         Beide fehlten hier bis zum 2026-09-21, obwohl app.html die Eigenbelege-Sub-App
+         mitlaedt: im eingebetteten Tab lief die Erkennung deshalb in einen
+         ReferenceError und meldete nur "Belegerkennung nicht moeglich". ── -->
+    <script defer src="js/beleg-ocr.js"></script>
+    <script defer src="js/beleg-ocr-ui.js"></script>
+    <!-- ZIP-Schreiber (Store-Modus, ohne Bibliothek) fuer DATEV-Belegexport und Z3 -->
+    <script defer src="js/zip.js"></script>
+
     <!-- ── Eigenbelege-Sub-App (eingebettet als Finanzen-Sub-Tab); ApexCharts wird on-demand via _ensureApexCharts() geladen ── -->
     <script defer src="eigenbelege/js/app.js"></script>
 

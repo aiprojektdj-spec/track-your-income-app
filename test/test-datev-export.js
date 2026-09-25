@@ -109,7 +109,7 @@ function buchungen(o, jahr, skr) {
 
 const EINKAUF   = { id: 'p1', datum: '2026-02-01', einkaufspreis: 20, ustSatz: 19, marke: 'Acme', artikeltyp: 'Regal' };
 const VERKAUF   = { id: 's1', datum: '2026-03-01', verkaufspreis: 100, versandkostenKaeufer: 5, plattform: 'Vinted' };
-const AUSGABE   = { id: 'e1', datum: '2026-04-01', betrag: 50, kategorie: 'Porto', bezeichnung: 'Briefmarken' };
+const AUSGABE   = { id: 'e1', datum: '2026-04-01', betrag: 50, kategorie: 'Porto', beschreibung: 'Briefmarken' };
 const RECHNUNG  = { id: 'i1', typ: 'rechnung', status: 'versendet', datum: '2026-05-01', nummer: 'RE-1',
                     positionen: [{ menge: 2, einzelpreis: 100, mwstSatz: 19 }] };
 
@@ -278,15 +278,15 @@ block(() => {
     const apo = buchungen({ sales: [Object.assign({}, VERKAUF, { plattform: "L'Atelier" })] })[0];
     check('F2 Apostroph bleibt ein Apostroph', apo[13].includes("L'Atelier") && !apo[13].includes('&#39;'));
 
-    const semi = baue({ expenses: [Object.assign({}, AUSGABE, { bezeichnung: 'Porto; Nachnahme' })] });
+    const semi = baue({ expenses: [Object.assign({}, AUSGABE, { beschreibung: 'Porto; Nachnahme' })] });
     check('F3 Semikolon im Text sprengt die Spaltenzahl nicht',
         felder(semi[2]) === felder(semi[1]) && spalten(semi[2])[13] === 'Porto; Nachnahme');
 
-    const quot = baue({ expenses: [Object.assign({}, AUSGABE, { bezeichnung: 'Ware "B" geliefert' })] });
+    const quot = baue({ expenses: [Object.assign({}, AUSGABE, { beschreibung: 'Ware "B" geliefert' })] });
     check('F4 Anfuehrungszeichen werden verdoppelt statt escaped',
         felder(quot[2]) === felder(quot[1]) && spalten(quot[2])[13] === 'Ware "B" geliefert');
 
-    const lang = buchungen({ expenses: [Object.assign({}, AUSGABE, { bezeichnung: 'x'.repeat(200) })] })[0];
+    const lang = buchungen({ expenses: [Object.assign({}, AUSGABE, { beschreibung: 'x'.repeat(200) })] })[0];
     check('F5 Buchungstext ist auf 60 Zeichen gedeckelt', lang[13].length === 60);
 
     const kunde = buchungen({ invoices: [Object.assign({}, RECHNUNG, { kundeId: 'k1' })],
@@ -348,7 +348,7 @@ block(() => {
     const FAHRT    = { id: 'f1', nummer: 'FB-1', datum: '2026-06-01', kosten: 30, von: 'Buero', nach: 'Kunde' };
     const MATERIAL = { id: 'm1', datum: '2026-06-02', gesamtkosten: 45, materialName: 'Kartons', lieferant: 'Grosshandel' };
     const EIGENBEL = { id: 'b1', belegNr: 'EB-1', belegDatum: '2026-06-03', betragNetto: 12.5,
-                       kategorie: 'Porto', bezeichnung: 'Parkschein' };
+                       kategorie: 'Porto', beschreibung: 'Parkschein' };
 
     let z = buchungen({ fahrten: [FAHRT] });
     check('H1 Fahrtkosten erzeugen eine Buchung', z.length === 1);
@@ -462,13 +462,13 @@ block(() => {
         dz.every(r => r[15] === '""' && r[14] === ''));
 
     // Belegfeld 1: nur A-Z a-z 0-9 _ $ & % * + - / — Leerzeichen, Punkt, Umlaut sind unzulaessig.
-    const bf = roh(baue({ expenses: [Object.assign({}, AUSGABE, { belegnummer: 'RE 12.3/Ä-x' })] })[2]);
+    const bf = roh(baue({ expenses: [Object.assign({}, AUSGABE, { belegNr: 'RE 12.3/Ä-x' })] })[2]);
     check('I16 Belegfeld 1 wird auf den erlaubten Zeichensatz gekuerzt', bf[10] === '"RE123/-x"');
-    const lang = roh(baue({ expenses: [Object.assign({}, AUSGABE, { belegnummer: 'A'.repeat(50) })] })[2]);
+    const lang = roh(baue({ expenses: [Object.assign({}, AUSGABE, { belegNr: 'A'.repeat(50) })] })[2]);
     check('I17 Belegfeld 1 hoechstens 36 Zeichen', lang[10] === '"' + 'A'.repeat(36) + '"');
 
     // Steuerzeichen sind in Textfeldern unzulaessig — ein Zeilenumbruch zerreisst sonst die CSV.
-    const nl = baue({ expenses: [Object.assign({}, AUSGABE, { bezeichnung: 'Zeile1\nZeile2' })] });
+    const nl = baue({ expenses: [Object.assign({}, AUSGABE, { beschreibung: 'Zeile1\nZeile2' })] });
     check('I18 Zeilenumbruch im Buchungstext wird entschaerft', nl.length === 3 && nl[2].includes('"Zeile1 Zeile2"'));
 
     // Feld 1 darf nicht 0,00 sein — eine Nullbuchung blockiert sonst den Import.
@@ -477,6 +477,37 @@ block(() => {
 
     check('I20 Dateiname beginnt mit dem Pflicht-Praefix EXTF_',
         /'EXTF_Buchungsstapel_'/.test(datevSrc) && !/'DATEV_Buchungsstapel_'/.test(datevSrc));
+});
+
+// ── J. Die Feldnamen muessen die sein, die die App wirklich speichert ──────────────────
+// Am 2026-09-21 gefunden: js/datev.js las bei Betriebsausgaben `belegnummer` und
+// `bezeichnung`. Die Ausgabe speichert aber `belegNr` und `beschreibung` (js/ausgaben.js).
+// In Belegfeld 1 stand deshalb bei JEDER Betriebsausgabe eine abgeschnittene interne ID
+// statt der eingetippten Belegnummer, und als Buchungstext die Kategorie statt der
+// Beschreibung.
+//
+// Warum es so lange durchkam: DIESER Harness benutzte dieselben falschen Namen. Er war
+// gegen den Quelltext geschrieben, nicht gegen das Datenmodell — und bestaetigte damit den
+// Fehler, statt ihn zu finden. Der Block hier schliesst genau diese Luecke: er liest die
+// Feldnamen aus js/ausgaben.js und haelt sie gegen js/datev.js.
+block(() => {
+    const ausgabenSrc = fs.readFileSync(__dirname + '/../js/ausgaben.js', 'utf8');
+
+    check('J1 js/ausgaben.js speichert das Feld belegNr',
+        /belegNr:\s*document\.getElementById/.test(ausgabenSrc));
+    check('J2 js/ausgaben.js speichert das Feld beschreibung',
+        /beschreibung:\s*document\.getElementById/.test(ausgabenSrc));
+    check('J3 js/datev.js liest genau diese Felder und nicht ihre Phantomnamen',
+        /e\.belegNr/.test(datevSrc) && /e\.beschreibung/.test(datevSrc) &&
+        !/e\.belegnummer/.test(datevSrc) && !/e\.bezeichnung/.test(datevSrc));
+
+    // Und die Gegenprobe am gebauten Stapel: was eingetippt wurde, muss ankommen.
+    const zJ = buchungen({ expenses: [Object.assign({}, AUSGABE, {
+        belegNr: 'RE-2026-777', beschreibung: 'Tonerkartusche schwarz' })] })[0];
+    check('J4 Die eingetippte Belegnummer steht in Belegfeld 1',
+        zJ.indexOf('RE-2026-777') !== -1);
+    check('J5 Die eingetippte Beschreibung steht im Buchungstext',
+        zJ.indexOf('Tonerkartusche schwarz') !== -1);
 });
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');

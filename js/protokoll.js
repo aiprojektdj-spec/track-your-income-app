@@ -16,9 +16,11 @@ const Protokoll = {
     // Suche nach gdpdu/index.xml/Z1/Z2/Z3 im Projekt ergab vorher null Treffer; der Prüfer
     // hätte mit den vorhandenen Exporten (PDF, Excel, JSON) nicht arbeiten können.
     //
-    // Ohne ZIP-Bibliothek im Projekt werden die Dateien EINZELN ausgeliefert, mit der
-    // Anweisung, sie in einen Ordner zu legen. Das ist genau die Struktur, die die
-    // Prüfsoftware erwartet (index.xml neben den Datendateien) — nur eben ohne Archiv.
+    // Ausgeliefert wird seit dem 2026-09-21 EIN ZIP-Archiv (js/zip.js, Store-Modus, ohne
+    // Bibliothek). Bis dahin gingen die Dateien einzeln in den Download-Ordner, weil es im
+    // Projekt keinen ZIP-Schreiber gab — mit der Anweisung an den Nutzer, sie anschließend
+    // selbst in einen Ordner zu legen. Die Struktur war schon damals die richtige
+    // (index.xml neben den Datendateien), nur eben ohne Datenträger drumherum.
     //
     // Bewusst enthalten: die Grundaufzeichnungen (Einkäufe, Verkäufe, Ausgaben,
     // Kassenbuch, Rechnungen) und das Änderungsprotokoll mit der Hash-Kette. Letzteres
@@ -200,7 +202,7 @@ const Protokoll = {
             var j = String((rec && (rec.datum || rec.timestamp)) || '').slice(0, 4);
             return !j || (j >= von && j <= bis);   // Datensätze ohne Datum bleiben drin
         };
-        var geliefert = [], leer = [];
+        var geliefert = [], leer = [], dateien = [];
         this._Z3_TABLES.forEach(function (t) {
             var recs;
             try { recs = t.get() || []; } catch (e) { recs = []; }
@@ -211,7 +213,7 @@ const Protokoll = {
             recs.forEach(function (r) {
                 rows.push(t.cols.map(function (c) { return self._z3Cell(r, c[0], c[2]); }));
             });
-            Utils.downloadCSV(rows, t.file);
+            dateien.push({ name: t.file, data: Utils.buildCSV(rows) });
             geliefert.push(t);
         });
 
@@ -219,9 +221,36 @@ const Protokoll = {
             Utils.showToast('Für ' + (von === bis ? von : von + '–' + bis) + ' liegen keine Daten vor.', 'warning', 6000);
             return;
         }
-        Utils.downloadFile(this._z3IndexXml(von, bis, geliefert), 'index.xml', 'application/xml;charset=utf-8');
-        Utils.showToast('✓ Z3-Export: ' + (geliefert.length + 1) + ' Dateien heruntergeladen (index.xml + ' +
-                        geliefert.length + ' Tabellen). Alle in EINEN Ordner legen und diesen dem Prüfer übergeben.' +
+        dateien.push({ name: 'index.xml', data: this._z3IndexXml(von, bis, geliefert) });
+
+        // Seit dem 2026-09-21 als EIN Archiv. Vorher gingen die Dateien einzeln in den
+        // Download-Ordner, mit der Anweisung, sie anschliessend in einen Ordner zu legen —
+        // das stand hier oben ausdruecklich als Mangel, mit der fehlenden ZIP-Bibliothek
+        // als Grund. Die liegt jetzt als js/zip.js im Repo (Store-Modus, keine neue
+        // Abhaengigkeit). Ein Pruefer bekommt damit genau das, was §147 Abs. 6 AO meint:
+        // einen Datentraeger, nicht eine Sammelanweisung.
+        var name = 'GDPdU_Z3_' + (von === bis ? von : von + '-' + bis) + '.zip';
+        var faellt = null;
+        try {
+            Utils.downloadBytes(StackrZip.build(dateien), name, 'application/zip');
+        } catch (e) {
+            faellt = e;
+        }
+        if (faellt) {
+            // Ein Archiv, das sich nicht oeffnen laesst, faellt erst beim Pruefer auf.
+            // Deshalb lieber zurueck auf den alten Weg als ein stillschweigend kaputtes ZIP.
+            console.warn('[Protokoll] Z3-Archiv fehlgeschlagen, Einzeldateien:', faellt);
+            dateien.forEach(function (d) {
+                Utils.downloadFile(d.data, d.name,
+                    /\.xml$/.test(d.name) ? 'application/xml;charset=utf-8' : 'text/csv;charset=utf-8');
+            });
+            Utils.showToast('Archiv nicht erzeugbar — die ' + dateien.length + ' Dateien kamen einzeln. '
+                          + 'Bitte alle in EINEN Ordner legen: die index.xml verweist auf die CSV-Dateien daneben.',
+                          'warning', 14000);
+            return;
+        }
+        Utils.showToast('✓ Z3-Export: ' + name + ' mit ' + dateien.length + ' Dateien (index.xml + ' +
+                        geliefert.length + ' Tabellen).' +
                         (leer.length ? ' Ohne Daten im Zeitraum und daher nicht enthalten: ' + leer.join(', ') + '.' : ''),
                         'success', 12000);
     },
@@ -245,9 +274,9 @@ const Protokoll = {
                 '<select class="form-select" id="z3Bis">' + opts + '</select></div>' +
             '</div>' +
             '<div style="background:rgba(59,130,246,.10);border:1px solid rgba(59,130,246,.35);border-radius:8px;padding:11px;font-size:12px;line-height:1.5;">' +
-              'Der Browser lädt die Dateien <strong>einzeln</strong> herunter. Lege sie anschließend ' +
-              '<strong>alle in einen Ordner</strong> — die <code>index.xml</code> verweist auf die CSV-Dateien ' +
-              'daneben und funktioniert nur so. Gib nur den Zeitraum heraus, den der Prüfer verlangt hat.' +
+              'Du bekommst <strong>eine ZIP-Datei</strong>: darin die <code>index.xml</code> und ' +
+              'daneben die CSV-Dateien, genau in der Struktur, die die Prüfsoftware erwartet. ' +
+              'Gib nur den Zeitraum heraus, den der Prüfer verlangt hat.' +
             '</div>' +
             '<button class="btn btn-primary" data-action="pr-do-z3" style="width:100%;">Z3-Datensatz erzeugen</button>' +
           '</div>';

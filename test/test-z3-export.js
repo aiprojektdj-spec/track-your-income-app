@@ -14,7 +14,8 @@ const src = fs.readFileSync(path.join(__dirname, '..', 'js', 'protokoll.js'), 'u
 // Protokoll ist ein Objektliteral ohne module.exports. Store/Utils/localStorage werden gestubbt,
 // die Downloads abgefangen.
 function load(data) {
-    const files = [];
+    const files = [];   // was ins Archiv geht
+    const zips  = [];   // das Archiv selbst
     const toasts = [];
     const ls = new Map([
         ['oyi_companies', JSON.stringify([{ id: 'co_1', name: 'Muster & Söhne GmbH' }])],
@@ -35,18 +36,33 @@ function load(data) {
         getAuditLog:        () => data.audit || [],
         getClosedYears: () => [], getSteuertermine: () => [], getSales: () => [], getSettings: () => ({})
     };
+    // Seit dem 2026-09-21 liefert exportZ3 EIN ZIP statt einzelner Downloads. Der Harness
+    // faengt deshalb nicht mehr den Download ab, sondern die Dateiliste, die ins Archiv
+    // geht — inhaltlich dieselbe Pruefung, nur eine Ebene frueher. buildCSV gibt dabei ein
+    // Markerobjekt mit den Rohzeilen zurueck, damit die Zeilen-Assertions unten
+    // unveraendert bleiben koennen.
     const Utils = {
+        buildCSV: (rows) => ({ __rows: rows }),
         downloadCSV: (rows, name) => files.push({ name, rows }),
         downloadFile: (content, name) => files.push({ name, content }),
+        downloadBytes: (bytes, name) => zips.push({ name, bytes }),
         showToast: (m, t) => toasts.push({ m, t }),
         escapeHtml: (s) => String(s), formatDate: (s) => s, todayISO: () => '2026-08-11'
     };
-    const fn = new Function('Store', 'Utils', 'localStorage', 'App', 'document',
+    const StackrZip = {
+        build: (dateien) => {
+            dateien.forEach(d => files.push(
+                d.data && d.data.__rows ? { name: d.name, rows: d.data.__rows }
+                                        : { name: d.name, content: d.data }));
+            return new Uint8Array(0);
+        }
+    };
+    const fn = new Function('Store', 'Utils', 'StackrZip', 'localStorage', 'App', 'document',
         src.replace(/^if \(typeof window[\s\S]*$/m, '') + '; return Protokoll;');
-    const P = fn(Store, Utils, { getItem: (k) => (ls.has(k) ? ls.get(k) : null) },
+    const P = fn(Store, Utils, StackrZip, { getItem: (k) => (ls.has(k) ? ls.get(k) : null) },
                  { showModal: () => {}, closeModal: () => {} },
                  { getElementById: () => null });
-    return { P, files, toasts };
+    return { P, files, toasts, zips };
 }
 
 const DATEN = {
@@ -196,4 +212,20 @@ assert.ok(!/nicht enthalten/.test(rr.toasts[rr.toasts.length - 1].m) ||
     'Rechnungen stehen nicht mehr unter den weggelassenen Tabellen');
 pass++; console.log('✓ Rechnungsbuch kommt aus dem echten Speicher, mit gerechneten Summen');
 
-console.log('\n' + pass + '/11 Tests bestanden ✅');
+// ── 12. Ausgeliefert wird EIN Archiv, nicht ein Stapel Einzeldownloads ──────────────────
+// Bis zum 2026-09-21 lud der Browser index.xml und jede CSV getrennt herunter, und der Nutzer
+// musste sie selbst in einen Ordner legen — die index.xml verweist auf die Dateien daneben und
+// funktioniert nur so. Ein Pruefer, dem eine davon fehlt, bekommt einen unbrauchbaren
+// Datentraeger. Seit js/zip.js im Repo liegt, gibt es keinen Grund mehr dafuer.
+const arch = load(DATEN);
+arch.P.exportZ3(2025, 2025);
+assert.strictEqual(arch.zips.length, 1, 'genau ein Download');
+assert.strictEqual(arch.zips[0].name, 'GDPdU_Z3_2025.zip', 'Archivname nennt Verfahren und Zeitraum');
+assert.ok(arch.files.some(f => f.name === 'index.xml'), 'index.xml liegt IM Archiv');
+assert.ok(arch.files.length >= 2, 'im Archiv liegen index.xml und mindestens eine Tabelle');
+const letzterToast = arch.toasts[arch.toasts.length - 1].m;
+assert.ok(letzterToast.indexOf('GDPdU_Z3_2025.zip') !== -1, 'Meldung nennt die Archivdatei');
+assert.ok(!/einzeln/i.test(letzterToast), 'Meldung spricht nicht mehr von Einzeldateien');
+pass++; console.log('✓ Z3 wird als ein ZIP-Archiv ausgeliefert');
+
+console.log('\n' + pass + '/12 Tests bestanden ✅');

@@ -236,8 +236,15 @@ var DatevExport = (function () {
                 konto:        konto,
                 gegenkonto:   accounts.bank,
                 datum:        e.datum,
-                belegfeld1:   e.belegnummer || e.id.slice(0, 12),
-                buchungstext: String(e.bezeichnung || e.kategorie || 'Ausgabe').slice(0, 60),
+                // Feldnamen am 2026-09-21 gegen js/ausgaben.js gemessen: die Ausgabe
+                // speichert `belegNr` und `beschreibung`. Hier standen `belegnummer` und
+                // `bezeichnung` — beide gibt es am Datensatz nicht. Folge: In Belegfeld 1
+                // landete bei JEDER Betriebsausgabe eine abgeschnittene interne ID statt der
+                // Belegnummer, die der Nutzer eingetippt hat, und als Buchungstext stand die
+                // Kategorie statt der Beschreibung. Beides faellt in der App nicht auf,
+                // sondern erst beim Steuerberater — und dort beim Zuordnen der Belege.
+                belegfeld1:   e.belegNr || e.id.slice(0, 12),
+                buchungstext: String(e.beschreibung || e.kategorie || 'Ausgabe').slice(0, 60),
                 buSchluessel: '',
             });
         });
@@ -561,6 +568,107 @@ var DatevExport = (function () {
 
     }
 
+    // ── Belegexport ─────────────────────────────────────────────────────────────
+    // Das Anforderungsprofil verlangt "standardisierter Daten- UND Belegexport"
+    // (plan/pruefliste-buchhaltung-2026-09-21.md, Kriterium 4.1). Der Stapel allein ist der
+    // Datenteil; ohne die Bilder muss der Steuerberater jeden Beleg einzeln nachfordern.
+    //
+    // Die Verknuepfung zum Stapel ist die Belegnummer: sie steht dort in Belegfeld 1 und
+    // gibt hier dem Bild den Namen. Genau so sucht ein Buchhalter — ueber die Belegnummer,
+    // nicht ueber eine Datensatz-ID.
+    //
+    // Nur data:-URLs kommen mit. Die lokale Kopie eines Belegs ist immer inline
+    // (js/blob-attachments.js laegert nur die CLOUD-Darstellung aus), ein anderer Fall
+    // sollte also nicht auftreten — wenn doch, wird er gezaehlt und gemeldet statt
+    // stillschweigend zu fehlen.
+    function _belegeSammeln(year) {
+        var von = year + '-01-01', bis = year + '-12-31';
+        var imJahr = function (d) { return d && d >= von && d <= bis; };
+        var raus = [], ohne = 0;
+
+        var nimm = function (quelle, datum, nummer, dataUrl) {
+            if (!imJahr(datum) || !dataUrl) return;
+            var teil = StackrZip.ausDataUrl(dataUrl);
+            if (!teil) { ohne++; return; }
+            // Alles, was kein Buchstabe, keine Ziffer, kein Strich und kein Leerzeichen ist,
+            // faellt weg. Punkte ausdruecklich MIT: "../.." wuerde sonst als ".._.." im Namen
+            // stehen bleiben — harmlos, weil StackrZip ohnehin keine Segmente mit ".." zulaesst,
+            // aber ein Dateiname, der nach Pfadausbruch aussieht, gehoert nicht in ein Archiv,
+            // das an einen Dritten geht.
+            var basis = String(nummer || '').trim().replace(/[^\w\- ]+/g, '_')
+                                                   .replace(/_{2,}/g, '_')
+                                                   .replace(/^_+|_+$/g, '') || 'ohne-nummer';
+            raus.push({
+                name: 'belege/' + quelle + '/' + datum + '_' + basis + teil.endung,
+                data: teil.bytes,
+                datum: new Date(datum)
+            });
+        };
+
+        try {
+            // Derselbe Getter wie im Stapel oben (Zeile ~116): wer dort gebucht wird, soll
+            // hier seinen Beleg bekommen.
+            ((Store.getAllExpensesRaw ? Store.getAllExpensesRaw() : Store.getExpenses ? Store.getExpenses() : []) || []).forEach(function (e) {
+                if (e.storniert) return;
+                nimm('ausgaben', e.datum, e.belegNr || e.id, e.belegFoto);
+            });
+        } catch (e) { /* Modul nicht geladen */ }
+
+        try {
+            (Store.getAllPurchasesRaw ? Store.getAllPurchasesRaw() : []).forEach(function (p) {
+                if (p.storniert) return;
+                nimm('wareneinkauf', p.datum, p.belegNr || p.artikelNr || p.id, p.belegFoto);
+            });
+        } catch (e) { /* dito */ }
+
+        try {
+            // Company-praefixierter Schluessel, nie ungepraefixt lesen — dieselbe Herleitung
+            // wie oben im Stapel, damit Belege und Buchungen aus derselben Quelle kommen.
+            var co = localStorage.getItem('oyi_active_company') || '';
+            var k  = (co ? co + '__' : '') + 'eigenbelege_belege';
+            var ebs = (Store._syncReadRaw ? Store._syncReadRaw(k) : JSON.parse(localStorage.getItem(k) || '[]')) || [];
+            ebs.forEach(function (b) {
+                if (b.storniert) return;
+                nimm('eigenbelege', b.belegDatum, b.belegNr || b.id, b.foto);
+            });
+        } catch (e) { /* dito */ }
+
+        return { dateien: raus, ohne: ohne };
+    }
+
+    // Kurze Wegbeschreibung ins Archiv. Ein Ordner mit 200 Bildern und einer CSV daneben
+    // erklaert sich nicht von selbst, und der Empfaenger ist nicht der Nutzer, sondern
+    // dessen Steuerberater.
+    function _liesmich(year, skr, stapelName, anzahlBelege, ohne) {
+        return [
+            'DATEV-Export aus Stackr',
+            '========================',
+            '',
+            'Jahr:          ' + year,
+            'Kontenrahmen:  ' + skr,
+            'Erzeugt am:    ' + new Date().toLocaleDateString('de-DE'),
+            '',
+            'Inhalt',
+            '------',
+            stapelName + '   Buchungsstapel im DATEV-Format (EXTF, Version 13, 125 Spalten).',
+            'belege/                     ' + anzahlBelege + ' Belegbilder, nach Herkunft in Unterordner sortiert.',
+            '',
+            'Zuordnung',
+            '---------',
+            'Jede Bilddatei heisst <Belegdatum>_<Belegnummer>. Dieselbe Belegnummer steht im',
+            'Stapel in Belegfeld 1 — darueber laesst sich jede Buchung ihrem Beleg zuordnen.',
+            '',
+            'Bitte beachten',
+            '--------------',
+            '- Berater-Nummer und Mandanten-Nummer im Stapel sind Platzhalter (00000 / 00001)',
+            '  und muessen vor dem Import angepasst werden.',
+            '- Nicht im Stapel enthalten: Abschreibungen (AfA) und Retouren. Beide stehen in',
+            '  der EUER und brauchen eine Kontenzuordnung, die Stackr nicht kennt.',
+            ohne ? '- ' + ohne + ' Beleg(e) konnten nicht ins Archiv uebernommen werden.' : '',
+            ''
+        ].filter(function (z) { return z !== ''; }).join('\r\n');
+    }
+
     /** Render the DATEV export UI card */
     function renderCard(containerId) {
         var curYear = new Date().getFullYear();
@@ -592,6 +700,10 @@ var DatevExport = (function () {
         html += '</select></div>';
         html += '<button class="btn btn-primary" id="datevExportBtn" style="align-self:flex-end;"><i class="ti ti-file-spreadsheet"></i> DATEV exportieren</button>';
         html += '</div>';
+        html += '<label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;cursor:pointer;" for="datevBelege">';
+        html += '<input type="checkbox" id="datevBelege" checked style="width:16px;height:16px;">';
+        html += '<span>Belegbilder mitliefern — Ausgabe als <strong>ZIP</strong> statt einzelner CSV</span></label>';
+        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-left:24px;">Im Archiv liegt der Stapel neben einem Ordner <code>belege/</code>. Jede Datei traegt die Belegnummer, die im Stapel in Belegfeld 1 steht.</div>';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:10px;">⚠ Berater-Nr. und Mandanten-Nr. sind Platzhalter (00000 / 00001). Bitte vor dem Import in DATEV anpassen.</div>';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Nicht enthalten: <strong>Abschreibungen (AfA)</strong> und <strong>Retouren</strong> — beide brauchen eine Kontenzuordnung, die Stackr nicht kennt. Stehen in deiner EÜR, müssen im Stapel nachgetragen werden.</div>';
         html += '</div>';
@@ -610,10 +722,42 @@ var DatevExport = (function () {
             var filename = 'EXTF_Buchungsstapel_' + year + '_' + skr + '.csv';
             // DATEV requires Windows-1252 encoding; we export UTF-8 with BOM as fallback
             var bom = '﻿';
-            Utils.downloadFile(bom + csv, filename, 'text/csv; charset=utf-8');
-            Utils.showToast('DATEV exportiert: ' + filename, 'success');
+
+            var belegeEl = document.getElementById('datevBelege');
+            if (!belegeEl || !belegeEl.checked || typeof StackrZip === 'undefined') {
+                Utils.downloadFile(bom + csv, filename, 'text/csv; charset=utf-8');
+                Utils.showToast('DATEV exportiert: ' + filename, 'success');
+                return;
+            }
+
+            var belege = _belegeSammeln(year);
+            var archiv = [{ name: filename, data: bom + csv }].concat(belege.dateien);
+            archiv.push({
+                name: 'LIESMICH.txt',
+                data: _liesmich(year, skr, filename, belege.dateien.length, belege.ohne)
+            });
+            var zipName = 'DATEV_' + year + '_' + skr + '.zip';
+            try {
+                Utils.downloadBytes(StackrZip.build(archiv), zipName, 'application/zip');
+            } catch (err) {
+                // Lieber der Stapel allein als ein Archiv, das sich beim Steuerberater
+                // nicht oeffnen laesst.
+                console.warn('[DATEV] Belegarchiv fehlgeschlagen, nur Stapel:', err);
+                Utils.downloadFile(bom + csv, filename, 'text/csv; charset=utf-8');
+                Utils.showToast('Belegarchiv nicht erzeugbar — der Buchungsstapel wurde einzeln exportiert.', 'warning', 9000);
+                return;
+            }
+            Utils.showToast('DATEV exportiert: ' + zipName + ' (Stapel + ' + belege.dateien.length + ' Belege)'
+                          + (belege.ohne ? ' — ' + belege.ohne + ' Beleg(e) nicht lesbar und nicht enthalten.' : ''),
+                          'success', belege.ohne ? 10000 : 5000);
         });
     }
 
-    return { buildCSV: buildCSV, renderCard: renderCard, initCard: initCard, kontoForKategorie: kontoForKategorie };
+    return {
+        buildCSV: buildCSV, renderCard: renderCard, initCard: initCard,
+        kontoForKategorie: kontoForKategorie,
+        // Einzeln exportiert, damit test/test-datev-belege.js die Sammlung pruefen kann,
+        // ohne einen Klick und einen Download zu simulieren.
+        _belegeSammeln: _belegeSammeln, _liesmich: _liesmich
+    };
 })();

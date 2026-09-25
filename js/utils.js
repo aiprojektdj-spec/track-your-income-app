@@ -395,9 +395,12 @@ const Utils = {
         URL.revokeObjectURL(url);
     },
 
-    downloadCSV(rows, filename) {
+    // CSV als Zeichenkette — gebraucht ueberall dort, wo die Datei NICHT sofort in den
+    // Download-Ordner soll, sondern in ein Archiv (Z3-Export, DATEV-Belegpaket).
+    // downloadCSV() ruft dasselbe auf, damit Quotierung und BOM nur an einer Stelle stehen.
+    buildCSV(rows) {
         const BOM = '\uFEFF';
-        const csv = BOM + rows.map(row => row.map(cell => {
+        return BOM + rows.map(row => row.map(cell => {
             let str = String(cell == null ? '' : cell);
             // CSV-/Formel-Injection: Excel/Sheets interpretieren Zellen, die mit =, +, -
             // oder @ beginnen, als Formel (z.B. via importiertem SEPA-Verwendungszweck).
@@ -407,7 +410,21 @@ const Utils = {
                 ? '"' + str.replace(/"/g, '""') + '"'
                 : str;
         }).join(';')).join('\n');
-        this.downloadFile(csv, filename, 'text/csv;charset=utf-8');
+    },
+
+    downloadCSV(rows, filename) {
+        this.downloadFile(this.buildCSV(rows), filename, 'text/csv;charset=utf-8');
+    },
+
+    /** Uint8Array als Datei ausliefern — fuer die ZIP-Archive aus js/zip.js. */
+    downloadBytes(bytes, filename, type = 'application/octet-stream') {
+        const blob = new Blob([bytes], { type });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
     },
 
     parseCSV(text) {

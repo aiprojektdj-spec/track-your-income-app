@@ -183,6 +183,22 @@ Funktionsumfang bekommt, gehört sie in **beide**, sonst laufen sie auseinander.
 
 ## Automatisierung, die einen Server mit Klartextzugriff bräuchte
 
+> **AUFGEHOBEN für zwei der vier Lücken — entschieden am 2026-09-21.**
+>
+> Anlass war das *Anforderungsprofil Buchhaltung* (Prüfprotokoll für Einzelunternehmen), das der
+> User beigebracht hat: **ELSTER-Schnittstelle** und **Live-Bankanbindung** stehen dort als
+> PFLICHT, und der User hat entschieden, dass Stackr alle Punkte erfüllen muss — die
+> Local-First-Zusage wird für diese beiden Funktionen **aufgegeben**.
+>
+> Der Einwand unten ist damit abgewogen und entschieden. **Er gehört nicht erneut vorgetragen.**
+> Was bleibt, ist das Abräumen der Folgen (FAQ-Eintrag, Datenschutztext, AGB,
+> Verfahrensdokumentation, Art. 30 / Art. 28 / Art. 35 DSGVO) — vollständig aufgeführt in
+> [`pruefliste-buchhaltung-2026-09-21.md`](pruefliste-buchhaltung-2026-09-21.md), dort auch der
+> Bauplan und die entscheidende technische Frage, wo das ELSTER-Zertifikat des Nutzers liegt.
+>
+> **Unverändert gültig bleiben** die beiden anderen Zeilen der Tabelle: automatischer
+> Mahnungsversand und lesende REST-API. Über die ist nicht neu entschieden worden.
+
 Diese vier Lücken haben **dieselbe Ursache** und sind keine Versäumnisse, sondern die Kehrseite
 der Local-First-Entscheidung. Sie gehören so kommuniziert — nicht als Rückstand.
 

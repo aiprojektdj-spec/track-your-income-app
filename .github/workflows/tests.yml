@@ -1,0 +1,38 @@
+name: Tests
+
+# Jeder Test in test/ wird automatisch mitgenommen – ein neuer Harness braucht
+# hier keinen Eintrag. Ein Test gilt als rot, wenn er mit Exit-Code != 0 endet.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Auf Commit-SHA gepinnt (Tag in Klammern), damit ein umgehaengter Tag nichts einschleust
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Alle Tests
+        run: |
+          fail=0
+          for f in test/*.js; do
+            if ! timeout 120 node "$f" > "$RUNNER_TEMP/out.txt" 2>&1; then
+              echo "::error file=$f::FAIL $f"
+              cat "$RUNNER_TEMP/out.txt"
+              fail=1
+            fi
+          done
+          exit $fail
+      - name: Abhaengigkeiten pruefen
+        run: npm audit --omit=dev --audit-level=high

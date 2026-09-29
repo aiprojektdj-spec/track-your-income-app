@@ -51,7 +51,10 @@ anders: nicht anfassen, per `send_message` abstimmen.
   trotzdem alten Code. Neuen Eintrag in `.claude/launch.json` anlegen, Port = höchster
   vorhandener + 1.
 - **Rechenlogik über `test/`** — die Node-Harnesses dort sind cache-immun und gute Vorlage für
-  neue Tests. Wie viele es sind, sagt die Schleife selbst, nicht diese Zeile:
+  neue Tests. Sie laufen bei jedem Push auf `master` und jedem PR automatisch in der CI
+  (`.github/workflows/tests.yml`); ein neuer Test in `test/` ist ohne weiteren Eintrag dabei,
+  muss aber bei einem Fehler mit Exit-Code ≠ 0 enden. Lokal, vor dem Commit — wie viele es
+  sind, sagt die Schleife selbst, nicht diese Zeile:
   ```bash
   for f in test/*.js; do node "$f" >/dev/null 2>&1 || echo "FAIL $f"; done
   ```

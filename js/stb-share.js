@@ -147,7 +147,7 @@ var StbShare = (function () {
 
     function _uid()   { try { var u = JSON.parse(localStorage.getItem('whop_user') || '{}'); return u.id || u.sub || ''; } catch (e) { return ''; } }
     function _token() { try { return localStorage.getItem('whop_access_token') || ''; } catch (e) { return ''; } }
-    function _toast(m, t, d) { if (typeof Utils !== 'undefined' && Utils.showToast) Utils.showToast(m, t || 'info', d); else console.log('[StbShare]', m); }
+    function _toast(m, t, d) { if (typeof Utils !== 'undefined' && Utils.showToast) Utils.showToast(m, t || 'info', d); else console.debug('[StbShare]', m); }
     function _esc(s) { return (typeof Utils !== 'undefined' && Utils.escapeHtml) ? Utils.escapeHtml(String(s)) : String(s); }
 
     async function _api(body) {

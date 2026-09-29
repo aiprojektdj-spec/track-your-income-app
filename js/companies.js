@@ -159,7 +159,7 @@ const CompanyManager = {
         });
 
         if (keysToMigrate.length === 0) {
-            console.log('[CompanyManager] Keine alten Daten zum Migrieren');
+            console.debug('[CompanyManager] Keine alten Daten zum Migrieren');
             return 0;
         }
 
@@ -173,7 +173,7 @@ const CompanyManager = {
             delete Store._cache[oldKey];
             Store._idbDelete(oldKey);
         }
-        console.log(`[CompanyManager] ${keysToMigrate.length} Keys migriert → ${companyId}`);
+        console.debug(`[CompanyManager] ${keysToMigrate.length} Keys migriert → ${companyId}`);
         return keysToMigrate.length;
     },
 
@@ -293,7 +293,7 @@ const CompanyManager = {
         OTHER_KEYS.forEach(k => localStorage.removeItem(k));
 
         localStorage.setItem(FLAG, new Date().toISOString());
-        console.log(`[CompanyManager] Eigenbeleg-Migration: ${globalBelege.length} Belege auf Firmen verteilt`);
+        console.debug(`[CompanyManager] Eigenbeleg-Migration: ${globalBelege.length} Belege auf Firmen verteilt`);
         return globalBelege.length;
     },
 
@@ -340,7 +340,7 @@ const CompanyManager = {
         // Globalen Key entfernen → kein firmenübergreifendes Leck mehr
         localStorage.removeItem('app_einstellungen');
         localStorage.setItem(FLAG, new Date().toISOString());
-        console.log(`[CompanyManager] Stammdaten-Migration: app_einstellungen → ${activeId}`);
+        console.debug(`[CompanyManager] Stammdaten-Migration: app_einstellungen → ${activeId}`);
         return 1;
     },
 

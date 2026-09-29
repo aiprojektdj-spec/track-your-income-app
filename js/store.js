@@ -30,7 +30,7 @@ const Store = {
             const already = await navigator.storage.persisted();
             if (already) return true;
             const granted = await navigator.storage.persist();
-            console.log('[Store] Persistenter Speicher:', granted ? 'gewährt ✅' : 'abgelehnt ⚠️');
+            console.debug('[Store] Persistenter Speicher:', granted ? 'gewährt ✅' : 'abgelehnt ⚠️');
             return granted;
         } catch(e) { return false; }
     },
@@ -142,7 +142,7 @@ const Store = {
             }
             this._cache['_idb_migrated'] = '"1"';
             this._idbPut('_idb_migrated', '"1"');
-            if (moved) console.log('[Store] localStorage → IndexedDB Migration abgeschlossen');
+            if (moved) console.debug('[Store] localStorage → IndexedDB Migration abgeschlossen');
         }
         this._migrateEigenbelegeToIDB();
     },
@@ -163,7 +163,7 @@ const Store = {
                 moved = true;
             }
         }
-        if (moved) console.log('[Store] Eigenbelege → IndexedDB Migration abgeschlossen');
+        if (moved) console.debug('[Store] Eigenbelege → IndexedDB Migration abgeschlossen');
     },
 
     _idbPut(key, valueStr) {
@@ -325,10 +325,10 @@ const Store = {
             const root = await navigator.storage.getDirectory();
             this._opfsDir  = await root.getDirectoryHandle('oyi_autobackup', { create: true });
             this._opfsReady = true;
-            console.log('[Store] OPFS bereit ✅');
+            console.debug('[Store] OPFS bereit ✅');
         } catch(e) {
             this._opfsReady = false;
-            console.log('[Store] OPFS nicht verfügbar, nutze IDB:', e.message);
+            console.warn('[Store] OPFS nicht verfügbar, nutze IDB:', e.message);
         }
     },
 
@@ -555,7 +555,7 @@ const Store = {
                         const perm = await handle.queryPermission({ mode: 'readwrite' });
                         if (perm === 'granted') {
                             this._fsDirHandle = handle;
-                            console.log('[Store] Datei-Backup aktiv →', handle.name);
+                            console.debug('[Store] Datei-Backup aktiv →', handle.name);
                         }
                         // Bei 'prompt': Handle gemerkt, aber erst nach User-Klick wird berechtigt
                     } catch(e) {}
@@ -658,7 +658,7 @@ const Store = {
 
             // Alte Backups aufräumen — nur letzte 60 behalten
             await this._pruneFileSystemBackups(60);
-            console.log('[Store] Datei-Backup geschrieben:', filename);
+            console.debug('[Store] Datei-Backup geschrieben:', filename);
             return filename;
         } catch(err) {
             // Berechtigung abgelaufen oder Ordner nicht mehr vorhanden
@@ -2693,7 +2693,7 @@ const Store = {
         this._companyId = id || '';
         // Cache-Keys der anderen Firmen müssen nicht gelöscht werden —
         // get() / set() nutzen jetzt automatisch den neuen Prefix
-        console.log('[Store] Aktive Firma:', id || '(keine)');
+        console.debug('[Store] Aktive Firma:', id || '(keine)');
     },
 
     // Eigenbelege-Schlüssel (jetzt im IDB-Cache, siehe _migrateEigenbelegeToIDB)
@@ -3374,7 +3374,7 @@ const Store = {
                 if (hasData) {
                     this.importAll(lsMirror);
                     this._trackDataCounts();
-                    console.log('[Store] ✅ Auto-Recovery aus localStorage-Spiegel');
+                    console.warn('[Store] ✅ Auto-Recovery aus localStorage-Spiegel');
                     return { source: 'lsmirror', ts: localStorage.getItem('_oyi_lsmirror_ts') };
                 }
             } catch(e) {}
@@ -3391,7 +3391,7 @@ const Store = {
                     if (hasData) {
                         await this.restoreFromIDBSnapshot(snap.id);
                         this._trackDataCounts();
-                        console.log('[Store] ✅ Auto-Recovery aus IDB-Snapshot', snap.ts);
+                        console.warn('[Store] ✅ Auto-Recovery aus IDB-Snapshot', snap.ts);
                         return { source: 'idb_snapshot', ts: snap.ts };
                     }
                 } catch(e) { continue; }
@@ -3402,7 +3402,7 @@ const Store = {
         const rawMoved = this.restoreFromLocalStorageRaw();
         if (rawMoved > 0) {
             this._trackDataCounts();
-            console.log('[Store] ✅ Auto-Recovery aus raw localStorage:', rawMoved, 'Schlüssel');
+            console.warn('[Store] ✅ Auto-Recovery aus raw localStorage:', rawMoved, 'Schlüssel');
             return { source: 'ls_raw', ts: null };
         }
 

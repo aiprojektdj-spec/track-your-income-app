@@ -279,7 +279,7 @@ var BackupCrypto = (function () {
     // UI
     // ========================================================================
     function _esc(s) { return (typeof Utils !== 'undefined' && Utils.escapeHtml) ? Utils.escapeHtml(String(s)) : String(s); }
-    function _toast(m, t, d) { if (typeof Utils !== 'undefined' && Utils.showToast) Utils.showToast(m, t || 'info', d); else console.log('[Backup]', m); }
+    function _toast(m, t, d) { if (typeof Utils !== 'undefined' && Utils.showToast) Utils.showToast(m, t || 'info', d); else console.debug('[Backup]', m); }
 
     function openModal() {
         var body =
@@ -490,7 +490,7 @@ var BackupCrypto = (function () {
         // Wechsel-Datei: doImport()-Formaterkennung nachgebildet (unverschlüsselt, kein Passphrase-Zwang)
         var mig = JSON.parse(JSON.stringify({ format: 'stackr-migration', version: 1, app: 'stackr', bundle: b }));
         var ok4 = mig.format === 'stackr-migration' && JSON.stringify(mig.bundle) === JSON.stringify(b);
-        console.log('[Backup] selftest', { roundtrip: ok1, lww: ok2, rechain: ok3, wrongPass: bad, migrationFormat: ok4 });
+        console.debug('[Backup] selftest', { roundtrip: ok1, lww: ok2, rechain: ok3, wrongPass: bad, migrationFormat: ok4 });
         return ok1 && ok2 && ok3 && bad && ok4;
     }
 

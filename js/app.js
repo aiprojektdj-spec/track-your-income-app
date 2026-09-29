@@ -212,7 +212,7 @@ const App = {
         // Auto-Backup vor erstem Start der neuen Version (wenn Datei-Backup-Ordner gesetzt)
         if (hasData && Store.getFsBackupFolderName()) {
             Store.writeFileSystemBackup('vor_update_' + currentVersion).then(() => {
-                console.log('[App] Auto-Backup vor Update erstellt');
+                console.debug('[App] Auto-Backup vor Update erstellt');
             }).catch(() => {});
         }
 

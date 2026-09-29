@@ -194,7 +194,7 @@ const Lager = {
                     if (!p.createdAt) p.createdAt = new Date().toISOString();
                 });
                 needsSave = true;
-                console.log(`[Lager] ${idLess.length} fehlende IDs nachgerüstet`);
+                console.debug(`[Lager] ${idLess.length} fehlende IDs nachgerüstet`);
             }
 
             // ── Migration 2: Fehlende Artikelnummern nachrüsten ───────
@@ -216,7 +216,7 @@ const Lager = {
                     usedNrs.add(newNr);
                 });
                 needsSave = true;
-                console.log(`[Lager] ${missing.length} Artikel-Nummern nachgerüstet`);
+                console.debug(`[Lager] ${missing.length} Artikel-Nummern nachgerüstet`);
             }
 
             if (needsSave) {

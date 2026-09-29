@@ -505,11 +505,11 @@ const Protokoll = {
                 if (!entry) return;
                 let body = '<div class="audit-detail">';
                 body += `<div class="form-group"><strong>Zeitpunkt:</strong> ${new Date(entry.timestamp).toLocaleString('de-DE')}</div>`;
-                body += `<div class="form-group"><strong>Aktion:</strong> ${entry.action}</div>`;
-                body += `<div class="form-group"><strong>Bereich:</strong> ${entry.entityType}</div>`;
-                body += `<div class="form-group"><strong>ID:</strong> ${entry.entityId}</div>`;
+                body += `<div class="form-group"><strong>Aktion:</strong> ${Utils.escapeHtml(entry.action || '')}</div>`;
+                body += `<div class="form-group"><strong>Bereich:</strong> ${Utils.escapeHtml(entry.entityType || '')}</div>`;
+                body += `<div class="form-group"><strong>ID:</strong> ${Utils.escapeHtml(entry.entityId || '')}</div>`;
                 body += `<div class="form-group"><strong>Details:</strong> ${Utils.escapeHtml(entry.details || '')}</div>`;
-                body += `<div class="form-group"><strong>Pruefsumme:</strong> <code>${entry.checksum || '-'}</code></div>`;
+                body += `<div class="form-group"><strong>Pruefsumme:</strong> <code>${Utils.escapeHtml(entry.checksum || '-')}</code></div>`;
                 if (entry.oldValues) {
                     body += '<div class="form-group"><strong>Vorherige Werte:</strong>';
                     body += '<pre class="audit-json">' + Utils.escapeHtml(JSON.stringify(entry.oldValues, null, 2)) + '</pre></div>';

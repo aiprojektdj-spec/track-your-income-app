@@ -1720,7 +1720,7 @@ const Lager = {
                 <td style="padding:5px 8px;font-family:monospace;font-size:11px;">${Utils.escapeHtml(p.artikelNr||'—')}</td>
                 <td style="padding:5px 8px;font-size:12px;font-weight:600;">${Utils.escapeHtml(p.marke||'—')} ${Utils.escapeHtml(p.artikeltyp||'')}</td>
                 <td style="padding:5px 8px;font-size:12px;">${Utils.escapeHtml(p.groesse||'—')}</td>
-                <td style="padding:5px 8px;font-size:11px;color:var(--text-muted);">${p.lagerort && p.lagerort.regal ? p.lagerort.regal : ''} ${p.lagerort && p.lagerort.fach ? '› '+p.lagerort.fach : ''}</td>
+                <td style="padding:5px 8px;font-size:11px;color:var(--text-muted);">${p.lagerort && p.lagerort.regal ? Utils.escapeHtml(p.lagerort.regal) : ''} ${p.lagerort && p.lagerort.fach ? '› '+Utils.escapeHtml(p.lagerort.fach) : ''}</td>
                 <td style="padding:5px 8px;font-size:12px;text-align:right;font-weight:700;">${Utils.formatCurrency(p.einkaufspreis)}</td>
               </tr>`).join('');
 
@@ -1856,7 +1856,7 @@ const Lager = {
             const icon    = ICONS[z.type] || '📍';
             const isActive = z.bereich && z.bereich === curBereich;
             return `
-            <div class="lg-pickzone" data-pick-zone="${z.bereich||''}" data-pick-zone-id="${z.id}" style="
+            <div class="lg-pickzone" data-pick-zone="${Utils.escapeHtml(z.bereich||'')}" data-pick-zone-id="${Utils.escapeHtml(z.id)}" style="
                 --zc:${z.color};--zcbg:${z.color}18;
                 padding:12px 14px;border-radius:10px;cursor:pointer;
                 border:2px solid ${isActive ? z.color : 'var(--border)'};

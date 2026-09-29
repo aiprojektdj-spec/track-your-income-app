@@ -490,7 +490,7 @@ var BankImport = (function () {
                     var opts = '<option value="">-- nicht zuordnen --</option>';
                     cands.forEach(function (c) {
                         var sel = (pick && pick.inv.id === c.inv.id) ? ' selected' : '';
-                        opts += '<option value="' + c.inv.id + '"' + sel + '>'
+                        opts += '<option value="' + Utils.escapeHtml(c.inv.id) + '"' + sel + '>'
                              +  Utils.escapeHtml(c.inv.nummer || '(ohne Nr.)') + ' · '
                              +  Utils.escapeHtml(customerName(c.inv) || 'ohne Kunde') + ' · offen '
                              +  Utils.formatCurrency(c.rest) + '</option>';

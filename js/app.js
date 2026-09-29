@@ -700,7 +700,7 @@ const App = {
                         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;text-align:center;padding:40px;">
                             <div style="font-size:48px;margin-bottom:16px;color:var(--warning);"><i class="ti ti-alert-triangle"></i></div>
                             <h2 style="color:var(--text-primary);margin-bottom:12px;">Seite konnte nicht geladen werden</h2>
-                            <p style="color:var(--text-secondary);max-width:400px;margin-bottom:20px;">Fehler: <code style="background:var(--bg-card);padding:4px 8px;border-radius:4px;">${err.message || err}</code></p>
+                            <p style="color:var(--text-secondary);max-width:400px;margin-bottom:20px;">Fehler: <code style="background:var(--bg-card);padding:4px 8px;border-radius:4px;">${Utils.escapeHtml(err.message || String(err))}</code></p>
                             <button class="btn btn-primary" data-action="navigate" data-args=\'["dashboard"]\'>→ Zum Dashboard</button>
                         </div>
                     `;

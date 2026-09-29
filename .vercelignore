@@ -1,2 +1,14 @@
-# Interne Compliance-Dokumente — nicht in das öffentliche Deployment aufnehmen
+# Nicht in das öffentliche Deployment aufnehmen: interne Doku, Audits, Tests, Werkzeuge.
+# Nach jedem Deploy prüfen, dass diese Pfade live 404 liefern (plan/security-fix-2026-09-29.md).
 compliance/
+plan/
+graphify-out/
+test/
+scripts/
+kosit-proben/
+node_modules/
+*.md
+build-deploy.py
+ui-lab.html
+css/ui-lab.css
+js/ui-lab.js

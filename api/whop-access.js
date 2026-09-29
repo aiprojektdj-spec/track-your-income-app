@@ -28,6 +28,7 @@
 
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps = require('./_alert.js').alertOps;
+var _log     = require('./_log.js');
 
 //   prod_wgVmaJg4sBVOD = "Stackr Pro" 15 €/Mon · prod_p1WHi5t65rAA6 = "Stackr" 135 €/Jahr · biz_2OEWYGlOwb8b0f = Company
 var ACCESS_IDS = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
@@ -81,7 +82,7 @@ function _signGraceToken(uid) {
         var sig = crypto.sign('sha256', Buffer.from(payloadB64), { key: key, dsaEncoding: 'ieee-p1363' });
         return payloadB64 + '.' + sig.toString('base64url');
     } catch (e) {
-        console.error('[whop-access] grace-sign error:', e && e.message);
+        _log.logError('whop-access', 'GRACE_SIGN_FAILED', e);
         return null;
     }
 }
@@ -278,7 +279,7 @@ module.exports = async function handler(req, res) {
         });
     } catch (err) {
         // Netz/5xx/unbestimmt → 502 → Client nutzt Offline-Grace (kein falsches „kein Abo").
-        console.error('[whop-access] error:', err && err.message);
+        _log.logError('whop-access', 'WHOP_UNREACHABLE', err);
         return res.status(502).json({ error: 'whop_unreachable' });
     }
 };

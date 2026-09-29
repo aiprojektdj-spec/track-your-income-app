@@ -34,6 +34,7 @@ var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_AP
 
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps = require('./_alert.js').alertOps;
+var _log     = require('./_log.js');
 
 // ── Auth: identisch zu api/sync.js (bewusst dupliziert, siehe dortiger Kommentar) ──
 var ACCESS_IDS   = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
@@ -197,7 +198,7 @@ module.exports = async function handler(req, res) {
     if (req.method !== 'POST')    return res.status(405).json({ error: 'method_not_allowed' });
 
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
-        console.error('[blob-upload] BLOB_READ_WRITE_TOKEN nicht gesetzt');
+        _log.logError('blob-upload', 'BLOB_TOKEN_MISSING');
         return res.status(500).json({ error: 'server_misconfigured' });
     }
 
@@ -219,7 +220,7 @@ module.exports = async function handler(req, res) {
         prefUsername = me.preferred_username || '';
         if (!userId) return res.status(401).json({ error: 'no_user' });
     } catch (e) {
-        console.error('[blob-upload] userinfo failed:', e);
+        _log.logError('blob-upload', 'WHOP_USERINFO_FAILED', e);
         return res.status(502).json({ error: 'whop_unreachable' });
     }
 
@@ -228,7 +229,7 @@ module.exports = async function handler(req, res) {
         try {
             if (!(await whopHasAccess(token, userId))) return res.status(403).json({ error: 'pro_required' });
         } catch (e) {
-            console.error('[blob-upload] access check failed:', e && e.message);
+            _log.logError('blob-upload', 'WHOP_ACCESS_CHECK_FAILED', e);
             return res.status(502).json({ error: 'whop_unreachable' });
         }
     }
@@ -301,7 +302,7 @@ module.exports = async function handler(req, res) {
                     var lockRes = await redisCmd(['SET', lockKey, '1', 'NX', 'EX', '30']);
                     if (!lockRes) return res.status(429).json({ error: 'commit_busy' });
                     lockHeld = true;
-                } catch (e) { console.warn('[blob-upload] lock error:', e && e.message); }
+                } catch (e) { _log.logWarn('blob-upload', 'COMMIT_LOCK_FAILED', e); }
             }
 
             try {
@@ -321,7 +322,7 @@ module.exports = async function handler(req, res) {
                     token: process.env.BLOB_READ_WRITE_TOKEN
                 });
                 // Best-effort: temporäre Teile aufräumen (Fehler hier sind nicht kritisch — Cron räumt Reste)
-                try { await del(chunkUrls, { token: process.env.BLOB_READ_WRITE_TOKEN }); } catch (e) { console.warn('[blob-upload] chunk cleanup failed:', e && e.message); }
+                try { await del(chunkUrls, { token: process.env.BLOB_READ_WRITE_TOKEN }); } catch (e) { _log.logWarn('blob-upload', 'CHUNK_CLEANUP_FAILED', e); }
                 return res.status(200).json({ ok: true, url: finalBlob.url, size: total });
             } finally {
                 if (lockHeld) { try { await redisCmd(['DEL', lockKey]); } catch (e) { /* TTL räumt ohnehin nach 30s auf */ } }
@@ -364,7 +365,7 @@ module.exports = async function handler(req, res) {
 
         return res.status(400).json({ error: 'bad_action' });
     } catch (e) {
-        console.error('[blob-upload] error:', e && e.message);
+        _log.logError('blob-upload', 'STORAGE_ERROR', e);
         return res.status(500).json({ error: 'storage_error' });
     }
 };

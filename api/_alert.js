@@ -38,6 +38,8 @@
 // produktive '@vercel/blob' — die einzige Produktivabhängigkeit des Projekts.
 // =============================================================================
 
+var _log = require('./_log.js');
+
 var ALERT_URL  = process.env.ALERT_WEBHOOK_URL    || '';
 var BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN || '';
 
@@ -86,7 +88,9 @@ async function alertOps(source, event, detail) {
 
     var text = '[Stackr] ' + source + ' — ' + event +
                (detail ? ': ' + String(detail).slice(0, 500) : '');
-    console.error(text);                       // Log bleibt in jedem Fall erhalten
+    // Log bleibt in jedem Fall erhalten — im festen Format aus api/_log.js, der Code
+    // ist das Ereignis in Großbuchstaben ('rate-limit-open' → 'RATE_LIMIT_OPEN').
+    _log.logError(source, String(event).toUpperCase().replace(/-/g, '_'), detail);
 
     var payload = {
         text:   text,                          // Slack-kompatibel

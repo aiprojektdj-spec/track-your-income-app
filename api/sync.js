@@ -33,6 +33,7 @@ var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_AP
 
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps = require('./_alert.js').alertOps;
+var _log     = require('./_log.js');
 
 // Zugangs-Check — zwei unabhängige Wege, Zugang sobald EINER bestätigt (identisch zu
 // api/whop-access.js): (1) User-Token gegen https://api.whop.com/api/v2/me/has_access/<id>
@@ -252,7 +253,7 @@ module.exports = async function handler(req, res) {
         prefUsername = me.preferred_username || '';
         if (!userId) return res.status(401).json({ error: 'no_user' });
     } catch (e) {
-        console.error('[sync] userinfo failed:', e);
+        _log.logError('sync', 'WHOP_USERINFO_FAILED', e);
         return res.status(502).json({ error: 'whop_unreachable' });
     }
 
@@ -281,7 +282,7 @@ module.exports = async function handler(req, res) {
             if (!(await whopHasAccess(token, userId)))
                 return res.status(403).json({ error: 'pro_required' });
         } catch (e) {
-            console.error('[sync] access check failed:', e && e.message);
+            _log.logError('sync', 'WHOP_ACCESS_CHECK_FAILED', e);
             return res.status(502).json({ error: 'whop_unreachable' });
         }
     }
@@ -551,7 +552,7 @@ module.exports = async function handler(req, res) {
 
         return res.status(400).json({ error: 'bad_action' });
     } catch (e) {
-        console.error('[sync] storage error:', e);
+        _log.logError('sync', 'STORAGE_ERROR', e);
         return res.status(500).json({ error: 'storage_error' });
     }
 };

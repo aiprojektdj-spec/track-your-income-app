@@ -7,6 +7,7 @@ var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_AP
 var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps    = require('./_alert.js').alertOps;
+var _log        = require('./_log.js');
 var RATE_MAX    = 8; // Requests pro Minute pro IP — Login passiert nicht öfter als 1-2x/min, 8 lässt Retry-Spielraum, bremst Flood/Scan-Versuche stärker
 
 function redisCmd(cmd) {
@@ -61,7 +62,7 @@ module.exports = async function handler(req, res) {
 
     var clientSecret = process.env.WHOP_CLIENT_SECRET;
     if (!clientSecret) {
-        console.error('[whop-token] WHOP_CLIENT_SECRET not set');
+        _log.logError('whop-token', 'CLIENT_SECRET_MISSING');
         return res.status(500).json({ error: 'Server misconfigured' });
     }
 
@@ -81,7 +82,7 @@ module.exports = async function handler(req, res) {
         var data = await tokenRes.json();
 
         if (!tokenRes.ok) {
-            console.error('[whop-token] Token exchange failed:', JSON.stringify(data));
+            _log.logWarn('whop-token', 'TOKEN_EXCHANGE_FAILED', data && data.error);
             return res.status(400).json({ error: 'invalid_grant' });
         }
 
@@ -117,7 +118,7 @@ module.exports = async function handler(req, res) {
             session_id:   sessionId
         });
     } catch (err) {
-        console.error('[whop-token] Fetch error:', err);
+        _log.logError('whop-token', 'WHOP_UNREACHABLE', err);
         return res.status(500).json({ error: 'Server error' });
     }
 };

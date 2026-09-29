@@ -26,6 +26,7 @@
 //   ALERT_WEBHOOK_URL                         optional — s. api/_alert.js
 
 var alertOps = require('./_alert.js').alertOps;
+var _log     = require('./_log.js');
 
 var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
 var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
@@ -124,7 +125,7 @@ module.exports = async function handler(req, res) {
 
     var clientSecret = process.env.WHOP_CLIENT_SECRET;
     if (!clientSecret) {
-        console.error('[whop-refresh] WHOP_CLIENT_SECRET not set');
+        _log.logError('whop-refresh', 'CLIENT_SECRET_MISSING');
         return res.status(500).json({ error: 'Server misconfigured' });
     }
 
@@ -166,7 +167,7 @@ module.exports = async function handler(req, res) {
         if (!tokenRes.ok || !data.access_token) {
             // Whop lehnt den Refresh-Token ab (abgelaufen, widerrufen, schon rotiert).
             // Sitzung ist tot — aufraeumen, damit der Client nicht in einer Schleife haengt.
-            console.error('[whop-refresh] Refresh abgelehnt:', JSON.stringify(data));
+            _log.logWarn('whop-refresh', 'REFRESH_REJECTED', data && data.error);
             await redisCmd(['DEL', sessKey(sid)]);
             return res.status(401).json({ error: 'session_expired' });
         }
@@ -188,7 +189,7 @@ module.exports = async function handler(req, res) {
         // Netz-/Zeitfehler gegen Whop: Sitzung NICHT loeschen, der Refresh-Token ist
         // vermutlich noch gut. Der Client faellt fuer diesen Lauf auf das Offline-Grace
         // zurueck und versucht es beim naechsten Mal erneut.
-        console.error('[whop-refresh] Fetch-Fehler:', err);
+        _log.logError('whop-refresh', 'WHOP_UNREACHABLE', err);
         return res.status(503).json({ error: 'refresh_unavailable' });
     } finally {
         try { await redisCmd(['DEL', lockKey]); } catch (e) {}

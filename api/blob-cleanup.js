@@ -18,6 +18,7 @@ var { list, del } = require('@vercel/blob');
 var _alert     = require('./_alert.js');
 var alertOps   = _alert.alertOps;
 var alertZiele = _alert.alertZiele;
+var clientErr  = require('./_client-errors.js');
 
 var TMP_MAX_AGE_MS   = 24 * 60 * 60 * 1000;      // alles älter als 24 h unter tmp/ ist mit Sicherheit verwaist
 var ALERT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 Tage Alarm-Historie — lang genug, um einen
@@ -49,6 +50,17 @@ async function heartbeat() {
     var url = process.env.HEARTBEAT_URL_BLOB_CLEANUP;
     if (!url) return;
     try { await fetch(url, { method: 'POST', signal: AbortSignal.timeout(2000) }); } catch (e) {}
+}
+
+// Tagesmeldung zu Browser-Fehlern (plan/betrieb-luecken-2026-09-29.md §4): gibt es von
+// gestern einen NEUEN Fehlertyp, geht eine Zeile über den bestehenden Alarmweg. Hängt
+// hier, weil das der einzige tägliche Lauf ist. Wirft nie — ein Redis-Problem darf
+// weder den Aufräumlauf noch den Heartbeat kippen (Redis-Ausfälle meldet sync.js).
+async function clientErrorSummary(now) {
+    try {
+        var text = await clientErr.summary(now);
+        if (text) await alertOps('client-error', 'daily-summary', text);
+    } catch (e) {}
 }
 
 module.exports = async function handler(req, res) {
@@ -96,6 +108,7 @@ module.exports = async function handler(req, res) {
         var alertsDeleted = await sweep('stackr/alerts/', ALERT_MAX_AGE_MS, now);
         // 'deleted' behält seine alte Bedeutung (nur tmp/), damit die Gegenprobe in
         // plan/vercel-einrichtung.md weiter stimmt. Der zweite Wert kommt additiv dazu.
+        await clientErrorSummary(now);
         await heartbeat();
         return res.status(200).json({ ok: true, deleted: deleted, alertsDeleted: alertsDeleted });
     } catch (e) {

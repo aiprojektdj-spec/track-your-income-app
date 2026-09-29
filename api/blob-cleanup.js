@@ -40,6 +40,17 @@ async function sweep(prefix, maxAgeMs, now) {
     return deleted;
 }
 
+// Dead-Man-Switch (plan/betrieb-luecken-2026-09-29.md §3): healthchecks.io erwartet
+// einen Ping pro erfolgreichem Lauf und alarmiert, wenn er ausbleibt. Das deckt genau
+// den Fall ab, den alertOps() nicht melden kann: der Cron läuft gar nicht erst.
+// Nur nach Erfolg, nie im Selbsttest. Ohne gesetzte URL kein Netzverkehr. Wirft nie,
+// und wird awaited — ein offenes Promise friert Serverless nach der Antwort ein.
+async function heartbeat() {
+    var url = process.env.HEARTBEAT_URL_BLOB_CLEANUP;
+    if (!url) return;
+    try { await fetch(url, { method: 'POST', signal: AbortSignal.timeout(2000) }); } catch (e) {}
+}
+
 module.exports = async function handler(req, res) {
     // Vercel Cron sendet 'Authorization: Bearer $CRON_SECRET', wenn CRON_SECRET gesetzt ist.
     // Ohne gesetztes Secret bleibt der Endpoint deaktiviert (kein offener Lösch-Endpoint).
@@ -85,6 +96,7 @@ module.exports = async function handler(req, res) {
         var alertsDeleted = await sweep('stackr/alerts/', ALERT_MAX_AGE_MS, now);
         // 'deleted' behält seine alte Bedeutung (nur tmp/), damit die Gegenprobe in
         // plan/vercel-einrichtung.md weiter stimmt. Der zweite Wert kommt additiv dazu.
+        await heartbeat();
         return res.status(200).json({ ok: true, deleted: deleted, alertsDeleted: alertsDeleted });
     } catch (e) {
         // Nach bestandener Auth — hier ist der Aufrufer wirklich der Cron, ein Fehler also echt.

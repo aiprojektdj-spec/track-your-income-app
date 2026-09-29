@@ -1,7 +1,7 @@
 # Stackr Web 1.7
 
 Buchhaltung für Selbstständige. Vanilla JS, **kein Build-Schritt**, statisches Hosting auf Vercel
-plus 6 Serverless-Endpunkte in `api/` (`_alert.js` ist Helfer, kein Endpunkt). Auth und Zahlung
+plus 7 Serverless-Endpunkte in `api/` (`_alert.js` ist Helfer, kein Endpunkt). Auth und Zahlung
 über **Whop**. Buchhaltungsdaten liegen local-first im Browser; Cloud-Sync speichert
 ausschließlich Chiffrat.
 

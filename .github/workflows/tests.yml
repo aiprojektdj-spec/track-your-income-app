@@ -36,3 +36,6 @@ jobs:
           exit $fail
       - name: Abhaengigkeiten pruefen
         run: npm audit --omit=dev --audit-level=high
+      # Prueft, dass jedes Paket aus package-lock.json wirklich vom npm-Registry signiert ist
+      - name: Registry-Signaturen pruefen
+        run: npm audit signatures

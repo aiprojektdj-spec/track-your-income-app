@@ -25,7 +25,7 @@ Geprüft wurde gegen den Code auf `master` (`6494b23`). Das CFC-Gegenstück steh
 | 10 | PII in Logs | ✅ | `api/_log.js` loggt nur festen Code + gekürzte `err.message`; `api/_client-errors.js` ersetzt E-Mails und Ziffernfolgen, speichert keine IP, keinen Stack, keine URL | – |
 | 11 | Datenlöschung / Export | ✅ | `sync.js` `reset_all`, `blob-upload.js` `purge`; Export als Backup, CSV und DATEV | – |
 | 12 | Dependency-Pinning | ✅ | `package-lock.json` + `npm ci`; Actions auf Commit-SHA; Vendor-Dateien mit Prüfsumme | – |
-| 13 | Dev/Prod-Trennung | 🔴 prüfen | Lokale `.env.local` (Ziel `preview`) enthält `BLOB_READ_WRITE_TOKEN`, `KV_REST_API_TOKEN`, `WHOP_API_KEY`, `WHOP_CLIENT_SECRET` | Lokal braucht die statische Seite keinen davon. Ob Preview denselben Redis-/Blob-Speicher wie Production nutzt, ist offen (unten) |
+| 13 | Dev/Prod-Trennung | 🔴 bestätigt | `vercel env ls` (03.10.): `KV_*`, `REDIS_URL`, `BLOB_READ_WRITE_TOKEN`, `WHOP_API_KEY`, `WHOP_CLIENT_SECRET` gelten je **einmal** für Production **und** Preview. Lokale `.env.local` (Ziel `preview`) enthält dieselben Schlüssel | Jeder Preview-Deploy arbeitet auf dem echten Redis und Blob-Store. Umsetzung unten |
 | 14 | Incident Response | 🔴 | Alarmweg vorhanden (`api/_alert.js`), aber kein Ablaufplan | **Wird umgesetzt:** `plan/incident-response.md` |
 | 15 | KI-Anbieter-Datenflüsse | ✅ | Produkt: keine. Entwicklung: dieselbe Regel wie in CFC, steht im Ablaufplan | – |
 
@@ -48,10 +48,11 @@ Ein Push geht direkt live. Siehe auch `plan/reels-sicherheit-2026-10-03.md`.
 
 ### Dev/Prod-Trennung (Punkt 13)
 
-1. In Vercel → **Storage**: Bei Upstash-Redis und Blob-Store nachsehen, für welche Umgebungen sie
-   verbunden sind. Hängen Preview und Production am selben Speicher, schreiben Preview-Deploys in
-   echte Kundendaten (Chiffrat, Rate-Limits, Whop-Tokens).
-   **Empfehlung:** für Preview einen eigenen Redis und Blob-Store anlegen oder die Verbindung für
-   Preview lösen.
+1. **Bestätigt am 03.10.:** Preview und Production hängen am selben Redis und Blob-Store und
+   nutzen dieselben Whop-Schlüssel. Preview-Deploys schreiben damit in echte Kundendaten
+   (Chiffrat, Rate-Limits, Whop-Tokens). **Entscheidung 03.10.: wird getrennt.**
+   Weg: In Vercel bei diesen Variablen das Ziel **Preview** entfernen. Die Preview zeigt dann
+   die Seite, Cloud-Sync und Upload melden dort „server_misconfigured“. Braucht eine Preview
+   später Sync, bekommt sie einen eigenen Upstash-Redis und Blob-Store.
 2. Lokal die Production-Schlüssel aus `.env.local` entfernen. Die Seite läuft lokal über
    `python -m http.server` und braucht sie nicht.

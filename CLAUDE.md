@@ -43,6 +43,15 @@ anders: nicht anfassen, per `send_message` abstimmen.
    [js/app.js:1099](js/app.js:1099) — bei Zeilendrift über den Namen suchen, nicht über die Zahl.
 8. **CSP steht in `vercel.json` pro Route, nie global** — Browser schneiden mehrere
    CSP-Header, ein globaler würde die spezifischen aushebeln.
+9. **Keine stillen Annahmen.** Ist eine Anforderung mehrdeutig (Steuerlogik, Rundung,
+   Datenformat, Rechtsfolge), wird vor dem Code nachgefragt, nicht geraten. Jede Annahme, die
+   trotzdem nötig ist, steht in der Antwort und im Commit-Text unter „Annahme:“.
+10. **Kleinste Lösung zuerst.** Keine neue Abstraktion, Hilfsklasse oder Konfigurationsoption,
+    die nicht der aktuelle Auftrag braucht. Ein Fix ändert nur die Stellen, die er ändern muss.
+    Vor dem Neuschreiben eines Helfers per grep prüfen, ob es ihn schon gibt.
+11. **Neue Logik nicht in `js/app.js`, `js/store.js` oder `js/lager.js`**, sondern in ein
+    Fachmodul (z. B. `js/app-ust.js`). Kein Big-Bang-Refactor: Wer dort einen Block ohnehin
+    ändert, zieht ihn dabei in ein eigenes Modul.
 
 ## Verifikation
 
@@ -67,3 +76,4 @@ anders: nicht anfassen, per `send_message` abstimmen.
 | [`plan/01-AUFGABEN.md`](plan/01-AUFGABEN.md) | Was noch offen ist — **vor dem Greifen gegen den Code prüfen** |
 | [`plan/02-ENTSCHEIDUNGEN.md`](plan/02-ENTSCHEIDUNGEN.md) | Was bewusst **nicht** geändert wird. Vor jedem Audit lesen |
 | [`plan/03-ARBEITSREGELN.md`](plan/03-ARBEITSREGELN.md) | Ausführliche Fassung dieser Regeln, mit den Vorfällen dahinter |
+| `plan/archiv/` | Erledigte Audits, Session-Prompts, Restlisten. **Nie als Arbeitsgrundlage lesen**, nur zur Herkunft eines Befunds. Erledigte Plandateien gehören hierher, nicht in den Hauptordner |

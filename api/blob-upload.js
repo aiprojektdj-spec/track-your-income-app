@@ -309,7 +309,9 @@ module.exports = async function handler(req, res) {
                 var parts = [], total = 0;
                 for (var i = 0; i < chunkUrls.length; i++) {
                     var u = String(chunkUrls[i] || '');
-                    var r = await fetch(u, { signal: AbortSignal.timeout(15000) });
+                    // redirect:'error' — die URL ist oben auf den eigenen Blob-Namespace geprüft;
+                    // eine Weiterleitung würde genau diese Prüfung umgehen (SSRF).
+                    var r = await fetch(u, { redirect: 'error', signal: AbortSignal.timeout(15000) });
                     if (!r.ok) return res.status(502).json({ error: 'chunk_fetch_failed', index: i });
                     var buf = Buffer.from(await r.arrayBuffer());
                     total += buf.length;

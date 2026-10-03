@@ -4,7 +4,7 @@
 
 ## Ausgangslage
 
-`agb.html` §4 verweist bisher nur pauschal auf „dein Whop-Konto" ohne konkreten Weg. Laut Sanierungs-Audit (`plan/sanierung-2026-08-09-abschlussbericht.md`, Phase 6) reicht das nicht als vollständige Erfüllung von §312k BGB (Kündigungsschaltfläche für Dauerschuldverhältnisse).
+`agb.html` §4 verweist bisher nur pauschal auf „dein Whop-Konto" ohne konkreten Weg. Laut Sanierungs-Audit (`plan/archiv/sanierung-2026-08-09-abschlussbericht.md`, Phase 6) reicht das nicht als vollständige Erfüllung von §312k BGB (Kündigungsschaltfläche für Dauerschuldverhältnisse).
 
 **Offene Rechtsfrage (Anwalt klären):** Der Abo-Vertrag läuft mit **Whop** als Merchant of Record, nicht mit TrackYourIncome — unklar, ob §312k überhaupt TrackYourIncome trifft oder nur Whop selbst. Trotzdem sinnvoll, weil Nutzer den Kündigungsweg typischerweise beim Anbieter erwarten, bei dem sie sich registriert haben.
 

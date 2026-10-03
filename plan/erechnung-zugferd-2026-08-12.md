@@ -1,6 +1,6 @@
 # ZUGFeRD-Ausgabe (PDF/A-3) — Bewertung und Rahmen (2026-08-12)
 
-**Fund:** G5 aus [`funde-audit-03-feature-gap-2026-08-10.md`](funde-audit-03-feature-gap-2026-08-10.md)
+**Fund:** G5 aus [`archiv/funde-audit-03-feature-gap-2026-08-10.md`](archiv/funde-audit-03-feature-gap-2026-08-10.md)
 **Sofort erledigt:** die falsche Bezeichnung (s. Abschnitt 3)
 **Nicht gebaut:** die PDF/A-3-Ausgabe — Begründung unten
 

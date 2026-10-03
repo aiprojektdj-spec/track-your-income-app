@@ -102,7 +102,7 @@ gelten dieselben Regeln.
   neuen Übersichtsdateien (`00`–`03`) untracked im Working Tree, während parallel gegen die
   committete Vorgängerliste gearbeitet wurde.
 - **Eine Aufgabenliste, nicht zwei.** Genau daraus entstand die Doppelung
-  `restliste-2026-08-14.md` ↔ `01-AUFGABEN.md`: dieselben Funde, zwei Stände, einer davon schon
+  `archiv/restliste-2026-08-14.md` ↔ `01-AUFGABEN.md`: dieselben Funde, zwei Stände, einer davon schon
   am Folgetag falsch (A2, A4, A5, V2, L3, N3, D4 waren in `6103208` erledigt, F2 als
   `Utils.ensureXlsx()` gebaut — die zweite Liste führte alle acht weiter als offen).
   Wird eine Liste abgelöst, bekommt sie in Zeile 1 **abgelöst durch `<datei>`** und verschwindet

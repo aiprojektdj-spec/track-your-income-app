@@ -51,21 +51,21 @@ das Gerät nie.
 | # | Thema | Funde | Kernbefund |
 |---|---|---|---|
 | 01 | [Red-Team](funde-audit-01-red-team-2026-08-10.md) | 10 | Kein Zugriff auf fremde Klardaten möglich. Probleme sind Umsatz und Betriebskosten, nicht Datenschutz |
-| 02 | [UX-Journey](funde-audit-02-ux-journey-2026-08-10.md) | 12 | Handwerk stark; alle Schwächen in den **ersten 10 Minuten** |
-| 03 | [Feature-Gap](funde-audit-03-feature-gap-2026-08-10.md) | 10 | Bank-Import, E-Rechnung, DATEV, Mahnwesen existieren **alle** — 28 Module, nicht 12 |
+| 02 | [UX-Journey](archiv/funde-audit-02-ux-journey-2026-08-10.md) | 12 | Handwerk stark; alle Schwächen in den **ersten 10 Minuten** |
+| 03 | [Feature-Gap](archiv/funde-audit-03-feature-gap-2026-08-10.md) | 10 | Bank-Import, E-Rechnung, DATEV, Mahnwesen existieren **alle** — 28 Module, nicht 12 |
 | 04 | [Security-Delta](funde-audit-04-security-delta-2026-08-10.md) | 6 | ✅ vollständig gefixt (SheetJS-CVEs, Backup-Restore-Allowlist) |
 | 05 | [Steuer-Vergleich](funde-audit-05-vergleich-steuer-2026-08-10.md) | 7 | Steuerlich an mehreren Stellen **genauer als der Markt** |
 | 06 | [UI-Checker](funde-audit-06-ui-checker-2026-08-10.md) | 4 | ✅ **alle vier zu** (Stand 2026-08-16): `.action-btn`, `.akademie-tip` und `.data-table` sind definiert, der Versions-Kommentar zeigt auf `app.html`. **Kein** Design-System-Drift |
-| 07 | [Product-Manager](funde-audit-07-product-manager-2026-08-10.md) | 6 | Positionierungsproblem, kein Produktproblem |
-| 08 | [Copy/Marketing](funde-audit-08-copy-marketing-2026-08-10.md) | 6 | Copy überdurchschnittlich; Schwächen sind **Auslassungen** |
+| 07 | [Product-Manager](archiv/funde-audit-07-product-manager-2026-08-10.md) | 6 | Positionierungsproblem, kein Produktproblem |
+| 08 | [Copy/Marketing](archiv/funde-audit-08-copy-marketing-2026-08-10.md) | 6 | Copy überdurchschnittlich; Schwächen sind **Auslassungen** |
 | 09 | [Performance](funde-audit-09-performance-2026-08-10.md) | 7 | Defer-Optimierung war nur auf `app.html` angewendet |
 | 10 | [Steuer-Delta](funde-audit-10-steuern-delta-2026-08-10.md) | 2 | ✅ gefixt. Teilzahlung war steuerlich sauber gebaut |
 | 11 | [Compliance/Legal](funde-audit-11-compliance-legal-2026-08-10.md) | 6 | Zwei widersprüchliche AGB-Fassungen (✅ gefixt) |
 | 12 | [Accessibility](funde-audit-12-accessibility-2026-08-10.md) | 5 | **45 von 45 Farbpaarungen erfüllen AA** |
-| 13 | [Monetarisierung](funde-audit-13-monetarisierung-2026-08-10.md) | 5 | Trial war in der App unsichtbar (✅ gefixt) |
-| 14 | [Datenschutz](funde-audit-14-datenschutz-2026-08-10.md) | 10 | Analytics lud ungefragt; Drittanbieter-Ladungen |
-| 15 | [UI-Vergleich](funde-audit-15-vergleich-ui-2026-08-10.md) | 3 | Dark/Light-Mode **vollständig — im Vergleichsfeld einzigartig** |
-| 16+17 | [Technik + Buchhaltung](funde-audit-16-17-vergleich-technisch-buchhaltung-2026-08-10.md) | 0 | **Keine neuen Funde** — vorherige Audits waren vollständig |
+| 13 | [Monetarisierung](archiv/funde-audit-13-monetarisierung-2026-08-10.md) | 5 | Trial war in der App unsichtbar (✅ gefixt) |
+| 14 | [Datenschutz](archiv/funde-audit-14-datenschutz-2026-08-10.md) | 10 | Analytics lud ungefragt; Drittanbieter-Ladungen |
+| 15 | [UI-Vergleich](archiv/funde-audit-15-vergleich-ui-2026-08-10.md) | 3 | Dark/Light-Mode **vollständig — im Vergleichsfeld einzigartig** |
+| 16+17 | [Technik + Buchhaltung](archiv/funde-audit-16-17-vergleich-technisch-buchhaltung-2026-08-10.md) | 0 | **Keine neuen Funde** — vorherige Audits waren vollständig |
 
 **Sammelübersicht aller Funde am Stück:** [`funde-gesamt-2026-08-10.md`](funde-gesamt-2026-08-10.md)
 
@@ -116,6 +116,6 @@ Diese Punkte sind am Code verifiziert und **gehören ins Marketing** — dort st
 | `plan/funde-gesamt-2026-08-10.md` | Alle Audit-Funde am Stück, eine Zeile je Fund |
 | `plan/funde-audit-01…17-*.md` | Die einzelnen Audits mit Datei:Zeile je Fund |
 | `plan/OFFEN.md` | ältere Statusliste — **von `01-AUFGABEN.md` abgelöst**, nur noch Archiv |
-| `plan/uebergabe-2026-08-12.md` | Übergabe vom 12.08. — **von diesen vier Dateien abgelöst** |
+| `plan/archiv/uebergabe-2026-08-12.md` | Übergabe vom 12.08. — **von diesen vier Dateien abgelöst** |
 | `plan/PLAN.md` | Archiv der Prompt-Texte. **Nicht als Arbeitsliste benutzen** — enthält viel Erledigtes ohne Markierung |
 | `test/` | Node-Harnesses, cache-immun, gute Vorlage für neue Rechen-Tests |

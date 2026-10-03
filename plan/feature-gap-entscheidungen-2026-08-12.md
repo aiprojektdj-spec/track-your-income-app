@@ -1,6 +1,6 @@
 # Feature-Gap: Entscheidungen zu G1, G2, G7, G8, G9, G10 (2026-08-12)
 
-**Quelle:** [`funde-audit-03-feature-gap-2026-08-10.md`](funde-audit-03-feature-gap-2026-08-10.md)
+**Quelle:** [`archiv/funde-audit-03-feature-gap-2026-08-10.md`](archiv/funde-audit-03-feature-gap-2026-08-10.md)
 **Kontext:** Auftrag war, die Fundliste vollständig abzuarbeiten. Diese sechs Posten sind
 abgearbeitet — nicht durch Code, sondern durch eine begründete Entscheidung. Für alle sechs gilt
 derselbe Grund in verschiedenen Ausprägungen: sie verlangen einen Server, der die Klardaten des

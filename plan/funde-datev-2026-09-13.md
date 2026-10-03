@@ -6,7 +6,7 @@ Module ohne jede Testabdeckung. Alles unten ist an einer gebauten Datei gemessen
 Quelltext gelesen.
 
 > **Warum das bisher niemand gesehen hat.** Das Audit vom 2026-08-10
-> ([`funde-audit-16-17-…`](funde-audit-16-17-vergleich-technisch-buchhaltung-2026-08-10.md), B1)
+> ([`funde-audit-16-17-…`](archiv/funde-audit-16-17-vergleich-technisch-buchhaltung-2026-08-10.md), B1)
 > hat den Export mit **8/10** bewertet und ausdrücklich gelobt, dass die Feldliste `BU-Schlüssel`,
 > `Festschreibung`, `Beleglink` und `EU-Steuersatz` enthält. Bewertet wurde damit die **Liste der
 > Spaltennamen im Quelltext** — niemand hat je eine Datei erzeugt und nachgezählt. Genau das ist

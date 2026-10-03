@@ -1,6 +1,6 @@
 # OCR-Belegerkennung im Browser — Spezifikation (2026-08-12)
 
-**Fund:** G4 aus [`funde-audit-03-feature-gap-2026-08-10.md`](funde-audit-03-feature-gap-2026-08-10.md)
+**Fund:** G4 aus [`archiv/funde-audit-03-feature-gap-2026-08-10.md`](archiv/funde-audit-03-feature-gap-2026-08-10.md)
 **Entscheidung des Betreibers (2026-08-12):** bauen — erst diese Spezifikation, dann der Code.
 **Status:** Spezifikation fertig · **Freigabe erteilt** (Abschnitt 7) · Umsetzung offen, auf eigene Session vertagt
 

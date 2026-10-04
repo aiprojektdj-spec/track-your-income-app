@@ -3,6 +3,6 @@
   "private": true,
   "description": "Serverless-Function-Abhängigkeiten (api/*). Kein Build-Schritt für die statische Seite.",
   "dependencies": {
-    "@vercel/blob": "^2.6.1"
+    "@vercel/blob": "^2.8.0"
   }
 }

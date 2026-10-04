@@ -3489,8 +3489,9 @@ if (window.Actions) Actions.register({
     'webhook-test':         function (key) { App._testWebhook(key); }
 });
 
-// Start the app — vollständiger Start mit Integritätsprüfung und Auto-Recovery
-document.addEventListener('DOMContentLoaded', () => {
+// Start the app — vollständiger Start mit Integritätsprüfung und Auto-Recovery.
+// js/app-loader.js laedt diese Datei nach, DOMContentLoaded ist dann meist schon vorbei.
+function _startApp() {
     Store.initWithRecovery().then(({ lossDetected, recovered }) => {
         App.init();
         if (lossDetected) {
@@ -3517,4 +3518,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 800);
         }
     });
-});
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _startApp);
+else _startApp();

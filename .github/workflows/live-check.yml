@@ -1,0 +1,32 @@
+name: Live-Check
+
+# Prueft nach jedem erfolgreichen Production-Deploy von aussen, dass keine internen Dateien
+# ausgeliefert werden, die Security-Header stimmen und die API ohne Token nichts herausgibt
+# (scripts/check-live-exposure.js). Vercel meldet den Deploy als deployment_status an GitHub.
+# Zusaetzlich taeglich, falls ein Deploy am Repo vorbei (CLI) passiert.
+
+on:
+  deployment_status:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-check:
+    if: >-
+      github.event_name != 'deployment_status' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Auf Commit-SHA gepinnt (Tag in Klammern), damit ein umgehaengter Tag nichts einschleust
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: Live-Check gegen Production
+        run: node scripts/check-live-exposure.js https://track-your-income-app.vercel.app

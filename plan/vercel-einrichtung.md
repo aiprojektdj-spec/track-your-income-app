@@ -173,7 +173,7 @@ Diese braucht man nur, wenn man am Standardverhalten etwas ändern will:
 | `ALERT_WEBHOOK_URL` | — (aus) | Sofort-Alarm bei stillen Ausfällen. Ohne sie meldet `api/_alert.js` weiterhin nach `stackr/alerts/` im Blob — nachlesbar, aber nicht zugestellt. Siehe [`alert-webhook-anleitung.md`](alert-webhook-anleitung.md). |
 | `WHOP_API_KEY` | — (aus) | Aktiviert den Company-Membership-Scan als **Fallback**, wenn der Nutzer-Token beim Zugangs-Check abgelehnt wird. Ohne ihn ist der Zugang in dem Fall schlicht nicht feststellbar. Muss ein `apik_…`-Key sein — ein `sk_live_…` hat am 2026-07-13 zahlende Kunden ausgesperrt. |
 | `WHOP_ACCESS_IDS` | `prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f` | Welche Whop-Produkte als Zugang gelten. Der Default steht im Code — nur setzen, wenn sich die Produkte ändern. |
-| `BLOB_MAX_BYTES` | `10737418240` (10 GB) | Byte-Budget je Nutzer und Fenster |
+| `BLOB_MAX_BYTES` | `1073741824` (1 GB, bis 2026-10-04: 10 GB) | Byte-Budget je Nutzer und Fenster |
 | `BLOB_BUDGET_WINDOW_SEC` | `2592000` (30 Tage) | Länge dieses Fensters |
 | `SYNC_MAX_SCOPES` | `25` | Scopes je Nutzer |
 | `SYNC_MAX_GRANTS` | `10` | aktive Steuerberater-Freigaben je Owner |

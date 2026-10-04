@@ -108,9 +108,9 @@ function build(opts) {
     const defMatch = src.match(/BLOB_MAX_BYTES \|\| String\(([^)]+)\)/);
     assert.ok(defMatch, 'Default für BLOB_MAX_BYTES nicht gefunden');
     const defBytes = eval(defMatch[1]);            // eslint-disable-line no-eval
-    assert.strictEqual(defBytes, 10 * GB, 'Default 10 GB');
+    assert.strictEqual(defBytes, 1 * GB, 'Default 1 GB');
     assert.ok(defBytes < 28 * GB, 'kleiner als die im Audit genannte Stundenleistung');
-    pass++; console.log('✓ Default-Deckel 10 GB je 30-Tage-Fenster');
+    pass++; console.log('✓ Default-Deckel 1 GB je 30-Tage-Fenster');
 
     console.log('\n' + pass + '/10 Tests bestanden ✅');
 })().catch(e => { console.error('✗ FAIL', e); process.exit(1); });

@@ -1,5 +1,5 @@
 # Nicht in das öffentliche Deployment aufnehmen: interne Doku, Audits, Tests, Werkzeuge.
-# Nach jedem Deploy prüfen, dass diese Pfade live 404 liefern (plan/security-fix-2026-09-29.md).
+# Nach jedem Deploy prüft scripts/check-live-exposure.js (Action live-check.yml), dass diese Pfade live 404 liefern.
 compliance/
 plan/
 graphify-out/

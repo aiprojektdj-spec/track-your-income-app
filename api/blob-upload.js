@@ -22,7 +22,7 @@
 //
 // Env: BLOB_READ_WRITE_TOKEN (Vercel-Blob-Store-Integration, automatisch gesetzt)
 //      + dieselben WHOP_*/KV_REST_API_*-Variablen wie api/sync.js (Auth + Rate-Limit).
-//      BLOB_MAX_BYTES             (optional, Default 10 GB — Byte-Budget je Nutzer und Fenster)
+//      BLOB_MAX_BYTES             (optional, Default 1 GB — Byte-Budget je Nutzer und Fenster)
 //      BLOB_BUDGET_WINDOW_SEC     (optional, Default 2592000 = 30 Tage)
 //      ALERT_WEBHOOK_URL          (optional — Meldung bei offenem Deckel, s. api/_alert.js)
 //      SYNC_OWNER_IDS             (optional — Whop-User-IDs "user_…" der Owner ohne Abo)
@@ -134,9 +134,10 @@ var BLOB_HOST_RE     = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com
 //
 // Deshalb ein gleitendes Fenster statt eines Lebenszeit-Kontos: ein Lebenszeit-Deckel ohne
 // Gegenbuchung beim Löschen würde einen echten Vielnutzer irgendwann dauerhaft aussperren, und
-// eine Gegenbuchung gibt es nicht, weil Anhänge nie automatisch gelöscht werden. 10 GB in
-// 30 Tagen ist für eine Belegverwaltung sehr großzügig und begrenzt den Angreifer von
-// ~670 GB/Tag auf 10 GB/Monat.
+// eine Gegenbuchung gibt es nicht, weil Anhänge nie automatisch gelöscht werden. 1 GB in
+// 30 Tagen reicht für eine Belegverwaltung und begrenzt den Angreifer von ~670 GB/Tag auf
+// 1 GB/Monat. Am 2026-10-04 von 10 GB gesenkt (Seiten-Check B8); wer mehr braucht, bekommt
+// es per BLOB_MAX_BYTES.
 //
 // Gezählt werden put und chunk, also die tatsächlich durch die API geschobenen Bytes. commit
 // zählt NICHT mit: die zusammengesetzte Datei ist genau die Summe der Chunks, die schon
@@ -146,7 +147,7 @@ var BLOB_HOST_RE     = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com
 // gleitenden Fenster wäre das ein Bypass. Wer 10 GB hochlädt, 30 Tage wartet (Zähler ist per
 // TTL weg) und dann löscht, hätte einen Zähler von -10 GB und damit das doppelte Budget.
 // Das Fenster selbst gibt das Budget ohnehin zurück, eine Gegenbuchung ist unnötig.
-var BLOB_BUDGET_BYTES  = parseInt(process.env.BLOB_MAX_BYTES || String(10 * 1024 * 1024 * 1024), 10);
+var BLOB_BUDGET_BYTES  = parseInt(process.env.BLOB_MAX_BYTES || String(1 * 1024 * 1024 * 1024), 10);
 var BLOB_BUDGET_WINDOW = parseInt(process.env.BLOB_BUDGET_WINDOW_SEC || '2592000', 10); // 30 Tage
 
 // Bucht `bytes` auf das Budget. Rückgabe false = Deckel erreicht, dann wird die Buchung

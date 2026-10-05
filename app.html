@@ -15,9 +15,9 @@
          beide Dateien ohnehin, style.css steht in diesem head und app.js weiter unten im
          selben 22-KB-Dokument. Die Hints heben nur ihre Prioritaet an, damit sie nicht
          hinter den CDN-Stylesheets einsortiert werden; die blockierenden Skripte in
-         Zeile 19/20 sind der groessere Posten (eigener Fund, s. Uebergabe). -->
+         Zeile 19/20 sind der groessere Posten (eigener Fund, s. Uebergabe).
+         Der Preload fuer js/app.js ist weg: die Datei laedt js/app-loader.js erst nach. -->
     <link rel="preload" as="style"  href="css/style.css">
-    <link rel="preload" as="script" href="js/app.js?v=2">
 
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
     <link rel="manifest" href="/manifest.json">
@@ -274,71 +274,10 @@
     <script defer src="js/utils.js"></script>
     <script defer src="js/backup-crypto.js"></script>
 
-    <!-- ── Feature modules ── -->
-    <script defer src="js/dashboard.js"></script>
-    <script defer src="js/buchungen.js"></script>
-    <script defer src="js/lager.js"></script>
-    <script defer src="js/datev.js"></script>
-    <script defer src="js/bank-import.js"></script>
-    <script defer src="js/steuerberater.js"></script>
-    <script defer src="js/steuer-berechnung.js"></script>
-    <script defer src="js/euer.js"></script>
-    <script defer src="js/ausgaben.js"></script>
-    <script defer src="js/statistiken.js"></script>
-    <script defer src="js/protokoll.js"></script>
-    <script defer src="js/retouren.js"></script>
-    <script defer src="js/fahrtenbuch.js"></script>
-    <script defer src="js/kassenbuch.js"></script>
-    <script defer src="js/steuertermine.js"></script>
-    <script defer src="js/afa.js"></script>
-    <script defer src="js/privatbuchungen.js"></script>
-    <script defer src="js/ustvoranmeldung.js"></script>
-    <script defer src="js/ksk.js"></script>
-    <script defer src="js/rechtsform.js"></script>
-    <script defer src="js/vorsteuer.js"></script>
-    <script defer src="js/oss.js"></script>
-    <script defer src="js/koerperschaftsteuer.js"></script>
-    <script defer src="js/bilanz.js"></script>
-    <script defer src="js/gewerbesteuer.js"></script>
-    <script defer src="js/lohnsteuer.js"></script>
-    <script defer src="js/gbr.js"></script>
-    <script defer src="js/gbr-modul.js"></script>
-    <script defer src="js/materiallager.js"></script>
-    <script defer src="js/akademie.js"></script>
+    <script defer src="js/app-loader.js"></script>
 
-    <!-- ── Rechnungen-Sub-App (eingebettet als Finanzen-Sub-Tab) ── -->
-    <script defer src="rechnungen/js/xrechnung.js"></script>
-    <script defer src="rechnungen/js/erechnung-import.js"></script>
-    <script defer src="rechnungen/js/rech-dashboard.js"></script>
-    <script defer src="rechnungen/js/rechnung.js"></script>
-    <script defer src="rechnungen/js/dokumente.js"></script>
-    <script defer src="rechnungen/js/kunden.js"></script>
-    <script defer src="rechnungen/js/produkte.js"></script>
-    <script defer src="rechnungen/js/mahnungen.js"></script>
-    <script defer src="rechnungen/js/protokoll.js"></script>
-    <script defer src="rechnungen/js/unternehmensdaten.js"></script>
-    <script defer src="rechnungen/js/wiederkehrend.js"></script>
-    <script defer src="rechnungen/js/app.js"></script>
-
-    <!-- ── Belegerkennung: Heuristik (~5 KB) und gemeinsamer Unterbau (Engine-Nachladen,
-         Worker, PDF-Textschicht, Chips). tesseract.js und der WASM-Kern stehen NICHT hier,
-         die holt js/beleg-ocr-ui.js erst beim Klick auf "Beleg auslesen" nach.
-         Beide fehlten hier bis zum 2026-09-21, obwohl app.html die Eigenbelege-Sub-App
-         mitlaedt: im eingebetteten Tab lief die Erkennung deshalb in einen
-         ReferenceError und meldete nur "Belegerkennung nicht moeglich". ── -->
-    <script defer src="js/beleg-ocr.js"></script>
-    <script defer src="js/beleg-ocr-ui.js"></script>
-    <!-- ZIP-Schreiber (Store-Modus, ohne Bibliothek) fuer DATEV-Belegexport und Z3 -->
-    <script defer src="js/zip.js"></script>
-
-    <!-- ── Eigenbelege-Sub-App (eingebettet als Finanzen-Sub-Tab); ApexCharts wird on-demand via _ensureApexCharts() geladen ── -->
-    <script defer src="eigenbelege/js/app.js"></script>
-
-    <!-- ── Entry point (last, depends on all above) ── -->
-    <script defer src="js/app.js?v=2"></script>
-    <script defer src="js/blob-attachments.js"></script>
-    <script defer src="js/cloud-sync.js"></script>
-    <script defer src="js/stb-share.js"></script>
+    <!-- ── Feature modules, Sub-Apps und js/app.js: laedt js/app-loader.js nach, sobald eine
+         Sitzung da ist. Ohne Sitzung erscheint der Login sofort, ohne ~50 Skripte (2,5 MB). ── -->
 
     <script src="js/page-shell.js"></script>
 

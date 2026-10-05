@@ -15,6 +15,11 @@
 
     // Reihenfolge = Ausfuehrungsreihenfolge (async=false), js/app.js braucht alle davor.
     var MODULES = [
+        // Vendor nur fuer die Module (Utils prueft flatpickr erst beim Aufruf per typeof)
+        'js/vendor/gsap.min.js',
+        'js/vendor/flatpickr.min.js',
+        'js/vendor/flatpickr-de.js',
+
         'js/dashboard.js',
         'js/buchungen.js',
         'js/lager.js',

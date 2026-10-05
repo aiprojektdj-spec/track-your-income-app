@@ -27,9 +27,9 @@
     <script src="js/actions.js"></script>
     <script src="js/i18n.js"></script>
 
-    <!-- ── Fonts: self-hosted (DSGVO) — preload verhindert FOUT ── -->
+    <!-- ── Fonts: self-hosted (DSGVO) — preload verhindert FOUT. Nur Inter: Fraunces steht
+         erst in den Seitenkoepfen nach dem Login, der Login-Screen braucht sie nicht. ── -->
     <link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 
     <!-- Theme (System/Hell/Dunkel) — synchron und VOR den Stylesheets:
          setzt data-theme auf <html>, sonst blitzt die dunkle Palette auf. -->
@@ -257,10 +257,8 @@
          Nutzer im Projekt und holt es ueber _ensureChartJs() beim ersten Zeichnen. -->
     <!-- xlsx.full.min.js (929 KB, groesste Datei des Projekts) wird NICHT mehr eager geladen:
          Utils.ensureXlsx() in js/utils.js holt sie beim ersten Excel-Im-/Export nach. -->
-    <script defer src="js/vendor/gsap.min.js"></script>
+    <!-- gsap und flatpickr brauchen erst die Module: js/app-loader.js laedt sie mit ihnen nach. -->
     <script defer src="js/vendor/notyf.min.js"></script>
-    <script defer src="js/vendor/flatpickr.min.js"></script>
-    <script defer src="js/vendor/flatpickr-de.js"></script>
     <!-- ApexCharts (~600KB): lazy-loaded by dashboard.js only when chart tab opens -->
 
     <!-- ── App core ── -->

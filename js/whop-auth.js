@@ -928,7 +928,10 @@ var AuthUI = (function () {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
-    return { boot, openUserMenu, openReferral, _logout, _loginWithWhop, _startDeviceReset, _confirmDeviceReset, _openManageMembership };
+    // validToken/refreshToken fuer Cloud-Sync und StB-Freigabe: die liefen bis 2026-10-06 mit
+    // dem rohen Token aus localStorage und bekamen nach einer Stunde Laufzeit (bzw. nach einem
+    // Start ueber Offline-Grace, der nicht erneuert) dauerhaft 401.
+    return { boot, validToken: _validToken, refreshToken: _refreshAccessToken, openUserMenu, openReferral, _logout, _loginWithWhop, _startDeviceReset, _confirmDeviceReset, _openManageMembership };
 })();
 
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──

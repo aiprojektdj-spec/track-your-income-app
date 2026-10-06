@@ -150,12 +150,22 @@ var StbShare = (function () {
     function _toast(m, t, d) { if (typeof Utils !== 'undefined' && Utils.showToast) Utils.showToast(m, t || 'info', d); else console.debug('[StbShare]', m); }
     function _esc(s) { return (typeof Utils !== 'undefined' && Utils.escapeHtml) ? Utils.escapeHtml(String(s)) : String(s); }
 
+    // Wie CloudSync._api: Token erneuern, bei 401 einmal erneuern und wiederholen.
     async function _api(body) {
-        var res = await fetch('/api/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _token() },
-            body: JSON.stringify(body)
-        });
+        var auth = (typeof AuthUI !== 'undefined') ? AuthUI : null;
+        var tok  = (auth && auth.validToken && await auth.validToken()) || _token();
+        var send = function (t) {
+            return fetch('/api/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t },
+                body: JSON.stringify(body)
+            });
+        };
+        var res = await send(tok);
+        if (res.status === 401 && auth && auth.refreshToken) {
+            var frisch = await auth.refreshToken();
+            if (frisch) res = await send(frisch);
+        }
         var json = {}; try { json = await res.json(); } catch (e) {}
         return { status: res.status, json: json };
     }

@@ -55,11 +55,22 @@ function unb64(str) {
     return b;
 }
 
+// gzip vor dem Verschluesseln (seit 2026-10-06). Ob komprimiert wird, entscheidet der
+// Aufrufer per msg.gzip (Stichtag in js/cloud-sync.js). Beim Entschluesseln wird an den
+// gzip-Magic-Bytes 1f 8b erkannt, ob der Klartext komprimiert ist — JSON beginnt nie
+// damit, deshalb braucht es kein Formatfeld auf dem Server.
+async function gzipBytes(bytes, entpacken) {
+    var strom = entpacken ? new self.DecompressionStream('gzip') : new self.CompressionStream('gzip');
+    return new Uint8Array(await new self.Response(new self.Blob([bytes]).stream().pipeThrough(strom)).arrayBuffer());
+}
+function istGzip(b) { return b.length > 1 && b[0] === 0x1f && b[1] === 0x8b; }
+
 // aad kommt als fertiges Uint8Array vom Aufrufer — die Zusammensetzung
 // (ownerId|scope|version) bleibt bewusst in cloud-sync.js, damit es genau eine
 // Stelle gibt, die das Format kennt.
 async function doEncrypt(msg) {
     var pt = new TextEncoder().encode(msg.json);
+    if (msg.gzip) pt = await gzipBytes(pt, false);
     var iv = self.crypto.getRandomValues(new Uint8Array(12));
     var params = { name: 'AES-GCM', iv: iv };
     if (msg.aad) params.additionalData = msg.aad;
@@ -85,6 +96,8 @@ async function doDecrypt(msg) {
         if (!msg.allowNoAad) throw e;
         pt = await self.crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, msg.key, ct);
     }
+    pt = new Uint8Array(pt);
+    if (istGzip(pt)) pt = await gzipBytes(pt, true);
     return { json: new TextDecoder().decode(pt) };
 }
 

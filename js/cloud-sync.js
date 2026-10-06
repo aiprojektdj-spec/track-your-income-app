@@ -457,12 +457,23 @@ var CloudSync = (function () {
     }
 
     // ── Server-API ────────────────────────────────────────────────────────────
+    // Token vor dem Aufruf vorausschauend erneuern und bei 401 genau einmal erneuern und
+    // wiederholen — Whops Access-Token laeuft nach einer Stunde ab, der Sync laeuft laenger.
     async function _api(body) {
-        var res = await fetch(API, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _token() },
-            body:    JSON.stringify(body)
-        });
+        var auth = (typeof AuthUI !== 'undefined') ? AuthUI : null;
+        var tok  = (auth && auth.validToken && await auth.validToken()) || _token();
+        var send = function (t) {
+            return fetch(API, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t },
+                body:    JSON.stringify(body)
+            });
+        };
+        var res = await send(tok);
+        if (res.status === 401 && auth && auth.refreshToken) {
+            var frisch = await auth.refreshToken();
+            if (frisch) res = await send(frisch);
+        }
         var json = {};
         try { json = await res.json(); } catch (e) {}
         return { status: res.status, json: json };
@@ -1931,7 +1942,7 @@ var CloudSync = (function () {
         _copyCode: _copyCode,
         _downloadCode: _downloadCode,
         // Test-Oberfläche für reine Merge-/Code-Logik (siehe test-cloud-sync.js)
-        _test: { mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, merge: _merge, toB32: _toB32, fromB32: _fromB32,
+        _test: { api: _api, mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, merge: _merge, toB32: _toB32, fromB32: _fromB32,
             loadPendingDeletions: _loadPendingDeletions, queuePendingDeletion: _queuePendingDeletion,
             probeKey: _probeKey, classifyDecryptError: _classifyDecryptError,
             hasMismatch: _hasMismatch, setMismatch: _setMismatch, encrypt: _encrypt, b64: _b64,

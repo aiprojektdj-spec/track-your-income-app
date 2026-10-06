@@ -264,6 +264,21 @@ var CloudSync = (function () {
     // durchgereicht (js/crypto-worker.js) — faellt sie weg, entfaellt dort automatisch
     // auch der Umweg, der Worker selbst kennt kein Datum.
     var AAD_FALLBACK_UNTIL = Date.parse('2026-12-01T00:00:00Z');
+    // Sync-Klartext wird vor dem Verschluesseln gzip-komprimiert (~80-90 % kleiner). LESEN
+    // koennen beide Formate sofort (Erkennung an den Magic-Bytes 1f 8b, s. _gunzipIfNeeded),
+    // SCHREIBEN erst ab diesem Stichtag: ein Geraet mit altem Code (Tab seit Tagen offen)
+    // koennte komprimiertes Chiffrat nicht lesen und meldete "Code falsch". Bis dahin hat
+    // jedes Geraet den neuen Code geladen. Nach dem Stichtag kann die Datumspruefung weg.
+    var GZIP_WRITE_FROM = Date.parse('2026-10-20T00:00:00Z');
+    function _gzipWrite() { return Date.now() >= GZIP_WRITE_FROM && typeof CompressionStream !== 'undefined'; }
+    async function _gzip(bytes, entpacken) {
+        var strom = entpacken ? new DecompressionStream('gzip') : new CompressionStream('gzip');
+        return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(strom)).arrayBuffer());
+    }
+    async function _gunzipIfNeeded(pt) {
+        var b = new Uint8Array(pt);
+        return (b.length > 1 && b[0] === 0x1f && b[1] === 0x8b) ? _gzip(b, true) : b;
+    }
     function _aad(ownerId, scope) {
         return new TextEncoder().encode(String(ownerId || '') + '|' + String(scope || '') + '|' + AAD_VERSION);
     }
@@ -366,8 +381,9 @@ var CloudSync = (function () {
         // JSON.stringify bleibt hier: der String muss dort entstehen, wo die Daten liegen.
         // Alles danach (TextEncoder, AES-GCM, base64) macht der Worker.
         var json = JSON.stringify(obj);
+        var gzip = _gzipWrite();
         try {
-            var r = await _cwCall({ op: 'encrypt', json: json, key: key, aad: aad });
+            var r = await _cwCall({ op: 'encrypt', json: json, key: key, aad: aad, gzip: gzip });
             return { ct: r.ct, iv: r.iv };
         } catch (e) {
             if (!_cwUnavailable(e)) throw e;
@@ -375,6 +391,7 @@ var CloudSync = (function () {
         // Fallback ohne Worker — unveraenderter Pfad von vor F6.
         var iv  = crypto.getRandomValues(new Uint8Array(12));
         var pt  = new TextEncoder().encode(json);
+        if (gzip) pt = await _gzip(pt, false);
         var ct  = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: aad }, key, pt);
         return { ct: _b64(new Uint8Array(ct)), iv: _b64(iv) };
     }
@@ -425,7 +442,7 @@ var CloudSync = (function () {
             if (!allowNoAad) throw e;
             pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, ct);
         }
-        return JSON.parse(new TextDecoder().decode(pt));
+        return JSON.parse(new TextDecoder().decode(await _gunzipIfNeeded(pt)));
     }
     async function _decrypt(blob, scope, ownerId, overrideBytes) {
         return _decryptCt(await _fetchCipher(blob), blob.iv, scope, ownerId, overrideBytes);
@@ -1942,7 +1959,7 @@ var CloudSync = (function () {
         _copyCode: _copyCode,
         _downloadCode: _downloadCode,
         // Test-Oberfläche für reine Merge-/Code-Logik (siehe test-cloud-sync.js)
-        _test: { api: _api, mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, merge: _merge, toB32: _toB32, fromB32: _fromB32,
+        _test: { api: _api, decryptCtTest: _decryptCt, gzipWrite: _gzipWrite, mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, merge: _merge, toB32: _toB32, fromB32: _fromB32,
             loadPendingDeletions: _loadPendingDeletions, queuePendingDeletion: _queuePendingDeletion,
             probeKey: _probeKey, classifyDecryptError: _classifyDecryptError,
             hasMismatch: _hasMismatch, setMismatch: _setMismatch, encrypt: _encrypt, b64: _b64,

@@ -13,7 +13,7 @@
 // beiden Varianten existieren (_cache, _idbPut/_idbPutAsync, _calcChecksum).
 //
 // Dateiformat (.stackrbak):
-//   { format:"stackr-backup", version:1, app:"stackr", createdAt:<ISO>,
+//   { format:"stackr-backup", version:2 (gzip-Klartext, AAD v2; v1 = unkomprimiert, weiter lesbar), app:"stackr", createdAt:<ISO>,
 //     kdf:{ algo:"PBKDF2", hash:"SHA-256", iterations:600000, salt:<b64> },
 //          ^ iterations/hash werden beim Entschlüsseln AUS DER DATEI gelesen, nicht aus dem Code —
 //            deshalb bleiben Backups aus Zeiten anderer Rundenzahl (z.B. 210k) lesbar.
@@ -213,15 +213,25 @@ var BackupCrypto = (function () {
     // manipulierte Datei anderen Ursprungs stillschweigend als gültiges Backup akzeptiert
     // wird. Alte, vor diesem Fix erzeugte Dateien haben keine AAD — s. Fallback in _decryptFile.
     var BACKUP_AAD = new TextEncoder().encode('stackr-backup|v1');
+    // Version 2 (seit 2026-10-06): Klartext vor dem Verschluesseln gzip-komprimiert,
+    // ~80-90 % kleinere Datei. v1-Dateien bleiben lesbar. Ohne CompressionStream (sehr alte
+    // Browser) wird weiter v1 geschrieben.
+    var BACKUP_AAD_V2 = new TextEncoder().encode('stackr-backup|v2');
+    async function _gzip(bytes, entpacken) {
+        var strom = entpacken ? new DecompressionStream('gzip') : new CompressionStream('gzip');
+        return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(strom)).arrayBuffer());
+    }
 
     async function _export(pass) {
         var salt = crypto.getRandomValues(new Uint8Array(16));
         var iv   = crypto.getRandomValues(new Uint8Array(12));
         var key  = await _deriveKey(pass, salt, ITER, 'SHA-256');
         var pt   = new TextEncoder().encode(JSON.stringify(_buildBundle()));
-        var ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: BACKUP_AAD }, key, pt);
+        var v2   = typeof CompressionStream !== 'undefined';
+        if (v2) pt = await _gzip(pt, false);
+        var ct   = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv, additionalData: v2 ? BACKUP_AAD_V2 : BACKUP_AAD }, key, pt);
         return {
-            format: 'stackr-backup', version: 1, app: 'stackr', createdAt: new Date().toISOString(),
+            format: 'stackr-backup', version: v2 ? 2 : 1, app: 'stackr', createdAt: new Date().toISOString(),
             kdf:    { algo: 'PBKDF2', hash: 'SHA-256', iterations: ITER, salt: _b64(salt) },
             cipher: { algo: 'AES-GCM', iv: _b64(iv), ciphertext: _b64(new Uint8Array(ct)) }
         };
@@ -234,6 +244,11 @@ var BackupCrypto = (function () {
         var key = await _deriveKey(pass, _unb64(k.salt), k.iterations, k.hash);
         var ctBytes = _unb64(c.ciphertext), ivBytes = _unb64(c.iv);
         var pt;
+        if (file.version === 2) {
+            try { pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes, additionalData: BACKUP_AAD_V2 }, key, ctBytes); }
+            catch (e) { throw new Error('Falsche Passphrase oder beschädigte Datei.'); }
+            return JSON.parse(new TextDecoder().decode(await _gzip(new Uint8Array(pt), true)));
+        }
         try { pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes, additionalData: BACKUP_AAD }, key, ctBytes); }
         catch (e) {
             try { pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBytes }, key, ctBytes); } // Alt-Backups ohne AAD

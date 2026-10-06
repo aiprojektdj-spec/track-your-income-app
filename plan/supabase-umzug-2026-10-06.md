@@ -13,7 +13,7 @@ Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 | E3 | **Kein `supabase-js`**, kein `tweetnacl`. Zugriff nur aus `api/` per `fetch` auf PostgREST/Storage, Service-Key nie im Browser |
 | E5 | Eigene Projekte `stackr-prod` + `stackr-preview`, Frankfurt (eu-central-1), Pro-Plan |
 
-## Was es schon gibt (Commit `d5385fd`, nur lokal, **nicht deployt**)
+## Was es schon gibt — Sync (Commit `d5385fd`, nur lokal, **nicht deployt**)
 
 | Datei | Inhalt |
 |---|---|
@@ -27,6 +27,25 @@ Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 - **Ohne neue Env-Variablen ändert sich nichts**: Default bleibt `STORAGE_BACKEND=redis`, kein Spiegel. Deployen ist also gefahrlos.
 - `d5385fd` lässt sich ohne Konflikt auf `origin/master` (Stand `0a46f82`) setzen, geprüft mit `git merge-tree`.
 - Das SQL lief bisher nur gegen **PGlite**, noch nie gegen ein echtes Supabase.
+
+## Was es schon gibt — Belege/Storage (Commit `4d96b9b`, nur lokal, **nicht deployt**)
+
+Privater Bucket, signierte URLs. Umschalten per `BLOB_BACKEND=supabase`; ohne die Variable ändert sich nichts.
+
+| Datei | Inhalt |
+|---|---|
+| `api/_storage.js` | Supabase-Storage-Zugriff per `fetch` |
+| `api/blob-upload.js` | Storage-Backend + neue `action=sign` (Steuerberater nur mit Grant) |
+| `api/blob-cleanup.js` | Cron auf Storage |
+| `js/blob-attachments.js`, `js/cloud-sync.js` | Abruf über signierte URLs, `owner`-Weitergabe für den Steuerberater |
+| `supabase/migrations/20261006000002_storage.sql` | Bucket + Rechte |
+| `scripts/backfill-blob-supabase.js`, `test/test-blob-storage.js` | Altbestand kopieren, Tests |
+
+**Vor `BLOB_BACKEND=supabase` Pflicht:**
+- CSP in `vercel.json`: `connect-src` in **allen** Routen um `https://*.supabase.co` ergänzen. Die Datei ist gerade durch die Barrierefreiheits-Arbeit (neue Route `/barrierefreiheit.html`) uncommittet geändert, erst danach anfassen.
+- Supabase: projektweite Upload-Grenze auf mindestens 200 MB stellen (👤).
+
+Byte-Budget, Commit-Sperre und Rate-Limit in `blob-upload` laufen weiter über Redis (Schritt 2 unten).
 
 ## Wichtig: Phase 1 zieht nur den Sync um
 
@@ -48,10 +67,10 @@ Upstash und Vercel Blob hängen an viel mehr als `api/sync.js`. **Abschalten lä
 
 | Endpunkt | Wofür | Umzug |
 |---|---|---|
-| `api/blob-upload.js` | Belege/Anhänge + übergroße Sync-Chiffrate (put/del/list, Chunk-Upload) | offen → Supabase Storage, Bucket privat |
-| `api/blob-cleanup.js` | Cron: verwaiste Chunks löschen, Heartbeat | offen |
+| `api/blob-upload.js` | Belege/Anhänge + übergroße Sync-Chiffrate (put/del/list, Chunk-Upload) | ✅ `4d96b9b` |
+| `api/blob-cleanup.js` | Cron: verwaiste Chunks löschen, Heartbeat | ✅ `4d96b9b` |
 | `api/_alert.js` | schreibt Alarm-Log nach Blob (zweites Ziel neben Make) | offen — fällt sonst mit Blob weg |
-| `js/blob-attachments.js` (Client) | lädt Chiffrat über öffentliche Blob-URLs | offen — bei privatem Bucket braucht es signierte URLs |
+| `js/blob-attachments.js` (Client) | lädt Chiffrat über öffentliche Blob-URLs | ✅ `4d96b9b`, signierte URLs |
 
 `@vercel/blob` (einzige Produktiv-Abhängigkeit) kann erst raus, wenn alle drei Server-Dateien umgestellt sind.
 
@@ -86,7 +105,7 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 2. Rate-Limits + Fehlerzähler (`whop-token`, `whop-access`, `client-error`) auf `sync_rate_hit` bzw. eine kleine Tabelle. Geringes Risiko.
 3. `api/health.js` prüft Supabase (und so lange beides läuft, auch Redis).
 4. Whop-Refresh-Sitzungen (`whop-token`, `whop-refresh`): Tabelle mit Ablaufzeit + Sperre per Postgres-Funktion.
-5. Storage: `blob-upload`, `blob-cleanup`, Client-Abruf über signierte URLs, Backfill der Blob-Dateien mit Prüfsumme.
+5. Storage: Code fertig (`4d96b9b`). Offen: CSP, Upload-Grenze, Backfill der Blob-Dateien, Umschalten.
 6. `_alert.js`: zweites Alarmziel neu wählen (Supabase-Tabelle?).
 7. Upstash abschalten, `@vercel/blob` entfernen, Rechtstexte final.
 
@@ -94,4 +113,4 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 
 1. Sind die Supabase-Projekte schon angelegt? (Blockiert Schritt 1–2.)
 2. Preview: eigenes Redis anlegen oder in Preview einfach **keinen** Spiegel setzen? (Empfehlung: keinen Spiegel, Preview testet gegen `stackr-preview` mit eigenen Testdaten.)
-3. Darf `d5385fd` jetzt deployt werden? Ohne Env-Variablen ändert er nichts. Die Session „STACKR_PLAN_2026-10-06“ hat ihn gebaut.
+3. Dürfen `d5385fd` und `4d96b9b` jetzt deployt werden? Ohne Env-Variablen ändern sie nichts. Die Session „STACKR_PLAN_2026-10-06“ hat sie gebaut.

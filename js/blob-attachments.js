@@ -1,5 +1,5 @@
 // ============================================================================
-// BlobAttachments — Transport-Schicht zu api/blob-upload.js (Vercel Blob)
+// BlobAttachments — Transport-Schicht zu api/blob-upload.js (Vercel Blob / Supabase Storage)
 // ============================================================================
 // Reiner Transport: Upload/Download/Delete roher Bytes + generisches Auslagern
 // großer Base64-Felder aus dem Sync-JSON. Verschlüsselung bleibt bei CloudSync
@@ -99,11 +99,41 @@ var BlobAttachments = (function () {
         return s;
     }
 
-    // ── Download (öffentliche Blob-URL, kein Auth nötig — Inhalt ist Chiffrat) ─
-    async function get(url) {
+    // ── Download: Referenz → kurzlebige Abruf-URL (action=sign) → Bytes ────────
+    // Seit dem Umzug auf Supabase Storage (privater Bucket) ist eine gespeicherte
+    // Referenz nicht mehr direkt abrufbar; der Server tauscht sie gegen eine signierte
+    // URL. Alte Vercel-Referenzen gibt er unverändert zurück, solange sie dort liegen.
+    // owner: Whop-ID des Mandanten, wenn ein Steuerberater dessen Anhänge liest.
+    // Fehler heißen blob_get_*, damit CloudSync sie als Netz-/Speicherfehler erkennt
+    // und nicht als falschen Schlüssel (_classifyDecryptError).
+    var SIGN_BATCH = 200;   // = MAX_SIGN in api/blob-upload.js
+
+    async function _sign(refs, owner) {
+        var out = [];
+        for (var i = 0; i < refs.length; i += SIGN_BATCH) {
+            var body = { urls: refs.slice(i, i + SIGN_BATCH) };
+            if (owner) body.owner = owner;
+            var r = await _authFetch(API + '?action=sign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            var j = await r.json().catch(function () { return {}; });
+            if (!r.ok || !Array.isArray(j.urls)) throw new Error('blob_get_sign_' + r.status);
+            out = out.concat(j.urls);
+        }
+        return out;
+    }
+
+    async function _download(url) {
+        if (!url) throw new Error('blob_get_404');
         var r = await fetch(url);
         if (!r.ok) throw new Error('blob_get_' + r.status);
         return new Uint8Array(await r.arrayBuffer());
+    }
+
+    async function get(ref, owner) {
+        return _download((await _sign([ref], owner))[0]);
     }
 
     // ── Löschen (Ersetzen/Art. 17 DSGVO) — best-effort, wirft nicht, meldet aber ──
@@ -218,26 +248,28 @@ var BlobAttachments = (function () {
 
     // ── Hydrieren: { __blobref__ } → wieder volle "data:"-URL (vor dem Merge!) ──
     // decryptBytes: async(Uint8Array ct, base64 iv) => Uint8Array plaintext
-    async function hydrateFields(keys, decryptBytes) {
-        var jobs = [];
+    // owner: siehe get(). Alle Referenzen eines Scopes werden gebündelt signiert —
+    // ein sign-Request je Anhang würde das Rate-Limit von api/blob-upload.js reißen.
+    async function hydrateFields(keys, decryptBytes, owner) {
+        var found = [];
         function visit(obj) {
             if (!obj || typeof obj !== 'object') return;
             for (var field in obj) {
                 var v = obj[field];
-                if (v && typeof v === 'object' && v.__blobref__) {
-                    jobs.push((async function (o, f, ref) {
-                        var ctBytes = await get(ref.url);
-                        var plain   = await decryptBytes(ctBytes, ref.iv);
-                        o[f] = _bytesToDataUrl(plain, ref.mime || 'application/octet-stream');
-                    })(obj, field, v));
-                }
+                if (v && typeof v === 'object' && v.__blobref__) found.push({ o: obj, f: field, ref: v });
             }
         }
         Object.keys(keys).forEach(function (k) {
             var v = keys[k];
             if (Array.isArray(v)) v.forEach(visit); else visit(v);
         });
-        if (jobs.length) await Promise.all(jobs);
+        if (!found.length) return keys;
+        var urls = await _sign(found.map(function (x) { return x.ref.url; }), owner);
+        await Promise.all(found.map(async function (x, i) {
+            var ctBytes = await _download(urls[i]);
+            var plain   = await decryptBytes(ctBytes, x.ref.iv);
+            x.o[x.f] = _bytesToDataUrl(plain, x.ref.mime || 'application/octet-stream');
+        }));
         return keys;
     }
 

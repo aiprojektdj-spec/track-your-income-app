@@ -1,4 +1,5 @@
-// Vercel Serverless Function — Objektspeicher für große Sync-Anhänge (Vercel Blob)
+// Vercel Serverless Function — Objektspeicher für große Sync-Anhänge
+// (Vercel Blob oder Supabase Storage, siehe api/_storage.js)
 // =============================================================================
 // Löst das Vercel-Hardlimit von 4,5 MB Function-Body: statt große Base64-Felder
 // (Rechnungslogo, Eigenbeleg-Foto/-PDF, überlange Ledger-Chiffrate) inline im
@@ -19,22 +20,25 @@
 //   delete — JSON {urls:[...]} — löscht ein oder mehrere Blob-Objekte (Ersetzen/Art.17 DSGVO).
 //   purge  — löscht ALLE Anhänge des aufrufenden Nutzers (Gegenstück zu sync.js reset_all,
 //            wenn die URLs nur noch im unlesbaren Snapshot standen).
+//   sign   — JSON {urls:[...], owner?} — kurzlebige Abruf-URLs für Anhänge. Mit owner liest
+//            ein Steuerberater die Anhänge eines Mandanten; nur mit Grant, ohne eigenes Abo.
 //
-// Env: BLOB_READ_WRITE_TOKEN (Vercel-Blob-Store-Integration, automatisch gesetzt)
+// Env: BLOB_BACKEND (vercel|supabase, s. api/_storage.js)
+//      BLOB_READ_WRITE_TOKEN (Vercel-Blob-Store-Integration) bzw. SUPABASE_* (api/_db.js)
 //      + dieselben WHOP_*/KV_REST_API_*-Variablen wie api/sync.js (Auth + Rate-Limit).
 //      BLOB_MAX_BYTES             (optional, Default 1 GB — Byte-Budget je Nutzer und Fenster)
 //      BLOB_BUDGET_WINDOW_SEC     (optional, Default 2592000 = 30 Tage)
 //      ALERT_WEBHOOK_URL          (optional — Meldung bei offenem Deckel, s. api/_alert.js)
 //      SYNC_OWNER_IDS             (optional — Whop-User-IDs "user_…" der Owner ohne Abo)
 // =============================================================================
-var { put, del, list } = require('@vercel/blob');
-
 var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
 var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
 
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps = require('./_alert.js').alertOps;
 var _log     = require('./_log.js');
+var storage  = require('./_storage.js');
+var store    = require('./_sync-store.js');   // nur für den Grant-Check bei action=sign
 
 // ── Auth: identisch zu api/sync.js (bewusst dupliziert, siehe dortiger Kommentar) ──
 var ACCESS_IDS   = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
@@ -124,7 +128,8 @@ var SCOPE_RE         = /^(__account|co_[a-z0-9_]+)$/;
 // Realistischer Deckel statt willkürlicher 4000: mehr Chunks als für MAX_TOTAL_BYTES nötig
 // sind nur für einen DoS-Versuch (viele sequentielle Fetches) gut, nicht für legitime Uploads.
 var MAX_CHUNKS_PER_COMMIT = Math.ceil(MAX_TOTAL_BYTES / MAX_CHUNK) + 8; // 200MB/4MB=50 → 58
-var BLOB_HOST_RE     = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\//i;
+var MAX_SIGN         = 200;               // Referenzen je sign-Request (ein Scope-Pull bündelt alle)
+var GRANTEE_ID_RE    = /^[A-Za-z0-9_-]{1,128}$/;
 
 // ── Byte-Budget pro Nutzer (Fund R6, Red-Team-Audit 2026-08-10) ──────────────────────────
 // RATE_MAX=120 Requests/Minute à MAX_CHUNK=4 MB sind 480 MB/Minute ≈ 28 GB/Stunde pro
@@ -178,15 +183,21 @@ function pathFor(userId, scope, kind, name) {
     return 'stackr/' + kind + '/' + userId + '/' + scope + '/' + name;
 }
 function escapeRegex(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-// Eigentumsprüfung: eine Blob-URL darf nur committed/gelöscht werden, wenn ihr Pfad
-// exakt zum Namespace (Host + stackr/<kind>/<userId>/<scope>/) des aufrufenden,
+// Eigentumsprüfung: eine Referenz darf nur committed/gelöscht werden, wenn ihr Objekt-
+// schlüssel exakt zum Namespace (stackr/<kind>/<userId>/<scope>/) des aufrufenden,
 // authentifizierten Nutzers gehört — nie allein aus der Client-URL selbst ableiten.
+// storage.keyOf akzeptiert nur Vercel-Blob-Hosts und sb:-Referenzen.
 function isOwnedBlobUrl(u, userId, scope) {
-    if (typeof u !== 'string' || !BLOB_HOST_RE.test(u)) return false;
-    var pathname;
-    try { pathname = new URL(u).pathname; } catch (e) { return false; }
-    var prefixRe = new RegExp('^/stackr/(?:attachments|tmp)/' + escapeRegex(userId) + '/' + escapeRegex(scope) + '/');
-    return prefixRe.test(pathname);
+    var key = storage.keyOf(u);
+    if (!key) return false;
+    var prefixRe = new RegExp('^stackr/(?:attachments|tmp)/' + escapeRegex(userId) + '/' + escapeRegex(scope) + '/');
+    return prefixRe.test(key);
+}
+// Für sign: nur fertige Anhänge (nie tmp/) des Ziel-Nutzers, beliebiger gültiger Scope.
+function isReadableRef(u, targetId) {
+    var key = storage.keyOf(u);
+    if (!key) return false;
+    return new RegExp('^stackr/attachments/' + escapeRegex(targetId) + '/(?:__account|co_[a-z0-9_]+)/').test(key);
 }
 
 module.exports = async function handler(req, res) {
@@ -198,8 +209,9 @@ module.exports = async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST')    return res.status(405).json({ error: 'method_not_allowed' });
 
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-        _log.logError('blob-upload', 'BLOB_TOKEN_MISSING');
+    var storageProblem = storage.configProblem();
+    if (storageProblem) {
+        _log.logError('blob-upload', 'STORAGE_ENV_MISSING', storageProblem);
         return res.status(500).json({ error: 'server_misconfigured' });
     }
 
@@ -225,8 +237,15 @@ module.exports = async function handler(req, res) {
         return res.status(502).json({ error: 'whop_unreachable' });
     }
 
+    var action = String(req.query && req.query.action || '');
+    var scope  = String(req.query && req.query.scope || '');
+
+    // Steuerberater liest Anhänge eines Mandanten: durch den Grant autorisiert, kein eigenes
+    // Abo nötig — wie pull mit owner in api/sync.js. Der Grant wird unten geprüft.
+    var signOwner   = action === 'sign' && req.body && req.body.owner ? String(req.body.owner) : '';
+    if (signOwner === userId) signOwner = '';   // eigene Anhänge: normaler Weg mit Pro-Pflicht
     var isOwner = isOwnerIdentity(userId, prefUsername);
-    if (!isOwner) {
+    if (!isOwner && !signOwner) {
         try {
             if (!(await whopHasAccess(token, userId))) return res.status(403).json({ error: 'pro_required' });
         } catch (e) {
@@ -251,10 +270,24 @@ module.exports = async function handler(req, res) {
             'Byte-Budget und Rate-Limit sind ohne Redis-Env komplett aus');
     }
 
-    var action = String(req.query && req.query.action || '');
-    var scope  = String(req.query && req.query.scope || '');
-
     try {
+        if (action === 'sign') {
+            var sb = req.body || {};
+            var refs = Array.isArray(sb.urls) ? sb.urls : [];
+            if (!refs.length) return res.status(200).json({ ok: true, urls: [] });
+            if (refs.length > MAX_SIGN) return res.status(400).json({ error: 'too_many' });
+            var targetId = userId;
+            if (signOwner) {
+                if (!GRANTEE_ID_RE.test(signOwner)) return res.status(400).json({ error: 'bad_owner' });
+                if (!(await store.getGrant(signOwner, userId))) return res.status(403).json({ error: 'no_grant' });
+                targetId = signOwner;
+            }
+            for (var si = 0; si < refs.length; si++) {
+                if (!isReadableRef(refs[si], targetId)) return res.status(403).json({ error: 'not_owner', index: si });
+            }
+            return res.status(200).json({ ok: true, urls: await storage.sign(refs), expiresIn: storage.SIGN_TTL_SEC });
+        }
+
         if (action === 'put' || action === 'chunk') {
             if (!SCOPE_RE.test(scope)) return res.status(400).json({ error: 'bad_scope' });
             var body = req.body;
@@ -274,11 +307,8 @@ module.exports = async function handler(req, res) {
                 : String(req.query.name || 'f').replace(/[^a-zA-Z0-9_.-]/g, '');
             if (!name) return res.status(400).json({ error: 'bad_name' });
 
-            var blob = await put(pathFor(userId, scope, kind, name), body, {
-                access: 'public', addRandomSuffix: true, contentType: 'application/octet-stream',
-                token: process.env.BLOB_READ_WRITE_TOKEN
-            });
-            return res.status(200).json({ ok: true, url: blob.url });
+            var ref = await storage.put(pathFor(userId, scope, kind, name), body);
+            return res.status(200).json({ ok: true, url: ref });
         }
 
         if (action === 'commit') {
@@ -289,8 +319,8 @@ module.exports = async function handler(req, res) {
             var finalName = String(b.name || 'f').replace(/[^a-zA-Z0-9_.-]/g, '');
             if (!finalName) return res.status(400).json({ error: 'bad_name' });
 
-            // Eigentumsprüfung: jede Chunk-URL muss ein temporäres Chunk-Objekt
-            // DIESES Nutzers/Scopes sein — nie fremde/erratene Blob-URLs blind fetchen.
+            // Eigentumsprüfung: jede Chunk-Referenz muss ein Objekt DIESES Nutzers/Scopes
+            // sein — nie fremde/erratene Blob-URLs blind fetchen.
             for (var i0 = 0; i0 < chunkUrls.length; i0++) {
                 if (!isOwnedBlobUrl(chunkUrls[i0], userId, scope)) return res.status(403).json({ error: 'not_owner', index: i0 });
             }
@@ -309,24 +339,22 @@ module.exports = async function handler(req, res) {
             try {
                 var parts = [], total = 0;
                 for (var i = 0; i < chunkUrls.length; i++) {
-                    var u = String(chunkUrls[i] || '');
-                    // redirect:'error' — die URL ist oben auf den eigenen Blob-Namespace geprüft;
-                    // eine Weiterleitung würde genau diese Prüfung umgehen (SSRF).
-                    var r = await fetch(u, { redirect: 'error', signal: AbortSignal.timeout(15000) });
-                    if (!r.ok) return res.status(502).json({ error: 'chunk_fetch_failed', index: i });
-                    var buf = Buffer.from(await r.arrayBuffer());
+                    // storage.read folgt keiner Weiterleitung (SSRF, siehe dort)
+                    var buf;
+                    try { buf = await storage.read(String(chunkUrls[i] || '')); }
+                    catch (re) {
+                        if (re && re.httpStatus) return res.status(502).json({ error: 'chunk_fetch_failed', index: i });
+                        throw re;
+                    }
                     total += buf.length;
                     if (total > MAX_TOTAL_BYTES) return res.status(413).json({ error: 'too_large', maxTotal: MAX_TOTAL_BYTES });
                     parts.push(buf);
                 }
                 var assembled = Buffer.concat(parts, total);
-                var finalBlob = await put(pathFor(userId, scope, 'attachments', finalName), assembled, {
-                    access: 'public', addRandomSuffix: true, contentType: 'application/octet-stream',
-                    token: process.env.BLOB_READ_WRITE_TOKEN
-                });
+                var finalRef = await storage.put(pathFor(userId, scope, 'attachments', finalName), assembled);
                 // Best-effort: temporäre Teile aufräumen (Fehler hier sind nicht kritisch — Cron räumt Reste)
-                try { await del(chunkUrls, { token: process.env.BLOB_READ_WRITE_TOKEN }); } catch (e) { _log.logWarn('blob-upload', 'CHUNK_CLEANUP_FAILED', e); }
-                return res.status(200).json({ ok: true, url: finalBlob.url, size: total });
+                try { await storage.remove(chunkUrls); } catch (e) { _log.logWarn('blob-upload', 'CHUNK_CLEANUP_FAILED', e); }
+                return res.status(200).json({ ok: true, url: finalRef, size: total });
             } finally {
                 if (lockHeld) { try { await redisCmd(['DEL', lockKey]); } catch (e) { /* TTL räumt ohnehin nach 30s auf */ } }
             }
@@ -343,7 +371,7 @@ module.exports = async function handler(req, res) {
             for (var j = 0; j < rawUrls.length; j++) {
                 if (!isOwnedBlobUrl(rawUrls[j], userId, scope)) return res.status(403).json({ error: 'not_owner', index: j });
             }
-            await del(rawUrls, { token: process.env.BLOB_READ_WRITE_TOKEN });
+            await storage.remove(rawUrls);
             return res.status(200).json({ ok: true, deleted: rawUrls.length });
         }
 
@@ -354,15 +382,9 @@ module.exports = async function handler(req, res) {
         // (api/blob-cleanup.js räumt nur stackr/tmp/, nie stackr/attachments/).
         // Gelöscht wird ausschließlich der eigene Namespace stackr/attachments/<userId>/ —
         // userId stammt aus dem server-seitig validierten Token, nie aus dem Request-Body.
+        // Im Supabase-Modus räumt storage.sweep beide Speicher, solange der Vercel-Token steht.
         if (action === 'purge') {
-            var prefix = 'stackr/attachments/' + userId + '/';
-            var cursor, removed = 0, pages = 0;
-            do {
-                var page = await list({ prefix: prefix, cursor: cursor, limit: 1000, token: process.env.BLOB_READ_WRITE_TOKEN });
-                var urls = (page.blobs || []).map(function (b) { return b.url; });
-                if (urls.length) { await del(urls, { token: process.env.BLOB_READ_WRITE_TOKEN }); removed += urls.length; }
-                cursor = page.hasMore ? page.cursor : undefined;
-            } while (cursor && ++pages < 50);   // Seiten-Deckel: 50.000 Objekte reichen weit über jeden realen Bestand
+            var removed = await storage.sweep('stackr/attachments/' + userId + '/', null, Date.now());
             return res.status(200).json({ ok: true, deleted: removed });
         }
 

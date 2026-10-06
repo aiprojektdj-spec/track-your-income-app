@@ -399,10 +399,12 @@ var CloudSync = (function () {
     // unterscheiden, ob der SCHLÜSSEL nicht passt oder ob das ausgelagerte Chiffrat gerade
     // nicht ladbar war (Netz/Speicher). Früher endete beides in derselben Meldung
     // "Code falsch" — ein Netzfehler wurde dem Nutzer als falscher Code verkauft.
-    async function _fetchCipher(blob) {
+    // ownerId nur beim Steuerberater-Lesen (foreignLoad): der Server signiert die
+    // Abruf-URL dann gegen den Grant des Mandanten (api/blob-upload.js action=sign).
+    async function _fetchCipher(blob, ownerId) {
         // Übergroßes Ledger-Chiffrat liegt als eigenes Blob-Objekt (siehe push unten) —
         // erst herunterladen, dann wie gewohnt entschlüsseln.
-        if (blob.blobUrl) return await BlobAttachments.get(blob.blobUrl);
+        if (blob.blobUrl) return await BlobAttachments.get(blob.blobUrl, ownerId);
         if (typeof blob.ciphertext !== 'string') throw new Error('blob_malformed');
         return _unb64(blob.ciphertext);
     }
@@ -445,7 +447,7 @@ var CloudSync = (function () {
         return JSON.parse(new TextDecoder().decode(await _gunzipIfNeeded(pt)));
     }
     async function _decrypt(blob, scope, ownerId, overrideBytes) {
-        return _decryptCt(await _fetchCipher(blob), blob.iv, scope, ownerId, overrideBytes);
+        return _decryptCt(await _fetchCipher(blob, ownerId), blob.iv, scope, ownerId, overrideBytes);
     }
     // Ergebnis eines Entschlüsselungs-Versuchs klassifizieren: 'key' (Schlüssel passt nicht,
     // Sackgasse — Nutzer muss handeln) vs. 'fetch' (Chiffrat gerade nicht ladbar, geht beim
@@ -1796,7 +1798,7 @@ var CloudSync = (function () {
             var p = await _api({ action: 'pull', scope: co.id, owner: ownerId });
             if (p.status !== 200 || !p.json.blob) continue;
             var data = await _decrypt(p.json.blob, co.id, ownerId, kb);   // { keys, meta }
-            await BlobAttachments.hydrateFields(data.keys, function (ct, iv) { return _decryptBytes(ct, iv, co.id, ownerId, kb); });
+            await BlobAttachments.hydrateFields(data.keys, function (ct, iv) { return _decryptBytes(ct, iv, co.id, ownerId, kb); }, ownerId);
             var toCache = {};
             Object.keys(data.keys || {}).forEach(function (k) {
                 var ser = JSON.stringify(data.keys[k]);

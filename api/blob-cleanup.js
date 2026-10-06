@@ -9,7 +9,10 @@
 //                     Argument, das es für tmp/ schon gab.
 //
 // Echte Anhänge (stackr/attachments/) bleiben in beiden Fällen unangetastet.
+// tmp/ liegt je nach BLOB_BACKEND in Vercel Blob und/oder Supabase Storage und läuft
+// deshalb über api/_storage.js; die Alarme liegen weiter nur in Vercel Blob (_alert.js).
 var { list, del } = require('@vercel/blob');
+var storage = require('./_storage.js');
 
 // Meldet stillschweigende Degradierung an ALERT_WEBHOOK_URL, siehe api/_alert.js.
 // Hier besonders wichtig: an diesem Endpunkt haengt kein Mensch. Schlaegt er fehl, beschwert
@@ -104,7 +107,7 @@ module.exports = async function handler(req, res) {
 
     try {
         var now = Date.now();
-        var deleted      = await sweep('stackr/tmp/',    TMP_MAX_AGE_MS,   now);
+        var deleted      = await storage.sweep('stackr/tmp/', TMP_MAX_AGE_MS, now);
         var alertsDeleted = await sweep('stackr/alerts/', ALERT_MAX_AGE_MS, now);
         // 'deleted' behält seine alte Bedeutung (nur tmp/), damit die Gegenprobe in
         // plan/vercel-einrichtung.md weiter stimmt. Der zweite Wert kommt additiv dazu.

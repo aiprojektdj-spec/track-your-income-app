@@ -31,6 +31,22 @@ var BlobAttachments = (function () {
 
     function _token() { try { return localStorage.getItem('whop_access_token') || ''; } catch (e) { return ''; } }
 
+    // Authentifizierter Aufruf wie CloudSync._api: Token vorausschauend erneuern, bei 401
+    // genau einmal erneuern und wiederholen — Whops Access-Token laeuft nach einer Stunde ab.
+    async function _authFetch(url, opts) {
+        var auth = (typeof AuthUI !== 'undefined') ? AuthUI : null;
+        var tok  = (auth && auth.validToken && await auth.validToken()) || _token();
+        var send = function (t) {
+            return fetch(url, Object.assign({}, opts, { headers: Object.assign({}, opts.headers, { 'Authorization': 'Bearer ' + t }) }));
+        };
+        var r = await send(tok);
+        if (r.status === 401 && auth && auth.refreshToken) {
+            var frisch = await auth.refreshToken();
+            if (frisch) r = await send(frisch);
+        }
+        return r;
+    }
+
     // ── Roh-Upload (Bytes → Blob-URL), transparent gechunkt ───────────────────
     // HTTP 507 = Byte-Budget des Nutzers erschöpft (api/blob-upload.js, Fund R6). Eigene
     // Fehlermeldung, weil "blob_put_507" dem Nutzer nichts sagt und ein Retry hier nichts bringt —
@@ -58,9 +74,9 @@ var BlobAttachments = (function () {
             if (!cr.ok) throw new Error('blob_chunk_' + cr.status);
             chunkUrls.push(cr.json.url);
         }
-        var fr = await fetch(API + '?action=commit&scope=' + encodeURIComponent(scope), {
+        var fr = await _authFetch(API + '?action=commit&scope=' + encodeURIComponent(scope), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _token() },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: name, chunkUrls: chunkUrls })
         });
         var fj = await fr.json().catch(function () { return {}; });
@@ -70,9 +86,9 @@ var BlobAttachments = (function () {
 
     function _req(action, scope, query, bytes) {
         var qs = Object.keys(query).map(function (k) { return k + '=' + encodeURIComponent(query[k]); }).join('&');
-        return fetch(API + '?action=' + action + '&scope=' + encodeURIComponent(scope) + '&' + qs, {
+        return _authFetch(API + '?action=' + action + '&scope=' + encodeURIComponent(scope) + '&' + qs, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/octet-stream', 'Authorization': 'Bearer ' + _token() },
+            headers: { 'Content-Type': 'application/octet-stream' },
             body: bytes
         }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, status: r.status, json: j }; }); });
     }
@@ -100,9 +116,9 @@ var BlobAttachments = (function () {
         var list = (urls || []).filter(Boolean);
         if (!list.length) return true;
         try {
-            var r = await fetch(API + '?action=delete&scope=' + encodeURIComponent(scope), {
+            var r = await _authFetch(API + '?action=delete&scope=' + encodeURIComponent(scope), {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _token() },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ urls: list })
             });
             if (!r.ok) { console.warn('[BlobAttachments] delete failed: HTTP ' + r.status); return false; }
@@ -116,9 +132,9 @@ var BlobAttachments = (function () {
     // über den Präfix des authentifizierten Nutzers aufräumen. Best-effort, wirft nicht.
     async function purgeAll() {
         try {
-            var r = await fetch(API + '?action=purge', {
+            var r = await _authFetch(API + '?action=purge', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _token() },
+                headers: { 'Content-Type': 'application/json' },
                 body: '{}'
             });
             if (!r.ok) { console.warn('[BlobAttachments] purge failed: HTTP ' + r.status); return false; }

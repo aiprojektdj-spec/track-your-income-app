@@ -1,5 +1,5 @@
 // Self-Test:  node test/test-sync-token-refresh.js
-// Prueft: CloudSync._api erneuert bei 401 den Whop-Token genau einmal und wiederholt den
+// Prueft: CloudSync._api (und BlobAttachments) erneuert bei 401 den Whop-Token genau einmal und wiederholt den
 // Aufruf mit dem frischen Token. Vorher lief der Sync nach einer Stunde dauerhaft in 401
 // (Kundenmeldung 2026-10-06, Diagnose "Server: nicht erreichbar — HTTP 401").
 'use strict';
@@ -25,10 +25,11 @@ global.fetch = async (url, opts) => {
     const tok = opts.headers.Authorization.slice(7);
     seen.push(tok);
     const s = (tok === 'alt' && reply401()) ? 401 : 200;
-    return { status: s, json: async () => ({ ok: s === 200 }) };
+    return { status: s, ok: s === 200, json: async () => ({ ok: s === 200 }) };
 };
 
 const T = require('../js/cloud-sync.js')._test;
+const BA = require('../js/blob-attachments.js');
 
 (async () => {
     let pass = 0;
@@ -55,6 +56,13 @@ const T = require('../js/cloud-sync.js')._test;
     assert.deepStrictEqual(seen, ['alt']);
     assert.strictEqual(refreshes, 1);
     pass++; console.log('✓ Erneuerung scheitert → 401, genau ein Versuch');
+
+    // 4) Beleg-Upload/-Loeschen (BlobAttachments) erneuert genauso
+    seen.length = 0; refreshes = 0; reply401 = () => true; refreshResult = 'frisch';
+    assert.strictEqual(await BA.deleteUrls('firma1', ['https://x/y']), true);
+    assert.deepStrictEqual(seen, ['alt', 'frisch']);
+    assert.strictEqual(refreshes, 1);
+    pass++; console.log('✓ BlobAttachments: 401 → Erneuerung + Wiederholung');
 
     console.log(pass + ' Tests bestanden');
 })().catch(e => { console.error(e); process.exit(1); });

@@ -8,14 +8,14 @@
 //   einer client-gesendeten ID wird NIE vertraut.
 // Sync ist PRO-ONLY: nur bei has_access === true (oder Owner-Allowlist).
 //
-// Store: Upstash Redis (REST), Region eu-central-1 (Frankfurt) → EU-Residenz.
-//   Keys:  sync:<userId>:<scope>   scope = "__account" | "co_<id>"
-//   Wert:  { ciphertext, iv, version, updatedAt, deviceId }   (nur Chiffrat)
-//   CAS:   optimistische Nebenläufigkeit per Versions-Vergleich (Lua EVAL).
+// Store: über api/_sync-store.js — Upstash Redis (heute) oder Supabase (Phase 1),
+//   beide in Frankfurt → EU-Residenz. Umschaltung per STORAGE_BACKEND/STORAGE_MIRROR;
+//   die Zugangsdaten der beiden Systeme stehen dort bzw. in api/_db.js.
+//   Wert je Scope:  { ciphertext, iv, version, updatedAt, deviceId }   (nur Chiffrat)
+//   scope = "__account" | "co_<id>"
+//   CAS:   optimistische Nebenläufigkeit per Versions-Vergleich.
 //
-// Env (Vercel, EU-Region) — von der Upstash-Marketplace-Integration automatisch
-// gesetzt (KV_REST_API_*). UPSTASH_REDIS_REST_* werden als Override unterstützt.
-//   KV_REST_API_URL / KV_REST_API_TOKEN    (Upstash REST-Endpoint + RW-Token)
+// Env (Vercel, EU-Region):
 //   WHOP_ACCESS_IDS            (optional, kommagetrennt — Zugangs-IDs; Default prod_+biz_)
 //   WHOP_API_KEY               (optional — Company-API-Key aktiviert den Fallback-Scan)
 //   SYNC_OWNER_IDS             (optional, kommagetrennt — Whop-User-IDs "user_…" der Owner
@@ -27,13 +27,10 @@
 //                               siehe api/_alert.js)
 // =============================================================================
 
-// Variablennamen je nach Setup (manuell UPSTASH_* oder Vercel-Integration KV_*).
-var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
-var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
-
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps = require('./_alert.js').alertOps;
 var _log     = require('./_log.js');
+var store    = require('./_sync-store.js');
 
 // Zugangs-Check — zwei unabhängige Wege, Zugang sobald EINER bestätigt (identisch zu
 // api/whop-access.js): (1) User-Token gegen https://api.whop.com/api/v2/me/has_access/<id>
@@ -156,47 +153,6 @@ var SCOPE_RE     = /^(__account|co_[a-z0-9_]+)$/;
 var MAX_SCOPES   = parseInt(process.env.SYNC_MAX_SCOPES || '25', 10);
 var MAX_GRANTS   = parseInt(process.env.SYNC_MAX_GRANTS || '10', 10);
 
-// Belegt einen Scope-Platz. Reihenfolge SADD → SCARD → ggf. SREM: dadurch kann die Menge nie
-// dauerhaft über dem Deckel liegen, auch wenn zwei Requests gleichzeitig ankommen. Ein bereits
-// belegter Scope (SADD gibt 0) läuft immer durch — Bestandsdaten bleiben schreibbar, selbst wenn
-// jemand vor Einführung des Deckels mehr Scopes angelegt hatte.
-async function claimScope(userId, scope) {
-    var added = await redisCmd(['SADD', 'scopes:' + userId, scope]);
-    if (Number(added) !== 1) return true;
-    var total = await redisCmd(['SCARD', 'scopes:' + userId]);
-    if (Number(total) <= MAX_SCOPES) return true;
-    await redisCmd(['SREM', 'scopes:' + userId, scope]);
-    return false;
-}
-
-// CAS-Skript: setzt nur, wenn die gespeicherte Version == erwarteter Version.
-// Bei Konflikt wird der aktuelle Wert zurückgegeben → Client macht pull-merge-retry.
-var CAS_LUA = [
-    "local cur = redis.call('GET', KEYS[1])",
-    "if cur then",
-    "  local ok, obj = pcall(cjson.decode, cur)",
-    "  if (not ok) or (tostring(obj.version) ~= ARGV[1]) then return cur end",
-    "end",
-    "redis.call('SET', KEYS[1], ARGV[2])",
-    "return 'OK'"
-].join('\n');
-
-function redisCmd(cmd) {
-    // ponytail: timeout = lazy circuit breaker. Hung Redis fast-fails instead of
-    // holding the function until platform kill. Full breaker is pointless on a
-    // stateless serverless fn — trip state dies with each cold start.
-    return fetch(REDIS_URL, {
-        method:  'POST',
-        headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' },
-        body:    JSON.stringify(cmd),
-        signal:  AbortSignal.timeout(8000)
-    }).then(function (r) { return r.json(); })
-      .then(function (j) {
-          if (j && j.error) throw new Error('Redis: ' + j.error);
-          return j ? j.result : null;
-      });
-}
-
 module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', 'https://track-your-income-app.vercel.app');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -206,9 +162,9 @@ module.exports = async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST')    return res.status(405).json({ error: 'method_not_allowed' });
 
-    if (!REDIS_URL || !REDIS_TOKEN) {
-        await alertOps('sync', 'redis-env-missing',
-            'KV_REST_API_URL/TOKEN bzw. UPSTASH_REDIS_REST_* fehlen — Sync ist komplett aus');
+    var storeProblem = store.configProblem();
+    if (storeProblem) {
+        await alertOps('sync', (store.backendName() || 'store') + '-env-missing', storeProblem);
         return res.status(500).json({ error: 'server_misconfigured' });
     }
 
@@ -225,9 +181,7 @@ module.exports = async function handler(req, res) {
         // Client nicht überschreibbar (anders als das erste x-forwarded-for-Segment) — sonst
         // wäre das IP-Rate-Limit per Header spoofbar.
         var ip      = req.headers['x-vercel-forwarded-for'] || (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
-        var ipRlKey = 'sync:iprl:' + ip;
-        var ipCount = await redisCmd(['INCR', ipRlKey]);
-        await redisCmd(['EXPIRE', ipRlKey, '60', 'NX']);
+        var ipCount = await store.rateHit('sync:iprl:' + ip, 60);
         if (ipCount > IP_RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
     } catch (e) {
         // nicht blockierend — weiter, aber der IP-Deckel ist damit offen
@@ -287,13 +241,9 @@ module.exports = async function handler(req, res) {
         }
     }
 
-    // ── 4b. Rate-Limit (KV-Counter, 60s-Fenster) ─────────────────────────────
+    // ── 4b. Rate-Limit (Zähler, 60s-Fenster) ─────────────────────────────────
     try {
-        var rlKey = 'sync:rl:' + userId;
-        var count = await redisCmd(['INCR', rlKey]);
-        // NX: setzt TTL nur wenn keiner existiert — heilt Keys, deren EXPIRE nach dem
-        // ersten INCR fehlschlug (sonst permanenter 429 für den Nutzer)
-        await redisCmd(['EXPIRE', rlKey, '60', 'NX']);
+        var count = await store.rateHit('sync:rl:' + userId, 60);
         if (count > RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
     } catch (e) {
         // Rate-Limit-Fehler nicht blockierend — weiter, aber der Nutzer-Deckel ist offen
@@ -307,23 +257,20 @@ module.exports = async function handler(req, res) {
                           action === 'anchor' || action === 'anchor_pull');
     if (isScopeAction && !SCOPE_RE.test(String(scope || ''))) return res.status(400).json({ error: 'bad_scope' });
 
-    var key       = 'sync:' + userId + ':' + scope;
-    var anchorKey = 'syncanchor:' + userId + ':' + scope;
     var ANCHOR_MAX = 20000;   // LTRIM-Deckel — Hash+ID pro Eintrag ist winzig, das deckt Jahre ab
 
     try {
         if (action === 'pull') {
-            var readKey = key;
+            var readOwner = userId;
             if (body.owner) {
                 // Steuerberater liest fremden Mandanten-Scope → nur mit gültigem Grant (read-only)
                 var ownerId = String(body.owner);
                 if (!GRANTEE_ID_RE.test(ownerId)) return res.status(400).json({ error: 'bad_owner' });
-                var grantChk = await redisCmd(['GET', 'grant:' + ownerId + ':' + userId]);
-                if (!grantChk) return res.status(403).json({ error: 'no_grant' });
-                readKey = 'sync:' + ownerId + ':' + scope;
+                if (!(await store.getGrant(ownerId, userId))) return res.status(403).json({ error: 'no_grant' });
+                readOwner = ownerId;
             }
-            var cur = await redisCmd(['GET', readKey]);
-            return res.status(200).json({ ok: true, blob: cur ? JSON.parse(cur) : null });
+            var cur = await store.get(readOwner, scope);
+            return res.status(200).json({ ok: true, blob: cur || null });
         }
 
         if (action === 'push') {
@@ -341,11 +288,11 @@ module.exports = async function handler(req, res) {
             if (hasInline && body.ciphertext.length > MAX_CIPHER) return res.status(413).json({ error: 'too_large', maxCipher: MAX_CIPHER });
 
             // Scope-Platz belegen, BEVOR geschrieben wird (Fund R2) — sonst läge das Chiffrat
-            // bereits in Redis, wenn der Deckel greift.
-            if (!(await claimScope(userId, scope)))
+            // bereits im Speicher, wenn der Deckel greift.
+            if (!(await store.claimScope(userId, scope, MAX_SCOPES)))
                 return res.status(409).json({ error: 'scope_limit', maxScopes: MAX_SCOPES });
 
-            var newBlob = JSON.stringify(hasInline ? {
+            var newBlob = hasInline ? {
                 ciphertext: body.ciphertext,
                 iv:         body.iv,
                 version:    expected + 1,
@@ -357,19 +304,19 @@ module.exports = async function handler(req, res) {
                 version:    expected + 1,
                 updatedAt:  Date.now(),
                 deviceId:   typeof body.deviceId === 'string' ? body.deviceId.slice(0, 64) : ''
-            });
+            };
 
-            var result = await redisCmd(['EVAL', CAS_LUA, '1', key, String(expected), newBlob]);
-            if (result === 'OK') {
+            var result = await store.cas(userId, scope, expected, newBlob);
+            if (result.ok) {
                 return res.status(200).json({ ok: true, version: expected + 1 });
             }
             // Konflikt: aktueller Server-Stand zurück → Client merged & retried
-            return res.status(409).json({ error: 'version_conflict', blob: result ? JSON.parse(result) : null });
+            return res.status(409).json({ error: 'version_conflict', blob: result.current || null });
         }
 
         if (action === 'delete') {
             // Art. 17 DSGVO — löscht nur den verschlüsselten Snapshot. Die Anker-Liste
-            // (anchorKey) bleibt bewusst erhalten. Würde sie hier mitgelöscht, könnte ein
+            // bleibt bewusst erhalten. Würde sie hier mitgelöscht, könnte ein
             // Nutzer, der Buchungen nachträglich manipuliert hat, die eigene
             // GoBD-Tamper-Evidence-Kette mit entfernen.
             //
@@ -380,11 +327,11 @@ module.exports = async function handler(req, res) {
             // Erfüllung einer rechtlichen Verpflichtung erforderlich ist — hier §§ 145 ff.,
             // 147 AO i. V. m. GoBD. So steht es auch in datenschutz.html, Abschnitt 6.1;
             // beide Stellen zusammen ändern.
-            await redisCmd(['DEL', key]);
-            // Scope-Platz freigeben (Fund R2): wer aufräumt, soll wieder Luft haben. Der
-            // anchorKey bleibt liegen, belegt aber keinen Platz — er ist winzig und per
+            await store.del(userId, scope);
+            // Scope-Platz freigeben (Fund R2): wer aufräumt, soll wieder Luft haben. Die
+            // Anker-Liste bleibt liegen, belegt aber keinen Platz — er ist winzig und per
             // ANCHOR_MAX gedeckelt.
-            await redisCmd(['SREM', 'scopes:' + userId, scope]);
+            await store.releaseScope(userId, scope);
             return res.status(200).json({ ok: true });
         }
 
@@ -399,7 +346,7 @@ module.exports = async function handler(req, res) {
         // hier fällt ausschließlich unlesbares Chiffrat weg.
         if (action === 'reset_all') {
             if (body.owner) return res.status(403).json({ error: 'readonly' });   // nie fremde Owner-Daten
-            var known = (await redisCmd(['SMEMBERS', 'scopes:' + userId])) || [];
+            var known = (await store.listScopes(userId)).slice();
             // '__account' immer mitnehmen: das Scope-Set kam erst mit dem Scope-Deckel dazu,
             // ältere Snapshots stehen möglicherweise nicht darin.
             if (known.indexOf('__account') === -1) known.push('__account');
@@ -407,11 +354,11 @@ module.exports = async function handler(req, res) {
             for (var ri = 0; ri < known.length; ri++) {
                 var rs = String(known[ri] || '');
                 if (!SCOPE_RE.test(rs)) continue;
-                await redisCmd(['DEL', 'sync:' + userId + ':' + rs]);
+                await store.del(userId, rs);
                 wiped.push(rs);
             }
-            await redisCmd(['DEL', 'scopes:' + userId]);
-            // Anker-Listen (syncanchor:*) bleiben bewusst stehen — gleiche Begründung wie
+            await store.clearScopes(userId);
+            // Anker-Listen bleiben bewusst stehen — gleiche Begründung wie
             // bei 'delete': sie enthalten keine Klardaten, sind aber die GoBD-Tamper-
             // Evidence. Wären sie hier mitlöschbar, könnte man die eigene Beweiskette
             // per "Reset" abstreifen.
@@ -430,7 +377,7 @@ module.exports = async function handler(req, res) {
             if (items.length > 1000) return res.status(400).json({ error: 'too_many' });
             // Auch anchor legt einen neuen Key je Scope an — ohne diesen Gate wäre der
             // Scope-Deckel über den anchor-Pfad umgehbar (Fund R2).
-            if (!(await claimScope(userId, scope)))
+            if (!(await store.claimScope(userId, scope, MAX_SCOPES)))
                 return res.status(409).json({ error: 'scope_limit', maxScopes: MAX_SCOPES });
             var ID_RE = /^[A-Za-z0-9_-]{1,64}$/, HASH_RE = /^[A-Fa-f0-9]{64}$/;
             var rows = [];
@@ -438,17 +385,15 @@ module.exports = async function handler(req, res) {
                 var it = items[ai];
                 if (!it || !ID_RE.test(String(it.id || '')) || !HASH_RE.test(String(it.h || '')))
                     return res.status(400).json({ error: 'bad_entry' });
-                rows.push(JSON.stringify({ id: it.id, h: it.h, ts: Date.now() }));
+                rows.push({ id: it.id, h: it.h, ts: Date.now() });
             }
-            await redisCmd(['RPUSH', anchorKey].concat(rows));
-            await redisCmd(['LTRIM', anchorKey, String(-ANCHOR_MAX), '-1']);
+            await store.appendAnchors(userId, scope, rows, ANCHOR_MAX);
             return res.status(200).json({ ok: true, added: rows.length });
         }
 
         if (action === 'anchor_pull') {
             if (body.owner) return res.status(403).json({ error: 'readonly' });   // StB-Sync ruht ohnehin (siehe cloud-sync.js) — kein Bedarf
-            var rawRows = (await redisCmd(['LRANGE', anchorKey, '0', '-1'])) || [];
-            var anchors = rawRows.map(function (r) { try { return JSON.parse(r); } catch (e) { return null; } }).filter(Boolean);
+            var anchors = await store.listAnchors(userId, scope);
             return res.status(200).json({ ok: true, anchors: anchors });
         }
 
@@ -465,9 +410,9 @@ module.exports = async function handler(req, res) {
             // Art. 5 Abs. 1 lit. c DSGVO). Alt-Datensätze tragen ihn noch; sie werden beim
             // nächsten Login des jeweiligen Nutzers überschrieben (registerPubkey läuft bei
             // jedem Login) — deshalb filtert get_pubkey unten zusätzlich.
-            var pubStr = JSON.stringify({ pub: body.pub, updatedAt: Date.now() });
-            if (pubStr.length > 4096) return res.status(413).json({ error: 'too_large' });
-            await redisCmd(['SET', 'pubkey:' + userId, pubStr]);
+            var pubObj = { pub: body.pub, updatedAt: Date.now() };
+            if (JSON.stringify(pubObj).length > 4096) return res.status(413).json({ error: 'too_large' });
+            await store.setPubkey(userId, pubObj);
             return res.status(200).json({ ok: true });
         }
 
@@ -475,13 +420,12 @@ module.exports = async function handler(req, res) {
         if (action === 'get_pubkey') {
             var gidP = String(body.granteeId || '');
             if (!GRANTEE_ID_RE.test(gidP)) return res.status(400).json({ error: 'bad_grantee' });
-            var pk = await redisCmd(['GET', 'pubkey:' + gidP]);
-            if (!pk) return res.status(404).json({ error: 'no_pubkey' });
+            var pkObj = await store.getPubkey(gidP);
+            if (!pkObj) return res.status(404).json({ error: 'no_pubkey' });
             // Nur `pub` und `updatedAt` herausgeben, nie den ganzen gespeicherten Datensatz
             // (Fund R8): Alt-Datensätze von vor diesem Fix tragen noch ein `username`-Feld, das
             // erst beim nächsten Login des Betroffenen verschwindet. Bis dahin filtert dieser
             // Whitelist-Zugriff. Auch künftige Felder gelangen so nicht versehentlich nach außen.
-            var pkObj = JSON.parse(pk);
             return res.status(200).json({ ok: true, pubkey: { pub: pkObj.pub, updatedAt: pkObj.updatedAt || 0 } });
         }
 
@@ -497,23 +441,16 @@ module.exports = async function handler(req, res) {
             // sich ein Grant blind auf eine BELIEBIGE ID setzen. Das war zweifach nutzlos-schädlich
             // — der Envelope wäre für einen nicht existierenden Empfänger ohnehin unentpackbar,
             // und `grantsby:<userId>` wuchs mit jedem Fantasie-Grantee weiter.
-            if (!Number(await redisCmd(['EXISTS', 'pubkey:' + gidG])))
+            if (!(await store.getPubkey(gidG)))
                 return res.status(404).json({ error: 'no_pubkey' });
 
             // Deckel auf aktive Grants pro Owner (Fund R2/R4). Ein Owner braucht selten mehr als
-            // ein bis zwei Steuerberater; ohne Deckel war `grantsby:<userId>` unbegrenzt und je
-            // Grant bis 8 KB groß. Reihenfolge wie in claimScope, damit der Deckel nie dauerhaft
-            // überschritten wird; ein bereits bestehender Grantee (SADD → 0) läuft immer durch,
-            // ein Re-Grant an denselben Steuerberater bleibt also möglich.
-            var addedG = await redisCmd(['SADD', 'grantsby:' + userId, gidG]);
-            if (Number(addedG) === 1 && Number(await redisCmd(['SCARD', 'grantsby:' + userId])) > MAX_GRANTS) {
-                await redisCmd(['SREM', 'grantsby:' + userId, gidG]);
+            // ein bis zwei Steuerberater; ohne Deckel war die Grant-Liste unbegrenzt und je
+            // Grant bis 8 KB groß. Ein bereits bestehender Grantee läuft immer durch, ein
+            // Re-Grant an denselben Steuerberater bleibt also möglich (siehe store.addGrant).
+            var grantVal = { role: 'readonly', envelope: body.envelope, ownerName: username, createdAt: Date.now() };
+            if (!(await store.addGrant(userId, gidG, grantVal, MAX_GRANTS)))
                 return res.status(409).json({ error: 'grant_limit', maxGrants: MAX_GRANTS });
-            }
-
-            var grantVal = JSON.stringify({ role: 'readonly', envelope: body.envelope, ownerName: username, createdAt: Date.now() });
-            await redisCmd(['SET', 'grant:' + userId + ':' + gidG, grantVal]);
-            await redisCmd(['SADD', 'grantsfor:' + gidG, userId]);
             return res.status(200).json({ ok: true });
         }
 
@@ -521,32 +458,24 @@ module.exports = async function handler(req, res) {
         if (action === 'revoke') {
             var gidR = String(body.granteeId || '');
             if (!GRANTEE_ID_RE.test(gidR)) return res.status(400).json({ error: 'bad_grantee' });
-            await redisCmd(['DEL', 'grant:' + userId + ':' + gidR]);
-            await redisCmd(['SREM', 'grantsfor:' + gidR, userId]);
-            await redisCmd(['SREM', 'grantsby:' + userId, gidR]);
+            await store.revokeGrant(userId, gidR);
             return res.status(200).json({ ok: true });
         }
 
         // StB listet alle Mandanten, die ihm Zugriff gewährt haben (+ Envelope zum Entpacken)
         if (action === 'list_grants') {
-            var owners = (await redisCmd(['SMEMBERS', 'grantsfor:' + userId])) || [];
-            var grants = [];
-            for (var i = 0; i < owners.length; i++) {
-                var g = await redisCmd(['GET', 'grant:' + owners[i] + ':' + userId]);
-                if (g) { var go = JSON.parse(g); grants.push({ ownerId: owners[i], ownerName: go.ownerName || '', role: go.role, envelope: go.envelope }); }
-            }
+            var grants = (await store.listGrantsFor(userId)).map(function (g) {
+                return { ownerId: g.id, ownerName: g.data.ownerName || '', role: g.data.role, envelope: g.data.envelope };
+            });
             return res.status(200).json({ ok: true, grants: grants });
         }
 
         // Owner listet, wem ER Zugriff gewährt hat (zum Entziehen). Grantee-Klarname ist
         // server-seitig nicht bekannt (nur die userId) — Code + Datum reicht für den Dialog.
         if (action === 'list_my_grantees') {
-            var grantees = (await redisCmd(['SMEMBERS', 'grantsby:' + userId])) || [];
-            var myGrantees = [];
-            for (var j = 0; j < grantees.length; j++) {
-                var gg = await redisCmd(['GET', 'grant:' + userId + ':' + grantees[j]]);
-                if (gg) { var ggo = JSON.parse(gg); myGrantees.push({ granteeId: grantees[j], createdAt: ggo.createdAt || null }); }
-            }
+            var myGrantees = (await store.listGranteesBy(userId)).map(function (g) {
+                return { granteeId: g.id, createdAt: g.data.createdAt || null };
+            });
             return res.status(200).json({ ok: true, grantees: myGrantees });
         }
 

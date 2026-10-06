@@ -5,6 +5,7 @@ plan/
 graphify-out/
 test/
 scripts/
+supabase/
 .github/
 kosit-proben/
 node_modules/

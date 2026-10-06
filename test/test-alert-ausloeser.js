@@ -52,6 +52,10 @@ function freshHandler(datei, opts) {
     opts = opts || {};
     const p = require.resolve(path.join(__dirname, '..', 'api', datei));
     delete require.cache[p];
+    // sync.js liest die Speicher-Env seit 2026-10-06 über diese beiden Module
+    ['_sync-store.js', '_db.js'].forEach(function (f) {
+        delete require.cache[require.resolve(path.join(__dirname, '..', 'api', f))];
+    });
     REDIS_ENVS.forEach(function (k) { delete process.env[k]; });
     if (opts.redis) {
         process.env.KV_REST_API_URL   = 'http://redis.mock';

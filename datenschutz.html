@@ -121,6 +121,35 @@
             verantwortlich (Art. 4 Nr. 7 DSGVO); Stackr fungiert insoweit lediglich als technisches Werkzeug.
         </p>
         <p>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.</p>
+        <h3>2.4 Fehlerprotokolle</h3>
+        <p>
+            Tritt in der App ein technischer Fehler auf, meldet dein Browser eine kurze
+            Fehlerbeschreibung an unseren Server, damit wir Fehler erkennen und beheben können, bevor
+            sie viele Nutzer treffen. Übertragen werden <strong>nur</strong>: die Art des Fehlers, die
+            Fehlermeldung (gekürzt auf 300 Zeichen; E-Mail-Adressen und Zahlenfolgen ab vier Stellen
+            werden vor dem Speichern entfernt), der Name der Programmdatei samt Zeile und Spalte, die
+            App-Version und der Zeitpunkt.
+        </p>
+        <p>
+            <strong>Nicht</strong> übertragen werden deine Buchhaltungsdaten, dein Name, deine
+            Nutzerkennung, die aufgerufene Seite, deine Browser-Kennung oder der technische
+            Programmablauf (Stack-Trace). Für das Melden wird auf deinem Gerät nichts gespeichert.
+            Deine IP-Adresse wird nur zur Missbrauchsabwehr kurz verarbeitet (Zähler für die Anzahl der
+            Meldungen, nach 60 Sekunden gelöscht) und nicht zusammen mit dem Fehler gespeichert. Gleiche
+            Fehler werden zusammengefasst und nur gezählt.
+        </p>
+        <p>
+            Gespeichert wird bei <strong>Upstash</strong> (Upstash, Inc.) in der Region
+            <strong>Frankfurt am Main (EU)</strong>. Die Einträge werden nach <strong>30 Tagen</strong>
+            automatisch gelöscht. Einmal täglich erhalten wir eine Zusammenfassung neu aufgetretener
+            Fehlerarten per E-Mail (über Make.com), die zusätzlich in unserem Betriebsprotokoll bei
+            Vercel Blob (Frankfurt) abgelegt wird; sie enthält dieselben, bereits bereinigten Angaben.
+        </p>
+        <p>
+            Rechtsgrundlage: <strong>Art. 6 Abs. 1 lit. f DSGVO</strong> (berechtigtes Interesse an einer
+            fehlerfreien und sicheren App). Du kannst der Verarbeitung nach Art. 21 DSGVO widersprechen;
+            eine formlose Nachricht an die in Ziffer 1 genannte Adresse genügt.
+        </p>
     </div>
 
     <!-- ── 3. Cookies ── -->
@@ -166,10 +195,11 @@
             Zusätzlich speichert die App bei technischen Fehlern automatisch ein
             <strong>Fehlerprotokoll</strong> (Schlüssel <strong>stackr_error_log</strong>, max. 50 Einträge)
             lokal auf deinem Gerät — mit Zeitstempel, Fehlermeldung, Browser-Kennung und der Stelle im Code,
-            an der der Fehler auftrat. Es enthält keine Buchhaltungsdaten. Diese Einträge verlassen dein
-            Gerät nicht automatisch; sie werden nur an einen Server übertragen, wenn du sie selbst über
-            die Funktion „Diagnose exportieren" (Backup-Menü) als Datei herunterlädst und z. B. an den
-            Support weitergibst.
+            an der der Fehler auftrat. Es enthält keine Buchhaltungsdaten. Eine stark gekürzte Fassung
+            jedes Fehlers meldet die App außerdem an unseren Server (siehe Ziffer 2.4). Das vollständige
+            lokale Protokoll verlässt dein Gerät nur, wenn du es selbst über die Funktion
+            „Diagnose exportieren" (Backup-Menü) als Datei herunterlädst und z. B. an den Support
+            weitergibst.
         </p>
         <p>Rechtsgrundlage: § 25 Abs. 2 TDDDG (technisch notwendig).</p>
 
@@ -214,7 +244,8 @@
                 Transport erfolgt ausschließlich über eine von uns betriebene, abgesicherte Serverless-Funktion
                 (Vercel) auf <a href="https://track-your-income-app.vercel.app">track-your-income-app.vercel.app</a>.
                 Große Anhänge (z.B. Belegfotos, Rechnungslogos) werden vor dem Hochladen ebenfalls auf deinem Gerät
-                verschlüsselt und als eigene Datei bei <strong>Vercel Blob</strong> (Vercel Inc.) abgelegt. Abrufbar
+                verschlüsselt und als eigene Datei bei <strong>Vercel Blob</strong> (Vercel Inc.) in der Region
+                Frankfurt am Main (EU) abgelegt. Abrufbar
                 sind sie nur über einen nicht erratbaren Link; der Inhalt bleibt auch dort unlesbares Chiffrat. Beim
                 Abruf verbindet sich dein Browser direkt mit Vercel Blob, dabei wird deine IP-Adresse übermittelt.
             </li>
@@ -385,9 +416,10 @@
             <strong>Bei aktiviertem Cloud-Sync (Ziffer 4)</strong> tritt <strong>Upstash, Inc.</strong> hinsichtlich
             der Speicherung der verschlüsselten Daten als <strong>Auftragsverarbeiter</strong> nach Art. 28 DSGVO
             auf; Gleiches gilt für <strong>Vercel Inc.</strong> bezüglich des Betriebs der Transport-Funktion
-            und der Speicherung verschlüsselter Anhänge (Vercel Blob). Die Sync-Daten bei Upstash liegen in der
-            EU (Frankfurt). Unabhängig vom Cloud-Sync ist Upstash zudem für die Login-Sitzungen und
-            Missbrauchszähler (Ziffer 5) als Auftragsverarbeiter tätig. Mit beiden Anbietern ist der Abschluss eines
+            und der Speicherung verschlüsselter Anhänge (Vercel Blob). Die Sync-Daten bei Upstash und die
+            Anhänge bei Vercel Blob liegen in der EU (Frankfurt). Unabhängig vom Cloud-Sync ist Upstash
+            zudem für die Login-Sitzungen und Missbrauchszähler (Ziffer 5) sowie für die Fehlerprotokolle
+            (Ziffer 2.4) als Auftragsverarbeiter tätig. Mit beiden Anbietern ist der Abschluss eines
             Auftragsverarbeitungsvertrags (Data Processing Agreement) vorgesehen bzw. wird über die jeweiligen
             Standard-AVV der Anbieter abgedeckt. Da beide Anbieter US-Gesellschaften
             sind, kann ein Drittlandbezug bestehen; als Transfermechanismus dienen die EU-Standardvertragsklauseln
@@ -412,6 +444,7 @@
         <ul>
             <li>Session-Daten: automatisch nach Ablauf der Session</li>
             <li>Account-Daten: auf Anfrage oder bei Kontolöschung sofort</li>
+            <li>Fehlerprotokolle (Ziffer 2.4): automatisch nach 30 Tagen</li>
             <li>Buchhaltungsdaten: auf Anfrage — beachte die steuerlichen Aufbewahrungsfristen nach § 147 AO:
                 Rechnungen und sonstige Buchungsbelege grundsätzlich 8 Jahre, Bücher, Aufzeichnungen und
                 Jahresabschlüsse 10 Jahre (jeweils ab Schluss des Kalenderjahres der letzten Eintragung)</li>

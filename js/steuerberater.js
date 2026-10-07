@@ -117,11 +117,20 @@ var Steuerberater = (function () {
 
         var auditLog = inclAudit ? (Store.getAuditLog ? Store.getAuditLog() : []).slice(-500) : [];
 
-        // ── EÜR calculation ─────────────────────────────────────────────
-        var einnahmen = sales.reduce(function (s, x) { return s + (parseFloat(x.verkaufspreis) || 0) + (parseFloat(x.versandkostenKaeufer) || 0); }, 0);
-        var wareneinkauf = purchases.reduce(function (s, p) { return s + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1); }, 0);
-        var sonstigeAusgaben = expenses.reduce(function (s, e) { return s + (parseFloat(e.betrag) || 0); }, 0);
-        var gewinn = einnahmen - wareneinkauf - sonstigeAusgaben;
+        // ── EÜR: eine Quelle, Euer._berechne() ─────────────────────────
+        // Bis 2026-10-07 stand hier eine eigene Formel (Verkaeufe − Einkaeufe − Ausgaben) —
+        // ohne AfA, Fahrtkosten, Eigenbelege, Material, Retouren, Plattformgebuehren,
+        // Rechnungsbuch und ohne Netto-Rechnung bei Regelbesteuerung. Das Paket an den
+        // Steuerberater zeigte damit einen anderen Gewinn als die EÜR. Selbe Fundklasse wie A1
+        // (js/gewerbesteuer.js _calcGewinn), selbe Loesung.
+        var eur = (typeof Euer !== 'undefined' && typeof Euer._berechne === 'function')
+            ? Euer._berechne(year, 0, 'jahr') : null;
+        if (inclEur && !eur) {
+            // Kann im Browser nicht eintreten (js/app-loader.js laedt js/euer.js mit). Falls doch:
+            // lieber abbrechen als dem Steuerberater eine geratene Zahl schicken.
+            Utils.showToast('EÜR nicht ermittelbar — Paket nicht erstellt.', 'error');
+            return;
+        }
 
         // ── Build HTML ──────────────────────────────────────────────────
         var companyName = Utils.escapeHtml(settings.firmenname || 'Mein Unternehmen');
@@ -130,7 +139,7 @@ var Steuerberater = (function () {
         var sections = '';
 
         if (inclEur) {
-            sections += buildEurSection(year, einnahmen, wareneinkauf, sonstigeAusgaben, gewinn, isKlein, sales, purchases, expenses);
+            sections += buildEurSection(year, eur, isKlein);
         }
 
         if (inclInvoices) {
@@ -166,11 +175,15 @@ var Steuerberater = (function () {
     function fmtDt(s) { if (!s) return '—'; var p = s.split('-'); if (p.length < 3) return s; return p[2] + '.' + p[1] + '.' + p[0]; }
     function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-    function buildEurSection(year, ein, ek, ba, gew, isKlein, sales, purchases, expenses) {
+    // Nur Darstellung — die drei Zahlen kommen unveraendert aus Euer._berechne(). Keine
+    // Aufschluesselung nach Wareneinkauf: bei Regelbesteuerung ist summeAusgaben netto, die
+    // Einzelposten dort teils brutto; eine Teilsumme daneben wuerde nicht aufgehen.
+    function buildEurSection(year, eur, isKlein) {
+        var netto = eur.isRegel ? ' (netto)' : '';
+        var gew = eur.gewinn;
         var rows = [
-            ['Betriebseinnahmen (Verkäufe)', ein, '#16a34a'],
-            ['− Wareneinkauf', ek, '#dc2626'],
-            ['− Betriebsausgaben', ba, '#dc2626'],
+            ['Betriebseinnahmen' + netto, eur.summeEinnahmen, '#16a34a'],
+            ['− Betriebsausgaben' + netto, eur.summeAusgaben, '#dc2626'],
             ['= Gewinn / Überschuss', gew, gew >= 0 ? '#16a34a' : '#dc2626'],
         ];
         var rowHtml = rows.map(function (r) {

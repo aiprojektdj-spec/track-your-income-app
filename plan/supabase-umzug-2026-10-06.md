@@ -1,6 +1,6 @@
 # Supabase-Umzug: Upstash Redis + Vercel Blob → Supabase
 
-Stand: 2026-10-06, **gegen den Code geprüft**, nicht gegen den Plan.
+Stand: 2026-10-07 abends, **gegen Code und Supabase-Konto geprüft** (per Supabase-Connector, nur lesend), nicht gegen den Plan.
 Der Gesamtplan liegt außerhalb des Repos (`Desktop/CFC/STACKR_PLAN_2026-10-06.md`, Phase 1).
 Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 
@@ -25,7 +25,7 @@ Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 | `test/test-sync-store.js` | rpc-Aufrufe gegen die Migration, Spiegel-Verhalten |
 
 - **Ohne neue Env-Variablen ändert sich nichts**: Default bleibt `STORAGE_BACKEND=redis`, kein Spiegel. Deployen ist also gefahrlos.
-- Das SQL lief bisher nur gegen **PGlite**, noch nie gegen ein echtes Supabase.
+- Das SQL läuft seit 2026-10-07 im echten Supabase-Projekt `usrhhjwvoefjdgrwovkg` (siehe Schritt 1).
 
 ## Was es schon gibt — Belege/Storage (Commit `747dcfd`, auf `master`, ohne Env-Variablen wirkungslos)
 
@@ -44,7 +44,7 @@ Privater Bucket, signierte URLs. Umschalten per `BLOB_BACKEND=supabase`; ohne di
 - ~~CSP~~ ✅ `fb44856`: `connect-src` der 5 App-Routen enthält `https://usrhhjwvoefjdgrwovkg.supabase.co`. Bei einem anderen Prod-Projekt dort nachziehen.
 - Supabase: projektweite Upload-Grenze auf mindestens 200 MB stellen (👤).
 
-Byte-Budget, Commit-Sperre und Rate-Limit in `blob-upload` laufen weiter über Redis (Schritt 2 unten).
+Byte-Budget, Commit-Sperre und Rate-Limit in `blob-upload` folgen seit `ceb8d6a` (PR #21) `STORAGE_BACKEND`, Migration `20261008000002_blob_budget.sql`.
 
 ## Wichtig: Phase 1 zieht nur den Sync um
 
@@ -55,10 +55,10 @@ Upstash und Vercel Blob hängen an viel mehr als `api/sync.js`. **Abschalten lä
 | Endpunkt | Wofür | Umzug |
 |---|---|---|
 | `api/sync.js` | Snapshots, Scopes, Anker, Pubkeys, Grants, Rate-Limit | ✅ Adapter fertig |
-| `api/whop-token.js` | Login: IP-Rate-Limit, legt Refresh-Sitzung `whoprt:<sid>` an | Rate-Limit ✅ (folgt `STORAGE_BACKEND`), Refresh-Sitzung offen |
-| `api/whop-refresh.js` | Refresh-Sitzungen (TTL), Sperre gegen doppelte Rotation, Rate-Limit | offen — **kritisch**: fällt das aus, fliegen Kunden stündlich raus |
+| `api/whop-token.js` | Login: IP-Rate-Limit, legt Refresh-Sitzung `whoprt:<sid>` an | Rate-Limit ✅ (folgt `STORAGE_BACKEND`), Refresh-Sitzung 🟡 PR #18 |
+| `api/whop-refresh.js` | Refresh-Sitzungen (TTL), Sperre gegen doppelte Rotation, Rate-Limit | 🟡 PR #18 offen (verschlüsselt, braucht `WHOP_SESSION_KEY`) — **kritisch**: fällt das aus, fliegen Kunden stündlich raus |
 | `api/whop-access.js` | IP-Rate-Limit | ✅ folgt `STORAGE_BACKEND` |
-| `api/blob-upload.js` | Byte-Budget je Nutzer, Commit-Sperre, Rate-Limit | offen (mit Storage zusammen) |
+| `api/blob-upload.js` | Byte-Budget je Nutzer, Commit-Sperre, Rate-Limit | ✅ `ceb8d6a` folgt `STORAGE_BACKEND` |
 | `api/client-error.js` + `api/_client-errors.js` | Browser-Fehler zählen, Tagesmeldung | ✅ folgt `STORAGE_BACKEND`, Migration `20261007000001_client_errors.sql`, kein Spiegel |
 | `api/health.js` | prüft Redis, dazu Supabase sobald `STORAGE_BACKEND`/`STORAGE_MIRROR`/`BLOB_BACKEND` es nutzen | ✅ Supabase-Prüfung; Redis-Prüfung fällt erst mit Upstash |
 
@@ -79,8 +79,8 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 
 | # | Schritt | Wer | Erledigt wenn |
 |---|---|---|---|
-| 0 | Supabase-Projekte `stackr-prod` + `stackr-preview` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 2026-10-07: **ein** Projekt `usrhhjwvoefjdgrwovkg` (Frankfurt) angelegt, aber **Free-Plan** → vor jeder Env-Variable auf Pro (50-MB-Grenze, Pause nach 7 Tagen, keine Backups). Preview-Projekt, Spend Cap, AV-Vertrag offen |
-| 1 | Migrationen in **beiden** Projekten ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-07: vier) | 👤, 🤖 liefert Anleitung | ✅ 2026-10-07 für `usrhhjwvoefjdgrwovkg`: alle vier, SQL per SHA-256 gegen origin/master geprüft; 8 Tabellen mit RLS ohne Policy, `anon`/`authenticated` ohne Rechte, Bucket privat. Preview-Projekt fehlt noch |
+| 0 | Supabase-Projekte `stackr-prod` + `stackr-preview` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 Stand 2026-10-07 abends, gegen das Konto geprüft: Organisation auf **Free-Plan** → vor jeder Env-Variable auf Pro (50-MB-Grenze, Pause nach 7 Tagen, keine Backups). **Zwei** Projekte, beide Frankfurt: `usrhhjwvoefjdgrwovkg` (mit Tabellen, steht in der CSP) und `nvtjzeffngwfsqjzdrdz` „Stackr“ (12:42 angelegt, **leer**). Offen: welches ist Prod, welches Preview? Ist `nvtjz…` Prod, CSP in `vercel.json` nachziehen und alle Migrationen dort ausführen. Spend Cap, AV-Vertrag offen |
+| 1 | Migrationen in **beiden** Projekten ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-07: fünf, mit PR #18 sechs) | 👤, 🤖 liefert Anleitung | ✅ `usrhhjwvoefjdgrwovkg`: alle fünf (sync, storage, client_errors, aufraeumen, blob_budget); 25 `sync_*`-Funktionen, keine für `anon` ausführbar, alle Tabellen mit RLS. ❌ `nvtjzeffngwfsqjzdrdz`: nichts. Migration aus PR #18 nach dessen Merge überall nachziehen |
 | 2 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in Vercel eintragen (Sensitive), getrennt für Production und Preview | 👤 | Claude liest die Werte nie aus |
 | 3 | Code deployen | 🤖 | ✅ `78a711e`/`747dcfd` auf `master` |
 | 4 | `STORAGE_MIRROR=supabase` setzen, neu deployen → Dual-Write | 👤 | keine `mirror-failed`-Alarme |
@@ -110,5 +110,5 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 
 ## Offene Fragen an den User
 
-1. Sind die Supabase-Projekte schon angelegt? (Blockiert Schritt 1–2.)
+1. Welches der beiden Supabase-Projekte ist Prod, welches Preview? (Blockiert Schritt 2.)
 2. Preview: eigenes Redis anlegen oder in Preview einfach **keinen** Spiegel setzen? (Empfehlung: keinen Spiegel, Preview testet gegen `stackr-preview` mit eigenen Testdaten.)

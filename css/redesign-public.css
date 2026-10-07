@@ -30,6 +30,7 @@ button,a,summary{-webkit-tap-highlight-color:transparent}
 .hero h1{font-size:48px;line-height:1.17}
 .hero-lead{color:var(--text-muted);font-size:18px;margin-top:24px}
 .hero-actions{margin-top:32px}
+.hero-note{margin-top:12px;font-size:14px;color:var(--text-muted)}
 .product-figure{max-width:790px;margin:72px auto 0;text-align:left}
 .product-preview{padding:32px;background:var(--surface);border:1px solid var(--border-subtle);border-radius:var(--radius-surface)}
 .preview-heading{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:32px}
@@ -88,6 +89,8 @@ button,a,summary{-webkit-tap-highlight-color:transparent}
 .pricing-copy p{color:var(--text-muted);margin-top:20px}
 .plan{padding-top:4px}
 .plan h3{font-size:28px}
+.plan-price{margin-top:12px;color:var(--text-muted)}
+.plan-price strong{font-size:32px;font-weight:550;letter-spacing:-.02em;color:var(--text)}
 .plan-features{margin:24px 0;padding-left:20px;color:var(--text-muted)}
 .plan-features li{padding-block:4px}
 .billing-choice{display:flex;gap:24px;margin-bottom:20px}

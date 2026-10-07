@@ -33,6 +33,7 @@
 
     var checkout = document.querySelector('[data-checkout]');
     var billingNote = document.querySelector('[data-billing-note]');
+    var planPrice = document.querySelector('[data-plan-price]');
     var choices = document.querySelectorAll('[data-period]');
     choices.forEach(function (button) {
         button.addEventListener('click', function () {
@@ -44,11 +45,13 @@
                 checkout.href = yearly
                     ? 'https://whop.com/checkout/plan_b5IBQ1lecggOT'
                     : 'https://whop.com/checkout/plan_iR6YIKLcychSZ';
-                checkout.textContent = yearly ? 'Jahresangebot ansehen' : 'Monatsangebot ansehen';
             }
+            if (planPrice) planPrice.innerHTML = yearly
+                ? '<strong>135 €</strong> pro Jahr'
+                : '<strong>15 €</strong> pro Monat';
             if (billingNote) billingNote.textContent = yearly
-                ? 'Jährliche Abrechnung. Preis und Vertragsbedingungen stehen im Whop-Angebot.'
-                : 'Monatliche Abrechnung. Preis und Vertragsbedingungen stehen im Whop-Angebot.';
+                ? '7 Tage kostenlos, danach 135 € jährlich (11,25 € im Monat), inkl. MwSt.'
+                : '7 Tage kostenlos, danach 15 € monatlich, inkl. MwSt.';
         });
     });
 })();

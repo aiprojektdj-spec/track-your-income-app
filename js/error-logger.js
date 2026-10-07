@@ -2,7 +2,11 @@
  * error-logger.js — Stackr Error Monitoring
  * Captures JS errors + unhandled promise rejections.
  * Stores in localStorage (max 50 entries) for debugging.
- * In production: extend _send() to POST to a logging endpoint.
+ * Zusätzlich: bereinigte Kurzfassung per sendBeacon an /api/client-error
+ * (plan/betrieb-luecken-2026-09-29.md §4) — nur im Web-Build über https,
+ * jeder Fehler höchstens 1× pro Seitenaufruf, höchstens 10 pro Seitenaufruf.
+ * Gesendet werden nur Art, Meldung, Dateipfad, Zeile/Spalte und Version —
+ * kein Stack, keine Seiten-URL, kein User-Agent.
  */
 (function() {
     'use strict';
@@ -20,13 +24,40 @@
         } catch(e) { /* localStorage full or private mode — silently skip */ }
     }
 
-    function _send(entry) {
-        // TODO: replace with real endpoint when available
-        // fetch('/api/log-error', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(entry) })
-        //   .catch(function(){});
+    var MAX_SENDS = 10;
 
-        // For now: console.warn so devtools shows it without breaking UX
+    // Nur im Arbeitsspeicher, pro Seitenaufruf: ein Fehler in einer Schleife wird
+    // nicht jedes Mal erneut gemeldet. Bewusst nicht im sessionStorage — so wird fürs
+    // Melden nichts auf dem Endgerät gespeichert (§ 25 TDDDG, F7 in
+    // plan/rechtstexte-supabase-entwurf.md). Wiederholungen über Seiten deckelt der Server.
+    var _sent = {};
+
+    // Nur der Pfad: keine Query (?v=…), kein Host.
+    function _path(src) {
+        if (!src) return '';   // sonst lieferte new URL('', href) den Seitenpfad
+        try { return new URL(src, location.href).pathname; } catch(e) { return ''; }
+    }
+
+    function _send(entry) {
         console.warn('[Stackr Error]', entry.type, entry.message, entry.source);
+
+        // Nur der Web-Build über https meldet — nicht die Local-Version (file:),
+        // nicht der lokale Dev-Server (http://localhost).
+        if (location.protocol !== 'https:' || !navigator.sendBeacon) return;
+
+        var src = _path(entry.source);
+        var key = entry.type + '|' + entry.message + '|' + src + '|' + entry.line;
+        if (_sent[key] || Object.keys(_sent).length >= MAX_SENDS) return;
+        _sent[key] = 1;
+
+        try {
+            var body = JSON.stringify({
+                type: entry.type, message: entry.message, source: src,
+                line: entry.line, col: entry.col, v: entry.v
+            });
+            // text/plain: kein Preflight, und /api/client-error liest beides
+            navigator.sendBeacon('/api/client-error', new Blob([body], { type: 'text/plain' }));
+        } catch(e) { /* Melden darf nie selbst einen Fehler auslösen */ }
     }
 
     function _capture(type, message, source, lineno, colno, stack) {

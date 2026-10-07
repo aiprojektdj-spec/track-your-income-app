@@ -203,6 +203,9 @@ weiter konfigurieren als die Variable selbst.
 **Was niemand meldet:** ein Cron, der gar nicht erst läuft. Der Alarm meldet fehlgeschlagene, nicht
 ausbleibende Läufe.
 
+> Stand 2026-10-07: Das Projekt läuft inzwischen auf **Pro** (User). Die Hobby-Grenzen in diesem
+> Abschnitt galten zur Zeit des Schreibens; im Log-Viewer sollten jetzt längere Zeiträume gehen.
+
 **Und im Log nachsehen geht auf dem Hobby-Plan nicht.** „View Logs" neben dem Job kennt nur
 *Last 30 minutes* und *Last hour* — alles darüber ist Pro. Ein Lauf um 04:00 UTC ist damit
 grundsätzlich unsichtbar; die naheliegende Monatsprüfung fällt schlicht aus. Was stattdessen

@@ -34,12 +34,8 @@ mit dem User** durch:
 
 ## Zuerst klären (blockiert anderes)
 
-- **Vercel-Plan.** Der Vercel-DPA gilt nur für Pro/Enterprise („for Customers who are on
-  Enterprise and Pro plans“, Stand 17.03.2026). Laut `plan/vercel-einrichtung.md` läuft das Projekt
-  auf **Hobby**. Dann gibt es mit Vercel **keinen** AV-Vertrag, obwohl Vercel Belege (Vercel Blob)
-  und alle API-Aufrufe verarbeitet. Außerdem ist Hobby laut Vercel nur für nicht-kommerzielle
-  Nutzung erlaubt. → Plan beim User erfragen; bei Hobby ist der Wechsel auf Pro der eigentliche
-  Schritt für F2.
+- ~~**Vercel-Plan.**~~ ✅ Geklärt (User, 2026-10-07): Vercel läuft auf **Pro**, der Vercel-DPA
+  (gilt für Pro/Enterprise, ohne Unterschrift) ist damit wirksam.
 - **Supabase-Plan.** Free → Pro (siehe Umzugsplan, Schritt 0). Prüfen, ob der Supabase-DPA auch
   im Free-Plan gilt; das wurde noch nicht nachgesehen.
 
@@ -50,14 +46,14 @@ mit dem User** durch:
   unterschriebene Fassung ist optional im Dashboard. Der User wollte F1 am 07.10. mittags erledigen
   → nachfragen, ob erledigt, mit Datum.
 - **F2 Upstash/Vercel-DPA:** Der Upstash-DPA ist in die ToS eingebunden („incorporated into and forms
-  a binding and effective part of the Agreement“) und gilt auch im Free-Plan. Vercel: siehe oben.
+  a binding and effective part of the Agreement“) und gilt auch im Free-Plan. Vercel: Pro, DPA gilt.
   Erst wenn beide bestehen, darf DSE Ziffer 7 statt „vorgesehen bzw. abgedeckt“ sagen „besteht“.
 - **F3 Drittlandtransfer:**
 
   | Anbieter | DPF | SCC im DPA | DSE-Formulierung |
   |---|---|---|---|
   | Upstash | ja | ja, als Rückfall | DPF, hilfsweise Standardvertragsklauseln |
-  | Vercel | ja | ja, Modul 1–3 (nur im Pro-DPA) | dto., setzt Pro voraus |
+  | Vercel | ja | ja, Modul 1–3 (Pro-DPA, gilt) | DPF, hilfsweise Standardvertragsklauseln |
   | Supabase | nicht gefunden | ja, Modul 2 + 3 | nur Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO) |
 
   Der User soll auf https://www.dataprivacyframework.gov/list selbst nach „Supabase“ suchen (die

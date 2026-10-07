@@ -22,7 +22,7 @@
 
     <h1>Datenschutzerklärung</h1>
     <p class="subtitle">Informationen zum Umgang mit deinen personenbezogenen Daten</p>
-    <p class="update-date">Stand: Juni 2026</p>
+    <p class="update-date">Stand: Oktober 2026</p>
 
     <div class="highlight-box">
         <strong>Kurz zusammengefasst:</strong> Wir speichern nur was nötig ist.
@@ -210,6 +210,10 @@
                 (Upstash, Inc.) in der Region <strong>Frankfurt am Main (EU, eu-central-1)</strong> abgelegt. Der
                 Transport erfolgt ausschließlich über eine von uns betriebene, abgesicherte Serverless-Funktion
                 (Vercel) auf <a href="https://track-your-income-app.vercel.app">track-your-income-app.vercel.app</a>.
+                Große Anhänge (z.B. Belegfotos, Rechnungslogos) werden vor dem Hochladen ebenfalls auf deinem Gerät
+                verschlüsselt und als eigene Datei bei <strong>Vercel Blob</strong> (Vercel Inc.) abgelegt. Abrufbar
+                sind sie nur über einen nicht erratbaren Link; der Inhalt bleibt auch dort unlesbares Chiffrat. Beim
+                Abruf verbindet sich dein Browser direkt mit Vercel Blob, dabei wird deine IP-Adresse übermittelt.
             </li>
             <li>
                 <strong>Wiederherstellungscode:</strong> Der Schlüssel wird dir als Wiederherstellungscode angezeigt.
@@ -297,6 +301,17 @@
             <a href="https://whop.com/privacy/" target="_blank" rel="noopener">whop.com/privacy</a>
         </p>
         <p>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.</p>
+        <p>
+            <strong>Login-Sitzung und Missbrauchsschutz:</strong> Damit du dich nicht stündlich neu anmelden
+            musst, legen wir nach dem Login eine zufällige Sitzungskennung zusammen mit den von Whop
+            ausgegebenen Anmelde-Token (Zugangs- und Erneuerungstoken) serverseitig bei <strong>Upstash</strong>
+            (Upstash, Inc.) in der Region Frankfurt am Main (EU) ab. Der Eintrag verfällt automatisch 30 Tage
+            nach der letzten Erneuerung. Bei jeder Anmeldung, Zugangsprüfung und Sitzungserneuerung verarbeiten
+            wir außerdem deine IP-Adresse in einem Zähler, der die Anfragen pro Minute begrenzt; dieser Zähler
+            liegt ebenfalls bei Upstash und wird nach 60 Sekunden automatisch gelöscht.
+            Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Bereitstellung des Logins) bzw. lit. f DSGVO
+            (berechtigtes Interesse an Missbrauchsschutz).
+        </p>
     </div>
 
     <!-- ── 6. Deine Rechte ── -->
@@ -366,8 +381,10 @@
         <p>
             <strong>Bei aktiviertem Cloud-Sync (Ziffer 4)</strong> tritt <strong>Upstash, Inc.</strong> hinsichtlich
             der Speicherung der verschlüsselten Daten als <strong>Auftragsverarbeiter</strong> nach Art. 28 DSGVO
-            auf; Gleiches gilt für <strong>Vercel Inc.</strong> bezüglich des Betriebs der Transport-Funktion.
-            Die Speicherung erfolgt in der EU (Frankfurt). Mit beiden Anbietern ist der Abschluss eines
+            auf; Gleiches gilt für <strong>Vercel Inc.</strong> bezüglich des Betriebs der Transport-Funktion
+            und der Speicherung verschlüsselter Anhänge (Vercel Blob). Die Sync-Daten bei Upstash liegen in der
+            EU (Frankfurt). Unabhängig vom Cloud-Sync ist Upstash zudem für die Login-Sitzungen und
+            Missbrauchszähler (Ziffer 5) als Auftragsverarbeiter tätig. Mit beiden Anbietern ist der Abschluss eines
             Auftragsverarbeitungsvertrags (Data Processing Agreement) vorgesehen bzw. wird über die jeweiligen
             Standard-AVV der Anbieter abgedeckt. Da beide Anbieter US-Gesellschaften
             sind, kann ein Drittlandbezug bestehen; als Transfermechanismus dienen die EU-Standardvertragsklauseln

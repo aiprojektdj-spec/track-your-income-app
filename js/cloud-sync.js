@@ -1035,7 +1035,7 @@ var CloudSync = (function () {
                 '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
                   'Cloud-Sync hält deine Daten <strong>verschlüsselt</strong> zwischen mehreren Geräten aktuell. ' +
                   'Die Verschlüsselung ist <strong>Ende-zu-Ende</strong>: nur du hast den Schlüssel, der Server sieht ausschließlich unlesbares Chiffrat. ' +
-                  'Aufbewahrung beim Auftragsverarbeiter <strong>Upstash (Frankfurt, EU)</strong>.' +
+                  'Aufbewahrung beim Auftragsverarbeiter <strong>Upstash (Frankfurt, EU)</strong>, große Anhänge wie Belegfotos bei <strong>Vercel Blob</strong>.' +
                 '</div>' +
                 '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px;font-size:12px;">' +
                   '⚠️ Du erhältst einen <strong>Wiederherstellungscode</strong>. Er ist der EINZIGE Weg, die Cloud-Daten zu entschlüsseln. ' +

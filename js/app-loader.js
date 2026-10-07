@@ -79,7 +79,16 @@
 
         // Einstieg zuletzt: startet sofort beim Ausfuehren (DOMContentLoaded ist vorbei),
         // frueher lief der Start erst nach allen Skripten — so bleibt die Reihenfolge gleich.
-        'js/app.js?v=2'
+        'js/app.js?v=2',
+
+        // Redesign: braucht das App-Objekt, muss also nach js/app.js laufen. js/app.js startet
+        // deshalb erst, wenn der Loader fertig ist (AppLoader.ready) — wie frueher nach allen Skripten.
+        'js/redesign-charts.js',
+        'js/redesign-onboarding.js',
+        'js/redesign-bookings.js',
+        'js/redesign-settings.js',
+        'js/redesign-shell.js',
+        'js/redesign-ui.js'
     ];
 
     function hasSession() {
@@ -88,11 +97,16 @@
         try { return !!localStorage.getItem('whop_access_token'); } catch (e) { return true; }
     }
 
+    var markReady;
+    var ready = new Promise(function (resolve) { markReady = resolve; });
+
     function loadModules() {
-        MODULES.forEach(function (src) {
+        MODULES.forEach(function (src, i) {
             var s = document.createElement('script');
             s.src = src;
             s.async = false;
+            // async=false fuehrt in Listenreihenfolge aus: das letzte Skript ist zuletzt dran.
+            if (i === MODULES.length - 1) s.onload = s.onerror = function () { markReady(); };
             document.body.appendChild(s);
         });
     }
@@ -104,7 +118,7 @@
         loadModules();
     }
 
-    window.AppLoader = { MODULES: MODULES };
+    window.AppLoader = { MODULES: MODULES, ready: ready };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
     else start();

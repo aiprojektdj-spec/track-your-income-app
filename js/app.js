@@ -537,6 +537,7 @@ const App = {
     /** URL und document.title an die aktuelle Seite angleichen. Der Beschriftungstext kommt
      *  aus dem Sidebar-Link, damit er automatisch der gewählten Sprache folgt. */
     _syncLocation(page) {
+        if (window.RedesignShell) return RedesignShell.syncLocation(page);
         try {
             const url = new URL(window.location.href);
             url.searchParams.set('page', page);
@@ -694,6 +695,7 @@ const App = {
                     contentEl.classList.add('skeleton-fade-in');
                     setTimeout(() => contentEl.classList.remove('skeleton-fade-in'), 300);
                     this.pages[page].init();
+                    if (window.RedesignShell) RedesignShell.afterRender(page);
                 } catch(err) {
                     console.error('[navigate] Fehler auf Seite', page, err);
                     contentEl.innerHTML = `
@@ -718,6 +720,7 @@ const App = {
     // überlebt daher die _refresh()-Aufrufe der einzelnen Module.
     // Leert sich auf Nicht-Finanzen-Seiten (CSS :empty → display:none).
     _renderModuleSubnav(page) {
+        if (window.RedesignShell) return RedesignShell.renderContext(page);
         const el = document.getElementById('moduleSubnav');
         if (!el) return;
 
@@ -3519,5 +3522,7 @@ function _startApp() {
         }
     });
 }
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _startApp);
+// Ueber js/app-loader.js: erst starten, wenn auch die danach geladenen Skripte da sind.
+if (window.AppLoader && window.AppLoader.ready) window.AppLoader.ready.then(_startApp);
+else if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _startApp);
 else _startApp();

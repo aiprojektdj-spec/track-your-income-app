@@ -2,7 +2,7 @@
 // Buchungen Module - Purchases & Sales
 // ============================================
 const Buchungen = {
-    _activeTab: 'einkauf',
+    _activeTab: 'alle',
     _sortCol: null,
     _sortDir: 'asc',
     _filters: {},
@@ -22,9 +22,9 @@ const Buchungen = {
                 <h2>Buchungen</h2>
             </div>
             <div class="tabs">
-                <div class="tab ${this._activeTab === 'einkauf' ? 'active' : ''}" data-tab="einkauf">Einkauf</div>
-                <div class="tab ${this._activeTab === 'verkauf' ? 'active' : ''}" data-tab="verkauf">Verkauf</div>
-                <div class="tab ${this._activeTab === 'alle' ? 'active' : ''}" data-tab="alle">Alle Buchungen</div>
+                <button type="button" class="tab ${this._activeTab === 'einkauf' ? 'active' : ''}" data-tab="einkauf">Einkauf</button>
+                <button type="button" class="tab ${this._activeTab === 'verkauf' ? 'active' : ''}" data-tab="verkauf">Verkauf</button>
+                <button type="button" class="tab ${this._activeTab === 'alle' ? 'active' : ''}" data-tab="alle">Alle Buchungen</button>
             </div>
             <div id="buchungenContent"></div>
         `;
@@ -33,6 +33,10 @@ const Buchungen = {
     init() {
         document.querySelectorAll('.tab[data-tab]').forEach(tab => {
             tab.addEventListener('click', () => {
+                if (App._formDirty && tab.dataset.tab !== this._activeTab) {
+                    if (!confirm('Du hast ungespeicherte Eingaben. Ansicht trotzdem verlassen?')) return;
+                    App._formDirty = false;
+                }
                 this._activeTab = tab.dataset.tab;
                 document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('active', t === tab));
                 this._renderTab();

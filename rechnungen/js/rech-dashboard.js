@@ -61,6 +61,31 @@ var RechDashboard = (function() {
         var customerMap = {};
         customers.forEach(function(c) { customerMap[c.id] = c; });
 
+        // Eingebettet führt der Bereich direkt zur vorhandenen Dokumentenliste.
+        // Kennzahlen bleiben zugänglich; Beträge und Zahlungslogik stammen unverändert von oben.
+        if (document.getElementById('rechSubnav') && typeof Dokumente !== 'undefined') {
+            var list = Dokumente.render()
+                .replace('<h2>Dokumente</h2>', '<h2>Rechnungen</h2>')
+                .replace('class="btn btn-primary btn-small" data-rech-page="rechnung-neu"', 'class="btn btn-outline btn-small" data-rech-page="rechnung-neu"');
+            var notice = '';
+            if (!hasUd) {
+                notice += '<div class="redesign-notice"><h3>Rechnungsangaben ergänzen</h3><p>Firmenname, Adresse und Bankverbindung werden für deine Rechnungen benötigt.</p><button class="btn btn-outline" id="dashGoUd">Firmenangaben öffnen</button></div>';
+            }
+            if (ueberfaellige.length) {
+                notice += '<p class="redesign-notice">Prüfen: ' + ueberfaellige.length + ' überfällige Rechnungen · ' + Utils.formatCurrency(ueberfaelligeSum) + ' ausstehend.</p>';
+            }
+            if (baldFaellig.length) {
+                notice += '<p class="redesign-notice">' + baldFaellig.length + ' Rechnung(en) werden in den nächsten drei Tagen fällig.</p>';
+            }
+            return '<div id="redesignInvoiceList" class="redesign-invoices">' + notice + list +
+                '<details class="redesign-details"><summary>Rechnungszahlen ansehen</summary><dl class="redesign-metric-list">' +
+                '<div><dt>Offene Rechnungen</dt><dd>' + offeneRechnungen.length + ' · ' + Utils.formatCurrency(offeneSum) + '</dd></div>' +
+                '<div><dt>Bezahlt · Rechnungsdatum im aktuellen Monat</dt><dd>' + bezahlteRechnungen.length + ' · ' + Utils.formatCurrency(bezahlteSum) + '</dd></div>' +
+                '<div><dt>Überfällige Rechnungen</dt><dd>' + ueberfaellige.length + ' · ' + Utils.formatCurrency(ueberfaelligeSum) + '</dd></div>' +
+                '<div><dt>Offene Angebote</dt><dd>' + offeneAngebote.length + ' · ' + Utils.formatCurrency(angeboteSum) + '</dd></div>' +
+                '</dl><p>Offene und überfällige Beträge berücksichtigen erfasste Teilzahlungen. Die Einordnung folgt dem gespeicherten Dokumentstatus.</p></details></div>';
+        }
+
         var html = '';
 
         // ── Header ────────────────────────────────────────────────────────
@@ -221,6 +246,7 @@ var RechDashboard = (function() {
     }
 
     function init() {
+        if (document.getElementById('redesignInvoiceList') && typeof Dokumente !== 'undefined') Dokumente.init();
         var btn1 = document.getElementById('dashNewInvoice');
         if (btn1) btn1.addEventListener('click', function() { RechApp.navigate('rechnung-neu'); });
 

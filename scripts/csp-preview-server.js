@@ -53,7 +53,8 @@ http.createServer((req, res) => {
         // Bewusst die Header der ANGEFRAGTEN URL, nicht der aufgeloesten Datei —
         // genau so matcht Vercel (Rewrite passiert nach dem Header-Matching).
         headersFor(urlPath).forEach(h => res.setHeader(h.key, h.value));
+        res.setHeader('Cache-Control', 'no-store');
         res.setHeader('Content-Type', MIME[path.extname(file)] || 'application/octet-stream');
         res.writeHead(200).end(buf);
     });
-}).listen(4321, () => console.log('CSP-Preview auf http://localhost:4321'));
+}).listen(Number(process.argv[2] || 4321), '127.0.0.1', () => console.log('CSP-Preview auf http://127.0.0.1:' + (process.argv[2] || 4321)));

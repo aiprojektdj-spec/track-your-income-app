@@ -26,7 +26,11 @@ const appJs = read('js/app.js');
 check('A1 jede nachgeladene Datei existiert',
       MODULES.every((src) => fs.existsSync(path.join(ROOT, src.split('?')[0]))));
 check('A2 keine Datei doppelt in der Liste', new Set(MODULES).size === MODULES.length);
-check('A3 js/app.js steht zuletzt', /^js\/app\.js(\?|$)/.test(MODULES[MODULES.length - 1]));
+const appIdx = MODULES.findIndex((src) => /^js\/app\.js(\?|$)/.test(src));
+check('A3 nach js/app.js nur noch Redesign-Skripte',
+      appIdx !== -1 && MODULES.slice(appIdx + 1).every((src) => /^js\/redesign-[a-z]+\.js$/.test(src)));
+check('A4 js/app.js startet erst, wenn der Loader fertig ist',
+      /window\.AppLoader\.ready\.then\(_startApp\)/.test(appJs) && /markReady\(\)/.test(loader));
 
 const staticSrcs = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1]);
 check('B1 app.html laedt kein Modul zusaetzlich statisch',

@@ -308,7 +308,8 @@ zum Übernehmen:
 > **2026-10-07 (Session F-Punkte), gegengeprüft:** Der DPA „supplements and forms part of the
 > Supabase Terms of Service“ und gilt ab dem Effective Date des Vertrags. Eine Einschränkung auf
 > bezahlte Pläne steht nicht darin (anders als bei Vercel) → gilt nach dem Wortlaut auch im
-> Free-Plan. **Offen beim User:** erledigt? Datum? Unterschriebene Fassung archiviert?
+> Free-Plan. **User 2026-10-07: noch nicht erledigt.** → Ziffer 7 bleibt bei „vorgesehen“, bis der
+> User das Datum nennt.
 Recherche (2026-10-07): Der Supabase-DPA (Version 1, 01.08.2026) gilt laut Text schon mit Annahme der
 Nutzungsbedingungen („acceptance of the Agreement shall have the same effect as signing the SCCs“).
 Eine unterschriebene Fassung fürs eigene Archiv gibt es trotzdem im Dashboard. Ursprüngliche Frage: Ist der Supabase-DPA für die Organisation abgeschlossen (Dashboard →
@@ -363,7 +364,9 @@ zugestimmt?
 > **Empfehlung:** In der DSE nur **AWS (Rechenzentrum Frankfurt)** nennen, weil dort die Daten
 > physisch liegen, und für den Rest auf die Liste des Anbieters verweisen. Eine vollständige
 > Liste veraltet bei jeder Änderung. Dazu einmal die Benachrichtigungen abonnieren (👤).
-> **Offen beim User:** Empfehlung so in Ordnung? Abo eingerichtet?
+> ✅ **User 2026-10-07: so machen.** Beim Einbau von 1.4 (Supabase-Punkt) ergänzen: „Die Daten liegen
+> in einem Rechenzentrum von Amazon Web Services in Frankfurt; weitere Unterauftragsverarbeiter
+> nennt Supabase unter supabase.com/legal/subprocessors.“ Abo der Änderungsmitteilungen: 👤 offen.
 
 **F5 — Umschaltreihenfolge.** Werden `STORAGE_BACKEND` (Sync) und `BLOB_BACKEND` (Belege)
 gleichzeitig umgeschaltet? Davon hängen die eckigen Klammern in 1.1 und 1.4 ab. Wenn nicht, braucht
@@ -377,14 +380,20 @@ es eine zweite Übergangsvariante.
 >   IP-Übermittlung an Supabase **entfällt**. In 1.4 bleibt der Vercel-Blob-Zusatz, bei Supabase
 >   entfällt „Belege und Anhänge“. In 1.6 bleibt „Vercel Blob“ stehen.
 > - **Ü2** (auch `BLOB_BACKEND=supabase`): wie bisher Ü mit der zweiten Klammer.
-> **Offen beim User:** Reihenfolge so bestätigen.
+> ✅ **User 2026-10-07: bestätigt** — erst Sync (Ü1), dann Belege (Ü2).
 
 ~~**F6 — IP-Löschfrist bei Supabase.**~~ ✅ Umgesetzt als deterministisches Aufräumen (jeder Aufruf
 + täglicher Lauf), siehe Nachtrag oben. Annahme: Hashen der IP ist damit nicht mehr nötig — eine
 gehashte IPv4 wäre ohne geheimen Schlüssel ohnehin in Sekunden zurückzurechnen und bliebe
 personenbezogen. Wer das trotzdem will: eigener Auftrag (braucht eine neue Env-Variable).
 
-**F7 — Fehlerzähler.** Soll der Browser künftig automatisch an `/api/client-error` melden? Dann
+**F7 — Fehlerzähler.** ✅ **User 2026-10-07: „committe den“.** Umgesetzt im Branch
+`claude/f-punkte-rechtsfragen`: Sender (`js/error-logger.js`) + Test, DSE neue Ziffer 2.4,
+Ziffer 3, 7 und 8, `cookies.html` (Zeile `stackr_error_log`). Abweichung vom Entwurf vom 29.09.:
+schon gemeldete Fehler nur im Arbeitsspeicher statt `stackr_error_sent` im sessionStorage
+(Annahme: vom User mit „committe den“ auf den Vorschlag unten freigegeben), daher keine neue
+Cookie-Zeile. Text beschreibt den **heutigen** Stand (Upstash, 60 s); beim Umschalten nach 1.2 (E)
+anpassen. Ursprüngliche Frage: Soll der Browser künftig automatisch an `/api/client-error` melden? Dann
 gehört 1.3 in die DSE (Rechtsgrundlage lit. f, ggf. Einwilligung nötig? — nach § 25 TDDDG greift
 das Auslesen aus dem Endgerät; bitte entscheiden, ob „technisch notwendig“ hier trägt).
 > **2026-10-07, Stand:** Der Sender ist **schon gebaut**, aber nicht committet. Er liegt im
@@ -403,7 +412,9 @@ das Auslesen aus dem Endgerät; bitte entscheiden, ob „technisch notwendig“ 
 
 ~~**F8 — Bestehende Lücken mitschließen?**~~ ✅ Live geschlossen, siehe Nachtrag oben.
 
-**F13 — Region des Vercel-Blob-Stores.** Die Live-DSE nennt Vercel Blob jetzt, aber ohne Region,
+**F13 — Region des Vercel-Blob-Stores.** ✅ **2026-10-07 im Vercel-Dashboard nachgesehen:**
+Store `track-your-income-app-blob` → Region **FRA1 (Frankfurt)**, Zugriff „Public“, Größe
+1,07 GB. DSE 4.1 und 7 nennen jetzt Frankfurt. Ursprüngliche Frage: Die Live-DSE nennt Vercel Blob jetzt, aber ohne Region,
 weil sie nirgends im Repo steht (Vercel → Storage → Blob-Store → Region). Liegt der Store in
 Frankfurt (`fra1`), kann die DSE das sagen; liegt er in den USA (`iad1`, Vercels Default), sollte
 sie das ausdrücklich sagen. Bitte nachsehen und mitteilen.
@@ -418,7 +429,18 @@ Datum eingetragen werden soll, oder genügt das neue Stand-Datum?
 > Annahme: Das entspricht der GoBD-Pflicht, Änderungen am Verfahren zu versionieren. Keine
 > Entscheidung des Users nötig.
 
-**F10 — Informationspflicht beim Wechsel.** Sollen bestehende Sync-Nutzer über den
+**F10 — Informationspflicht beim Wechsel.** ✅ **User 2026-10-07: ja, aktiv informieren.**
+Zusätzlicher Fund: DSE Ziffer 9 verspricht schon heute „Bei wesentlichen Änderungen informieren wir
+registrierte Nutzer per E-Mail“. Ein Anbieterwechsel ist so eine Änderung → **In-App-Hinweis
+und E-Mail über Whop**, beide zu Ü1 (wenn `STORAGE_MIRROR=supabase` gesetzt wird).
+Entwurf In-App-Hinweis (einmalig, nur bei `oyi_sync_enabled`, schließbar, in `js/cloud-sync.js`):
+> **Neuer Speicherort für deinen Cloud-Sync.** Ab dem TT.MM.2026 speichern wir deine
+> verschlüsselten Sync-Daten bei Supabase (Frankfurt, EU) statt bei Upstash. An der
+> Verschlüsselung ändert sich nichts: Nur du hast den Schlüssel, auch Supabase sieht nur
+> unlesbares Chiffrat. Nach dem Umzug löschen wir die Daten bei Upstash.
+> [Datenschutzerklärung] [Verstanden]
+Die E-Mail mit gleichem Inhalt verschickt der User über Whop. Gebaut wird erst zu Ü1, weil der Hinweis
+vorher falsch wäre. Ursprüngliche Frage: Sollen bestehende Sync-Nutzer über den
 Anbieterwechsel aktiv informiert werden (In-App-Hinweis/Mail über Whop), oder genügt die
 aktualisierte DSE? Die Einwilligung in 4.1 wurde mit dem Text „Upstash“ erteilt.
 
@@ -431,7 +453,7 @@ aktualisierte DSE? Die Einwilligung in 4.1 wurde mit dem Text „Upstash“ erte
 > erst, wenn auch die Whop-Sitzungen umgezogen sind, denn die liegen in derselben Datenbank.
 > (2) Screenshot + Datum in `plan/` ablegen. (3) Bei Upstash schriftlich eine Löschbescheinigung
 > nach DPA 11.1 anfordern und ablegen. Erst danach darf ein Text „wurden gelöscht“ sagen.
-> **Offen beim User:** so einverstanden?
+> ✅ **User 2026-10-07: einverstanden.**
 
 **F12 — Preview-Projekt.** Laut Umzugsplan darf in Preview kein Spiegel gesetzt werden, sonst
 landen Produktionsdaten in `stackr-preview`. Bitte bestätigen, dass das so bleibt — sonst wäre
@@ -439,5 +461,10 @@ landen Produktionsdaten in `stackr-preview`. Bitte bestätigen, dass das so blei
 > **2026-10-07:** Es gibt bisher **nur ein** Supabase-Projekt (`usrhhjwvoefjdgrwovkg`). Zeigt
 > `SUPABASE_URL` in Preview auf dasselbe Projekt, teilen sich Preview und Prod auch dort den
 > Speicher. Für die DSE ändert das nichts (gleicher Anbieter, gleiche Region), für die Trennung
-> von Testdaten schon. **Offen beim User:** In Preview keine der drei Variablen
-> (`STORAGE_MIRROR`/`STORAGE_BACKEND`/`BLOB_BACKEND`) setzen? Kommt ein eigenes Preview-Projekt?
+> von Testdaten schon.
+> **User 2026-10-07: Ein Preview-Projekt gibt es jetzt.** Daraus folgt: In Preview darf
+> `STORAGE_BACKEND=supabase` (+ `SUPABASE_URL` des Preview-Projekts) gesetzt werden, dann landen
+> dort nur Testdaten. **`STORAGE_MIRROR` aber nie in Preview**, solange Preview und Prod Redis
+> teilen (`36be024`). Sonst kopiert Preview Prod-Chiffrat ins Preview-Projekt, und das
+> müsste dann in DSE/VVT. Ob die vier Migrationen dort schon liefen, ist nicht bekannt
+> (Umzugsplan Schritt 1).

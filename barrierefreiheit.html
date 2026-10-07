@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none';">
+<link rel="icon" href="assets/stackr-concepts/raute-facette.svg" type="image/svg+xml">
+<title>Barrierefreiheit — Stackr</title>
+<meta name="description" content="Erklärung zur Barrierefreiheit von Stackr: was umgesetzt ist, wo es noch Lücken gibt und wie du uns eine Barriere meldest.">
+<link rel="stylesheet" href="css/legal.css">
+</head>
+<body>
+<a href="#inhalt" class="skip-link">Zum Inhalt springen</a>
+
+<nav class="legal-header" aria-label="Hauptnavigation">
+    <a href="index.html" class="nav-brand">
+        <span class="nav-brand-icon" aria-hidden="true">◆</span>
+        <span class="nav-brand-text">stackr</span>
+    </a>
+    <a href="index.html" class="nav-back">Zur Startseite</a>
+</nav>
+
+<main class="page-wrap" id="inhalt" tabindex="-1">
+
+    <h1>Erklärung zur Barrierefreiheit</h1>
+    <p class="subtitle">Stand: 29. September 2026</p>
+
+<nav class="legal-toc" aria-label="Inhaltsverzeichnis"><h2>Inhalt</h2><ol><li><a href="#abschnitt-1">Unser Ziel</a></li><li><a href="#abschnitt-2">Was umgesetzt ist</a></li><li><a href="#abschnitt-3">Bekannte Einschränkungen</a></li><li><a href="#abschnitt-4">Barriere melden</a></li><li><a href="#abschnitt-5">Wie diese Erklärung entstanden ist</a></li></ol></nav>
+
+    <div class="section">
+        <h2 id="abschnitt-1">Unser Ziel</h2>
+        <p>
+            Stackr soll für alle nutzbar sein — auch mit Screenreader, nur mit der Tastatur, mit
+            Vergrößerung oder bei eingeschränktem Farbsehen. Wir orientieren uns dabei an den
+            Web Content Accessibility Guidelines (WCAG) 2.1, Stufe AA.
+        </p>
+        <p>
+            Diese Erklärung beschreibt, wo wir heute stehen: was umgesetzt ist und wo es noch Lücken gibt.
+            Wir führen die Lücken bewusst auf, statt sie wegzulassen.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2 id="abschnitt-2">Was umgesetzt ist</h2>
+        <ul>
+            <li>
+                <strong>Kontrast im dunklen Design:</strong> Alle Text- und Statusfarben erreichen den
+                Mindestkontrast nach WCAG AA (4,5 : 1). Geprüft haben wir das rechnerisch für alle
+                45 Kombinationen aus Textfarbe und Hintergrund.
+            </li>
+            <li>
+                <strong>Erkennbare Eingabefelder:</strong> Die Rahmen von Formularfeldern heben sich im
+                hellen wie im dunklen Design mit mindestens 3 : 1 vom Hintergrund ab.
+            </li>
+            <li>
+                <strong>„Zum Inhalt springen":</strong> Auf der Startseite, in der App und auf den
+                rechtlichen Seiten führt der erste Tab-Schritt direkt zum Hauptinhalt.
+            </li>
+            <li>
+                <strong>Bedienelemente mit Namen:</strong> Schaltflächen, die nur ein Symbol zeigen
+                (z.&nbsp;B. Bearbeiten, Löschen, Stornieren), haben eine Beschriftung für Screenreader.
+                Formularfelder sind mit ihrer Beschriftung verknüpft.
+            </li>
+            <li>
+                <strong>Tastaturbedienung:</strong> Klickbare Flächen, die keine normalen Schaltflächen
+                sind, etwa die Kacheln der Akademie, lassen sich mit der Tastatur erreichen und mit
+                Enter oder Leertaste auslösen.
+            </li>
+            <li>
+                <strong>Struktur:</strong> Die Seiten sind als deutschsprachig ausgezeichnet. In der App
+                sind Navigation und Hauptinhalt als eigene, benannte Seitenbereiche angelegt.
+            </li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2 id="abschnitt-3">Bekannte Einschränkungen</h2>
+        <ul>
+            <li>
+                <strong>Kontrast im hellen Design:</strong> Mehrere farbige Texte — vor allem Grün,
+                Orange und Rot für Status und Beträge — erreichen im hellen Design den Mindestkontrast
+                noch nicht. Die App folgt standardmäßig der Einstellung deines Systems. Wenn dir das
+                Lesen schwerfällt, stelle die Darstellung in der App auf „Dunkel" um, bis wir das
+                helle Design korrigiert haben.
+            </li>
+            <li>
+                <strong>Diagramme:</strong> Die Diagramme im Bereich Statistiken haben keine
+                Textbeschreibung für Screenreader. Ein Teil der Werte steht zusätzlich in Tabellen,
+                aber nicht alle. In einzelnen Diagrammen unterscheidet allein die Farbe die Datenreihen.
+            </li>
+            <li>
+                <strong>PDF-Dokumente:</strong> Rechnungen und Auswertungen speicherst du über die
+                Druckfunktion deines Browsers als PDF. Stackr erzeugt dabei kein eigens geprüftes,
+                barrierefreies PDF (PDF/UA). Ob das PDF Strukturinformationen enthält, hängt vom
+                Browser ab.
+            </li>
+            <li>
+                <strong>Noch nicht praktisch getestet:</strong> Die Angaben oben beruhen auf einer
+                Prüfung des Programmcodes und auf Berechnungen. Ein vollständiger Durchgang nur mit
+                Tastatur und ein Test mit Screenreadern (z.&nbsp;B. NVDA, VoiceOver) stehen noch aus.
+            </li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2 id="abschnitt-4">Barriere melden</h2>
+        <p>
+            Etwas funktioniert für dich nicht, oder du stößt auf eine Barriere, die hier nicht steht?
+            Schreib uns über die im <a href="impressum.html">Impressum</a> genannte Kontaktadresse.
+            Beschreibe kurz, auf welcher Seite und mit welchem Hilfsmittel (z.&nbsp;B. Screenreader,
+            Browser) das Problem auftritt. Wir melden uns in der Regel innerhalb von 14 Tagen.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2 id="abschnitt-5">Wie diese Erklärung entstanden ist</h2>
+        <p>
+            Die Erklärung beruht auf einer eigenen Prüfung: Durchsicht des Programmcodes und
+            rechnerische Kontrastprüfung aller Farbwerte. Eine Prüfung durch eine externe Stelle hat
+            nicht stattgefunden. Erstellt am 29. September 2026, zuletzt geprüft am 29. September 2026.
+        </p>
+    </div>
+
+</main>
+
+<footer class="legal-footer">
+    <div style="margin-bottom:8px;">◆ <strong>stackr</strong></div>
+    <div>
+        <a href="index.html">Startseite</a> ·
+        <a href="impressum.html">Impressum</a> ·
+        <a href="datenschutz.html">Datenschutz</a> ·
+        <a href="agb.html">AGB</a> ·
+        <a href="refund.html">Widerruf</a> ·
+        <a href="cookies.html">Cookies</a> ·
+        <a href="verfahrensdokumentation.html">Verfahrensdoku</a> ·
+        <a href="barrierefreiheit.html" aria-current="page">Barrierefreiheit</a>
+    </div>
+</footer>
+
+</body>
+</html>

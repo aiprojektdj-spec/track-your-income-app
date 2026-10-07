@@ -32,7 +32,10 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Stand 2026-09-13: zwei offene Punkte, siehe 1.8 und 1.9.** Hier stand bis heute „dieser
+**Stand 2026-10-07 (gegen den Code geprüft): offen sind nur noch 1.9 (zwei DATEV-Festlegungen)
+und in 1.8 die Entscheidung über `webhooks`/`error-logger`.** Die Kilometersätze (Regel-7-Rest
+aus 1.8) sind seit `8abd2b6` erledigt, `protokoll`, `steuerberater` und `blob-attachments` haben
+einen Harness. — Älterer Stand: **2026-09-13: zwei offene Punkte, siehe 1.8 und 1.9.** Hier stand bis heute „dieser
 Abschnitt ist wieder leer" (vom 2026-09-04). Das stimmte nicht mehr: Fund C des Vollaudits lebte
 nur im Auditbericht und war nie in diese Liste gewandert, und am 2026-09-13 kamen die offenen
 DATEV-Punkte dazu.
@@ -41,7 +44,7 @@ Die drei Funde aus Live-Test 5 sind weiterhin gefixt und stehen unten als ✅ �
 was sich beim Bauen gegenüber der ursprünglichen Fundbeschreibung als falsch herausgestellt hat.
 Das ist bei zweien von dreien passiert, also beim Lesen der Fundtexte einkalkulieren.
 
-### 1.8 Harnesse für die ungetesteten Rechenmodule (Fund C des Vollaudits) · **teilweise** — 6 von 11, Stand 2026-09-16
+### 1.8 Harnesse für die ungetesteten Rechenmodule (Fund C des Vollaudits) · **teilweise** — 9 von 11, Stand 2026-10-07
 
 > **Korrektur vom 2026-09-16.** Hier stand „✅ erledigt 2026-09-15 (`d399034`)". Das war
 > ungenau, und eine erste Richtigstellung („nur das Datum stimmte nicht") hätte es bloß
@@ -91,7 +94,12 @@ ist, muss **strikt** verglichen werden. Alle drei Harnesse wurden deshalb gegen 
 eingebaute Fehler gegengeprüft, bevor sie eingecheckt wurden; die Trefferzahlen stehen in den
 Commit-Messages.
 
-**Offen geblieben, bewusst:** Die Kilometersätze 0,30 und 0,20 €/km stehen als **jahresfeste
+> **✅ Erledigt 2026-09-18 (`8abd2b6`), am 2026-10-07 gegen den Code geprüft:** die Sätze kommen
+> aus `Fahrtenbuch._getKmSaetze(year)` ([`js/fahrtenbuch.js:50`](../js/fahrtenbuch.js)), das
+> Fahrtdatum bestimmt das Jahr. `test-fahrtenbuch.js` D1–D6 halten das fest (D4 ist umgedreht:
+> kein Satz steht mehr in `BERECHNUNGSARTEN`). Der Absatz unten ist der Stand davor.
+
+*Ursprünglicher Text:* **Offen geblieben, bewusst:** Die Kilometersätze 0,30 und 0,20 €/km stehen als **jahresfeste
 Konstanten** in `js/fahrtenbuch.js`. Das verletzt Regel 7 der [`../CLAUDE.md`](../CLAUDE.md)
 (Gesetzeswerte gehören in eine Jahresfunktion, Muster `App._getUstGrenzen(year)`). Ändert der
 Gesetzgeber den Satz, rechnet Stackr rückwirkend auch abgeschlossene Jahre neu. `test-fahrtenbuch.js`
@@ -117,13 +125,13 @@ mit `3d333a7`, einen Tag *nach* dem Vermerk „erledigt".
 | `oss` | `test-oss.js` | ✅ `5f3719b` |
 | `retouren` | `test-retouren.js` | ✅ `5142d99` |
 | `companies` | `test-companies.js` | ✅ `3d333a7` |
-| `protokoll` | — | in Arbeit (Parallel-Session, 2026-09-16) |
-| `steuerberater` | — | **offen** |
-| `webhooks` | — | **offen** |
-| `blob-attachments` | — | **offen** |
-| `error-logger` | — | **offen** |
+| `protokoll` | `test-z3-export.js` | ✅ lädt `js/protokoll.js`; dessen einzige Logik neben `render()` ist der Z3-Export (`_z3Cell`, `_z3IndexXml`, `exportZ3`) — geprüft 2026-10-07 |
+| `steuerberater` | `test-steuerberater.js` | ✅ 2026-10-07 (`3c469a7`) — **Fund:** das Paket an den Steuerberater rechnete die EÜR mit eigener Formel (ohne AfA, Fahrten, Eigenbelege, Rechnungsbuch, brutto bei Regelbesteuerung). Jetzt aus `Euer._berechne()`, wie bei A1 |
+| `webhooks` | — | **offen — Entscheidung nötig**, rechnet nichts (53 Zeilen, `fire`/`test`) |
+| `blob-attachments` | `test-blob-storage.js`, `test-sync-token-refresh.js` | ✅ `747dcfd`, `2abbb69` (2026-10-06, Supabase-Umzug) |
+| `error-logger` | — | **offen — Entscheidung nötig**, rechnet nichts. `test-client-error.js` verweist auf ein `test-error-logger-beacon.js`, das es nicht gibt, und `js/error-logger.js` schickt (Stand 2026-10-07) nichts an `/api/client-error` — `_send()` ist ein `console.warn` mit TODO |
 
-Ob die letzten vier genug Rechenrelevanz haben, um einen Harness zu lohnen, ist eine berechtigte
+Ob die letzten zwei (Stand 2026-10-07; vorher vier) genug Rechenrelevanz haben, um einen Harness zu lohnen, ist eine berechtigte
 Frage — `error-logger` und `webhooks` rechnen nichts. Sie gehört aber **entschieden und hier
 vermerkt**, nicht durch ein „erledigt" überdeckt.
 
@@ -157,6 +165,11 @@ Bei jedem Fund lohnt die Frage, ob die fehlerhafte Rechnung eine geteilte Funkti
 **Vor dem Greifen abstimmen** — an diesem Repo arbeiten mehrere Sessions gleichzeitig.
 
 ### 1.9 DATEV-Stapel: zwei Punkte, die eine Festlegung brauchen
+
+> **Am 2026-10-07 gegen den Code geprüft — beide Reste weiterhin offen:** AfA und Retouren fehlen
+> im Stapel (Hinweis in [`js/datev.js:665`](../js/datev.js) und `:708`), und die BU-Schlüssel-Wahl
+> ([`js/datev.js:177`](../js/datev.js): 19 % → leer, 7 % → `2`, sonst `40`) ist fachlich nicht
+> bestätigt. Beides braucht eine Festlegung, keine Session rät das.
 
 Aus `fc28401` (Parallel-Session, 2026-09-13). Drei Fehler sind dort schon gefixt — fehlende
 Menge bei Sammel-Einkäufen, HTML-Escaping in den Buchungstexten (`Reck & Schwarz` wurde zu
@@ -872,7 +885,7 @@ rotieren **und** als Secret neu anlegen, dann deployen, dann `.env.local` nachzi
 |---|---|---|---|
 | 1 | **2.2 Whop-Mails** | Verhindert Rückbuchungen bei der 135-€-Verlängerung; beide Texte liegen fertig entworfen | 1 h |
 | 2 | **2.6 Alarm abnehmen** | Ein `curl`. Schließt den letzten unbelegten Link der Alarmkette und bestätigt nebenbei das Blob-Ziel | 5 min |
-| 3 | **1.9 (b) DATEV-Buchungsregeln** | Der Stapel liest vier von neun Quellen — Fahrtkosten, AfA, Materialverbrauch, Retouren und Eigenbelege fehlen. Der Export an den Steuerberater ist unvollständig, und die Regeln kann keine Session raten | Festlegung |
+| 3 | **1.9 (b) DATEV-Buchungsregeln** | Seit `b2a86f3` fehlen nur noch **AfA und Retouren** im Stapel (Stand 2026-10-07). Die Regeln dafür kann keine Session raten | Festlegung |
 | 4 | **2.3 Live-Tests** | Drei der sieben Punkte sind noch nie unter echten Bedingungen gelaufen | mehrere Sitzungen |
 
 > **Korrigiert am 2026-09-15 — zum zweiten Mal dieselbe Sorte Fehler.** Auf Rang 2 stand
@@ -890,8 +903,9 @@ rotieren **und** als Secret neu anlegen, dann deployen, dann `.env.local` nachzi
 **Abschnitt 1 ist seit dem 2026-09-13 nicht mehr leer** — hier stand bis dahin das Gegenteil,
 und zwar noch, nachdem der Abschnittskopf oben bereits korrigiert war. Zwei Stellen derselben
 Datei widersprachen sich also einen Tag lang. Offen ist dort **1.9** (die zwei DATEV-Punkte) —
-und der **Regel-7-Rest aus 1.8**: die Kilometersätze 0,30 und 0,20 €/km stehen als jahresfeste
-Konstanten in `js/fahrtenbuch.js`, `test-fahrtenbuch.js` hält den Zustand in D4 fest.
+~~und der **Regel-7-Rest aus 1.8**: die Kilometersätze …~~ **✅ seit `8abd2b6` (2026-09-18) aus
+`_getKmSaetze(year)`**, am 2026-10-07 gegen den Code geprüft. Dazu in 1.8 die Entscheidung, ob
+`webhooks` und `error-logger` einen Harness brauchen.
 
 > **Korrigiert am 2026-09-15 — dieselbe Sorte Widerspruch, ein drittes Mal.** Hier stand
 > „Offen sind dort **1.8** … und **1.9**", während `d399034` die Tabelle in 1.8 am selben Tag

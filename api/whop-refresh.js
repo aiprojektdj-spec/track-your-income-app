@@ -92,6 +92,9 @@ module.exports = async function handler(req, res) {
     try {
         entry = await sessions.get(sid);
     } catch (e) {
+        // Speicher gestoert oder Eintrag nicht entschluesselbar: NIE 401 — sonst loescht der
+        // Client die Sitzungs-ID, obwohl die Sitzung nach der Stoerung wieder lesbar waere.
+        await alertOps('whop-refresh', 'session-nicht-lesbar', e && e.message);
         return res.status(503).json({ error: 'refresh_unavailable' });
     }
     if (!entry || !entry.rt) return res.status(401).json({ error: 'session_expired' });
@@ -114,15 +117,22 @@ module.exports = async function handler(req, res) {
 
     // Sperre: verhindert, dass zwei gleichzeitige Anfragen beide bei Whop rotieren und die
     // zweite den gerade erneuerten Refresh-Token entwertet.
-    var gotLock = false;
+    // Laesst sich die Sperre selbst nicht setzen (Speicherfehler), wird OHNE Sperre direkt
+    // erneuert (Entscheidung User 2026-10-08): der Kunde bekommt seinen Token, statt auf
+    // eine Sperre zu warten, die es gar nicht gibt. Risiko: zwei Tabs rotieren gleichzeitig.
+    var gotLock = false, lockFehler = false;
     try {
         gotLock = await sessions.lock(sid, LOCK_S);
-    } catch (e) { /* ohne Sperre weiter — schlimmstenfalls ein ueberfluessiger Rotationsversuch */ }
+    } catch (e) {
+        lockFehler = true;
+        _log.logWarn('whop-refresh', 'LOCK_FAILED', e && e.message);
+    }
 
-    if (!gotLock) {
+    if (!gotLock && !lockFehler) {
         // Ein anderer Aufruf rotiert gerade. Kurz warten und den neuen Stand lesen.
         await new Promise(function (r) { setTimeout(r, 1200); });
-        var retry = await sessions.get(sid);
+        var retry = null;
+        try { retry = await sessions.get(sid); } catch (e) { /* unten: refresh_busy */ }
         if (retry && retry.at && retry.exp && retry.exp > Date.now()) {
             return res.status(200).json({
                 access_token: retry.at,
@@ -164,7 +174,20 @@ module.exports = async function handler(req, res) {
             at:  data.access_token,
             exp: Date.now() + expiresIn * 1000
         };
-        await sessions.put(sid, neu);
+        // Ab hier ist der alte Refresh-Token bei Whop schon entwertet. Schlaegt das Speichern
+        // fehl, einmal wiederholen; klappt es auch dann nicht, ist die Kette verloren — der
+        // Kunde bekommt trotzdem den neuen Access-Token (eine Stunde Arbeit), und es wird
+        // laut gemeldet statt still wie bis 2026-10-08.
+        try {
+            await sessions.put(sid, neu);
+        } catch (e1) {
+            try {
+                await sessions.put(sid, neu);
+            } catch (e2) {
+                await alertOps('whop-refresh', 'session-nicht-gespeichert',
+                    'Rotierter Refresh-Token nicht gespeichert — Kunde fliegt nach einer Stunde raus: ' + (e2 && e2.message));
+            }
+        }
 
         return res.status(200).json({ access_token: neu.at, expires_in: expiresIn });
     } catch (err) {
@@ -174,6 +197,6 @@ module.exports = async function handler(req, res) {
         _log.logError('whop-refresh', 'WHOP_UNREACHABLE', err);
         return res.status(503).json({ error: 'refresh_unavailable' });
     } finally {
-        try { await sessions.unlock(sid); } catch (e) {}
+        if (gotLock) { try { await sessions.unlock(sid); } catch (e) {} }
     }
 };

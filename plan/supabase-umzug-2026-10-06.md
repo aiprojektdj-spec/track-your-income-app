@@ -103,19 +103,30 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 1. Sync (oben), komplett bis Schritt 8.
 2. ~~Rate-Limits + Fehlerzähler (`whop-token`, `whop-access`, `client-error`)~~ ✅ Code fertig, schaltet mit `STORAGE_BACKEND` um. Beim Umschalten meldet die erste Tagesmail evtl. bekannte Fehler als neu (Supabase kennt sie noch nicht), harmlos.
 3. ~~`api/health.js` prüft Supabase~~ ✅ (Redis weiter Pflicht, solange Upstash läuft).
-4. ~~Whop-Refresh-Sitzungen (`whop-token`, `whop-refresh`)~~ ✅ Code fertig (2026-10-08), schaltet mit `STORAGE_BACKEND` um, spiegelt mit `STORAGE_MIRROR`. Offen: offene Fragen 3–5 unten, dann Umschalten nach dem Ablauf im nächsten Abschnitt.
+4. ~~Whop-Refresh-Sitzungen (`whop-token`, `whop-refresh`)~~ ✅ Code fertig (2026-10-08), schaltet mit `STORAGE_BACKEND` um, spiegelt mit `STORAGE_MIRROR`, Entscheidungen W1–W6 umgesetzt. Offen: `WHOP_SESSION_KEY` setzen (👤), dann Ablauf im nächsten Abschnitt.
 5. Storage: Code fertig (`747dcfd`), CSP fertig (`fb44856`). Offen: Upload-Grenze, Backfill der Blob-Dateien, Umschalten.
 6. `_alert.js`: zweites Alarmziel neu wählen (Supabase-Tabelle?).
-7. Upstash abschalten, `@vercel/blob` entfernen, Rechtstexte final.
+7. Upstash abschalten, `@vercel/blob` entfernen, Rechtstexte final. Dabei Alarm `whop-refresh`/`redis-fehlt` umbenennen + Make-Filter anpassen (W3).
 
 ## Whop-Refresh-Sitzungen (Stand 2026-10-08, gegen den Code geprüft)
 
 | Datei | Inhalt |
 |---|---|
 | `supabase/migrations/20261008000001_whop_sessions.sql` | `whop_sessions` (sid, data, expires_at) + `whop_session_locks` (sid, until), RLS an, keine Policy, `execute` nur `service_role`. Funktionen `sync_whop_session_get/put/delete`, `sync_whop_lock/unlock`. Sperre atomar per `insert … on conflict do update … where until <= now()`. Abgelaufene Zeilen: für `get` sofort unsichtbar, physisch räumt jeder hundertste `put` |
-| `api/_whop-sessions.js` | Adapter Redis \| Supabase. Redis-Weg mit genau den alten Befehlen/Keys/TTLs und der alten `redisCmd` (wirft nicht bei `{ error }`). Spiegel bekommt `put`/`del`, nicht die Sperre. Spiegel-Fehler → `whop-session`/`mirror-failed` |
+| `api/_whop-sessions.js` | Adapter Redis \| Supabase. Redis-Weg mit genau den alten Befehlen/Keys/TTLs. Beide Wege werfen bei Speicherfehlern, auch bei Upstash-`{ error }`. In Supabase nur Chiffrat (AES-256-GCM, `WHOP_SESSION_KEY`, Sitzungs-ID als AAD), Redis bleibt Klartext. Spiegel bekommt `put`/`del`, nicht die Sperre. Spiegel-Fehler → `whop-session`/`mirror-failed` |
 | `api/whop-token.js`, `api/whop-refresh.js` | sprechen die Sitzung nur noch über den Adapter an; IP-Deckel von `whop-refresh` jetzt über `store.rateHit` (Key `whoprefresh:rl:<ip>` unverändert) |
-| `test/test-whop-sessions.js` | 43 Checks: Redis-Default befehlsgenau, Supabase-Weg, Sperre (2 parallele Refreshs → 1 Whop-Aufruf), Ablauf, Ausfall (nie 401), Spiegel + Umschalten |
+| `test/test-whop-sessions.js` | 62 Checks: Redis-Default befehlsgenau, Supabase-Weg, Sperre (2 parallele Refreshs → 1 Whop-Aufruf), Ablauf, Ausfall (nie 401), Spiegel + Umschalten, Verschlüsselung, Speicherfehler |
+
+**Entscheidungen User 2026-10-08:**
+
+| | Entscheidung | Umsetzung |
+|---|---|---|
+| W1 | Kein Backfill, 30 Tage Spiegel abwarten | Ablauf unten, kein Skript |
+| W2 | Refresh-Tokens in Supabase **verschlüsselt** (E1 gilt auch hier) | `WHOP_SESSION_KEY` (👤 in Vercel als Sensitive, Production und Preview getrennt). Erzeugen: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. **Schlüssel nie verlieren oder tauschen:** ohne ihn sind alle Supabase-Sitzungen unlesbar (503 + Alarm `session-nicht-lesbar`, kein Logout — mit dem richtigen Schlüssel wieder lesbar). Schlüsselwechsel ist nicht vorgesehen. Fehlt er, gilt Supabase als nicht konfiguriert (`redis-fehlt` mit Hinweis bzw. `mirror-failed`) |
+| W3 | Alarmname `redis-fehlt` bleibt vorerst | **Merken:** beim Abschalten von Upstash (Reihenfolge Punkt 7) umbenennen, z. B. `speicher-fehlt`, und den Make-Filter gleichzeitig anpassen |
+| W4 | Sperre nicht setzbar (Speicherfehler) → **direkt erneuern**, wie der Code-Kommentar es immer sagte | `whop-refresh.js`: ohne Sperre rotieren, fremde Sperre nicht löschen. Vorher: Warten und evtl. `503 refresh_busy` |
+| W5 | Speicherfehler absichern, kein Datenverlust | Lesefehler → 503 + `session-nicht-lesbar` statt 401 (vorher hat eine Upstash-`{ error }`-Antwort den Kunden abgemeldet). Speichern nach Rotation scheitert → einmal wiederholen, sonst Token trotzdem ausgeben + `session-nicht-gespeichert`. Login mit Speicherfehler → ohne Sitzung + Alarm statt toter Sitzungs-ID |
+| W6 | Umschalten **nachts** | Restrisiko Sperren in zwei Systemen akzeptiert |
 
 SQL am 2026-10-08 gegen Postgres 16 gefahren (alle vier Migrationen in Reihenfolge, `service_role` mit BYPASSRLS wie in Supabase): Ablauf, Überschreiben, Sperre unter 40 parallelen Verbindungen genau einmal vergeben, überlappende Transaktion, Aufräumen, `anon`/`authenticated` überall `permission denied`, Migration zweimal ausführbar.
 
@@ -123,20 +134,18 @@ SQL am 2026-10-08 gegen Postgres 16 gefahren (alle vier Migrationen in Reihenfol
 
 **Ablauf:**
 1. Migration `20261008000001` in beiden Projekten.
-2. `STORAGE_MIRROR=supabase` (ist es für den Sync schon gesetzt, gilt es automatisch auch hier) → jede neue oder rotierte Sitzung landet in beiden.
+2. `WHOP_SESSION_KEY` setzen (W2), dann `STORAGE_MIRROR=supabase` (ist es für den Sync schon gesetzt, gilt es automatisch auch hier) → jede neue oder rotierte Sitzung landet in beiden.
 3. **Mindestens 30 Tage** (= Sitzungs-TTL) ohne `whop-session`/`mirror-failed` warten. Danach existiert jede noch lebende Redis-Sitzung auch in Supabase, weil sie in diesem Zeitraum angelegt oder rotiert worden sein muss — ein Backfill ist dann unnötig (s. offene Frage 3).
-4. Umschalten zusammen mit dem Sync: `STORAGE_BACKEND=supabase`, `STORAGE_MIRROR=redis`. Rückweg = Variablen tauschen, Redis bleibt aktuell.
+4. Umschalten zusammen mit dem Sync, **nachts** (W6): `STORAGE_BACKEND=supabase`, `STORAGE_MIRROR=redis`. Rückweg = Variablen tauschen, Redis bleibt aktuell.
 
 **Fallen:**
 - Preview teilt Redis mit Production (s. oben): Ein Spiegel in Preview kopiert **Refresh-Tokens echter Kunden** ins Preview-Projekt. In Preview keinen Spiegel setzen.
 - Im Moment des Umschaltens laufen alte und neue Instanzen kurz parallel; ihre Sperren liegen in verschiedenen Systemen. Schlimmstenfalls rotieren zwei Tabs eines Kunden gleichzeitig → einer bekommt `invalid_grant` → 401. Sekundenfenster, einzelne Kunden.
 - Ein fehlgeschlagener Spiegel-Write nach einer Rotation lässt im Spiegel einen **entwerteten** Refresh-Token zurück. Nach dem Umschalten → 401 für genau diese Sitzung. Deshalb Schritt 3 nur ohne `mirror-failed`-Alarme abschließen.
-- Abweichung vom Altverhalten nur im Fehlerfall: Liefert Upstash beim IP-Deckel von `whop-refresh` `{ error }`, kommt jetzt der Alarm `rate-limit-open` (vorher still). Statuscodes unverändert.
+- Abweichungen vom Altverhalten nur im Fehlerfall: W4, W5, und liefert Upstash beim IP-Deckel von `whop-refresh` `{ error }`, kommt jetzt der Alarm `rate-limit-open` (vorher still). Im Normalbetrieb dieselben Redis-Befehle wie vorher.
+- `WHOP_SESSION_KEY` muss **vor** `STORAGE_MIRROR=supabase` gesetzt sein, sonst gehen alle Sitzungs-Spiegelungen als `mirror-failed` ins Leere und die 30 Tage zählen nicht.
 
 ## Offene Fragen an den User
 
 1. Sind die Supabase-Projekte schon angelegt? (Blockiert Schritt 1–2.)
 2. Preview: eigenes Redis anlegen oder in Preview einfach **keinen** Spiegel setzen? (Empfehlung: keinen Spiegel, Preview testet gegen `stackr-preview` mit eigenen Testdaten.)
-3. **Backfill der Sitzungen**: 30 Tage Spiegel abwarten (Empfehlung, kein neues Skript, keine Kopie von Refresh-Tokens per Hand) oder ein Backfill-Skript `whoprt:*` → Supabase, damit früher umgeschaltet werden kann? Ein Backfill darf nur fehlende Sitzungen anlegen, nie eine im Spiegel neuere überschreiben.
-4. **Klartext-Refresh-Tokens in Supabase**: E1 sagt „Supabase speichert nur Chiffrat“. `whop_sessions.data` enthält Refresh- und Access-Token im Klartext (wie heute in Redis). Hinnehmen (nur Service-Key, RLS ohne Policy) oder serverseitig verschlüsseln (Schlüssel als neue Env-Variable)?
-5. **Alarmname** `whop-refresh`/`redis-fehlt` bleibt auch bei fehlender Supabase-Env (Make-Filter hängen daran, der Detailtext nennt die Ursache). Umbenennen gewünscht?

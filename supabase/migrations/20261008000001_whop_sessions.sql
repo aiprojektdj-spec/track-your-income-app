@@ -13,10 +13,11 @@
 -- sind für sync_whop_session_get sofort unsichtbar; physisch räumt sie jeder hundertste
 -- Schreibaufruf weg (wie sync_rate_hit).
 --
--- Inhalt: `data` ist exakt das Objekt, das heute als Redis-Wert liegt — Refresh-Token,
--- letzter Access-Token und dessen Ablauf (ms seit Epoche). Das ist KEIN Chiffrat (s. offene
--- Frage im Plan). Zugriff deshalb ausschließlich api/ mit dem Service-Key: RLS an, keine
--- Policy, anon/authenticated ohne Tabellen- und Funktionsrechte.
+-- Inhalt: `data` ist Chiffrat { v, iv, ct, tag } (AES-256-GCM, Schlüssel WHOP_SESSION_KEY,
+-- nur in api/_whop-sessions.js) des Objekts { rt, at, exp }, das in Redis im Klartext liegt.
+-- Entscheidung User 2026-10-08 zu E1. Die Datenbank sieht nie einen Refresh-Token.
+-- Zugriff trotzdem ausschließlich api/ mit dem Service-Key: RLS an, keine Policy,
+-- anon/authenticated ohne Tabellen- und Funktionsrechte.
 -- =============================================================================
 
 create table if not exists whop_sessions (

@@ -10,6 +10,11 @@
 //   E) Ausfall: Supabase down → nie 401 (der Client würde sonst die Sitzungs-ID löschen),
 //      Sitzung bleibt; Login gelingt ohne Sitzung; fehlende Env → 'redis-fehlt' wie bisher
 //   F) Spiegel: Dual-Write, Umschalten ohne Abmeldung, Spiegel-Ausfall bricht nichts ab
+//   G) Verschlüsselung in Supabase (WHOP_SESSION_KEY): kein Klartext, falscher Schlüssel
+//      oder umkopiertes Chiffrat → 503 statt 401, fehlender Schlüssel → nicht konfiguriert
+//   H) Speicherfehler (Entscheidungen 2026-10-08): Sperrfehler → direkt erneuern;
+//      Upstash { error } → 503 statt 401; Schreibfehler nach Rotation → Wiederholung,
+//      sonst Token trotzdem ausgeben und melden
 // Das SQL selbst lief am 2026-10-08 gegen Postgres 16 (Ablauf, Sperre unter 40 parallelen
 // Verbindungen genau einmal vergeben, Aufräumen, anon/authenticated ohne Rechte).
 'use strict';
@@ -31,10 +36,11 @@ require.cache[ALERTMOD] = { id: ALERTMOD, filename: ALERTMOD, loaded: true, expo
 } };
 
 // ── Redis-Attrappe mit TTL-Mitschrift ────────────────────────────────────────
-let kv, kvTtl, redisLog;
-function redisExec(c) {
+let kv, kvTtl, redisLog, redisErr;
+let redisExec = function (c) {
     redisLog.push(c);
     const op = c[0], k = c[1];
+    if (redisErr.has(op)) return { error: 'ERR simuliert' };
     if (op === 'GET')  return kv.has(k) ? kv.get(k) : null;
     if (op === 'DEL')  return kv.delete(k) ? 1 : 0;
     if (op === 'INCR') { const v = (+kv.get(k) || 0) + 1; kv.set(k, String(v)); return v; }
@@ -46,10 +52,11 @@ function redisExec(c) {
         return 'OK';
     }
     throw new Error('unbekannter Redis-Befehl ' + op);
-}
+};
+const redisExecOrig = redisExec;
 
 // ── Supabase-Attrappe: Funktionen der Migration im Speicher ──────────────────
-let sess, locks, rl, rpcLog, sbUp;
+let sess, locks, rl, rpcLog, sbUp, sbFail;
 function sbExec(name, a) {
     rpcLog.push({ name, args: a });
     const now = Date.now();
@@ -67,9 +74,13 @@ function sbExec(name, a) {
 let whopCalls, whopReply, whopDelay;
 global.fetch = async (url, opts) => {
     const body = opts && opts.body ? JSON.parse(opts.body) : null;
-    if (url === 'http://redis.mock') return { ok: true, json: async () => ({ result: redisExec(body) }) };
+    if (url === 'http://redis.mock') {
+        const r = redisExec(body);
+        return { ok: true, json: async () => (r && r.error ? r : { result: r }) };
+    }
     if (url.indexOf('http://sb.mock/rest/v1/rpc/') === 0) {
-        if (!sbUp) return { ok: false, status: 503, text: async () => '' };
+        const name = url.split('/').pop();
+        if (!sbUp || (sbFail[name] && sbFail[name]-- > 0)) { rpcLog.push({ name, args: body, failed: true }); return { ok: false, status: 503, text: async () => '' }; }
         const r = sbExec(url.split('/').pop(), body);
         return { ok: true, status: 200, text: async () => JSON.stringify(r) };
     }
@@ -86,14 +97,29 @@ const ENV_KEYS = ['STORAGE_BACKEND', 'STORAGE_MIRROR', 'SUPABASE_URL', 'SUPABASE
                   'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN', 'KV_REST_API_URL', 'KV_REST_API_TOKEN'];
 const MODS = ['whop-token.js', 'whop-refresh.js', '_whop-sessions.js', '_sync-store.js', '_db.js'];
 const REDIS = { UPSTASH_REDIS_REST_URL: 'http://redis.mock', UPSTASH_REDIS_REST_TOKEN: 'x' };
-const SBENV = { SUPABASE_URL: 'http://sb.mock/', SUPABASE_SERVICE_ROLE_KEY: 'svc' };
+const crypto = require('crypto');
+const KEY  = crypto.randomBytes(32);
+const SBENV = { SUPABASE_URL: 'http://sb.mock/', SUPABASE_SERVICE_ROLE_KEY: 'svc', WHOP_SESSION_KEY: KEY.toString('base64') };
+// Gegenstück zu seal/unseal in api/_whop-sessions.js, unabhängig nachgebaut
+function sbRead(sid) {
+    const b = sess.get(sid).data;
+    const d = crypto.createDecipheriv('aes-256-gcm', KEY, Buffer.from(b.iv, 'base64'));
+    d.setAAD(Buffer.from(sid)); d.setAuthTag(Buffer.from(b.tag, 'base64'));
+    return JSON.parse(Buffer.concat([d.update(Buffer.from(b.ct, 'base64')), d.final()]).toString());
+}
+function sbWrite(sid, entry) {
+    const iv = crypto.randomBytes(12), c = crypto.createCipheriv('aes-256-gcm', KEY, iv);
+    c.setAAD(Buffer.from(sid));
+    const ct = Buffer.concat([c.update(JSON.stringify(entry)), c.final()]);
+    sess.get(sid).data = { v: 1, iv: iv.toString('base64'), ct: ct.toString('base64'), tag: c.getAuthTag().toString('base64') };
+}
 
 // Lädt beide Handler mit genau dieser Env. Speicherinhalte bleiben stehen (für Umschalt-Tests).
 function load(env) {
-    ENV_KEYS.forEach((k) => { delete process.env[k]; });
+    ENV_KEYS.concat(['WHOP_SESSION_KEY']).forEach((k) => { delete process.env[k]; });
     Object.assign(process.env, env, { WHOP_CLIENT_SECRET: 'geheim' });
     MODS.forEach((f) => { delete require.cache[path.join(ROOT, 'api', f)]; });
-    alarme = []; redisLog = []; rpcLog = []; whopCalls = []; whopDelay = 0; sbUp = true;
+    alarme = []; redisLog = []; rpcLog = []; whopCalls = []; whopDelay = 0; sbUp = true; sbFail = {}; redisErr = new Set();
     return { token: require('../api/whop-token.js'), refresh: require('../api/whop-refresh.js') };
 }
 function reset() { kv = new Map(); kvTtl = new Map(); sess = new Map(); locks = new Map(); rl = new Map(); }
@@ -113,7 +139,7 @@ const LOGIN = { status: 200, body: { access_token: 'AT0', refresh_token: 'RT0', 
 function rotate(n) { return { status: 200, body: { access_token: 'AT' + n, refresh_token: 'RT' + n, expires_in: 3600 } }; }
 function expire(map, sid) {   // Access-Token im Speicher als abgelaufen markieren
     if (map === kv) { const e = JSON.parse(kv.get('whoprt:' + sid)); e.exp = Date.now() - 1000; kv.set('whoprt:' + sid, JSON.stringify(e)); }
-    else { sess.get(sid).data.exp = Date.now() - 1000; }
+    else { const e = sbRead(sid); e.exp = Date.now() - 1000; sbWrite(sid, e); }
 }
 
 const origErr = console.error, origWarn = console.warn, origLog = console.log;
@@ -152,12 +178,14 @@ quiet();
     const put = rpcLog.find((x) => x.name === 'sync_whop_session_put');
     check('B1 Login legt Sitzung per sync_whop_session_put an', r.code === 200 && !!sid && sess.has(sid));
     check('B2 Parameter passen zur Migration (p_sid, p_data, p_ttl=30 Tage)',
-          put && put.args.p_sid === sid && put.args.p_data.rt === 'RT0' && put.args.p_data.at === 'AT0' && put.args.p_ttl === 2592000);
+          put && put.args.p_sid === sid && put.args.p_ttl === 2592000 && sbRead(sid).rt === 'RT0' && sbRead(sid).at === 'AT0');
+    check('B2b in Supabase kein Klartext, nur { v, iv, ct, tag }',
+          !/RT0|AT0/.test(JSON.stringify(put.args.p_data)) && Object.keys(put.args.p_data).sort().join() === 'ct,iv,tag,v');
     r = await call(h.refresh, { session_id: sid });
     check('B3 gültiger Access-Token wird ohne Whop-Aufruf ausgegeben', r.code === 200 && r.body.access_token === 'AT0' && whopCalls.length === 1);
     expire(sess, sid); rpcLog = []; whopCalls = []; whopReply = rotate(1);
     r = await call(h.refresh, { session_id: sid });
-    check('B4 Rotation über Supabase', r.code === 200 && r.body.access_token === 'AT1' && sess.get(sid).data.rt === 'RT1');
+    check('B4 Rotation über Supabase', r.code === 200 && r.body.access_token === 'AT1' && sbRead(sid).rt === 'RT1');
     check('B5 Whop bekam den gespeicherten Refresh-Token', whopCalls[0].refresh_token === 'RT0');
     check('B6 rpc-Folge: rate_hit, get, lock, put, unlock',
           rpcLog.map((x) => x.name).join(',') === 'sync_rate_hit,sync_whop_session_get,sync_whop_lock,sync_whop_session_put,sync_whop_unlock',
@@ -166,7 +194,7 @@ quiet();
           rpcLog[0].args.p_key === 'whoprefresh:rl:203.0.113.5' && rpcLog[0].args.p_window === 60 && rpcLog[2].args.p_secs === 10);
     expire(sess, sid); whopReply = rotate(2); whopCalls = [];
     r = await call(h.refresh, { session_id: sid });
-    check('B8 zweite Runde nutzt den rotierten Token (Kette lebt)', whopCalls[0].refresh_token === 'RT1' && sess.get(sid).data.rt === 'RT2');
+    check('B8 zweite Runde nutzt den rotierten Token (Kette lebt)', whopCalls[0].refresh_token === 'RT1' && sbRead(sid).rt === 'RT2');
     expire(sess, sid); whopReply = { status: 400, body: { error: 'invalid_grant' } };
     r = await call(h.refresh, { session_id: sid });
     check('B9 invalid_grant → 401 und Sitzung gelöscht', r.code === 401 && !sess.has(sid));
@@ -226,7 +254,7 @@ quiet();
     check('F1 Dual-Write beim Login: Redis und Supabase', kv.has('whoprt:' + sid) && sess.has(sid));
     expire(kv, sid); whopReply = rotate(1);
     await call(h.refresh, { session_id: sid });
-    check('F2 Rotation landet auch im Spiegel', sess.get(sid).data.rt === 'RT1');
+    check('F2 Rotation landet auch im Spiegel', sbRead(sid).rt === 'RT1');
     check('F3 Sperre nur im primären System', !rpcLog.some((x) => x.name === 'sync_whop_lock'));
     // Umschalten: Supabase primär, Redis Spiegel — Sitzung muss weiterleben
     h = load(Object.assign({ STORAGE_BACKEND: 'supabase', STORAGE_MIRROR: 'redis' }, REDIS, SBENV));
@@ -246,6 +274,77 @@ quiet();
     h = load(Object.assign({ STORAGE_MIRROR: 'supabase' }, REDIS));
     await call(h.token, { code: 'c', code_verifier: 'v' });
     check('F9 Spiegel ohne Env: gemeldet, nicht still', alarme.some((a) => a.event === 'mirror-failed' && /env missing/.test(a.detail)));
+
+    // ── G · Verschlüsselung ──────────────────────────────────────────────────
+    reset(); h = load(Object.assign({ STORAGE_BACKEND: 'supabase' }, SBENV)); whopReply = LOGIN;
+    sid = (await call(h.token, { code: 'c', code_verifier: 'v' })).body.session_id;
+    h = load(Object.assign({ STORAGE_BACKEND: 'supabase' }, SBENV, { WHOP_SESSION_KEY: crypto.randomBytes(32).toString('base64') }));
+    r = await call(h.refresh, { session_id: sid });
+    check('G1 falscher Schlüssel → 503, NICHT 401', r.code === 503 && r.body.error === 'refresh_unavailable');
+    check('G2 Sitzung bleibt, Alarm session-nicht-lesbar', sess.has(sid) && alarme.some((a) => a.event === 'session-nicht-lesbar'));
+    h = load(Object.assign({ STORAGE_BACKEND: 'supabase' }, SBENV));
+    r = await call(h.refresh, { session_id: sid });
+    check('G3 mit richtigem Schlüssel wieder lesbar', r.code === 200 && r.body.access_token === 'AT0');
+    const sid2 = 'b'.repeat(64);
+    sess.set(sid2, { data: sess.get(sid).data, until: Date.now() + 60000 });
+    r = await call(h.refresh, { session_id: sid2 });
+    check('G4 Chiffrat unter fremde ID kopiert → nicht lesbar (AAD), 503', r.code === 503);
+    h = load(Object.assign({ STORAGE_BACKEND: 'supabase' }, SBENV, { WHOP_SESSION_KEY: '' }));
+    r = await call(h.refresh, { session_id: sid });
+    check('G5 ohne WHOP_SESSION_KEY → 503 + redis-fehlt nennt den Schlüssel',
+          r.code === 503 && alarme[0] && alarme[0].event === 'redis-fehlt' && /WHOP_SESSION_KEY/.test(alarme[0].detail));
+    h = load(Object.assign({ STORAGE_BACKEND: 'supabase' }, SBENV, { WHOP_SESSION_KEY: Buffer.alloc(16).toString('base64') }));
+    check('G6 zu kurzer Schlüssel (16 Byte) zählt als fehlend', (await call(h.refresh, { session_id: sid })).code === 503 && /WHOP_SESSION_KEY/.test(alarme[0].detail));
+    reset(); h = load(Object.assign({ STORAGE_MIRROR: 'supabase' }, REDIS, SBENV, { WHOP_SESSION_KEY: '' })); whopReply = LOGIN;
+    r = await call(h.token, { code: 'c', code_verifier: 'v' });
+    check('G7 Spiegel ohne Schlüssel: Login läuft, mirror-failed gemeldet, nichts im Klartext gespiegelt',
+          !!r.body.session_id && sess.size === 0 && alarme.some((a) => a.event === 'mirror-failed'));
+
+    // ── H · Speicherfehler ───────────────────────────────────────────────────
+    for (const be of ['redis', 'supabase']) {
+        const env = be === 'redis' ? REDIS : Object.assign({ STORAGE_BACKEND: 'supabase' }, SBENV);
+        reset(); h = load(env); whopReply = LOGIN;
+        sid = (await call(h.token, { code: 'c', code_verifier: 'v' })).body.session_id;
+        expire(be === 'redis' ? kv : sess, sid);
+        // nur die Sperre stören (in Redis ist das ein SET wie das Speichern)
+        if (be === 'redis') redisExec = (c) => (String(c[1]).indexOf('whoprt:lock:') === 0 ? { error: 'ERR' } : redisExecOrig(c));
+        else sbFail.sync_whop_lock = 1;
+        whopCalls = []; whopReply = rotate(1);
+        r = await call(h.refresh, { session_id: sid });
+        if (be === 'redis') redisExec = redisExecOrig;
+        check('H1 ' + be + ': Sperre nicht setzbar → direkt erneuert (200, ein Whop-Aufruf)',
+              r.code === 200 && r.body.access_token === 'AT1' && whopCalls.length === 1, JSON.stringify(r.body));
+        check('H2 ' + be + ': rotierter Token gespeichert, fremde Sperre nicht gelöscht',
+              (be === 'redis' ? JSON.parse(kv.get('whoprt:' + sid)).rt : sbRead(sid).rt) === 'RT1' &&
+              !redisLog.some((c) => c[0] === 'DEL' && /lock/.test(c[1])) && !rpcLog.some((x) => x.name === 'sync_whop_unlock'));
+
+        expire(be === 'redis' ? kv : sess, sid); alarme = []; whopReply = rotate(2);
+        if (be === 'redis') { let n = 1; redisExec = (c) => (c[0] === 'SET' && c[1] === 'whoprt:' + sid && n-- > 0 ? { error: 'ERR' } : redisExecOrig(c)); }
+        else sbFail.sync_whop_session_put = 1;
+        r = await call(h.refresh, { session_id: sid });
+        redisExec = redisExecOrig;
+        check('H3 ' + be + ': Speichern scheitert einmal → Wiederholung rettet die Kette',
+              r.code === 200 && (be === 'redis' ? JSON.parse(kv.get('whoprt:' + sid)).rt : sbRead(sid).rt) === 'RT2' && alarme.length === 0);
+
+        expire(be === 'redis' ? kv : sess, sid); alarme = []; whopReply = rotate(3);
+        if (be === 'redis') redisExec = (c) => (c[0] === 'SET' && c[1] === 'whoprt:' + sid ? { error: 'ERR' } : redisExecOrig(c));
+        else sbFail.sync_whop_session_put = 2;
+        r = await call(h.refresh, { session_id: sid });
+        redisExec = redisExecOrig;
+        check('H4 ' + be + ': Speichern scheitert zweimal → Token trotzdem ausgegeben, laut gemeldet',
+              r.code === 200 && r.body.access_token === 'AT3' && alarme.some((a) => a.source === 'whop-refresh' && a.event === 'session-nicht-gespeichert'));
+    }
+    reset(); h = load(REDIS); whopReply = LOGIN;
+    sid = (await call(h.token, { code: 'c', code_verifier: 'v' })).body.session_id;
+    redisErr.add('GET');
+    r = await call(h.refresh, { session_id: sid });
+    check('H5 Upstash antwortet { error } beim Lesen → 503, NICHT 401 (vorher: Kunde abgemeldet)',
+          r.code === 503 && r.body.error === 'refresh_unavailable' && kv.has('whoprt:' + sid));
+    check('H6 und meldet session-nicht-lesbar', alarme.some((a) => a.event === 'session-nicht-lesbar'));
+    redisErr.clear(); redisErr.add('SET');
+    r = await call(h.token, { code: 'c', code_verifier: 'v' });
+    check('H7 Upstash { error } beim Anlegen → Login ohne Sitzung + Alarm (vorher: tote ID ausgegeben)',
+          r.code === 200 && r.body.session_id === null && alarme.some((a) => a.event === 'session-nicht-gespeichert'));
 
     console.error = origErr; console.warn = origWarn;
     console.log('\n' + pass + '/' + total + ' Checks bestanden');

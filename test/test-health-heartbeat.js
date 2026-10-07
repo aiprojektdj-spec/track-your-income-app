@@ -7,6 +7,8 @@
 //     3) Antwort enthält keine internen Details (nur ok + redis)
 //     4) zweiter Aufruf binnen 30 s pingt Redis NICHT erneut
 //     5) POST -> 405
+//    10) Supabase wird nur geprüft, wenn STORAGE_BACKEND/STORAGE_MIRROR/BLOB_BACKEND es nutzen;
+//        dann kippt ein Supabase-Ausfall die Antwort auf 503, Redis bleibt Pflicht
 //   api/blob-cleanup.js
 //     6) ohne HEARTBEAT_URL_BLOB_CLEANUP kein Netzverkehr (wie bei _alert.js)
 //     7) mit URL: genau ein POST nach erfolgreichem Lauf
@@ -43,7 +45,8 @@ const HEALTHMOD  = path.join(__dirname, '..', 'api', 'health.js');
 const ALERTMOD   = path.join(__dirname, '..', 'api', '_alert.js');
 const CLEANUPMOD = path.join(__dirname, '..', 'api', 'blob-cleanup.js');
 const ENV_KEYS = ['KV_REST_API_URL', 'KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN',
-                  'CRON_SECRET', 'ALERT_WEBHOOK_URL', 'BLOB_READ_WRITE_TOKEN', 'HEARTBEAT_URL_BLOB_CLEANUP'];
+                  'CRON_SECRET', 'ALERT_WEBHOOK_URL', 'BLOB_READ_WRITE_TOKEN', 'HEARTBEAT_URL_BLOB_CLEANUP',
+                  'STORAGE_BACKEND', 'STORAGE_MIRROR', 'BLOB_BACKEND', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 
 function fresh(mod, env) {
     [HEALTHMOD, ALERTMOD, CLEANUPMOD].forEach(function (m) { delete require.cache[require.resolve(m)]; });
@@ -100,6 +103,53 @@ const REDIS = { KV_REST_API_URL: 'https://redis.example', KV_REST_API_TOKEN: 'to
     h = fresh(HEALTHMOD, REDIS); res = mkRes();
     await h(mkReq('POST', '/api/health'), res);
     check('5) POST -> 405', res.code === 405);
+
+    // ── health.js + Supabase ─────────────────────────────────────────────────
+    const SB = Object.assign({ SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 'svc' }, REDIS);
+    let sbUp = true, redisUp = true;
+    fetchImpl = function (url) {
+        if (url.indexOf('https://sb.example/rest/v1/rpc/') === 0) {
+            return Promise.resolve(sbUp ? { ok: true, status: 200, text: function () { return Promise.resolve('null'); } }
+                                        : { ok: false, status: 503, text: function () { return Promise.resolve(''); } });
+        }
+        return redisUp ? jsonAntwort({ result: 'PONG' }) : Promise.reject(new Error('weg'));
+    };
+
+    h = fresh(HEALTHMOD, SB); res = mkRes();
+    await h(mkReq('GET', '/api/health'), res);
+    check('10) Supabase ungenutzt -> kein Ping, Antwort nur ok + redis',
+          res.code === 200 && Object.keys(res.body).sort().join(',') === 'ok,redis' &&
+          !fetchCalls.some(function (c) { return c.url.indexOf('sb.example') !== -1; }));
+
+    for (const v of [{ STORAGE_BACKEND: 'supabase' }, { STORAGE_MIRROR: 'supabase' }, { BLOB_BACKEND: 'supabase' }]) {
+        const name = Object.keys(v)[0];
+        h = fresh(HEALTHMOD, Object.assign({}, SB, v)); res = mkRes();
+        await h(mkReq('GET', '/api/health'), res);
+        check('10) ' + name + '=supabase, beide da -> 200 mit supabase: ok',
+              res.code === 200 && res.body.ok === true && res.body.redis === 'ok' && res.body.supabase === 'ok');
+    }
+    const rpcCall = fetchCalls.find(function (c) { return c.url.indexOf('sb.example') !== -1; });
+    check('10) Ping ist der lesende rpc sync_get_pubkey',
+          rpcCall && /\/rpc\/sync_get_pubkey$/.test(rpcCall.url) && JSON.parse(rpcCall.opts.body).p_user === '__health');
+
+    sbUp = false;
+    h = fresh(HEALTHMOD, Object.assign({ STORAGE_MIRROR: 'supabase' }, SB)); res = mkRes();
+    await h(mkReq('GET', '/api/health'), res);
+    check('10) Supabase down -> 503 supabase: down', res.code === 503 && res.body.ok === false &&
+          res.body.redis === 'ok' && res.body.supabase === 'down');
+    sbUp = true;
+
+    h = fresh(HEALTHMOD, Object.assign({ STORAGE_BACKEND: 'supabase' }, REDIS)); res = mkRes();
+    await h(mkReq('GET', '/api/health'), res);
+    check('10) Supabase-Env fehlt -> 503 ohne Supabase-Netzverkehr', res.code === 503 && res.body.supabase === 'down' &&
+          !fetchCalls.some(function (c) { return c.url.indexOf('sb.example') !== -1; }));
+
+    redisUp = false;
+    h = fresh(HEALTHMOD, Object.assign({ STORAGE_BACKEND: 'supabase' }, SB)); res = mkRes();
+    await h(mkReq('GET', '/api/health'), res);
+    check('10) Redis down bei STORAGE_BACKEND=supabase -> trotzdem 503', res.code === 503 &&
+          res.body.redis === 'down' && res.body.supabase === 'ok');
+    redisUp = true;
 
     // ── blob-cleanup.js Heartbeat ────────────────────────────────────────────
     const AUTH = 'Bearer s';

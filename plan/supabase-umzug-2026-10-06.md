@@ -60,7 +60,7 @@ Upstash und Vercel Blob hängen an viel mehr als `api/sync.js`. **Abschalten lä
 | `api/whop-access.js` | IP-Rate-Limit | ✅ folgt `STORAGE_BACKEND` |
 | `api/blob-upload.js` | Byte-Budget je Nutzer, Commit-Sperre, Rate-Limit | offen (mit Storage zusammen) |
 | `api/client-error.js` + `api/_client-errors.js` | Browser-Fehler zählen, Tagesmeldung | offen |
-| `api/health.js` | prüft **nur** Redis | offen — muss danach Supabase prüfen |
+| `api/health.js` | prüft Redis, dazu Supabase sobald `STORAGE_BACKEND`/`STORAGE_MIRROR`/`BLOB_BACKEND` es nutzen | ✅ Supabase-Prüfung; Redis-Prüfung fällt erst mit Upstash |
 
 ### Vercel Blob — wer es heute noch benutzt
 
@@ -102,7 +102,7 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 
 1. Sync (oben), komplett bis Schritt 8.
 2. Rate-Limits + Fehlerzähler (`whop-token`, `whop-access`, `client-error`) auf `sync_rate_hit` bzw. eine kleine Tabelle. Geringes Risiko.
-3. `api/health.js` prüft Supabase (und so lange beides läuft, auch Redis).
+3. ~~`api/health.js` prüft Supabase~~ ✅ (Redis weiter Pflicht, solange Upstash läuft).
 4. Whop-Refresh-Sitzungen (`whop-token`, `whop-refresh`): Tabelle mit Ablaufzeit + Sperre per Postgres-Funktion.
 5. Storage: Code fertig (`747dcfd`), CSP fertig (`fb44856`). Offen: Upload-Grenze, Backfill der Blob-Dateien, Umschalten.
 6. `_alert.js`: zweites Alarmziel neu wählen (Supabase-Tabelle?).

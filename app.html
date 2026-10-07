@@ -44,6 +44,7 @@
     <!-- JS moved to body bottom with defer — no render blocking -->
     <!-- Vercel Web Analytics wird NICHT statisch geladen: js/cookie-banner.js zieht das
          Skript erst nach, wenn die Einwilligung 'all' vorliegt (§25 Abs. 1 TDDDG). -->
+    <link rel="stylesheet" href="css/redesign.css">
 </head>
 <body>
 
@@ -55,12 +56,8 @@
     <nav class="topnav" aria-label="Anwendungen">
         <!-- Brand -->
         <div class="topnav-brand">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;" aria-hidden="true" focusable="false">
-                <rect width="20" height="20" rx="5" fill="var(--accent)"/>
-                <path d="M6 7.5C6 6.67 6.67 6 7.5 6h2C10.88 6 12 7.12 12 8.5S10.88 11 9.5 11H8v3H6V7.5zm2 2h1.5c.28 0 .5-.22.5-.5S9.78 8.5 9.5 8.5H8V9.5z" fill="white"/>
-                <path d="M12.5 11c.83 0 1.5.67 1.5 1.5S13.33 14 12.5 14H11v-3h1.5z" fill="white" opacity=".7"/>
-            </svg>
-            <div style="font-size:14px;font-weight:700;color:var(--text-primary);line-height:1;letter-spacing:-.3px;">Stackr</div>
+            <svg width="16" height="26" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 48 32 32 58 16 32Z" fill="currentColor"/></svg>
+            <div>stackr</div>
         </div>
 
         <!-- Cross-app navigation (zentral aus js/topnav.js, verhindert Nav-Drift) -->
@@ -242,9 +239,9 @@
     </div>
 
     <!-- Modal -->
-    <div class="modal-overlay" id="modalOverlay" role="presentation">
+    <dialog class="modal-overlay" id="modalOverlay">
         <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
-    </div>
+    </dialog>
     <div id="onboarding"></div>
 
     <!-- ══════════════════════════════════════════════

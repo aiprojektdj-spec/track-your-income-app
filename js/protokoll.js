@@ -429,7 +429,7 @@ const Protokoll = {
                                         <td><strong>${y}</strong></td>
                                         <td>${closed ? '<span class="badge badge-danger">🔒 Abgeschlossen</span>' : '<span class="badge badge-success">Offen</span>'}</td>
                                         <td style="text-align:right">${closed
-                                            ? `<button class="btn btn-small" data-reopen-year="${y}">Wieder oeffnen</button>`
+                                            ? '<span class="form-hint">Festgeschrieben. Korrekturen mit Bezug zum Original prüfen.</span>'
                                             : `<button class="btn btn-small btn-danger" data-close-year="${y}">Jahr abschliessen</button>`}</td>
                                     </tr>`;
                                 }).join('')}
@@ -620,18 +620,8 @@ const Protokoll = {
             });
         });
 
-        // Periodenabschluss: Jahr wieder öffnen (mit Begründung → protokolliert)
-        document.querySelectorAll('[data-reopen-year]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const y = btn.dataset.reopenYear;
-                const grund = prompt(`Jahr ${y} wieder öffnen — Grund (wird protokolliert):`);
-                if (!grund) return;
-                Store.reopenYear(y, grund);
-                Utils.showToast(`Jahr ${y} wieder geöffnet`, 'success');
-                document.getElementById('content').innerHTML = this.render();
-                this.init();
-            });
-        });
+        // Ein abgeschlossener Zeitraum wird über die Oberfläche nicht entsperrt.
+        // Korrekturen müssen das Original nachvollziehbar erhalten.
     }
 };
 

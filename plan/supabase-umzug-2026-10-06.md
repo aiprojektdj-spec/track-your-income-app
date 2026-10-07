@@ -80,7 +80,7 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 | # | Schritt | Wer | Erledigt wenn |
 |---|---|---|---|
 | 0 | Supabase-Projekte `stackr-prod` + `stackr-preview` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | Projekte da |
-| 1 | Migrationen in **beiden** Projekten ausführen, in Dateinamen-Reihenfolge (alle drei aus `supabase/migrations/`) | 👤, 🤖 liefert Anleitung | Tabellen + Funktionen sichtbar, `anon` sieht nichts |
+| 1 | Migrationen in **beiden** Projekten ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-07: vier) | 👤, 🤖 liefert Anleitung | Tabellen + Funktionen sichtbar, `anon` sieht nichts |
 | 2 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in Vercel eintragen (Sensitive), getrennt für Production und Preview | 👤 | Claude liest die Werte nie aus |
 | 3 | Code deployen | 🤖 | ✅ `78a711e`/`747dcfd` auf `master` |
 | 4 | `STORAGE_MIRROR=supabase` setzen, neu deployen → Dual-Write | 👤 | keine `mirror-failed`-Alarme |

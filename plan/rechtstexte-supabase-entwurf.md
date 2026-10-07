@@ -3,9 +3,20 @@
 Stand: 2026-10-07, gegen den Code auf `master` (`c41a0a8`) geprüft.
 Gehört zu Schritt 9 in [`supabase-umzug-2026-10-06.md`](supabase-umzug-2026-10-06.md).
 
-> **Nur Entwurf.** Keine Live-Datei ist geändert. Eingebaut wird erst nach Freigabe durch den
+> **Die Supabase-Texte sind nur Entwurf.** Eingebaut werden sie erst nach Freigabe durch den
 > User und erst **beim** Umschalten (`STORAGE_MIRROR=supabase` bzw. `STORAGE_BACKEND=supabase`),
 > nicht vorher — vorher wäre die DSE falsch.
+>
+> **Nachtrag 2026-10-07 (User: „alles fixen“):** F6 und F8 sind umgesetzt, im selben PR.
+> - F6: Migration `supabase/migrations/20261007000002_aufraeumen.sql` + täglicher Lauf in
+>   `api/blob-cleanup.js` → IP-Zähler in Supabase spätestens nach 24 h weg, Fehlerzähler nach
+>   30 Tagen. Test `test/test-aufraeumen.js`, SQL gegen PGlite gefahren.
+> - F8: Die drei heute schon bestehenden Lücken sind in den **Live-Texten** geschlossen
+>   (`datenschutz.html` 4.1, 5, 7; `cookies.html`; Aktivierungsdialog `js/cloud-sync.js`), Stand
+>   „Oktober 2026“. Sie beschreiben den **heutigen** Zustand (Upstash + Vercel Blob), nicht Supabase.
+>
+> Die „Alt“-Zitate unten in 1.1, 1.4, 1.6 und 1.11 sind Stand `c41a0a8`; beim Einbau vom
+> aktuellen Wortlaut der Live-Datei ausgehen. Die „Neu“-Varianten sind darauf schon abgestimmt.
 
 ## 0. Was der Code tatsächlich tut (Grundlage der Texte)
 
@@ -14,8 +25,8 @@ Gehört zu Schritt 9 in [`supabase-umzug-2026-10-06.md`](supabase-umzug-2026-10-
 | Sync-Chiffrat + Metadaten (Version, Zeitstempel, Geräte-Kennung) | `sync_snapshots`, `sync_scopes` | Whop-`user_id` als Schlüssel, Inhalt unlesbar | bis Löschung durch den Nutzer | `20261006000001_sync.sql`, `api/_sync-store.js` |
 | Prüfliste („Anker“: Hash, Kennung, Zeitstempel) | `sync_anchors` | Whop-`user_id` | bleibt nach Löschung (DSE 6.1) | dto. |
 | Public Key, Freigaben (Steuerberater) | `public_keys`, `grants` | Whop-`user_id` beider Seiten | bis Widerruf/Löschung | dto. |
-| Rate-Limit-Zähler | `rate_limits` | **IP-Adresse im Schlüssel** (`whoptoken:rl:<ip>`, `whopaccess:iprl:<ip>`, `clerr:iprl:<ip>`, `sync:iprl:*`) bzw. `user_id` | Fenster 60 s, **Zeile wird aber erst gelöscht, wenn sie > 1 h abgelaufen ist und ein Zufallsaufruf (1 %) aufräumt** | `sync_rate_hit()` |
-| Browser-Fehlerzähler | `client_error_counts`, `client_error_types` | keiner (bereinigt, keine IP, keine `user_id`) | 30 Tage, **ebenfalls nur per 1-%-Aufräumlauf** | `20261007000001_client_errors.sql`, `api/_client-errors.js` |
+| Rate-Limit-Zähler | `rate_limits` | **IP-Adresse im Schlüssel** (`whoptoken:rl:<ip>`, `whopaccess:iprl:<ip>`, `clerr:iprl:<ip>`, `sync:iprl:*`) bzw. `user_id` | Fenster 60 s; abgelaufene Zeilen löscht jeder Aufruf, der tägliche Lauf den Rest → **spätestens 24 h** (seit `20261007000002`) | `sync_rate_hit()`, `sync_aufraeumen()` |
+| Browser-Fehlerzähler | `client_error_counts`, `client_error_types` | keiner (bereinigt, keine IP, keine `user_id`) | 30 Tage (+ max. 1 Tag bis zum täglichen Lauf) | `20261007000001_client_errors.sql`, `api/_client-errors.js` |
 | Belege/Anhänge + übergroße Sync-Chiffrate | Storage-Bucket `attachments`, **privat** | Chiffrat; Pfad enthält Nutzer-Bezug | bis Löschung; signierte URL gilt 300 s | `api/_storage.js`, `20261006000002_storage.sql` |
 | Abruf der Belege | Browser → `https://usrhhjwvoefjdgrwovkg.supabase.co` direkt | **IP-Adresse des Nutzers erreicht Supabase** | — | `vercel.json` `connect-src`, `api/_storage.js` `sign()` |
 
@@ -27,12 +38,12 @@ Bleibt bei **Vercel Blob**: das Alarm-Log aus `api/_alert.js`.
 
 ### Abweichungen vom Auftrag (bitte prüfen)
 
-1. **„IP 60 s“ stimmt bei Supabase nicht.** In Redis verfällt der Schlüssel nach 60 s per `EXPIRE`.
+1. ✅ **behoben (F6)** — **„IP 60 s“ stimmte bei Supabase nicht.** In Redis verfällt der Schlüssel nach 60 s per `EXPIRE`.
    In Supabase bleibt die Zeile mit der IP stehen, bis `reset_at < now() - 1 h` **und** ein zufälliger
    Aufruf (1 %) aufräumt — bei wenig Verkehr können das Stunden oder Tage sein. Entweder Text
    anpassen („in der Regel innerhalb weniger Stunden“) oder Code ändern (z. B. Aufräumen per Cron
    in `blob-cleanup.js`, oder IP gehasht speichern). → **Frage F6.**
-2. **Fehlerzähler „30 Tage“** gilt bei Supabase ebenso nur über den 1-%-Aufräumlauf. Kein
+2. ✅ **behoben (F6)** — **Fehlerzähler „30 Tage“** gilt bei Supabase ebenso nur über den 1-%-Aufräumlauf. Kein
    Personenbezug, daher weniger kritisch, aber der Text sollte nicht „nach genau 30 Tagen“ sagen.
 3. **Kein Client sendet heute an `/api/client-error`** (grep über `js/` und `*.html`: kein Treffer).
    DSE Ziffer 3 sagt richtig, dass das Fehlerprotokoll das Gerät nicht automatisch verlässt.
@@ -47,8 +58,9 @@ Bleibt bei **Vercel Blob**: das Alarm-Log aus `api/_alert.js`.
   im Abschnitt 4.3 (Steuerberater), gilt aber für jeden Login, auch ohne Cloud-Sync.
 - **Whop-Refresh-Sitzung bei Upstash** (Refresh-Token, 30 Tage) steht in keiner DSE-Ziffer.
 
-Diese drei Punkte sind im Entwurf mit „(Lücke)“ markiert; ob sie mit diesem Umzug gleich
-mit geschlossen werden, entscheidet der User (→ **F8**).
+✅ Alle drei sind seit dem Nachtrag in den Live-Texten geschlossen (F8). Offen bleibt nur die
+Region des Vercel-Blob-Stores: die Live-DSE nennt für Vercel Blob bewusst **keine** Region,
+weil sie im Code nicht steht (→ **F13**).
 
 ---
 
@@ -102,20 +114,22 @@ mit `STORAGE_BACKEND` umgeschaltet wird (→ **F5**).
 
 **Neu (E):**
 > … deine IP-Adresse kurzzeitig (Rate-Limit-Zähler, Zählfenster 60 Sekunden; der Eintrag wird
-> danach automatisch gelöscht, in der Regel innerhalb weniger Stunden) serverseitig bei Supabase
+> danach automatisch gelöscht, spätestens nach 24 Stunden) serverseitig bei Supabase
 > (Frankfurt) verarbeitet.
 
-**Begründung:** Anbieterwechsel. Die Löschfrist ist bewusst nicht mehr „60 Sekunden“, weil der
-Supabase-Code die Zeile nicht nach 60 s löscht (Abschnitt 0, Abweichung 1). Formulierung hängt an **F6**.
+**Begründung:** Anbieterwechsel. In Supabase gilt nicht mehr „60 Sekunden“, sondern was der Code
+garantiert: Löschen beim nächsten Aufruf, spätestens im täglichen Lauf (F6, umgesetzt).
 
-**(Lücke) Zusatzabsatz, neu, z. B. als Ziffer 5 nach dem ersten Absatz oder als eigene Ziffer 4.5:**
-> **Schutz vor Missbrauch beim Login.** Bei jeder Anmeldung und jeder Zugangsprüfung verarbeiten
-> wir deine IP-Adresse in einem Zähler, der Anfragen pro Minute begrenzt (Login höchstens 8, Zugangs-
-> und Sitzungsprüfung höchstens 30 pro Minute). Der Zähler liegt bei [Upstash / Supabase] in
-> Frankfurt und wird nach Ablauf automatisch gelöscht. Damit du nicht stündlich neu anmelden musst,
-> legen wir außerdem eine Sitzungskennung mit dem Whop-Erneuerungstoken für höchstens 30 Tage bei
-> Upstash (Frankfurt) ab. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (Missbrauchsschutz) bzw.
-> lit. b (Bereitstellung des Logins).
+**Ziffer 5, Absatz „Login-Sitzung und Missbrauchsschutz“ (seit dem Nachtrag live, Stand Upstash):**
+Die Zähler von `whop-token` und `whop-access` folgen `STORAGE_BACKEND`; der von `whop-refresh` und
+die Sitzungen selbst bleiben bei Upstash, bis Schritt 4 der „Reihenfolge danach“ im Umzugsplan erledigt ist.
+
+- **Ü und E, solange die Sitzungen bei Upstash liegen**, den Satz zum Zähler ersetzen durch:
+  > … verarbeiten wir außerdem deine IP-Adresse in einem Zähler, der die Anfragen pro Minute
+  > begrenzt; dieser Zähler liegt bei Upstash bzw. Supabase (jeweils Frankfurt) und wird nach
+  > Ablauf automatisch gelöscht, spätestens nach 24 Stunden.
+- **Nach Umzug auch der Sitzungen:** „bei **Upstash** (Upstash, Inc.)“ → „bei **Supabase**
+  (Supabase, Inc.)“ und der Zähler-Satz wie in 1.2 (E).
 
 Werte aus `api/whop-token.js:14` (8/min), `api/whop-access.js:96` (30/min), `api/whop-refresh.js:35`
 (30/min), TTL 30 Tage `api/whop-token.js:105`.
@@ -169,7 +183,7 @@ Und der Satz „Diese Einträge verlassen dein Gerät nicht automatisch …“ m
 
 **Neu (E):** wie Ü ohne den Upstash-Punkt und ohne den Vercel-Blob-Zusatz — **aber erst, wenn auch
 die Whop-Refresh-Sitzungen umgezogen sind** (Abschnitt 0). Bis dahin bleibt Upstash mit dem Zweck
-„Login-Sitzungen und Missbrauchszähler“ stehen.
+„Login-Sitzungen und Missbrauchszähler (Ziffer 5)“ stehen — so steht es seit dem Nachtrag schon live.
 
 **Begründung:** Anbieterwechsel; „vorgesehen bzw. wird abgedeckt“ ist für eine DSE zu vage, sollte
 eine Tatsachenaussage werden — aber nur, wenn sie stimmt (F1). Liste statt Fließtext, weil drei
@@ -197,8 +211,8 @@ Anbieter mit unterschiedlichem Zweck.
 > Belege).
 
 **Begründung:** Seit `fb44856` darf der Browser `usrhhjwvoefjdgrwovkg.supabase.co` direkt ansprechen
-(signierte Beleg-URLs). Heute fehlt hier auch Vercel Blob (`*.public.blob.vercel-storage.com`) —
-(Lücke); in Ü ggf. „Vercel Blob bzw. Supabase“.
+(signierte Beleg-URLs). Live steht seit dem Nachtrag „bei aktiviertem Cloud-Sync Vercel Blob für
+verschlüsselte Anhänge“; in Ü daraus „Vercel Blob bzw. Supabase“ machen, in E „Supabase“.
 
 ### 1.7 `agb.html:219-221` — Cloud-Sync-Absatz
 
@@ -238,7 +252,7 @@ Speicherwechsel ist eine dokumentationspflichtige Änderung. → **F9** (Änderu
 
 ### 1.11 `js/cloud-sync.js:1038` — Aktivierungsdialog (Nutzer sieht das vor dem Opt-in!)
 
-**Alt:** `'Aufbewahrung beim Auftragsverarbeiter <strong>Upstash (Frankfurt, EU)</strong>.'`
+**Alt (live seit dem Nachtrag):** `'Aufbewahrung beim Auftragsverarbeiter <strong>Upstash (Frankfurt, EU)</strong>, große Anhänge wie Belegfotos bei <strong>Vercel Blob</strong>.'`
 
 **Neu (Ü):** `'Aufbewahrung bei unseren Auftragsverarbeitern <strong>Upstash und Supabase (Frankfurt, EU)</strong>.'`
 **Neu (E):** `'Aufbewahrung beim Auftragsverarbeiter <strong>Supabase (Frankfurt, EU)</strong>.'`
@@ -282,7 +296,7 @@ zum Übernehmen:
 | Cloud-Sync | Geräteübergreifender Sync | Pro-Nutzer: Whop-`user_id`, Chiffrat, Version, Zeitstempel, Geräte-Kennung | Supabase (Ü: + Upstash), Vercel | USA möglich (Mutterges.), → F3 | auf Löschung durch Nutzer; Anker bleiben (GoBD) | E2E AES-GCM, Schlüssel nur beim Nutzer; RLS, nur `service_role`; Region Frankfurt |
 | Belege/Anhänge | Ablage verknüpfter Belege | Pro-Nutzer: Chiffrat, Pfad mit Nutzerbezug; IP beim Abruf | Supabase (Ü: Vercel Blob) | dto. | auf Löschung; verwaiste Chunks per Cron | privater Bucket, signierte URL 300 s |
 | Steuerberater-Freigabe | Lesezugriff Dritter | Public Keys, Grants | Supabase (Ü: + Upstash) | dto. | bis Widerruf | Grant-Deckel atomar in Postgres |
-| Missbrauchsschutz | Rate-Limit | IP-Adresse, `user_id` | Supabase bzw. Upstash | dto. | Fenster 60 s, Löschung → F6 | kein Inhalt, nur Zähler |
+| Missbrauchsschutz | Rate-Limit | IP-Adresse, `user_id` | Supabase bzw. Upstash | dto. | Fenster 60 s; Upstash 60 s, Supabase spätestens 24 h | kein Inhalt, nur Zähler |
 | Login-Sitzung | Token-Erneuerung | Sitzungs-ID, Whop-Refresh-Token | Upstash | dto. | 30 Tage | serverseitig, nie im Browser |
 | Fehlerzähler (→ F7) | Fehlerbehebung | keine personenbezogenen Daten (bereinigt) | Supabase bzw. Upstash | — | ca. 30 Tage | Bereinigung vor Speicherung |
 
@@ -314,19 +328,21 @@ zugestimmt?
 gleichzeitig umgeschaltet? Davon hängen die eckigen Klammern in 1.1 und 1.4 ab. Wenn nicht, braucht
 es eine zweite Übergangsvariante.
 
-**F6 — IP-Löschfrist bei Supabase.** Der Code löscht IP-Zähler nicht nach 60 s (Abschnitt 0,
-Abweichung 1). Lieber (a) den Text auf „in der Regel innerhalb weniger Stunden“ ändern, (b) den
-Code ändern (deterministisches Aufräumen per Cron, oder IP vor dem Speichern hashen), oder beides?
-Empfehlung: (b) mit Hash — dann bleibt „kurzzeitig“ richtig und die Frage stellt sich kaum noch.
-Wäre ein eigener Auftrag.
+~~**F6 — IP-Löschfrist bei Supabase.**~~ ✅ Umgesetzt als deterministisches Aufräumen (jeder Aufruf
++ täglicher Lauf), siehe Nachtrag oben. Annahme: Hashen der IP ist damit nicht mehr nötig — eine
+gehashte IPv4 wäre ohne geheimen Schlüssel ohnehin in Sekunden zurückzurechnen und bliebe
+personenbezogen. Wer das trotzdem will: eigener Auftrag (braucht eine neue Env-Variable).
 
 **F7 — Fehlerzähler.** Soll der Browser künftig automatisch an `/api/client-error` melden? Dann
 gehört 1.3 in die DSE (Rechtsgrundlage lit. f, ggf. Einwilligung nötig? — nach § 25 TDDDG greift
 das Auslesen aus dem Endgerät; bitte entscheiden, ob „technisch notwendig“ hier trägt).
 
-**F8 — Bestehende Lücken mitschließen?** Vercel Blob (mit öffentlichen URLs) und das Login-Rate-
-Limit/die Refresh-Sitzung bei Upstash stehen heute nicht in der DSE. Mit diesem Umzug gleich
-mitkorrigieren (empfohlen) oder getrennt?
+~~**F8 — Bestehende Lücken mitschließen?**~~ ✅ Live geschlossen, siehe Nachtrag oben.
+
+**F13 — Region des Vercel-Blob-Stores.** Die Live-DSE nennt Vercel Blob jetzt, aber ohne Region,
+weil sie nirgends im Repo steht (Vercel → Storage → Blob-Store → Region). Liegt der Store in
+Frankfurt (`fra1`), kann die DSE das sagen; liegt er in den USA (`iad1`, Vercels Default), sollte
+sie das ausdrücklich sagen. Bitte nachsehen und mitteilen.
 
 **F9 — Verfahrensdokumentation.** Gibt es eine Änderungshistorie, in die der Speicherwechsel mit
 Datum eingetragen werden soll, oder genügt das neue Stand-Datum?

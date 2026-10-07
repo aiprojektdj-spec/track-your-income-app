@@ -13,7 +13,11 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261006000001_sync.sql'), 'utf8');
+// Alle Migrationen: Funktionen fuer den Adapter liegen inzwischen in mehreren Dateien
+// (z. B. 20261008000002_blob_budget.sql fuer counterAdd/lockTry/lockRelease).
+const MIG = path.join(ROOT, 'supabase/migrations');
+const sql = fs.readdirSync(MIG).filter(f => f.endsWith('.sql')).sort()
+    .map(f => fs.readFileSync(path.join(MIG, f), 'utf8')).join('\n');
 const src = fs.readFileSync(path.join(ROOT, 'api/_sync-store.js'), 'utf8');
 let pass = 0;
 

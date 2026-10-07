@@ -79,8 +79,8 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 
 | # | Schritt | Wer | Erledigt wenn |
 |---|---|---|---|
-| 0 | Supabase-Projekte `stackr-prod` + `stackr-preview` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | Projekte da |
-| 1 | Migrationen in **beiden** Projekten ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-08: fünf) | 👤, 🤖 liefert Anleitung | Tabellen + Funktionen sichtbar, `anon` sieht nichts |
+| 0 | Supabase-Projekte `stackr-prod` + `stackr-preview` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 2026-10-07: Prod = `usrhhjwvoefjdgrwovkg`, Preview = `nvtjzeffngwfsqjzdrdz` (Anzeigename noch „Stackr“, umbenennen in `stackr-preview`), beide Frankfurt, **Free-Plan** → vor jeder Env-Variable in Prod auf Pro (50-MB-Grenze, Pause nach 7 Tagen, keine Backups). Spend Cap, AV-Vertrag offen |
+| 1 | Migrationen in **beiden** Projekten ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-08: sechs) | 👤, 🤖 liefert Anleitung | 🟡 2026-10-07 für `usrhhjwvoefjdgrwovkg`: die ersten vier, SQL per SHA-256 gegen origin/master geprüft; 8 Tabellen mit RLS ohne Policy, `anon`/`authenticated` ohne Rechte, Bucket privat. Offen dort: `20261008000001_whop_sessions` (erst nach Merge von PR #18), `20261008000002_blob_budget`. Preview-Projekt: noch leer |
 | 2 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in Vercel eintragen (Sensitive), getrennt für Production und Preview | 👤 | Claude liest die Werte nie aus |
 | 3 | Code deployen | 🤖 | ✅ `78a711e`/`747dcfd` auf `master` |
 | 4 | `STORAGE_MIRROR=supabase` setzen, neu deployen → Dual-Write | 👤 | keine `mirror-failed`-Alarme |

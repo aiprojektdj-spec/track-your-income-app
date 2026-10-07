@@ -25,20 +25,18 @@
 //
 // Env: BLOB_BACKEND (vercel|supabase, s. api/_storage.js)
 //      BLOB_READ_WRITE_TOKEN (Vercel-Blob-Store-Integration) bzw. SUPABASE_* (api/_db.js)
-//      + dieselben WHOP_*/KV_REST_API_*-Variablen wie api/sync.js (Auth + Rate-Limit).
+//      + dieselben WHOP_*-Variablen wie api/sync.js (Auth). Rate-Limit, Byte-Budget und
+//      Commit-Sperre laufen ueber api/_sync-store.js und folgen STORAGE_BACKEND (redis|supabase).
 //      BLOB_MAX_BYTES             (optional, Default 1 GB — Byte-Budget je Nutzer und Fenster)
 //      BLOB_BUDGET_WINDOW_SEC     (optional, Default 2592000 = 30 Tage)
 //      ALERT_WEBHOOK_URL          (optional — Meldung bei offenem Deckel, s. api/_alert.js)
 //      SYNC_OWNER_IDS             (optional — Whop-User-IDs "user_…" der Owner ohne Abo)
 // =============================================================================
-var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
-var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
-
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps = require('./_alert.js').alertOps;
 var _log     = require('./_log.js');
 var storage  = require('./_storage.js');
-var store    = require('./_sync-store.js');   // nur für den Grant-Check bei action=sign
+var store    = require('./_sync-store.js');   // Grant-Check (sign), Rate-Limit, Byte-Budget, Commit-Sperre
 
 // ── Auth: identisch zu api/sync.js (bewusst dupliziert, siehe dortiger Kommentar) ──
 var ACCESS_IDS   = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
@@ -113,13 +111,6 @@ async function whopHasAccess(userToken, userId) {
     var e = new Error('access_undeterminable'); e.httpStatus = 502; throw e;
 }
 
-function redisCmd(cmd) {
-    return fetch(REDIS_URL, {
-        method: 'POST', headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' },
-        body: JSON.stringify(cmd), signal: AbortSignal.timeout(8000)
-    }).then(function (r) { return r.json(); }).then(function (j) { return j ? j.result : null; });
-}
-
 // ── Limits ───────────────────────────────────────────────────────────────
 var MAX_CHUNK       = 4 * 1024 * 1024;    // pro Request, Sicherheitsmarge unter Vercels 4,5-MB-Hardlimit
 var MAX_TOTAL_BYTES  = 200 * 1024 * 1024; // Deckel je Anhang/Ledger-Blob (großzügig, aber nicht unbegrenzt — s. Chat)
@@ -157,20 +148,21 @@ var BLOB_BUDGET_WINDOW = parseInt(process.env.BLOB_BUDGET_WINDOW_SEC || '2592000
 
 // Bucht `bytes` auf das Budget. Rückgabe false = Deckel erreicht, dann wird die Buchung
 // zurückgenommen, damit ein abgelehnter Upload kein Budget verbraucht.
-// Redis-Fehler lassen den Upload durch (fail-open, wie das bestehende Rate-Limit hier und in
-// api/sync.js): ein Redis-Ausfall darf keinen zahlenden Kunden am Arbeiten hindern.
+// Speicher-Fehler lassen den Upload durch (fail-open, wie das bestehende Rate-Limit hier und
+// in api/sync.js): ein Ausfall darf keinen zahlenden Kunden am Arbeiten hindern.
+// Das Fenster setzt nur die erste Buchung (Redis: EXPIRE … NX, Supabase: sync_counter_add).
 async function chargeBlobBudget(userId, bytes) {
-    if (!REDIS_URL || !REDIS_TOKEN) {
-        await alertOps('blob-upload', 'redis-env-missing',
-            'Byte-Budget und Rate-Limit sind ohne Redis-Env komplett aus');
+    var problem = store.configProblem();
+    if (problem) {
+        await alertOps('blob-upload', (store.backendName() || 'store') + '-env-missing',
+            'Byte-Budget und Rate-Limit sind komplett aus: ' + problem);
         return true;
     }
     var key = 'blob:bytes:' + userId;
     try {
-        var total = await redisCmd(['INCRBY', key, String(bytes)]);
-        await redisCmd(['EXPIRE', key, String(BLOB_BUDGET_WINDOW), 'NX']);
+        var total = await store.counterAdd(key, bytes, BLOB_BUDGET_WINDOW);
         if (Number(total) <= BLOB_BUDGET_BYTES) return true;
-        await redisCmd(['DECRBY', key, String(bytes)]);
+        await store.counterAdd(key, -bytes, BLOB_BUDGET_WINDOW);
         return false;
     } catch (e) {
         // fail-open — der Byte-Deckel ist damit fuer diesen Upload weg
@@ -254,20 +246,19 @@ module.exports = async function handler(req, res) {
         }
     }
 
-    // Rate-Limit (best-effort, wie sync.js — Redis-Fehler blockieren den Upload nicht)
-    if (REDIS_URL && REDIS_TOKEN) {
+    // Rate-Limit (best-effort, wie sync.js — Speicher-Fehler blockieren den Upload nicht)
+    var rlProblem = store.configProblem();
+    if (!rlProblem) {
         try {
-            var rlKey = 'blob:rl:' + userId;
-            var count = await redisCmd(['INCR', rlKey]);
-            await redisCmd(['EXPIRE', rlKey, '60', 'NX']);
+            var count = await store.rateHit('blob:rl:' + userId, 60);
             if (count > RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
         } catch (e) {
             // nicht blockierend — weiter, aber der Nutzer-Deckel ist damit offen
             await alertOps('blob-upload', 'rate-limit-open', e && e.message);
         }
     } else {
-        await alertOps('blob-upload', 'redis-env-missing',
-            'Byte-Budget und Rate-Limit sind ohne Redis-Env komplett aus');
+        await alertOps('blob-upload', (store.backendName() || 'store') + '-env-missing',
+            'Byte-Budget und Rate-Limit sind komplett aus: ' + rlProblem);
     }
 
     try {
@@ -328,10 +319,9 @@ module.exports = async function handler(req, res) {
             // Concurrency-Deckel pro Nutzer: verhindert, dass ein einzelner Account viele
             // parallele 200-MB-Commits anstößt (Ressourcen-/Kosten-DoS trotz Rate-Limit).
             var lockKey = 'blob:commitlock:' + userId, lockHeld = false;
-            if (REDIS_URL && REDIS_TOKEN) {
+            if (!store.configProblem()) {
                 try {
-                    var lockRes = await redisCmd(['SET', lockKey, '1', 'NX', 'EX', '30']);
-                    if (!lockRes) return res.status(429).json({ error: 'commit_busy' });
+                    if (!(await store.lockTry(lockKey, 30))) return res.status(429).json({ error: 'commit_busy' });
                     lockHeld = true;
                 } catch (e) { _log.logWarn('blob-upload', 'COMMIT_LOCK_FAILED', e); }
             }
@@ -356,7 +346,7 @@ module.exports = async function handler(req, res) {
                 try { await storage.remove(chunkUrls); } catch (e) { _log.logWarn('blob-upload', 'CHUNK_CLEANUP_FAILED', e); }
                 return res.status(200).json({ ok: true, url: finalRef, size: total });
             } finally {
-                if (lockHeld) { try { await redisCmd(['DEL', lockKey]); } catch (e) { /* TTL räumt ohnehin nach 30s auf */ } }
+                if (lockHeld) { try { await store.lockRelease(lockKey); } catch (e) { /* TTL räumt ohnehin nach 30s auf */ } }
             }
         }
 

@@ -304,15 +304,37 @@ zum Übernehmen:
 
 ## 3. Fragen an den User (nicht geraten — vor dem Einbau beantworten)
 
-**F1 — AV-Vertrag Supabase.** Ist der Supabase-DPA für die Organisation abgeschlossen (Dashboard →
+**F1 — AV-Vertrag Supabase.** ⏰ **User erledigt das am 2026-10-07 mittags, gemeinsam mit F2.**
+Recherche (2026-10-07): Der Supabase-DPA (Version 1, 01.08.2026) gilt laut Text schon mit Annahme der
+Nutzungsbedingungen („acceptance of the Agreement shall have the same effect as signing the SCCs“).
+Eine unterschriebene Fassung fürs eigene Archiv gibt es trotzdem im Dashboard. Ursprüngliche Frage: Ist der Supabase-DPA für die Organisation abgeschlossen (Dashboard →
 Organization → Legal Documents → DPA, per PandaDoc unterschrieben)? Gilt er für **beide** Projekte?
 Datum? Erst dann darf die DSE „besteht“ sagen statt „vorgesehen“.
 
-**F2 — AV-Verträge Upstash und Vercel.** Die heutige DSE sagt „vorgesehen bzw. über Standard-AVV
+**F2 — AV-Verträge Upstash und Vercel.** ⏰ **User erledigt das am 2026-10-07 mittags.**
+Recherche (2026-10-07):
+- **Upstash:** DPA ist in die Terms of Service eingebunden („incorporated into and forms a binding
+  and effective part of the Agreement“), gilt also auch im Free-Plan ohne Unterschrift.
+- **Vercel:** Der DPA gilt laut Vercel „for Customers who are on Enterprise and Pro plans“
+  (Stand 17.03.2026) und wird mit dem Vertrag bindend, ohne Unterschrift. **Das Projekt läuft auf
+  Pro** (User, 2026-10-07) → der DPA gilt. (Die Hobby-Hinweise in `plan/vercel-einrichtung.md`
+  waren veraltet.)
+Ursprüngliche Frage: Die heutige DSE sagt „vorgesehen bzw. über Standard-AVV
 abgedeckt“. Sind diese DPAs tatsächlich abgeschlossen/akzeptiert? (Betrifft den heutigen Text,
 nicht erst den Umzug.)
 
-**F3 — Drittlandtransfer.** Supabase, Inc., Upstash, Inc. und Vercel Inc. sitzen in den USA; die
+**F3 — Drittlandtransfer.** ✅ **Recherchiert 2026-10-07** (Quellen: die DPAs der Anbieter, Vercel-KB):
+
+| Anbieter | DPF-zertifiziert | SCC im DPA | Was die DSE sagen kann |
+|---|---|---|---|
+| Upstash | ja (laut DPA) | ja, als Rückfall, falls DPF nicht greift | „EU-US Data Privacy Framework, hilfsweise Standardvertragsklauseln“ |
+| Vercel | ja (Vercel-KB) | ja, Modul 1–3 (Pro-DPA, gilt) | „EU-US Data Privacy Framework, hilfsweise Standardvertragsklauseln“ |
+| Supabase | **nicht gefunden** (DPA nennt DPF nicht, keine Liste mit Supabase gefunden) | ja, Modul 2 + 3 | „Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO)“ — **nicht** DPF |
+
+Vor dem Einbau einmal selbst auf dataprivacyframework.gov/list nach „Supabase“ suchen (die Seite
+lässt sich nicht automatisch abfragen). Eine kurze TIA wird empfohlen, wenn SCC die einzige
+Grundlage ist (Supabase): Daten liegen in Frankfurt, nur Chiffrat, Schlüssel nie beim Anbieter →
+Zugriff aus den USA brächte keine lesbaren Inhalte. Ursprüngliche Frage: Supabase, Inc., Upstash, Inc. und Vercel Inc. sitzen in den USA; die
 Daten liegen in Frankfurt, ein Zugriff aus den USA (Support, Behörden, CLOUD Act) ist aber nicht
 ausgeschlossen. Welcher Mechanismus gilt laut den jeweiligen DPAs: EU-US Data Privacy Framework
 (ist Supabase dort zertifiziert? — bitte auf dataprivacyframework.gov nachsehen) und/oder SCC

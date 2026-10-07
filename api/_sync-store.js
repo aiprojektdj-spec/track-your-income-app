@@ -76,6 +76,14 @@ var redis = {
         await redisCmd(['EXPIRE', key, String(windowSec), 'NX']);
         return Number(n);
     },
+    // Wie rateHit, aber um delta (auch negativ, fuer die Ruecknahme). Byte-Budget in blob-upload.
+    counterAdd: async function (key, delta, windowSec) {
+        var n = await redisCmd(['INCRBY', key, String(delta)]);
+        await redisCmd(['EXPIRE', key, String(windowSec), 'NX']);
+        return Number(n);
+    },
+    lockTry:     async function (key, ttlSec) { return (await redisCmd(['SET', key, '1', 'NX', 'EX', String(ttlSec)])) !== null; },
+    lockRelease: async function (key) { await redisCmd(['DEL', key]); },
 
     get: async function (u, s) { return parseOrNull(await redisCmd(['GET', 'sync:' + u + ':' + s])); },
     cas: async function (u, s, expected, data) {
@@ -156,6 +164,10 @@ var supabase = {
     isConfigured: db.isConfigured,
 
     rateHit: async function (key, windowSec) { return Number(await db.rpc('sync_rate_hit', { p_key: key, p_window: windowSec })); },
+    // Funktionen aus supabase/migrations/20261008000002_blob_budget.sql
+    counterAdd:  async function (key, delta, windowSec) { return Number(await db.rpc('sync_counter_add', { p_key: key, p_delta: delta, p_window: windowSec })); },
+    lockTry:     async function (key, ttlSec) { return (await db.rpc('sync_lock_try', { p_key: key, p_ttl: ttlSec })) === true; },
+    lockRelease: async function (key) { await db.rpc('sync_lock_release', { p_key: key }); },
 
     get: function (u, s) { return db.rpc('sync_get', { p_user: u, p_scope: s }); },
     cas: async function (u, s, expected, data) {
@@ -217,6 +229,10 @@ module.exports = {
 
     // Lesen: nur primär
     rateHit:        function (key, w) { return P.rateHit(key, w); },
+    // Zaehler und Sperren laufen wie rateHit nur gegen das primaere System, kein Spiegel
+    counterAdd:     function (key, d, w) { return P.counterAdd(key, d, w); },
+    lockTry:        function (key, ttl) { return P.lockTry(key, ttl); },
+    lockRelease:    function (key) { return P.lockRelease(key); },
     get:            function (u, s) { return P.get(u, s); },
     listScopes:     function (u) { return P.listScopes(u); },
     listAnchors:    function (u, s) { return P.listAnchors(u, s); },

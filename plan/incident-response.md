@@ -57,6 +57,60 @@ Für die Meldepflicht zählt das (Art. 34 Abs. 3 lit. a DSGVO), die Bewertung bl
 Whop ist für Zahlungsdaten zuständig. Betrifft ein Vorfall Zahlungen, zusätzlich den Whop-Support
 informieren.
 
+## Wer uns meldet
+
+Auftragsverarbeiter müssen uns eine Panne bei sich unverzüglich melden (Art. 33 Abs. 2 DSGVO).
+Die Meldung kommt an die Konto-E-Mail des jeweiligen Dashboards: Vercel (auch für Blob) und Upstash. Whop ist für den Login eigenständig verantwortlich und meldet selbst, der Whop-Support ist trotzdem zu informieren.
+Diese Postfächer müssen gelesen werden. Die 72 Stunden laufen ab dem Lesen der Mail.
+
+## Vorlage: Meldung an den LfDI
+
+Das Formular fragt die Angaben aus Art. 33 Abs. 3 DSGVO ab. Vorher hier ausfüllen und in die
+Vorfallnotiz kopieren. Fehlt etwas noch, trotzdem fristgerecht melden und nachreichen
+(Art. 33 Abs. 4).
+
+```text
+Verantwortlicher:     [aus dem Impressum]
+Ansprechpartner:      [Name, E-Mail, Telefon]
+Kenntnis seit:        [Datum, Uhrzeit]   Vorfall seit: [Datum, Uhrzeit oder "unbekannt"]
+Was ist passiert:     [z. B. Schlüssel im Git-Verlauf, unberechtigter Zugriff auf Tabelle X]
+Datenarten:           [z. B. Name, E-Mail, Profiltext]
+Betroffene:           [ungefähre Zahl der Kunden] · Datensätze: [ungefähre Zahl]
+Mögliche Folgen:      [z. B. Spam/Phishing an die E-Mail-Adressen]
+Schon getan:          [Schlüssel rotiert um ..., Zugriff gesperrt um ...]
+Noch geplant:         [z. B. Test gegen Wiederholung, Info an Betroffene]
+Betroffene informiert: [ja, am ... / nein, weil ...]
+Verspätet (> 72 h)?   [nein / ja, Grund: ...]
+```
+
+## Vorlage: E-Mail an Betroffene (nur bei hohem Risiko)
+
+Klare Sprache, keine Beschwichtigung (Art. 34 Abs. 2 DSGVO). Versand einzeln, nicht mit
+allen Adressen im Verteiler.
+
+```text
+Betreff: Sicherheitsvorfall: Deine Daten bei [Projekt]
+
+Hallo [Name],
+
+am [Datum] haben wir festgestellt, dass [was passiert ist, ein Satz].
+Betroffen sind bei dir: [Datenarten].
+
+Was das für dich heißen kann: [z. B. gefälschte Mails in deinem Namen].
+Was wir getan haben: [Schlüssel getauscht, Lücke geschlossen, Behörde informiert].
+Was du tun kannst: [z. B. auf verdächtige Mails achten, Passwort ändern, falls woanders gleich].
+
+Fragen beantworten wir unter [E-Mail]. Du kannst dich auch beim Landesbeauftragten für
+den Datenschutz Baden-Württemberg beschweren.
+
+[Name]
+```
+
+## Kein Vorfall? Trotzdem notieren
+
+Auch ein Fehlalarm oder eine Panne ohne Meldung bekommt eine kurze Vorfallnotiz mit der
+Begründung, warum nicht gemeldet wurde. Genau diese Begründung will die Behörde später sehen.
+
 ## Danach
 
 - Ursache beheben, Test dafür in `test/` schreiben, damit es nicht wiederkommt.

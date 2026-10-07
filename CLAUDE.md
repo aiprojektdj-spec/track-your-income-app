@@ -52,6 +52,10 @@ anders: nicht anfassen, per `send_message` abstimmen.
 11. **Neue Logik nicht in `js/app.js`, `js/store.js` oder `js/lager.js`**, sondern in ein
     Fachmodul (z. B. `js/app-ust.js`). Kein Big-Bang-Refactor: Wer dort einen Block ohnehin
     ändert, zieht ihn dabei in ein eigenes Modul.
+12. **Kein externer KI-Dienst ohne Rückfrage.** Die Beleg-OCR bleibt lokal (`tesseract.js`).
+    Kommt ein KI-Dienst dazu: vor der ersten Interaktion klar sagen, dass es eine KI ist
+    (AI Act Art. 50, seit 02.08.2026), Anbieter in Datenschutzerklärung und AVV aufnehmen,
+    keine Steuer- oder Belegdaten an die KI ohne ausdrückliche Einwilligung.
 
 ## Verifikation
 

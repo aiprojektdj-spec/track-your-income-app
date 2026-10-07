@@ -281,9 +281,12 @@ module.exports = async function handler(req, res) {
             if (typeof body.iv !== 'string') return res.status(400).json({ error: 'bad_payload' });
 
             // Zwei Formen: inline (klein, wie bisher) ODER blobUrl (großes Chiffrat liegt
-            // bereits als eigenes Objekt in Vercel Blob, siehe js/blob-attachments.js).
+            // bereits als eigenes Objekt im Objektspeicher, siehe js/blob-attachments.js).
+            // Referenzform wie in api/_storage.js: https://… (Vercel Blob) oder sb:… (Supabase).
+            // Gelesen/gelöscht wird sie nur über api/blob-upload.js, das die Eigentumsprüfung macht.
             var hasInline = typeof body.ciphertext === 'string';
-            var hasBlob   = typeof body.blobUrl === 'string' && body.blobUrl.indexOf('https://') === 0;
+            var hasBlob   = typeof body.blobUrl === 'string' &&
+                            (body.blobUrl.indexOf('https://') === 0 || body.blobUrl.indexOf('sb:') === 0);
             if (!hasInline && !hasBlob) return res.status(400).json({ error: 'bad_payload' });
             if (hasInline && body.ciphertext.length > MAX_CIPHER) return res.status(413).json({ error: 'too_large', maxCipher: MAX_CIPHER });
 

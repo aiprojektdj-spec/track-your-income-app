@@ -42,24 +42,24 @@ var Dokumente = (function() {
         var customerMap = {};
         customers.forEach(function(c) { customerMap[c.id] = c; });
 
-        var html = '<div class="page-header"><h2>Dokumente</h2><div class="page-header-actions">';
-        html += '<button class="btn btn-primary" id="docNewInvoice">+ Neue Rechnung</button> ';
-        html += '<button class="btn btn-success" id="docNewOffer">Neues Angebot</button>';
+        var html = '<div class="page-header sr-document-header"><h2>Dokumente</h2><div class="page-header-actions">';
+        html += '<button class="btn btn-primary" id="docNewInvoice">Rechnung erstellen</button> ';
+        html += '<button class="btn btn-outline" id="docNewOffer">Neues Angebot</button>';
         html += '</div></div>';
 
         // Filter bar
-        html += '<div class="filter-bar">';
+        html += '<section class="sr-document-filters" aria-label="Dokumente filtern"><div class="sr-document-filter-main">';
 
         // Search
         html += '<div class="filter-group filter-search">';
-        html += '<label class="form-label" for="filterSearch"><i class="ti ti-search"></i> Suche</label>';
-        html += '<div class="filter-search-wrap"><i class="ti ti-search"></i>';
-        html += '<input class="form-input" type="text" id="filterSearch" placeholder="Nr., Kunde, Betrag\u2026" autocomplete="off">';
+        html += '<label class="form-label" for="filterSearch">Dokument suchen</label>';
+        html += '<div class="sr-document-search"><i class="ti ti-search" aria-hidden="true"></i>';
+        html += '<input class="form-input" type="search" id="filterSearch" placeholder="Nummer, Kunde oder Betrag" autocomplete="off">';
         html += '</div></div>';
 
         // Typ
-        html += '<div class="filter-group"><label class="form-label" for="filterTyp">Typ</label>';
-        html += '<select class="form-select" id="filterTyp"><option value="">Alle Typen</option>';
+        html += '<div class="filter-group"><label class="form-label" for="filterTyp">Dokumenttyp</label>';
+        html += '<select class="form-select" id="filterTyp"><option value="">Alle Dokumente</option>';
         html += '<option value="rechnung">Rechnung</option><option value="angebot">Angebot</option>';
         html += '<option value="gutschrift">Gutschrift</option><option value="stornorechnung">Stornorechnung</option>';
         html += '</select></div>';
@@ -72,13 +72,17 @@ var Dokumente = (function() {
         html += '<option value="storniert">Storniert</option>';
         html += '</select></div>';
 
+        html += '<button class="btn btn-outline sr-document-reset" id="filterReset" type="button" title="Alle Filter zurücksetzen" aria-label="Alle Filter zurücksetzen"><i class="ti ti-filter-off" aria-hidden="true"></i></button>';
+        html += '</div><details class="sr-document-filter-more"><summary>Zeitraum und Kunde <span id="docExtraFilterCount" hidden></span><i class="ti ti-chevron-down" aria-hidden="true"></i></summary><div class="sr-document-filter-extra">';
+
+        // Weitere Filter bleiben mit denselben IDs und Ereignissen erreichbar.
         // Von
         html += '<div class="filter-group"><label class="form-label" for="filterVon">Von</label>';
-        html += '<input class="form-input" type="date" id="filterVon" style="min-width:130px;"></div>';
+        html += '<input class="form-input" type="date" id="filterVon"></div>';
 
         // Bis
         html += '<div class="filter-group"><label class="form-label" for="filterBis">Bis</label>';
-        html += '<input class="form-input" type="date" id="filterBis" style="min-width:130px;"></div>';
+        html += '<input class="form-input" type="date" id="filterBis"></div>';
 
         // Kunde
         html += '<div class="filter-group"><label class="form-label" for="filterKunde">Kunde</label>';
@@ -88,13 +92,7 @@ var Dokumente = (function() {
         });
         html += '</select></div>';
 
-        // Reset button
-        html += '<div class="filter-group" style="justify-content:flex-end;">';
-        html += '<label class="form-label">&nbsp;</label>';
-        html += '<button class="btn btn-small btn-outline" id="filterReset" title="Filter zur\u00FCcksetzen" aria-label="Filter zur\u00FCcksetzen" style="height:34px;padding:0 12px;"><i class="ti ti-filter-off"></i></button>';
-        html += '</div>';
-
-        html += '</div>';
+        html += '</div></details></section>';
 
         // Table
         html += '<div class="table-container"><table><thead><tr>';
@@ -215,6 +213,12 @@ var Dokumente = (function() {
         var kunde = document.getElementById('filterKunde').value;
         var searchEl = document.getElementById('filterSearch');
         var search = searchEl ? searchEl.value.trim().toLowerCase() : '';
+        var extraCount = document.getElementById('docExtraFilterCount');
+        if (extraCount) {
+            var activeExtra = [von, bis, kunde].filter(Boolean).length;
+            extraCount.hidden = activeExtra === 0;
+            extraCount.textContent = activeExtra + ' aktiv';
+        }
 
         var rows = document.querySelectorAll('#docTableBody tr');
         rows.forEach(function(row) {
@@ -688,6 +692,7 @@ var Dokumente = (function() {
             if (el) el.addEventListener('change', applyFilters);
         });
         var searchEl = document.getElementById('filterSearch');
+        if (searchEl) searchEl.addEventListener('input', applyFilters);
         if (searchEl) searchEl.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') applyFilters();
             else if (e.key === 'Escape') { searchEl.value = ''; applyFilters(); }

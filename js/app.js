@@ -537,6 +537,7 @@ const App = {
     /** URL und document.title an die aktuelle Seite angleichen. Der Beschriftungstext kommt
      *  aus dem Sidebar-Link, damit er automatisch der gewählten Sprache folgt. */
     _syncLocation(page) {
+        if (window.RedesignShell) return RedesignShell.syncLocation(page);
         try {
             const url = new URL(window.location.href);
             url.searchParams.set('page', page);
@@ -694,6 +695,7 @@ const App = {
                     contentEl.classList.add('skeleton-fade-in');
                     setTimeout(() => contentEl.classList.remove('skeleton-fade-in'), 300);
                     this.pages[page].init();
+                    if (window.RedesignShell) RedesignShell.afterRender(page);
                 } catch(err) {
                     console.error('[navigate] Fehler auf Seite', page, err);
                     contentEl.innerHTML = `
@@ -718,6 +720,7 @@ const App = {
     // überlebt daher die _refresh()-Aufrufe der einzelnen Module.
     // Leert sich auf Nicht-Finanzen-Seiten (CSS :empty → display:none).
     _renderModuleSubnav(page) {
+        if (window.RedesignShell) return RedesignShell.renderContext(page);
         const el = document.getElementById('moduleSubnav');
         if (!el) return;
 
@@ -1076,6 +1079,7 @@ const App = {
         Utils.showToast('Sende Test-Payload …', 'info');
         const res = await Webhooks.test(key, url);
         if (res.ok) Utils.showToast('Test-Payload gesendet (' + res.status + ')', 'success');
+        else if (res.error === 'not_allowed') Utils.showToast('Nur Make.com-Webhooks möglich (https://hook.….make.com/…)', 'error');
         else Utils.showToast('Fehlgeschlagen: ' + (res.error || 'HTTP ' + res.status), 'error');
     },
 
@@ -1892,6 +1896,13 @@ const App = {
                 Store.saveSettings(updated);
                 this.closeModal();
                 Utils.showToast('Einstellungen gespeichert', 'success');
+                // Gespeichert wird trotzdem (Eingabe nicht verlieren), aber Webhooks.fire
+                // ueberspringt die URL — das muss der Nutzer erfahren, sonst wartet er
+                // auf ein Szenario, das nie ausgeloest wird.
+                const fremd = Object.keys(updated.webhookUrls || {})
+                    .filter(k => !Webhooks.erlaubt(updated.webhookUrls[k]));
+                if (fremd.length) Utils.showToast('Webhook nicht aktiv: ' + fremd.map(k => Webhooks.EVENTS[k]).join(', ')
+                    + ' – nur Make.com-URLs (https://….make.com/…) werden gesendet', 'warning');
                 this.navigate(this.currentPage);
             };
             if (logoInput && logoInput.files[0]) {
@@ -3519,5 +3530,7 @@ function _startApp() {
         }
     });
 }
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _startApp);
+// Ueber js/app-loader.js: erst starten, wenn auch die danach geladenen Skripte da sind.
+if (window.AppLoader && window.AppLoader.ready) window.AppLoader.ready.then(_startApp);
+else if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _startApp);
 else _startApp();

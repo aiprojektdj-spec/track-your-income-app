@@ -14,3 +14,6 @@ build-deploy.py
 ui-lab.html
 css/ui-lab.css
 js/ui-lab.js
+# Lokale Design- und Browserprüfungen sind keine öffentlichen App-Routen.
+output/
+.playwright-cli/

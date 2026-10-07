@@ -4,25 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none';">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
+<link rel="icon" href="assets/stackr-concepts/raute-facette.svg" type="image/svg+xml">
 <title>Verfahrensdokumentation (GoBD) — Stackr</title>
 <link rel="stylesheet" href="css/legal.css">
 </head>
 <body>
+<a href="#inhalt" class="skip-link">Zum Inhalt springen</a>
 
-<nav>
+<nav class="legal-header" aria-label="Hauptnavigation">
     <a href="index.html" class="nav-brand">
         <span class="nav-brand-icon">◆</span>
-        <span class="nav-brand-text">Stackr</span>
+        <span class="nav-brand-text">stackr</span>
     </a>
-    <a href="index.html" class="nav-back">← Zurück</a>
+    <a href="index.html" class="nav-back">Zur Startseite</a>
 </nav>
 
-<div class="page-wrap">
+<main class="page-wrap" id="inhalt" tabindex="-1">
 
     <h1>Verfahrensdokumentation</h1>
     <p class="subtitle">Technische Beschreibung der GoBD-relevanten Verfahren in Stackr (BMF-Schreiben vom 28.11.2019)</p>
     <p class="update-date">Stand: Juli 2026</p>
+
+<nav class="legal-toc" aria-label="Inhaltsverzeichnis"><h2>Inhalt</h2><ol><li><a href="#abschnitt-1">1. Systemüberblick</a></li><li><a href="#abschnitt-2">2. Erfassung (GoBD Rz. 45 ff. — Zeitgerechtigkeit)</a></li><li><a href="#abschnitt-3">3. Unveränderbarkeit (GoBD Rz. 58 ff.)</a></li><li><a href="#abschnitt-4">4. Nachvollziehbarkeit — Änderungsprotokoll (GoBD Rz. 47, 130 ff.)</a></li><li><a href="#abschnitt-5">5. Datenspeicherung &amp; -sicherheit (GoBD Rz. 103 ff.)</a></li><li><a href="#abschnitt-6">6. Aufbewahrung (§147 AO)</a></li><li><a href="#abschnitt-7">7. Maschinelle Auswertbarkeit &amp; Export (GoBD Rz. 138 ff.)</a></li><li><a href="#abschnitt-8">8. Verantwortlichkeiten</a></li><li><a href="#abschnitt-9">9. Änderungshistorie dieses Dokuments</a></li></ol></nav>
 
     <div class="highlight-box">
         <strong>Zweck dieses Dokuments:</strong> Es beschreibt, wie Stackr Buchungen erfasst, unveränderbar
@@ -33,7 +36,7 @@
     </div>
 
     <div class="section">
-        <h2>1. Systemüberblick</h2>
+        <h2 id="abschnitt-1">1. Systemüberblick</h2>
         <p>
             Stackr ist eine browserbasierte, <strong>Local-First</strong>-Anwendung für Einnahmen-Überschuss-Rechnung
             (EÜR), Rechnungsstellung, Lagerverwaltung, Eigenbelege und Fahrtenbuch. Es gibt keine zentrale
@@ -49,7 +52,7 @@
     </div>
 
     <div class="section">
-        <h2>2. Erfassung (GoBD Rz. 45 ff. — Zeitgerechtigkeit)</h2>
+        <h2 id="abschnitt-2">2. Erfassung (GoBD Rz. 45 ff. — Zeitgerechtigkeit)</h2>
         <p>
             Jede Buchung wird beim Speichern mit einer eindeutigen ID, Erstellungszeitstempel (<code>createdAt</code>)
             und einer Prüfsumme versehen. Pflichtangaben (Datum, Betrag, Belegart, Kategorie) werden vor dem
@@ -60,7 +63,7 @@
     </div>
 
     <div class="section">
-        <h2>3. Unveränderbarkeit (GoBD Rz. 58 ff.)</h2>
+        <h2 id="abschnitt-3">3. Unveränderbarkeit (GoBD Rz. 58 ff.)</h2>
         <p>
             Eine gespeicherte Buchung ist entweder <strong>offen</strong> (frei bearbeitbar/löschbar) oder
             <strong>festgeschrieben</strong> (nur noch per Storno korrigierbar). Ein Datensatz gilt als
@@ -86,7 +89,7 @@
     </div>
 
     <div class="section">
-        <h2>4. Nachvollziehbarkeit — Änderungsprotokoll (GoBD Rz. 47, 130 ff.)</h2>
+        <h2 id="abschnitt-4">4. Nachvollziehbarkeit — Änderungsprotokoll (GoBD Rz. 47, 130 ff.)</h2>
         <p>
             Jede Erstellung, Bearbeitung, Stornierung und Löschung wird als Eintrag in einem
             <strong>Audit-Log</strong> (Änderungsprotokoll, einsehbar im Modul „Protokoll“) gespeichert:
@@ -116,7 +119,7 @@
     </div>
 
     <div class="section">
-        <h2>5. Datenspeicherung &amp; -sicherheit (GoBD Rz. 103 ff.)</h2>
+        <h2 id="abschnitt-5">5. Datenspeicherung &amp; -sicherheit (GoBD Rz. 103 ff.)</h2>
         <p>
             Primärspeicher ist der Browser des Nutzers (localStorage/IndexedDB), company-präfixiert bei
             mehreren Firmen. Es gibt standardmäßig keine Übertragung an Server des Anbieters. Aktiviert der
@@ -133,7 +136,7 @@
     </div>
 
     <div class="section">
-        <h2>6. Aufbewahrung (§147 AO)</h2>
+        <h2 id="abschnitt-6">6. Aufbewahrung (§147 AO)</h2>
         <p>
             Buchungs- und belegrelevante Daten unterliegen der gesetzlichen 10-Jahres-Aufbewahrungsfrist.
             Die Software löscht keine Daten automatisch nach Fristablauf — Aufbewahrung und Archivierung
@@ -142,7 +145,7 @@
     </div>
 
     <div class="section">
-        <h2>7. Maschinelle Auswertbarkeit &amp; Export (GoBD Rz. 138 ff.)</h2>
+        <h2 id="abschnitt-7">7. Maschinelle Auswertbarkeit &amp; Export (GoBD Rz. 138 ff.)</h2>
         <p>Für die Übergabe an Finanzverwaltung/Steuerberater/DATEV stehen folgende Exporte zur Verfügung:</p>
         <ul>
             <li><strong>ELSTER-CSV</strong> — Kennzahlen der USt-Voranmeldung je Quartal (Modul „USt-Voranmeldung“)</li>
@@ -154,7 +157,7 @@
     </div>
 
     <div class="section">
-        <h2>8. Verantwortlichkeiten</h2>
+        <h2 id="abschnitt-8">8. Verantwortlichkeiten</h2>
         <p>
             Stackr (Softwarehersteller) stellt die technischen Mechanismen zur GoBD-konformen Erfassung,
             Festschreibung, Protokollierung und zum Export bereit. Die inhaltliche Richtigkeit der Buchungen,
@@ -165,7 +168,7 @@
     </div>
 
     <div class="section">
-        <h2>9. Änderungshistorie dieses Dokuments</h2>
+        <h2 id="abschnitt-9">9. Änderungshistorie dieses Dokuments</h2>
         <ul>
             <li>Juli 2026 — Ersterstellung</li>
             <li>25.07.2026 — Abschnitt 4 präzisiert: Reichweite der lokalen Hash-Kette klargestellt,
@@ -173,10 +176,10 @@
         </ul>
     </div>
 
-</div>
+</main>
 
-<footer>
-    <div style="margin-bottom:8px;">◆ <strong style="color:#94a3b8;">Stackr</strong></div>
+<footer class="legal-footer">
+    <div style="margin-bottom:8px;">◆ <strong>stackr</strong></div>
     <div>
         <a href="index.html">Startseite</a> ·
         <a href="impressum.html">Impressum</a> ·
@@ -184,7 +187,8 @@
         <a href="agb.html">AGB</a> ·
         <a href="refund.html">Widerruf</a> ·
         <a href="cookies.html">Cookies</a> ·
-        <a href="verfahrensdokumentation.html">Verfahrensdoku</a>
+        <a href="verfahrensdokumentation.html">Verfahrensdoku</a> ·
+        <a href="barrierefreiheit.html">Barrierefreiheit</a>
     </div>
 </footer>
 

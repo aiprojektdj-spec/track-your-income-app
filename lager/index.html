@@ -10,7 +10,6 @@
     <link rel="manifest" href="/manifest.json">
     <title>Stackr — Lager</title>
     <link rel="preload" href="../fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="../fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
     <!-- Theme (System/Hell/Dunkel) — synchron und VOR den Stylesheets:
          setzt data-theme auf <html>, sonst blitzt die dunkle Palette auf. -->
     <script src="../js/theme.js"></script>
@@ -28,18 +27,15 @@
     <script defer src="../js/vendor/flatpickr-de.js"></script>
     <link rel="stylesheet" href="../css/cookie-banner.css">
     <!-- Vercel Web Analytics: nachgeladen von ../js/cookie-banner.js nach Einwilligung -->
+    <link rel="stylesheet" href="../css/redesign.css">
 </head>
 <body>
 
 <!-- ── TOPNAV ── -->
 <div class="topnav">
     <div class="topnav-brand">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
-            <rect width="20" height="20" rx="5" fill="var(--accent)"/>
-            <path d="M6 7.5C6 6.67 6.67 6 7.5 6h2C10.88 6 12 7.12 12 8.5S10.88 11 9.5 11H8v3H6V7.5zm2 2h1.5c.28 0 .5-.22.5-.5S9.78 8.5 9.5 8.5H8V9.5z" fill="white"/>
-            <path d="M12.5 11c.83 0 1.5.67 1.5 1.5S13.33 14 12.5 14H11v-3h1.5z" fill="white" opacity=".7"/>
-        </svg>
-        <div style="font-size:14px;font-weight:700;color:var(--text-primary);line-height:1;letter-spacing:-.3px;">Stackr</div>
+            <svg width="16" height="26" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 48 32 32 58 16 32Z" fill="currentColor"/></svg>
+            <div>stackr</div>
     </div>
     <div class="topnav-apps" id="topnavApps" data-active="lager"></div>
     <script defer src="../js/topnav.js"></script>
@@ -206,9 +202,9 @@
 </div>
 
 <!-- Modal-Overlay -->
-<div class="modal-overlay" id="modalOverlay">
+<dialog class="modal-overlay" id="modalOverlay">
     <div class="modal" id="modal"></div>
-</div>
+</dialog>
 
 <!-- Toast-Container -->
 <div id="toastContainer" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;"></div>
@@ -226,10 +222,11 @@
 <script defer src="../js/cloud-sync.js"></script>
 <script defer src="../js/lager.js"></script>
 <script defer src="page.js"></script>
-
-
-<script defer src="../js/page-shell.js"></script>
 <script defer src="../js/cookie-banner.js"></script>
 
+    <script defer src="../js/redesign-settings.js"></script>
+    <script defer src="../js/redesign-shell.js"></script>
+    <script defer src="../js/redesign-ui.js"></script>
+    <script defer src="../js/page-shell.js"></script>
 </body>
 </html>

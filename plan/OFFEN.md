@@ -409,6 +409,8 @@ Aus dem Performance-Lauf ([Funde](funde-audit-09-performance-2026-08-10.md)). Gr
 ## 3. Wartet auf Dritte
 
 - **Anwalts-Freigabe der Rechtstexte** — AGB §11, Trial-/Widerrufsklausel (§356 BGB).
+  Dazu die Frage, ob Stackr einen eigenen §312k-Button „Verträge hier kündigen“ braucht,
+  obwohl das Abo über Whop läuft ([spec-kuendigungsbutton-312k.md](spec-kuendigungsbutton-312k.md)).
   Punkt 2.2 (Local D6) entfällt mit der Local-Einstellung, Punkt 2.3 (EU-ODR) ist erledigt.
 - **Whop-DPA / AV-Vertrag** — seit Längerem offen, blockiert die DSGVO-Vollständigkeit.
 

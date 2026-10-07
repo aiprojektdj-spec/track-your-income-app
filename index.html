@@ -4,856 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none';">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
-<link rel="manifest" href="/manifest.json">
-<title>Stackr — Buchhaltung für Einzelunternehmen, Freiberufler &amp; GbR | EÜR &amp; GoBD</title>
-<meta name="description" content="Buchhaltung für Einzelunternehmen, Freiberufler, GbR und Reseller — EÜR, GoBD, Rechnungen, Lager, KSK. Live-Demo direkt im Browser. 7 Tage kostenlos testen, danach ab 15 €/Monat. DSGVO-konform — Daten standardmäßig lokal, optionaler Ende-zu-Ende-verschlüsselter Cloud-Sync.">
+<title>stackr · Deine Buchhaltung. Ein klarer Überblick.</title>
+<meta name="description" content="Rechnungen, Belege und Zahlen. An einem Ort. Stackr ist die Buchhaltung für Selbstständige, Freelancer, Reseller und GbR. Lokal gespeichert, mit optionalem verschlüsseltem Cloud-Sync.">
 <link rel="canonical" href="https://track-your-income-app.vercel.app/">
-<!-- Open Graph -->
-<meta property="og:type"        content="website">
-<meta property="og:title"       content="Stackr — Buchhaltung für Einzelunternehmen, Freiberufler &amp; GbR">
-<meta property="og:description" content="EÜR, GoBD, Rechnungen, Lager und KSK in einer App. Live-Demo im Browser. 7 Tage kostenlos — Karte hinterlegen, keine Abbuchung. Ab 15 €/Monat.">
-<meta property="og:url"         content="https://track-your-income-app.vercel.app/">
-<meta property="og:image"       content="https://track-your-income-app.vercel.app/og-image.png">
-<meta property="og:locale"      content="de_DE">
-<meta name="twitter:card"       content="summary_large_image">
-<meta name="twitter:title"      content="Stackr — Buchhaltung für Einzelunternehmen, Freiberufler &amp; GbR">
-<meta name="twitter:description" content="EÜR, GoBD, Rechnungen, Lager und KSK in einer App. Live-Demo im Browser. 7 Tage kostenlos. Ab 15 €/Monat.">
-<meta name="twitter:image"      content="https://track-your-income-app.vercel.app/og-image.png">
-<link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="fonts/fraunces-var-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="css/landing.css">
-<link rel="stylesheet" href="css/cookie-banner.css">
-<!-- Vercel Web Analytics: nachgeladen von js/cookie-banner.js nach Einwilligung -->
-</head>
-<body>
-
-<a href="#main-content" class="skip-link">Zum Hauptinhalt springen</a>
-
-<!-- ═══════════════════ SVG ICONS ═══════════════════ -->
-<svg style="display:none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></symbol>
-    <symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 1 1 .6-7.97A5.5 5.5 0 0 1 18.3 12.2 3.5 3.5 0 0 1 17 19H7z"/></symbol>
-    <symbol id="i-clip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3h6v2"/><path d="m9 13.5 2 2 4-4.5"/></symbol>
-    <symbol id="i-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12 4 7.5M12 12l8-4.5M12 12v9"/></symbol>
-    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M4 20c0-3 2-5 5-5s5 2 5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.6c2.5.3 3.5 2.2 3.5 4.4"/></symbol>
-    <symbol id="i-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16.5V14l2-5.5h12L20 14v2.5"/><path d="M4 14h16"/><circle cx="8" cy="17.5" r="1.6"/><circle cx="16" cy="17.5" r="1.6"/></symbol>
-    <symbol id="i-trend" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 6-6 4 4 7-8"/><path d="M14 7h6v6"/></symbol>
-    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6z"/><path d="m9.5 11.5 2 2 3.5-4"/></symbol>
-    <symbol id="i-school" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m12 4.5 9 4.5-9 4.5L3 9z"/><path d="M7 11.5V16c0 1 2.2 2 5 2s5-1 5-2v-4.5"/></symbol>
-    <symbol id="i-receipt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2-1.5L14 21l-2-1.5L10 21l-2-1.5L6 21z"/><path d="M9.5 8.5h5M9.5 12.5h5"/></symbol>
-    <symbol id="i-percent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5 5 19"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></symbol>
-    <symbol id="i-calc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><rect x="8" y="6" width="8" height="3.5" rx=".5"/><path d="M8.5 14h.01M12 14h.01M15.5 14h.01M8.5 17.5h.01M12 17.5h.01M15.5 17.5h.01"/></symbol>
-    <symbol id="i-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m4 20 1.2-4.2L16.5 4.5a2.12 2.12 0 0 1 3 3L8.2 18.8z"/><path d="m13.5 7.5 3 3"/></symbol>
-    <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12V4h8l8 8-8 8z"/><circle cx="8.5" cy="8.5" r="1.2"/></symbol>
-    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></symbol>
-</svg>
-
-<!-- ═══════════════════ NAV ═══════════════════ -->
-<nav id="topnav">
-    <a href="#" class="nav-brand">
-        <span class="nav-brand-icon">◆</span>
-        <span class="nav-brand-text">Stackr</span>
-    </a>
-    <div class="nav-links">
-        <a href="#funktionen" class="nav-link">Funktionen</a>
-        <a href="#demo" class="nav-link">Live-Demo</a>
-        <a href="#vergleich" class="nav-link">Vergleich</a>
-        <a href="#preise" class="nav-link">Preise</a>
-        <a href="#faq" class="nav-link">FAQ</a>
-    </div>
-    <div class="nav-actions">
-        <button class="btn-ghost" data-action="auth" data-mode="login">Anmelden</button>
-        <a class="btn-primary" href="#preise">7 Tage testen →</a>
-    </div>
-</nav>
-
-<!-- ═══════════════════ HERO ═══════════════════ -->
-<div class="hero" id="main-content">
-    <div class="hero-glow" id="heroGlow"></div>
-
-    <div class="hero-badge">✦ Für Einzelunternehmen, Freiberufler, GbR-Teams &amp; Reseller</div>
-
-    <h1>Steuern stressen.<br><span class="grad">Stackr beruhigt.</span></h1>
-
-    <p class="hero-sub">
-        Buchungen, Rechnungen, EÜR und GoBD-Protokoll in <strong>einer App</strong> —
-        statt an einem verlorenen Sonntag erledigst du deine Buchhaltung
-        in <strong>20 Minuten im Monat</strong>. Dein Steuerberater bekommt am Ende
-        einfach die fertige XLSX.
-    </p>
-
-    <div class="hero-actions">
-        <a class="btn-hero" href="#preise">7 Tage kostenlos testen →</a>
-        <a href="#demo" class="btn-hero-ghost">Live-Demo ausprobieren ↓</a>
-    </div>
-    <div class="hero-micro">Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung · danach 15 €/Monat · jederzeit kündbar</div>
-
-    <!-- App-Mockup -->
-    <div class="hero-mockup-wrap">
-        <div class="hero-mockup">
-            <div class="mockup-bar">
-                <div class="mockup-dot" style="background:#ef4444;"></div>
-                <div class="mockup-dot" style="background:#f59e0b;"></div>
-                <div class="mockup-dot" style="background:#22c55e;"></div>
-                <span style="font-size:12px;color:var(--muted);margin-left:8px;">Stackr — Dashboard</span>
-                <span style="margin-left:auto;font-size:11px;color:var(--muted);">Juni 2026</span>
-            </div>
-            <div class="mockup-stats">
-                <div class="mockup-stat">
-                    <div class="mockup-stat-label">Einnahmen (Monat)</div>
-                    <div class="mockup-stat-val"><span data-cnt="8450">0</span> €</div>
-                    <div class="mockup-stat-sub">↑ +12 % vs. Vormonat</div>
-                </div>
-                <div class="mockup-stat">
-                    <div class="mockup-stat-label">Ausgaben</div>
-                    <div class="mockup-stat-val"><span data-cnt="2130">0</span> €</div>
-                    <div class="mockup-stat-sub" style="color:#f87171;">↑ +3 %</div>
-                </div>
-                <div class="mockup-stat">
-                    <div class="mockup-stat-label">Offene Rechnungen</div>
-                    <div class="mockup-stat-val"><span data-cnt="3">0</span></div>
-                    <div class="mockup-stat-sub" style="color:var(--muted);">1.240 € offen</div>
-                </div>
-                <div class="mockup-stat">
-                    <div class="mockup-stat-label">Gewinn (netto)</div>
-                    <div class="mockup-stat-val"><span data-cnt="6320">0</span> €</div>
-                    <div class="mockup-stat-sub">↑ +18 %</div>
-                </div>
-            </div>
-            <div class="mockup-chart" aria-hidden="true">
-                <div class="hbar" style="--h:38%;animation-delay:.05s;"></div>
-                <div class="hbar" style="--h:55%;animation-delay:.12s;"></div>
-                <div class="hbar" style="--h:46%;animation-delay:.19s;"></div>
-                <div class="hbar" style="--h:72%;animation-delay:.26s;"></div>
-                <div class="hbar" style="--h:60%;animation-delay:.33s;"></div>
-                <div class="hbar" style="--h:84%;animation-delay:.40s;"></div>
-                <div class="hbar" style="--h:100%;animation-delay:.47s;"></div>
-            </div>
-        </div>
-        <div class="mockup-chip chip-gobd"><svg><use href="#i-shield"/></svg> GoBD-protokolliert</div>
-        <div class="mockup-chip chip-euer"><svg><use href="#i-clip"/></svg> EÜR exportiert · XLSX</div>
-    </div>
-
-    <div class="hero-stats">
-        <div class="hero-stat">
-            <div class="hero-stat-num">GoBD</div>
-            <div class="hero-stat-lbl">Änderungsprotokoll</div>
-        </div>
-        <div class="hero-stat">
-            <div class="hero-stat-num">DSGVO</div>
-            <div class="hero-stat-lbl">100 % lokal gespeichert</div>
-        </div>
-        <div class="hero-stat">
-            <div class="hero-stat-num">§14 · §19</div>
-            <div class="hero-stat-lbl">UStG-konforme Rechnungen</div>
-        </div>
-        <div class="hero-stat">
-            <div class="hero-stat-num">29 Bereiche</div>
-            <div class="hero-stat-lbl">Ein Preis. Keine Tarif-Treppe.</div>
-        </div>
-    </div>
-</div>
-
-<!-- ═══════════════════ PAIN — Akt 1 ═══════════════════ -->
-<section id="pain">
-    <div class="section-head" data-reveal>
-        <div class="section-tag">Kennst du das?</div>
-        <h2 class="section-title">Der Sonntagabend vor der Steuer.</h2>
-        <p class="section-sub">Selbstständig sein heißt: Du machst die Arbeit von fünf Leuten. Buchhalter sollte nicht dazugehören.</p>
-    </div>
-
-    <div class="pain-grid">
-        <div class="pain-card" data-reveal>
-            <div class="pain-num">01</div>
-            <div class="pain-title">Das Excel-Chaos</div>
-            <div class="pain-desc">Drei Versionen derselben Tabelle, eine kaputte Formel, und niemand weiß mehr, welche Zahl stimmt. Jeden Monat fängst du wieder bei null an.</div>
-        </div>
-        <div class="pain-card dly-1" data-reveal>
-            <div class="pain-num">02</div>
-            <div class="pain-title">Der Schuhkarton voller Belege</div>
-            <div class="pain-desc">Flohmarkt-Quittungen, PayPal-Screenshots, DHL-Belege — und im Hinterkopf die leise Angst: <em>Was, wenn das Finanzamt prüft?</em></div>
-        </div>
-        <div class="pain-card dly-2" data-reveal>
-            <div class="pain-num">03</div>
-            <div class="pain-title">Die Steuerberater-Rechnung</div>
-            <div class="pain-desc">150 € die Stunde — fürs <em>Sortieren</em> deiner Unterlagen. Je chaotischer du übergibst, desto teurer wird es am Jahresende.</div>
-        </div>
-    </div>
-
-    <div class="pain-bridge" data-reveal>
-        Es geht auch ruhig.
-        <span class="down">↓</span>
-    </div>
-</section>
-
-<!-- ═══════════════════ LIVE-DEMO ═══════════════════ -->
-<section id="demo">
-    <div class="section-head" data-reveal>
-        <div class="section-tag">Live-Demo</div>
-        <h2 class="section-title">Probier es aus. Hier. Jetzt.</h2>
-        <p class="section-sub">Das ist kein Video und keine Animation — eine echte Mini-Version von Stackr. Buche etwas und sieh zu, was passiert.</p>
-    </div>
-
-    <div class="demo-shell" data-reveal>
-        <!-- Demo window -->
-        <div class="demo-window">
-            <div class="demo-titlebar">
-                <div class="mockup-dot" style="background:#ef4444;"></div>
-                <div class="mockup-dot" style="background:#f59e0b;"></div>
-                <div class="mockup-dot" style="background:#22c55e;"></div>
-                <span class="demo-title-label">◆ Stackr — Live-Demo</span>
-                <span class="demo-data-chip">Demo-Daten · nichts wird gespeichert</span>
-            </div>
-            <div class="demo-tabs" role="tablist" aria-label="Demo-Module">
-                <button class="demo-tab" role="tab" aria-selected="true" data-view="dashboard" type="button">Dashboard</button>
-                <button class="demo-tab" role="tab" aria-selected="false" data-view="buchungen" type="button">Buchungen</button>
-                <button class="demo-tab" role="tab" aria-selected="false" data-view="lager" type="button">Lager</button>
-                <button class="demo-tab" role="tab" aria-selected="false" data-view="rechnung" type="button">Rechnung</button>
-                <button class="demo-tab" role="tab" aria-selected="false" data-view="euer" type="button">EÜR</button>
-                <button class="demo-tab" role="tab" aria-selected="false" data-view="gobd" type="button">GoBD-Protokoll</button>
-            </div>
-            <div class="demo-body">
-                <!-- Dashboard -->
-                <div class="demo-view" id="dv-dashboard">
-                    <div class="demo-stats">
-                        <div class="demo-stat">
-                            <div class="demo-stat-lbl">Einnahmen</div>
-                            <div class="demo-stat-val" style="color:var(--accent);" id="dsIn">0 €</div>
-                            <div class="demo-stat-sub">2026 gesamt</div>
-                        </div>
-                        <div class="demo-stat">
-                            <div class="demo-stat-lbl">Ausgaben</div>
-                            <div class="demo-stat-val" style="color:var(--red);" id="dsOut">0 €</div>
-                            <div class="demo-stat-sub">Einkauf + Kosten</div>
-                        </div>
-                        <div class="demo-stat">
-                            <div class="demo-stat-lbl">Gewinn</div>
-                            <div class="demo-stat-val" style="color:var(--green);" id="dsWin">0 €</div>
-                            <div class="demo-stat-sub" id="dsMarge">—</div>
-                        </div>
-                    </div>
-                    <div class="demo-chart" id="demoChart" aria-hidden="true"></div>
-                    <!-- Erscheint erst ab der zweiten eigenen Buchung (js/landing.js).
-                         Nach der ersten wirkt es aufdringlich, danach hat der Besucher
-                         verstanden, was passiert — das ist der Moment. -->
-                    <div class="demo-inline-cta" id="demoCtaDash" hidden>
-                        <p>Zwei Buchungen, und Umsatz, Gewinn und Marge stimmen schon.
-                           Mit deinen echten Zahlen läuft es genauso.</p>
-                        <button class="demo-inline-cta-btn" type="button" data-action="auth" data-mode="register">Konto starten →</button>
-                    </div>
-                </div>
-                <!-- Buchungen -->
-                <div class="demo-view" id="dv-buchungen" hidden>
-                    <div class="demo-rows" id="demoList"></div>
-                </div>
-                <!-- Lager: das Modul, das Stackr von sevDesk und lexoffice unterscheidet.
-                     Zeigt den Weg Einkauf -> Verkauf und die Marge nach §25a UStG, die bei
-                     Gebrauchtware ohne Vorsteuer die eigentliche Bemessungsgrundlage ist. -->
-                <div class="demo-view" id="dv-lager" hidden>
-                    <div class="demo-rows" id="demoLagerList"></div>
-                    <div class="demo-euer-note" id="demoLagerNote">Jeder Artikel kennt seinen Einkaufspreis. Verkaufst du ihn, bucht Stackr die Einnahme <strong>und</strong> rechnet die Marge nach <strong>§25a UStG</strong> — bei Gebrauchtware ohne Vorsteuer zahlst du Umsatzsteuer nur auf die Differenz, nicht auf den vollen Verkaufspreis.</div>
-                </div>
-                <!-- Rechnung -->
-                <div class="demo-view" id="dv-rechnung" hidden>
-                    <div class="demo-inv-head">
-                        <div>
-                            <div class="demo-inv-nr">RE-2026-043</div>
-                            <div class="demo-inv-meta">Muster &amp; Partner GbR · Leistung 01.06.2026</div>
-                        </div>
-                        <span class="demo-inv-status" id="demoInvStatus">offen</span>
-                    </div>
-                    <div class="demo-rows">
-                        <div class="demo-row"><span class="dr-label">Logo-Design · Pauschale</span><span class="dr-amt">320,00 €</span></div>
-                        <div class="demo-row"><span class="dr-label">Visitenkarten-Layout</span><span class="dr-amt">80,00 €</span></div>
-                        <div class="demo-row"><span class="dr-label" style="color:var(--subtle);">Netto</span><span class="dr-amt">400,00 €</span></div>
-                        <div class="demo-row"><span class="dr-label" style="color:var(--subtle);">zzgl. 19 % USt</span><span class="dr-amt">76,00 €</span></div>
-                        <div class="demo-row" style="border-top:1px solid var(--border);border-radius:0 0 7px 7px;"><span class="dr-label" style="font-weight:700;color:var(--text);">Gesamt</span><span class="dr-amt" style="font-size:15px;">476,00 €</span></div>
-                    </div>
-                    <div class="demo-euer-note">Als <strong>XRechnung (EN 16931)</strong> exportierbar. Die E-Rechnung ist seit 2025 im B2B Pflicht — bei Stackr im Preis enthalten, nicht erst im höheren Tarif.</div>
-                </div>
-                <!-- EÜR -->
-                <div class="demo-view" id="dv-euer" hidden>
-                    <div class="demo-rows">
-                        <div class="demo-row"><span class="dr-label" style="color:var(--subtle);">Betriebseinnahmen</span><span class="dr-amt in" id="euIn">0 €</span></div>
-                        <div class="demo-row"><span class="dr-label" style="color:var(--subtle);">Wareneinsatz</span><span class="dr-amt out" id="euWare">0 €</span></div>
-                        <div class="demo-row"><span class="dr-label" style="color:var(--subtle);">Betriebsausgaben</span><span class="dr-amt out" id="euKost">0 €</span></div>
-                        <div class="demo-row" style="border-top:1px solid var(--border);border-radius:0 0 7px 7px;"><span class="dr-label" style="font-weight:700;color:var(--text);">Gewinn</span><span class="dr-amt" style="color:var(--green);font-size:15px;" id="euWin">0 €</span></div>
-                    </div>
-                    <div class="demo-euer-note">Deine EÜR wird automatisch aus jeder Buchung berechnet — Monat, Quartal, Jahr. Excel-Export für den Steuerberater inklusive.</div>
-                    <div class="demo-inline-cta" id="demoCtaEuer" hidden>
-                        <p>Das ist deine EÜR — ohne dass du sie angefasst hast.
-                           Am Jahresende geht sie als Excel zum Steuerberater.</p>
-                        <button class="demo-inline-cta-btn" type="button" data-action="auth" data-mode="register">Konto starten →</button>
-                    </div>
-                </div>
-                <!-- GoBD -->
-                <div class="demo-view" id="dv-gobd" hidden>
-                    <div class="demo-rows" id="demoLog"></div>
-                    <div class="demo-gobd-note">Stackr unterstützt GoBD-konformes Arbeiten: Aktionen werden protokolliert, festgeschriebene Buchungen laufen über Storno statt Löschen — wie es § 146 AO verlangt.</div>
-                </div>
-            </div>
-            <div class="demo-toast" id="demoToast"><span class="ok">✓</span> Buchung erfasst — GoBD-protokolliert</div>
-        </div>
-
-        <!-- Side panel -->
-        <aside class="demo-side">
-            <h3>Buch etwas — live.</h3>
-            <p>Klick auf eine Buchung und schau dann ins Dashboard, in die EÜR oder ins GoBD-Protokoll: Alles aktualisiert sich sofort.</p>
-
-            <div class="demo-presets">
-                <button class="demo-preset" type="button" data-action="demo-add" data-label="Sneaker-Verkauf · Vinted" data-amount="89" data-type="in" data-cat="Verkauf">
-                    <span>+ Verkauf · Sneaker (Vinted)</span><span class="amt in">+ 89,00 €</span>
-                </button>
-                <!-- data-demo-invoice: springt nach dem Buchen in den Rechnungs-Reiter und
-                     setzt sie auf "bezahlt" — so ist die Kette Rechnung -> Zahlung -> Buchung
-                     -> EUER am Stueck zu sehen. Der Betrag ist der BRUTTObetrag der dort
-                     gezeigten Rechnung (400,00 netto + 19 % USt), sonst passt die Kette nicht. -->
-                <button class="demo-preset" type="button" data-action="demo-add" data-demo-invoice="1" data-label="Rechnung RE-2026-043 bezahlt" data-amount="476" data-type="in" data-cat="Dienstleistung">
-                    <span>+ Rechnung bezahlt · Kunde</span><span class="amt in">+ 476,00 €</span>
-                </button>
-                <button class="demo-preset" type="button" data-action="demo-add" data-label="Wareneinkauf · Secondhand-Laden" data-amount="34" data-type="out" data-cat="Wareneinkauf">
-                    <span>− Wareneinkauf · bar (Eigenbeleg)</span><span class="amt out">− 34,00 €</span>
-                </button>
-            </div>
-
-            <div class="demo-custom">
-                <div class="demo-custom-lbl">Eigene Buchung</div>
-                <div class="demo-custom-row">
-                    <input class="demo-inp" id="demoLabel" type="text" maxlength="40" placeholder="Bezeichnung, z. B. Kunde Müller" aria-label="Bezeichnung der Buchung">
-                </div>
-                <div class="demo-custom-row">
-                    <input class="demo-inp" id="demoAmt" type="number" min="0.01" step="0.01" placeholder="Betrag in €" aria-label="Betrag in Euro">
-                    <select class="demo-inp" id="demoType" aria-label="Buchungstyp">
-                        <option value="in">Einnahme</option>
-                        <option value="out">Ausgabe</option>
-                    </select>
-                    <!-- Wird von js/landing.js je nach Buchungstyp gefuellt: nur bei einer
-                         Ausgabe gibt es "Wareneinkauf", und nur der landet in der EUER im
-                         Wareneinsatz statt in den Betriebsausgaben. -->
-                    <select class="demo-inp" id="demoCat" aria-label="Kategorie"></select>
-                    <button class="demo-book-btn" type="button" data-action="demo-custom">Buchen</button>
-                </div>
-            </div>
-
-            <p class="demo-hint">Das hier sind <strong>5 von 29 Bereichen</strong>. In der echten App kommen Lager, Fahrtenbuch, GbR, AfA, KSK, Statistiken und die Akademie dazu.</p>
-
-            <button class="btn-hero" data-action="auth" data-mode="register">Eigenes Konto starten →</button>
-        </aside>
-    </div>
-</section>
-
-<!-- ═══════════════════ FLOW — Akt 2 ═══════════════════ -->
-<section id="flow">
-    <div class="section-head" data-reveal>
-        <div class="section-tag">So funktioniert's</div>
-        <h2 class="section-title">Drei Schritte. Mehr ist es nicht.</h2>
-        <p class="section-sub">Von der ersten Buchung bis zur Übergabe an den Steuerberater — ohne Buchhaltungs-Vorkenntnisse.</p>
-    </div>
-
-    <div class="flow-grid">
-        <div class="flow-step" data-reveal>
-            <div class="flow-num">1</div>
-            <div class="flow-title">Erfassen</div>
-            <div class="flow-desc">Buchung in 10 Sekunden: Betrag, Kategorie, fertig. Lager-Verkäufe übernimmst du mit einem Klick, Barkäufe dokumentierst du als Eigenbeleg mit Foto.</div>
-        </div>
-        <div class="flow-step dly-1" data-reveal>
-            <div class="flow-num">2</div>
-            <div class="flow-title">Verstehen</div>
-            <div class="flow-desc">Dashboard, Statistiken und EÜR berechnen sich von selbst. Du siehst jederzeit, was du verdienst, was du schuldest — und was du absetzen kannst.</div>
-        </div>
-        <div class="flow-step dly-2" data-reveal>
-            <div class="flow-num">3</div>
-            <div class="flow-title">Übergeben</div>
-            <div class="flow-desc">Am Jahresende exportierst du EÜR, Buchungen und GoBD-Protokoll als XLSX. Dein Steuerberater spart Stunden — und du sparst sein Honorar dafür.</div>
-        </div>
-    </div>
-</section>
-
-<!-- ═══════════════════ FEATURES — Bento ═══════════════════ -->
-<section id="funktionen">
-    <div class="section-head" data-reveal>
-        <div class="section-tag">Funktionen</div>
-        <h2 class="section-title">Von der ersten Buchung bis zur Steuererklärung.</h2>
-        <p class="section-sub">29 Bereiche, ein Preis — keine Tarif-Treppe, kein „nur im Premium-Plan".</p>
-    </div>
-
-    <div class="bento">
-        <div class="bento-card wide" data-reveal>
-            <div class="bento-icon"><svg class="ic"><use href="#i-clip"/></svg></div>
-            <div class="bento-title">EÜR auf Knopfdruck <span class="pro-chip">PRO</span></div>
-            <div class="bento-desc">Deine Einnahmen-Überschuss-Rechnung berechnet sich automatisch aus jeder Buchung — Monat, Quartal, Jahr. Als Excel exportierbar, steuerberater-ready.</div>
-            <div class="bento-mini">
-                <div class="bento-mini-row"><span>Betriebseinnahmen</span><strong style="color:var(--accent);">48.920,00 €</strong></div>
-                <div class="bento-mini-row"><span>Betriebsausgaben</span><strong style="color:var(--red);">− 22.460,00 €</strong></div>
-                <div class="bento-mini-row"><span>Gewinn</span><strong style="color:var(--green);">26.460,00 €</strong></div>
-            </div>
-        </div>
-        <div class="bento-card wide dly-1" data-reveal>
-            <div class="bento-icon"><svg class="ic"><use href="#i-users"/></svg></div>
-            <div class="bento-title">Echte GbR-Verwaltung <span class="pro-chip">PRO</span></div>
-            <div class="bento-desc">Gewinnverteilung nach Quote, Verrechnungskonten je Gesellschafter, separate EÜR — eines der wenigen Tools, das GbRs wirklich kann.</div>
-            <div class="bento-split">
-                <div class="bento-split-bar"><div class="a"></div><div class="b"></div></div>
-                <div class="bento-split-leg"><span>Max · 60 % · 15.876 €</span><span>Anna · 40 % · 10.584 €</span></div>
-            </div>
-        </div>
-        <div class="bento-card wide dly-1" data-reveal>
-            <div class="bento-icon"><svg class="ic"><use href="#i-file"/></svg></div>
-            <div class="bento-title">Rechnungen &amp; Angebote <span class="pro-chip">PRO</span></div>
-            <div class="bento-desc">§14 UStG-konforme Rechnungen mit eigenem Logo in 30 Sekunden. Fortlaufende Nummern, Angebote, Mahnungen, PDF-Export — auch für Kleinunternehmer (§19).</div>
-        </div>
-        <div class="bento-card wide dly-2" data-reveal>
-            <div class="bento-icon"><svg class="ic"><use href="#i-box"/></svg></div>
-            <div class="bento-title">Lager für Reseller <span class="pro-chip">PRO</span></div>
-            <div class="bento-desc">Artikel mit EK, VK, Zustand und Marge tracken. Beim Verkauf mit einem Klick als Buchung übernehmen — Lagerwert läuft automatisch mit.</div>
-        </div>
-        <div class="bento-card" data-reveal>
-            <div class="bento-icon"><svg class="ic"><use href="#i-receipt"/></svg></div>
-            <div class="bento-title">Eigenbelege</div>
-            <div class="bento-desc">Flohmarkt-Kauf ohne Quittung? GoBD-konform dokumentiert, mit Foto-Upload.</div>
-        </div>
-        <div class="bento-card dly-1" data-reveal>
-            <div class="bento-icon"><svg class="ic"><use href="#i-car"/></svg></div>
-            <div class="bento-title">Fahrtenbuch <span class="pro-chip">PRO</span></div>
-            <div class="bento-desc">Fahrten erfassen, 0,30 €/km automatisch berechnet und absetzbar.</div>
-        </div>
-        <div class="bento-card dly-2" data-reveal>
-            <div class="bento-icon"><svg class="ic"><use href="#i-calc"/></svg></div>
-            <div class="bento-title">AfA &amp; KSK</div>
-            <div class="bento-desc">Abschreibungen mit Anlagenverzeichnis und Künstlersozialabgabe — automatisch berechnet.</div>
-        </div>
-        <div class="bento-card dly-3" data-reveal>
-            <div class="bento-icon"><svg class="ic"><use href="#i-shield"/></svg></div>
-            <div class="bento-title">GoBD-Protokoll</div>
-            <div class="bento-desc">Lückenloses Audit-Log mit Zeitstempel und Checksumme. Storno statt Löschen.</div>
-        </div>
-        <div class="bento-card" data-reveal>
-            <div class="bento-icon"><svg class="ic"><use href="#i-trend"/></svg></div>
-            <div class="bento-title">Statistiken</div>
-            <div class="bento-desc">Margen je Kategorie, beste Monate, Top-Plattformen — interaktive Charts.</div>
-        </div>
-        <div class="bento-card dly-1" data-reveal>
-            <div class="bento-icon"><svg class="ic"><use href="#i-school"/></svg></div>
-            <div class="bento-title">Steuer-Akademie</div>
-            <div class="bento-desc">9 Module, 31+ Lektionen: Steuern, Krankenversicherung, EÜR — verständlich erklärt.</div>
-        </div>
-        <div class="bento-card dly-2" data-reveal>
-            <div class="bento-icon"><svg class="ic"><use href="#i-cloud"/></svg></div>
-            <div class="bento-title">Automatische Backups</div>
-            <div class="bento-desc">Deine Daten bleiben lokal auf deinem Gerät — automatische Sicherungen plus optionales Backup in einen Ordner deiner Wahl.</div>
-        </div>
-        <div class="bento-card dly-3" data-reveal>
-            <div class="bento-icon"><svg class="ic"><use href="#i-percent"/></svg></div>
-            <div class="bento-title">Kleinunternehmer §19</div>
-            <div class="bento-desc">Voller Support für die Kleinunternehmerregelung — jederzeit umschaltbar.</div>
-        </div>
-    </div>
-</section>
-
-<!-- ═══════════════════ PERSONAS ═══════════════════ -->
-<section id="personas">
-    <div class="section-head" data-reveal>
-        <div class="section-tag">Für wen?</div>
-        <h2 class="section-title">Drei Arten, selbstständig zu sein.<br>Eine App.</h2>
-        <p class="section-sub">Stackr ist für Leute gebaut, die keine Buchhalter sind — und auch keine werden wollen.<br>Unterstützt werden <strong>Einzelunternehmen, Freiberufler, GbR und eGbR</strong> mit EÜR — sowie OHG, KG, GmbH, UG und GmbH &amp; Co. KG mit Bilanz.</p>
-    </div>
-
-    <div class="persona-grid">
-        <div class="persona-card" data-reveal>
-            <div class="persona-icon"><svg class="ic"><use href="#i-tag"/></svg></div>
-            <div class="persona-kicker">eBay · Vinted · Flohmarkt</div>
-            <div class="persona-title">Reseller</div>
-            <p class="persona-lead">200 Artikel im Monat und ein Schuhkarton voller Belege? Stackr ist das einzige Buchhaltungstool mit echtem Reseller-Lager.</p>
-            <ul class="persona-list">
-                <li>Lager mit EK, VK und Marge je Artikel</li>
-                <li>Verkauf → Buchung mit einem Klick</li>
-                <li>Eigenbelege für Barkäufe ohne Quittung</li>
-                <li>Plattform-Statistiken: eBay, Vinted &amp; Co.</li>
-            </ul>
-            <button class="persona-cta" data-action="auth" data-mode="register">Als Reseller starten →</button>
-        </div>
-        <div class="persona-card dly-1" data-reveal>
-            <div class="persona-icon"><svg class="ic"><use href="#i-users"/></svg></div>
-            <div class="persona-kicker">Zu zweit oder dritt</div>
-            <div class="persona-title">GbR-Teams</div>
-            <p class="persona-lead">Die meisten Tools tun so, als gäbe es euch nicht. Stackr verwaltet eure GbR wirklich — fair, transparent, automatisch.</p>
-            <ul class="persona-list">
-                <li>Gewinnverteilung nach Quote — automatisch</li>
-                <li>Verrechnungskonto je Gesellschafter</li>
-                <li>Separate EÜR für jeden Partner</li>
-                <li>Gewerbesteuer &amp; Feststellung im Blick</li>
-            </ul>
-            <button class="persona-cta" data-action="auth" data-mode="register">Als GbR starten →</button>
-        </div>
-        <div class="persona-card dly-2" data-reveal>
-            <div class="persona-icon"><svg class="ic"><use href="#i-pen"/></svg></div>
-            <div class="persona-kicker">Solo &amp; kreativ</div>
-            <div class="persona-title">Freelancer</div>
-            <p class="persona-lead">Du willst arbeiten, nicht buchhalten. Stackr nimmt dir den Papierkram ab — inklusive der Dinge, die nur Kreative betreffen.</p>
-            <ul class="persona-list">
-                <li>Rechnungen mit eigenem Logo in 30 Sekunden</li>
-                <li>KSK-Abgabe automatisch berechnet</li>
-                <li>EÜR &amp; USt-Voranmeldung vorbereitet</li>
-                <li>Akademie: Krankenversicherung &amp; Steuern erklärt</li>
-                <li style="color:var(--muted);">Keine Zeiterfassung, kein Stundensatz — Stackr übernimmt ab der Rechnung</li>
-            </ul>
-            <button class="persona-cta" data-action="auth" data-mode="register">Als Freelancer starten →</button>
-        </div>
-    </div>
-</section>
-
-<!-- ═══════════════════ VERGLEICH ═══════════════════ -->
-<section id="vergleich">
-    <div class="section-head" data-reveal>
-        <div class="section-tag">Vergleich</div>
-        <h2 class="section-title">Selbstbewusst günstiger.</h2>
-        <p class="section-sub">Die großen Anbieter sind für Unternehmen mit Buchhaltungsabteilung gebaut. Stackr ist für dich gebaut — und ehrlich bepreist.</p>
-    </div>
-
-    <div class="cmp-scroll" data-reveal>
-        <table class="cmp-table">
-            <thead>
-                <tr>
-                    <th></th>
-                    <th class="c-us">◆ Stackr</th>
-                    <th>sevDesk</th>
-                    <th>lexoffice</th>
-                    <th>Papierkram</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Preis / Monat (voller Funktionsumfang)</td>
-                    <td class="c-us">15,00 €</td>
-                    <td>ca. 20–30 €*</td>
-                    <td>ca. 20–35 €*</td>
-                    <td>ca. 10–20 €*</td>
-                </tr>
-                <tr>
-                    <td>Ein Tarif — alle Funktionen enthalten</td>
-                    <td class="c-us"><span class="cmp-yes">✓</span></td>
-                    <td><span class="cmp-no">— Tarifstufen</span></td>
-                    <td><span class="cmp-no">— Tarifstufen</span></td>
-                    <td><span class="cmp-no">— Tarifstufen</span></td>
-                </tr>
-                <tr>
-                    <td>EÜR &amp; Kleinunternehmer (§19 UStG)</td>
-                    <td class="c-us"><span class="cmp-yes">✓</span></td>
-                    <td><span class="cmp-yes">✓</span></td>
-                    <td><span class="cmp-yes">✓</span></td>
-                    <td><span class="cmp-yes">✓</span></td>
-                </tr>
-                <tr>
-                    <td>Echte GbR-Verwaltung (Quote, Verrechnungskonten, EÜR je Gesellschafter)</td>
-                    <td class="c-us"><span class="cmp-yes">✓</span></td>
-                    <td><span class="cmp-no">—</span></td>
-                    <td><span class="cmp-no">—</span></td>
-                    <td><span class="cmp-no">—</span></td>
-                </tr>
-                <tr>
-                    <td>Reseller-Lager mit EK / VK / Marge</td>
-                    <td class="c-us"><span class="cmp-yes">✓</span></td>
-                    <td><span class="cmp-half">◐</span></td>
-                    <td><span class="cmp-no">—</span></td>
-                    <td><span class="cmp-half">◐</span></td>
-                </tr>
-                <tr>
-                    <td>KSK-Berechnung (Künstlersozialkasse)</td>
-                    <td class="c-us"><span class="cmp-yes">✓</span></td>
-                    <td><span class="cmp-no">—</span></td>
-                    <td><span class="cmp-no">—</span></td>
-                    <td><span class="cmp-no">—</span></td>
-                </tr>
-                <tr>
-                    <td>Fahrtenbuch integriert</td>
-                    <td class="c-us"><span class="cmp-yes">✓</span></td>
-                    <td><span class="cmp-no">—</span></td>
-                    <td><span class="cmp-no">—</span></td>
-                    <td><span class="cmp-half">◐</span></td>
-                </tr>
-                <tr>
-                    <td>Steuer-Akademie integriert</td>
-                    <td class="c-us"><span class="cmp-yes">✓</span></td>
-                    <td><span class="cmp-no">—</span></td>
-                    <td><span class="cmp-no">—</span></td>
-                    <td><span class="cmp-no">—</span></td>
-                </tr>
-                <tr>
-                    <td>GoBD-konformes Protokoll</td>
-                    <td class="c-us"><span class="cmp-yes">✓</span></td>
-                    <td><span class="cmp-yes">✓</span></td>
-                    <td><span class="cmp-yes">✓</span></td>
-                    <td><span class="cmp-yes">✓</span></td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    <div class="cmp-legend" data-reveal>
-        <span><span class="cmp-yes">✓</span> enthalten</span>
-        <span><span class="cmp-half">◐</span> teilweise / über Umwege</span>
-        <span><span class="cmp-no">—</span> nicht enthalten</span>
-    </div>
-    <!-- Netto/Brutto steht hier, weil die Wettbewerber ihre Preise durchgehend "zzgl. MwSt."
-         auszeichnen und Stackr brutto. Ohne den Hinweis liest sich die Zeile guenstiger fuer
-         uns, als sie ist — das waere §5 UWG. Belege: plan/belege-wettbewerbspreise-2026-08-16.md -->
-    <p class="cmp-note" data-reveal>* Listenpreise der Anbieter für vergleichbaren Funktionsumfang bei monatlicher Abrechnung, Stand Juni 2026, ohne Gewähr. Angaben zu Fremdprodukten nach bestem Wissen — Funktionsumfang der Anbieter kann sich ändern. <strong>Zur Vergleichbarkeit:</strong> Die Wettbewerber zeichnen ihre Preise netto aus (zzgl. MwSt.), Stackrs 15,00 € sind brutto — netto sind das 12,61 €.</p>
-</section>
-
-<!-- ═══════════════════ PRICING ═══════════════════ -->
-<div id="preise">
-<div>
-    <div style="text-align:center;margin-bottom:48px;" data-reveal>
-        <div class="section-tag">Preise</div>
-        <h2 class="section-title">Ein Preis. Alles drin.</h2>
-        <p class="section-sub">Erst 7 Tage kostenlos testen — Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung. Danach 11,25 € im Monat im Jahresabo, 15 € bei monatlicher Zahlung. Das war's. Kein Kleingedrucktes, keine Tarif-Treppe.</p>
-        <p class="section-sub"><strong>E-Rechnung ist seit 2025 Pflicht im B2B.</strong> Bei uns ist sie drin — nicht im teuersten Tarif.</p>
-
-        <!-- Billing toggle -->
-        <div class="billing-toggle" role="group" aria-label="Abrechnungszeitraum wählen">
-            <!-- N3: Jahresabo ist vorausgewaehlt. Der statische Zustand hier IST der
-                 Startzustand — landing.js ruft setBilling() beim Laden nicht auf.
-                 Preis, Beschreibung und CTA-Link unten muessen dazu passen. -->
-            <button class="billing-btn" id="billingMonthly" data-action="billing" data-plan="monthly" aria-pressed="false">Monatlich</button>
-            <button class="billing-btn billing-btn-active" id="billingYearly" data-action="billing" data-plan="yearly" aria-pressed="true">Jährlich <span class="billing-save-badge">25% günstiger</span></button>
-        </div>
-    </div>
-
-    <div class="pricing-grid" data-reveal>
-        <!-- PRO -->
-        <div class="pricing-card popular" style="grid-column:1/-1;max-width:400px;margin:0 auto;">
-            <div class="popular-badge">✦ Erst 7 Tage kostenlos</div>
-            <div class="plan-name">Pro</div>
-            <div class="plan-price" id="proPrice">11,25 € <span id="proPricePeriod">/ Monat</span></div>
-            <div class="plan-desc" id="proDesc">Abgerechnet jährlich (135 €) · Du sparst 45 € · inkl. MwSt.</div>
-            <ul class="plan-features">
-                <li><span class="check">✓</span> <strong>Alle 29 Bereiche dauerhaft</strong></li>
-                <li><span class="check">✓</span> <strong>Unbegrenzte Buchungen</strong></li>
-                <li><span class="check">✓</span> <strong>DATEV- &amp; E-Rechnung-Export (XRechnung)</strong></li>
-                <li><span class="check">✓</span> Rechnungen &amp; Angebote (§14 UStG)</li>
-                <li><span class="check">✓</span> EÜR, Lager, GbR, Fahrtenbuch</li>
-                <li><span class="check">✓</span> AfA, KSK &amp; GoBD-Protokoll</li>
-                <li><span class="check">✓</span> PDF &amp; Excel Export</li>
-                <li><span class="check">✓</span> Prioritäts-Support</li>
-                <li style="color:var(--muted);font-size:12px;padding-top:4px;">Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung</li>
-            </ul>
-            <a class="btn-plan btn-plan-pro" id="proCtaBtn" href="https://whop.com/checkout/plan_b5IBQ1lecggOT" rel="noopener">Jetzt 7 Tage kostenlos testen →</a>
-        </div>
-    </div>
-
-    <p class="price-anchor" data-reveal>
-        Zum Vergleich: Eine einzige Steuerberater-Stunde kostet <strong>150–250 €</strong>.
-        Stackr kostet <strong>15 € im Monat</strong> — und sorgt dafür, dass dein Steuerberater
-        weniger Stunden braucht.
-    </p>
-    <!-- Fund M4: konkreter Wettbewerbs-Preisanker. Bewusst nur EINE Aussage, dafuer belegt und
-         netto gegen netto gerechnet — die Wettbewerber zeichnen netto aus, Stackr brutto.
-         Nur Lexware verwendet: sevDesk laeuft zum Stichtag mit 60 % Aktionsrabatt, ein
-         Aktionspreis taugt nicht als Dauervergleich. Beleg mit Quellen und Stichtag:
-         plan/belege-wettbewerbspreise-2026-08-16.md. Wer die Zahl anfasst, zieht den Stichtag
-         im sichtbaren Text mit — er ist hier die rechtliche Absicherung, kein Beiwerk. -->
-    <p class="price-anchor" data-reveal>
-        Und beim Pflichtthema: <strong>E-Rechnung ist bei Stackr enthalten.</strong>
-        Bei Lexware Office beginnt sie erst im Tarif L mit <strong>21,90 € netto</strong> im Monat —
-        Stackr kostet <strong>12,61 € netto</strong>. <span class="price-src">Quelle:
-        <a href="https://www.lexware.de/preise/" target="_blank" rel="noopener nofollow">lexware.de/preise</a>,
-        Stand 16.08.2026, alle Angaben ohne Gewähr.</span>
-    </p>
-    <div class="price-guarantees" data-reveal>
-        <span class="price-guarantee"><svg><use href="#i-check"/></svg> 7 Tage kostenlos testen</span>
-        <span class="price-guarantee"><svg><use href="#i-check"/></svg> Monatlich kündbar</span>
-        <span class="price-guarantee"><svg><use href="#i-check"/></svg> Daten jederzeit exportierbar</span>
-        <span class="price-guarantee"><svg><use href="#i-check"/></svg> 100 % lokal · DSGVO</span>
-    </div>
-
-    <!-- Sozialbeweis (Fund M2). Bewusst KEINE Kundenstimmen und keine Nutzerzahlen: erfundene
-         oder geschoente Referenzen waeren §5 UWG, und diese Zielgruppe prueft nach. Stattdessen
-         vier Aussagen, die jeder selbst nachrechnen kann. Stand 2026-08-16: 239 ok()-Aufrufe in
-         33 Harnesses unter test/ — "ueber 200" steht hier bewusst, weil die Zahl nur waechst und
-         der Satz damit nicht veraltet. Bei Aenderungen: Zahl neu auszaehlen, nicht schaetzen.
-         Die Modulzahl ist hier absichtlich NICHT als Beleg verwendet — sie ist ungeklaert
-         (12 auf der Seite, 28 laut Feature-Gap-Audit, 17 data-page im Code). -->
-    <div class="proof" data-reveal>
-        <h3 class="proof-head">Nachprüfbar statt behauptet</h3>
-        <p class="proof-sub">Buchhaltung vertraut man niemandem auf Zuruf an. Diese vier Punkte kannst du prüfen, bevor du zahlst.</p>
-        <div class="proof-grid">
-            <div class="proof-item">
-                <div class="proof-num">200+</div>
-                <div class="proof-lbl"><strong>automatisierte Prüfungen</strong> laufen bei jeder Änderung — überwiegend auf der Steuer- und GoBD-Logik: §19-Grenzen, Umsatzsteuer, AfA, Differenzbesteuerung, Audit-Log.</div>
-            </div>
-            <div class="proof-item">
-                <div class="proof-num"><svg><use href="#i-shield"/></svg></div>
-                <div class="proof-lbl"><strong>Ende-zu-Ende verschlüsselt.</strong> Der Sync-Schlüssel entsteht auf deinem Gerät und verlässt es nie. Auf dem Server liegt ausschließlich Chiffrat — auch wir können deine Buchhaltung nicht lesen.</div>
-            </div>
-            <div class="proof-item">
-                <div class="proof-num"><svg><use href="#i-clip"/></svg></div>
-                <div class="proof-lbl"><strong>Verfahrensdokumentation liegt bei.</strong> Das Dokument, nach dem der Betriebsprüfer fragt — <a href="verfahrensdokumentation.html">hier vollständig lesbar</a>, ohne Registrierung.</div>
-            </div>
-            <div class="proof-item">
-                <div class="proof-num">0 €</div>
-                <div class="proof-lbl"><strong>Steuerberater-Zugang kostet nichts.</strong> Nur-Lese-Freigabe für deine Kanzlei, ohne zweites Abo — und du kannst sie jederzeit wieder entziehen.</div>
-            </div>
-        </div>
-    </div>
-</div>
-</div>
-
-<!-- ═══════════════════ FAQ ═══════════════════ -->
-<section id="faq">
-    <div class="section-tag">FAQ</div>
-    <h2 class="section-title">Häufige Fragen</h2>
-    <div class="faq-list">
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Kann ich die App kostenlos testen?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Ja! Du startest den Pro-Plan über Whop mit einer kostenlosen 7-tägigen Testphase — dafür hinterlegst du eine Karte, abgebucht wird aber erst nach Ablauf der 7 Tage. Kündigst du vorher formlos über dein Whop-Konto, zahlst du nichts. Danach läuft dein gewähltes Abo (15 €/Monat oder 135 €/Jahr, inkl. MwSt.) normal weiter.</div>
-        </div>
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Wie kann ich kündigen?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Jederzeit mit einem Klick — keine Mindestlaufzeit, kein Kleingedrucktes. Nach der Kündigung behältst du den Pro-Zugang bis zum Ende des bezahlten Zeitraums.</div>
-        </div>
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Wo werden meine Daten gespeichert?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Deine Buchhaltungsdaten werden standardmäßig ausschließlich lokal auf deinem Gerät gespeichert (im Browser-Speicher) und verlassen es nicht. Optional kannst du als Pro-Nutzer einen Ende-zu-Ende-verschlüsselten Cloud-Sync aktivieren — dann werden nur für uns und den Anbieter unlesbare, verschlüsselte Daten bei einem EU-Anbieter (Frankfurt) abgelegt. Alle Datenschutzanforderungen der DSGVO werden eingehalten, und du kannst deine Daten jederzeit komplett exportieren.</div>
-        </div>
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Kann ich auf mehreren Geräten arbeiten?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Ja. Standardmäßig liegen deine Daten lokal auf dem jeweiligen Gerät. Als Pro-Nutzer kannst du zusätzlich den optionalen, Ende-zu-Ende-verschlüsselten Cloud-Sync aktivieren, der deine Daten automatisch zwischen deinen Geräten abgleicht — der Schlüssel bleibt dabei allein bei dir. Ohne Sync überträgst du Daten wie gewohnt per Export/Import.</div>
-        </div>
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Was passiert mit meinen lokalen Daten wenn ich mich anmelde?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Nichts geht verloren — deine lokalen Daten bleiben unverändert auf deinem Gerät. Der Login über Whop dient nur der Freischaltung; es werden keine Buchhaltungsdaten hochgeladen. Ist die App einmal geladen, funktioniert die Dateneingabe und -auswertung ohne Internetverbindung — nur zum erstmaligen Laden der Seite und für den Login brauchst du einmalig eine Verbindung.</div>
-        </div>
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Gibt es eine Desktop-App?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Stackr ist eine moderne Web-App, die in jedem aktuellen Browser (Chrome, Firefox, Edge, Safari) läuft — kein Download, keine Installation.</div>
-        </div>
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Ist Stackr GoBD-konform?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Stackr unterstützt GoBD-konformes Arbeiten: Buchungen werden mit Zeitstempel, Vorher-/Nachher-Wert und Checksumme protokolliert, festgeschriebene Rechnungen laufen über Storno statt Löschung. Das Protokoll ist jederzeit exportierbar. Hinweis: Stackr ist ein Werkzeug — kein Ersatz für einen Steuerberater und keine amtliche Zertifizierung.</div>
-        </div>
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Brauche ich noch einen Steuerberater?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Stackr ersetzt keine Steuerberatung, macht sie aber günstiger. EÜR, USt-Voranmeldung und GoBD-Protokoll sind exportbereit — dein Steuerberater braucht weniger Zeit (= weniger Kosten). Viele Stackr-Nutzer übergeben ihrem Steuerberater einfach den XLSX-Export.</div>
-        </div>
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Funktioniert Stackr für meine GbR?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Ja — Stackr ist eines der wenigen Tools mit echter GbR-Unterstützung: Gesellschafter-Verrechnungskonten, automatische Gewinnverteilung und GoBD-konforme Jahresabrechnung für alle Partner. Ideal für Zweimannbetriebe und kleine Agenturen.</div>
-        </div>
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Was passiert mit meinen Daten wenn ich kündige?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Deine Daten gehören dir. Vor der Kündigung kannst du alles als XLSX, CSV oder ZIP exportieren. Nach Ablauf des Abonnements wird der Zugang zur App gesperrt, deine Daten bleiben aber erhalten und können nach einer Reaktivierung wieder genutzt werden.</div>
-        </div>
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Funktioniert Stackr als Kleinunternehmer (§19 UStG)?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Ja. Stackr unterstützt die Kleinunternehmerregelung (§19 UStG) vollständig. Rechnungen werden ohne Mehrwertsteuerausweis mit dem korrekten gesetzlichen Hinweis erstellt, und die EÜR funktioniert identisch. Du kannst den Modus jederzeit in den Einstellungen aktivieren oder deaktivieren.</div>
-        </div>
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Kann ich Daten aus Excel oder einer anderen Software importieren?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Ja. Buchungen können als CSV- oder Excel-Datei importiert werden. Dein aktueller Datenstand ist in wenigen Minuten übertragen — kein manuelles Abtippen. Für spezifische Importfragen steht unser Support zur Verfügung.</div>
-        </div>
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Erfüllt Stackr die E-Rechnungspflicht ab 2025?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Ja. Stackr erzeugt E-Rechnungen im XRechnung-Format (EN 16931) und prüft eingehende E-Rechnungen deiner Lieferanten. Beides ist im Preis enthalten — nicht erst in einem höheren Tarif.</div>
-        </div>
-        <!-- Die fehlende ELSTER-Direktübermittlung gehört zur Haltung gemacht, nicht verschwiegen
-             (plan/02-ENTSCHEIDUNGEN.md, Abschnitt "Automatisierung, die einen Server mit
-             Klartextzugriff bräuchte"): ERiC ist eine native Bibliothek und liefe serverseitig —
-             dieser Server sähe die Umsatzsteuerdaten im Klartext. Der Wettbewerb wirbt mit der
-             Direktübermittlung, also sucht ein Vergleicher hier danach. Alles Behauptete ist
-             belegt: Kennzahlen in js/ustvoranmeldung.js, EÜR-Zeilen und Anleitung in js/euer.js. -->
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Kann Stackr direkt an ELSTER übermitteln?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Nein, und das ist Absicht. Eine Direktübermittlung braucht einen Server, der deine Steuerdaten im Klartext sieht — den gibt es bei Stackr nicht. Stackr rechnet stattdessen alle Werte fertig aus, beschriftet sie mit den ELSTER-Kennzahlen und Formularzeilen und legt dir eine Anleitung daneben. Das Übertragen dauert ein paar Minuten und machst du selbst. Dafür verlassen deine Steuerdaten dein Gerät nie — auch nicht für die Übermittlung.</div>
-        </div>
-        <!-- Der fehlende Teamzugang gehört offen benannt statt verschwiegen (plan/02-ENTSCHEIDUNGEN.md):
-             er ist eine bewusste Folge der Gerätesperre, die die lokalen Daten an EINE Whop-User-ID
-             bindet. Wer zu zweit bucht, merkt es am ersten Tag — dann lieber vorher ehrlich sein,
-             als eine Rückerstattung zu verhandeln. -->
-        <div class="faq-item">
-            <button class="faq-q" data-action="faq">
-                Können mehrere Personen mit demselben Konto arbeiten?
-                <span class="arrow">+</span>
-            </button>
-            <div class="faq-a">Nein — und das ist Absicht. Stackr ist für Solo-Selbstständige gebaut: dein Zugang ist fest an dein Konto gebunden, weil die Daten auf deinem Gerät liegen und nicht auf einem Server, auf den mehrere zugreifen. Eine Ausnahme gibt es: deinem <strong>Steuerberater</strong> kannst du einen kostenlosen Lese-Zugang freischalten. Für eine GbR heißt das: einer führt die Bücher, die Gewinnverteilung auf alle Gesellschafter rechnet Stackr trotzdem vollständig. Wenn ihr echte parallele Zugänge für mehrere Mitarbeiter braucht, ist Stackr das falsche Werkzeug.</div>
-        </div>
-    </div>
-</section>
-
-<!-- ═══════════════════ CTA BANNER ═══════════════════ -->
-<div style="padding:0 24px;">
-<div class="cta-banner" data-reveal>
-    <h2>Dein nächster Steuer-Abend<br>dauert 20 Minuten.</h2>
-    <p>Starte jetzt — in 2 Minuten ist dein Konto eingerichtet, deine erste Buchung dauert 10 Sekunden.</p>
-    <a class="btn-hero" href="#preise">Jetzt 7 Tage kostenlos testen →</a>
-    <div class="hero-micro">Karte hinterlegen, in den ersten 7 Tagen keine Abbuchung · danach 15 €/Monat · jederzeit kündbar</div>
-</div>
-</div>
-
-<!-- ═══════════════════ FOOTER ═══════════════════ -->
-<footer>
-    <div style="margin-bottom:8px;">◆ <strong style="color:var(--subtle);">Stackr</strong></div>
-    <div>© 2026 Stackr · <a href="datenschutz.html">Datenschutz</a> · <a href="impressum.html">Impressum</a> · <a href="agb.html">AGB</a> · <a href="refund.html">Widerruf</a> · <a href="cookies.html">Cookies</a></div>
-    <div class="footer-claim">Stackr ist ein Werkzeug für deine Buchhaltung — kein Ersatz für steuerliche Beratung.</div>
-</footer>
-
-<!-- ═══════════════════ STICKY MOBILE CTA ═══════════════════ -->
-<div id="stickyCta" aria-hidden="true">
-    <div class="sc-price"><strong>7 Tage kostenlos</strong>danach 15 €/Monat</div>
-    <a class="btn-hero" href="#preise">Jetzt testen →</a>
-</div>
-
-<!-- Auth-Modal entfernt: Anmeldung, Registrierung & Zahlung laufen vollständig über Whop in der App -->
-
-
-<!-- ═══════════════════ LOADER ═══════════════════ -->
-<div id="pageLoader">
-    <div class="loader-spin"></div>
-    <div class="loader-text" id="loaderText">Wird geladen...</div>
-</div>
-
-<!-- ═══════════════════ STRUCTURED DATA ═══════════════════ -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="stackr · Deine Buchhaltung. Ein klarer Überblick.">
+<meta property="og:description" content="Rechnungen, Belege und Zahlen. An einem Ort. Buchhaltung für Selbstständige.">
+<meta property="og:url" content="https://track-your-income-app.vercel.app/">
+<meta property="og:image" content="https://track-your-income-app.vercel.app/og-image.png">
+<meta property="og:locale" content="de_DE">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/stackr-concepts/raute-facette.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.json">
 <script type="application/ld+json">
 {
     "@context": "https://schema.org",
@@ -870,48 +32,87 @@
     ]
 }
 </script>
-<script type="application/ld+json">
-{
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": [
-        {
-            "@type": "Question",
-            "name": "Kann ich die App kostenlos testen?",
-            "acceptedAnswer": { "@type": "Answer", "text": "Ja! Du startest den Pro-Plan über Whop mit einer kostenlosen 7-tägigen Testphase — dafür hinterlegst du eine Karte, abgebucht wird aber erst nach Ablauf der 7 Tage. Kündigst du vorher formlos über dein Whop-Konto, zahlst du nichts. Danach läuft dein gewähltes Abo (15 €/Monat oder 135 €/Jahr, inkl. MwSt.) normal weiter." }
-        },
-        {
-            "@type": "Question",
-            "name": "Ist Stackr GoBD-konform?",
-            "acceptedAnswer": { "@type": "Answer", "text": "Stackr unterstützt GoBD-konformes Arbeiten: Buchungen werden mit Zeitstempel, Vorher-/Nachher-Wert und Checksumme protokolliert, festgeschriebene Rechnungen laufen über Storno statt Löschung. Das Protokoll ist jederzeit exportierbar." }
-        },
-        {
-            "@type": "Question",
-            "name": "Funktioniert Stackr für meine GbR?",
-            "acceptedAnswer": { "@type": "Answer", "text": "Ja — Stackr ist eines der wenigen Tools mit echter GbR-Unterstützung: Gesellschafter-Verrechnungskonten, automatische Gewinnverteilung und GoBD-konforme Jahresabrechnung für alle Partner." }
-        },
-        {
-            "@type": "Question",
-            "name": "Funktioniert Stackr als Kleinunternehmer (§19 UStG)?",
-            "acceptedAnswer": { "@type": "Answer", "text": "Ja. Stackr unterstützt die Kleinunternehmerregelung (§19 UStG) vollständig. Rechnungen werden ohne Mehrwertsteuerausweis mit dem korrekten gesetzlichen Hinweis erstellt." }
-        },
-        {
-            "@type": "Question",
-            "name": "Wo werden meine Daten gespeichert?",
-            "acceptedAnswer": { "@type": "Answer", "text": "Deine Buchhaltungsdaten werden standardmäßig ausschließlich lokal auf deinem Gerät im Browser gespeichert und verlassen es nicht. Optional steht Pro-Nutzern ein Ende-zu-Ende-verschlüsselter Cloud-Sync zur Verfügung (EU, Frankfurt); dabei werden nur unlesbare, verschlüsselte Daten abgelegt. Alle Datenschutzanforderungen der DSGVO werden eingehalten." }
-        }
-    ]
-}
-</script>
-
-<!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+<link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/cookie-banner.css">
+<link rel="stylesheet" href="css/redesign-public.css">
+<script src="js/redesign-public.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
+<header class="public-header wrap">
+    <a class="brand" href="index.html" aria-label="stackr – Startseite"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 48 32 32 58 16 32Z" fill="currentColor"/></svg><span>stackr</span></a>
+    <nav class="public-nav" id="navigation" aria-label="Hauptnavigation">
+        <a href="#funktionen">Funktionen</a><a href="#preise">Preise</a><a class="mobile-login" href="app.html">Anmelden</a>
+    </nav>
+    <div class="header-actions"><a class="public-login" href="app.html">Anmelden</a><button class="menu-toggle" data-menu-toggle type="button" aria-controls="navigation" aria-expanded="false">Menü</button></div>
+</header>
+<main id="inhalt" tabindex="-1">
+    <section class="hero wrap" aria-labelledby="hero-title">
+        <h1 id="hero-title">Deine Buchhaltung.<br>Ein klarer Überblick.</h1>
+        <p class="hero-lead">Rechnungen, Belege und Zahlen. An einem Ort.</p>
+        <div class="hero-actions"><a class="action" href="app.html">7 Tage kostenlos testen</a><p class="hero-note">Danach 15 €/Monat oder 135 €/Jahr, inkl. MwSt. Vorher kündigen kostet nichts.</p></div>
+        <figure class="product-figure">
+            <div class="product-preview">
+                <div class="preview-heading"><h2>Dein Monat.</h2><p>Oktober 2026 · Beispieldaten</p></div>
+                <dl class="metrics">
+                    <div><dt>Einnahmen</dt><dd>8.450,00 <small>€</small></dd></div>
+                    <div><dt>Ausgaben</dt><dd>2.180,00 <small>€</small></dd></div>
+                    <div><dt>Gewinn</dt><dd>6.270,00 <small>€</small></dd></div>
+                </dl>
+                <div class="chart-heading"><h3>Gewinnentwicklung</h3><span>Mai – Oktober 2026</span></div>
+                <div class="chart-plot" aria-hidden="true">
+                    <div class="chart-scale"><span>6.000 €</span><span>3.000 €</span><span>0 €</span></div>
+                    <svg viewBox="0 0 640 140" preserveAspectRatio="none"><path class="chart-grid" d="M0 14H640M0 70H640M0 126H640"/><path class="chart-line" d="M0 93 128 78 256 91 384 50 512 59 640 9"/></svg>
+                </div>
+                <div class="chart-months" aria-hidden="true"><span>Mai</span><span>Juni</span><span>Juli</span><span>Aug.</span><span>Sept.</span><span>Okt.</span></div>
+                <details class="chart-data"><summary>Diagrammwerte ansehen</summary><table><caption>Monatlicher Gewinn · Beispieldaten 2026</caption><thead><tr><th scope="col">Monat</th><th scope="col">Gewinn</th></tr></thead><tbody><tr><th scope="row">Mai</th><td>1.770,00 €</td></tr><tr><th scope="row">Juni</th><td>2.570,00 €</td></tr><tr><th scope="row">Juli</th><td>1.880,00 €</td></tr><tr><th scope="row">August</th><td>4.070,00 €</td></tr><tr><th scope="row">September</th><td>3.590,00 €</td></tr><tr><th scope="row">Oktober</th><td>6.270,00 €</td></tr></tbody></table></details>
+            </div>
+            <figcaption>Produktvorschau mit Beispieldaten.</figcaption>
+        </figure>
+    </section>
+    <section class="features wrap" id="funktionen" aria-label="Funktionen">
+        <article class="feature-row">
+            <div class="feature-copy"><h2>Deine Zahlen im Blick.</h2><p>Einnahmen und Ausgaben erfassen, Belege zuordnen und sehen, was dir bleibt. Für deinen Arbeitsalltag als Selbstständiger.</p></div>
+            <div class="example"><div class="example-header"><strong>Dein Monat</strong><span>Beispieldaten</span></div><div class="example-value"><span>Gewinn</span><strong>6.270,00 €</strong></div><dl><div><dt>Einnahmen</dt><dd>8.450,00 €</dd></div><div><dt>Ausgaben</dt><dd>2.180,00 €</dd></div></dl></div>
+        </article>
+        <article class="feature-row">
+            <div class="feature-copy"><h2>Rechnungen. Einfach klar.</h2><p>Rechnungen als PDF oder XRechnung erstellen. Kunden und Zahlungen an einem Ort verwalten. Du siehst, was noch offen ist.</p></div>
+            <div class="example"><div class="example-header"><strong>Rechnung</strong><span>RE-2026-042</span></div><div class="invoice-position"><span>Designprojekt</span><span>1.250,00 €</span></div><div class="invoice-sum"><span>Gesamtbetrag</span><strong>1.250,00 €</strong></div><div class="example-footer"><span>Zahlung erfasst</span><span>Beispieldaten</span></div></div>
+        </article>
+        <article class="feature-row">
+            <div class="feature-copy"><h2>Gut vorbereitet.</h2><p>Deinen Jahresgewinn auswerten und Buchhaltungsdaten für den Steuerberater exportieren. Die Übermittlung an ELSTER erfolgt separat.</p></div>
+            <div class="example export-example"><div class="example-header"><strong>Auswertungen &amp; Export</strong><span>Dein Geschäftsjahr</span></div><dl><div><dt>EÜR</dt><dd>Auswertung erstellen</dd></div><div><dt>DATEV</dt><dd>Daten exportieren</dd></div><div><dt>Steuerberater</dt><dd>Lesezugang einrichten</dd></div></dl></div>
+        </article>
+    </section>
+    <section class="data-section wrap" aria-labelledby="data-title"><h2 id="data-title">Deine Daten bleiben deine Daten.</h2><p>Deine Buchhaltung liegt standardmäßig lokal in deinem Browser. Optional kannst du deine Geräte über einen Ende-zu-Ende-verschlüsselten Cloud-Sync verbinden. Regelmäßige externe Backups sichern deine Daten zusätzlich.</p><a class="text-link" href="datenschutz.html">Mehr zum Datenschutz</a></section>
+    <section class="pricing-section wrap" id="preise" aria-labelledby="pricing-title">
+        <div class="pricing-layout">
+            <div class="pricing-copy"><h2 id="pricing-title">Ein Plan. Alles an einem Ort.</h2><p>Buchhaltung, Rechnungen, Belege und Lager.<br>Monatlich oder jährlich abgerechnet.</p><p>Die ersten 7 Tage sind kostenlos. Du hinterlegst eine Karte, abgebucht wird erst nach Ablauf der 7 Tage. Kündigst du vorher über dein Whop-Konto, zahlst du nichts.</p></div>
+            <div class="plan"><h3>Stackr Pro</h3><p class="plan-price" data-plan-price><strong>15 €</strong> pro Monat</p><ul class="plan-features"><li>Einnahmen, Ausgaben und Belege</li><li>Rechnungen und Lagerverwaltung</li><li>Auswertungen und Exporte</li><li>Optionaler verschlüsselter Cloud-Sync</li></ul>
+                <div class="billing-choice" role="group" aria-label="Abrechnung wählen"><button type="button" data-period="month" aria-pressed="true">Monatlich</button><button type="button" data-period="year" aria-pressed="false">Jährlich</button></div>
+                <p class="billing-note" data-billing-note aria-live="polite">7 Tage kostenlos, danach 15 € monatlich, inkl. MwSt.</p>
+                <a class="action" data-checkout href="https://whop.com/checkout/plan_iR6YIKLcychSZ" rel="noopener">7 Tage kostenlos testen</a>
+                <p class="plan-footnote">Zahlung und Kündigung über Whop.</p>
+            </div>
+        </div>
+    </section>
+    <section class="faq-section wrap" id="faq" aria-labelledby="faq-title">
+        <h2 id="faq-title">Noch eine Frage?</h2>
+        <div class="faq-list">
+            <details><summary>Für wen ist stackr gemacht?</summary><p>Für Selbstständige, Freelancer, Einzelunternehmen, Reseller und GbR. Einnahmen, Ausgaben, Rechnungen und Lager lassen sich passend zu deinem Geschäft verwalten.</p></details>
+            <details><summary>Wie starte ich mit stackr?</summary><p>Über „Stackr öffnen“ gelangst du zur Anmeldung mit Whop. Die ersten 7 Tage sind kostenlos: Du hinterlegst eine Karte, abgebucht wird erst nach Ablauf der 7 Tage. Kündigst du vorher formlos über dein Whop-Konto, zahlst du nichts. Danach läuft dein gewähltes Abo (15 €/Monat oder 135 €/Jahr, inkl. MwSt.) weiter.</p></details>
+            <details><summary>Wo liegen meine Buchhaltungsdaten?</summary><p>Standardmäßig lokal in deinem Browser auf deinem Gerät. Der optionale Cloud-Sync speichert deine Buchhaltungsdaten Ende-zu-Ende-verschlüsselt. Erstelle regelmäßig ein externes Backup, besonders bevor du Browserdaten löschst.</p></details>
+            <details><summary>Kann mein Steuerberater damit arbeiten?</summary><p>Du kannst deine Auswertungen und Buchhaltungsdaten exportieren und selbst übergeben. Zusätzlich lässt sich ein Lesezugang für deinen Steuerberater einrichten.</p></details>
+            <details><summary>Gibt stackr meine Steuererklärung ab?</summary><p>Stackr hilft dir beim Vorbereiten und Auswerten deiner Buchhaltung. Die Abgabe an ELSTER erfolgt separat. Stackr ersetzt keine steuerliche Beratung.</p></details>
+            <details><summary>Können mehrere Personen gleichzeitig arbeiten?</summary><p>Dein Zugang ist an dein Konto gebunden. In einer GbR führt eine Person die Bücher; die Gewinnverteilung auf die Gesellschafter wird unterstützt. Der Steuerberater kann einen eigenen Lesezugang erhalten.</p></details>
+        </div>
+    </section>
+</main>
+<footer class="public-footer wrap">
+    <div class="footer-top"><a class="brand" href="index.html" aria-label="stackr – Startseite"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 48 32 32 58 16 32Z" fill="currentColor"/></svg><span>stackr</span></a><nav aria-label="Rechtliche Informationen"><a href="impressum.html">Impressum</a><a href="datenschutz.html">Datenschutz</a><a href="agb.html">AGB</a><a href="refund.html">Widerruf</a><a href="cookies.html">Cookies</a><a href="barrierefreiheit.html">Barrierefreiheit</a><a href="verfahrensdokumentation.html">Verfahrensdokumentation</a></nav></div>
+    <div class="footer-bottom"><span>© 2026 stackr</span><p>Ein Werkzeug für deine Buchhaltung. Kein Ersatz für steuerliche Beratung.</p></div>
+</footer>
 <script src="js/actions.js"></script>
-<script src="js/i18n.js"></script>
 <script src="js/cookie-banner.js"></script>
-
-<!-- ── Landing UI: Reveal, Counter, Demo, Pricing ── -->
-
-<!-- ── Auth / Whop ── -->
-<script defer src="js/landing.js"></script>
 </body>
 </html>

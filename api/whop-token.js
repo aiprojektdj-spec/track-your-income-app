@@ -12,6 +12,18 @@ var alertOps    = require('./_alert.js').alertOps;
 var _log        = require('./_log.js');
 var RATE_MAX    = 8; // Requests pro Minute pro IP — Login passiert nicht öfter als 1-2x/min, 8 lässt Retry-Spielraum, bremst Flood/Scan-Versuche stärker
 
+// Rueckleitung nach dem Whop-Login: muss exakt der beim Authorize-Aufruf entsprechen
+// (js/whop-auth.js) und in der Whop-App eingetragen sein. Feste Liste statt Client-Wert,
+// unbekannte Hosts (Previews) bekommen wie bisher die alte Adresse.
+var REDIRECT_URIS = {
+    'getstackr.de':                     'https://getstackr.de/app.html',
+    'track-your-income-app.vercel.app': 'https://track-your-income-app.vercel.app/app.html',
+};
+function _redirectUri(req) {
+    var host = String(req.headers['x-forwarded-host'] || req.headers['host'] || '').toLowerCase();
+    return REDIRECT_URIS[host] || REDIRECT_URIS['track-your-income-app.vercel.app'];
+}
+
 module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', 'https://track-your-income-app.vercel.app');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -68,7 +80,7 @@ module.exports = async function handler(req, res) {
                 code_verifier: codeVerifier,
                 client_id:     'app_dc3OND8eGv2Iim',
                 client_secret: clientSecret,
-                redirect_uri:  'https://track-your-income-app.vercel.app/app.html',
+                redirect_uri:  _redirectUri(req),
             }),
         });
         var data = await tokenRes.json();

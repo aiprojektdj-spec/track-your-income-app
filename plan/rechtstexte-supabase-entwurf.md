@@ -305,6 +305,11 @@ zum Übernehmen:
 ## 3. Fragen an den User (nicht geraten — vor dem Einbau beantworten)
 
 **F1 — AV-Vertrag Supabase.** ⏰ **User erledigt das am 2026-10-07 mittags, gemeinsam mit F2.**
+> **2026-10-07 (Session F-Punkte), gegengeprüft:** Der DPA „supplements and forms part of the
+> Supabase Terms of Service“ und gilt ab dem Effective Date des Vertrags. Eine Einschränkung auf
+> bezahlte Pläne steht nicht darin (anders als bei Vercel) → gilt nach dem Wortlaut auch im
+> Free-Plan. **User 2026-10-07: noch nicht erledigt.** → Ziffer 7 bleibt bei „vorgesehen“, bis der
+> User das Datum nennt.
 Recherche (2026-10-07): Der Supabase-DPA (Version 1, 01.08.2026) gilt laut Text schon mit Annahme der
 Nutzungsbedingungen („acceptance of the Agreement shall have the same effect as signing the SCCs“).
 Eine unterschriebene Fassung fürs eigene Archiv gibt es trotzdem im Dashboard. Ursprüngliche Frage: Ist der Supabase-DPA für die Organisation abgeschlossen (Dashboard →
@@ -331,7 +336,13 @@ nicht erst den Umzug.)
 | Vercel | ja (Vercel-KB) | ja, Modul 1–3 (Pro-DPA, gilt) | „EU-US Data Privacy Framework, hilfsweise Standardvertragsklauseln“ |
 | Supabase | **nicht gefunden** (DPA nennt DPF nicht, keine Liste mit Supabase gefunden) | ja, Modul 2 + 3 | „Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO)“ — **nicht** DPF |
 
-Vor dem Einbau einmal selbst auf dataprivacyframework.gov/list nach „Supabase“ suchen (die Seite
+> **2026-10-07 (Session F-Punkte), selbst geprüft auf dataprivacyframework.gov/list:**
+> „Supabase“ → *Query returned no results*. Gegenprobe mit derselben Suche: „Vercel Inc.“ und
+> „Upstash, Inc.“ (San Jose, CA) werden gefunden. Der Supabase-DPA (Version 1, 01.08.2026) nennt
+> das DPF nicht. → **Für Supabase gilt nur SCC Modul 2/3; die Tabelle oben ist bestätigt.**
+> Entwurf einer kurzen TIA: [`tia-supabase-2026-10-07.md`](tia-supabase-2026-10-07.md).
+
+~~Vor dem Einbau einmal selbst auf dataprivacyframework.gov/list nach „Supabase“ suchen~~ (die Seite
 lässt sich nicht automatisch abfragen). Eine kurze TIA wird empfohlen, wenn SCC die einzige
 Grundlage ist (Supabase): Daten liegen in Frankfurt, nur Chiffrat, Schlüssel nie beim Anbieter →
 Zugriff aus den USA brächte keine lesbaren Inhalte. Ursprüngliche Frage: Supabase, Inc., Upstash, Inc. und Vercel Inc. sitzen in den USA; die
@@ -345,37 +356,115 @@ Transfer-Folgenabschätzung (TIA) dokumentiert werden?
 Unter-Auftragsverarbeiter (AWS u. a., laut Supabase-Subprocessor-Liste) in der DSE genannt werden
 oder genügt der Verweis auf die Liste des Anbieters? Wurde der Liste/Änderungsmitteilung im DPA
 zugestimmt?
+> **2026-10-07, recherchiert:** Die Supabase-Liste (Stand 01.06.2026) hat 24 Einträge, darunter
+> AWS, Cloudflare, Google, Fly.io, Sentry; viele betreffen Supabase selbst (Vertrieb, Support),
+> nicht unsere Projektdaten. Änderungen kündigt Supabase mindestens 30 Tage vorher an;
+> Benachrichtigungen abonniert man auf der Seite der Liste, Widerspruch binnen 5 Tagen. Die
+> allgemeine Zustimmung erteilt man mit dem DPA.
+> **Empfehlung:** In der DSE nur **AWS (Rechenzentrum Frankfurt)** nennen, weil dort die Daten
+> physisch liegen, und für den Rest auf die Liste des Anbieters verweisen. Eine vollständige
+> Liste veraltet bei jeder Änderung. Dazu einmal die Benachrichtigungen abonnieren (👤).
+> ✅ **User 2026-10-07: so machen.** Beim Einbau von 1.4 (Supabase-Punkt) ergänzen: „Die Daten liegen
+> in einem Rechenzentrum von Amazon Web Services in Frankfurt; weitere Unterauftragsverarbeiter
+> nennt Supabase unter supabase.com/legal/subprocessors.“ Abo der Änderungsmitteilungen: 👤 offen.
 
 **F5 — Umschaltreihenfolge.** Werden `STORAGE_BACKEND` (Sync) und `BLOB_BACKEND` (Belege)
 gleichzeitig umgeschaltet? Davon hängen die eckigen Klammern in 1.1 und 1.4 ab. Wenn nicht, braucht
 es eine zweite Übergangsvariante.
+> **2026-10-07, aus Code und Umzugsplan:** Die beiden Schalter sind unabhängig
+> (`api/_sync-store.js:188` bzw. `api/_storage.js:32`). Der Umzugsplan („Reihenfolge danach“)
+> zieht zuerst den Sync bis Schritt 8 durch, Storage erst als Punkt 5 → **nicht gleichzeitig.**
+> Damit gibt es zwei Übergangsstufen:
+> - **Ü1** (Sync gespiegelt/umgeschaltet, Belege weiter bei Vercel Blob): in 1.1 gilt die erste
+>   Klammer („bis zum Umzug bei **Vercel Blob**“), der Halbsatz zu signierten Links und der
+>   IP-Übermittlung an Supabase **entfällt**. In 1.4 bleibt der Vercel-Blob-Zusatz, bei Supabase
+>   entfällt „Belege und Anhänge“. In 1.6 bleibt „Vercel Blob“ stehen.
+> - **Ü2** (auch `BLOB_BACKEND=supabase`): wie bisher Ü mit der zweiten Klammer.
+> ✅ **User 2026-10-07: bestätigt** — erst Sync (Ü1), dann Belege (Ü2).
 
 ~~**F6 — IP-Löschfrist bei Supabase.**~~ ✅ Umgesetzt als deterministisches Aufräumen (jeder Aufruf
 + täglicher Lauf), siehe Nachtrag oben. Annahme: Hashen der IP ist damit nicht mehr nötig — eine
 gehashte IPv4 wäre ohne geheimen Schlüssel ohnehin in Sekunden zurückzurechnen und bliebe
 personenbezogen. Wer das trotzdem will: eigener Auftrag (braucht eine neue Env-Variable).
 
-**F7 — Fehlerzähler.** Soll der Browser künftig automatisch an `/api/client-error` melden? Dann
+**F7 — Fehlerzähler.** ✅ **User 2026-10-07: „committe den“.** Umgesetzt im Branch
+`claude/f-punkte-rechtsfragen`: Sender (`js/error-logger.js`) + Test, DSE neue Ziffer 2.4,
+Ziffer 3, 7 und 8, `cookies.html` (Zeile `stackr_error_log`). Abweichung vom Entwurf vom 29.09.:
+schon gemeldete Fehler nur im Arbeitsspeicher statt `stackr_error_sent` im sessionStorage
+(Annahme: vom User mit „committe den“ auf den Vorschlag unten freigegeben), daher keine neue
+Cookie-Zeile. Text beschreibt den **heutigen** Stand (Upstash, 60 s); beim Umschalten nach 1.2 (E)
+anpassen. Ursprüngliche Frage: Soll der Browser künftig automatisch an `/api/client-error` melden? Dann
 gehört 1.3 in die DSE (Rechtsgrundlage lit. f, ggf. Einwilligung nötig? — nach § 25 TDDDG greift
 das Auslesen aus dem Endgerät; bitte entscheiden, ob „technisch notwendig“ hier trägt).
+> **2026-10-07, Stand:** Der Sender ist **schon gebaut**, aber nicht committet. Er liegt im
+> Haupt-Working-Tree (`js/error-logger.js`, `test/test-error-logger-beacon.js`), dazu ein fertiger
+> DSE-Entwurf mit neuer Ziffer 2.4: `plan/datenschutz-fehlerprotokolle-entwurf-2026-09-29.md`
+> (ebenfalls uncommittet). Offen ist also nur: **diesen Entwurf freigeben?**
+> Vor dem Einbau anzupassen:
+> - Er nennt **Upstash** und „nach 60 Sekunden gelöscht“. Das stimmt nur, solange
+>   `STORAGE_BACKEND=redis` gilt. Danach Supabase und „spätestens nach 24 Stunden“.
+> - § 25 TDDDG: Der Sender legt `stackr_error_sent` im sessionStorage ab, um doppelte Meldungen zu
+>   vermeiden. Das ist ein Speichern auf dem Endgerät; ob es „unbedingt erforderlich“ ist, ist
+>   nicht sicher. **Ausweg ohne Rechtsfrage:** die schon gemeldeten Fehler nur in einer
+>   JS-Variable halten. Pro Seitenaufruf wird dann höchstens einmal mehr gemeldet, der
+>   Server-Deckel fängt das ab. Kleine Änderung, aber in einer fremden, uncommitteten Datei →
+>   nur mit Freigabe.
 
 ~~**F8 — Bestehende Lücken mitschließen?**~~ ✅ Live geschlossen, siehe Nachtrag oben.
 
-**F13 — Region des Vercel-Blob-Stores.** Die Live-DSE nennt Vercel Blob jetzt, aber ohne Region,
+**F13 — Region des Vercel-Blob-Stores.** ✅ **2026-10-07 im Vercel-Dashboard nachgesehen:**
+Store `track-your-income-app-blob` → Region **FRA1 (Frankfurt)**, Zugriff „Public“, Größe
+1,07 GB. DSE 4.1 und 7 nennen jetzt Frankfurt. Ursprüngliche Frage: Die Live-DSE nennt Vercel Blob jetzt, aber ohne Region,
 weil sie nirgends im Repo steht (Vercel → Storage → Blob-Store → Region). Liegt der Store in
 Frankfurt (`fra1`), kann die DSE das sagen; liegt er in den USA (`iad1`, Vercels Default), sollte
 sie das ausdrücklich sagen. Bitte nachsehen und mitteilen.
 
 **F9 — Verfahrensdokumentation.** Gibt es eine Änderungshistorie, in die der Speicherwechsel mit
 Datum eingetragen werden soll, oder genügt das neue Stand-Datum?
+> ✅ **2026-10-07, aus dem Code beantwortet:** Die gibt es bereits: `verfahrensdokumentation.html`,
+> Abschnitt 9 „Änderungshistorie dieses Dokuments“ (bisher Juli 2026 und 25.07.2026). Beim
+> Umschalten dort je Stufe (Ü1, Ü2, E) eine datierte Zeile ergänzen **und** „Stand:“ (Zeile 25)
+> anpassen. Vorschlag:
+> `<li>TT.MM.2026 — Speicher des Cloud-Sync von Upstash Redis auf Supabase (Frankfurt) umgestellt</li>`
+> Annahme: Das entspricht der GoBD-Pflicht, Änderungen am Verfahren zu versionieren. Keine
+> Entscheidung des Users nötig.
 
-**F10 — Informationspflicht beim Wechsel.** Sollen bestehende Sync-Nutzer über den
+**F10 — Informationspflicht beim Wechsel.** ✅ **User 2026-10-07: ja, aktiv informieren.**
+Zusätzlicher Fund: DSE Ziffer 9 verspricht schon heute „Bei wesentlichen Änderungen informieren wir
+registrierte Nutzer per E-Mail“. Ein Anbieterwechsel ist so eine Änderung → **In-App-Hinweis
+und E-Mail über Whop**, beide zu Ü1 (wenn `STORAGE_MIRROR=supabase` gesetzt wird).
+Entwurf In-App-Hinweis (einmalig, nur bei `oyi_sync_enabled`, schließbar, in `js/cloud-sync.js`):
+> **Neuer Speicherort für deinen Cloud-Sync.** Ab dem TT.MM.2026 speichern wir deine
+> verschlüsselten Sync-Daten bei Supabase (Frankfurt, EU) statt bei Upstash. An der
+> Verschlüsselung ändert sich nichts: Nur du hast den Schlüssel, auch Supabase sieht nur
+> unlesbares Chiffrat. Nach dem Umzug löschen wir die Daten bei Upstash.
+> [Datenschutzerklärung] [Verstanden]
+Die E-Mail mit gleichem Inhalt verschickt der User über Whop. Gebaut wird erst zu Ü1, weil der Hinweis
+vorher falsch wäre. Ursprüngliche Frage: Sollen bestehende Sync-Nutzer über den
 Anbieterwechsel aktiv informiert werden (In-App-Hinweis/Mail über Whop), oder genügt die
 aktualisierte DSE? Die Einwilligung in 4.1 wurde mit dem Text „Upstash“ erteilt.
 
 **F11 — Löschung bei Upstash nach dem Umzug.** Wie wird die Löschung des Altbestands nachgewiesen
 (Datenbank löschen, Bestätigung von Upstash)? Der Ü-Text verspricht sie.
+> **2026-10-07, recherchiert (Upstash-DPA, Stand April 2025):** Nach Ziffer 11.1 löscht Upstash
+> auf Weisung. Backups laufen über die normalen Löschroutinen und sind bis dahin „beyond use“.
+> Eine **Löschbescheinigung gibt es nur auf schriftliche Anfrage** (Anhang, SCC-Klausel 8.5/16(d)).
+> **Vorschlag:** (1) Nach Schritt 8 zuerst nur die `sync:*`-Schlüssel löschen. Die ganze Datenbank
+> erst, wenn auch die Whop-Sitzungen umgezogen sind, denn die liegen in derselben Datenbank.
+> (2) Screenshot + Datum in `plan/` ablegen. (3) Bei Upstash schriftlich eine Löschbescheinigung
+> nach DPA 11.1 anfordern und ablegen. Erst danach darf ein Text „wurden gelöscht“ sagen.
+> ✅ **User 2026-10-07: einverstanden.**
 
 **F12 — Preview-Projekt.** Laut Umzugsplan darf in Preview kein Spiegel gesetzt werden, sonst
 landen Produktionsdaten in `stackr-preview`. Bitte bestätigen, dass das so bleibt — sonst wäre
 `stackr-preview` ebenfalls in die DSE/das VVT aufzunehmen.
+> **2026-10-07:** Es gibt bisher **nur ein** Supabase-Projekt (`usrhhjwvoefjdgrwovkg`). Zeigt
+> `SUPABASE_URL` in Preview auf dasselbe Projekt, teilen sich Preview und Prod auch dort den
+> Speicher. Für die DSE ändert das nichts (gleicher Anbieter, gleiche Region), für die Trennung
+> von Testdaten schon.
+> **User 2026-10-07: Ein Preview-Projekt gibt es jetzt.** Daraus folgt: In Preview darf
+> `STORAGE_BACKEND=supabase` (+ `SUPABASE_URL` des Preview-Projekts) gesetzt werden, dann landen
+> dort nur Testdaten. **`STORAGE_MIRROR` aber nie in Preview**, solange Preview und Prod Redis
+> teilen (`36be024`). Sonst kopiert Preview Prod-Chiffrat ins Preview-Projekt, und das
+> müsste dann in DSE/VVT. Ob die vier Migrationen dort schon liefen, ist nicht bekannt
+> (Umzugsplan Schritt 1).

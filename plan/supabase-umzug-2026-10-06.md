@@ -12,7 +12,7 @@ Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 | E2 | **Whop bleibt** Login und Zahlung. Supabase kennt nur die Whop-`user_id` |
 | E3 | **Kein `supabase-js`**, kein `tweetnacl`. Zugriff nur aus `api/` per `fetch` auf PostgREST/Storage, Service-Key nie im Browser |
 | E5 | Eigene Projekte `stackr-prod` + `stackr-preview`, Frankfurt (eu-central-1), Pro-Plan |
-| E6 | **Supabase bleibt bis zum Launch im Free-Plan** (User, 2026-10-07). Bis dahin keine Supabase-Env-Variable in Vercel (`SUPABASE_*`, `STORAGE_MIRROR`, `STORAGE_BACKEND`, `BLOB_BACKEND`), also kein Spiegel und kein Umschalten: Der Umzug ruht nach Schritt 1. Stand 2026-10-07: zwei Projekte, `usrhhjwvoefjdgrwovkg` (alle vier Migrationen, steht in der CSP) und `Stackr`/`nvtjzeffngwfsqjzdrdz` (leer) — welches Prod wird, ist offen |
+| E6 | **Supabase bleibt bis zum Launch im Free-Plan** (User, 2026-10-07). Bis dahin keine Supabase-Env-Variable in Vercel (`SUPABASE_*`, `STORAGE_MIRROR`, `STORAGE_BACKEND`, `BLOB_BACKEND`), also kein Spiegel und kein Umschalten: Der Umzug ruht nach Schritt 1. Stand 2026-10-07: zwei Projekte, `usrhhjwvoefjdgrwovkg` (alle fünf Migrationen, steht in der CSP) und `Stackr`/`nvtjzeffngwfsqjzdrdz` (leer) — welches Prod wird, ist offen |
 
 ## Was es schon gibt — Sync (Commit `78a711e`, auf `master`, ohne Env-Variablen wirkungslos)
 
@@ -80,7 +80,7 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 
 | # | Schritt | Wer | Erledigt wenn |
 |---|---|---|---|
-| 0 | Supabase-Projekte `stackr-prod` + `stackr-preview` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 Stand 2026-10-07 abends, gegen das Konto geprüft: Organisation auf **Free-Plan** → vor jeder Env-Variable auf Pro (50-MB-Grenze, Pause nach 7 Tagen, keine Backups). **Zwei** Projekte, beide Frankfurt: `usrhhjwvoefjdgrwovkg` (mit Tabellen, steht in der CSP) und `nvtjzeffngwfsqjzdrdz` „Stackr“ (12:42 angelegt, **leer**). Offen: welches ist Prod, welches Preview? Ist `nvtjz…` Prod, CSP in `vercel.json` nachziehen und alle Migrationen dort ausführen. Spend Cap, AV-Vertrag offen |
+| 0 | Supabase-Projekte `stackr-prod` + `stackr-preview` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 Stand 2026-10-07 abends, gegen das Konto geprüft: Organisation auf **Free-Plan**, bleibt so bis zum Launch (E6); erst dann Pro (Free: 50-MB-Grenze, Pause nach 7 Tagen, keine Backups). **Zwei** Projekte, beide Frankfurt: `usrhhjwvoefjdgrwovkg` (mit Tabellen, steht in der CSP) und `nvtjzeffngwfsqjzdrdz` „Stackr“ (12:42 angelegt, **leer**). Offen: welches ist Prod, welches Preview? Ist `nvtjz…` Prod, CSP in `vercel.json` nachziehen und alle Migrationen dort ausführen. Spend Cap, AV-Vertrag offen |
 | 1 | Migrationen in **beiden** Projekten ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-07: fünf, mit PR #18 sechs) | 👤, 🤖 liefert Anleitung | ✅ `usrhhjwvoefjdgrwovkg`: alle fünf (sync, storage, client_errors, aufraeumen, blob_budget); 25 `sync_*`-Funktionen, keine für `anon` ausführbar, alle Tabellen mit RLS. ❌ `nvtjzeffngwfsqjzdrdz`: nichts. Migration aus PR #18 nach dessen Merge überall nachziehen |
 | 2 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in Vercel eintragen (Sensitive), getrennt für Production und Preview | 👤 | Claude liest die Werte nie aus |
 | 3 | Code deployen | 🤖 | ✅ `78a711e`/`747dcfd` auf `master` |
@@ -104,8 +104,8 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 1. Sync (oben), komplett bis Schritt 8.
 2. ~~Rate-Limits + Fehlerzähler (`whop-token`, `whop-access`, `client-error`)~~ ✅ Code fertig, schaltet mit `STORAGE_BACKEND` um. Beim Umschalten meldet die erste Tagesmail evtl. bekannte Fehler als neu (Supabase kennt sie noch nicht), harmlos.
 3. ~~`api/health.js` prüft Supabase~~ ✅ (Redis weiter Pflicht, solange Upstash läuft).
-4. Whop-Refresh-Sitzungen (`whop-token`, `whop-refresh`): Tabelle mit Ablaufzeit + Sperre per Postgres-Funktion.
-5. Storage: Code fertig (`747dcfd`), CSP fertig (`fb44856`). Offen: Upload-Grenze, Backfill der Blob-Dateien, Umschalten.
+4. Whop-Refresh-Sitzungen (`whop-token`, `whop-refresh`): 🟡 Code in PR #18 (offen, Konflikt mit `cf3a46b` in `api/whop-token.js`). Umschalten erst, wenn der Sync-Umzug stabil läuft.
+5. Storage: Code fertig (`747dcfd`, Budget/Sperre `ceb8d6a`), CSP fertig (`fb44856`), Fix B1 für `sb:`-Referenzen in `api/sync.js` gemergt (PR #17). Offen: Upload-Grenze, Backfill der Blob-Dateien, Umschalten.
 6. `_alert.js`: zweites Alarmziel neu wählen (Supabase-Tabelle?).
 7. Upstash abschalten, `@vercel/blob` entfernen, Rechtstexte final.
 

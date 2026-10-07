@@ -1076,6 +1076,7 @@ const App = {
         Utils.showToast('Sende Test-Payload …', 'info');
         const res = await Webhooks.test(key, url);
         if (res.ok) Utils.showToast('Test-Payload gesendet (' + res.status + ')', 'success');
+        else if (res.error === 'not_allowed') Utils.showToast('Nur Make.com-Webhooks möglich (https://hook.….make.com/…)', 'error');
         else Utils.showToast('Fehlgeschlagen: ' + (res.error || 'HTTP ' + res.status), 'error');
     },
 
@@ -1892,6 +1893,13 @@ const App = {
                 Store.saveSettings(updated);
                 this.closeModal();
                 Utils.showToast('Einstellungen gespeichert', 'success');
+                // Gespeichert wird trotzdem (Eingabe nicht verlieren), aber Webhooks.fire
+                // ueberspringt die URL — das muss der Nutzer erfahren, sonst wartet er
+                // auf ein Szenario, das nie ausgeloest wird.
+                const fremd = Object.keys(updated.webhookUrls || {})
+                    .filter(k => !Webhooks.erlaubt(updated.webhookUrls[k]));
+                if (fremd.length) Utils.showToast('Webhook nicht aktiv: ' + fremd.map(k => Webhooks.EVENTS[k]).join(', ')
+                    + ' – nur Make.com-URLs (https://….make.com/…) werden gesendet', 'warning');
                 this.navigate(this.currentPage);
             };
             if (logoInput && logoInput.files[0]) {

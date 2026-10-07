@@ -127,6 +127,7 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 | W4 | Sperre nicht setzbar (Speicherfehler) → **direkt erneuern**, wie der Code-Kommentar es immer sagte | `whop-refresh.js`: ohne Sperre rotieren, fremde Sperre nicht löschen. Vorher: Warten und evtl. `503 refresh_busy` |
 | W5 | Speicherfehler absichern, kein Datenverlust | Lesefehler → 503 + `session-nicht-lesbar` statt 401 (vorher hat eine Upstash-`{ error }`-Antwort den Kunden abgemeldet). Speichern nach Rotation scheitert → einmal wiederholen, sonst Token trotzdem ausgeben + `session-nicht-gespeichert`. Login mit Speicherfehler → ohne Sitzung + Alarm statt toter Sitzungs-ID |
 | W6 | Umschalten **nachts** | Restrisiko Sperren in zwei Systemen akzeptiert |
+| W7 | Abgelaufene Sitzungen **garantiert** löschen (Datenschutzerklärung: „verfällt 30 Tage nach der letzten Erneuerung“, wie F6) | `sync_whop_aufraeumen()` im täglichen Lauf von `api/blob-cleanup.js`, sobald Supabase primär **oder Spiegel** ist. Spätestens +1 Tag. Fehler → `blob-cleanup`/`aufraeumen-failed` |
 
 SQL am 2026-10-08 gegen Postgres 16 gefahren (alle vier Migrationen in Reihenfolge, `service_role` mit BYPASSRLS wie in Supabase): Ablauf, Überschreiben, Sperre unter 40 parallelen Verbindungen genau einmal vergeben, überlappende Transaktion, Aufräumen, `anon`/`authenticated` überall `permission denied`, Migration zweimal ausführbar.
 

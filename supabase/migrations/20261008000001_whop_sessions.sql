@@ -10,8 +10,10 @@
 --   whoprefresh:rl:*                                       → rate_limits über sync_rate_hit
 --
 -- TTL wie in Redis: jede Schreibung setzt expires_at neu (SET … EX). Abgelaufene Zeilen
--- sind für sync_whop_session_get sofort unsichtbar; physisch räumt sie jeder hundertste
--- Schreibaufruf weg (wie sync_rate_hit).
+-- sind für sync_whop_session_get sofort unsichtbar. Physisch löscht sie
+-- sync_whop_aufraeumen() im täglichen Lauf (api/blob-cleanup.js) — damit stimmt
+-- „verfällt 30 Tage nach der letzten Erneuerung“ aus der Datenschutzerklärung auch hier
+-- (spätestens +1 Tag). Zusätzlich räumt jeder hundertste Schreibaufruf mit.
 --
 -- Inhalt: `data` ist Chiffrat { v, iv, ct, tag } (AES-256-GCM, Schlüssel WHOP_SESSION_KEY,
 -- nur in api/_whop-sessions.js) des Objekts { rt, at, exp }, das in Redis im Klartext liegt.
@@ -81,6 +83,16 @@ returns void language sql as $$
     delete from whop_session_locks where sid = p_sid
 $$;
 
+-- Täglicher Lauf. Rückgabe: Zahl der gelöschten Zeilen je Tabelle.
+create or replace function sync_whop_aufraeumen()
+returns jsonb language plpgsql as $$
+declare s integer; l integer;
+begin
+    delete from whop_sessions      where expires_at <= now(); get diagnostics s = row_count;
+    delete from whop_session_locks where until      <= now(); get diagnostics l = row_count;
+    return jsonb_build_object('whop_sessions', s, 'whop_session_locks', l);
+end $$;
+
 -- ── Rechte (wie 20261006000001_sync.sql) ─────────────────────────────────────────
 revoke all on whop_sessions, whop_session_locks from public, anon, authenticated;
 revoke all on function sync_whop_session_get(text)                 from public, anon, authenticated;
@@ -88,8 +100,10 @@ revoke all on function sync_whop_session_put(text, jsonb, integer) from public, 
 revoke all on function sync_whop_session_delete(text)              from public, anon, authenticated;
 revoke all on function sync_whop_lock(text, integer)               from public, anon, authenticated;
 revoke all on function sync_whop_unlock(text)                      from public, anon, authenticated;
+revoke all on function sync_whop_aufraeumen()                      from public, anon, authenticated;
 grant execute on function sync_whop_session_get(text)                 to service_role;
 grant execute on function sync_whop_session_put(text, jsonb, integer) to service_role;
 grant execute on function sync_whop_session_delete(text)              to service_role;
 grant execute on function sync_whop_lock(text, integer)               to service_role;
 grant execute on function sync_whop_unlock(text)                      to service_role;
+grant execute on function sync_whop_aufraeumen()                      to service_role;

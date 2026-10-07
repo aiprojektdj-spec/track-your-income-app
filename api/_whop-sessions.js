@@ -140,8 +140,19 @@ function configProblem() {
     return '';
 }
 
+// Täglicher Lauf aus api/blob-cleanup.js: abgelaufene Sitzungen physisch löschen.
+// Läuft, sobald Supabase primär ODER Spiegel ist — in der Spiegelphase (mindestens
+// 30 Tage) liegen dort ja schon Sitzungen. Braucht keinen WHOP_SESSION_KEY.
+// null = nichts zu tun; Fehler werfen (der Aufrufer meldet sie).
+function aufraeumen() {
+    var nutzt = (P && P.name === 'supabase') || (M && M.name === 'supabase');
+    if (!nutzt || !db.isConfigured()) return Promise.resolve(null);
+    return db.rpc('sync_whop_aufraeumen', {});
+}
+
 module.exports = {
     configProblem: configProblem,
+    aufraeumen:    aufraeumen,
 
     get:    function (sid) { return P.get(sid); },
     lock:   function (sid, secs) { return P.lock(sid, secs); },

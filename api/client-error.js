@@ -14,13 +14,15 @@
 //   - 10 Meldungen pro Minute pro IP
 //   - 5000 Meldungen pro Tag insgesamt; darüber wird still verworfen, damit ein
 //     verteilter Flood weder das Upstash-Kontingent noch die Tagesmail füllt
-// Anders als bei sync.js ist das Rate-Limit hier FAIL-CLOSED: ohne Redis wird die
+// Anders als bei sync.js ist das Rate-Limit hier FAIL-CLOSED: ohne Speicher wird die
 // Meldung verworfen. Ein verlorener Fehlerbericht kostet nichts, ein zahlender Kunde
 // ist davon nicht betroffen.
 // =============================================================================
 
-var ce   = require('./_client-errors.js');
-var _log = require('./_log.js');
+var ce    = require('./_client-errors.js');
+var _log  = require('./_log.js');
+// Deckel über den Speicher-Adapter: STORAGE_BACKEND entscheidet Redis | Supabase
+var store = require('./_sync-store.js');
 
 var BODY_MAX    = 4096;
 var IP_RATE_MAX = 10;
@@ -53,20 +55,17 @@ module.exports = async function handler(req, res) {
     try { raw = typeof req.body === 'object' && !Buffer.isBuffer(req.body) ? req.body : JSON.parse(text); }
     catch (e) { return res.status(400).json({ error: 'bad_json' }); }
 
-    var conf = ce.redisConf();
-    if (!conf.url || !conf.token) return res.status(204).end();
+    if (store.configProblem()) return res.status(204).end();
 
     var now = Date.now();
     try {
         var ip  = req.headers['x-vercel-forwarded-for'] || (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
         var key = 'clerr:iprl:' + ip;
-        var n   = await ce.redisCmd(['INCR', key]);
-        await ce.redisCmd(['EXPIRE', key, '60', 'NX']);
+        var n   = await store.rateHit(key, 60);
         if (n > IP_RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
 
         var tKey = 'clerr:total:' + ce.tag(now);
-        var t    = await ce.redisCmd(['INCR', tKey]);
-        await ce.redisCmd(['EXPIRE', tKey, String(2 * 24 * 60 * 60), 'NX']);
+        var t    = await store.rateHit(tKey, 2 * 24 * 60 * 60);
         if (t > DAY_MAX) return res.status(204).end();
 
         await ce.store(ce.sanitize(raw, now), now);

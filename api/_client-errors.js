@@ -22,9 +22,18 @@
 //   clerr:m:<typ-hash>      JSON  bereinigter Eintrag (erstes Auftreten)
 //   clerr:iprl:<ip>         Rate-Limit, 60 s
 //   clerr:total:<JJJJ-MM-TT> Tagesdeckel über alle Absender
+//
+// Supabase-Umzug (plan/supabase-umzug-2026-10-06.md): Mit STORAGE_BACKEND=supabase
+// liegen Zähler und Einträge in client_error_counts / client_error_types
+// (supabase/migrations/20261007000001_client_errors.sql), die Deckel in rate_limits.
+// Gespiegelt wird nicht — ein verlorener Fehlerbericht kostet nichts.
 // =============================================================================
 
 var crypto = require('crypto');
+var db     = require('./_db.js');
+var speicher = require('./_sync-store.js');
+
+function _supabase() { return speicher.backendName() === 'supabase'; }
 
 var TTL_S         = 30 * 24 * 60 * 60;
 var MSG_MAX       = 300;
@@ -100,9 +109,13 @@ function typHash(e) {
         .digest('hex').slice(0, 16);
 }
 
-// Zählt einen bereinigten Eintrag. Wirft bei Redis-Fehlern (Aufrufer entscheidet).
+// Zählt einen bereinigten Eintrag. Wirft bei Speicher-Fehlern (Aufrufer entscheidet).
 async function store(e, now) {
     var d = tag(now), h = typHash(e);
+    if (_supabase()) {
+        await db.rpc('sync_clerr_store', { p_day: d, p_hash: h, p_entry: e });
+        return h;
+    }
     var dKey = 'clerr:d:' + d, nKey = 'clerr:new:' + d;
     await redisCmd(['HINCRBY', dKey, h, '1']);
     await redisCmd(['EXPIRE', dKey, String(TTL_S), 'NX']);
@@ -118,17 +131,21 @@ async function store(e, now) {
 // Gemeldet wird nur, wenn gestern ein NEUER Fehlertyp auftrat — ein bekannter
 // Fehler, der jeden Tag wieder kommt, soll nicht jeden Morgen eine Mail auslösen.
 async function summary(now) {
-    var c = redisConf();
-    if (!c.url || !c.token) return null;
+    if (speicher.configProblem()) return null;
     var d = tag(now - 24 * 60 * 60 * 1000);
+    var counts = {}, neu, entries = null;
 
-    var flat = await redisCmd(['HGETALL', 'clerr:d:' + d]) || [];
-    var counts = {};
-    for (var i = 0; i + 1 < flat.length; i += 2) counts[flat[i]] = parseInt(flat[i + 1], 10) || 0;
+    if (_supabase()) {
+        var r = await db.rpc('sync_clerr_summary', { p_day: d }) || {};
+        counts = r.counts || {}; neu = r.neu || []; entries = r.entries || {};
+    } else {
+        var flat = await redisCmd(['HGETALL', 'clerr:d:' + d]) || [];
+        for (var i = 0; i + 1 < flat.length; i += 2) counts[flat[i]] = parseInt(flat[i + 1], 10) || 0;
+    }
     var typen = Object.keys(counts);
     if (!typen.length) return null;
 
-    var neu = await redisCmd(['SMEMBERS', 'clerr:new:' + d]) || [];
+    if (!entries) neu = await redisCmd(['SMEMBERS', 'clerr:new:' + d]) || [];
     if (!neu.length) return null;
 
     var summe = typen.reduce(function (s, h) { return s + counts[h]; }, 0);
@@ -136,7 +153,7 @@ async function summary(now) {
     var zeilen = [];
     for (var j = 0; j < top.length; j++) {
         var m = null;
-        try { m = JSON.parse(await redisCmd(['GET', 'clerr:m:' + top[j]]) || 'null'); } catch (x) {}
+        try { m = entries ? entries[top[j]] : JSON.parse(await redisCmd(['GET', 'clerr:m:' + top[j]]) || 'null'); } catch (x) {}
         if (m) zeilen.push((counts[top[j]] || 0) + 'x ' + m.message.slice(0, 80) +
                            ' (' + (m.source || '?') + ':' + m.line + ')');
     }

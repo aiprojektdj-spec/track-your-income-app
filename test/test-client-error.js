@@ -13,6 +13,10 @@
 //   Tageszusammenfassung (api/blob-cleanup.js)
 //     9) neuer Typ gestern -> eine Meldung über alertOps; kein neuer Typ -> keine
 //    10) Redis-Fehler in der Zusammenfassung kippt weder Lauf noch Heartbeat
+//   Supabase (STORAGE_BACKEND=supabase, supabase/migrations/20261007000001_client_errors.sql)
+//    11) rpc-Namen und Parameter passen zur Migration
+//    12) Annahme, Deckel und Zusammenfassung laufen über Supabase, Redis bleibt unberührt
+//   Das SQL selbst lief am 2026-10-07 gegen Postgres 16 (neu/bekannt, 30-Tage-Verfall, Rechte).
 //   Die Client-Seite (js/error-logger.js) prüft test/test-error-logger-beacon.js.
 'use strict';
 const path = require('path');
@@ -41,8 +45,31 @@ function redisExec(cmd) {
     }
     throw new Error('unbekannt ' + op);
 }
+// ── Supabase-Attrappe: rpc-Funktionen der Migration im Speicher ──────────────
+let sb = {}, sbFail = false;
+function sbExec(name, a) {
+    if (name === 'sync_rate_hit') { sb.rl = sb.rl || {}; sb.rl[a.p_key] = (sb.rl[a.p_key] || 0) + 1; return sb.rl[a.p_key]; }
+    if (name === 'sync_clerr_store') {
+        sb.counts = sb.counts || {}; sb.types = sb.types || {};
+        const k = a.p_day + '|' + a.p_hash; sb.counts[k] = (sb.counts[k] || 0) + 1;
+        if (sb.types[a.p_hash]) return false;
+        sb.types[a.p_hash] = { entry: a.p_entry, first_day: a.p_day }; return true;
+    }
+    if (name === 'sync_clerr_summary') {
+        const r = { counts: {}, neu: [], entries: {} };
+        Object.keys(sb.counts || {}).forEach(function (k) { const t = k.split('|'); if (t[0] === a.p_day) r.counts[t[1]] = sb.counts[k]; });
+        Object.keys(sb.types || {}).forEach(function (h) { if (sb.types[h].first_day === a.p_day) { r.neu.push(h); r.entries[h] = sb.types[h].entry; } });
+        return r;
+    }
+    throw new Error('unbekannte rpc ' + name);
+}
 global.fetch = function (url, opts) {
     fetchCalls.push({ url: url, opts: opts || {} });
+    if (url.indexOf('https://sb.example/rest/v1/rpc/') === 0) {
+        if (sbFail) return Promise.resolve({ ok: false, status: 503, text: function () { return Promise.resolve(''); } });
+        const r = sbExec(url.split('/').pop(), JSON.parse(opts.body));
+        return Promise.resolve({ ok: true, status: 200, text: function () { return Promise.resolve(JSON.stringify(r)); } });
+    }
     if (url === 'https://redis.example') {
         if (redisFail) return Promise.reject(new Error('ECONNREFUSED'));
         const r = redisExec(JSON.parse(opts.body));
@@ -59,14 +86,15 @@ require.cache[BLOBMOD] = { id: BLOBMOD, filename: BLOBMOD, loaded: true, exports
 } };
 
 const API = path.join(__dirname, '..', 'api');
-const MODS = ['client-error.js', '_client-errors.js', '_alert.js', '_log.js', 'blob-cleanup.js'].map(function (f) { return path.join(API, f); });
+const MODS = ['client-error.js', '_client-errors.js', '_alert.js', '_log.js', 'blob-cleanup.js', '_sync-store.js', '_db.js'].map(function (f) { return path.join(API, f); });
 const ENV_KEYS = ['KV_REST_API_URL', 'KV_REST_API_TOKEN', 'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN',
-                  'CRON_SECRET', 'ALERT_WEBHOOK_URL', 'BLOB_READ_WRITE_TOKEN', 'HEARTBEAT_URL_BLOB_CLEANUP'];
+                  'CRON_SECRET', 'ALERT_WEBHOOK_URL', 'BLOB_READ_WRITE_TOKEN', 'HEARTBEAT_URL_BLOB_CLEANUP',
+                  'STORAGE_BACKEND', 'STORAGE_MIRROR', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const REDIS = { KV_REST_API_URL: 'https://redis.example', KV_REST_API_TOKEN: 'tok' };
 function fresh(file, env) {
     MODS.forEach(function (m) { delete require.cache[m]; });
     ENV_KEYS.forEach(function (k) { if (env[k]) process.env[k] = env[k]; else delete process.env[k]; });
-    store = {}; ttl = {}; redisFail = false; fetchCalls = [];
+    store = {}; ttl = {}; redisFail = false; fetchCalls = []; sb = {}; sbFail = false;
     return require(path.join(API, file));
 }
 function mkReq(body, opt) {
@@ -199,6 +227,57 @@ console.error = function () {}; console.warn = function () {};
     res = mkRes(); await c(AUTH, res);
     check('10) Redis-Fehler: Lauf 200 und Heartbeat', res.code === 200 &&
           fetchCalls.some(function (f) { return f.url === 'https://hc.example'; }));
+
+    // 11) rpc ↔ Migration
+    const fs = require('fs');
+    const sql = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'migrations', '20261007000001_client_errors.sql'), 'utf8')
+              + fs.readFileSync(path.join(__dirname, '..', 'supabase', 'migrations', '20261006000001_sync.sql'), 'utf8');
+    const fns = {};
+    for (const mm of sql.matchAll(/create or replace function (\w+)\(([^)]*)\)/g)) {
+        fns[mm[1]] = mm[2].split(',').map(function (x) { return x.trim().split(/\s+/)[0]; }).filter(Boolean).sort().join(',');
+    }
+    const src = fs.readFileSync(path.join(API, '_client-errors.js'), 'utf8');
+    const calls = [...src.matchAll(/db\.rpc\('(\w+)',\s*\{([^}]*)\}/g)];
+    check('11) zwei rpc-Aufrufe, Namen und Parameter passen zur Migration', calls.length === 2 && calls.every(function (c) {
+        return fns[c[1]] === c[2].split(',').map(function (x) { return x.split(':')[0].trim(); }).filter(Boolean).sort().join(',');
+    }));
+    check('11) Migration nimmt anon/authenticated die Rechte', /revoke all on function sync_clerr_store\(date, text, jsonb\) from public, anon, authenticated/.test(sql) &&
+          /revoke all on function sync_clerr_summary\(date\)\s+from public, anon, authenticated/.test(sql));
+
+    // 12) Supabase als Backend
+    const SBENV = Object.assign({ STORAGE_BACKEND: 'supabase', SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 'svc' }, REDIS);
+    h = fresh('client-error.js', SBENV);
+    await h(mkReq(FEHLER), mkRes());
+    res = mkRes(); await h(mkReq(Object.assign({}, FEHLER, { col: 99 })), res);
+    const sbTypen = Object.keys(sb.types || {});
+    check('12) Supabase: 204, ein Typ, Zähler 2', res.code === 204 && sbTypen.length === 1 &&
+          sb.counts[heute + '|' + sbTypen[0]] === 2);
+    check('12) Supabase: Eintrag bereinigt', sbTypen.length === 1 && sb.types[sbTypen[0]].entry.source === '/js/app.js' &&
+          sb.types[sbTypen[0]].entry.message.indexOf('@') === -1);
+    check('12) Supabase: Deckel über sync_rate_hit, Redis unberührt',
+          sb.rl['clerr:iprl:1.2.3.4'] === 2 && sb.rl['clerr:total:' + heute] === 2 &&
+          !fetchCalls.some(function (f) { return f.url === 'https://redis.example'; }));
+    for (let i = 0; i < 9; i++) await h(mkReq(Object.assign({}, FEHLER, { line: 100 + i })), mkRes());
+    res = mkRes(); await h(mkReq(FEHLER), res);
+    check('12) Supabase: 11. Meldung derselben IP -> 429', res.code === 429);
+
+    h = fresh('client-error.js', SBENV); sbFail = true; res = mkRes();
+    await h(mkReq(FEHLER), res);
+    check('12) Supabase wirft -> trotzdem 204', res.code === 204);
+    h = fresh('client-error.js', { STORAGE_BACKEND: 'supabase' }); res = mkRes();
+    await h(mkReq(FEHLER), res);
+    check('12) Supabase ohne Env -> 204 ohne Netzverkehr', res.code === 204 && fetchCalls.length === 0);
+
+    c = fresh('blob-cleanup.js', Object.assign({}, ENV, SBENV));
+    const e2 = ce.sanitize({ message: 'y is null', source: '/js/store.js', line: 9 }, 0);
+    const h2 = ce.typHash(e2);
+    sb.counts = {}; sb.counts[gestern + '|' + h2] = 4; sb.counts[gestern + '|alt'] = 1;
+    sb.types = {}; sb.types[h2] = { entry: e2, first_day: gestern }; sb.types.alt = { entry: e1, first_day: '2026-01-01' };
+    res = mkRes(); await c(AUTH, res);
+    const hook2 = fetchCalls.filter(function (f) { return f.url === 'https://hook.example'; });
+    text = hook2.length ? JSON.parse(hook2[0].opts.body).detail : '';
+    check('12) Supabase: Zusammenfassung meldet neuen Typ', res.code === 200 && hook2.length === 1 &&
+          /1 neue Fehlertypen, 2 Typen gesamt, 5 Vorkommen/.test(text) && text.indexOf('4x y is null (/js/store.js:9)') !== -1);
 
     console.error = realError; console.warn = realWarn;
     console.log('\n' + pass + '/' + total + ' bestanden');

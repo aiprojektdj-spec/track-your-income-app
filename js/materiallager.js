@@ -51,6 +51,50 @@ const Materiallager = {
         return liste.slice().sort(Utils.sortComparator(st, this._SORT_WERT[tab]));
     },
 
+    // Suchtext je Tab, getrennt wie die Sortierung. Gesucht wird in den Textspalten,
+    // die auch in der Tabelle stehen — Betraege und Mengen sind ueber die Sortierung
+    // schneller gefunden als ueber eine Texteingabe.
+    _suche: { bestand: '', einkauf: '', verbrauch: '' },
+
+    _SUCH_FELDER: {
+        bestand:   m => [m.name, m.kategorie, m.einheit],
+        einkauf:   e => [e.materialName, e.lieferant, e.datum, Utils.formatDate(e.datum)],
+        verbrauch: v => [v.materialName, v.grund, v.referenzBez, v.datum, Utils.formatDate(v.datum)]
+    },
+
+    /** Filtert nach dem Suchtext des Tabs. Mehrere Woerter muessen alle vorkommen,
+     *  egal in welcher Spalte ("karton amazon" findet Karton-Einkaeufe bei Amazon). */
+    _filtere(liste, tab) {
+        const woerter = (this._suche[tab] || '').toLowerCase().split(/\s+/).filter(Boolean);
+        if (!woerter.length) return liste;
+        const felder = this._SUCH_FELDER[tab];
+        return liste.filter(x => {
+            const text = felder(x).filter(Boolean).join(' ').toLowerCase();
+            return woerter.every(w => text.includes(w));
+        });
+    },
+
+    /** Suchfeld ueber der Tabelle. Enter sucht, Escape leert (wie im Lager-Modul):
+     *  ein Live-Filter je Tastendruck wuerde die Seite neu rendern und den Fokus verlieren. */
+    _suchfeld(tab, platzhalter, treffer, gesamt) {
+        const aktiv = !!this._suche[tab];
+        return `
+            <div class="no-print" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                <input type="search" class="form-input" id="mlSuche" data-ml-suche="${tab}"
+                    value="${Utils.escapeHtml(this._suche[tab])}" placeholder="${platzhalter} – Enter zum Suchen"
+                    aria-label="Tabelle durchsuchen" maxlength="200" style="max-width:340px;">
+                ${aktiv ? `<button type="button" class="btn btn-small btn-secondary" id="mlSucheReset" title="Suche zurücksetzen">✕</button>
+                <span style="font-size:12px;color:var(--text-muted);" role="status">${treffer} von ${gesamt}</span>` : ''}
+            </div>`;
+    },
+
+    /** Leerzustand, wenn die Suche alles wegfiltert — sonst stuende dort der
+     *  Erstbenutzer-Text ("Noch kein Material erfasst"), obwohl es Daten gibt. */
+    _keineTreffer(tab) {
+        return '<tr><td colspan="7" class="table-empty">Keine Treffer für „'
+            + Utils.escapeHtml(this._suche[tab]) + '“.</td></tr>';
+    },
+
     /** Sortierbarer Tabellenkopf. `stil` traegt die Ausrichtung der Zahlenspalten. */
     _th(tab, col, label, stil) {
         return '<th class="' + Utils.sortIcon(this._headSort[tab], col) + '" data-sort="' + col + '"'
@@ -145,10 +189,12 @@ const Materiallager = {
         const usedIds = new Set(bestand.map(m => m.stdId || m.id));
         // Voreinstellung ist die Reihenfolge aus dem Store (Anlagereihenfolge) —
         // _sortiere laesst sie unangetastet, solange keine Spalte gewaehlt ist.
-        bestand = this._sortiere(bestand, 'bestand');
+        const gesamt = bestand.length;
+        bestand = this._sortiere(this._filtere(bestand, 'bestand'), 'bestand');
 
-        const rows = bestand.length === 0
+        const rows = gesamt === 0
             ? '<tr><td colspan="7" class="table-empty">Noch kein Material erfasst. Materialart unten hinzufügen.</td></tr>'
+            : bestand.length === 0 ? this._keineTreffer('bestand')
             : bestand.map(m => {
                 const bestandVal = parseInt(m.bestand) || 0;
                 const mindest = parseInt(m.mindestbestand) || 0;
@@ -227,6 +273,7 @@ const Materiallager = {
                 </form>
             </div>
 
+            ${gesamt > 0 ? this._suchfeld('bestand', 'Bezeichnung, Kategorie, Einheit', bestand.length, gesamt) : ''}
             <div class="table-container">
                 <table>
                     <thead>
@@ -250,16 +297,18 @@ const Materiallager = {
         const bestand = Store.getMaterialBestand();
         // Voreinstellung bleibt: neueste zuerst. Erst ein Klick auf einen Kopf
         // uebersteuert das (_sortiere gibt die Liste sonst unveraendert zurueck).
+        const alleEinkauefe = Store.getMaterialEinkauefe();
         const einkauefe = this._sortiere(
-            Store.getMaterialEinkauefe().sort((a, b) => (b.datum || '').localeCompare(a.datum || '')),
+            this._filtere(alleEinkauefe, 'einkauf').sort((a, b) => (b.datum || '').localeCompare(a.datum || '')),
             'einkauf');
 
         const matOpts = bestand.length > 0
             ? bestand.map(m => `<option value="${m.id}">${Utils.escapeHtml(m.name)} (Bestand: ${parseInt(m.bestand) || 0} ${Utils.escapeHtml(m.einheit || 'Stück')})</option>`).join('')
             : '<option value="">Erst Materialarten unter "Bestand" anlegen</option>';
 
-        const rows = einkauefe.length === 0
+        const rows = alleEinkauefe.length === 0
             ? '<tr><td colspan="7" class="table-empty">Noch keine Einkäufe erfasst — trag den ersten oben im Formular ein. Materialarten dafür legst du im Tab „Bestand" an.</td></tr>'
+            : einkauefe.length === 0 ? this._keineTreffer('einkauf')
             : einkauefe.map(e => `<tr>
                 <td>${Utils.formatDate(e.datum)}</td>
                 <td>${Utils.escapeHtml(e.materialName || '')}</td>
@@ -318,6 +367,7 @@ const Materiallager = {
                 </form>`}
             </div>
 
+            ${alleEinkauefe.length > 0 ? this._suchfeld('einkauf', 'Material, Lieferant, Datum', einkauefe.length, alleEinkauefe.length) : ''}
             <div class="table-container">
                 <table>
                     <thead>
@@ -335,12 +385,13 @@ const Materiallager = {
 
     _renderVerbrauch() {
         // Voreinstellung bleibt: neueste zuerst, s. _renderEinkauf.
-        const log = this._sortiere(Store.getMaterialVerbrauch()
-            .filter(v => !v.storniert)
+        const aktiv = Store.getMaterialVerbrauch().filter(v => !v.storniert);
+        const log = this._sortiere(this._filtere(aktiv, 'verbrauch')
             .sort((a, b) => (b.datum || '').localeCompare(a.datum || '')), 'verbrauch');
 
-        const rows = log.length === 0
+        const rows = aktiv.length === 0
             ? '<tr><td colspan="7" class="table-empty">Noch kein Verbrauch gebucht. Verbrauch wird automatisch beim Speichern eines Verkaufs mit Materialbuchung gebucht.</td></tr>'
+            : log.length === 0 ? this._keineTreffer('verbrauch')
             : log.map(v => `<tr>
                 <td>${Utils.formatDate(v.datum)}</td>
                 <td>${Utils.escapeHtml(v.materialName || '')}</td>
@@ -353,13 +404,17 @@ const Materiallager = {
                 </td>
             </tr>`).join('');
 
+        // Bei aktiver Suche die Summe der Treffer: wer nach "Karton M" sucht, will wissen,
+        // was Karton M gekostet hat. Das Label sagt dazu, welche Summe gerade steht.
         const totalKosten = log.reduce((s, v) => s + (parseFloat(v.kosten) || 0), 0);
+        const gefiltert = !!this._suche.verbrauch;
 
         return `
             <div style="margin-bottom:12px;padding:10px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;display:flex;justify-content:space-between;">
-                <span>Verbrauchskosten gesamt (aktiv):</span>
+                <span>${gefiltert ? 'Verbrauchskosten der Treffer:' : 'Verbrauchskosten gesamt (aktiv):'}</span>
                 <strong style="color:var(--danger);">${Utils.formatCurrency(totalKosten)}</strong>
             </div>
+            ${aktiv.length > 0 ? this._suchfeld('verbrauch', 'Material, Grund, Datum', log.length, aktiv.length) : ''}
             <div class="table-container">
                 <table>
                     <thead>
@@ -414,6 +469,29 @@ const Materiallager = {
             document.getElementById('content'),
             this._headSort[this._tab],
             () => this._refresh());
+
+        const sucheEl = document.getElementById('mlSuche');
+        if (sucheEl) {
+            const tab = sucheEl.dataset.mlSuche;
+            sucheEl.addEventListener('keydown', e => {
+                if (e.key !== 'Enter' && e.key !== 'Escape') return;
+                e.preventDefault();
+                this._suche[tab] = e.key === 'Enter' ? sucheEl.value.trim() : '';
+                this._refresh();
+                // Nach dem Neuaufbau zurueck ins Feld, damit man weitertippen kann.
+                const neu = document.getElementById('mlSuche');
+                if (neu) { neu.focus(); neu.setSelectionRange(neu.value.length, neu.value.length); }
+            });
+            // Das ✕ im Suchfeld (type=search) leert nur den Text; erst das Ereignis
+            // 'search' mit leerem Wert setzt den Filter auch zurueck.
+            sucheEl.addEventListener('search', () => {
+                if (sucheEl.value === '' && this._suche[tab]) { this._suche[tab] = ''; this._refresh(); }
+            });
+        }
+        document.getElementById('mlSucheReset')?.addEventListener('click', () => {
+            this._suche[this._tab] = '';
+            this._refresh();
+        });
 
         document.querySelectorAll('[data-ml-tab]').forEach(btn => {
             btn.addEventListener('click', () => {

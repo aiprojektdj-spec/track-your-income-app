@@ -12,6 +12,7 @@ Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 | E2 | **Whop bleibt** Login und Zahlung. Supabase kennt nur die Whop-`user_id` |
 | E3 | **Kein `supabase-js`**, kein `tweetnacl`. Zugriff nur aus `api/` per `fetch` auf PostgREST/Storage, Service-Key nie im Browser |
 | E5 | Eigene Projekte `stackr-prod` + `stackr-preview`, Frankfurt (eu-central-1), Pro-Plan |
+| E6 | **Supabase bleibt bis zum Launch im Free-Plan** (User, 2026-10-07). Bis dahin keine Supabase-Env-Variable in Vercel (`SUPABASE_*`, `STORAGE_MIRROR`, `STORAGE_BACKEND`, `BLOB_BACKEND`), also kein Spiegel und kein Umschalten: Der Umzug ruht nach Schritt 1. Stand 2026-10-07: zwei Projekte, `usrhhjwvoefjdgrwovkg` (alle vier Migrationen, steht in der CSP) und `Stackr`/`nvtjzeffngwfsqjzdrdz` (leer) — welches Prod wird, ist offen |
 
 ## Was es schon gibt — Sync (Commit `78a711e`, auf `master`, ohne Env-Variablen wirkungslos)
 

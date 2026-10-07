@@ -61,6 +61,8 @@ function sbExec(name, a) {
         Object.keys(sb.types || {}).forEach(function (h) { if (sb.types[h].first_day === a.p_day) { r.neu.push(h); r.entries[h] = sb.types[h].entry; } });
         return r;
     }
+    // Täglicher Fristen-Lauf aus api/blob-cleanup.js (test/test-aufraeumen.js prüft ihn)
+    if (name === 'sync_aufraeumen') return { rate_limits: 0, clerr_counts: 0, clerr_types: 0 };
     throw new Error('unbekannte rpc ' + name);
 }
 global.fetch = function (url, opts) {

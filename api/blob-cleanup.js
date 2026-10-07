@@ -22,6 +22,8 @@ var _alert     = require('./_alert.js');
 var alertOps   = _alert.alertOps;
 var alertZiele = _alert.alertZiele;
 var clientErr  = require('./_client-errors.js');
+var db         = require('./_db.js');
+var speicher   = require('./_sync-store.js');
 
 var TMP_MAX_AGE_MS   = 24 * 60 * 60 * 1000;      // alles älter als 24 h unter tmp/ ist mit Sicherheit verwaist
 var ALERT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 Tage Alarm-Historie — lang genug, um einen
@@ -64,6 +66,16 @@ async function clientErrorSummary(now) {
         var text = await clientErr.summary(now);
         if (text) await alertOps('client-error', 'daily-summary', text);
     } catch (e) {}
+}
+
+// Speicherfristen in Supabase (Migration 20261007000002_aufraeumen.sql): IP-Zähler aus
+// rate_limits spätestens nach 24 h, Fehlerzähler nach 30 Tagen. Nur wenn Supabase das
+// primäre System ist — nur dann landen dort Zähler. Redis braucht das nicht (EXPIRE).
+// Wirft nie: ein Fehler wird gemeldet, Aufräumlauf und Heartbeat laufen weiter.
+async function supabaseAufraeumen() {
+    if (speicher.backendName() !== 'supabase' || speicher.configProblem()) return null;
+    try { return await db.rpc('sync_aufraeumen', {}); }
+    catch (e) { await alertOps('blob-cleanup', 'aufraeumen-failed', e && e.message); return null; }
 }
 
 module.exports = async function handler(req, res) {
@@ -112,6 +124,7 @@ module.exports = async function handler(req, res) {
         // 'deleted' behält seine alte Bedeutung (nur tmp/), damit die Gegenprobe in
         // plan/vercel-einrichtung.md weiter stimmt. Der zweite Wert kommt additiv dazu.
         await clientErrorSummary(now);
+        await supabaseAufraeumen();
         await heartbeat();
         return res.status(200).json({ ok: true, deleted: deleted, alertsDeleted: alertsDeleted });
     } catch (e) {

@@ -5,6 +5,9 @@
 
 var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
 var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
+// IP-Rate-Limit über den Speicher-Adapter: STORAGE_BACKEND entscheidet Redis | Supabase
+// (plan/supabase-umzug-2026-10-06.md). Die Refresh-Sitzung unten bleibt vorerst in Redis.
+var store       = require('./_sync-store.js');
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps    = require('./_alert.js').alertOps;
 var _log        = require('./_log.js');
@@ -28,11 +31,12 @@ module.exports = async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST')    return res.status(405).json({ error: 'Method not allowed' });
 
-    if (!REDIS_URL || !REDIS_TOKEN) {
+    var rlProblem = store.configProblem();
+    if (rlProblem) {
         // ponytail: kein In-Memory-Fallback — in Serverless (Cold Starts, N Instanzen) wertlos.
-        // Nicht still überspringen: melden, damit fehlende Redis-Env auffällt.
+        // Nicht still überspringen: melden, damit fehlende Speicher-Env auffällt.
         await alertOps('whop-token', 'rate-limit-inaktiv',
-            'UPSTASH_REDIS_REST_URL/TOKEN nicht gesetzt — Login-Endpunkt ohne IP-Deckel');
+            rlProblem + ' — Login-Endpunkt ohne IP-Deckel');
     } else {
         try {
             // x-vercel-forwarded-for wird von Vercels Edge-Netzwerk selbst gesetzt und ist vom
@@ -40,9 +44,7 @@ module.exports = async function handler(req, res) {
             // Client mitschicken kann) — sonst wäre das IP-Rate-Limit per Header spoofbar.
             var ip    = req.headers['x-vercel-forwarded-for'] || (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
             var rlKey = 'whoptoken:rl:' + ip;
-            var count = await redisCmd(['INCR', rlKey]);
-            // NX: TTL nachziehen falls beim ersten INCR verloren — sonst permanente IP-Sperre
-            await redisCmd(['EXPIRE', rlKey, '60', 'NX']);
+            var count = await store.rateHit(rlKey, 60);
             if (count > RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
         } catch (e) {
             // nicht blockierend — weiter, aber der IP-Deckel ist damit offen

@@ -89,21 +89,11 @@ function _signGraceToken(uid) {
 
 // IP-Rate-Limit — verhindert Whop-API-Quota-Erschöpfung durch Request-Flood (jeder Call
 // löst bis zu 4 Whop-API-Calls aus, s. api/sync.js:155-167 für identisches Muster).
-// Best-effort: fehlt Redis-Env oder schlägt der Call fehl, wird NICHT blockiert (fail-open,
-// ein zahlender Kunde darf nie an einem Redis-Ausfall scheitern).
-var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
-var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
+// Best-effort: fehlt die Speicher-Env oder schlägt der Call fehl, wird NICHT blockiert (fail-open,
+// ein zahlender Kunde darf nie an einem Speicher-Ausfall scheitern).
+// Speicher-Adapter: STORAGE_BACKEND entscheidet Redis | Supabase (plan/supabase-umzug-2026-10-06.md).
+var store       = require('./_sync-store.js');
 var IP_RATE_MAX = 30; // Requests/Minute/IP — boot() + Fokus-Recheck brauchen komfortabel Platz
-
-function redisCmd(cmd) {
-    return fetch(REDIS_URL, {
-        method:  'POST',
-        headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' },
-        body:    JSON.stringify(cmd),
-        signal:  AbortSignal.timeout(8000)
-    }).then(function (r) { return r.json(); })
-      .then(function (j) { return j ? j.result : null; });
-}
 
 // Erkennt Zugang in den unterschiedlichen has_access-/Membership-Shapes.
 function _grants(obj) {
@@ -213,15 +203,15 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: 'Missing or invalid token' });
     }
 
-    if (REDIS_URL && REDIS_TOKEN) {
+    var rlProblem = store.configProblem();
+    if (!rlProblem) {
         try {
             // x-vercel-forwarded-for wird von Vercels Edge-Netzwerk selbst gesetzt und ist vom
             // Client nicht überschreibbar (anders als das erste x-forwarded-for-Segment) — sonst
             // wäre das IP-Rate-Limit per Header spoofbar.
             var ip      = req.headers['x-vercel-forwarded-for'] || (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
             var ipRlKey = 'whopaccess:iprl:' + ip;
-            var ipCount = await redisCmd(['INCR', ipRlKey]);
-            await redisCmd(['EXPIRE', ipRlKey, '60', 'NX']);
+            var ipCount = await store.rateHit(ipRlKey, 60);
             if (ipCount > IP_RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
         } catch (e) {
             // nicht blockierend — weiter, aber der IP-Deckel ist damit offen
@@ -229,7 +219,7 @@ module.exports = async function handler(req, res) {
         }
     } else {
         await alertOps('whop-access', 'rate-limit-inaktiv',
-            'Redis-Env nicht gesetzt — Zugangs-Check laeuft ohne IP-Deckel');
+            rlProblem + ' — Zugangs-Check laeuft ohne IP-Deckel');
     }
 
     try {

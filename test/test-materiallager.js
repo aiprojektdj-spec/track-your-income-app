@@ -156,5 +156,49 @@ const nah = (a, b) => Math.abs(a - b) < 1e-9;
         !/altBestand \* altKosten/.test(mlSrc));
 })();
 
+// ── D) Suche je Tab (_filtere) ───────────────────────────────────────────────
+// Die Tabelle zeigt das Datum als TT.MM.JJJJ — gesucht wird also auch in dieser Form.
+(() => {
+    global.Utils = {
+        formatDate: s => s ? s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4) : ''
+    };
+    const bestand = [
+        { name: 'Karton M', kategorie: 'Karton', einheit: 'Stück' },
+        { name: 'Klebeband', kategorie: 'Zubehör', einheit: 'Rolle' },
+        { name: 'Versandbeutel M', kategorie: 'Beutel', einheit: 'Stück' }
+    ];
+    const einkauf = [
+        { materialName: 'Karton M', lieferant: 'Amazon', datum: '2026-03-14' },
+        { materialName: 'Karton M', lieferant: 'Baumarkt', datum: '2026-04-02' },
+        { materialName: 'Klebeband', lieferant: 'Amazon', datum: '2026-04-02' }
+    ];
+    const verbrauch = [
+        { materialName: 'Karton M', grund: 'Verkauf', referenzBez: 'Jacke Levis', datum: '2026-05-01' },
+        { materialName: 'Klebeband', grund: 'Verlust', datum: '2026-05-03' }
+    ];
+    const such = (tab, text, liste) => { ML._suche[tab] = text; const r = ML._filtere(liste, tab); ML._suche[tab] = ''; return r; };
+
+    check('D1 ohne Suchtext bleibt die Liste unveraendert (dieselbe Referenz)',
+        (ML._suche.bestand = '', ML._filtere(bestand, 'bestand')) === bestand);
+    check('D2 Gross/Klein egal', such('bestand', 'KARTON', bestand).length === 1);
+    check('D3 sucht auch in Kategorie und Einheit',
+        such('bestand', 'rolle', bestand).length === 1 && such('bestand', 'beutel', bestand).length === 1);
+    check('D4 mehrere Woerter muessen ALLE passen, spaltenuebergreifend',
+        such('einkauf', 'karton amazon', einkauf).length === 1);
+    check('D5 Datum in Anzeigeform TT.MM.JJJJ findbar', such('einkauf', '02.04.2026', einkauf).length === 2);
+    check('D6 Datum in ISO-Form findbar', such('einkauf', '2026-03', einkauf).length === 1);
+    check('D7 Verbrauch: Referenz (verkaufter Artikel) durchsuchbar',
+        such('verbrauch', 'levis', verbrauch).length === 1);
+    check('D8 fehlende Felder (kein referenzBez) werfen nicht und matchen nicht als "undefined"',
+        such('verbrauch', 'undefined', verbrauch).length === 0);
+    check('D9 kein Treffer ergibt leere Liste', such('bestand', 'xyz', bestand).length === 0);
+    check('D10 Leerzeichen allein zaehlen als keine Suche', such('bestand', '   ', bestand).length === 3);
+    check('D11 Suche je Tab getrennt',
+        (ML._suche.bestand = 'karton', ML._filtere(einkauf, 'einkauf').length === 3) && (ML._suche.bestand = '', true));
+    check('D12 Suchtext im Leerzustand wird escaped',
+        /escapeHtml\(this\._suche\[tab\]\)/.test(mlSrc) && (mlSrc.match(/escapeHtml\(this\._suche\[tab\]\)/g) || []).length === 2);
+    delete global.Utils;
+})();
+
 console.log('\n' + pass + '/' + total + ' Checks bestanden');
 if (pass !== total) process.exit(1);

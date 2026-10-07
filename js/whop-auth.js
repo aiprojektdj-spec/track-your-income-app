@@ -14,7 +14,10 @@ var AuthUI = (function () {
     'use strict';
 
     var WHOP_CLIENT_ID    = 'app_dc3OND8eGv2Iim';
-    var WHOP_REDIRECT_URI = 'https://track-your-income-app.vercel.app/app.html';
+    // Muss zu REDIRECT_URIS in api/whop-token.js passen und in der Whop-App eingetragen sein.
+    var WHOP_REDIRECT_URI = location.hostname === 'getstackr.de'
+        ? 'https://getstackr.de/app.html'
+        : 'https://track-your-income-app.vercel.app/app.html';
     var WHOP_SCOPE        = 'openid profile email';
     // WICHTIG: NIE auf https://whop.com/stackr-3244/ (Company-Hub) verlinken — das ist eine
     // allgemeine Profilseite mit "Join"-Button, die erst durch Products→See all→Stackr Pro

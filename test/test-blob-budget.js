@@ -21,6 +21,10 @@ const src = fs.readFileSync(path.join(__dirname, '..', 'api', 'blob-upload.js'),
 const m = src.match(/async function chargeBlobBudget\([\s\S]*?\n\}/m);
 assert.ok(m, 'chargeBlobBudget in api/blob-upload.js nicht gefunden');
 
+// Seit 2026-10-08 laeuft das Budget ueber api/_sync-store.js (counterAdd), damit es
+// STORAGE_BACKEND folgt. Der Fake bildet die Redis-Fassung des Adapters nach
+// (INCRBY + EXPIRE NX). Die Supabase-Fassung (sync_counter_add) wurde am 2026-10-08
+// gegen PGlite geprueft: bigint > 2 GB, Ruecknahme, Fenster nicht verlaengert, Rechte.
 function build(opts) {
     const store = new Map();
     const calls = [];
@@ -29,18 +33,26 @@ function build(opts) {
         if (opts.fail) throw new Error('Redis: down');
         const [op, key, arg] = cmd;
         if (op === 'INCRBY') { const v = (store.get(key) || 0) + Number(arg); store.set(key, v); return v; }
-        if (op === 'DECRBY') { const v = (store.get(key) || 0) - Number(arg); store.set(key, v); return v; }
         if (op === 'EXPIRE') return 1;
         return null;
+    };
+    const fakeStore = {
+        configProblem: () => opts.noRedis ? 'KV_REST_API_URL/TOKEN fehlen' : '',
+        backendName:   () => 'redis',
+        counterAdd: async (key, delta, w) => {
+            const n = await redisCmd(['INCRBY', key, String(delta)]);
+            await redisCmd(['EXPIRE', key, String(w), 'NX']);
+            return n;
+        }
     };
     // Der Byte-Deckel ist fail-open. Damit ein offener Deckel nicht still im Log versandet,
     // meldet chargeBlobBudget ihn ueber api/_alert.js — hier als Spion eingehaengt.
     const alerts = [];
     const alertOps = async (source, event, detail) => { alerts.push({ source, event, detail }); };
-    const fn = new Function('REDIS_URL', 'REDIS_TOKEN', 'redisCmd', 'BLOB_BUDGET_BYTES',
+    const fn = new Function('store', 'BLOB_BUDGET_BYTES',
                             'BLOB_BUDGET_WINDOW', 'console', 'alertOps',
                             m[0] + '; return chargeBlobBudget;')(
-        opts.noRedis ? '' : 'http://r', opts.noRedis ? '' : 'tok', redisCmd,
+        fakeStore,
         opts.budget !== undefined ? opts.budget : 10 * GB, 2592000,
         { error: () => {} }, alertOps);
     return { charge: fn, store, calls, alerts };
@@ -65,7 +77,7 @@ function build(opts) {
     //    kein Budget verbrennen, sonst sperrt sich ein Nutzer mit einer zu großen Datei selbst aus
     assert.strictEqual(await b.charge('user_1', 1), false, 'über dem Deckel abgelehnt');
     assert.strictEqual(b.store.get('blob:bytes:user_1'), 10 * MB, 'Buchung wurde zurückgenommen');
-    pass++; console.log('✓ abgelehnter Upload verbraucht kein Budget (DECRBY-Rücknahme)');
+    pass++; console.log('✓ abgelehnter Upload verbraucht kein Budget (Rücknahme mit negativem Delta)');
 
     // 4) Budget ist pro Nutzer, nicht global
     assert.strictEqual(await b.charge('user_2', 4 * MB), true, 'anderer Nutzer hat eigenes Budget');

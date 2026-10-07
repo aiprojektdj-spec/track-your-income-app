@@ -298,5 +298,17 @@ async function call(token, body) { const res = mkRes(); await handler({ method: 
     assert.strictEqual(r.body.error, 'pro_required');
     pass++; console.log('✓ reset_all ohne Pro → 403 pro_required');
 
-    console.log('\n' + pass + '/31 API-Tests bestanden ✅');
+    // Ausgelagertes Ledger: im Supabase-Modus liefert api/blob-upload.js "sb:…"-Referenzen.
+    // Bis 2026-10-07 nahm push nur https:// an — große Ledger liefen dann in 400 bad_payload.
+    resetRate();
+    r = await call('tok_owner', { action: 'push', scope: '__account', version: 0, iv: 'i',
+                                  blobUrl: 'sb:stackr/attachments/owner1/__account/ledger-1-abc' });
+    assert.strictEqual(r.code, 200, 'sb:-Referenz als blobUrl angenommen');
+    resetRate();
+    r = await call('tok_owner', { action: 'push', scope: '__account', version: 0, iv: 'i', blobUrl: 'http://x/y' });
+    assert.strictEqual(r.code, 400, 'andere Formen weiter abgelehnt');
+    assert.strictEqual(r.body.error, 'bad_payload');
+    pass++; console.log('✓ push mit blobUrl: https:// und sb: angenommen, sonst 400');
+
+    console.log('\n' + pass + '/32 API-Tests bestanden ✅');
 })().catch(e => { console.error('✗ FAIL', e); process.exit(1); });

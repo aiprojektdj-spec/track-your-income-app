@@ -16,4 +16,4 @@ Allow: /impressum.html
 Allow: /cookies.html
 Allow: /refund.html
 
-Sitemap: https://track-your-income-app.vercel.app/sitemap.xml
+Sitemap: https://getstackr.de/sitemap.xml

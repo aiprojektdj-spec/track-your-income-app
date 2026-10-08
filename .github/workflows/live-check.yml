@@ -29,4 +29,4 @@ jobs:
         with:
           node-version: 22
       - name: Live-Check gegen Production
-        run: node scripts/check-live-exposure.js https://track-your-income-app.vercel.app
+        run: node scripts/check-live-exposure.js https://getstackr.de

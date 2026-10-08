@@ -66,6 +66,8 @@ body.stackr-shell { display: block; height: auto; min-height: 100vh; }
 .stackr-shell .topnav > .sr-context-nav { order: 3; flex: 1 0 100%; max-width: none; width: 100%; margin: 0 !important; padding-bottom: 4px; border: 0; }
 .sr-storage-status { max-width: 220px; color: var(--muted); font-size: 12px; }
 .sr-storage-status:empty { display: none; }
+/* Wie in der Haupt-App: Neben der Firmenauswahl ist für die Speicheranzeige kein Platz. */
+.stackr-shell .topnav-controls:has(#companySwitcher:not(:empty)) .sr-storage-status { display: none; }
 .sr-nav-footer p, .sr-nav-footer small { color: var(--muted); font-size: 12px; padding: 8px 14px; }
 .sr-nav-tools { font-size: 14px; color: var(--muted); padding: 8px 14px; }
 .sr-nav-tools summary { cursor: pointer; min-height: 44px; padding-block: 10px; }

@@ -438,7 +438,6 @@ const UstVoranmeldung = {
             <div class="page-header"><h2>USt-Voranmeldung</h2></div>
             <div class="card">
                 <div style="padding:32px;text-align:center;">
-                    <div style="font-size:48px;margin-bottom:16px;">📋</div>
                     <h3>Nur für Regelbesteuerer</h3>
                     <p style="color:var(--text-muted);margin:8px 0 20px;">
                         Du bist aktuell als <strong>Kleinunternehmer (§19 UStG)</strong> eingestellt.<br>
@@ -523,7 +522,7 @@ const UstVoranmeldung = {
             <div class="page-header-actions no-print">
                 <select class="form-select" id="uvYear" style="width:90px;">${yearOptions}</select>
                 <select class="form-select" id="uvPeriode">${periodOptions}</select>
-                <button class="btn btn-primary" data-action="uva-copy">📋 Werte kopieren</button>
+                <button class="btn btn-primary" data-action="uva-copy">Werte kopieren</button>
                 <button class="btn" data-action="uva-export">ELSTER CSV</button>
             </div>
         </div>

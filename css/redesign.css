@@ -118,13 +118,24 @@ body.stackr-shell { display: block; height: auto; min-height: 100vh; }
 .card .card, .card .table-container { border: 0; border-radius: 0; }
 .card-header { margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
 .card-title { font-size: 20px; }
-.stats-grid, .stats-grid-primary { gap: 0; margin: 0 0 32px; background: transparent; }
-.stats-grid > .stat-card, .stats-grid-primary > .card { border: 0; border-right: 1px solid var(--line); border-radius: 0; background: transparent; padding: 16px 24px; }
-.stats-grid > .stat-card:first-child, .stats-grid-primary > .card:first-child { padding-left: 0; }
-.stats-grid > .stat-card:last-child, .stats-grid-primary > .card:last-child { border-right: 0; }
+.stats-grid, .stats-grid-primary, .stats-grid-secondary { gap: 0; margin: 0 0 32px; background: transparent; }
+.stats-grid > .stat-card, .stats-grid-primary > .card, .stats-grid-secondary > .card { border: 0 !important; border-right: 1px solid var(--line) !important; border-radius: 0; background: transparent; padding: 16px 24px !important; }
+.stats-grid > .stat-card:first-child, .stats-grid-primary > .card:first-child, .stats-grid-secondary > .card:first-child { padding-left: 0 !important; }
+.stats-grid > .stat-card:last-child, .stats-grid-primary > .card:last-child, .stats-grid-secondary > .card:last-child { border-right: 0 !important; }
 .card-label { color: var(--muted); font-size: 14px; font-weight: 400; text-transform: none; letter-spacing: 0; }
 .card-value { color: var(--text) !important; font: 400 36px/1.3 var(--font-sans); letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
 .card-subtitle { color: var(--muted); font-size: 14px; }
+/* Ältere Kennzahl-Karten (Jahresgewinn, Lager) setzen Großschrift und Farbkante inline. */
+.stat-card[style*="border-left"] { border-left: 1px solid var(--line) !important; }
+.card-label[style] { font-size: 14px !important; font-weight: 400 !important; text-transform: none !important; letter-spacing: 0 !important; color: var(--muted) !important; }
+.card-value[style] { font-weight: 400 !important; }
+.card-subtitle[style] { font-size: 14px !important; }
+.eb-warning-box { background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+.eb-warning-box .wb-title { color: var(--text); font-weight: 550; }
+.eb-warning-box .wb-title i { display: none; }
+/* Eigenständige Lagerseite: Kopf an der Inhaltsbreite ausrichten, der Modul-Titel wiederholt ihn nur. */
+.stackr-shell #lagerTabContent > .no-print:first-child { max-width: 1200px; margin-inline: auto; }
+.stackr-shell #lagerTabContent #content > .page-header:first-child { display: none; }
 .card-label i, .empty-state > .icon { display: none; }
 .form-label, .form-group > label, .filter-group label { display: block; margin-bottom: 8px; color: var(--text); font-size: 14px; font-weight: 450; letter-spacing: 0; text-transform: none; }
 .form-input, .form-select, .form-textarea, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]), select, textarea { min-height: 48px; border: 1px solid var(--control); border-radius: 6px; background: var(--bg-input); color: var(--text); padding: 11px 12px; font-size: 16px; line-height: 1.5; max-width: 100%; box-shadow: none; }
@@ -203,7 +214,7 @@ details.sr-details[open] > summary { margin-bottom: 16px; color: var(--text); }
 .redesign-kpi:first-child { padding-left: 0; }
 .redesign-kpi:last-child { border: 0; }
 .redesign-kpi-value { display: block; margin: 12px 0 8px; font-size: 36px; line-height: 1.3; font-weight: 400; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
-.redesign-text-link { color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
+.redesign-text-link { color: var(--text); text-decoration: underline; text-underline-offset: 4px; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
 .redesign-section { margin-top: 48px; }
 .redesign-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; }
 .redesign-section-heading h3 { font-size: 20px; }
@@ -308,7 +319,7 @@ body > :not(.print-container):not(#printArea) :is(#content, .modal, .onboarding-
   .sr-more-tasks > :not(summary) { left: 0; right: 0; min-width: 0; }
   .sr-more-tasks { position: static; }
   .stats-grid, .stats-grid-primary, .stats-grid-secondary { grid-template-columns: 1fr !important; }
-  .stats-grid > .stat-card, .stats-grid-primary > .card { border-right: 0; border-bottom: 1px solid var(--line); padding: 20px 0; }
+  .stats-grid > .stat-card, .stats-grid-primary > .card, .stats-grid-secondary > .card { border-right: 0 !important; border-bottom: 1px solid var(--line) !important; padding: 20px 0 !important; }
   .card-value { font-size: 32px; }
   .card { padding: 20px 16px; }
   .form-row, .ust-picker, .ust-picker--compact { grid-template-columns: 1fr !important; flex-direction: column; }

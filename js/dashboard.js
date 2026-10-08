@@ -312,7 +312,7 @@ const Dashboard = {
     _renderNextTasks(invoices, expenses) {
         const tasks = [];
         const overdue = invoices.filter(i => i.status === 'ueberfaellig');
-        if (overdue.length) tasks.push({ title: 'Überfällige Rechnungen prüfen', detail: `${overdue.length} Rechnungen sind als überfällig markiert.`, page: 'rechnungen', action: 'Rechnungen ansehen' });
+        if (overdue.length) tasks.push({ title: 'Überfällige Rechnungen prüfen', detail: overdue.length === 1 ? '1 Rechnung ist als überfällig markiert.' : `${overdue.length} Rechnungen sind als überfällig markiert.`, page: 'rechnungen', action: 'Rechnungen ansehen' });
         const today = Utils.todayISO();
         const soon = new Date();
         soon.setDate(soon.getDate() + 14);

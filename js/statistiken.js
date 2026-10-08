@@ -231,8 +231,8 @@ const Statistiken = {
                 <div class="card-title">Plattform-Analyse</div>
                 <div style="font-size:12px;color:var(--text-muted);">PStTG: Meldepflicht ab 30 Verkäufe oder 2.000 € je Plattform</div>
             </div>
-            ${bestPlat ? `<div style="margin-bottom:12px;padding:10px;background:rgba(16,185,129,0.08);border:1px solid var(--success);border-radius:6px;font-size:13px;">
-                🏆 <strong>Beste Plattform:</strong> ${Utils.escapeHtml(bestPlat[0])} — ${Utils.formatCurrency(bestPlat[1].umsatz)} Umsatz, ${bestPlat[1].count} Verkäufe
+            ${bestPlat ? `<div style="margin-bottom:12px;padding:10px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:6px;font-size:13px;">
+                <strong>Beste Plattform:</strong> ${Utils.escapeHtml(bestPlat[0])} — ${Utils.formatCurrency(bestPlat[1].umsatz)} Umsatz, ${bestPlat[1].count} Verkäufe
             </div>` : ''}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
                 <div><canvas id="chartPlatPie" style="max-height:200px;"></canvas></div>
@@ -700,9 +700,9 @@ const Statistiken = {
             .sort((a, b) => (a[1].stSum / a[1].stCount) - (b[1].stSum / b[1].stCount))[0];
 
         const highlights = [
-            topBrand ? `🏆 <strong>Top Marke:</strong> ${Utils.escapeHtml(topBrand[0])} — ${Utils.formatCurrency(topBrand[1].totalGewinn)} Gewinn` : '',
-            topType  ? `📦 <strong>Top Kategorie:</strong> ${Utils.escapeHtml(topType[0])} — ${topType[1].count} Stk. verkauft` : '',
-            fastType ? `⚡ <strong>Schnellste Umschlagszeit:</strong> ${Utils.escapeHtml(fastType[0])} — Ø ${Math.round(fastType[1].stSum / fastType[1].stCount)} Tage` : ''
+            topBrand ? `<strong>Top Marke:</strong> ${Utils.escapeHtml(topBrand[0])} — ${Utils.formatCurrency(topBrand[1].totalGewinn)} Gewinn` : '',
+            topType  ? `<strong>Top Kategorie:</strong> ${Utils.escapeHtml(topType[0])} — ${topType[1].count} Stk. verkauft` : '',
+            fastType ? `<strong>Schnellste Umschlagszeit:</strong> ${Utils.escapeHtml(fastType[0])} — Ø ${Math.round(fastType[1].stSum / fastType[1].stCount)} Tage` : ''
         ].filter(Boolean);
 
         section.innerHTML = `

@@ -121,6 +121,7 @@ module.exports = async function handler(req, res) {
             env:      process.env.VERCEL_ENV || 'unknown',
             webhook:  ziele.webhook,   // ALERT_WEBHOOK_URL im laufenden Code sichtbar?
             blob:     ziele.blob,      // BLOB_READ_WRITE_TOKEN desgleichen
+            supabase: ziele.supabase,  // SUPABASE_URL + Service-Key (ops_alerts)
             gemeldet: gemeldet         // false = Entprellung, binnen 5 Min schon geschickt
         });
     }

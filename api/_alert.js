@@ -9,11 +9,18 @@
 // Diese Datei ändert das Fail-open-Verhalten NICHT. Sie legt den Vorfall nur
 // zusätzlich irgendwo ab, wo er auffallen kann.
 //
-// ZWEI ZIELE, unabhängig voneinander:
+// DREI ZIELE, unabhängig voneinander:
 //
 //   1. ALERT_WEBHOOK_URL      (optional) — sofortige Meldung, Slack/Make.com-kompatibel
 //   2. BLOB_READ_WRITE_TOKEN  (in Produktion ohnehin gesetzt) — dieselbe Nutzlast
 //                              zusätzlich als JSON-Objekt unter 'stackr/alerts/'
+//   3. SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY — eine Zeile in ops_alerts
+//                              (Migration 20261008000003_ops_alerts.sql)
+//
+// Ziel 3 ersetzt Ziel 2 beim Supabase-Umzug (Entscheidung User 2026-10-07): solange
+// beide Zugangsdaten gesetzt sind, wird in beide geschrieben; mit dem Abschalten von
+// Vercel Blob fällt Ziel 2 einfach weg. Bewusste Grenze: einen Ausfall von Supabase
+// SELBST kann Ziel 3 nicht festhalten — der landet dann nur im Webhook und im Log.
 //
 // Warum ein zweites Ziel: Der Webhook ist der schnelle Weg, braucht aber einen
 // eingerichteten Dienst. Solange der fehlt, ist der einzige Beleg das Log — und
@@ -39,6 +46,7 @@
 // =============================================================================
 
 var _log = require('./_log.js');
+var db   = require('./_db.js');
 
 var ALERT_URL  = process.env.ALERT_WEBHOOK_URL    || '';
 var BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN || '';
@@ -101,9 +109,9 @@ async function alertOps(source, event, detail) {
         ts:     new Date(now).toISOString()
     };
 
-    // Beide Ziele parallel: keines darf auf das andere warten, keines darf werfen.
-    // Promise.all ist hier gefahrlos, weil beide Helfer ihre Fehler selbst schlucken.
-    await Promise.all([_sendWebhook(payload), _writeBlob(payload, now)]);
+    // Alle Ziele parallel: keines darf auf das andere warten, keines darf werfen.
+    // Promise.all ist hier gefahrlos, weil alle Helfer ihre Fehler selbst schlucken.
+    await Promise.all([_sendWebhook(payload), _writeBlob(payload, now), _writeSupabase(payload)]);
     return true;
 }
 
@@ -113,7 +121,7 @@ async function alertOps(source, event, detail) {
 // Vercels Einstellungen wirklich im Code an? Eine ausgelieferte URL wäre ein
 // Zugangsweg ins Make-Szenario — deshalb nur true/false.
 function alertZiele() {
-    return { webhook: !!ALERT_URL, blob: !!BLOB_TOKEN };
+    return { webhook: !!ALERT_URL, blob: !!BLOB_TOKEN, supabase: db.isConfigured() };
 }
 
 // Ziel 1 — Webhook. Wirft nie.
@@ -165,6 +173,20 @@ async function _writeBlob(payload, now) {
     } catch (e) {
         // Bewusst still — und ausdrücklich OHNE erneutes alertOps(): das wäre eine
         // Schleife. Der Text steht oben im Log.
+    }
+}
+
+// Ziel 3 — Zeile in ops_alerts. Wirft nie. 2 s wie der Webhook: der Fehlerpfad soll
+// nicht hängen. Kürzen übernimmt die Funktion in der Datenbank.
+async function _writeSupabase(payload) {
+    if (!db.isConfigured()) return;
+    try {
+        await db.rpc('sync_alert_add', {
+            p_source: payload.source, p_event: payload.event,
+            p_detail: payload.detail, p_env: payload.env
+        }, 2000);
+    } catch (e) {
+        // Bewusst still, ohne erneutes alertOps() (Schleife) — wie bei Ziel 2.
     }
 }
 

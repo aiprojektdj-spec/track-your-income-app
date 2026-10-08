@@ -26,7 +26,9 @@ function isConfigured() {
     return !!(c.url && c.key);
 }
 
-async function rpc(name, args) {
+// timeoutMs: optional, Default 8 s. Kürzer nur auf Fehlerpfaden (api/_alert.js), die
+// den eigentlichen Request nicht aufhalten dürfen.
+async function rpc(name, args, timeoutMs) {
     var c = config();
     var r = await fetch(c.url + '/rest/v1/rpc/' + name, {
         method:  'POST',
@@ -37,7 +39,7 @@ async function rpc(name, args) {
             'Accept':        'application/json'
         },
         body:   JSON.stringify(args || {}),
-        signal: AbortSignal.timeout(8000)
+        signal: AbortSignal.timeout(timeoutMs || 8000)
     });
     if (!r.ok) throw new Error('Supabase rpc ' + name + ' HTTP ' + r.status);
     // void-Funktionen antworten mit 204 bzw. leerem Body

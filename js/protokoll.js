@@ -249,7 +249,7 @@ const Protokoll = {
                           'warning', 14000);
             return;
         }
-        Utils.showToast('✓ Z3-Export: ' + name + ' mit ' + dateien.length + ' Dateien (index.xml + ' +
+        Utils.showToast('Z3-Export: ' + name + ' mit ' + dateien.length + ' Dateien (index.xml + ' +
                         geliefert.length + ' Tabellen).' +
                         (leer.length ? ' Ohne Daten im Zeitraum und daher nicht enthalten: ' + leer.join(', ') + '.' : ''),
                         'success', 12000);
@@ -362,7 +362,7 @@ const Protokoll = {
                     <td>${Utils.escapeHtml(e.details || '')}</td>
                     <td>
                         ${e.oldValues || e.newValues ? `<button class="btn btn-small" data-detail="${e.id}">Details</button>` : ''}
-                        <span class="audit-checksum" title="Pruefsumme: ${e.checksum || ''}">#${e.checksum || '-'}</span>
+                        <span class="audit-checksum" title="Prüfsumme: ${e.checksum || ''}">#${e.checksum || '-'}</span>
                     </td>
                 </tr>
             `).join('');
@@ -373,20 +373,20 @@ const Protokoll = {
 
         return `
             <div class="page-header">
-                <h2>Aenderungsprotokoll (Audit-Log)</h2>
+                <h2>Änderungsprotokoll (Audit-Log)</h2>
                 <div class="page-header-actions no-print">
                     <button class="btn" id="auditExportBtn">Protokoll exportieren</button>
                     <button class="btn" data-action="pr-z3" title="Datenträgerüberlassung nach §147 Abs. 6 AO für die Betriebsprüfung">Betriebsprüfung (Z3)</button>
-                    <button class="btn" id="auditVerifyBtn">Integritaet pruefen</button>
+                    <button class="btn" id="auditVerifyBtn">Integrität prüfen</button>
                 </div>
             </div>
 
             <div class="card audit-info-card" style="margin-bottom:20px;">
                 <div style="padding:1rem;">
-                    <strong>GoBD-Hinweis:</strong> Dieses Aenderungsprotokoll dokumentiert alle Erstellungen, Bearbeitungen und Stornierungen.
+                    <strong>GoBD-Hinweis:</strong> Dieses Änderungsprotokoll dokumentiert alle Erstellungen, Bearbeitungen und Stornierungen.
                     Eintraege koennen nicht geloescht oder veraendert werden. Jeder Eintrag besitzt eine Pruefsumme zur Integritaetssicherung.
-                    <br><strong>Eintraege gesamt:</strong> ${log.length} | <strong>Gefiltert:</strong> ${filtered.length}
-                    ${clockBackCount ? `<br><span style="color:var(--danger);"><strong>⚠ ${clockBackCount} Eintrag/Einträge</strong>
+                    <br><strong>Einträge gesamt:</strong> ${log.length} | <strong>Gefiltert:</strong> ${filtered.length}
+                    ${clockBackCount ? `<br><span style="color:var(--danger);"><strong>${clockBackCount} Eintrag/Einträge</strong>
                         wurden angelegt, während die Systemuhr hinter dem vorherigen Eintrag lag — die Zeitstempel dort sind
                         nicht belastbar. Reihenfolge und Inhalt sind es weiterhin (Hash-Kette).</span>` : ''}
                 </div>
@@ -399,7 +399,7 @@ const Protokoll = {
                  statt als stille Option zu existieren. -->
             <div class="card" style="margin-bottom:20px;border:1px solid var(${anchorActive ? '--success' : '--warning'});">
                 <div style="padding:1rem;font-size:13px;line-height:1.55;">
-                    <strong>${anchorActive ? '✓ Externer Zeitnachweis aktiv' : 'Beweiskraft der Zeitstempel'}</strong><br>
+                    <strong>${anchorActive ? 'Externer Zeitnachweis aktiv' : 'Beweiskraft der Zeitstempel'}</strong><br>
                     ${anchorActive
                         ? `Cloud-Sync ist aktiv: die Prüfsummen deiner Protokolleinträge werden zusätzlich
                            mit einem <strong>serverseitigen</strong> Zeitstempel verankert. Damit ist eine
@@ -414,10 +414,10 @@ const Protokoll = {
             </div>
 
             <div class="card" style="margin-bottom:20px;">
-                <div class="card-header"><div class="card-title">🔒 Periodenabschluss (Festschreibung)</div></div>
+                <div class="card-header"><div class="card-title">Periodenabschluss (Festschreibung)</div></div>
                 <div style="padding:1rem;">
                     <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
-                        Ein abgeschlossenes Jahr ist festgeschrieben: Buchungen darin können nur noch <strong>storniert</strong>, nicht mehr bearbeitet oder geloescht werden (GoBD-Unveraenderbarkeit). Eingereichte USt-Voranmeldungen sperren ihr Quartal automatisch.
+                        Ein abgeschlossenes Jahr ist festgeschrieben: Buchungen darin können nur noch <strong>storniert</strong>, nicht mehr bearbeitet oder gelöscht werden (GoBD-Unveraenderbarkeit). Eingereichte USt-Voranmeldungen sperren ihr Quartal automatisch.
                     </p>
                     <div class="table-container" style="border:none;">
                         <table class="data-table">
@@ -427,7 +427,7 @@ const Protokoll = {
                                     const closed = closedYears.includes(parseInt(y, 10));
                                     return `<tr>
                                         <td><strong>${y}</strong></td>
-                                        <td>${closed ? '<span class="badge badge-danger">🔒 Abgeschlossen</span>' : '<span class="badge badge-success">Offen</span>'}</td>
+                                        <td>${closed ? '<span class="badge badge-danger">Abgeschlossen</span>' : '<span class="badge badge-success">Offen</span>'}</td>
                                         <td style="text-align:right">${closed
                                             ? '<span class="form-hint">Festgeschrieben. Korrekturen mit Bezug zum Original prüfen.</span>'
                                             : `<button class="btn btn-small btn-danger" data-close-year="${y}">Jahr abschliessen</button>`}</td>
@@ -473,7 +473,7 @@ const Protokoll = {
                             <th>Bereich</th>
                             <th>ID</th>
                             <th>Details</th>
-                            <th>Pruefung</th>
+                            <th>Prüfung</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
@@ -509,7 +509,7 @@ const Protokoll = {
                 body += `<div class="form-group"><strong>Bereich:</strong> ${Utils.escapeHtml(entry.entityType || '')}</div>`;
                 body += `<div class="form-group"><strong>ID:</strong> ${Utils.escapeHtml(entry.entityId || '')}</div>`;
                 body += `<div class="form-group"><strong>Details:</strong> ${Utils.escapeHtml(entry.details || '')}</div>`;
-                body += `<div class="form-group"><strong>Pruefsumme:</strong> <code>${Utils.escapeHtml(entry.checksum || '-')}</code></div>`;
+                body += `<div class="form-group"><strong>Prüfsumme:</strong> <code>${Utils.escapeHtml(entry.checksum || '-')}</code></div>`;
                 if (entry.oldValues) {
                     body += '<div class="form-group"><strong>Vorherige Werte:</strong>';
                     body += '<pre class="audit-json">' + Utils.escapeHtml(JSON.stringify(entry.oldValues, null, 2)) + '</pre></div>';
@@ -555,7 +555,7 @@ const Protokoll = {
                 const chainResult = Store.verifyAuditChain();
                 if (!chainResult.valid) {
                     Utils.showToast(
-                        `⚠ Audit-Log: ${chainResult.broken} Einträge mit gebrochener Hash-Kette (mögliche Manipulation)!`,
+                        `Audit-Log: ${chainResult.broken} Einträge mit gebrochener Hash-Kette (mögliche Manipulation)!`,
                         'error'
                     );
                     return;
@@ -570,7 +570,7 @@ const Protokoll = {
                         if (anchor.enabled && !anchor.error) {
                             if (anchor.mismatches.length) {
                                 Utils.showToast(
-                                    `⚠ Cloud-Anker: ${anchor.mismatches.length} Eintrag/Einträge weichen vom extern gespeicherten Stand ab (Manipulationsverdacht)!`,
+                                    `Cloud-Anker: ${anchor.mismatches.length} Eintrag/Einträge weichen vom extern gespeicherten Stand ab (Manipulationsverdacht)!`,
                                     'error'
                                 );
                                 return;
@@ -594,7 +594,7 @@ const Protokoll = {
                 // Kette beweist Reihenfolge und Inhalt, nicht die Uhrzeit.
                 if (chainResult.clockBack > 0) {
                     Utils.showToast(
-                        `⚠ Hash-Kette intakt (${chainResult.total} Einträge), aber ${chainResult.clockBack} Eintrag/Einträge ` +
+                        `Hash-Kette intakt (${chainResult.total} Einträge), aber ${chainResult.clockBack} Eintrag/Einträge ` +
                         `wurden mit einer zurückgestellten Uhr angelegt — Zeitstempel dort nicht belastbar${anchorMsg}`,
                         'warning', 9000
                     );
@@ -602,7 +602,7 @@ const Protokoll = {
                 }
 
                 Utils.showToast(
-                    `✓ Integritätsprüfung bestanden — ${chainResult.total} Log-Einträge, Hash-Kette intakt${anchorMsg}`,
+                    `Integritätsprüfung bestanden — ${chainResult.total} Log-Einträge, Hash-Kette intakt${anchorMsg}`,
                     'success'
                 );
             });

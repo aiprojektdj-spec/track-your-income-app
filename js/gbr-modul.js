@@ -92,8 +92,8 @@ const GbrModul = {
                     <select class="form-select" id="gbrYearSel" style="padding:6px 10px;font-size:13px;width:auto;">
                         ${[year-2,year-1,year,year+1].map(y=>`<option value="${y}"${y===year?' selected':''}>${y}</option>`).join('')}
                     </select>
-                    <button class="btn btn-small" data-action="gbr-open-settings">👥 Gesellschafter</button>
-                    <button class="btn btn-small btn-primary" data-action="gbr-open-ausz" data-args='[${year}]' >📅 Auszahlungen</button>
+                    <button class="btn btn-small" data-action="gbr-open-settings">Gesellschafter</button>
+                    <button class="btn btn-small btn-primary" data-action="gbr-open-ausz" data-args='[${year}]' >Auszahlungen</button>
                 </div>
             </div>
 
@@ -133,7 +133,7 @@ const GbrModul = {
         // Orientierung, tatsächliche Gewinnermittlung läuft dann über Bilanz/GuV, nicht EÜR.
         const ao141Hinweis = (typeof Rechtsform !== 'undefined' && Rechtsform.istGewerblich() && Rechtsform.ueberschreitetAO141Schwelle(year))
             ? `<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;">
-                ⚠️ §141-AO-Schwelle überschritten (Umsatz > 800.000 € oder Gewinn > 80.000 €) — voraussichtlich ab dem übernächsten Jahr bilanzierungspflichtig.
+                §141-AO-Schwelle überschritten (Umsatz > 800.000 € oder Gewinn > 80.000 €) — voraussichtlich ab dem übernächsten Jahr bilanzierungspflichtig.
                 Bilanzierung ist in Stackr in Planung, die Zahlen unten dienen bis dahin nur der Orientierung. Sprich mit deinem Steuerberater.
                </div>`
             : '';
@@ -211,7 +211,7 @@ const GbrModul = {
                             <span style="text-align:right;font-weight:700;color:${offen>0.01?'var(--danger)':'var(--success)'};">${Utils.formatCurrency(Math.max(0,offen))}</span>
                         </div>
                         <button class="btn btn-small btn-primary" style="width:100%;margin-top:12px;"
-                            data-action="gm-tab-verrechnung">💸 Auszahlung buchen</button>
+                            data-action="gm-tab-verrechnung">Auszahlung buchen</button>
                     </div>`;
                 }).join('')}
             </div>`}
@@ -241,7 +241,7 @@ const GbrModul = {
         return `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
             <div>
-                <div style="font-weight:700;font-size:15px;">💳 Verrechnungskonten ${year}</div>
+                <div style="font-weight:700;font-size:15px;">Verrechnungskonten ${year}</div>
                 <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Einlagen, Entnahmen und Gewinnzuweisungen je Gesellschafter</div>
             </div>
             <button class="btn btn-primary btn-small" id="addVerrBtn">+ Buchung erfassen</button>
@@ -254,7 +254,7 @@ const GbrModul = {
             return `
             <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px;">
                 <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg-card);">
-                    <div style="font-weight:700;">👤 ${Utils.escapeHtml(g.name)} · ${g.anteil}%</div>
+                    <div style="font-weight:700;">${Utils.escapeHtml(g.name)} · ${g.anteil}%</div>
                     <div style="font-size:15px;font-weight:800;color:${saldo>=0?'var(--success)':'var(--danger)'};">Saldo: ${Utils.formatCurrency(saldo)}</div>
                 </div>
                 <div style="overflow-x:auto;">
@@ -325,7 +325,7 @@ const GbrModul = {
                 </div>
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>
-         <button class="btn btn-primary" id="saveVerrBtn">💾 Speichern</button>`);
+         <button class="btn btn-primary" id="saveVerrBtn">Speichern</button>`);
 
         document.getElementById('saveVerrBtn').addEventListener('click', () => {
             const gsId   = document.getElementById('verr_gs').value;
@@ -339,7 +339,7 @@ const GbrModul = {
             all.push({ id: Store.generateId(), gsId, datum, typ, betrag, beschreibung: beschr, createdAt: new Date().toISOString() });
             this._saveVerr(all);
             App.closeModal();
-            Utils.showToast('✅ Buchung gespeichert','success');
+            Utils.showToast('Buchung gespeichert','success');
             this._refresh();
         });
     },
@@ -356,7 +356,7 @@ const GbrModul = {
         if (typeof Rechtsform !== 'undefined' && !Rechtsform.brauchtGewSt()) {
             return `
             <div class="card" style="padding:20px;">
-                <div style="font-weight:700;font-size:15px;margin-bottom:8px;">🏛️ Gewerbesteuer</div>
+                <div style="font-weight:700;font-size:15px;margin-bottom:8px;">Gewerbesteuer</div>
                 <div style="font-size:13px;color:var(--text-secondary);">Keine Gewerbesteuer — als freiberufliche Tätigkeit (§18 EStG) eingestuft, unabhängig von der Rechtsform.</div>
             </div>`;
         }
@@ -384,7 +384,7 @@ const GbrModul = {
         return `
         <!-- Berechnung -->
         <div class="card" style="padding:20px;margin-bottom:16px;">
-            <div style="font-weight:700;font-size:15px;margin-bottom:16px;">🏛️ Gewerbesteuer-Berechnung ${year}</div>
+            <div style="font-weight:700;font-size:15px;margin-bottom:16px;">Gewerbesteuer-Berechnung ${year}</div>
             <div style="display:grid;grid-template-columns:1fr auto;gap:5px 24px;font-size:13px;max-width:420px;">
                 <span style="color:var(--text-secondary);">Jahresgewinn (vorläufig)</span>
                 <span style="text-align:right;font-weight:600;">${Utils.formatCurrency(gewinn)}</span>
@@ -402,7 +402,7 @@ const GbrModul = {
                 <span style="font-weight:700;">Noch offen</span>
                 <span style="text-align:right;font-weight:800;color:${offen>0?'var(--danger)':'var(--success)'};">${Utils.formatCurrency(offen)}</span>
             </div>
-            <div style="margin-top:10px;font-size:11px;color:var(--text-muted);">⚠ Vorläufige Berechnung auf Basis aktueller Buchungslage. Hebesatz in <strong>Stammdaten</strong> anpassen.</div>
+            <div style="margin-top:10px;font-size:11px;color:var(--text-muted);">Vorläufige Berechnung auf Basis aktueller Buchungslage. Hebesatz in <strong>Stammdaten</strong> anpassen.</div>
         </div>
 
         <!-- Quartale Status -->
@@ -415,7 +415,7 @@ const GbrModul = {
                     <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">Quartal ${q}</div>
                     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">${label}</div>
                     <div style="font-weight:700;font-size:13px;color:${vzqSum>0?'var(--success)':fällig?'var(--danger)':'var(--text-secondary)'};">
-                        ${vzqSum>0 ? '✅ '+Utils.formatCurrency(vzqSum) : fällig ? '⚠️ Fällig!' : '—'}
+                        ${vzqSum>0 ? '✅ '+Utils.formatCurrency(vzqSum) : fällig ? 'Fällig!' : '—'}
                     </div>
                 </div>`;
             }).join('')}
@@ -479,7 +479,7 @@ const GbrModul = {
                 </div>
             </div>`,
         `<button class="btn" data-action="close-modal">Abbrechen</button>
-         <button class="btn btn-primary" id="saveVzBtn">💾 Speichern</button>`);
+         <button class="btn btn-primary" id="saveVzBtn">Speichern</button>`);
 
         document.getElementById('saveVzBtn').addEventListener('click', () => {
             const datum   = Utils.getDateInputValue('vz_datum');
@@ -493,7 +493,7 @@ const GbrModul = {
             d[year].vorauszahlungen.push({ id: Store.generateId(), datum, quartal, betrag, notizen, createdAt: new Date().toISOString() });
             this._saveGewSt(d);
             App.closeModal();
-            Utils.showToast('✅ Vorauszahlung gespeichert','success');
+            Utils.showToast('Vorauszahlung gespeichert','success');
             this._refresh();
         });
     },
@@ -529,7 +529,7 @@ const GbrModul = {
         return `
         <!-- Checkliste -->
         <div class="card" style="padding:20px;margin-bottom:16px;">
-            <div style="font-weight:700;font-size:15px;margin-bottom:4px;">📄 Feststellungserklärung ${year}</div>
+            <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Feststellungserklärung ${year}</div>
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">Gesonderte & einheitliche Gewinnfeststellung (Anlage FE / GbR-Steuererklärung)</div>
 
             ${checks.map(c=>`
@@ -541,14 +541,14 @@ const GbrModul = {
 
             <div style="margin-top:14px;">
             ${allOk
-                ? `<div style="background:var(--success-bg);border:1px solid var(--success);border-radius:8px;padding:12px;font-size:13px;color:var(--success);font-weight:600;">✅ Alle Pflichtangaben vollständig – Export bereit</div>`
-                : `<div style="background:var(--warning-bg);border:1px solid var(--warning);border-radius:8px;padding:12px;font-size:13px;color:var(--warning);">⚠ Fehlende Angaben in <strong>Stammdaten</strong> oder <strong>Gesellschafter</strong> ergänzen</div>`}
+                ? `<div style="background:var(--success-bg);border:1px solid var(--success);border-radius:8px;padding:12px;font-size:13px;color:var(--success);font-weight:600;">Alle Pflichtangaben vollständig – Export bereit</div>`
+                : `<div style="background:var(--warning-bg);border:1px solid var(--warning);border-radius:8px;padding:12px;font-size:13px;color:var(--warning);">Fehlende Angaben in <strong>Stammdaten</strong> oder <strong>Gesellschafter</strong> ergänzen</div>`}
             </div>
         </div>
 
         <!-- Sonderbetriebseinnahmen/-ausgaben (§15 Abs. 1 Nr. 2 EStG) -->
         <div class="card" style="padding:20px;margin-bottom:16px;">
-            <div style="font-weight:700;font-size:15px;margin-bottom:4px;">➕ Sonderbetriebseinnahmen / -ausgaben</div>
+            <div style="font-weight:700;font-size:15px;margin-bottom:4px;">Sonderbetriebseinnahmen / -ausgaben</div>
             <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">
                 §15 Abs. 1 Nr. 2 EStG — z.B. Tätigkeitsvergütungen, Miete für an die GbR überlassene Wirtschaftsgüter, Zinsen für Gesellschafterdarlehen.
                 Fließen additiv (nicht anteilig) in den Gesamtgewinn des jeweiligen Gesellschafters ein.
@@ -559,7 +559,7 @@ const GbrModul = {
                     const s = GbR.getSbeSba(year, g.id);
                     return `
                     <div style="border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
-                        <div style="font-weight:700;font-size:13px;margin-bottom:10px;">👤 ${Utils.escapeHtml(g.name)}</div>
+                        <div style="font-weight:700;font-size:13px;margin-bottom:10px;">${Utils.escapeHtml(g.name)}</div>
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label">Sonderbetriebseinnahmen (€)</label>
@@ -582,13 +582,13 @@ const GbrModul = {
                         </div>
                     </div>`;
                 }).join('')}
-                <button class="btn btn-primary" id="saveSbeSbaBtn" style="align-self:flex-start;">💾 Sonderbereich speichern</button>
+                <button class="btn btn-primary" id="saveSbeSbaBtn" style="align-self:flex-start;">Sonderbereich speichern</button>
             </div>`}
         </div>
 
         <!-- Datenübersicht -->
         <div class="card" style="padding:20px;margin-bottom:16px;">
-            <div style="font-weight:700;font-size:15px;margin-bottom:16px;">📊 Datenübersicht für ELSTER / Steuerberater</div>
+            <div style="font-weight:700;font-size:15px;margin-bottom:16px;">Datenübersicht für ELSTER / Steuerberater</div>
             <div style="background:var(--bg-secondary);border-radius:8px;padding:16px;font-size:12px;line-height:2;font-family:monospace;">
                 <div><strong>GbR-Bezeichnung:</strong>&nbsp; ${Utils.escapeHtml(einst.gbr_name||'—')}</div>
                 <div><strong>Rechtsform:</strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ${Utils.escapeHtml(einst.firmenform||'GbR')}</div>
@@ -611,14 +611,14 @@ const GbrModul = {
                 }).join('')}
             </div>
             <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
-                <button class="btn btn-primary" id="exportFestBtn">📥 CSV exportieren</button>
-                <button class="btn" data-action="print-page">🖨 Drucken / PDF</button>
+                <button class="btn btn-primary" id="exportFestBtn">CSV exportieren</button>
+                <button class="btn" data-action="print-page">Drucken / PDF</button>
             </div>
         </div>
 
         <!-- Deadlines -->
         <div class="card" style="padding:16px;">
-            <div style="font-weight:700;font-size:13px;margin-bottom:10px;">📆 Wichtige Fristen für ${year+1}</div>
+            <div style="font-weight:700;font-size:13px;margin-bottom:10px;">Wichtige Fristen für ${year+1}</div>
             <div style="font-size:12px;display:flex;flex-direction:column;gap:6px;">
                 <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-secondary);">Steuererklärungen (ohne StB)</span><span style="font-weight:600;">31.07.${year+1}</span></div>
                 <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-secondary);">Steuererklärungen (mit Steuerberater)</span><span style="font-weight:600;">28.02.${year+2}</span></div>
@@ -670,7 +670,7 @@ const GbrModul = {
         const e = this._getEinst();
         return `
         <div class="card" style="padding:24px;max-width:640px;">
-            <div style="font-weight:700;font-size:15px;margin-bottom:20px;">⚙️ GbR-Stammdaten</div>
+            <div style="font-weight:700;font-size:15px;margin-bottom:20px;">GbR-Stammdaten</div>
             <div style="display:flex;flex-direction:column;gap:14px;">
 
                 <div class="form-row">
@@ -736,12 +736,12 @@ const GbrModul = {
                 </div>`:''}
 
                 <div style="background:var(--info-bg);border:1px solid var(--info);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary);">
-                    <strong style="color:var(--info);">📋 Hinweis zur GbR-Steuernummer:</strong><br>
+                    <strong style="color:var(--info);">Hinweis zur GbR-Steuernummer:</strong><br>
                     Die GbR benötigt eine <strong>eigene Steuernummer</strong> (getrennt von den Gesellschaftern).
                     Beantragen über den <em>Fragebogen zur steuerlichen Erfassung</em> via ELSTER.
                 </div>
 
-                <button class="btn btn-primary" id="saveStammdatenBtn" style="align-self:flex-start;min-width:160px;">💾 Stammdaten speichern</button>
+                <button class="btn btn-primary" id="saveStammdatenBtn" style="align-self:flex-start;min-width:160px;">Stammdaten speichern</button>
             </div>
         </div>`;
     },
@@ -765,7 +765,7 @@ const GbrModul = {
         if (g('st_regnr') !== null) e.eGbrRegisternummer  = g('st_regnr').trim();
         if (g('st_regg')  !== null) e.eGbrRegistergericht = g('st_regg').trim();
         this._saveEinst(e);
-        Utils.showToast('✅ Stammdaten gespeichert','success');
+        Utils.showToast('Stammdaten gespeichert','success');
         this._refresh();
     },
 
@@ -833,7 +833,7 @@ const GbrModul = {
             const sbab = document.getElementById(`sbesba_sbab_${g.id}`)?.value || '';
             GbR.saveSbeSba(year, g.id, { sbe, sbeBezeichnung: sbeb, sba, sbaBezeichnung: sbab });
         });
-        Utils.showToast('✅ Sonderbereich gespeichert', 'success');
+        Utils.showToast('Sonderbereich gespeichert', 'success');
         this._refresh();
     }
 };

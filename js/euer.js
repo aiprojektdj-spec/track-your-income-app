@@ -740,7 +740,7 @@ const Euer = {
                 </table>
             </div>
             <div style="padding:10px 16px;font-size:11px;color:var(--text-muted);">
-                ⚠️ Schätzung ohne GewSt-Hinzurechnungen/Kürzungen (§§8–9 GewStG) · Freibetrag nur für natürl. Personen/Personenges.
+                Schätzung ohne GewSt-Hinzurechnungen/Kürzungen (§§8–9 GewStG) · Freibetrag nur für natürl. Personen/Personenges.
                 ${hatFreibetrag ? `· Gewerbesteuer ist nach §35 EStG auf die ESt anrechenbar (max. 4 × Steuermessbetrag, begrenzt auf die tatsächlich anfallende ESt — seit VZ 2020, s. Gewerbesteuer-Modul für Details) ·` : ''}
                 Prüfung durch Steuerberater empfohlen.
             </div>

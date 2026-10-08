@@ -217,7 +217,7 @@ const Afa = {
                 <strong>Lineare AfA:</strong> Gleichmäßige Verteilung der AK über die Nutzungsdauer.<br>
                 <strong>Degressive AfA:</strong> 2,5-facher Linearsatz, max. 25 % p.a.; gilt für Anschaffungen bis 31.12.2007 sowie wieder ab 1.1.2023.<br>
                 <strong>Anteilige AfA:</strong> Im Anschaffungsjahr nur für verbleibende volle Monate (Monatsregel).<br>
-                <strong>⚠️ Unverbindlich</strong> – Prüfung durch Steuerberater empfohlen.
+                <strong>Unverbindlich</strong> – Prüfung durch Steuerberater empfohlen.
             </div>
         </div>
         `;

@@ -319,7 +319,7 @@ const Ausgaben = {
             <div class="stats-grid">${summaryCards}</div>
 
             <div class="info-box" style="margin-bottom:16px;padding:12px 16px;background:var(--info-bg);border:1px solid var(--info);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);">
-                <strong style="color:var(--info);">💡 Betriebsausgaben vs. Wareneinkauf</strong><br>
+                <strong style="color:var(--info);">Betriebsausgaben vs. Wareneinkauf</strong><br>
                 Hier erfasst du <strong>Betriebsausgaben</strong> (z.B. Versandmaterial, Software, Büro, Fahrtkosten).
                 <strong>Wareneinkauf</strong> (Artikel, die du weiterverkaufst) wird unter
                 <a href="#" data-action="navigate" data-args=\'["buchungen"]\' style="color:var(--info);">Buchungen → Einkauf</a> erfasst
@@ -365,7 +365,7 @@ const Ausgaben = {
                             <label class="form-label">Kategorie</label>
                             <select class="form-select" id="exp_kategorie">${katOptions}</select>
                             <div id="exp_fahrtHint" style="display:none;margin-top:6px;padding:7px 10px;background:var(--warning-bg);border:1px solid var(--warning);border-radius:var(--radius-sm);font-size:12px;color:var(--warning);">
-                                ⚠️ Fahrtkosten werden bereits automatisch aus dem <strong>Fahrtenbuch</strong> in die EÜR übernommen. Nur eintragen, wenn der Betrag <em>nicht</em> im Fahrtenbuch erfasst ist (z.B. Taxibelege).
+                                Fahrtkosten werden bereits automatisch aus dem <strong>Fahrtenbuch</strong> in die EÜR übernommen. Nur eintragen, wenn der Betrag <em>nicht</em> im Fahrtenbuch erfasst ist (z.B. Taxibelege).
                             </div>
                         </div>
                         <div class="form-group">
@@ -417,7 +417,7 @@ const Ausgaben = {
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
                             <input type="checkbox" id="exp_matToggle" style="width:16px;height:16px;">
                             <label for="exp_matToggle" style="font-size:13px;font-weight:600;color:var(--info);cursor:pointer;">
-                                📦 Als Materiallager erfassen (Mengen tracken)
+                                Als Materiallager erfassen (Mengen tracken)
                             </label>
                         </div>
                         <div id="expMatDetail" style="display:none;">
@@ -520,7 +520,7 @@ const Ausgaben = {
             ksaHint.style.border = `1px solid var(${ueberGrenze ? '--danger' : '--info'})`;
             ksaHint.style.color = `var(${ueberGrenze ? '--danger' : '--info'})`;
             ksaHint.innerHTML = ueberGrenze
-                ? `⚠️ Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> — übersteigt die ${Utils.formatCurrency(kw.bagatelle)}-Freigrenze (§24 Abs.2 Satz 2 KSVG). Dann ist die <strong>gesamte</strong> Jahressumme künstlersozialabgabepflichtig, nicht nur der übersteigende Teil. Voraussichtliche KSA: <strong>${Utils.formatCurrency(jahressumme * kw.satz)}</strong> (${kw.satzText} für ${year}), zusätzlich zum Honorar an die Künstlersozialkasse zu melden und zu zahlen.`
+                ? `Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> — übersteigt die ${Utils.formatCurrency(kw.bagatelle)}-Freigrenze (§24 Abs.2 Satz 2 KSVG). Dann ist die <strong>gesamte</strong> Jahressumme künstlersozialabgabepflichtig, nicht nur der übersteigende Teil. Voraussichtliche KSA: <strong>${Utils.formatCurrency(jahressumme * kw.satz)}</strong> (${kw.satzText} für ${year}), zusätzlich zum Honorar an die Künstlersozialkasse zu melden und zu zahlen.`
                 : `Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> von ${Utils.formatCurrency(kw.bagatelle)} Freigrenze (§24 Abs.2 Satz 2 KSVG). Bemessungsgrundlage ist der Nettobetrag ohne USt. Betrifft nur Leistungen mit gestalterischem/kreativem Charakter (§25 KSVG), z.B. Grafik, Foto, Text — reine technische Ausführung ohne kreativen Spielraum fällt idR nicht darunter. <strong>Ausnahme:</strong> Als „typischer Verwerter" nach §24 Abs.1 KSVG (Verlag, Werbeagentur, Theater, Galerie u.ä.) gilt die Freigrenze für dich <strong>nicht</strong> — dann besteht die Abgabepflicht ab dem ersten Euro.`;
         };
         if (katSel) katSel.addEventListener('change', updateKsaHint);
@@ -663,7 +663,7 @@ const Ausgaben = {
                     </div>
                     <div class="form-group">
                         <label class="form-label">Beleg-Foto/Scan ${exp.belegFoto ? '(vorhanden — Datei wählen zum Ersetzen)' : ''}</label>
-                        ${exp.belegFoto ? `<div style="margin-bottom:6px;"><a href="#" id="ee_belegFotoView" style="font-size:12px;">📎 aktuelles Beleg-Foto ansehen</a></div>` : ''}
+                        ${exp.belegFoto ? `<div style="margin-bottom:6px;"><a href="#" id="ee_belegFotoView" style="font-size:12px;">aktuelles Beleg-Foto ansehen</a></div>` : ''}
                         <input type="file" accept="image/*" class="form-input" id="ee_belegFoto">
                     </div>
                 `;

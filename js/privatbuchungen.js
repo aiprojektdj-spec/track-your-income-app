@@ -128,7 +128,7 @@ const Privatbuchungen = {
                 <strong>Privatentnahme:</strong> Geld, das du für private Zwecke aus dem Betrieb entnimmst (mindert das Betriebskapital).<br>
                 <strong>Privateinlage:</strong> Privates Geld, das du in den Betrieb einbringst (erhöht das Betriebskapital).<br>
                 <strong>Steuerlich:</strong> Entnahmen und Einlagen sind keine Betriebsausgaben/-einnahmen – sie berühren die EÜR nicht direkt.<br>
-                <strong>⚠️ Unverbindlich</strong> – Prüfung durch Steuerberater empfohlen.
+                <strong>Unverbindlich</strong> – Prüfung durch Steuerberater empfohlen.
             </div>
         </div>
         `;
@@ -149,7 +149,7 @@ const Privatbuchungen = {
 
     _openForm() {
         const today = Utils.todayISO();
-        App.showModal('➕ Privatbuchung erfassen', `
+        App.showModal('Privatbuchung erfassen', `
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Datum *</label>

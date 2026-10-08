@@ -290,7 +290,7 @@ const Statistiken = {
         section.innerHTML = `
             <div class="card" style="margin-bottom:16px;">
                 <div class="card-header">
-                    <div class="card-title">📦 Verpackungskosten-Analyse</div>
+                    <div class="card-title">Verpackungskosten-Analyse</div>
                     <a href="#" data-action="navigate" data-args=\'["materiallager"]\'
                         style="font-size:12px;color:var(--info);">Materiallager →</a>
                 </div>
@@ -708,7 +708,7 @@ const Statistiken = {
         section.innerHTML = `
         <div class="card" style="margin-bottom:16px;">
             <div class="card-header">
-                <div class="card-title">📊 Profitabilitäts-Übersicht</div>
+                <div class="card-title">Profitabilitäts-Übersicht</div>
                 <div style="font-size:12px;color:var(--text-muted);">Marge = Nettogewinn ÷ Nettoumsatz · Standzeit = Ø Tage EK→VK</div>
             </div>
             ${highlights.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">

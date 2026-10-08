@@ -127,16 +127,16 @@ const Materiallager = {
         const niedrig = bestand.filter(m => (parseInt(m.bestand) || 0) <= (parseInt(m.mindestbestand) || 0) && (parseInt(m.bestand) || 0) >= 0).length;
 
         const tabs = [
-            { id: 'bestand',  label: '📦 Bestand' },
-            { id: 'einkauf',  label: '🛒 Einkauf' },
-            { id: 'verbrauch',label: '📊 Verbrauch' },
+            { id: 'bestand',  label: 'Bestand' },
+            { id: 'einkauf',  label: 'Einkauf' },
+            { id: 'verbrauch',label: 'Verbrauch' },
         ];
 
         return `
             <div class="page-header">
                 <h2>Materiallager</h2>
                 <div class="page-header-actions no-print">
-                    <button class="btn" id="mlExportCSV">📥 CSV Export</button>
+                    <button class="btn" id="mlExportCSV">CSV Export</button>
                 </div>
             </div>
 
@@ -163,7 +163,7 @@ const Materiallager = {
             </div>
 
             <div class="info-box" style="margin-bottom:12px;padding:10px 14px;background:var(--info-bg);border:1px solid var(--info);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);">
-                <strong style="color:var(--info);">💡 Materiallager:</strong>
+                <strong style="color:var(--info);">Materiallager:</strong>
                 Erfasse Verpackungsmaterial (Kartons, Beutel etc.) mit Bestand und Kosten.
                 Beim Speichern eines Verkaufs kannst du verwendetes Material abbuchen.
                 Die Kosten fließen in die EÜR als Betriebsausgabe ein.

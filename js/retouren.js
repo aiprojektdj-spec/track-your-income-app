@@ -44,7 +44,7 @@ const Retouren = {
                     ? '<span class="badge badge-success" style="font-size:10px;">↩ Lager</span>'
                     : '<span class="badge badge-neutral" style="font-size:10px;">Ausgebucht</span>';
                 const saleLink = r.saleId
-                    ? `<span class="badge badge-info" style="font-size:10px;" title="Verkauf ID: ${r.saleId}">🔗 Verknüpft</span>`
+                    ? `<span class="badge badge-info" style="font-size:10px;" title="Verkauf ID: ${r.saleId}">Verknüpft</span>`
                     : '<span style="color:var(--text-muted);font-size:11px;">–</span>';
                 return `
                 <tr>
@@ -91,7 +91,7 @@ const Retouren = {
             </div>
 
             <div class="info-box" style="margin-bottom:16px;padding:12px 16px;background:var(--info-bg);border:1px solid var(--info);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);">
-                <strong style="color:var(--info);">💡 Verknüpfung mit Verkauf</strong><br>
+                <strong style="color:var(--info);">Verknüpfung mit Verkauf</strong><br>
                 Wähle den originalen Verkauf aus der Liste. Bei <strong>Unbeschädigt</strong> wird der Artikel automatisch wieder ins Lager zurückgebucht und Verpackungskosten storniert.
                 Bei <strong>Beschädigt/Verlust</strong> wird der Verkauf storniert, der Artikel bleibt jedoch ausgebucht.
             </div>
@@ -133,7 +133,7 @@ const Retouren = {
                     </div>
 
                     <div class="form-group" style="margin-bottom:12px;">
-                        <label class="form-label">🔗 Originalen Verkauf verknüpfen <span style="color:var(--text-muted);font-weight:400;">(empfohlen – stellt Lager & Kosten automatisch zurück)</span></label>
+                        <label class="form-label">Originalen Verkauf verknüpfen <span style="color:var(--text-muted);font-weight:400;">(empfohlen – stellt Lager & Kosten automatisch zurück)</span></label>
                         <select class="form-select" id="rt_saleId">
                             <option value="">– Kein Verkauf verknüpfen –</option>
                             ${salesOptions}
@@ -141,7 +141,7 @@ const Retouren = {
                         <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Für eine Rechnung gibt es hier keine Auswahl — bitte stattdessen eine <strong>Gutschrift</strong> zur Rechnung erstellen (§17 UStG), sonst wirkt sich die Retoure nicht auf die USt-Voranmeldung aus.</div>
                     </div>
                     <div id="rt_saleHint" style="display:none;padding:8px 12px;background:var(--success-bg);border:1px solid var(--success);border-radius:var(--radius-sm);font-size:12px;color:var(--success);margin-bottom:12px;">
-                        ✅ Verkauf wird storniert · Artikel zurück ins Lager · Verpackungskosten storniert
+                        Verkauf wird storniert · Artikel zurück ins Lager · Verpackungskosten storniert
                     </div>
 
                     <div class="form-group">

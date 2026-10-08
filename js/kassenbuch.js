@@ -104,7 +104,7 @@ const Kassenbuch = {
                 <div class="card stat-card info">
                     <div class="card-label">Anfangsbestand ${year === 'all' ? '' : year}</div>
                     <div class="card-value">${Utils.formatCurrency(anfangsbestand)}</div>
-                    <div class="card-subtitle" style="cursor:pointer;" id="editAnfangsbestand" title="Ändert den Basis-Anfangsbestand (Startwert vor der ersten Buchung)">✏️ Basiswert ändern</div>
+                    <div class="card-subtitle" style="cursor:pointer;" id="editAnfangsbestand" title="Ändert den Basis-Anfangsbestand (Startwert vor der ersten Buchung)">Basiswert ändern</div>
                 </div>
                 <div class="card stat-card success">
                     <div class="card-label">Einnahmen ${year === 'all' ? '' : year}</div>
@@ -243,7 +243,7 @@ const Kassenbuch = {
                 // Jahre angezeigte Anfangsbestand wird daraus + den tatsächlichen Buchungen abgeleitet
                 // (s. _anfangsbestandFuerJahr) und ist hier NICHT direkt editierbar.
                 const hinweis = this._filterYear !== 'all' && this._filterYear !== (Array.from(new Set(Store.getKassenbuch().map(e => (e.datum||'').substring(0,4)).filter(Boolean))).sort()[0] || this._filterYear)
-                    ? '\n\n⚠️ Dies ändert den BASIS-Anfangsbestand (Startwert vor der ersten Buchung), nicht nur den für ' + this._filterYear + ' angezeigten Wert — der Jahreswert wird automatisch aus Basis + bisherigen Buchungen berechnet.'
+                    ? '\n\nDies ändert den BASIS-Anfangsbestand (Startwert vor der ersten Buchung), nicht nur den für ' + this._filterYear + ' angezeigten Wert — der Jahreswert wird automatisch aus Basis + bisherigen Buchungen berechnet.'
                     : '';
                 const val = prompt('Basis-Anfangsbestand (€) — Startwert vor der ersten Buchung:' + hinweis, (s.kassenbuchAnfangsbestand || 0).toString());
                 if (val === null) return;

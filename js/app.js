@@ -81,9 +81,9 @@ const App = {
         const el = document.getElementById('fsBackupStatus');
         if (!el) return;
         if (active && folderName) {
-            el.innerHTML = `<span style="color:var(--success);font-size:11px;">💾 Datei-Backup aktiv: <strong>${Utils.escapeHtml(folderName)}</strong></span>`;
+            el.innerHTML = `<span style="color:var(--success);font-size:11px;">Datei-Backup aktiv: <strong>${Utils.escapeHtml(folderName)}</strong></span>`;
         } else {
-            el.innerHTML = `<span style="color:var(--text-muted);font-size:11px;">💾 Kein Datei-Backup</span>`;
+            el.innerHTML = `<span style="color:var(--text-muted);font-size:11px;">Kein Datei-Backup</span>`;
         }
     },
 
@@ -228,7 +228,7 @@ const App = {
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div style="background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.4);border-radius:10px;padding:14px 18px;">
                     <div style="font-weight:700;font-size:16px;color:var(--success);margin-bottom:6px;">
-                        🎉 Update erfolgreich: <strong>v${oldV}</strong> → <strong>v${newV}</strong>
+                        Update erfolgreich: <strong>v${oldV}</strong> → <strong>v${newV}</strong>
                     </div>
                     <div style="font-size:13px;color:var(--text-secondary);">
                         ${hasData
@@ -239,19 +239,19 @@ const App = {
 
                 ${hasData ? `
                 <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:13px;">
-                    <div style="font-weight:700;margin-bottom:6px;">📊 Bestehende Daten</div>
+                    <div style="font-weight:700;margin-bottom:6px;">Bestehende Daten</div>
                     <div style="color:var(--text-secondary);font-size:12px;line-height:1.5;">
                         • <strong>${Store.getPurchases(true).length}</strong> Einkäufe<br>
                         • <strong>${Store.getSales(true).length}</strong> Verkäufe<br>
                         • <strong>${Store.getExpenses ? Store.getExpenses(true).length : 0}</strong> Ausgaben<br>
                         ${Store.getFsBackupFolderName()
-                            ? `• ✅ Auto-Backup vor Update wurde erstellt (<em>${Utils.escapeHtml(Store.getFsBackupFolderName())}</em>)`
-                            : '• ⚠️ Kein Datei-Backup-Ordner — bitte einrichten!'}
+                            ? `• Auto-Backup vor Update wurde erstellt (<em>${Utils.escapeHtml(Store.getFsBackupFolderName())}</em>)`
+                            : '• Kein Datei-Backup-Ordner — bitte einrichten!'}
                     </div>
                 </div>` : ''}
 
                 <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--text-secondary);">
-                    <div style="font-weight:700;color:var(--info);margin-bottom:4px;">💡 Wichtig zu wissen</div>
+                    <div style="font-weight:700;color:var(--info);margin-bottom:4px;">Wichtig zu wissen</div>
                     <div style="line-height:1.5;">
                         Deine Daten sind im Browser-Speicher gebunden an den <strong>Pfad</strong> dieser App.
                         Solange du den <code style="background:var(--bg-card);padding:1px 5px;border-radius:3px;">Drive</code>-Ordner
@@ -267,7 +267,7 @@ const App = {
             <button class="btn btn-primary" data-action="close-modal">Verstanden</button>
         `;
 
-        this.showModal(`✨ Willkommen in v${newV}`, body, footer);
+        this.showModal(`Willkommen in v${newV}`, body, footer);
 
         const dlBtn = document.getElementById('updateBackupNow');
         if (dlBtn) dlBtn.addEventListener('click', () => {
@@ -1143,7 +1143,7 @@ const App = {
                 const rest = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
                     .format(GRENZE_VJ - umsatz);
                 setTimeout(() => Utils.showToast(
-                    `⚠️ Kleinunternehmer: Noch ${rest} bis zur ${grenzeFmt}-Grenze`, 'warning'), 800);
+                    `Kleinunternehmer: Noch ${rest} bis zur ${grenzeFmt}-Grenze`, 'warning'), 800);
             }
         }
     },
@@ -1181,22 +1181,22 @@ const App = {
             </ul>
             <div style="font-size:11px;color:var(--text-muted);background:var(--bg-secondary);
                         padding:8px 12px;border-radius:6px;">
-                ⚖️ Keine Steuerberatung – bitte einen Steuerberater konsultieren.
+                Keine Steuerberatung – bitte einen Steuerberater konsultieren.
             </div>
         `;
         const footer = sofort
             ? `<button class="btn btn-primary"
                     style="background:var(--warning);border-color:var(--warning);flex:1;min-width:180px;"
                     data-action="app-ust-switch-regel" data-args='["${warnKey}"]'>
-                    ✅ Jetzt auf Regelbesteuerung umstellen
+                    Jetzt auf Regelbesteuerung umstellen
                 </button>
                 <button class="btn btn-secondary" style="flex:1;min-width:160px;"
                     data-action="app-ust-dismiss" data-args='["${warnKey}"]'>
-                    📋 Ich kümmere mich selbst
+                    Ich kümmere mich selbst
                 </button>`
             : `<button class="btn btn-primary" style="flex:1;min-width:160px;"
                     data-action="app-ust-dismiss" data-args='["${warnKey}"]'>
-                    ✅ Verstanden
+                    Verstanden
                 </button>`;
         const title = sofort
             ? 'Kleinunternehmer-Grenze (100.000 €) überschritten'
@@ -1225,14 +1225,14 @@ const App = {
         const lastBackup = localStorage.getItem('last_backup_date');
         if (!lastBackup) {
             setTimeout(() => {
-                Utils.showToast('💡 Tipp: Regelmäßig Backup herunterladen — Backup & Daten im Menü', 'info');
+                Utils.showToast('Tipp: Regelmäßig Backup herunterladen — Backup & Daten im Menü', 'info');
             }, 4000);
             return;
         }
         const daysSince = Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86400000);
         if (daysSince >= 30) {
             setTimeout(() => {
-                Utils.showToast(`⚠️ Letztes Backup vor ${daysSince} Tagen — bitte herunterladen!`, 'warning');
+                Utils.showToast(`Letztes Backup vor ${daysSince} Tagen — bitte herunterladen!`, 'warning');
             }, 3000);
         }
     },
@@ -1291,7 +1291,7 @@ const App = {
                     <div style="font-size:36px;color:var(--accent);margin-bottom:14px;text-align:center;">☁</div>
                     <h2 style="text-align:center;">Wir haben deine Daten gefunden</h2>
                     <div class="subtitle" style="text-align:center;">Für dein Konto liegen bereits verschlüsselte Cloud-Daten${info ? ' (' + Utils.escapeHtml(info) + ')' : ''}. Hol sie auf dieses Gerät, statt hier von vorn anzufangen.</div>
-                    <button class="btn btn-primary" id="obCloudRestore" style="width:100%;">📲 Daten übernehmen — Code eingeben</button>
+                    <button class="btn btn-primary" id="obCloudRestore" style="width:100%;">Daten übernehmen — Code eingeben</button>
                     <div style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.5;">Du brauchst den Wiederherstellungscode von dem Gerät, auf dem du Cloud-Sync eingerichtet hast — dort: Wolken-Symbol oben rechts → „Wiederherstellungscode anzeigen“.</div>
                     <div style="text-align:center;margin-top:10px;">
                         <button class="btn-link" id="obCloudSkip">Nein — ich fange auf diesem Gerät neu an</button>
@@ -1635,7 +1635,7 @@ const App = {
                     const switcherEl = document.getElementById('companySwitcher');
                     if (switcherEl) switcherEl.innerHTML = CompanyManager.renderSwitcherBtn();
                 } catch (err) {
-                    Utils.showToast('❌ Firma konnte nicht angelegt werden: ' + (err && err.message ? err.message : err), 'error');
+                    Utils.showToast('Firma konnte nicht angelegt werden: ' + (err && err.message ? err.message : err), 'error');
                     return false;
                 }
             } else {
@@ -1835,7 +1835,7 @@ const App = {
             `).join('')}
             <hr style="border-color:var(--border);margin:16px 0;">
             <div class="form-group">
-                <label class="form-label">🌐 Sprache / Language</label>
+                <label class="form-label">Sprache / Language</label>
                 <div style="display:flex;gap:10px;margin-top:6px;">
                     <button class="btn${(typeof I18n !== 'undefined' && I18n.isDE()) ? ' btn-primary' : ''}" data-action="i18n-set-lang" data-args='["de"]' style="flex:1;">🇩🇪 Deutsch</button>
                     <button class="btn${(typeof I18n !== 'undefined' && I18n.isEN()) ? ' btn-primary' : ''}" data-action="i18n-set-lang" data-args='["en"]' style="flex:1;">🇬🇧 English</button>
@@ -1850,7 +1850,7 @@ const App = {
             </div>
         `;
         const footer = `
-            <button class="btn" id="dsgvoReopenBtn" style="margin-right:auto;">🔒 Datenschutzhinweis</button>
+            <button class="btn" id="dsgvoReopenBtn" style="margin-right:auto;">Datenschutzhinweis</button>
             <button class="btn" data-action="close-modal">Abbrechen</button>
             <button class="btn btn-primary" id="saveSettingsBtn">Speichern</button>
         `;
@@ -2194,7 +2194,7 @@ const App = {
                  kommt ohne Schluessel aus, loescht dafuer aber ALLE Firmen. -->
             <div class="section">
                 <div class="section-title">Daten loeschen</div>
-                <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;">Achtung: Alle Geschaeftsdaten dieser Firma werden geloescht! Das Aenderungsprotokoll (Audit-Log) bleibt gemaess GoBD erhalten.</p>
+                <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;">Achtung: Alle Geschäftsdaten dieser Firma werden gelöscht! Das Änderungsprotokoll (Audit-Log) bleibt gemäß GoBD erhalten.</p>
                 <button class="btn btn-danger" id="clearAllBtn">Daten dieser Firma loeschen</button>
                 <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
                     <p style="margin-bottom:10px;color:var(--text-secondary);font-size:12px;line-height:1.6;">Willst du <strong>ganz aufhoeren</strong>, reicht der Knopf oben nicht: Er loescht nur die aktive Firma, und ohne Wiederherstellungscode bleiben ausgelagerte Anhaenge (Logos, Belegfotos, PDFs) in der Cloud liegen. Der Weg hier loescht den kompletten Cloud-Bestand dieses Kontos &mdash; <strong>alle Firmen</strong> &mdash; und braucht keinen Code.</p>
@@ -2267,7 +2267,7 @@ const App = {
                                 ℹ️ Browser-Schutz ist auf <code>file://</code>-URLs technisch nicht möglich — das ist kein Fehler der App.
                                 Richte das <strong>Datei-Backup</strong> (oben) ein, um deine Daten dauerhaft zu sichern.
                                </div>`
-                            : `<button class="btn btn-primary btn-small" id="requestPersistBtn">🛡️ Browser-Schutz versuchen</button>`}
+                            : `<button class="btn btn-primary btn-small" id="requestPersistBtn">Browser-Schutz versuchen</button>`}
                     </div>`;
                 const persistBtn = document.getElementById('requestPersistBtn');
                 if (persistBtn) {
@@ -2276,12 +2276,12 @@ const App = {
                         persistBtn.textContent = '⏳ Anfrage läuft…';
                         const granted = await Store.requestPersistentStorage();
                         if (granted) {
-                            Utils.showToast('✅ Browser-Speicherschutz aktiviert!', 'success');
+                            Utils.showToast('Browser-Speicherschutz aktiviert!', 'success');
                             this.closeModal();
                             this.showBackupModal();
                         } else {
                             // persist() abgelehnt (z.B. Browser-Einschränkung)
-                            persistBtn.textContent = '❌ Nicht gewährt – Datei-Backup nutzen';
+                            persistBtn.textContent = 'Nicht gewährt – Datei-Backup nutzen';
                             // Button bleibt disabled — kein erneutes Klicken möglich
                         }
                     });
@@ -2298,7 +2298,7 @@ const App = {
 
             // Speichergröße berechnen: OPFS-Snapshots = komprimierte Dateigröße, IDB = Stringlänge × 2
             const isOpfs = snapshots.length > 0 && snapshots[0]._opfs;
-            const storageLabel = Store._opfsReady ? '⚡ OPFS + gzip' : '📦 IDB';
+            const storageLabel = Store._opfsReady ? 'OPFS + gzip' : 'IDB';
 
             if (snapshots && snapshots.length > 0) {
                 const totalBytes = isOpfs
@@ -2354,7 +2354,7 @@ const App = {
                     const d    = snap ? new Date(snap.ts).toLocaleString('de-DE') : '';
                     if (!confirm(`Daten vom ${d} wiederherstellen?\n\nAktuelle Daten werden überschrieben!`)) return;
                     Store.restoreFromIDBSnapshot(id).then(() => {
-                        Utils.showToast('✅ Daten wiederhergestellt', 'success');
+                        Utils.showToast('Daten wiederhergestellt', 'success');
                         this.closeModal();
                         App.navigate(App.currentPage);
                     }).catch(err => {
@@ -2375,7 +2375,7 @@ const App = {
                 }
                 if (confirm(`${deleteCount} alte Auto-Backup${deleteCount !== 1 ? 's' : ''} löschen und nur die neuesten ${keepCount} behalten?\n\nSpeicherplatz wird sofort freigegeben.`)) {
                     Store._emergencyPruneSnapshots(keepCount).then(() => {
-                        Utils.showToast(`🧹 ${deleteCount} alte Auto-Backups gelöscht — Speicher freigegeben.`, 'success');
+                        Utils.showToast(`${deleteCount} alte Auto-Backups gelöscht — Speicher freigegeben.`, 'success');
                         this.closeModal();
                         this.showBackupModal();
                     });
@@ -2413,7 +2413,7 @@ const App = {
                     // Sofort ein Backup schreiben um Berechtigung zu testen
                     const filename = await Store.writeFileSystemBackup('einrichtung');
                     this._updateFsBackupStatus(handle.name, true);
-                    Utils.showToast(`✅ Backup-Ordner gesetzt: ${handle.name}${filename ? ` — ${filename} erstellt` : ''}`, 'success');
+                    Utils.showToast(`Backup-Ordner gesetzt: ${handle.name}${filename ? ` — ${filename} erstellt` : ''}`, 'success');
                     this.closeModal();
                     this.showBackupModal();
                 } catch(err) {
@@ -2422,7 +2422,7 @@ const App = {
                     }
                     if (fsSelectBtn) {
                         fsSelectBtn.disabled = false;
-                        fsSelectBtn.textContent = '📁 Backup-Ordner wählen';
+                        fsSelectBtn.textContent = 'Backup-Ordner wählen';
                     }
                 }
             });
@@ -2439,7 +2439,7 @@ const App = {
                     if (!granted) {
                         Utils.showToast('Berechtigung verweigert — bitte Ordner neu wählen', 'error');
                         fsNowBtn.disabled = false;
-                        fsNowBtn.textContent = '💾 Jetzt sichern';
+                        fsNowBtn.textContent = 'Jetzt sichern';
                         return;
                     }
                 }
@@ -2447,13 +2447,13 @@ const App = {
                 const filename = await Store.writeFileSystemBackup('manuell');
                 App.hideSpinner();
                 if (filename) {
-                    Utils.showToast(`✅ Backup gespeichert: ${filename}`, 'success');
+                    Utils.showToast(`Backup gespeichert: ${filename}`, 'success');
                     this.closeModal();
                     this.showBackupModal();
                 } else {
                     Utils.showToast('Backup fehlgeschlagen — Ordner ggf. neu wählen', 'error');
                     fsNowBtn.disabled = false;
-                    fsNowBtn.textContent = '💾 Jetzt sichern';
+                    fsNowBtn.textContent = 'Jetzt sichern';
                 }
             });
         }
@@ -2465,7 +2465,7 @@ const App = {
                 fsListBtn.textContent = '⏳ Lade Liste…';
                 const files = await Store.listFileSystemBackups();
                 fsListBtn.disabled = false;
-                fsListBtn.textContent = '📋 Vorhandene Backups';
+                fsListBtn.textContent = 'Vorhandene Backups';
                 if (files.length === 0) {
                     Utils.showToast('Keine Backup-Dateien im Ordner gefunden', 'info');
                     return;
@@ -2491,13 +2491,13 @@ const App = {
                 const totalExtra = files.length > 30 ? `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">… und ${files.length - 30} weitere</div>` : '';
                 const modalBody = `
                     <div style="margin-bottom:10px;font-size:13px;color:var(--text-secondary);">
-                        📂 Ordner: <strong>${Utils.escapeHtml(Store.getFsBackupFolderName())}</strong>
+                        Ordner: <strong>${Utils.escapeHtml(Store.getFsBackupFolderName())}</strong>
                         &nbsp;·&nbsp; ${files.length} Backup-Datei(en)
                         ${otherCount > 0 ? `<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">(${otherCount} von anderen Firmen — gedimmt)</span>` : ''}
                     </div>
                     <div style="max-height:400px;overflow-y:auto;">${listHtml}${totalExtra}</div>
                 `;
-                this.showModal('📋 Backup-Dateien im Ordner', modalBody, '');
+                this.showModal('Backup-Dateien im Ordner', modalBody, '');
 
                 // Restore aus Datei
                 document.querySelectorAll('[data-fs-restore]').forEach(btn => {
@@ -2513,7 +2513,7 @@ const App = {
                             const jsonStr = await Store.readFileSystemBackup(entry.handle);
                             Store.importAll(jsonStr);
                             App.hideSpinner();
-                            Utils.showToast('✅ Aus Datei-Backup wiederhergestellt', 'success');
+                            Utils.showToast('Aus Datei-Backup wiederhergestellt', 'success');
                             this.closeModal();
                             this.navigate(this.currentPage);
                         } catch(err) {
@@ -3037,11 +3037,11 @@ const App = {
                                    + `Lade dir die Excel-Vorlage herunter und übertrage deine Daten dort hinein.`;
                         if (statusEl) statusEl.innerHTML = `<span style="color:var(--${nichts ? 'danger' : 'warning'});">`
                             + `${nichts ? '❌' : '⚠️'} ${Utils.escapeHtml(text)}</span>`
-                            + (nichts ? '' : `<br><span style="color:var(--success);">✅ Importiert: ${msg}${skipText}</span>`);
+                            + (nichts ? '' : `<br><span style="color:var(--success);">Importiert: ${msg}${skipText}</span>`);
                         Utils.showToast(text, nichts ? 'error' : 'warning');
                         if (nichts) { e.target.value = ''; return; }
                     } else {
-                        if (statusEl) statusEl.innerHTML = `<span style="color:var(--success);">✅ Importiert: ${msg}${skipText}</span>`;
+                        if (statusEl) statusEl.innerHTML = `<span style="color:var(--success);">Importiert: ${msg}${skipText}</span>`;
                     }
                     Utils.showToast(`Import abgeschlossen: ${msg}`, 'success');
                     e.target.value = '';
@@ -3049,13 +3049,13 @@ const App = {
                     setTimeout(() => this.navigate(this.currentPage), 1200);
 
                 } catch(err) {
-                    if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">❌ Fehler: ${Utils.escapeHtml(err.message)}</span>`;
+                    if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">Fehler: ${Utils.escapeHtml(err.message)}</span>`;
                     Utils.showToast('Import-Fehler: ' + err.message, 'error');
                 }
             };
             reader.readAsArrayBuffer(file);
             }).catch(err => {
-                if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">❌ ${Utils.escapeHtml(err.message)}</span>`;
+                if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">${Utils.escapeHtml(err.message)}</span>`;
                 Utils.showToast(err.message, 'error');
             });
         });
@@ -3066,7 +3066,7 @@ const App = {
             Store.emergencyRecover().then(results => {
                 if (!results || results.length === 0) {
                     Utils.showToast('Keine Backup-Quellen gefunden. Leider kein Recovery möglich.', 'error');
-                    if (btn) { btn.disabled = false; btn.textContent = '🔍 Verfügbare Backups prüfen & wiederherstellen'; }
+                    if (btn) { btn.disabled = false; btn.textContent = 'Verfügbare Backups prüfen & wiederherstellen'; }
                     return;
                 }
 
@@ -3075,7 +3075,7 @@ const App = {
                     <div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px;cursor:pointer;transition:background .15s;"
                          class="recovery-option" data-idx="${i}"
                          class="hover-bg-main">
-                        <div style="font-weight:600;font-size:13px;">📦 ${Utils.escapeHtml(r.label)}</div>
+                        <div style="font-weight:600;font-size:13px;">${Utils.escapeHtml(r.label)}</div>
                         <div style="font-size:11px;color:var(--text-muted);">Quelle: ${Utils.escapeHtml(r.source)}</div>
                     </div>
                 `).join('');
@@ -3087,7 +3087,7 @@ const App = {
                     </div>
                     ${opts}
                 `;
-                this.showModal('🚨 Notfall-Wiederherstellung', body, '');
+                this.showModal('Notfall-Wiederherstellung', body, '');
 
                 results.forEach((r, i) => {
                     const el = document.querySelector(`.recovery-option[data-idx="${i}"]`);
@@ -3134,7 +3134,7 @@ const App = {
             if (typeof CloudSync === 'undefined') { Utils.showToast('Cloud-Sync ist auf dieser Seite nicht geladen.', 'warning'); return; }
             const body = `
                 <div style="margin-bottom:16px;padding:14px;background:rgba(220,38,38,0.1);border-radius:8px;border:2px solid var(--danger);">
-                    <div style="font-weight:700;color:var(--danger);font-size:16px;margin-bottom:8px;">⛔ Betrifft alle Firmen dieses Kontos</div>
+                    <div style="font-weight:700;color:var(--danger);font-size:16px;margin-bottom:8px;">Betrifft alle Firmen dieses Kontos</div>
                     <p style="color:var(--text-secondary);font-size:13px;margin:0 0 8px;">
                         Gelöscht wird der <strong>gesamte verschlüsselte Cloud-Bestand</strong> dieses Whop-Kontos — jede Firma, nicht nur die gerade aktive — samt aller ausgelagerten Anhänge (Logos, Belegfotos, PDFs). Dafür ist <strong>kein Wiederherstellungscode nötig</strong>.
                     </p>
@@ -3172,8 +3172,8 @@ const App = {
                     return;
                 }
                 Utils.showToast(r.blobsOk
-                    ? '✅ Alle Cloud-Daten dieses Kontos wurden gelöscht. Deine lokalen Daten sind unberührt.'
-                    : '✅ Cloud-Daten gelöscht — die Anhänge konnten nicht alle bestätigt werden. Bitte in einigen Minuten erneut ausführen.', r.blobsOk ? 'success' : 'warning', 10000);
+                    ? 'Alle Cloud-Daten dieses Kontos wurden gelöscht. Deine lokalen Daten sind unberührt.'
+                    : 'Cloud-Daten gelöscht — die Anhänge konnten nicht alle bestätigt werden. Bitte in einigen Minuten erneut ausführen.', r.blobsOk ? 'success' : 'warning', 10000);
                 this.closeModal();
                 location.reload();
             });
@@ -3183,7 +3183,7 @@ const App = {
             // Gesichertes Löschen: Nutzer muss "LÖSCHEN" tippen
             const body = `
                 <div style="margin-bottom:16px;padding:14px;background:rgba(220,38,38,0.1);border-radius:8px;border:2px solid var(--danger);">
-                    <div style="font-weight:700;color:var(--danger);font-size:16px;margin-bottom:8px;">⛔ Warnung: Unwiderrufliche Aktion</div>
+                    <div style="font-weight:700;color:var(--danger);font-size:16px;margin-bottom:8px;">Warnung: Unwiderrufliche Aktion</div>
                     <p style="color:var(--text-secondary);font-size:13px;margin:0 0 8px;">
                         Folgende Daten werden <strong>unwiderruflich gelöscht</strong>:
                     </p>
@@ -3198,7 +3198,7 @@ const App = {
                     </p>
                     <p style="color:var(--text-secondary);font-size:12px;margin:0;">
                         ${(typeof CloudSync !== 'undefined' && document.getElementById('cloudSyncDot') && localStorage.getItem('oyi_sync_enabled') === '1')
-                            ? '☁ Bei aktivem Cloud-Sync wird auch der verschlüsselte Cloud-Stand dieser Firma gelöscht.'
+                            ? 'Bei aktivem Cloud-Sync wird auch der verschlüsselte Cloud-Stand dieser Firma gelöscht.'
                             : ''}
                     </p>
                 </div>
@@ -3277,7 +3277,7 @@ const App = {
             <div style="display:flex;flex-direction:column;gap:14px;">
 
                 <div style="background:rgba(99,102,241,.08);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:13px;">
-                    <div style="font-weight:700;margin-bottom:6px;">📊 Aktuelle Analyse</div>
+                    <div style="font-weight:700;margin-bottom:6px;">Aktuelle Analyse</div>
                     <div style="display:grid;grid-template-columns:1fr auto;gap:4px 12px;">
                         <span>Artikel mit Foto</span><span><strong>${purchasesWithFoto.length}</strong> · ${fmt(totalPhotoBytes)}</span>
                         <span>Davon: verkaufte Artikel</span><span>${verkaufteFotos.length} · ${fmt(verkaufteBytes)}</span>
@@ -3304,7 +3304,7 @@ const App = {
                     <button class="btn cleanup-action" id="cleanupStorno" ${stornoMitFoto.length === 0 ? 'disabled' : ''}
                             style="text-align:left;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
                         <div>
-                            <div style="font-weight:700;margin-bottom:2px;">📁 Fotos stornierter Artikel entfernen</div>
+                            <div style="font-weight:700;margin-bottom:2px;">Fotos stornierter Artikel entfernen</div>
                             <div style="font-size:11px;color:var(--text-muted);font-weight:400;">Datensatz bleibt für GoBD-Audit erhalten</div>
                         </div>
                         <strong style="color:var(--success);white-space:nowrap;">spart ${fmt(stornoBytes)}</strong>
@@ -3313,7 +3313,7 @@ const App = {
                     <button class="btn cleanup-action" id="cleanupCompress" ${purchasesWithFoto.length === 0 ? 'disabled' : ''}
                             style="text-align:left;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
                         <div>
-                            <div style="font-weight:700;margin-bottom:2px;">📉 Alle Fotos stärker komprimieren</div>
+                            <div style="font-weight:700;margin-bottom:2px;">Alle Fotos stärker komprimieren</div>
                             <div style="font-size:11px;color:var(--text-muted);font-weight:400;">600px / JPEG 0.55 — Qualität niedriger, Größe ~50%</div>
                         </div>
                         <strong style="color:var(--success);white-space:nowrap;">spart ~${fmt(totalPhotoBytes * 0.5)}</strong>
@@ -3322,7 +3322,7 @@ const App = {
             </div>
         `;
 
-        this.showModal('🧹 Speicher aufräumen', body, '<button class="btn" data-action="close-modal">Schließen</button>');
+        this.showModal('Speicher aufräumen', body, '<button class="btn" data-action="close-modal">Schließen</button>');
 
         // Aktion: Fotos verkaufter Artikel entfernen
         const removePhotos = (filterFn, label) => {
@@ -3332,7 +3332,7 @@ const App = {
             all.forEach(p => { if (filterFn(p) && p.foto) { delete p.foto; count++; } });
             Store.setAsync('purchases', all)
                 .then(() => {
-                    Utils.showToast(`✅ ${count} Fotos entfernt`, 'success');
+                    Utils.showToast(`${count} Fotos entfernt`, 'success');
                     this.closeModal();
                     if (this.currentPage) this.navigate(this.currentPage);
                 })
@@ -3367,7 +3367,7 @@ const App = {
                     }
                 }
                 await Store.setAsync('purchases', all);
-                Utils.showToast(`✅ ${processed} Fotos komprimiert`, 'success');
+                Utils.showToast(`${processed} Fotos komprimiert`, 'success');
                 this.closeModal();
                 if (this.currentPage) this.navigate(this.currentPage);
             } catch (err) {
@@ -3457,14 +3457,14 @@ const App = {
                 </ol>
             </div>
             <div style="background:rgba(251,191,36,0.1);border:1px solid var(--warning);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary);">
-                💡 Richte jetzt einen Backup-Ordner ein damit es nie wieder passiert.
+                Richte jetzt einen Backup-Ordner ein damit es nie wieder passiert.
             </div>
         `;
         const footer = `
             <button class="btn" data-action="close-modal">Schließen</button>
             <button class="btn btn-primary" data-action="app-close-and-backup">Backup & Daten öffnen</button>
         `;
-        this.showModal('⚠️ Datenverlust erkannt', body, footer);
+        this.showModal('Datenverlust erkannt', body, footer);
     },
 
     // SCHICHT 4 — Periodisches Backup: alle 10 Minuten wird ein Datei-Backup erzwungen,
@@ -3517,7 +3517,7 @@ function _startApp() {
                     const src = srcLabels[recovered.source] || recovered.source;
                     const ts  = recovered.ts ? ` vom ${new Date(recovered.ts).toLocaleString('de-DE')}` : '';
                     Utils.showToast(
-                        `⚠️ Datenverlust erkannt — Daten automatisch aus ${src}${ts} wiederhergestellt!`,
+                        `Datenverlust erkannt — Daten automatisch aus ${src}${ts} wiederhergestellt!`,
                         'warning'
                     );
                     // Zusätzlich prominentes Modal

@@ -584,7 +584,7 @@ function renderWarenPosTable() {
     const rows = _warenPos.map((p, i) => {
         const gesamt = (parseFloat(p.menge)||0) * (parseFloat(p.einzelpreis)||0);
         const lagerBadge = p.lagerArtikelId
-            ? `<span style="font-size:10px;font-family:monospace;color:var(--info);font-weight:700;cursor:pointer" data-action="eb-clear-lager" data-idx="${i}" title="Verknüpfung aufheben: Klicken zum Entfernen">🔗 ${esc(p.artikelNr||'Lager')} ✕</span>`
+            ? `<span style="font-size:10px;font-family:monospace;color:var(--info);font-weight:700;cursor:pointer" data-action="eb-clear-lager" data-idx="${i}" title="Verknüpfung aufheben: Klicken zum Entfernen">${esc(p.artikelNr||'Lager')} ✕</span>`
             : `<button type="button" class="btn btn-small" data-action="eb-show-lager" data-idx="${i}" style="font-size:11px;padding:2px 7px;" title="Bestehenden Lagerartikel verknüpfen"><i class="ti ti-link"></i> Lager</button>`;
         return `<tr data-idx="${i}">
             <td><input class="form-control wp-artikel" data-idx="${i}" value="${esc(p.artikel)}" placeholder="Artikelbezeichnung"></td>
@@ -1070,13 +1070,13 @@ async function _syncPositionenToLager(beleg) {
         } catch(e) {}
 
         if (!idbOk) {
-            toast('⚠️ Lager-Sync nur in localStorage gespeichert (IDB nicht verfügbar)', 'warning');
+            toast('Lager-Sync nur in localStorage gespeichert (IDB nicht verfügbar)', 'warning');
         } else {
-            toast(`📦 ${newPurchases.length} Artikel ins Lager übernommen`, 'success');
+            toast(`${newPurchases.length} Artikel ins Lager übernommen`, 'success');
         }
     } catch(e) {
         console.error('[EB→Lager Sync]', e);
-        toast('⚠️ Lager-Sync fehlgeschlagen – bitte in Reselling-App prüfen', 'warning');
+        toast('Lager-Sync fehlgeschlagen – bitte in Reselling-App prüfen', 'warning');
     }
 }
 

@@ -235,7 +235,7 @@ const Steuertermine = {
                 <td>${Utils.escapeHtml(plat)}</td>
                 <td style="text-align:right">${v.count}</td>
                 <td style="text-align:right">${Utils.formatCurrency(v.umsatz)}</td>
-                <td><span class="badge ${pflicht ? 'badge-danger' : 'badge-success'}">${pflicht ? '⚠️ Meldepflicht' : '✓ OK'}</span></td>
+                <td><span class="badge ${pflicht ? 'badge-danger' : 'badge-success'}">${pflicht ? 'Meldepflicht' : 'OK'}</span></td>
             </tr>`;
         }).join('');
 

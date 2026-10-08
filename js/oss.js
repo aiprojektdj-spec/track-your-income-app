@@ -155,8 +155,8 @@ const OSS = {
                 </div>
                 <div style="text-align:right;">
                     ${ueberSchwelle
-                        ? `<span class="badge badge-danger">⚠️ Schwelle überschritten${nurWegenVorjahr ? ' (Vorjahr)' : ''}</span><div style="font-size:12px;color:var(--text-muted);margin-top:6px;max-width:280px;">${nurWegenVorjahr ? `Das Vorjahr lag mit ${Utils.formatCurrency(vorjahrUmsatz)} über der Schwelle — das Bestimmungslandprinzip gilt daher schon ab dem ersten Euro dieses Jahres (§3c Abs. 4 UStG). ` : 'USt ist ab Überschreiten im jeweiligen Bestimmungsland fällig. '}Melde dich beim <a href="https://www.bzst.de" target="_blank" rel="noopener">BZSt</a> für das OSS-Verfahren an.</div>`
-                        : '<span class="badge badge-success">✅ Unter Schwelle</span><div style="font-size:12px;color:var(--text-muted);margin-top:6px;max-width:280px;">Bis hierhin gilt das Ursprungslandprinzip — normale deutsche USt auf diesen Rechnungen ist korrekt (Vorjahr ebenfalls unter der Schwelle).</div>'}
+                        ? `<span class="badge badge-danger">Schwelle überschritten${nurWegenVorjahr ? ' (Vorjahr)' : ''}</span><div style="font-size:12px;color:var(--text-muted);margin-top:6px;max-width:280px;">${nurWegenVorjahr ? `Das Vorjahr lag mit ${Utils.formatCurrency(vorjahrUmsatz)} über der Schwelle — das Bestimmungslandprinzip gilt daher schon ab dem ersten Euro dieses Jahres (§3c Abs. 4 UStG). ` : 'USt ist ab Überschreiten im jeweiligen Bestimmungsland fällig. '}Melde dich beim <a href="https://www.bzst.de" target="_blank" rel="noopener">BZSt</a> für das OSS-Verfahren an.</div>`
+                        : '<span class="badge badge-success">Unter Schwelle</span><div style="font-size:12px;color:var(--text-muted);margin-top:6px;max-width:280px;">Bis hierhin gilt das Ursprungslandprinzip — normale deutsche USt auf diesen Rechnungen ist korrekt (Vorjahr ebenfalls unter der Schwelle).</div>'}
                 </div>
             </div>
             <div style="margin-top:14px;height:8px;background:var(--bg-secondary);border-radius:4px;overflow:hidden;">
@@ -178,8 +178,8 @@ const OSS = {
                             const rate = known ? this.EU_VAT_RATES[land] : 0;
                             // Ziellandsatz nur auf den Teil ab dem Überschreiten — davor gilt deutsche USt.
                             const ust = nettoOSS * rate / 100;
-                            const rateCell = known ? `${rate}%` : '<span style="color:var(--danger)">⚠️ unbekannt</span>';
-                            const ustCell  = known ? Utils.formatCurrency(ust) : '<span style="color:var(--danger)">⚠️ manuell prüfen</span>';
+                            const rateCell = known ? `${rate}%` : '<span style="color:var(--danger)">unbekannt</span>';
+                            const ustCell  = known ? Utils.formatCurrency(ust) : '<span style="color:var(--danger)">manuell prüfen</span>';
                             return `<tr><td>${land}</td><td style="text-align:right">${Utils.formatCurrency(netto)}</td><td style="text-align:right">${Utils.formatCurrency(nettoOSS)}</td><td style="text-align:right">${rateCell}</td><td style="text-align:right">${ustCell}</td></tr>`;
                         }).join('')}
                     </tbody>
@@ -193,7 +193,7 @@ const OSS = {
                 <strong>Unter 10.000 €/Jahr</strong> (EU-weit kumuliert, nicht pro Land): weiterhin deutsche USt zulässig (Ursprungslandprinzip).<br>
                 <strong>Ab 10.000 €/Jahr:</strong> USt des Ziellandes fällig, Meldung quartalsweise über das <a href="https://www.bzst.de" target="_blank" rel="noopener">BZSt-Portal (One-Stop-Shop)</a> statt Einzelregistrierung in jedem Land.<br>
                 <strong>Regelsteuersätze</strong> sind Referenzwerte (Stand ${Utils.formatDate(this.RATES_STAND)}) – bei ermäßigt besteuerten Waren/Leistungen im Zielland weichen sie ab, und EU-Länder ändern Sätze gelegentlich. Bei Zweifel offizielle Quelle (z.B. <a href="https://ec.europa.eu/taxation_customs/tedb/" target="_blank" rel="noopener">EU-Steuersatzdatenbank</a>) prüfen.<br>
-                <strong>⚠️ Unverbindlich</strong> – ersetzt keine Steuerberatung. Die eigentliche Meldung erfolgt manuell im BZSt-Portal, ein Direktversand ist hier nicht implementiert.
+                <strong>Unverbindlich</strong> – ersetzt keine Steuerberatung. Die eigentliche Meldung erfolgt manuell im BZSt-Portal, ein Direktversand ist hier nicht implementiert.
             </div>
         </div>
         `;

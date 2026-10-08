@@ -556,7 +556,7 @@ const UstVoranmeldung = {
         <div class="card" style="margin-bottom:16px;">
             <div class="card-header">
                 <div class="card-title">Kennzahlen ${this._periodeLabel(year, typ, idx)} (${Utils.formatDate(start)} – ${Utils.formatDate(end)})</div>
-                ${gesperrt ? '<span class="badge badge-success">✅ Eingereicht</span>' : '<span class="badge badge-warning">⏳ Offen</span>'}
+                ${gesperrt ? '<span class="badge badge-success">Eingereicht</span>' : '<span class="badge badge-warning">⏳ Offen</span>'}
             </div>
             <div class="table-container" style="border:none;">
                 <table class="euer-table">
@@ -579,13 +579,13 @@ const UstVoranmeldung = {
                         ${calc.erwerbNetto19 > 0 ? `<tr><td><strong>Kz. 89</strong></td><td>Innergem. Erwerbe (19%) – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.erwerbNetto19)}</td></tr>` : ''}
                         ${calc.erwerbNetto7 > 0 ? `<tr><td><strong>Kz. 93</strong></td><td>Innergem. Erwerbe (7%) – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.erwerbNetto7)}</td></tr>` : ''}
                         ${calc.rcNettoAbs1 > 0 ? `<tr><td><strong>Kz. 46</strong></td><td>§13b Abs.1 EU-Dienstleistungen – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.rcNettoAbs1)}</td></tr>` : ''}
-                        ${calc.rcNettoOther > 0 ? `<tr><td><strong>§13b (sonst.)</strong></td><td>Weitere §13b-Fälle (Bau/Gebäudereinigung/Mobilfunk) <span style="color:var(--warning);font-size:11px;">⚠ genaue Zeile im Formular prüfen</span></td><td style="text-align:right">${Utils.formatCurrency(calc.rcNettoOther)}</td></tr>` : ''}
+                        ${calc.rcNettoOther > 0 ? `<tr><td><strong>§13b (sonst.)</strong></td><td>Weitere §13b-Fälle (Bau/Gebäudereinigung/Mobilfunk) <span style="color:var(--warning);font-size:11px;">genaue Zeile im Formular prüfen</span></td><td style="text-align:right">${Utils.formatCurrency(calc.rcNettoOther)}</td></tr>` : ''}
                         <tr><td><strong>Kz. 66</strong></td><td>Vorsteuerbeträge aus Rechnungen (§15 UStG)</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(calc.vorsteuerEinkaufAusgaben)}</td></tr>
                         ${calc.vorsteuerIgErwerb > 0 ? `<tr><td><strong>Kz. 61</strong></td><td>Vorsteuer aus innergem. Erwerben</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(calc.vorsteuerIgErwerb)}</td></tr>` : ''}
                         ${calc.vorsteuerRc > 0 ? `<tr><td><strong>Kz. 67</strong></td><td>Vorsteuer aus §13b-Leistungen</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(calc.vorsteuerRc)}</td></tr>` : ''}
                         <tr class="euer-result">
                             <td></td>
-                            <td><strong>${calc.zahllast >= 0 ? '🔴 Zahllast (Verbleibt zu zahlen)' : '🟢 Überschuss (Erstattung)'}</strong></td>
+                            <td><strong>${calc.zahllast >= 0 ? 'Zahllast (Verbleibt zu zahlen)' : 'Überschuss (Erstattung)'}</strong></td>
                             <td style="text-align:right;font-size:1.1rem;color:${calc.zahllast >= 0 ? 'var(--danger)' : 'var(--success)'}">
                                 <strong>${Utils.formatCurrency(Math.abs(calc.zahllast))}</strong>
                             </td>
@@ -594,7 +594,7 @@ const UstVoranmeldung = {
                 </table>
             </div>
             <div style="padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-                ${!gesperrt ? `<button class="btn btn-primary" data-action="uva-mark">✅ Als eingereicht markieren</button>` : ''}
+                ${!gesperrt ? `<button class="btn btn-primary" data-action="uva-mark">Als eingereicht markieren</button>` : ''}
                 ${gesperrt ? `<div style="color:var(--text-muted);font-size:12px;">Eingereicht am ${Utils.formatDate(gesperrt.eingereichtAm)}</div>` : ''}
                 <div style="font-size:12px;color:var(--text-muted);">Abgabefrist: ${this._formatFrist(fristDatum)}${Store.getSettings().ustDauerfristverlaengerung ? ' (inkl. Dauerfristverlängerung)' : ''}</div>
             </div>
@@ -640,10 +640,10 @@ const UstVoranmeldung = {
                 ${calc.erwerbNetto19 > 0 || calc.erwerbNetto7 > 0 ? `<strong>Kz. 89/93:</strong> Innergemeinschaftliche Erwerbe (§1a UStG) – Bemessungsgrundlage eintragen, gleichzeitig als Vorsteuer bei Kz. 61 abziehbar.<br>` : ''}
                 ${calc.rcNettoAbs1 > 0 || calc.rcNettoOther > 0 ? `<strong>Kz. 46 / §13b:</strong> Reverse-Charge-Leistungen (§13b UStG) – du schuldest hier die Steuer als Leistungsempfänger, gleichzeitig als Vorsteuer bei Kz. 67 abziehbar. Bei "Weitere §13b-Fälle" bitte die passende Zeile im ELSTER-Formular je nach Kategorie (Bauleistung/Gebäudereinigung/Mobilfunk) selbst nachsehen – dafür gibt es jeweils eigene Kennzahlen.<br>` : ''}
                 <strong>Kz. 66:</strong> Abzugsfähige Vorsteuer aus Eingangsrechnungen (§15 UStG) – <u>nur</u> Einkäufe/Ausgaben, NICHT §13b oder IG-Erwerb (die haben eigene Kennzahlen, s.o.).<br>
-                <strong>⚠️ Wichtig:</strong> Die "USt darauf"-Zeilen bei Kz. 81/86 sind reine Kontrollwerte für dich, <u>keine eigenen ELSTER-Kennzahlen</u> – insbesondere Kz. 35/36 im echten Formular meint etwas anderes (Umsätze zu "anderen Steuersätzen", z.B. 16%/5%). Trage dort nichts ein, wenn du normale 19%/7%-Umsätze hast.<br>
+                <strong>Wichtig:</strong> Die "USt darauf"-Zeilen bei Kz. 81/86 sind reine Kontrollwerte für dich, <u>keine eigenen ELSTER-Kennzahlen</u> – insbesondere Kz. 35/36 im echten Formular meint etwas anderes (Umsätze zu "anderen Steuersätzen", z.B. 16%/5%). Trage dort nichts ein, wenn du normale 19%/7%-Umsätze hast.<br>
                 <strong>Voranmeldungszeitraum:</strong> Aktuell <u>${typ === 'monat' ? 'monatlich' : 'vierteljährlich'}</u> eingestellt (Einstellungen → USt-Modus). Monatlich ist Pflicht bei Vorjahres-Zahllast > 7.500€ sowie im Gründungsjahr und Folgejahr.<br>
                 <strong>Abgabefrist:</strong> 10. des auf den Voranmeldungszeitraum folgenden Monats (§18 Abs. 1 UStG)${Store.getSettings().ustDauerfristverlaengerung ? ', durch Dauerfristverlängerung um 1 Monat verschoben' : ''} — für die aktuell gewählte Periode: <strong>${this._formatFrist(fristDatum)}</strong>.<br>
-                <strong>⚠️ Unverbindlich</strong> – Abgabe über ELSTER (elster.de) oder Steuerberater erforderlich.
+                <strong>Unverbindlich</strong> – Abgabe über ELSTER (elster.de) oder Steuerberater erforderlich.
             </div>
         </div>
         `;

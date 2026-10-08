@@ -382,13 +382,13 @@ var RechApp = (function() {
                 setTimeout(() => {
                     const ts = recovered.ts ? new Date(recovered.ts).toLocaleString('de-DE') : '';
                     Utils.showToast(
-                        `⚠️ Daten aus Backup (${recovered.source}${ts ? ' · ' + ts : ''}) wiederhergestellt`,
+                        `Daten aus Backup (${recovered.source}${ts ? ' · ' + ts : ''}) wiederhergestellt`,
                         'warning'
                     );
                 }, 1000);
             } else if (lossDetected && !recovered) {
                 setTimeout(() => {
-                    Utils.showToast('❌ Datenverlust erkannt — kein Backup gefunden. Bitte Hauptapp öffnen.', 'error');
+                    Utils.showToast('Datenverlust erkannt — kein Backup gefunden. Bitte Hauptapp öffnen.', 'error');
                 }, 1000);
             }
         });

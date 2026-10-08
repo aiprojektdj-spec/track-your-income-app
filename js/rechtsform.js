@@ -399,7 +399,7 @@ const Rechtsform = {
                 • <strong>Einzelunternehmen / Freiberufler</strong>: EÜR, optional Gewerbesteuer (nur EU).<br>
                 • <strong>Personengesellschaften</strong> (GbR, OHG, KG): Gesonderte Feststellung, GewSt mit Freibetrag.<br>
                 • <strong>Kapitalgesellschaften</strong> (GmbH, UG): KSt 15% + SolZ 5,5%, Bilanzpflicht, kein GewSt-Freibetrag.<br>
-                • ⚠️ Keine Steuerberatung — Rechtsform-Wahl mit Steuerberater besprechen.
+                • Keine Steuerberatung — Rechtsform-Wahl mit Steuerberater besprechen.
             </div>
         </div>`;
     },
@@ -417,7 +417,7 @@ const Rechtsform = {
                     preview.innerHTML = this.renderPflichtenOverview(form) +
                         `<div style="margin-top:12px;display:flex;gap:8px;">
                             <button class="btn btn-primary" id="confirmRechtsform">
-                                ${form === this.get() ? '✅ Bereits aktiv' : 'Rechtsform übernehmen'}
+                                ${form === this.get() ? 'Bereits aktiv' : 'Rechtsform übernehmen'}
                             </button>
                         </div>`;
 

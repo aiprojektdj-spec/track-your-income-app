@@ -410,7 +410,7 @@ const CompanyManager = {
                     <div style="font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(co.branche || '')} · 🇩🇪</div>
                 </div>
                 ${isActive
-                    ? `<span style="font-size:11px;padding:2px 8px;background:rgba(99,102,241,.2);color:#818cf8;border-radius:10px;font-weight:600;white-space:nowrap;">✓ Aktiv</span>`
+                    ? `<span style="font-size:11px;padding:2px 8px;background:rgba(99,102,241,.2);color:#818cf8;border-radius:10px;font-weight:600;white-space:nowrap;">Aktiv</span>`
                     : `<button class="btn btn-small" data-action="co-switch" data-args='["${co.id}"]' 
                                style="font-size:11px;white-space:nowrap;">Wechseln</button>`
                 }
@@ -445,7 +445,7 @@ const CompanyManager = {
             <!-- Header -->
             <div style="padding:12px 14px;background:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
                 <div>
-                    <div style="font-weight:700;font-size:13px;">🏢 Unternehmen</div>
+                    <div style="font-weight:700;font-size:13px;">Unternehmen</div>
                     <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">${companies.length} angelegt</div>
                 </div>
                 <button data-action="co-close-dropdown" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;line-height:1;padding:0 2px;">×</button>
@@ -534,7 +534,7 @@ const CompanyManager = {
                     <div style="display:flex;gap:16px;margin-top:6px;">${farbenHtml}</div>
                 </div>
                 <button class="btn btn-primary" data-action="co-create-modal" style="width:100%;padding:12px;font-size:15px;">
-                    ✅ Firma anlegen
+                    Firma anlegen
                 </button>
             </div>`;
 
@@ -554,7 +554,7 @@ const CompanyManager = {
         }
         try {
             const co = this.create(name, farbe, branche, land);
-            Utils.showToast(`✅ Firma "${name}" angelegt — wechsle jetzt rein`, 'success');
+            Utils.showToast(`Firma "${name}" angelegt — wechsle jetzt rein`, 'success');
             App.closeModal();
             // Direkt zur neuen Firma wechseln
             setTimeout(() => this.switchTo(co.id), 600);
@@ -587,13 +587,13 @@ const CompanyManager = {
                     <div style="display:flex;gap:14px;margin-top:6px;">${farbenHtml}</div>
                 </div>
                 <button class="btn btn-primary" data-action="co-save-manage" data-args='["${id}"]'  style="width:100%;">
-                    💾 Speichern
+                    Speichern
                 </button>
                 ${!isActive ? `
                 <hr style="border-color:var(--border);margin:4px 0;">
                 <button class="btn" data-action="co-confirm-del" data-args='["${id}"]' 
                         style="width:100%;background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.3);">
-                    🗑 Firma löschen (alle Daten unwiderruflich löschen)
+                    Firma löschen (alle Daten unwiderruflich löschen)
                 </button>` : `
                 <div style="font-size:12px;color:var(--text-muted);text-align:center;">
                     (Aktive Firma kann nicht gelöscht werden)
@@ -609,7 +609,7 @@ const CompanyManager = {
         if (!name) { Utils.showToast('Name darf nicht leer sein', 'warning'); return; }
         this.rename(id, name);
         if (farbe) this.updateColor(id, farbe);
-        Utils.showToast('✅ Gespeichert', 'success');
+        Utils.showToast('Gespeichert', 'success');
         App.closeModal();
         // Switcher-Button neu rendern
         const btn = document.getElementById('companySwitcherBtn');
@@ -622,7 +622,7 @@ const CompanyManager = {
         const body = `
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:14px;">
-                    <div style="font-weight:700;color:var(--danger);margin-bottom:6px;">⚠️ Unwiderrufliche Aktion</div>
+                    <div style="font-weight:700;color:var(--danger);margin-bottom:6px;">Unwiderrufliche Aktion</div>
                     <div style="font-size:13px;color:var(--text-secondary);">
                         Alle Daten von <strong>${Utils.escapeHtml(co.name)}</strong> werden permanent gelöscht —
                         Einkäufe, Verkäufe, Ausgaben, Protokoll, Rechnungen und Belege.
@@ -646,7 +646,7 @@ const CompanyManager = {
         try {
             await this.delete(id);
             App.closeModal();
-            Utils.showToast('✅ Firma gelöscht', 'success');
+            Utils.showToast('Firma gelöscht', 'success');
         } catch(err) {
             Utils.showToast('❌ ' + err.message, 'error');
         }

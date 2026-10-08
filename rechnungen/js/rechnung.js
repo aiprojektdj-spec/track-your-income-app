@@ -243,7 +243,7 @@ var Rechnung = (function() {
 
         // Eigenbelege-Verknüpfung
         var verknuepfteEB = editingInvoice ? (editingInvoice.verknuepfteEigenbelege || []) : [];
-        html += '<div class="card"><div class="card-header"><div class="card-title">🧾 Verknüpfte Eigenbelege <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(optional)</span></div></div>';
+        html += '<div class="card"><div class="card-header"><div class="card-title">Verknüpfte Eigenbelege <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(optional)</span></div></div>';
         html += '<div style="padding: 1rem;">';
         html += '<p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Eigenbelege verknüpfen die Einkaufskosten direkt mit dieser Rechnung – ideal für vollständige Gewinnübersicht.</p>';
         html += renderEigenbelegAuswahl(verknuepfteEB);
@@ -426,7 +426,7 @@ var Rechnung = (function() {
                 var isSelected = !isNewMode && a.id === currentId;
                 var actionCell;
                 if (isSelected) {
-                    actionCell = '<span style="color:var(--success);">✓ Aktiv</span>';
+                    actionCell = '<span style="color:var(--success);">Aktiv</span>';
                 } else {
                     actionCell = '<button class="btn btn-small btn-primary lp-select" data-id="' + a.id + '">' + (isNewMode ? '+ Hinzufügen' : 'Auswählen') + '</button>';
                 }
@@ -446,7 +446,7 @@ var Rechnung = (function() {
         }
 
         // Aktuelle Verknüpfung aufheben Button
-        var clearBtn = currentId ? '<button class="btn btn-small btn-danger" id="lpClearBtn" style="margin-left:8px;">🗑 Verknüpfung entfernen</button>' : '';
+        var clearBtn = currentId ? '<button class="btn btn-small btn-danger" id="lpClearBtn" style="margin-left:8px;">Verknüpfung entfernen</button>' : '';
 
         var introText = isNewMode
             ? 'Wähle einen oder mehrere verfügbare Lagerartikel aus – für jeden wird eine neue Position angelegt.'

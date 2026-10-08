@@ -64,7 +64,9 @@ body.stackr-shell { display: block; height: auto; min-height: 100vh; }
 .stackr-shell .topnav .company-switcher-btn { max-width: 100%; }
 .stackr-shell .topnav .auth-user-btn { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stackr-shell .topnav > .sr-context-nav { order: 3; flex: 1 0 100%; max-width: none; width: 100%; margin: 0 !important; padding-bottom: 4px; border: 0; }
-.sr-storage-status { max-width: 220px; color: var(--muted); font-size: 12px; }
+.sr-storage-status { max-width: 220px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+/* Lager-Einzelseite: Firmenauswahl und Speicheranzeige brauchen gemeinsam mehr Platz. */
+@media (min-width: 1280px) { .stackr-shell .topnav-controls:has(.sr-storage-status:not(:empty)) { max-width: 440px; } }
 .sr-storage-status:empty { display: none; }
 .sr-nav-footer p, .sr-nav-footer small { color: var(--muted); font-size: 12px; padding: 8px 14px; }
 .sr-nav-tools { font-size: 14px; color: var(--muted); padding: 8px 14px; }
@@ -430,5 +432,5 @@ a.sr-settings-row:hover strong { text-decoration: underline; text-underline-offs
   .stackr-shell .topnav #companySwitcher { max-width: 105px; }
   .stackr-shell .topnav .auth-user-btn { font-size: 0; min-width: 44px; }
   .stackr-shell .topnav .auth-user-btn i { font-size: 16px !important; }
-  .sr-storage-status { max-width: 80px; }
+  .sr-storage-status { display: none; }
 }

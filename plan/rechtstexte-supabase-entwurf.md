@@ -304,19 +304,24 @@ zum Übernehmen:
 
 ## 3. Fragen an den User (nicht geraten — vor dem Einbau beantworten)
 
-**F1 — AV-Vertrag Supabase.** ⏰ **User erledigt das am 2026-10-07 mittags, gemeinsam mit F2.**
+**F1 — AV-Vertrag Supabase.** ✅ **2026-10-07 erledigt** (DPA über die Terms, siehe unten).
 > **2026-10-07 (Session F-Punkte), gegengeprüft:** Der DPA „supplements and forms part of the
 > Supabase Terms of Service“ und gilt ab dem Effective Date des Vertrags. Eine Einschränkung auf
 > bezahlte Pläne steht nicht darin (anders als bei Vercel) → gilt nach dem Wortlaut auch im
-> Free-Plan. **User 2026-10-07: noch nicht erledigt.** → Ziffer 7 bleibt bei „vorgesehen“, bis der
-> User das Datum nennt.
+> Free-Plan.
+> ✅ **2026-10-07 im Supabase-Dashboard (Organization → Legal Documents) bestätigt:** „Our Data
+> Processing Addendum is incorporated into our Terms of Service, so all organizations get its
+> protections automatically. No separate signed DPA is needed.“ → **Der DPA gilt, keine Handlung
+> nötig.** Supabase stellt dort außerdem eine eigene TIA zum Download bereit (fürs Archiv, 👤).
 Recherche (2026-10-07): Der Supabase-DPA (Version 1, 01.08.2026) gilt laut Text schon mit Annahme der
 Nutzungsbedingungen („acceptance of the Agreement shall have the same effect as signing the SCCs“).
 Eine unterschriebene Fassung fürs eigene Archiv gibt es trotzdem im Dashboard. Ursprüngliche Frage: Ist der Supabase-DPA für die Organisation abgeschlossen (Dashboard →
 Organization → Legal Documents → DPA, per PandaDoc unterschrieben)? Gilt er für **beide** Projekte?
 Datum? Erst dann darf die DSE „besteht“ sagen statt „vorgesehen“.
 
-**F2 — AV-Verträge Upstash und Vercel.** ⏰ **User erledigt das am 2026-10-07 mittags.**
+**F2 — AV-Verträge Upstash und Vercel.** ✅ **2026-10-07 erledigt:** Beide DPAs gelten (Upstash über
+die ToS, Vercel über Pro). DSE Ziffer 7 sagt jetzt „besteht“ statt „vorgesehen“, als Grundlage DPF
+(beide gelistet), hilfsweise SCC.
 Recherche (2026-10-07):
 - **Upstash:** DPA ist in die Terms of Service eingebunden („incorporated into and forms a binding
   and effective part of the Agreement“), gilt also auch im Free-Plan ohne Unterschrift.

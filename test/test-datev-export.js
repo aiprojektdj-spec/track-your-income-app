@@ -48,7 +48,7 @@ function ladeMitDaten(o) {
         // echte Store.getFahrten() filtert Stornos ebenfalls nicht, und genau darin lag der
         // Fehler, den 19b5606 in der EUER geschlossen hat. Ein vorfilternder Shim haette ihn
         // im Export nie zeigen koennen.
-        fahrten: [], materialEinkaeufe: [], eigenbelege: [],
+        fahrten: [], materialEinkaeufe: [], eigenbelege: [], retouren: [],
     }, o || {});
     const Store = {
         getSettings:        () => d.settings,
@@ -59,6 +59,7 @@ function ladeMitDaten(o) {
         getRechCustomers:   () => d.customers,
         getFahrten:            () => d.fahrten,
         getMaterialEinkauefe:  () => d.materialEinkaeufe,
+        getRetouren:           () => d.retouren,
         // Eigenbelege gehen nicht ueber einen Getter, sondern ueber den company-praefixierten
         // Schluessel. Der Shim beantwortet genau den Schluessel, den das Modul bildet.
         _syncReadRaw:       (k) => (k === 'co_test__eigenbelege_belege' ? d.eigenbelege : []),
@@ -315,7 +316,7 @@ block(() => {
     const erwartet = ['getAllExpensesRaw', 'getAllPurchasesRaw', 'getAllSalesRaw',
                       'getExpenses', 'getPurchases', 'getRechCustomers',
                       'getRechInvoices', 'getSales', 'getSettings',
-                      'getFahrten', 'getMaterialEinkauefe'].sort();
+                      'getFahrten', 'getMaterialEinkauefe', 'getRetouren'].sort();
     check('G1 Der Stapel liest genau die bekannten Quellen — keine neue, keine verlorene',
         JSON.stringify(gelesen) === JSON.stringify(erwartet),
         'gelesen: ' + gelesen.join(', '));
@@ -326,12 +327,12 @@ block(() => {
     // der an einer fremden Baustelle haengt, schlaegt aus fremden Gruenden fehl. Die Liste
     // steht deshalb hier, mit Datum.
     //
-    // WAS NOCH FEHLT, und warum es fehlt (Stand 2026-09-17): AfA und Retouren brauchen je eine
-    // Buchungsregel, die Stackr nicht kennt — AfA bucht gegen das Anlagekonto des einzelnen
-    // Gegenstands, und das Anlagenverzeichnis fuehrt keines. Beides ist im Export-Hinweis
-    // benannt, damit die Kanzlei es nachtraegt, statt es zu uebersehen.
-    const fehlendeQuellen = ['getAfaAnlagen', 'getRetouren'];
-    check('G2 Die verbliebene Luecke (AfA, Retouren) ist unveraendert',
+    // WAS NOCH FEHLT, und warum es fehlt (Stand 2026-10-08): AfA braucht eine Buchungsregel,
+    // die Stackr nicht kennt — sie bucht gegen das Anlagekonto des einzelnen Gegenstands, und
+    // das Anlagenverzeichnis fuehrt keines. Sie ist im Export-Hinweis benannt, damit die Kanzlei
+    // sie nachtraegt. Retouren sind seit 2026-10-08 im Stapel (Block K).
+    const fehlendeQuellen = ['getAfaAnlagen'];
+    check('G2 Die verbliebene Luecke (AfA) ist unveraendert',
         fehlendeQuellen.every(q => !datevSrc.includes('Store.' + q)));
 
     // Eigenbelege haben keinen Store-Getter — sie liegen company-praefixiert in localStorage.
@@ -508,6 +509,31 @@ block(() => {
         zJ.indexOf('RE-2026-777') !== -1);
     check('J5 Die eingetippte Beschreibung steht im Buchungstext',
         zJ.indexOf('Tonerkartusche schwarz') !== -1);
+});
+
+// ── K) Retouren (Entscheidung User 2026-10-08: Gegenbuchung auf dem Erloeskonto) ─────────
+block(() => {
+    const RETOURE = { id: 'r1', nummer: 'RT-1', datum: '2026-03-10', erstattungBetrag: 40,
+                      marke: 'Acme', artikeltyp: 'Regal', saleId: 's1' };
+    const z = buchungen({ sales: [VERKAUF], retouren: [RETOURE] });
+    const rt = z.find(r => r[13].indexOf('Retoure') === 0);
+    const vk = z.find(r => r[13].indexOf('Verkauf') === 0);
+    check('K1 Eine Retoure steht im Stapel', !!rt);
+    check('K2 Betrag ist die Erstattung', rt && rt[0] === '40,00');
+    check('K3 Soll auf dem Erloeskonto des Verkaufs, Gegenkonto Bank',
+        rt && vk && rt[1] === 'S' && rt[6] === vk[6] && rt[7] === '1800');
+    check('K4 Retourennummer in Belegfeld 1', rt && rt[10] === 'RT-1');
+
+    // Stornierter Verkauf steht nicht im Stapel — also darf auch die Erstattung nicht hinein
+    const zS = buchungen({ sales: [Object.assign({}, VERKAUF, { storniert: true })], retouren: [RETOURE] });
+    check('K5 Retoure zu storniertem Verkauf faellt weg (kein Doppelabzug)',
+        !zS.some(r => r[13].indexOf('Retoure') === 0));
+
+    const zJ = buchungen({ retouren: [Object.assign({}, RETOURE, { datum: '2025-12-31', saleId: null })] });
+    check('K6 Retoure aus einem anderen Jahr faellt weg', zJ.length === 0);
+
+    const zK = buchungen({ settings: { ustMode: 'klein' }, retouren: [Object.assign({}, RETOURE, { saleId: null })] });
+    check('K7 Kleinunternehmer: Retoure auf dem Kleinunternehmer-Erloeskonto', !!zK[0] && zK[0][6] === '8200');
 });
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');

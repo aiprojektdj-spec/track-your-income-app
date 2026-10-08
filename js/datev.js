@@ -200,6 +200,34 @@ var DatevExport = (function () {
             });
         }
 
+        // ── Retouren ────────────────────────────────────────────────────
+        // Entscheidung User 2026-10-08: Gegenbuchung auf dem Erloeskonto (Soll), kein eigenes
+        // Konto "Erloesschmaelerungen". Das Konto spiegelt die Verkaufszeile oben — wird dort
+        // einmal nach Steuersatz unterschieden, muss es hier mitziehen.
+        // Filter zeichengleich mit js/euer.js: Ist der verknuepfte Verkauf storniert, steht er
+        // gar nicht im Stapel, und die Erstattung abzuziehen waere ein Doppelabzug.
+        var stornierteSaleIds = {};
+        (Store.getAllSalesRaw ? Store.getAllSalesRaw() : Store.getSales ? Store.getSales(true) : [])
+            .forEach(function (s) { if (s.storniert) stornierteSaleIds[s.id] = true; });
+        (Store.getRetouren ? Store.getRetouren() : [])
+            .filter(function (r) {
+                return r.datum >= vonDate && r.datum <= bisDate && !(r.saleId && stornierteSaleIds[r.saleId]);
+            })
+            .forEach(function (r) {
+                var betrag = parseFloat(r.erstattungBetrag) || 0;
+                if (betrag <= 0) return;
+                rows.push({
+                    umsatz:       betrag,
+                    sh:           'S',              // mindert den Erloes: gegenlaeufig zum Verkauf
+                    konto:        isKlein ? accounts.erloese_klein : accounts.erloese_19,
+                    gegenkonto:   accounts.bank,
+                    datum:        r.datum,
+                    belegfeld1:   r.nummer || String(r.id || '').slice(0, 12),
+                    buchungstext: ('Retoure ' + (r.nummer || '') + ' ' + ((r.marke || '') + ' ' + (r.artikeltyp || ''))).slice(0, 60),
+                    buSchluessel: '',
+                });
+            });
+
         // Wareneinkäufe
         purchases.forEach(function (p) {
             // Menge mitrechnen — wie ueberall sonst im Haus: js/euer.js:104, js/statistiken.js
@@ -662,8 +690,8 @@ var DatevExport = (function () {
             '--------------',
             '- Berater-Nummer und Mandanten-Nummer im Stapel sind Platzhalter (00000 / 00001)',
             '  und muessen vor dem Import angepasst werden.',
-            '- Nicht im Stapel enthalten: Abschreibungen (AfA) und Retouren. Beide stehen in',
-            '  der EUER und brauchen eine Kontenzuordnung, die Stackr nicht kennt.',
+            '- Nicht im Stapel enthalten: Abschreibungen (AfA). Sie stehen in der EUER und',
+            '  brauchen eine Kontenzuordnung, die Stackr nicht kennt.',
             ohne ? '- ' + ohne + ' Beleg(e) konnten nicht ins Archiv uebernommen werden.' : '',
             ''
         ].filter(function (z) { return z !== ''; }).join('\r\n');
@@ -677,7 +705,7 @@ var DatevExport = (function () {
 
         var html = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">';
         html += '<div style="font-weight:700;font-size:15px;margin-bottom:4px;">DATEV-Export (Buchungsstapel)</div>';
-        html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Exportiert Einnahmen, Ausgaben, Wareneinkäufe, Fahrtkosten, Verpackungsmaterial und Eigenbelege im DATEV ASCII-Format für deinen Steuerberater.</div>';
+        html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Exportiert Einnahmen, Retouren, Ausgaben, Wareneinkäufe, Fahrtkosten, Verpackungsmaterial und Eigenbelege im DATEV ASCII-Format für deinen Steuerberater.</div>';
         html += '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">';
         html += '<div><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Jahr</label>';
         html += '<select class="form-select" id="datevYear" style="min-width:90px;">';
@@ -705,7 +733,7 @@ var DatevExport = (function () {
         html += '<span>Belegbilder mitliefern — Ausgabe als <strong>ZIP</strong> statt einzelner CSV</span></label>';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-left:24px;">Im Archiv liegt der Stapel neben einem Ordner <code>belege/</code>. Jede Datei traegt die Belegnummer, die im Stapel in Belegfeld 1 steht.</div>';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:10px;">⚠ Berater-Nr. und Mandanten-Nr. sind Platzhalter (00000 / 00001). Bitte vor dem Import in DATEV anpassen.</div>';
-        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Nicht enthalten: <strong>Abschreibungen (AfA)</strong> und <strong>Retouren</strong> — beide brauchen eine Kontenzuordnung, die Stackr nicht kennt. Stehen in deiner EÜR, müssen im Stapel nachgetragen werden.</div>';
+        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Nicht enthalten: <strong>Abschreibungen (AfA)</strong> — sie brauchen eine Kontenzuordnung, die Stackr nicht kennt. Stehen in deiner EÜR, müssen im Stapel nachgetragen werden.</div>';
         html += '</div>';
         return html;
     }

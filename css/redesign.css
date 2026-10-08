@@ -231,6 +231,121 @@ details.sr-details[open] > summary { margin-bottom: 16px; color: var(--text); }
 .redesign-table-scroll { overflow-x: auto; }
 .redesign-chart-data { margin: 16px 0 24px; font-size: 14px; }
 .redesign-chart-data summary { padding: 12px 0; min-height: 44px; cursor: pointer; color: var(--muted); }
+
+/* Übersicht: klare Gruppen, stabile Diagrammhöhen und kompakte Buchungszeilen. */
+.redesign-dashboard { padding-block: 8px 24px; }
+.redesign-dashboard .redesign-page-heading { align-items: center; margin-bottom: 28px; }
+.redesign-dashboard .redesign-page-heading h2 { font-size: 30px; letter-spacing: -.04em; }
+.redesign-dashboard .page-header p { margin-top: 6px; }
+.redesign-dashboard .redesign-period label { color: var(--muted); font-size: 13px; }
+.redesign-dashboard .year-select { min-width: 100px; border-color: var(--line); background-color: var(--surface); }
+.redesign-dashboard .redesign-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: 24px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.redesign-dashboard .redesign-kpi, .redesign-dashboard .redesign-kpi:first-child { min-width: 0; padding: 0 28px; border: 0; border-right: 1px solid var(--line); }
+.redesign-dashboard .redesign-kpi:last-child { border: 0; }
+.redesign-dashboard .redesign-kpi h3 { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; font-weight: 450; color: var(--muted); letter-spacing: 0; }
+.redesign-dashboard .redesign-kpi h3 span { font-size: 12px; font-weight: 400; }
+.redesign-dashboard .redesign-kpi-value { margin: 14px 0 8px; font-size: clamp(24px, 2.8vw, 36px); line-height: 1.2; overflow-wrap: anywhere; }
+.redesign-dashboard .redesign-kpi > p:last-child { color: var(--muted); font-size: 12px; }
+.redesign-dashboard .dash-kpi-profit h3 { color: var(--text); }
+.redesign-dashboard .dash-value-empty { font-size: 23px; line-height: 1.6; }
+.redesign-dashboard .amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.redesign-dashboard .redesign-kpi-value.amount { text-align: left; white-space: normal; }
+.redesign-dashboard .redesign-text-link { appearance: none; display: inline-flex; align-items: center; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--muted); font: inherit; font-size: 13px; text-decoration: none; cursor: pointer; }
+.redesign-dashboard .redesign-text-link:hover { color: var(--text); text-decoration: underline; }
+.redesign-dashboard .dash-basis { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 4px; margin: 10px 0 24px; font-size: 12px; }
+.redesign-dashboard .dash-basis .redesign-text-link { min-height: 24px; font-size: inherit; text-decoration: underline; }
+.dash-panel { min-width: 0; padding: 24px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.redesign-dashboard .redesign-section-heading { gap: 16px; margin-bottom: 20px; }
+.redesign-dashboard .redesign-section-heading h3 { font-size: 16px; font-weight: 500; letter-spacing: -.02em; }
+.redesign-dashboard .redesign-section-heading .redesign-caption { margin-top: 4px; font-size: 12px; }
+.redesign-dashboard .redesign-section-heading > .redesign-text-link { min-height: 44px; flex-shrink: 0; }
+.dash-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 18px; font-size: 12px; color: var(--muted); }
+.dash-legend > span { display: inline-flex; align-items: center; gap: 7px; }
+.dash-swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; background: var(--text); }
+.dash-swatch-secondary { background: var(--control); }
+.dash-swatch-profit { background: repeating-linear-gradient(135deg, var(--muted) 0 2px, transparent 2px 4px); border: 1px solid var(--muted); }
+.redesign-chart { position: relative; width: 100%; min-width: 0; min-height: 260px; }
+.dash-main-chart .redesign-chart { min-height: 300px; }
+.redesign-chart .apexcharts-svg { overflow: visible; }
+.redesign-chart .apexcharts-tooltip { font-size: 12px; border: 1px solid var(--line); border-radius: 6px; }
+.redesign-chart .apexcharts-tooltip-title { background: var(--surface-muted) !important; border-color: var(--line) !important; font-size: 12px !important; }
+.redesign-chart .apexcharts-tooltip-text { font-size: 12px !important; }
+.redesign-dashboard .redesign-chart-data { margin: 0; }
+.redesign-dashboard .redesign-chart-data > summary { display: flex; align-items: center; gap: 8px; width: fit-content; padding: 12px 0; min-height: 44px; color: var(--muted); font-size: 12px; list-style: none; }
+.redesign-dashboard .redesign-chart-data > summary::-webkit-details-marker { display: none; }
+.redesign-dashboard .redesign-chart-data > summary::before { content: ''; width: 6px; height: 6px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(-45deg); }
+.redesign-dashboard .redesign-chart-data[open] > summary::before { transform: translateY(-2px) rotate(45deg); }
+.dash-chart-footer { padding-top: 12px; border-top: 1px solid var(--line); }
+.dash-chart-footer > .redesign-caption { margin: 0; font-size: 12px; }
+.dash-chart-empty { padding: 12px 0; color: var(--muted); font-size: 13px; }
+.dash-activity-grid { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(280px, 1fr); align-items: start; gap: 20px; margin-top: 20px; }
+.dash-recent .table-container, .redesign-dashboard .redesign-chart-data .table-container { border: 0; border-radius: 0; background: transparent; }
+.redesign-dashboard table { table-layout: auto; }
+.redesign-dashboard table caption { padding: 12px 0; color: var(--muted); font-size: 12px; text-align: left; }
+.redesign-dashboard th, .redesign-dashboard td { padding: 13px 12px; font-size: 13px; border-bottom: 1px solid var(--line); }
+.redesign-dashboard th { height: 40px; font-size: 12px; }
+.redesign-dashboard th:first-child, .redesign-dashboard td:first-child { padding-left: 0; }
+.redesign-dashboard th:last-child, .redesign-dashboard td:last-child { padding-right: 0; }
+.redesign-dashboard tbody tr:last-child > * { border-bottom: 0; }
+.redesign-dashboard tbody th { font-weight: 400; color: var(--text); }
+.redesign-dashboard .dash-booking-date { color: var(--muted); font-size: 12px; white-space: nowrap; width: 90px; }
+.dash-booking-description { overflow-wrap: anywhere; }
+.dash-booking-description > span { display: block; line-height: 1.45; }
+.dash-booking-description small { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
+.dash-booking-description .dash-booking-mobile-meta { display: none; }
+.dash-type { display: inline-block; padding: 3px 7px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.redesign-dashboard .dash-booking-amount { font-weight: 500; }
+.dash-task-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); font-size: 12px; }
+.dash-tasks .redesign-section-heading { margin-bottom: 4px; }
+.dash-tasks .redesign-task-list { border: 0; margin: 0; }
+.dash-tasks .redesign-task-list li { display: block; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.dash-tasks h4 { font-size: 13px; font-weight: 500; letter-spacing: 0; }
+.dash-tasks .redesign-task-list p, .dash-tasks .redesign-quiet-state p { margin: 6px 0 8px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.dash-tasks .redesign-text-link { min-height: 44px; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; }
+.dash-tasks .dash-all-dates { margin-top: 12px; min-height: 44px; text-decoration: none; }
+.dash-tasks .redesign-quiet-state { padding: 20px 0 8px; border-bottom: 1px solid var(--line); }
+.dash-analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.dash-analysis-grid > .dash-panel > .redesign-caption { font-size: 12px; margin: 12px 0 4px; }
+.dash-analysis-grid .dash-legend { margin-top: -8px; margin-bottom: 8px; }
+.redesign-dashboard .redesign-details { margin-top: 24px; }
+.redesign-dashboard .redesign-details > summary { font-size: 13px; }
+@media (max-width: 1050px) {
+  .dash-activity-grid { grid-template-columns: minmax(0, 1.65fr) minmax(260px, 1fr); gap: 16px; }
+  .dash-panel { padding: 20px; }
+  .dash-recent .dash-booking-type, .dash-recent .dash-booking-date { display: none; }
+  .dash-recent .dash-booking-description, .dash-recent .dash-bookings-table th:nth-child(2) { padding-left: 0; }
+  .dash-booking-description .dash-booking-mobile-meta { display: block; }
+}
+@media (max-width: 800px) {
+  .dash-activity-grid, .dash-analysis-grid { grid-template-columns: 1fr; }
+  .redesign-dashboard .redesign-page-heading { align-items: flex-start; text-align: left; }
+  .redesign-dashboard .redesign-kpi, .redesign-dashboard .redesign-kpi:first-child { padding-inline: 20px; }
+  .redesign-dashboard .redesign-kpi h3 span { display: none; }
+}
+@media (max-width: 600px) {
+  .redesign-dashboard .redesign-page-heading { gap: 20px; margin-bottom: 24px; }
+  .redesign-dashboard .page-header-actions { width: 100%; justify-content: space-between; gap: 12px; }
+  .redesign-dashboard .redesign-page-heading h2 { font-size: 28px; }
+  .redesign-dashboard .redesign-period { gap: 8px; }
+  .redesign-dashboard .redesign-period label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .redesign-dashboard .redesign-kpis { grid-template-columns: 1fr; padding: 0 20px; }
+  .redesign-dashboard .redesign-kpi, .redesign-dashboard .redesign-kpi:first-child { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 0 12px; padding: 18px 0; border-right: 0; border-bottom: 1px solid var(--line); }
+  .redesign-dashboard .redesign-kpi:last-child { border-bottom: 0; }
+  .redesign-dashboard .redesign-kpi-value { grid-column: 2; grid-row: 1 / span 2; font-size: clamp(17px, 5vw, 23px); margin: 0; align-self: center; }
+  .redesign-dashboard .redesign-kpi > p:last-child { font-size: 11px; margin-top: 4px; }
+  .redesign-dashboard .redesign-kpi .dash-value-empty { font-size: 15px; }
+  .dash-panel { padding: 18px 16px; }
+  .dash-main-chart .redesign-section-heading { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .dash-main-chart .redesign-chart { overflow-x: auto; }
+  .dash-main-chart .apexcharts-canvas { min-width: 0; }
+  .redesign-dashboard .dash-booking-date, .dash-recent .dash-booking-type { display: none; }
+  .redesign-dashboard .dash-booking-description { padding-left: 0; }
+  .redesign-dashboard .dash-bookings-table th:nth-child(2) { padding-left: 0; }
+  .redesign-dashboard .dash-booking-amount { font-size: 12px; padding-left: 8px; }
+  .dash-booking-description .dash-booking-mobile-meta { display: block; }
+  .dash-recent .redesign-section-heading { gap: 6px; }
+  .redesign-dashboard .redesign-metric-list { grid-template-columns: 1fr; }
+}
 dialog.modal-overlay { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; border: 0; color: var(--text); }
 dialog.modal-overlay:not([open]) { display: none !important; }
 dialog.modal-overlay::backdrop { background: transparent; }

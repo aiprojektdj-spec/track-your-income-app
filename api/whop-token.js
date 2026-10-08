@@ -3,24 +3,14 @@
 // Env var required: WHOP_CLIENT_SECRET
 // Env optional:      ALERT_WEBHOOK_URL — Meldung bei offenem Rate-Limit-Deckel (api/_alert.js)
 
-var REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
-var REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
-// IP-Rate-Limit über den Speicher-Adapter: STORAGE_BACKEND entscheidet Redis | Supabase
-// (plan/supabase-umzug-2026-10-06.md). Die Refresh-Sitzung unten bleibt vorerst in Redis.
+// IP-Rate-Limit und Refresh-Sitzung folgen STORAGE_BACKEND (Redis | Supabase),
+// plan/supabase-umzug-2026-10-06.md. Die Sitzung zusaetzlich STORAGE_MIRROR.
 var store       = require('./_sync-store.js');
+var sessions    = require('./_whop-sessions.js');
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps    = require('./_alert.js').alertOps;
 var _log        = require('./_log.js');
 var RATE_MAX    = 8; // Requests pro Minute pro IP — Login passiert nicht öfter als 1-2x/min, 8 lässt Retry-Spielraum, bremst Flood/Scan-Versuche stärker
-
-function redisCmd(cmd) {
-    return fetch(REDIS_URL, {
-        method:  'POST',
-        headers: { 'Authorization': 'Bearer ' + REDIS_TOKEN, 'Content-Type': 'application/json' },
-        body:    JSON.stringify(cmd),
-        signal:  AbortSignal.timeout(8000)
-    }).then(function (r) { return r.json(); }).then(function (j) { return j ? j.result : null; });
-}
 
 // Rueckleitung nach dem Whop-Login: muss exakt der beim Authorize-Aufruf entsprechen
 // (js/whop-auth.js) und in der Whop-App eingetragen sein. Feste Liste statt Client-Wert,
@@ -102,19 +92,20 @@ module.exports = async function handler(req, res) {
 
         // Refresh-Token serverseitig ablegen, Client bekommt nur eine Sitzungs-ID.
         // Warum nicht in den Browser: s. Kopfkommentar in api/whop-refresh.js.
-        // Ohne Redis geht das nicht — dann verhaelt sich alles wie vor 2026-09-05
-        // (Sitzung endet nach einer Stunde), statt den Login ganz scheitern zu lassen.
+        // Ohne Speicher (Redis bzw. Supabase) geht das nicht — dann verhaelt sich alles
+        // wie vor 2026-09-05 (Sitzung endet nach einer Stunde), statt den Login ganz
+        // scheitern zu lassen.
         var sessionId = null;
-        if (data.refresh_token && REDIS_URL && REDIS_TOKEN) {
+        if (data.refresh_token && !sessions.configProblem()) {
             try {
                 sessionId = require('crypto').randomBytes(32).toString('hex');
                 var expiresIn = parseInt(data.expires_in, 10);
                 if (!expiresIn || expiresIn < 0) expiresIn = 3600;
-                await redisCmd(['SET', 'whoprt:' + sessionId, JSON.stringify({
+                await sessions.put(sessionId, {
                     rt:  data.refresh_token,
                     at:  data.access_token,
                     exp: Date.now() + expiresIn * 1000
-                }), 'EX', String(30 * 24 * 60 * 60)]);
+                });
             } catch (e) {
                 // Nicht blockierend: der Login gelingt, nur die Erneuerung fehlt.
                 sessionId = null;

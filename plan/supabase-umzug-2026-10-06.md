@@ -12,7 +12,7 @@ Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 | E2 | **Whop bleibt** Login und Zahlung. Supabase kennt nur die Whop-`user_id` |
 | E3 | **Kein `supabase-js`**, kein `tweetnacl`. Zugriff nur aus `api/` per `fetch` auf PostgREST/Storage, Service-Key nie im Browser |
 | E5 | Eigene Projekte `stackr-prod` + `stackr-preview`, Frankfurt (eu-central-1), Pro-Plan |
-| E6 | **Supabase bleibt bis zum Launch im Free-Plan** (User, 2026-10-07). Bis dahin keine Supabase-Env-Variable in Vercel (`SUPABASE_*`, `STORAGE_MIRROR`, `STORAGE_BACKEND`, `BLOB_BACKEND`), also kein Spiegel und kein Umschalten: Der Umzug ruht nach Schritt 1. Stand 2026-10-07: zwei Projekte, `usrhhjwvoefjdgrwovkg` (alle fünf Migrationen, steht in der CSP) und `Stackr`/`nvtjzeffngwfsqjzdrdz` (leer) — welches Prod wird, ist offen |
+| E6 | **Supabase bleibt bis zum Launch im Free-Plan** (User, 2026-10-07). Bis dahin keine Supabase-Env-Variable in Vercel (`SUPABASE_*`, `STORAGE_MIRROR`, `STORAGE_BACKEND`, `BLOB_BACKEND`), also kein Spiegel und kein Umschalten: Der Umzug ruht nach Schritt 1. Stand 2026-10-07: zwei Projekte, `usrhhjwvoefjdgrwovkg` (alle fünf Migrationen, steht in der CSP) und `Stackr`/`nvtjzeffngwfsqjzdrdz` (leer). Prod = `usrhhjwvoefjdgrwovkg`, Preview = `nvtjzeffngwfsqjzdrdz` (Festlegung aus PR #18) |
 
 ## Was es schon gibt — Sync (Commit `78a711e`, auf `master`, ohne Env-Variablen wirkungslos)
 
@@ -56,8 +56,8 @@ Upstash und Vercel Blob hängen an viel mehr als `api/sync.js`. **Abschalten lä
 | Endpunkt | Wofür | Umzug |
 |---|---|---|
 | `api/sync.js` | Snapshots, Scopes, Anker, Pubkeys, Grants, Rate-Limit | ✅ Adapter fertig |
-| `api/whop-token.js` | Login: IP-Rate-Limit, legt Refresh-Sitzung `whoprt:<sid>` an | Rate-Limit ✅ (folgt `STORAGE_BACKEND`), Refresh-Sitzung 🟡 PR #18 |
-| `api/whop-refresh.js` | Refresh-Sitzungen (TTL), Sperre gegen doppelte Rotation, Rate-Limit | 🟡 PR #18 offen (verschlüsselt, braucht `WHOP_SESSION_KEY`) — **kritisch**: fällt das aus, fliegen Kunden stündlich raus |
+| `api/whop-token.js` | Login: IP-Rate-Limit, legt Refresh-Sitzung `whoprt:<sid>` an | ✅ Rate-Limit folgt `STORAGE_BACKEND`, Sitzung zusätzlich `STORAGE_MIRROR` (`api/_whop-sessions.js`) |
+| `api/whop-refresh.js` | Refresh-Sitzungen (TTL), Sperre gegen doppelte Rotation, Rate-Limit | ✅ Code fertig, Migration `20261008000001_whop_sessions.sql`, **mit Spiegel** — vor dem Umschalten Abschnitt „Whop-Refresh-Sitzungen“ unten lesen |
 | `api/whop-access.js` | IP-Rate-Limit | ✅ folgt `STORAGE_BACKEND` |
 | `api/blob-upload.js` | Byte-Budget je Nutzer, Commit-Sperre, Rate-Limit | ✅ `ceb8d6a` folgt `STORAGE_BACKEND` |
 | `api/client-error.js` + `api/_client-errors.js` | Browser-Fehler zählen, Tagesmeldung | ✅ folgt `STORAGE_BACKEND`, Migration `20261007000001_client_errors.sql`, kein Spiegel |
@@ -80,8 +80,8 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 
 | # | Schritt | Wer | Erledigt wenn |
 |---|---|---|---|
-| 0 | Supabase-Projekte `stackr-prod` + `stackr-preview` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 Stand 2026-10-07 abends, gegen das Konto geprüft: Organisation auf **Free-Plan**, bleibt so bis zum Launch (E6); erst dann Pro (Free: 50-MB-Grenze, Pause nach 7 Tagen, keine Backups). **Zwei** Projekte, beide Frankfurt: `usrhhjwvoefjdgrwovkg` (mit Tabellen, steht in der CSP) und `nvtjzeffngwfsqjzdrdz` „Stackr“ (12:42 angelegt, **leer**). Offen: welches ist Prod, welches Preview? Ist `nvtjz…` Prod, CSP in `vercel.json` nachziehen und alle Migrationen dort ausführen. Spend Cap, AV-Vertrag offen |
-| 1 | Migrationen in **beiden** Projekten ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-07: fünf, mit PR #18 sechs) | 👤, 🤖 liefert Anleitung | ✅ `usrhhjwvoefjdgrwovkg`: alle fünf (sync, storage, client_errors, aufraeumen, blob_budget); 25 `sync_*`-Funktionen, keine für `anon` ausführbar, alle Tabellen mit RLS. ❌ `nvtjzeffngwfsqjzdrdz`: nichts. Migration aus PR #18 nach dessen Merge überall nachziehen |
+| 0 | Supabase-Projekte `stackr-prod` + `stackr-preview` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 Prod = `usrhhjwvoefjdgrwovkg` (steht in der CSP), Preview = `nvtjzeffngwfsqjzdrdz` (Anzeigename noch „Stackr“, umbenennen in `stackr-preview`), beide Frankfurt. Organisation auf **Free-Plan**, bleibt so bis zum Launch (E6); erst dann Pro (Free: 50-MB-Grenze, Pause nach 7 Tagen, keine Backups). Spend Cap, AV-Vertrag offen |
+| 1 | Migrationen in **beiden** Projekten ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-08: sechs) | 👤, 🤖 liefert Anleitung | 🟡 Prod `usrhhjwvoefjdgrwovkg` (Stand 2026-10-07 abends, per Connector nur lesend geprüft): die ersten fünf (sync, storage, client_errors, aufraeumen, blob_budget); 25 `sync_*`-Funktionen, keine für `anon` ausführbar, alle Tabellen mit RLS. Offen dort: `20261008000001_whop_sessions`. Preview `nvtjzeffngwfsqjzdrdz`: noch leer, alle sechs offen |
 | 2 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in Vercel eintragen (Sensitive), getrennt für Production und Preview | 👤 | Claude liest die Werte nie aus |
 | 3 | Code deployen | 🤖 | ✅ `78a711e`/`747dcfd` auf `master` |
 | 4 | `STORAGE_MIRROR=supabase` setzen, neu deployen → Dual-Write | 👤 | keine `mirror-failed`-Alarme |
@@ -97,19 +97,57 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 - **Spiegel-Ausfall = stiller Drift.** Ein fehlgeschlagener Spiegel-Write bricht den Request nicht ab. Schutz: Alarm + `--check` vor dem Umschalten (Schritt 6/7).
 - **jsonb ordnet Objektschlüssel um.** Vergleiche immer schlüsselsortiert (der Backfill-Check macht das).
 - **Größe:** Inline-Chiffrat bis ~3,5 MB pro Scope als jsonb-String. Ab dem 2026-10-20 schreibt der Client gzip-komprimiert (Commit `b648d34`), das entlastet auch Supabase.
-- **Whop-Refresh-Sitzungen** sind der empfindlichste Teil. Erst umziehen, wenn der Sync-Umzug stabil läuft.
+- **Whop-Refresh-Sitzungen** sind der empfindlichste Teil. Erst umziehen, wenn der Sync-Umzug stabil läuft. Details unten.
 
 ## Reihenfolge danach (Vorschlag)
 
 1. Sync (oben), komplett bis Schritt 8.
 2. ~~Rate-Limits + Fehlerzähler (`whop-token`, `whop-access`, `client-error`)~~ ✅ Code fertig, schaltet mit `STORAGE_BACKEND` um. Beim Umschalten meldet die erste Tagesmail evtl. bekannte Fehler als neu (Supabase kennt sie noch nicht), harmlos.
 3. ~~`api/health.js` prüft Supabase~~ ✅ (Redis weiter Pflicht, solange Upstash läuft).
-4. Whop-Refresh-Sitzungen (`whop-token`, `whop-refresh`): 🟡 Code in PR #18 (offen, Konflikt mit `cf3a46b` in `api/whop-token.js`). Umschalten erst, wenn der Sync-Umzug stabil läuft.
+4. ~~Whop-Refresh-Sitzungen (`whop-token`, `whop-refresh`)~~ ✅ Code fertig (2026-10-08), schaltet mit `STORAGE_BACKEND` um, spiegelt mit `STORAGE_MIRROR`, Entscheidungen W1–W6 umgesetzt. Offen: `WHOP_SESSION_KEY` setzen (👤), dann Ablauf im nächsten Abschnitt.
 5. Storage: Code fertig (`747dcfd`, Budget/Sperre `ceb8d6a`), CSP fertig (`fb44856`), Fix B1 für `sb:`-Referenzen in `api/sync.js` gemergt (PR #17). Offen: Upload-Grenze, Backfill der Blob-Dateien, Umschalten.
 6. `_alert.js`: zweites Alarmziel neu wählen (Supabase-Tabelle?).
-7. Upstash abschalten, `@vercel/blob` entfernen, Rechtstexte final.
+7. Upstash abschalten, `@vercel/blob` entfernen, Rechtstexte final. Dabei Alarm `whop-refresh`/`redis-fehlt` umbenennen + Make-Filter anpassen (W3).
+
+## Whop-Refresh-Sitzungen (Stand 2026-10-08, gegen den Code geprüft)
+
+| Datei | Inhalt |
+|---|---|
+| `supabase/migrations/20261008000001_whop_sessions.sql` | `whop_sessions` (sid, data, expires_at) + `whop_session_locks` (sid, until), RLS an, keine Policy, `execute` nur `service_role`. Funktionen `sync_whop_session_get/put/delete`, `sync_whop_lock/unlock`. Sperre atomar per `insert … on conflict do update … where until <= now()`. Abgelaufene Zeilen: für `get` sofort unsichtbar, physisch räumt jeder hundertste `put` |
+| `api/_whop-sessions.js` | Adapter Redis \| Supabase. Redis-Weg mit genau den alten Befehlen/Keys/TTLs. Beide Wege werfen bei Speicherfehlern, auch bei Upstash-`{ error }`. In Supabase nur Chiffrat (AES-256-GCM, `WHOP_SESSION_KEY`, Sitzungs-ID als AAD), Redis bleibt Klartext. Spiegel bekommt `put`/`del`, nicht die Sperre. Spiegel-Fehler → `whop-session`/`mirror-failed` |
+| `api/whop-token.js`, `api/whop-refresh.js` | sprechen die Sitzung nur noch über den Adapter an; IP-Deckel von `whop-refresh` jetzt über `store.rateHit` (Key `whoprefresh:rl:<ip>` unverändert) |
+| `test/test-whop-sessions.js` | 62 Checks: Redis-Default befehlsgenau, Supabase-Weg, Sperre (2 parallele Refreshs → 1 Whop-Aufruf), Ablauf, Ausfall (nie 401), Spiegel + Umschalten, Verschlüsselung, Speicherfehler |
+
+**Entscheidungen User 2026-10-08:**
+
+| | Entscheidung | Umsetzung |
+|---|---|---|
+| W1 | Kein Backfill, 30 Tage Spiegel abwarten | Ablauf unten, kein Skript |
+| W2 | Refresh-Tokens in Supabase **verschlüsselt** (E1 gilt auch hier) | `WHOP_SESSION_KEY` (👤 in Vercel als Sensitive, Production und Preview getrennt). Erzeugen: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. **Schlüssel nie verlieren oder tauschen:** ohne ihn sind alle Supabase-Sitzungen unlesbar (503 + Alarm `session-nicht-lesbar`, kein Logout — mit dem richtigen Schlüssel wieder lesbar). Schlüsselwechsel ist nicht vorgesehen. Fehlt er, gilt Supabase als nicht konfiguriert (`redis-fehlt` mit Hinweis bzw. `mirror-failed`) |
+| W3 | Alarmname `redis-fehlt` bleibt vorerst | **Merken:** beim Abschalten von Upstash (Reihenfolge Punkt 7) umbenennen, z. B. `speicher-fehlt`, und den Make-Filter gleichzeitig anpassen |
+| W4 | Sperre nicht setzbar (Speicherfehler) → **direkt erneuern**, wie der Code-Kommentar es immer sagte | `whop-refresh.js`: ohne Sperre rotieren, fremde Sperre nicht löschen. Vorher: Warten und evtl. `503 refresh_busy` |
+| W5 | Speicherfehler absichern, kein Datenverlust | Lesefehler → 503 + `session-nicht-lesbar` statt 401 (vorher hat eine Upstash-`{ error }`-Antwort den Kunden abgemeldet). Speichern nach Rotation scheitert → einmal wiederholen, sonst Token trotzdem ausgeben + `session-nicht-gespeichert`. Login mit Speicherfehler → ohne Sitzung + Alarm statt toter Sitzungs-ID |
+| W6 | Umschalten **nachts** | Restrisiko Sperren in zwei Systemen akzeptiert |
+| W7 | Abgelaufene Sitzungen **garantiert** löschen (Datenschutzerklärung: „verfällt 30 Tage nach der letzten Erneuerung“, wie F6) | `sync_whop_aufraeumen()` im täglichen Lauf von `api/blob-cleanup.js`, sobald Supabase primär **oder Spiegel** ist. Spätestens +1 Tag. Fehler → `blob-cleanup`/`aufraeumen-failed` |
+
+SQL am 2026-10-08 gegen Postgres 16 gefahren (alle vier Migrationen in Reihenfolge, `service_role` mit BYPASSRLS wie in Supabase): Ablauf, Überschreiben, Sperre unter 40 parallelen Verbindungen genau einmal vergeben, überlappende Transaktion, Aufräumen, `anon`/`authenticated` überall `permission denied`, Migration zweimal ausführbar.
+
+**Warum ein Spiegel nötig ist:** Antwortet `whop-refresh` 401, löscht der Client seine Sitzungs-ID (`js/whop-auth.js`, `_refreshAccessToken`). Kennt Supabase eine Sitzung beim Umschalten nicht, ist der Kunde nach spätestens einer Stunde abgemeldet. 503 dagegen ist harmlos (Client versucht es später erneut).
+
+**Ablauf:**
+1. Migration `20261008000001` in beiden Projekten.
+2. `WHOP_SESSION_KEY` setzen (W2), dann `STORAGE_MIRROR=supabase` (ist es für den Sync schon gesetzt, gilt es automatisch auch hier) → jede neue oder rotierte Sitzung landet in beiden.
+3. **Mindestens 30 Tage** (= Sitzungs-TTL) ohne `whop-session`/`mirror-failed` warten. Danach existiert jede noch lebende Redis-Sitzung auch in Supabase, weil sie in diesem Zeitraum angelegt oder rotiert worden sein muss — ein Backfill ist dann unnötig (s. offene Frage 3).
+4. Umschalten zusammen mit dem Sync, **nachts** (W6): `STORAGE_BACKEND=supabase`, `STORAGE_MIRROR=redis`. Rückweg = Variablen tauschen, Redis bleibt aktuell.
+
+**Fallen:**
+- Preview teilt Redis mit Production (s. oben): Ein Spiegel in Preview kopiert **Refresh-Tokens echter Kunden** ins Preview-Projekt. In Preview keinen Spiegel setzen.
+- Im Moment des Umschaltens laufen alte und neue Instanzen kurz parallel; ihre Sperren liegen in verschiedenen Systemen. Schlimmstenfalls rotieren zwei Tabs eines Kunden gleichzeitig → einer bekommt `invalid_grant` → 401. Sekundenfenster, einzelne Kunden.
+- Ein fehlgeschlagener Spiegel-Write nach einer Rotation lässt im Spiegel einen **entwerteten** Refresh-Token zurück. Nach dem Umschalten → 401 für genau diese Sitzung. Deshalb Schritt 3 nur ohne `mirror-failed`-Alarme abschließen.
+- Abweichungen vom Altverhalten nur im Fehlerfall: W4, W5, und liefert Upstash beim IP-Deckel von `whop-refresh` `{ error }`, kommt jetzt der Alarm `rate-limit-open` (vorher still). Im Normalbetrieb dieselben Redis-Befehle wie vorher.
+- `WHOP_SESSION_KEY` muss **vor** `STORAGE_MIRROR=supabase` gesetzt sein, sonst gehen alle Sitzungs-Spiegelungen als `mirror-failed` ins Leere und die 30 Tage zählen nicht.
 
 ## Offene Fragen an den User
 
-1. Welches der beiden Supabase-Projekte ist Prod, welches Preview? (Blockiert Schritt 2.)
+1. ~~Welches der beiden Supabase-Projekte ist Prod, welches Preview?~~ Prod = `usrhhjwvoefjdgrwovkg`, Preview = `nvtjzeffngwfsqjzdrdz` (Festlegung aus PR #18).
 2. Preview: eigenes Redis anlegen oder in Preview einfach **keinen** Spiegel setzen? (Empfehlung: keinen Spiegel, Preview testet gegen `stackr-preview` mit eigenen Testdaten.)

@@ -24,6 +24,7 @@ var alertZiele = _alert.alertZiele;
 var clientErr  = require('./_client-errors.js');
 var db         = require('./_db.js');
 var speicher   = require('./_sync-store.js');
+var sitzungen  = require('./_whop-sessions.js');
 
 var TMP_MAX_AGE_MS   = 24 * 60 * 60 * 1000;      // alles älter als 24 h unter tmp/ ist mit Sicherheit verwaist
 var ALERT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 Tage Alarm-Historie — lang genug, um einen
@@ -78,6 +79,13 @@ async function supabaseAufraeumen() {
     catch (e) { await alertOps('blob-cleanup', 'aufraeumen-failed', e && e.message); return null; }
 }
 
+// Dasselbe für die Whop-Login-Sitzungen (Migration 20261008000001_whop_sessions.sql).
+// Eigene Bedingung, weil die Sitzungen schon in der Spiegelphase in Supabase liegen.
+async function sitzungenAufraeumen() {
+    try { return await sitzungen.aufraeumen(); }
+    catch (e) { await alertOps('blob-cleanup', 'aufraeumen-failed', 'whop-sessions: ' + (e && e.message)); return null; }
+}
+
 module.exports = async function handler(req, res) {
     // Vercel Cron sendet 'Authorization: Bearer $CRON_SECRET', wenn CRON_SECRET gesetzt ist.
     // Ohne gesetztes Secret bleibt der Endpoint deaktiviert (kein offener Lösch-Endpoint).
@@ -125,6 +133,7 @@ module.exports = async function handler(req, res) {
         // plan/vercel-einrichtung.md weiter stimmt. Der zweite Wert kommt additiv dazu.
         await clientErrorSummary(now);
         await supabaseAufraeumen();
+        await sitzungenAufraeumen();
         await heartbeat();
         return res.status(200).json({ ok: true, deleted: deleted, alertsDeleted: alertsDeleted });
     } catch (e) {

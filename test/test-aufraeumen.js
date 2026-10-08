@@ -8,6 +8,8 @@
 //   2) sync_aufraeumen ist nur für service_role ausführbar
 //   3) api/blob-cleanup.js ruft sync_aufraeumen täglich — aber nur, wenn Supabase primär ist
 //   4) ein Fehler dabei kippt weder Aufräumlauf noch Antwort, sondern wird gemeldet
+//   5) Whop-Login-Sitzungen (Migration 20261008000001): sync_whop_aufraeumen läuft täglich,
+//      sobald Supabase primär ODER Spiegel ist (Sitzungen liegen schon in der Spiegelphase dort)
 // Das SQL selbst wurde am 2026-10-07 gegen PGlite gefahren; vor dem Umschalten in
 // stackr-preview noch einmal gegen echtes Supabase prüfen.
 'use strict';
@@ -48,13 +50,13 @@ require.cache[BLOBMOD] = {
     }
 };
 
-let rpcs = [], alarme = [], rpcFehler = false;
+let rpcs = [], alarme = [], rpcFehler = false, rpcFehlerName = 'sync_aufraeumen';
 global.fetch = function (url, opts) {
     const u = String(url);
     if (u.includes('/rest/v1/rpc/')) {
         const name = u.split('/rpc/')[1];
         rpcs.push(name);
-        if (name === 'sync_aufraeumen' && rpcFehler) return Promise.resolve({ ok: false, status: 500, text: () => Promise.resolve('') });
+        if (name === rpcFehlerName && rpcFehler) return Promise.resolve({ ok: false, status: 500, text: () => Promise.resolve('') });
         const body = name === 'sync_aufraeumen' ? '{"rate_limits":3,"clerr_counts":0,"clerr_types":0}'
                    : name === 'sync_clerr_summary' ? '{"counts":{},"neu":[],"entries":{}}' : '';
         return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(body) });
@@ -65,7 +67,7 @@ global.fetch = function (url, opts) {
 };
 
 const MODS = ['api/blob-cleanup.js', 'api/_alert.js', 'api/_sync-store.js', 'api/_db.js',
-              'api/_client-errors.js', 'api/_storage.js'];
+              'api/_client-errors.js', 'api/_storage.js', 'api/_whop-sessions.js'];
 const ENVS = ['STORAGE_BACKEND', 'STORAGE_MIRROR', 'BLOB_BACKEND', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY',
               'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN', 'KV_REST_API_URL', 'KV_REST_API_TOKEN',
               'CRON_SECRET', 'ALERT_WEBHOOK_URL', 'BLOB_READ_WRITE_TOKEN'];
@@ -112,6 +114,32 @@ console.warn  = function () {};
     rpcFehler = false;
     check('4a Fehler beim Aufräumen: Lauf antwortet trotzdem 200', res.code === 200);
     check('4b … und meldet aufraeumen-failed', alarme.some(a => JSON.stringify(a).includes('aufraeumen-failed')));
+
+    // ── 5: Whop-Login-Sitzungen ───────────────────────────────────────────────────
+    const wsql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261008000001_whop_sessions.sql'), 'utf8');
+    check('5a sync_whop_aufraeumen löscht abgelaufene Sitzungen und Sperren',
+          /create or replace function sync_whop_aufraeumen\(\)/.test(wsql) &&
+          /delete from whop_sessions\s+where expires_at <= now\(\)/.test(wsql) &&
+          /delete from whop_session_locks where until\s+<= now\(\)/.test(wsql));
+    check('5b nur service_role darf sie ausführen',
+          /revoke all on function sync_whop_aufraeumen\(\)\s+from public, anon, authenticated/.test(wsql) &&
+          /grant execute on function sync_whop_aufraeumen\(\)\s+to service_role/.test(wsql));
+    const SBK = { SUPABASE_URL: 'https://x.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'k' };
+    h = load({}); res = mkRes(); await h(req, res);
+    check('5c Redis allein: kein sync_whop_aufraeumen', res.code === 200 && !rpcs.includes('sync_whop_aufraeumen'));
+    h = load(Object.assign({ STORAGE_MIRROR: 'supabase' }, SBK)); res = mkRes(); await h(req, res);
+    check('5d Supabase nur Spiegel: Sitzungen werden trotzdem aufgeräumt (auch ohne WHOP_SESSION_KEY)',
+          res.code === 200 && rpcs.filter(n => n === 'sync_whop_aufraeumen').length === 1);
+    h = load(SB); res = mkRes(); await h(req, res);
+    check('5e Supabase primär: sync_whop_aufraeumen läuft einmal', res.code === 200 && rpcs.filter(n => n === 'sync_whop_aufraeumen').length === 1);
+    h = load({ STORAGE_MIRROR: 'supabase' }); res = mkRes(); await h(req, res);
+    check('5f Spiegel ohne Supabase-Zugangsdaten: kein Aufruf, kein Absturz', res.code === 200 && !rpcs.includes('sync_whop_aufraeumen'));
+    rpcFehler = true; rpcFehlerName = 'sync_whop_aufraeumen';
+    h = load(SB); res = mkRes(); await h(req, res);
+    rpcFehler = false;
+    check('5g Fehler beim Sitzungs-Aufräumen: 200, aufraeumen-failed gemeldet, Zähler-Aufräumen lief trotzdem',
+          res.code === 200 && alarme.some(a => JSON.stringify(a).includes('aufraeumen-failed') && JSON.stringify(a).includes('whop-sessions')) &&
+          rpcs.includes('sync_aufraeumen'));
 
     console.log('\n' + pass + '/' + total + ' bestanden');
     process.exit(pass === total ? 0 : 1);

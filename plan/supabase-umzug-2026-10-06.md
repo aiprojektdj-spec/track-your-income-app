@@ -1,6 +1,6 @@
 # Supabase-Umzug: Upstash Redis + Vercel Blob → Supabase
 
-Stand: 2026-10-06, **gegen den Code geprüft**, nicht gegen den Plan.
+Stand: 2026-10-07 abends, **gegen Code und Supabase-Konto geprüft** (per Supabase-Connector, nur lesend), nicht gegen den Plan.
 Der Gesamtplan liegt außerhalb des Repos (`Desktop/CFC/STACKR_PLAN_2026-10-06.md`, Phase 1).
 Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 
@@ -12,7 +12,7 @@ Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 | E2 | **Whop bleibt** Login und Zahlung. Supabase kennt nur die Whop-`user_id` |
 | E3 | **Kein `supabase-js`**, kein `tweetnacl`. Zugriff nur aus `api/` per `fetch` auf PostgREST/Storage, Service-Key nie im Browser |
 | E5 | Eigene Projekte `stackr-prod` + `stackr-preview`, Frankfurt (eu-central-1), Pro-Plan |
-| E6 | **Supabase bleibt bis zum Launch im Free-Plan** (User, 2026-10-07). Bis dahin keine Supabase-Env-Variable in Vercel (`SUPABASE_*`, `STORAGE_MIRROR`, `STORAGE_BACKEND`, `BLOB_BACKEND`), also kein Spiegel und kein Umschalten: Der Umzug ruht nach Schritt 1. Stand 2026-10-07: zwei Projekte, `usrhhjwvoefjdgrwovkg` (alle vier Migrationen, steht in der CSP) und `Stackr`/`nvtjzeffngwfsqjzdrdz` (leer) — welches Prod wird, ist offen |
+| E6 | **Supabase bleibt bis zum Launch im Free-Plan** (User, 2026-10-07). Bis dahin keine Supabase-Env-Variable in Vercel (`SUPABASE_*`, `STORAGE_MIRROR`, `STORAGE_BACKEND`, `BLOB_BACKEND`), also kein Spiegel und kein Umschalten: Der Umzug ruht nach Schritt 1. Stand 2026-10-07: zwei Projekte, `usrhhjwvoefjdgrwovkg` (alle fünf Migrationen, steht in der CSP) und `Stackr`/`nvtjzeffngwfsqjzdrdz` (leer). Prod = `usrhhjwvoefjdgrwovkg`, Preview = `nvtjzeffngwfsqjzdrdz` (Festlegung aus PR #18) |
 
 ## Was es schon gibt — Sync (Commit `78a711e`, auf `master`, ohne Env-Variablen wirkungslos)
 
@@ -26,7 +26,7 @@ Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 | `test/test-sync-store.js` | rpc-Aufrufe gegen die Migration, Spiegel-Verhalten |
 
 - **Ohne neue Env-Variablen ändert sich nichts**: Default bleibt `STORAGE_BACKEND=redis`, kein Spiegel. Deployen ist also gefahrlos.
-- Das SQL lief bisher nur gegen **PGlite**, noch nie gegen ein echtes Supabase.
+- Das SQL läuft seit 2026-10-07 im echten Supabase-Projekt `usrhhjwvoefjdgrwovkg` (siehe Schritt 1).
 
 ## Was es schon gibt — Belege/Storage (Commit `747dcfd`, auf `master`, ohne Env-Variablen wirkungslos)
 
@@ -45,7 +45,7 @@ Privater Bucket, signierte URLs. Umschalten per `BLOB_BACKEND=supabase`; ohne di
 - ~~CSP~~ ✅ `fb44856`: `connect-src` der 5 App-Routen enthält `https://usrhhjwvoefjdgrwovkg.supabase.co`. Bei einem anderen Prod-Projekt dort nachziehen.
 - Supabase: projektweite Upload-Grenze auf mindestens 200 MB stellen (👤).
 
-Byte-Budget, Commit-Sperre und Rate-Limit in `blob-upload` laufen weiter über Redis (Schritt 2 unten).
+Byte-Budget, Commit-Sperre und Rate-Limit in `blob-upload` folgen seit `ceb8d6a` (PR #21) `STORAGE_BACKEND`, Migration `20261008000002_blob_budget.sql`.
 
 ## Wichtig: Phase 1 zieht nur den Sync um
 
@@ -59,7 +59,7 @@ Upstash und Vercel Blob hängen an viel mehr als `api/sync.js`. **Abschalten lä
 | `api/whop-token.js` | Login: IP-Rate-Limit, legt Refresh-Sitzung `whoprt:<sid>` an | ✅ Rate-Limit folgt `STORAGE_BACKEND`, Sitzung zusätzlich `STORAGE_MIRROR` (`api/_whop-sessions.js`) |
 | `api/whop-refresh.js` | Refresh-Sitzungen (TTL), Sperre gegen doppelte Rotation, Rate-Limit | ✅ Code fertig, Migration `20261008000001_whop_sessions.sql`, **mit Spiegel** — vor dem Umschalten Abschnitt „Whop-Refresh-Sitzungen“ unten lesen |
 | `api/whop-access.js` | IP-Rate-Limit | ✅ folgt `STORAGE_BACKEND` |
-| `api/blob-upload.js` | Byte-Budget je Nutzer, Commit-Sperre, Rate-Limit | offen (mit Storage zusammen) |
+| `api/blob-upload.js` | Byte-Budget je Nutzer, Commit-Sperre, Rate-Limit | ✅ `ceb8d6a` folgt `STORAGE_BACKEND` |
 | `api/client-error.js` + `api/_client-errors.js` | Browser-Fehler zählen, Tagesmeldung | ✅ folgt `STORAGE_BACKEND`, Migration `20261007000001_client_errors.sql`, kein Spiegel |
 | `api/health.js` | prüft Redis, dazu Supabase sobald `STORAGE_BACKEND`/`STORAGE_MIRROR`/`BLOB_BACKEND` es nutzen | ✅ Supabase-Prüfung; Redis-Prüfung fällt erst mit Upstash |
 
@@ -80,8 +80,8 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 
 | # | Schritt | Wer | Erledigt wenn |
 |---|---|---|---|
-| 0 | Supabase-Projekte `stackr-prod` + `stackr-preview` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 2026-10-07: Prod = `usrhhjwvoefjdgrwovkg`, Preview = `nvtjzeffngwfsqjzdrdz` (Anzeigename noch „Stackr“, umbenennen in `stackr-preview`), beide Frankfurt, **Free-Plan** → vor jeder Env-Variable in Prod auf Pro (50-MB-Grenze, Pause nach 7 Tagen, keine Backups). Spend Cap, AV-Vertrag offen |
-| 1 | Migrationen in **beiden** Projekten ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-08: sechs) | 👤, 🤖 liefert Anleitung | 🟡 2026-10-07 für `usrhhjwvoefjdgrwovkg`: die ersten vier, SQL per SHA-256 gegen origin/master geprüft; 8 Tabellen mit RLS ohne Policy, `anon`/`authenticated` ohne Rechte, Bucket privat. Offen dort: `20261008000001_whop_sessions` (erst nach Merge von PR #18), `20261008000002_blob_budget`. Preview-Projekt: noch leer |
+| 0 | Supabase-Projekte `stackr-prod` + `stackr-preview` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 Prod = `usrhhjwvoefjdgrwovkg` (steht in der CSP), Preview = `nvtjzeffngwfsqjzdrdz` (Anzeigename noch „Stackr“, umbenennen in `stackr-preview`), beide Frankfurt. Organisation auf **Free-Plan**, bleibt so bis zum Launch (E6); erst dann Pro (Free: 50-MB-Grenze, Pause nach 7 Tagen, keine Backups). Spend Cap, AV-Vertrag offen |
+| 1 | Migrationen in **beiden** Projekten ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-08: sechs) | 👤, 🤖 liefert Anleitung | 🟡 Prod `usrhhjwvoefjdgrwovkg` (Stand 2026-10-07 abends, per Connector nur lesend geprüft): die ersten fünf (sync, storage, client_errors, aufraeumen, blob_budget); 25 `sync_*`-Funktionen, keine für `anon` ausführbar, alle Tabellen mit RLS. Offen dort: `20261008000001_whop_sessions`. Preview `nvtjzeffngwfsqjzdrdz`: noch leer, alle sechs offen |
 | 2 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in Vercel eintragen (Sensitive), getrennt für Production und Preview | 👤 | Claude liest die Werte nie aus |
 | 3 | Code deployen | 🤖 | ✅ `78a711e`/`747dcfd` auf `master` |
 | 4 | `STORAGE_MIRROR=supabase` setzen, neu deployen → Dual-Write | 👤 | keine `mirror-failed`-Alarme |
@@ -105,7 +105,7 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 2. ~~Rate-Limits + Fehlerzähler (`whop-token`, `whop-access`, `client-error`)~~ ✅ Code fertig, schaltet mit `STORAGE_BACKEND` um. Beim Umschalten meldet die erste Tagesmail evtl. bekannte Fehler als neu (Supabase kennt sie noch nicht), harmlos.
 3. ~~`api/health.js` prüft Supabase~~ ✅ (Redis weiter Pflicht, solange Upstash läuft).
 4. ~~Whop-Refresh-Sitzungen (`whop-token`, `whop-refresh`)~~ ✅ Code fertig (2026-10-08), schaltet mit `STORAGE_BACKEND` um, spiegelt mit `STORAGE_MIRROR`, Entscheidungen W1–W6 umgesetzt. Offen: `WHOP_SESSION_KEY` setzen (👤), dann Ablauf im nächsten Abschnitt.
-5. Storage: Code fertig (`747dcfd`), CSP fertig (`fb44856`). Offen: Upload-Grenze, Backfill der Blob-Dateien, Umschalten.
+5. Storage: Code fertig (`747dcfd`, Budget/Sperre `ceb8d6a`), CSP fertig (`fb44856`), Fix B1 für `sb:`-Referenzen in `api/sync.js` gemergt (PR #17). Offen: Upload-Grenze, Backfill der Blob-Dateien, Umschalten.
 6. `_alert.js`: zweites Alarmziel neu wählen (Supabase-Tabelle?).
 7. Upstash abschalten, `@vercel/blob` entfernen, Rechtstexte final. Dabei Alarm `whop-refresh`/`redis-fehlt` umbenennen + Make-Filter anpassen (W3).
 
@@ -149,5 +149,5 @@ SQL am 2026-10-08 gegen Postgres 16 gefahren (alle vier Migrationen in Reihenfol
 
 ## Offene Fragen an den User
 
-1. Sind die Supabase-Projekte schon angelegt? (Blockiert Schritt 1–2.)
+1. ~~Welches der beiden Supabase-Projekte ist Prod, welches Preview?~~ Prod = `usrhhjwvoefjdgrwovkg`, Preview = `nvtjzeffngwfsqjzdrdz` (Festlegung aus PR #18).
 2. Preview: eigenes Redis anlegen oder in Preview einfach **keinen** Spiegel setzen? (Empfehlung: keinen Spiegel, Preview testet gegen `stackr-preview` mit eigenen Testdaten.)

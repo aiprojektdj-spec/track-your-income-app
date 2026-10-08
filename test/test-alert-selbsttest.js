@@ -143,7 +143,7 @@ console.error = function () {};
     await handler(mkReq('/api/blob-cleanup', AUTH), res);
     check('6a normaler Lauf antwortet 200',        res.code === 200);
     check('6b ohne probe-Kennzeichnung',           res.body.probe === undefined);
-    check('6c beide Praefixe werden durchgesehen', listCalls.length === 2);
+    check('6c alle drei Praefixe werden durchgesehen (tmp, alerts, attachments fuer ledger-*)', listCalls.length === 3);
     check('6d Antwortfelder unveraendert',         res.body.deleted === 0 && res.body.alertsDeleted === 0);
     // Ein probe=0 oder probe=irgendwas ist KEIN Selbsttest — nur die exakte 1.
     res = mkRes();

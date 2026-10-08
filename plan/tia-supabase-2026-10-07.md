@@ -46,6 +46,9 @@ sind gelistet). Einzige Transfergrundlage sind die SCC (Modul 2/3) im Supabase-D
 **Ergebnis (Vorschlag):** Der Transfer auf SCC-Basis ist mit den bestehenden technischen Maßnahmen
 vertretbar. Weitere Maßnahmen sind nicht erforderlich.
 
+Ergänzend: Supabase stellt im Dashboard (Organization → Legal Documents) eine eigene TIA bereit.
+Sie gehört mit ins Archiv; diese Bewertung hier deckt die Stackr-spezifischen Maßnahmen ab.
+
 ## 4. Wiedervorlage
 
 - Bei Änderung der Datenkategorien, z. B. wenn Klartext zu Supabase gelangt.

@@ -292,7 +292,7 @@ function renderDashboard() {
 
     document.getElementById('content').innerHTML = `
         <div class="page-header">
-            <h2><i class="ti ti-layout-dashboard" style="margin-right:6px;opacity:.8"></i>Dashboard</h2>
+            <h2>Belegübersicht</h2>
             <button class="btn btn-primary" data-action="eb-navigate" data-page="neu"><i class="ti ti-plus"></i> Neuer Eigenbeleg</button>
         </div>
 
@@ -314,7 +314,7 @@ function renderDashboard() {
             </div>
             <div class="card stat-card success">
                 <div class="card-label"><i class="ti ti-coin-euro"></i> Summe ${year}</div>
-                <div class="card-value" style="color:var(--success,#22c55e)">${euro(summe)}</div>
+                <div class="card-value">${euro(summe)}</div>
             </div>
             <div class="card stat-card warning">
                 <div class="card-label"><i class="ti ti-cash"></i> Davon bar</div>

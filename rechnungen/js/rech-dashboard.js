@@ -61,9 +61,9 @@ var RechDashboard = (function() {
         var customerMap = {};
         customers.forEach(function(c) { customerMap[c.id] = c; });
 
-        // Eingebettet führt der Bereich direkt zur vorhandenen Dokumentenliste.
+        // Eingebettet und mit neuer Oberfläche führt der Bereich direkt zur vorhandenen Dokumentenliste.
         // Kennzahlen bleiben zugänglich; Beträge und Zahlungslogik stammen unverändert von oben.
-        if (document.getElementById('rechSubnav') && typeof Dokumente !== 'undefined') {
+        if ((document.getElementById('rechSubnav') || document.querySelector('link[href$="redesign.css"]')) && typeof Dokumente !== 'undefined') {
             var list = Dokumente.render()
                 .replace('<h2>Dokumente</h2>', '<h2>Rechnungen</h2>')
                 .replace('class="btn btn-primary btn-small" data-rech-page="rechnung-neu"', 'class="btn btn-outline btn-small" data-rech-page="rechnung-neu"');
@@ -72,7 +72,7 @@ var RechDashboard = (function() {
                 notice += '<div class="redesign-notice"><h3>Rechnungsangaben ergänzen</h3><p>Firmenname, Adresse und Bankverbindung werden für deine Rechnungen benötigt.</p><button class="btn btn-outline" id="dashGoUd">Firmenangaben öffnen</button></div>';
             }
             if (ueberfaellige.length) {
-                notice += '<p class="redesign-notice">Prüfen: ' + ueberfaellige.length + ' überfällige Rechnungen · ' + Utils.formatCurrency(ueberfaelligeSum) + ' ausstehend.</p>';
+                notice += '<p class="redesign-notice">Prüfen: ' + ueberfaellige.length + (ueberfaellige.length === 1 ? ' überfällige Rechnung · ' : ' überfällige Rechnungen · ') + Utils.formatCurrency(ueberfaelligeSum) + ' ausstehend.</p>';
             }
             if (baldFaellig.length) {
                 notice += '<p class="redesign-notice">' + baldFaellig.length + ' Rechnung(en) werden in den nächsten drei Tagen fällig.</p>';

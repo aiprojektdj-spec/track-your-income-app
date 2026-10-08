@@ -134,6 +134,11 @@
         if (!sidebar || !main || !topbar) return;
         initialized = true;
         document.body.classList.add('stackr-shell');
+        // Eigenständige Seiten zeigen dieselbe Firmenauswahl wie die Haupt-App.
+        var switcher = document.getElementById('companySwitcher');
+        if (standalone && switcher && !switcher.firstChild && typeof CompanyManager !== 'undefined') {
+            switcher.innerHTML = CompanyManager.renderSwitcherBtn();
+        }
         currentPage = standalone || new URLSearchParams(location.search).get('page') || 'dashboard';
         if (!ROUTES[currentPage]) currentPage = 'dashboard';
         pendingView = new URLSearchParams(location.search).get('view') || '';

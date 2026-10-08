@@ -122,7 +122,7 @@ var UserPlan = (function () {
         var badge = document.getElementById('planBadge');
         if (!badge) return;
         badge.textContent = 'PRO';
-        badge.style.cssText = 'background:linear-gradient(135deg,#10b981,#0da271);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;';
+        badge.style.cssText = 'background:transparent;color:var(--text-primary);border:1px solid var(--border-strong);font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.5px;';
         badge.onclick = null;
     }
 

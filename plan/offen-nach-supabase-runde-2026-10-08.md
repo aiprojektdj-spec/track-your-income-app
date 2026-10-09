@@ -36,8 +36,9 @@ Reihenfolge einhalten. Rückweg ist jeweils: Variablen tauschen bzw. entfernen.
 3. [x] **Migrationen** — am 2026-10-08 per Supabase-MCP geprüft: Prod und Preview haben dieselben
    13 Tabellen (alle mit RLS) und 32 `sync_*`-Funktionen; Prod trägt die frühen Migrationen nicht in
    der Historie (damals über den SQL-Editor), die Objekte sind aber da. Security-Advisor in beiden:
-   kein `sync_*` für `anon` ausführbar. Offen als Härtung: `function_search_path_mutable` für alle
-   32 `sync_*`-Funktionen, und die Supabase-eigene `rls_auto_enable()` ist für `anon` ausführbar.
+   kein `sync_*` für `anon` ausführbar. `function_search_path_mutable` am 2026-10-09 in beiden
+   Projekten behoben (`20261009000001_search_path.sql`). Offen nur: die Supabase-eigene
+   `rls_auto_enable()` ist für `anon` ausführbar (nicht von uns, bewusst nicht angefasst).
 4. [ ] **Vercel-Variablen** (Sensitive, getrennt für Production und Preview):
    `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (bisheriger JWT-`service_role`-Key, nicht
    `sb_secret_…`, solange nicht getestet), `WHOP_SESSION_KEY` erzeugen mit

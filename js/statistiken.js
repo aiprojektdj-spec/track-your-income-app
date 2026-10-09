@@ -36,6 +36,8 @@ const Statistiken = {
 
             <div id="platAnalyseSection"></div>
 
+            <div id="landAnalyseSection"></div>
+
             <div id="matStatSection"></div>
 
             <div id="profitabilitaetSection"></div>
@@ -268,6 +270,43 @@ const Statistiken = {
         });
     },
 
+    // Umsatz nach Land des Käufers (sale.land, ISO-Code). Umsatzbegriff wie in der
+    // Plattform-Analyse: Artikelpreis + Käufer-Versand. Reine Auswertung — keine Steuerfolge.
+    _renderLandAnalyse(sales) {
+        const section = document.getElementById('landAnalyseSection');
+        if (!section) return;
+        const byLand = {};
+        sales.forEach(s => {
+            const l = s.land || '';
+            if (!byLand[l]) byLand[l] = { umsatz: 0, count: 0 };
+            byLand[l].umsatz += (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
+            byLand[l].count++;
+        });
+        // "Ohne Angabe" immer ans Ende, sonst nach Umsatz absteigend
+        const entries = Object.entries(byLand).sort((a, b) => (!a[0]) - (!b[0]) || b[1].umsatz - a[1].umsatz);
+        if (!entries.length) { section.innerHTML = ''; return; }
+        const gesamt = entries.reduce((s, [, v]) => s + v.umsatz, 0);
+        const rows = entries.map(([l, v]) => `<tr>
+                <td>${Utils.escapeHtml(Utils.landName(l))}${l ? ` <span style="color:var(--text-muted);font-size:11px;">${l}</span>` : ''}</td>
+                <td style="text-align:right">${v.count}</td>
+                <td style="text-align:right">${Utils.formatCurrency(v.umsatz)}</td>
+                <td style="text-align:right">${gesamt ? (v.umsatz / gesamt * 100).toFixed(1).replace('.', ',') : '0,0'} %</td>
+            </tr>`).join('');
+        section.innerHTML = `
+        <div class="card" style="margin-bottom:16px;">
+            <div class="card-header">
+                <div class="card-title">Umsatz nach Land</div>
+                <div style="font-size:12px;color:var(--text-muted);">Land des Käufers, beim Verkauf erfasst</div>
+            </div>
+            <div class="table-container" style="border:none;">
+                <table>
+                    <thead><tr><th>Land</th><th style="text-align:right">Verkäufe</th><th style="text-align:right">Umsatz</th><th style="text-align:right">Anteil</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        </div>`;
+    },
+
     _renderMaterialStats(sales, unsyncedRevenue) {
         const section = document.getElementById('matStatSection');
         if (!section) return;
@@ -350,7 +389,7 @@ const Statistiken = {
             const periodLabel = isNaN(parseInt(this._period))
                 ? (this._period === 'all' ? 'Gesamte Zeit' : 'diesen Zeitraum')
                 : `das Jahr ${this._period}`;
-            ['platAnalyseSection','matStatSection','profitabilitaetSection',
+            ['platAnalyseSection','landAnalyseSection','matStatSection','profitabilitaetSection',
              'chartBrand','chartPlatform','chartTypes','chartMonths','chartAvg','chartROI']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
             const first = document.getElementById('platAnalyseSection');
@@ -370,6 +409,7 @@ const Statistiken = {
         }
 
         this._renderPlatformAnalyse(sales, allPurchases);
+        this._renderLandAnalyse(sales);
         this._renderMaterialStats(sales, unsyncedRevenue);
         this._renderProfitabilitaet(sales, allPurchases);
 

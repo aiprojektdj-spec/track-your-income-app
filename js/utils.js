@@ -237,6 +237,26 @@ const Utils = {
         return vk + vkKaeufer - plattformGebuehr - vkVerkaufer;
     },
 
+    // Verkaufsland eines Verkaufs (sale.land, ISO-3166-Code) — reine Auswertungsangabe für
+    // "Umsatz nach Land" in den Statistiken, fließt in keine Steuerberechnung ein.
+    // Deutschland zuerst, dann EU, dann die häufigsten Nicht-EU-Ziele.
+    VERKAUFSLAENDER: ['DE', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'GR', 'HU', 'IE', 'IT',
+        'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB', 'NO', 'US'],
+
+    landName(code) {
+        if (!code) return 'Ohne Angabe';
+        try { return new Intl.DisplayNames(['de'], { type: 'region' }).of(code) || code; }
+        catch (e) { return code; }
+    },
+
+    landOptionsHtml(selected) {
+        const eu = this.VERKAUFSLAENDER.slice(1, 27).sort((a, b) => this.landName(a).localeCompare(this.landName(b), 'de'));
+        const opt = c => `<option value="${c}" ${c === selected ? 'selected' : ''}>${this.escapeHtml(this.landName(c))}</option>`;
+        return `<option value="">— keine Angabe —</option>${opt('DE')}`
+            + `<optgroup label="EU">${eu.map(opt).join('')}</optgroup>`
+            + `<optgroup label="Nicht-EU">${this.VERKAUFSLAENDER.slice(27).map(opt).join('')}</optgroup>`;
+    },
+
     getMonthName(monthIndex) {
         const months = ['Januar', 'Februar', 'M\u00e4rz', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
         return months[monthIndex];

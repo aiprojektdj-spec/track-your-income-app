@@ -308,6 +308,12 @@ const Lager = {
                         <input type="text" class="form-input" id="vk_customPlattform" placeholder="Plattform …" style="padding:6px 10px;font-size:13px;">
                     </div>
 
+                    <!-- Verkaufsland (nur Auswertung "Umsatz nach Land") -->
+                    <div>
+                        <label class="form-label" for="vk_land" style="font-size:11px;">Land des Käufers</label>
+                        <select class="form-select" id="vk_land" style="padding:6px 10px;font-size:13px;">${Utils.landOptionsHtml(localStorage.getItem('lager_last_land') || '')}</select>
+                    </div>
+
                     <!-- Verkaufspreis (groß) -->
                     <div>
                         <label class="form-label" style="font-size:11px;">Verkaufspreis (€) *</label>
@@ -407,10 +413,13 @@ const Lager = {
                 Store.addPlatform(plattform);
             }
             localStorage.setItem('lager_last_platform', plattform);
+            const land = document.getElementById('vk_land').value;
+            localStorage.setItem('lager_last_land', land);
 
             const saleData = {
                 datum,
                 verkaufsplattform: plattform,
+                land,
                 verkaufspreis:     preis,
                 versandkostenKaeufer:   parseFloat(document.getElementById('vk_versandKaeufer').value) || 0,
                 plattformgebuehrProzent: parseFloat(document.getElementById('vk_gebuehr').value)      || 0,
@@ -590,6 +599,7 @@ const Lager = {
                 <div class="form-group"><label class="form-label">Gebühr (%)</label><input type="number" step="0.01" class="form-input" id="se_gebuehr" value="${s.plattformgebuehrProzent || 0}" ${dis}></div>
                 <div class="form-group"><label class="form-label">Versand Verkäufer (€)</label><input type="number" step="0.01" class="form-input" id="se_versandV" value="${s.versandkostenVerkaufer || 0}" ${dis}></div>
             </div>
+            <div class="form-group"><label class="form-label" for="se_land">Land des Käufers</label><select class="form-select" id="se_land" ${dis}>${Utils.landOptionsHtml(s.land || '')}</select></div>
             <div class="form-group"><label class="form-label">Käufer</label><input type="text" class="form-input" id="se_kaeufer" value="${Utils.escapeHtml(s.kaeufer || '')}" ${dis}></div>
             <div class="form-group"><label class="form-label">Notizen</label><textarea class="form-textarea" id="se_notizen" ${dis}>${Utils.escapeHtml(s.notizen || '')}</textarea></div>
         `;
@@ -624,6 +634,7 @@ const Lager = {
                 versandkostenKaeufer: parseFloat(document.getElementById('se_versandK').value) || 0,
                 plattformgebuehrProzent: parseFloat(document.getElementById('se_gebuehr').value) || 0,
                 versandkostenVerkaufer: parseFloat(document.getElementById('se_versandV').value) || 0,
+                land: document.getElementById('se_land').value,
                 kaeufer: document.getElementById('se_kaeufer').value.trim(),
                 notizen: document.getElementById('se_notizen').value.trim()
             });

@@ -3094,3 +3094,629 @@ body.stb-readonly #emptyNewOffer { display: none !important; }
    ============================================ */
 .company-switcher-btn:hover { background: rgba(255, 255, 255, .13) !important; }
 .co-dropdown-row:not(.active):hover { background: var(--bg-secondary) !important; }
+
+/* ============================================
+   Akademie — ruhiger, einfarbiger Lernbereich
+   Bewusst lokal: bestehende App-Bereiche behalten ihre Gestaltung.
+   ============================================ */
+.main-content:has(.academy) {
+    padding: 32px 32px 48px;
+    background: #111111;
+}
+
+:root[data-theme="light"] .main-content:has(.academy) {
+    background: #fafafa;
+}
+
+#content:has(.academy) {
+    max-width: 1200px;
+    min-width: 0;
+    animation: none;
+}
+
+.academy {
+    --academy-bg: #111111;
+    --academy-surface: #171717;
+    --academy-muted-surface: #242424;
+    --academy-text: #eeeeee;
+    --academy-muted: #adadad;
+    --academy-line: #333333;
+    --academy-control-border: #808080;
+    /* Bestehende Textvorlagen verwenden diese Variablen auch inline. */
+    --text-primary: var(--academy-text);
+    --text-secondary: var(--academy-muted);
+    --text-muted: var(--academy-muted);
+    --bg-primary: var(--academy-bg);
+    --bg-secondary: var(--academy-muted-surface);
+    --border: var(--academy-line);
+    --success: var(--academy-text);
+    --warning: var(--academy-text);
+    --danger: var(--academy-text);
+    --info: var(--academy-text);
+    --accent: var(--academy-text);
+    --accent-text: var(--academy-text);
+    width: 100%;
+    min-width: 0;
+    color: var(--academy-text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 26px;
+    overflow-wrap: anywhere;
+}
+
+:root[data-theme="light"] .academy {
+    --academy-bg: #fafafa;
+    --academy-surface: #ffffff;
+    --academy-muted-surface: #f0f0f0;
+    --academy-text: #171717;
+    --academy-muted: #595959;
+    --academy-line: #dedede;
+}
+
+.academy *,
+.academy *::before,
+.academy *::after {
+    box-shadow: none;
+    text-shadow: none;
+    transition: none;
+    animation: none;
+}
+
+.academy [hidden] {
+    display: none !important;
+}
+
+.academy h1,
+.academy h2,
+.academy h3,
+.academy h4,
+.academy .academy-row-title {
+    color: var(--academy-text);
+    font-family: inherit;
+    font-weight: 450;
+    letter-spacing: -0.025em;
+    text-transform: none;
+}
+
+.academy h1 {
+    font-size: 32px;
+    line-height: 40px;
+}
+
+.academy h2 {
+    font-size: 24px;
+    line-height: 32px;
+}
+
+.academy .academy-muted,
+.academy .academy-eyebrow,
+.academy .academy-level,
+.academy .academy-progress-label,
+.academy .academy-status,
+.academy .academy-context,
+.academy .academy-notice {
+    color: var(--academy-muted);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+}
+
+.academy .academy-header > .academy-muted,
+.academy .academy-header > .academy-level,
+.academy .academy-header > .academy-status {
+    margin-top: 8px;
+}
+
+.academy .academy-header > .academy-description {
+    max-width: 720px;
+    margin-top: 16px;
+    font-size: 16px;
+    line-height: 26px;
+}
+
+.academy a {
+    color: var(--academy-text);
+}
+
+.academy :is(a, button):focus-visible,
+.academy [tabindex="-1"]:focus-visible {
+    outline: 2px solid var(--academy-text);
+    outline-offset: 2px;
+}
+
+.academy .academy-primary,
+.academy .academy-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    max-width: 100%;
+    padding: 9px 16px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 24px;
+    letter-spacing: normal;
+    text-align: center;
+    text-decoration: none;
+    text-transform: none;
+    white-space: normal;
+    cursor: pointer;
+}
+
+.academy .academy-primary,
+.academy .academy-primary:hover {
+    background: var(--academy-text);
+    color: var(--academy-bg);
+}
+
+.academy .academy-secondary {
+    border-color: var(--academy-control-border);
+    background: transparent;
+    color: var(--academy-text);
+}
+
+.academy .academy-secondary:hover {
+    background: var(--academy-muted-surface);
+}
+
+.academy .academy-primary[aria-busy="true"] {
+    cursor: wait;
+}
+
+.academy .academy-primary:disabled,
+.academy .academy-primary[aria-disabled="true"] {
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+.academy .academy-link,
+.academy .academy-back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    max-width: 100%;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.academy .academy-back {
+    margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.academy .academy-continue {
+    margin-top: 24px;
+    padding: 24px;
+    border: 1px solid var(--academy-line);
+    border-radius: 8px;
+    background: var(--academy-surface);
+}
+
+.academy .academy-continue h2 {
+    margin-top: 8px;
+    font-size: 22px;
+    line-height: 30px;
+}
+
+.academy .academy-continue > .academy-muted {
+    margin-top: 8px;
+}
+
+.academy .academy-continue > .academy-primary {
+    margin-top: 20px;
+}
+
+.academy dl.academy-metrics,
+.academy .academy-metrics > dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 24px;
+}
+
+.academy dl.academy-metrics > div,
+.academy .academy-metrics > dl > div {
+    display: grid;
+    grid-template-rows: 1fr auto;
+    min-width: 0;
+    padding-right: 24px;
+}
+
+.academy dl.academy-metrics > div + div,
+.academy .academy-metrics > dl > div + div {
+    padding-right: 0;
+    padding-left: 24px;
+    border-left: 1px solid var(--academy-line);
+}
+
+.academy .academy-metrics dt {
+    color: var(--academy-muted);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+}
+
+.academy .academy-metrics dd {
+    margin-top: 8px;
+    color: var(--academy-text);
+    font-size: 36px;
+    font-weight: 400;
+    line-height: 44px;
+    font-variant-numeric: tabular-nums;
+}
+
+.academy .academy-recommendation {
+    margin-top: 24px;
+}
+
+.academy .academy-recommendation h2 {
+    font-size: 18px;
+    line-height: 26px;
+}
+
+.academy .academy-recommendation p {
+    margin-top: 8px;
+}
+
+.academy .academy-section,
+.academy .academy-milestones {
+    margin-top: 32px;
+}
+
+.academy .academy-section > h2 + .academy-muted {
+    margin-top: 8px;
+}
+
+.academy .academy-modules,
+.academy .academy-lessons {
+    margin-top: 16px;
+    list-style: none;
+}
+
+.academy .academy-modules > li + li,
+.academy .academy-lessons > li + li {
+    border-top: 1px solid var(--academy-line);
+}
+
+.academy .academy-module-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 144px 160px;
+    align-items: center;
+    gap: 24px;
+    padding: 20px 16px;
+    text-decoration: none;
+}
+
+.academy .academy-module-row:hover,
+.academy .academy-lesson-row:hover {
+    background: var(--academy-muted-surface);
+}
+
+.academy .academy-module-copy,
+.academy .academy-row-title,
+.academy .academy-description,
+.academy .academy-progress,
+.academy .academy-progress-label,
+.academy .academy-milestone-title {
+    display: block;
+    min-width: 0;
+}
+
+.academy .academy-row-title {
+    font-size: 18px;
+    line-height: 26px;
+}
+
+.academy .academy-module-copy .academy-description {
+    margin-top: 6px;
+    color: var(--academy-muted);
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.academy .academy-progress-track {
+    display: block;
+    width: 100%;
+    height: 6px;
+    margin-top: 8px;
+    border: 1px solid var(--academy-control-border);
+    background: var(--academy-muted-surface);
+}
+
+.academy .academy-progress-track > span {
+    display: block;
+    max-width: 100%;
+    height: 100%;
+    background: var(--academy-text);
+}
+
+.academy .academy-module-progress {
+    max-width: 480px;
+    margin-top: 24px;
+}
+
+.academy .academy-module-progress > .academy-muted {
+    margin-top: 8px;
+}
+
+.academy.academy-module > .academy-primary {
+    margin-top: 20px;
+}
+
+.academy .academy-lesson-row {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: 16px;
+    padding: 20px 16px;
+    text-decoration: none;
+}
+
+.academy .academy-lesson-number {
+    color: var(--academy-muted);
+    font-size: 16px;
+    line-height: 26px;
+    font-variant-numeric: tabular-nums;
+}
+
+.academy .academy-lesson-row > .academy-status {
+    padding-top: 3px;
+}
+
+.academy .academy-disclosure {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    min-height: 44px;
+    padding: 12px 16px;
+    border: 1px solid var(--academy-control-border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--academy-text);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 20px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.academy .academy-disclosure:hover {
+    background: var(--academy-muted-surface);
+}
+
+.academy .academy-disclosure-copy,
+.academy .academy-disclosure-copy > .academy-muted {
+    display: block;
+    min-width: 0;
+}
+
+.academy .academy-disclosure-copy > .academy-muted {
+    margin-top: 4px;
+}
+
+.academy .academy-disclosure-label {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.academy #academyMilestonesPanel > .academy-muted {
+    margin-top: 16px;
+}
+
+.academy .academy-milestone-list {
+    margin-top: 8px;
+    list-style: none;
+}
+
+.academy .academy-milestone-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+    padding: 16px 0;
+}
+
+.academy .academy-milestone-row + .academy-milestone-row {
+    border-top: 1px solid var(--academy-line);
+}
+
+.academy .academy-milestone-title {
+    font-size: 16px;
+    line-height: 24px;
+}
+
+.academy .academy-milestone-row .academy-muted {
+    margin-top: 4px;
+}
+
+.academy .academy-status.is-reached {
+    color: var(--academy-text);
+}
+
+.academy .academy-notice {
+    margin-top: 24px;
+}
+
+.academy.academy-reader {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.academy .academy-context + h1 {
+    margin-top: 8px;
+}
+
+.academy .academy-lesson-content {
+    margin-top: 32px;
+}
+
+/* Die Inhalte bleiben erhalten; alte Inline-Farben und -Schriftgroessen
+   werden nur in der Lesespalte an das neue Design angeglichen. */
+.academy .academy-lesson-content,
+.academy .academy-lesson-content * {
+    color: var(--academy-text) !important;
+    font-family: inherit;
+    font-size: 16px !important;
+    line-height: 26px !important;
+    text-transform: none !important;
+    letter-spacing: normal;
+}
+
+.academy .academy-lesson-content :is(h2, h3, h4) {
+    margin: 32px 0 12px !important;
+    font-size: 24px !important;
+    font-weight: 450;
+    line-height: 32px !important;
+    letter-spacing: -0.025em;
+}
+
+.academy .academy-lesson-content :is(h2, h3, h4) * {
+    font-size: inherit !important;
+    line-height: inherit !important;
+    letter-spacing: inherit;
+}
+
+.academy .academy-lesson-content :is(p, ul, ol) {
+    margin: 0 0 16px !important;
+}
+
+.academy .academy-lesson-content :is(ul, ol) {
+    padding-left: 24px;
+}
+
+.academy .academy-lesson-content li + li {
+    margin-top: 8px;
+}
+
+.academy .academy-lesson-content a {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.academy .academy-lesson-content :is(.akademie-tip, .akademie-tip-warn, pre, blockquote) {
+    margin: 24px 0 !important;
+    padding: 20px !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    background: var(--academy-muted-surface) !important;
+}
+
+.academy .academy-lesson-content pre {
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
+}
+
+.academy .academy-lesson-content table {
+    width: 100% !important;
+    max-width: 100%;
+    margin: 24px 0 !important;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.academy .academy-lesson-content :is(thead, tbody, tr, th, td) {
+    background: transparent !important;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.academy .academy-lesson-content thead {
+    position: static;
+}
+
+.academy .academy-lesson-content :is(th, td) {
+    padding: 10px 8px !important;
+    border-bottom: 1px solid var(--academy-line);
+    vertical-align: top;
+    cursor: auto;
+}
+
+.academy .academy-lesson-content th {
+    font-weight: 450;
+    user-select: text;
+}
+
+.academy .academy-lesson-content tr[style*="border-top"] {
+    border-top: 1px solid var(--academy-line) !important;
+}
+
+.academy .academy-lesson-footer {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--academy-line);
+}
+
+.academy #academyNextLesson {
+    margin-bottom: 12px;
+}
+
+.academy #academySaveStatus:not(:empty) {
+    margin-top: 8px;
+}
+
+@media (max-width: 767px) {
+    .academy h1 {
+        font-size: 28px;
+        line-height: 36px;
+    }
+
+    .academy h2 {
+        font-size: 22px;
+        line-height: 30px;
+    }
+
+    .academy .academy-primary,
+    .academy .academy-secondary {
+        width: 100%;
+    }
+
+    .academy dl.academy-metrics > div,
+    .academy .academy-metrics > dl > div {
+        padding-right: 16px;
+    }
+
+    .academy dl.academy-metrics > div + div,
+    .academy .academy-metrics > dl > div + div {
+        padding-right: 0;
+        padding-left: 16px;
+    }
+
+    .academy .academy-module-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .academy .academy-module-progress {
+        max-width: none;
+    }
+
+    .academy .academy-lesson-row {
+        grid-template-columns: 32px minmax(0, 1fr);
+        row-gap: 8px;
+    }
+
+    .academy .academy-lesson-row > .academy-status {
+        grid-column: 2;
+        padding-top: 0;
+    }
+
+    .academy .academy-milestone-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .academy .academy-lesson-content :is(h2, h3, h4) {
+        font-size: 22px !important;
+        line-height: 30px !important;
+    }
+
+    .academy .academy-lesson-content :is(.akademie-tip, .akademie-tip-warn, pre, blockquote) {
+        padding: 16px !important;
+    }
+}

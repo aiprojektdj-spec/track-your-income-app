@@ -1801,12 +1801,6 @@ const Akademie = {
         { id: 'bulk_master',     icon: '📦', title: 'Bulk-Master',             desc: '5+ Bulk-Sessions im Lager angelegt.',                    tier: 'silver', check: d => d.bulkSessions >= 5 }
     ],
 
-    TIER_COLORS: {
-        bronze: { bg: 'rgba(180,120,60,.15)',  color: '#b87333', border: '#b87333' },
-        silver: { bg: 'rgba(192,192,192,.15)', color: '#9ca3af', border: '#9ca3af' },
-        gold:   { bg: 'rgba(251,191,36,.18)',  color: '#fbbf24', border: '#fbbf24' }
-    },
-
     // ── Datenanalyse für Achievements ─────────────────────────────────────
     _analyzeData() {
         try {
@@ -1848,6 +1842,7 @@ const Akademie = {
         };
 
         const progress = this._getProgress();
+        if (!progress.available) throw new Error('Lernstand nicht verfügbar.');
         const lessonsRead = progress.completedLessons.length;
         const modulesComplete = this.MODULES.filter(m =>
             m.lessons.every(l => progress.completedLessons.includes(l.id))
@@ -1930,12 +1925,13 @@ const Akademie = {
         let auditEntries = 0;
         try {
             auditEntries = (Store.getAuditLog ? Store.getAuditLog() : []).length;
-        } catch (e) {}
+        } catch (e) { throw new Error('Geschäftsdaten nicht vollständig verfügbar.'); }
 
         // Anzahl unique Bulk-Sessions
         const bulkSessions = Object.keys(sessionCounts).filter(sid => sessionCounts[sid] > 1).length;
 
         return {
+            available: true,
             purchases, sales,
             activeStock, totalRevenue,
             invoices: invoices.length,
@@ -1949,6 +1945,7 @@ const Akademie = {
         } catch (e) {
             console.warn('[Akademie] _analyzeData Fehler:', e);
             return {
+                available: false,
                 purchases: [], sales: [], activeStock: 0, totalRevenue: 0,
                 invoices: 0, maxSessionSize: 0, profitableMonths: 0,
                 flags: {}, lessonsRead: 0, modulesComplete: 0,
@@ -1985,6 +1982,13 @@ const Akademie = {
 
     /** Erste noch nicht abgeschlossene Lektion in der Reihenfolge dieses Nutzers. */
     _naechsteLektion(progress) {
+        if (progress.available === false) return null;
+        if (progress.lastOpenedLesson && !progress.completedLessons.includes(progress.lastOpenedLesson)) {
+            for (const modul of this._modulesInOrder()) {
+                const lektion = modul.lessons.find(l => l.id === progress.lastOpenedLesson);
+                if (lektion) return { modul, lektion };
+            }
+        }
         for (const m of this._modulesInOrder()) {
             for (const l of m.lessons) {
                 if (!progress.completedLessons.includes(l.id)) return { modul: m, lektion: l };
@@ -2004,416 +2008,334 @@ const Akademie = {
         try { return (Store.getSettings().branche || ""); } catch (e) { return ""; }
     },
 
-    /** Bindet Klick und Tastatur an ein Element, das kein <button> ist (WCAG 2.1.1).
-     *  Enter und Leertaste sind das, was ein Screenreader-Nutzer bei role="button" erwartet;
-     *  bei der Leertaste muss preventDefault() das Scrollen der Seite unterdruecken. */
-    _activate(el, fn) {
-        if (!el) return;
-        el.addEventListener('click', fn);
-        el.addEventListener('keydown', e => {
-            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
-                e.preventDefault();
-                fn();
-            }
-        });
-    },
-
+    // Vorhandene Lesestände bleiben kompatibel. Fehler dürfen niemals als Neustart gelten.
     _getProgress() {
         try {
-            return JSON.parse(localStorage.getItem('akademie_progress') || '{"completedLessons":[],"unlockedAchievements":[]}');
-        } catch { return { completedLessons: [], unlockedAchievements: [] }; }
+            const raw = localStorage.getItem('akademie_progress');
+            const saved = raw === null ? { completedLessons: [], unlockedAchievements: [] } : JSON.parse(raw);
+            if (!saved || Array.isArray(saved) || !Array.isArray(saved.completedLessons) || !Array.isArray(saved.unlockedAchievements)) {
+                throw new Error('Ungültiger Lernstand.');
+            }
+            const lessonIds = new Set(this.MODULES.flatMap(m => m.lessons.map(l => l.id)));
+            const achievementIds = new Set(this.ACHIEVEMENTS.map(a => a.id));
+            return {
+                ...saved,
+                completedLessons: [...new Set(saved.completedLessons.filter(id => lessonIds.has(id)))],
+                unlockedAchievements: [...new Set(saved.unlockedAchievements.filter(id => achievementIds.has(id)))],
+                lastOpenedLesson: lessonIds.has(saved.lastOpenedLesson) ? saved.lastOpenedLesson : null,
+                available: true
+            };
+        } catch (e) {
+            return { completedLessons: [], unlockedAchievements: [], available: false };
+        }
     },
 
-    _saveProgress(p) {
-        localStorage.setItem('akademie_progress', JSON.stringify(p));
+    _saveProgress(progress) {
+        if (progress.available === false) return false;
+        try {
+            const { available, ...saved } = progress;
+            localStorage.setItem('akademie_progress', JSON.stringify(saved));
+            return true;
+        } catch (e) {
+            console.warn('[Akademie] Lernstand konnte nicht gespeichert werden.');
+            return false;
+        }
     },
 
     markLessonComplete(lessonId) {
-        const p = this._getProgress();
-        if (!p.completedLessons.includes(lessonId)) {
-            p.completedLessons.push(lessonId);
-            this._saveProgress(p);
-            this.checkNewAchievements();
-        }
+        if (!this.MODULES.some(m => m.lessons.some(l => l.id === lessonId))) return false;
+        const progress = this._getProgress();
+        if (!progress.available) return false;
+        if (progress.completedLessons.includes(lessonId)) return true;
+        progress.completedLessons.push(lessonId);
+        if (!this._saveProgress(progress)) return false;
+        this.checkNewAchievements();
+        return true;
     },
 
-    // Prüft ob neue Achievements freigeschaltet wurden — gibt Liste der NEUEN zurück
-    checkNewAchievements() {
-        const data = this._analyzeData();
+    // Meilensteine still aktualisieren; Geschäftsbedingungen bleiben unverändert.
+    checkNewAchievements(data = this._analyzeData()) {
         const progress = this._getProgress();
+        if (!progress.available || data.available === false) return [];
         const newOnes = [];
-        this.ACHIEVEMENTS.forEach(a => {
+        this.ACHIEVEMENTS.forEach(achievement => {
             try {
-                if (!progress.unlockedAchievements.includes(a.id) && a.check(data)) {
-                    progress.unlockedAchievements.push(a.id);
-                    newOnes.push(a);
+                if (!progress.unlockedAchievements.includes(achievement.id) && achievement.check(data)) {
+                    progress.unlockedAchievements.push(achievement.id);
+                    newOnes.push(achievement);
                 }
-            } catch(e) { console.warn('[Akademie] Check-Fehler:', a.id, e); }
+            } catch (e) { console.warn('[Akademie] Meilenstein konnte nicht geprüft werden:', achievement.id); }
         });
-        if (newOnes.length > 0) {
-            this._saveProgress(progress);
-            // Toast für neue Achievements
-            newOnes.forEach(a => {
-                Utils.showToast(`${a.icon} Achievement freigeschaltet: ${a.title}`, 'success');
-            });
-        }
+        if (newOnes.length && !this._saveProgress(progress)) return [];
         return newOnes;
     },
 
-    // ── Render ────────────────────────────────────────────────────────────
-    render() {
-        // Falls Lektion offen
-        if (this._activeLesson) {
-            return this._renderLesson();
-        }
-
-        const progress  = this._getProgress();
-        const data      = this._analyzeData();
-        const totalLessons = this.MODULES.reduce((s, m) => s + m.lessons.length, 0);
-        const readPercent  = totalLessons > 0 ? Math.round(progress.completedLessons.length / totalLessons * 100) : 0;
-        const unlockedCount    = progress.unlockedAchievements.length;
-        const totalAchievements = this.ACHIEVEMENTS.length;
-
-        // ── Icon lookup + level colours ──────────────────────────────────
-        const MOD_ICONS = {
-            grundlagen:'ti-rocket', einkauf:'ti-shopping-cart', steuer:'ti-chart-bar',
-            listing:'ti-camera', mindset:'ti-brain', steuerprofi:'ti-file-certificate',
-            skalierung:'ti-settings-cog', kundenservice:'ti-star',
-            krankenversicherung:'ti-heart-rate-monitor', international:'ti-world',
-            psychologie:'ti-user-star', social:'ti-brand-instagram', afa_recht:'ti-trending-down',
-        };
-        const LEVEL_COLORS = { 'Einsteiger':'#22c55e', 'Fortgeschritten':'#3b82f6', 'Profi':'#8b93f8' };
-
-        // ── SVG progress ring ────────────────────────────────────────────
-        const RADIUS = 16, CIRC = 2 * Math.PI * RADIUS;
-        const ringFor = (pct, accent) => {
-            const offset = (CIRC - (pct / 100) * CIRC).toFixed(1);
-            return `<svg width="40" height="40" viewBox="0 0 40 40" style="transform:rotate(-90deg);flex-shrink:0;">
-                <circle cx="20" cy="20" r="${RADIUS}" fill="none" stroke="var(--bg-secondary)" stroke-width="3.5"/>
-                <circle cx="20" cy="20" r="${RADIUS}" fill="none" stroke="${accent}" stroke-width="3.5"
-                    stroke-dasharray="${CIRC.toFixed(1)}" stroke-dashoffset="${offset}"
-                    stroke-linecap="round" style="transition:stroke-dashoffset .4s ease;"/>
-            </svg>`;
-        };
-
-        // ── "Weiter lernen" banner ───────────────────────────────────────
-        const naechste = this._naechsteLektion(progress);
-        const nextLesson = naechste ? naechste.lektion : null;
-        const nextModule = naechste ? naechste.modul : null;
-        const continueBanner = nextLesson ? `
-        <div id="akademieContinueBanner" class="card hover-dim" role="button" tabindex="0"
-             aria-label="Weiter lernen: ${Utils.escapeHtml(nextLesson.title)}"
-             style="display:flex;align-items:center;gap:16px;padding:14px 18px;margin-bottom:18px;border-left:3px solid var(--accent);cursor:pointer;transition:opacity .15s;">
-            <div style="width:38px;height:38px;border-radius:10px;background:rgba(16,185,129,.13);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <i class="ti ti-player-play-filled" style="color:var(--accent);font-size:18px;"></i>
-            </div>
-            <div style="flex:1;min-width:0;">
-                <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.7px;font-weight:600;">Weiter lernen</div>
-                <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${Utils.escapeHtml(nextLesson.title)}</div>
-                <div style="font-size:11px;color:var(--text-secondary);">${Utils.escapeHtml(nextModule.title)} · ${Utils.escapeHtml(nextLesson.duration)}</div>
-            </div>
-            <i class="ti ti-chevron-right" style="color:var(--text-muted);font-size:20px;flex-shrink:0;"></i>
-        </div>` : '';
-
-        // ── KPI cards ────────────────────────────────────────────────────
-        const kpiCards = `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;">
-            <div class="card stat-card info">
-                <div class="card-label"><i class="ti ti-book" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Lern-Fortschritt</div>
-                <div class="card-value">${readPercent}%</div>
-                <div class="card-subtitle">${progress.completedLessons.length} / ${totalLessons} Lektionen</div>
-            </div>
-            <div class="card stat-card success">
-                <div class="card-label"><i class="ti ti-trophy" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Achievements</div>
-                <div class="card-value">${unlockedCount} / ${totalAchievements}</div>
-                <div class="card-subtitle">${totalAchievements > 0 ? Math.round(unlockedCount/totalAchievements*100) : 0}% freigeschaltet</div>
-            </div>
-            <div class="card stat-card">
-                <div class="card-label"><i class="ti ti-package" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Aktiver Lagerbestand</div>
-                <div class="card-value">${data.activeStock ?? 0}</div>
-                <div class="card-subtitle">verfügbare Artikel</div>
-            </div>
-            <div class="card stat-card warning">
-                <div class="card-label"><i class="ti ti-cash" style="margin-right:4px;vertical-align:middle;font-size:12px;"></i>Gesamt-Umsatz</div>
-                <div class="card-value">${Utils.formatCurrency(data.totalRevenue)}</div>
-                <div class="card-subtitle">${(data.sales || []).length} Verkäufe</div>
-            </div>
-        </div>`;
-
-        // ── Module cards ─────────────────────────────────────────────────
-        // Die Landingpage verkauft an "Freelancer, GbR & Reseller", die Akademie beginnt aber
-        // mit "Grundlagen Reselling". Ein Grafikdesigner, der hier klickt, schliesst daraus,
-        // dass die App nicht fuer ihn ist — dabei sind acht der dreizehn Module
-        // branchenneutral (Steuer, KV, AfA, Mindset, Verkaufspsychologie ...). Statt Inhalte
-        // zu verstecken: fuer Nicht-Handelsbranchen die neutralen Module nach vorn sortieren
-        // und ehrlich benennen, worauf der Rest zugeschnitten ist.
-        const branche = this._branche();
-        const istHandel = this._istHandelsbranche();
-        const modules = this._modulesInOrder();
-        const brancheHinweis = istHandel ? '' : `
-            <div class="akademie-tip" style="margin:0 0 14px;">
-                Dein Profil steht auf <strong>${Utils.escapeHtml(branche)}</strong>. Die Module zu Steuer,
-                Krankenversicherung, AfA und Unternehmertum gelten fuer jede Selbstaendigkeit und stehen
-                deshalb oben. Die unteren Module (Einkauf, Listing, Skalierung, Kundenservice) sind auf
-                Warenhandel zugeschnitten &mdash; lesenswert, wenn du nebenbei Ware verkaufst, sonst ueberspringbar.
-            </div>`;
-        const moduleCards = modules.map(m => {
-            const done = m.lessons.filter(l => progress.completedLessons.includes(l.id)).length;
-            const pct  = m.lessons.length > 0 ? Math.round(done / m.lessons.length * 100) : 0;
-            const isComplete   = done === m.lessons.length;
-            const lvlColor     = LEVEL_COLORS[m.level] || 'var(--accent)';
-            const iconKey      = MOD_ICONS[m.id] || 'ti-book';
-            const ring         = ringFor(pct, isComplete ? '#22c55e' : lvlColor);
-            const lvlBadge     = `<span style="display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;background:${lvlColor}22;color:${lvlColor};border:1px solid ${lvlColor}44;text-transform:uppercase;">${m.level}</span>`;
-            return `
-            <div class="card akademie-mod-card" data-mod-id="${m.id}" role="button" tabindex="0"
-                 aria-label="Modul öffnen: ${Utils.escapeHtml(m.title)} — ${done} von ${m.lessons.length} Lektionen abgeschlossen"
-                 style="cursor:pointer;padding:16px 18px;border-left:3px solid ${isComplete ? '#22c55e' : lvlColor};transition:border-color .2s,box-shadow .2s;">
-                <div style="display:flex;align-items:flex-start;gap:12px;">
-                    <div style="width:40px;height:40px;border-radius:10px;background:${lvlColor}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;">
-                        <i class="ti ${iconKey}" style="color:${lvlColor};font-size:20px;"></i>
-                    </div>
-                    <div style="flex:1;min-width:0;">
-                        <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap;">
-                            <span style="font-weight:700;font-size:14px;">${Utils.escapeHtml(m.title)}</span>
-                            ${lvlBadge}
-                        </div>
-                        <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;line-height:1.4;">${Utils.escapeHtml(m.description)}</div>
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <div style="flex:1;background:var(--bg-secondary);border-radius:6px;height:5px;overflow:hidden;">
-                                <div style="height:100%;background:${isComplete ? '#22c55e' : lvlColor};width:${pct}%;transition:width .35s;"></div>
-                            </div>
-                            <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${done}/${m.lessons.length}</span>
-                        </div>
-                    </div>
-                    <div style="position:relative;flex-shrink:0;margin-top:2px;" title="${pct}% abgeschlossen">
-                        ${ring}
-                        <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:9px;font-weight:700;color:${isComplete ? '#22c55e' : 'var(--text-muted)'};">${isComplete ? '✓' : pct+'%'}</span>
-                    </div>
-                </div>
-            </div>`;
-        }).join('');
-
-        // ── Tier pills ───────────────────────────────────────────────────
-        const TIER_LABELS = { bronze:'Bronze', silver:'Silber', gold:'Gold' };
-        const achBadges = this.ACHIEVEMENTS.map(a => {
-            const isUnlocked = progress.unlockedAchievements.includes(a.id);
-            const colors = this.TIER_COLORS[a.tier];
-            const tierPill = `<span style="display:inline-block;padding:1px 6px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.4px;background:${colors.bg};color:${colors.color};border:1px solid ${colors.border}40;text-transform:uppercase;">${TIER_LABELS[a.tier]||a.tier}</span>`;
-            return `
-            <div class="akademie-ach" style="border:1px solid ${isUnlocked ? colors.border+'80' : 'var(--border)'};background:${isUnlocked ? colors.bg : 'transparent'};border-radius:10px;padding:12px 14px;display:flex;gap:12px;align-items:center;${isUnlocked ? `box-shadow:0 0 12px ${colors.border}25;` : 'opacity:.45;'}">
-                <span style="font-size:28px;flex-shrink:0;${isUnlocked ? '' : 'filter:grayscale(1);'}">${a.icon}</span>
-                <div style="flex:1;min-width:0;">
-                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap;">
-                        <span style="font-weight:700;font-size:13px;color:${isUnlocked ? colors.color : 'var(--text-secondary)'};">${Utils.escapeHtml(a.title)}</span>
-                        ${tierPill}
-                    </div>
-                    <div style="font-size:11px;color:var(--text-muted);line-height:1.35;">${Utils.escapeHtml(a.desc)}</div>
-                </div>
-                ${isUnlocked
-                    ? '<span style="font-size:18px;color:var(--success);flex-shrink:0;"><i class="ti ti-circle-check-filled"></i></span>'
-                    : '<span style="font-size:14px;opacity:.35;flex-shrink:0;"><i class="ti ti-lock"></i></span>'}
-            </div>`;
-        }).join('');
-
-        return `
-            <div class="page-header">
-                <h2><i class="ti ti-school"></i> Akademie</h2>
-            </div>
-
-            ${continueBanner}
-            ${kpiCards}
-
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-                <i class="ti ti-books" style="color:var(--accent);font-size:18px;"></i>
-                <h3 style="margin:0;font-size:17px;font-weight:700;">Lernpfad</h3>
-                <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">${this.MODULES.length} Module</span>
-            </div>
-            ${brancheHinweis}
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-bottom:26px;">
-                ${moduleCards}
-            </div>
-
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-                <i class="ti ti-trophy" style="color:#fbbf24;font-size:18px;"></i>
-                <h3 style="margin:0;font-size:17px;font-weight:700;">Achievements</h3>
-                <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">${unlockedCount} / ${totalAchievements} freigeschaltet</span>
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;">
-                ${achBadges}
-            </div>
-        `;
+    _followingLesson(moduleId, lessonId) {
+        const ordered = this._modulesInOrder().flatMap(modul => modul.lessons.map(lektion => ({ modul, lektion })));
+        const index = ordered.findIndex(item => item.modul.id === moduleId && item.lektion.id === lessonId);
+        return index >= 0 ? ordered[index + 1] || null : null;
     },
 
-    _renderLesson() {
-        const mod = this.MODULES.find(m => m.id === this._activeModule);
-        const lesson = mod && mod.lessons.find(l => l.id === this._activeLesson);
-        if (!lesson) {
-            this._activeLesson = null;
-            return this.render();
+    _href(moduleId = null, lessonId = null) {
+        let href = 'app.html?page=akademie';
+        if (moduleId) href += '&modul=' + encodeURIComponent(moduleId);
+        if (lessonId) href += '&lektion=' + encodeURIComponent(lessonId);
+        return href;
+    },
+
+    _lessonLink(target, label, className = 'academy-primary') {
+        return `<a class="${className}" href="${Utils.escapeHtml(this._href(target.modul.id, target.lektion.id))}"
+            data-academy-module="${target.modul.id}" data-academy-lesson="${target.lektion.id}">${Utils.escapeHtml(label)}</a>`;
+    },
+
+    _progressMarkup(mod, progress) {
+        if (!progress.available) return '<span class="academy-muted">Lernstand nicht verfügbar</span>';
+        const count = mod.lessons.filter(l => progress.completedLessons.includes(l.id)).length;
+        const percent = mod.lessons.length ? count / mod.lessons.length * 100 : 0;
+        return `<span class="academy-progress-label">${count} von ${mod.lessons.length} Lektionen gelesen</span>
+            <span class="academy-progress-track" aria-hidden="true"><span style="width:${percent}%"></span></span>`;
+    },
+
+    _getRecommendation(progress, data) {
+        if (!progress.available || data.available === false) return null;
+        const candidates = [];
+        if (data.sales.length) candidates.push({ moduleId: 'steuer', lessonId: 's2', reason: 'Du hast Verkäufe erfasst. Hier erfährst du, wie du Einnahmen und Ausgaben einordnest.' });
+        if (data.activeStock > 0 && this._istHandelsbranche()) {
+            candidates.push({ moduleId: 'einkauf', lessonId: 'e1', reason: 'Du hast Artikel im Lager. Diese Lektion hilft dir bei der Kalkulation.' });
+            candidates.push({ moduleId: 'listing', lessonId: 'l1', reason: 'Du hast Artikel im Lager. Hier erfährst du, wie du sie für dein Angebot fotografierst.' });
         }
+        const next = this._naechsteLektion(progress);
+        for (const candidate of candidates) {
+            const modul = this.MODULES.find(m => m.id === candidate.moduleId);
+            const lektion = modul && modul.lessons.find(l => l.id === candidate.lessonId);
+            if (lektion && !progress.completedLessons.includes(lektion.id) && lektion.id !== next?.lektion.id) {
+                return { modul, lektion, reason: candidate.reason };
+            }
+        }
+        return null;
+    },
+
+    _readRoute() {
+        if (typeof window === 'undefined' || !window.location) return;
+        const query = new URLSearchParams(window.location.search);
+        if (query.get('page') !== 'akademie') return;
+        const mod = this.MODULES.find(m => m.id === query.get('modul'));
+        this._activeModule = mod ? mod.id : null;
+        this._activeLesson = mod?.lessons.some(l => l.id === query.get('lektion')) ? query.get('lektion') : null;
+    },
+
+    render() {
+        this._readRoute();
+        if (this._activeLesson) return this._renderLesson();
+        if (this._activeModule) return this._renderModuleDetail(this._activeModule);
+        return this._renderOverview();
+    },
+
+    _renderOverview() {
+        const data = this._analyzeData();
+        this.checkNewAchievements(data);
         const progress = this._getProgress();
-        const isComplete = progress.completedLessons.includes(lesson.id);
-        const idx = mod.lessons.findIndex(l => l.id === lesson.id);
-        const prev = idx > 0 ? mod.lessons[idx-1] : null;
-        const next = idx < mod.lessons.length - 1 ? mod.lessons[idx+1] : null;
+        const total = this.MODULES.reduce((sum, mod) => sum + mod.lessons.length, 0);
+        const completed = this.MODULES.filter(m => m.lessons.every(l => progress.completedLessons.includes(l.id))).length;
+        const next = this._naechsteLektion(progress);
+        const recommendation = this._getRecommendation(progress, data);
+        const escape = text => Utils.escapeHtml(text);
+        let continuation;
+        if (!progress.available) {
+            continuation = `<p class="academy-notice" role="status">Dein Lernstand ist gerade nicht verfügbar.</p>
+                <a class="academy-primary" href="#academyModules" data-academy-jump>Module ansehen</a>`;
+        } else if (next) {
+            continuation = `<p class="academy-eyebrow">${progress.completedLessons.length ? 'Deine nächste Lektion' : 'Deine erste Lektion'}</p>
+                <h2>${escape(next.lektion.title)}</h2><p class="academy-muted">${escape(next.modul.title)}</p>
+                ${this._lessonLink(next, progress.completedLessons.length ? 'Weiterlernen' : 'Lernen starten')}`;
+        } else {
+            continuation = `<h2>Alles gelesen</h2><p class="academy-muted">Du hast alle ${total} Lektionen gelesen.</p>
+                <a class="academy-primary" href="#academyModules" data-academy-jump>Module ansehen</a>`;
+        }
+        const modules = this._modulesInOrder().map(mod => `<li>
+            <a class="academy-module-row" href="${escape(this._href(mod.id))}" data-academy-module="${mod.id}">
+                <span class="academy-module-copy"><span class="academy-row-title">${escape(mod.title)}</span>
+                    <span class="academy-description">${escape(mod.description)}</span></span>
+                <span class="academy-level">${escape(mod.level)}</span>
+                <span class="academy-progress">${this._progressMarkup(mod, progress)}</span>
+            </a></li>`).join('');
+        return `<div class="academy academy-overview">
+            <header class="academy-header"><h1 tabindex="-1">Akademie</h1><p class="academy-muted">Wissen für deinen Alltag als Selbstständiger.</p></header>
+            <section class="academy-continue" aria-label="Dein nächster Schritt">${continuation}</section>
+            ${progress.available ? `<dl class="academy-metrics">
+                <div><dt>Gelesene Lektionen</dt><dd aria-label="${progress.completedLessons.length} von ${total}">${progress.completedLessons.length}/${total}</dd></div>
+                <div><dt>Abgeschlossene Module</dt><dd aria-label="${completed} von ${this.MODULES.length}">${completed}/${this.MODULES.length}</dd></div>
+            </dl>` : ''}
+            ${recommendation ? `<section class="academy-recommendation" aria-labelledby="academyRecommendationTitle">
+                <h2 id="academyRecommendationTitle">Passend zu deinem Geschäft</h2><p class="academy-muted">${escape(recommendation.reason)}</p>
+                ${this._lessonLink(recommendation, recommendation.lektion.title, 'academy-link')}
+            </section>` : ''}
+            <section class="academy-section" aria-labelledby="academyModules">
+                <h2 id="academyModules" tabindex="-1">Alle Module</h2>
+                ${this._istHandelsbranche() ? '' : '<p class="academy-muted">Die allgemeinen Themen stehen zuerst. Die Module zum Warenhandel bleiben für dich zugänglich.</p>'}
+                <ol class="academy-modules">${modules}</ol>
+            </section>
+            ${this._renderMilestones(progress, data)}
+        </div>`;
+    },
 
-        return `
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;">
-                <button class="btn btn-small" id="lessonBackBtn" style="opacity:.7;">← Akademie</button>
-                <div>
-                    <div style="font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(mod.icon)} ${Utils.escapeHtml(mod.title)} · Lektion ${idx+1}/${mod.lessons.length} · ${Utils.escapeHtml(lesson.duration)}</div>
-                    <h2 style="margin:2px 0 0;">${Utils.escapeHtml(lesson.title)}</h2>
-                </div>
+    _renderMilestones(progress, data) {
+        const available = progress.available && data.available !== false;
+        const rows = this.ACHIEVEMENTS.map(achievement => {
+            const reached = progress.available && progress.unlockedAchievements.includes(achievement.id);
+            return `<li class="academy-milestone-row"><div><span class="academy-milestone-title">${Utils.escapeHtml(achievement.title)}</span>
+                <p class="academy-muted">${Utils.escapeHtml(achievement.desc)}</p></div>
+                <span class="academy-status${reached ? ' is-reached' : ''}">${reached ? 'Erreicht' : available ? 'Noch offen' : 'Stand nicht verfügbar'}</span></li>`;
+        }).join('');
+        return `<section class="academy-milestones" aria-label="Meilensteine">
+            <button type="button" class="academy-disclosure" aria-expanded="false" aria-controls="academyMilestonesPanel">
+                <span class="academy-disclosure-copy"><span class="academy-row-title">Meilensteine</span>
+                    <span class="academy-muted">${available ? `${progress.unlockedAchievements.length} von ${this.ACHIEVEMENTS.length} erreicht` : 'Stand nicht verfügbar'}</span></span>
+                <span class="academy-disclosure-label">Anzeigen</span>
+            </button>
+            <div id="academyMilestonesPanel" hidden><p class="academy-muted">Meilensteine entstehen beim Lesen und durch deine Geschäftstätigkeit.</p>
+                <ul class="academy-milestone-list">${rows}</ul>
             </div>
-
-            <div class="card akademie-lesson-content" style="padding:24px 28px;line-height:1.6;font-size:14px;max-width:780px;">
-                ${lesson.content}
-            </div>
-
-            <div style="display:flex;align-items:center;gap:12px;margin-top:20px;flex-wrap:wrap;max-width:780px;">
-                ${prev ? `<button class="btn" id="lessonPrevBtn" style="opacity:.8;">← ${Utils.escapeHtml(prev.title)}</button>` : '<span></span>'}
-                <div style="flex:1;"></div>
-                ${isComplete
-                    ? `<span style="color:var(--success);font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px;"><i class="ti ti-circle-check-filled"></i> Abgeschlossen</span>`
-                    : `<button class="btn btn-primary" id="lessonCompleteBtn"><i class="ti ti-check"></i> Als gelesen markieren</button>`
-                }
-                ${next ? `<button class="btn btn-primary" id="lessonNextBtn">${Utils.escapeHtml(next.title)} →</button>` : ''}
-            </div>
-        `;
+        </section>`;
     },
 
     _renderModuleDetail(modId) {
         const mod = this.MODULES.find(m => m.id === modId);
-        if (!mod) return this.render();
+        if (!mod) { this._activeModule = null; return this._renderOverview(); }
         const progress = this._getProgress();
+        const firstUnread = mod.lessons.find(l => !progress.completedLessons.includes(l.id));
+        const count = mod.lessons.filter(l => progress.completedLessons.includes(l.id)).length;
+        const target = { modul: mod, lektion: firstUnread || mod.lessons[0] };
+        const rows = mod.lessons.map((lesson, index) => `<li>
+            <a class="academy-lesson-row" href="${Utils.escapeHtml(this._href(mod.id, lesson.id))}" data-academy-module="${mod.id}" data-academy-lesson="${lesson.id}">
+                <span class="academy-lesson-number">${index + 1}</span><span class="academy-row-title">${Utils.escapeHtml(lesson.title)}</span>
+                <span class="academy-status">${!progress.available ? 'Stand nicht verfügbar' : progress.completedLessons.includes(lesson.id) ? 'Gelesen' : 'Noch offen'}</span>
+            </a></li>`).join('');
+        return `<div class="academy academy-module">
+            <a class="academy-back" href="${this._href()}" data-academy-overview>Zur Akademie</a>
+            <header class="academy-header"><h1 tabindex="-1">${Utils.escapeHtml(mod.title)}</h1><p class="academy-level">${Utils.escapeHtml(mod.level)}</p>
+                <p class="academy-description">${Utils.escapeHtml(mod.description)}</p></header>
+            <div class="academy-module-progress">${this._progressMarkup(mod, progress)}
+                ${progress.available && !firstUnread ? '<p class="academy-muted">Du hast alle Lektionen dieses Moduls gelesen.</p>' : ''}</div>
+            ${progress.available ? this._lessonLink(target, !firstUnread ? 'Erneut lesen' : count ? 'Weiterlernen' : 'Modul starten') : '<p class="academy-notice" role="status">Dein Lernstand ist gerade nicht verfügbar.</p>'}
+            <section class="academy-section" aria-labelledby="academyLessons"><h2 id="academyLessons">Lektionen</h2><ol class="academy-lessons">${rows}</ol></section>
+        </div>`;
+    },
 
-        const lessonList = mod.lessons.map((l, i) => {
-            const done = progress.completedLessons.includes(l.id);
-            return `
-            <div class="card akademie-lesson-row" data-lesson-id="${l.id}" data-mod-id="${mod.id}" role="button" tabindex="0"
-                 aria-label="Lektion öffnen: ${Utils.escapeHtml(l.title)}, ${Utils.escapeHtml(l.duration)}${done ? ', abgeschlossen' : ''}"
-                 style="cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:14px;${done ? 'opacity:.85;' : ''}">
-                <span style="font-size:20px;width:32px;text-align:center;color:${done ? 'var(--success)' : 'var(--text-muted)'};">${done ? '<i class="ti ti-circle-check-filled"></i>' : (i === 0 || progress.completedLessons.includes(mod.lessons[i-1]?.id)) ? '<i class="ti ti-book-open"></i>' : '<i class="ti ti-lock" style="opacity:.4;"></i>'}</span>
-                <div style="flex:1;">
-                    <div style="font-weight:600;font-size:14px;">${Utils.escapeHtml(l.title)}</div>
-                    <div style="font-size:11px;color:var(--text-muted);">${Utils.escapeHtml(l.duration)}</div>
-                </div>
-                <span style="font-size:18px;color:var(--text-muted);">›</span>
-            </div>
-            `;
-        }).join('');
+    _renderLesson() {
+        const mod = this.MODULES.find(m => m.id === this._activeModule);
+        const lesson = mod?.lessons.find(l => l.id === this._activeLesson);
+        if (!lesson) { this._activeLesson = null; return mod ? this._renderModuleDetail(mod.id) : this._renderOverview(); }
+        const progress = this._getProgress();
+        const read = progress.available && progress.completedLessons.includes(lesson.id);
+        const next = this._followingLesson(mod.id, lesson.id);
+        const index = mod.lessons.findIndex(l => l.id === lesson.id);
+        const total = this.MODULES.reduce((sum, m) => sum + m.lessons.length, 0);
+        // Nur dekorative Zeichen und die Überschriftenebene ändern; Unterrichtstexte bleiben in MODULES unverändert.
+        const content = lesson.content.replace(/<h4\b/g, '<h2').replace(/<\/h4>/g, '</h2>')
+            // In Vergleichstabellen tragen die Häkchen eine Aussage, die als Text erhalten bleibt.
+            .replace(/(<td\b[^>]*>)\s*✅(?!\s*Gut\b)\s*/gu, '$1Geeignet: ')
+            .replace(/(<td\b[^>]*>)\s*❌(?!\s*Schlecht\b)\s*/gu, '$1Ungeeignet: ')
+            .replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, '');
+        return `<div class="academy academy-reader">
+            <a class="academy-back" href="${Utils.escapeHtml(this._href(mod.id))}" data-academy-module="${mod.id}">Zum Modul</a>
+            <header class="academy-header"><p class="academy-context">${Utils.escapeHtml(mod.title)} · Lektion ${index + 1} von ${mod.lessons.length}</p>
+                <h1 tabindex="-1">${Utils.escapeHtml(lesson.title)}</h1><p id="academyLessonState" class="academy-status"${read ? '' : ' hidden'}>Gelesen</p></header>
+            <article class="academy-lesson-content">${content}</article>
+            <footer class="academy-lesson-footer">
+                <p id="academyNextLesson" class="academy-muted"${read && next ? '' : ' hidden'}>${next ? `Danach: ${Utils.escapeHtml(next.lektion.title)}${next.modul.id !== mod.id ? ` · ${Utils.escapeHtml(next.modul.title)}` : ''}` : ''}</p>
+                <button type="button" id="academyLessonAction" class="academy-primary"${progress.available ? '' : ' disabled'}>${read ? (next ? 'Nächste Lektion' : 'Zur Akademie') : 'Als gelesen markieren'}</button>
+                <p id="academySaveStatus" class="academy-muted" role="status" aria-live="polite" aria-atomic="true">${!progress.available ? 'Dein Lernstand ist gerade nicht verfügbar.' : progress.completedLessons.length === total ? `Du hast alle ${total} Lektionen gelesen.` : ''}</p>
+            </footer>
+        </div>`;
+    },
 
-        return `
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;">
-                <button class="btn btn-small" id="modBackBtn" style="opacity:.7;">← Akademie</button>
-                <div>
-                    <h2 style="margin:0;">${Utils.escapeHtml(mod.icon)} ${Utils.escapeHtml(mod.title)}</h2>
-                    <div style="font-size:13px;color:var(--text-secondary);">${Utils.escapeHtml(mod.description)}</div>
-                </div>
-            </div>
+    _navigate(moduleId = null, lessonId = null) {
+        this._activeModule = moduleId;
+        this._activeLesson = lessonId;
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('page', 'akademie');
+            url.searchParams.delete('modul');
+            url.searchParams.delete('lektion');
+            if (moduleId) url.searchParams.set('modul', moduleId);
+            if (lessonId) url.searchParams.set('lektion', lessonId);
+            url.hash = '';
+            window.history.replaceState(window.history.state, '', url.pathname + url.search);
+        } catch (e) { /* Navigation funktioniert auch ohne History-API. */ }
+        const content = document.getElementById('content');
+        content.innerHTML = lessonId ? this._renderLesson() : moduleId ? this._renderModuleDetail(moduleId) : this._renderOverview();
+        this.init();
+        const heading = content.querySelector('h1');
+        if (heading) heading.focus({ preventScroll: true });
+        const scroller = content.closest('.main-content');
+        if (scroller) scroller.scrollTop = 0;
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    },
 
-            <div style="display:flex;flex-direction:column;gap:8px;max-width:680px;">
-                ${lessonList}
-            </div>
-        `;
+    _handleLessonAction(button) {
+        const progress = this._getProgress();
+        const status = document.getElementById('academySaveStatus');
+        if (!progress.available) { status.textContent = 'Dein Lernstand ist gerade nicht verfügbar.'; return; }
+        const next = this._followingLesson(this._activeModule, this._activeLesson);
+        if (progress.completedLessons.includes(this._activeLesson)) {
+            this._navigate(next?.modul.id || null, next?.lektion.id || null);
+            return;
+        }
+        if (button.getAttribute('aria-busy') === 'true') return;
+        button.setAttribute('aria-busy', 'true');
+        button.textContent = 'Wird gespeichert …';
+        const saved = this.markLessonComplete(this._activeLesson);
+        button.removeAttribute('aria-busy');
+        if (!saved) {
+            button.textContent = 'Als gelesen markieren';
+            status.textContent = 'Das hat nicht geklappt. Bitte versuche es erneut.';
+            return;
+        }
+        document.getElementById('academyLessonState').hidden = false;
+        document.getElementById('academyNextLesson').hidden = !next;
+        button.textContent = next ? 'Nächste Lektion' : 'Zur Akademie';
+        const updated = this._getProgress();
+        const total = this.MODULES.reduce((sum, mod) => sum + mod.lessons.length, 0);
+        status.textContent = updated.completedLessons.length === total
+            ? `Lektion als gelesen markiert. Du hast alle ${total} Lektionen gelesen.`
+            : 'Lektion als gelesen markiert.';
     },
 
     init() {
-        // GSAP KPI animation
-        if (typeof gsap !== 'undefined') {
-            const cards = document.querySelectorAll('.stats-grid .stat-card');
-            if (cards.length) {
-                gsap.from(cards, { y: 16, opacity: 0, stagger: 0.07, duration: 0.4, ease: 'power2.out', clearProps: 'all' });
-                cards.forEach(card => {
-                    const valEl = card.querySelector('.card-value');
-                    if (!valEl) return;
-                    const raw = valEl.textContent.trim();
-                    // Skip ratio values like "10 / 27" — don't try to count them up
-                    if (raw.includes('/') || (raw.match(/\d/) && raw.match(/[a-zA-Z]/) && !raw.includes('€') && !raw.includes('%'))) return;
-                    const num = parseFloat(raw.replace(/\./g,'').replace(',','.').replace(/[^\d.%€-]/g,''));
-                    if (isNaN(num) || num === 0) return;
-                    const hasCurrency = raw.includes('€'), hasPct = raw.includes('%');
-                    const obj = { val: 0 };
-                    gsap.to(obj, { val: num, duration: 0.9, ease: 'power2.out',
-                        onUpdate() {
-                            if (hasCurrency) valEl.textContent = obj.val.toLocaleString('de-DE',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
-                            else if (hasPct) valEl.textContent = Math.round(obj.val) + '%';
-                            else valEl.textContent = Math.round(obj.val).toLocaleString('de-DE');
-                        },
-                        onComplete() { valEl.textContent = raw; }
-                    });
-                });
-                // Module cards stagger
-                const modCards = document.querySelectorAll('.akademie-mod-card');
-                if (modCards.length) gsap.from(modCards, { y: 20, opacity: 0, stagger: 0.06, duration: 0.45, ease: 'power2.out', delay: 0.25, clearProps: 'all' });
+        const root = document.querySelector('.academy');
+        if (!root || root.dataset.initialized) return;
+        root.dataset.initialized = 'true';
+        // Auch direkt verlinkte Lektionen merken, ohne sie als gelesen zu zählen.
+        if (this._activeLesson) {
+            const progress = this._getProgress();
+            if (progress.available && progress.lastOpenedLesson !== this._activeLesson) {
+                progress.lastOpenedLesson = this._activeLesson;
+                this._saveProgress(progress);
             }
         }
-
-        // Lektion offen
-        if (this._activeLesson) {
-            const back = document.getElementById('lessonBackBtn');
-            if (back) back.addEventListener('click', () => { this._activeLesson = null; this._activeModule = null; App.navigate('akademie'); });
-
-            const complete = document.getElementById('lessonCompleteBtn');
-            if (complete) complete.addEventListener('click', () => {
-                this.markLessonComplete(this._activeLesson);
-                App.navigate('akademie');
-            });
-
-            const mod = this.MODULES.find(m => m.id === this._activeModule);
-            const idx = mod ? mod.lessons.findIndex(l => l.id === this._activeLesson) : -1;
-            const prev = mod && idx > 0 ? mod.lessons[idx-1] : null;
-            const next = mod && idx < (mod.lessons.length - 1) ? mod.lessons[idx+1] : null;
-
-            const prevBtn = document.getElementById('lessonPrevBtn');
-            if (prevBtn && prev) prevBtn.addEventListener('click', () => { this._activeLesson = prev.id; App.navigate('akademie'); });
-
-            const nextBtn = document.getElementById('lessonNextBtn');
-            if (nextBtn && next) nextBtn.addEventListener('click', () => { this._activeLesson = next.id; App.navigate('akademie'); });
-
-            return;
-        }
-
-        // Modul-Detail offen
-        if (this._activeModule) {
-            const back = document.getElementById('modBackBtn');
-            if (back) back.addEventListener('click', () => { this._activeModule = null; App.navigate('akademie'); });
-
-            document.querySelectorAll('.akademie-lesson-row').forEach(row => {
-                this._activate(row, () => {
-                    this._activeModule = row.dataset.modId;
-                    this._activeLesson = row.dataset.lessonId;
-                    App.navigate('akademie');
-                });
-            });
-            return;
-        }
-
-        // "Weiter lernen" Banner
-        const continueBannerEl = document.getElementById('akademieContinueBanner');
-        if (continueBannerEl) {
-            this._activate(continueBannerEl, () => {
-                const naechste = this._naechsteLektion(this._getProgress());
-                if (!naechste) return;
-                this._activeModule = naechste.modul.id;
-                this._activeLesson = naechste.lektion.id;
-                App.navigate('akademie');
-            });
-        }
-
-        // Übersichts-Seite
-        document.querySelectorAll('.akademie-mod-card').forEach(card => {
-            this._activate(card, () => {
-                this._activeModule = card.dataset.modId;
-                this._activeLesson = null;
-                const contentEl = document.getElementById('content');
-                contentEl.innerHTML = this._renderModuleDetail(this._activeModule);
-                this.init();
+        root.querySelectorAll('a[data-academy-module], a[data-academy-overview]').forEach(link => {
+            link.addEventListener('click', event => {
+                if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                this._navigate(link.dataset.academyModule || null, link.dataset.academyLesson || null);
             });
         });
-
-        // Bei Öffnen der Akademie: neue Achievements prüfen
-        this.checkNewAchievements();
+        const jump = root.querySelector('[data-academy-jump]');
+        if (jump) jump.addEventListener('click', event => {
+            event.preventDefault();
+            const heading = root.querySelector('#academyModules');
+            heading.focus({ preventScroll: true });
+            heading.scrollIntoView({ block: 'start', behavior: 'instant' });
+        });
+        const disclosure = root.querySelector('.academy-disclosure');
+        if (disclosure) disclosure.addEventListener('click', () => {
+            const expanded = disclosure.getAttribute('aria-expanded') !== 'true';
+            disclosure.setAttribute('aria-expanded', String(expanded));
+            root.querySelector('#academyMilestonesPanel').hidden = !expanded;
+            disclosure.querySelector('.academy-disclosure-label').textContent = expanded ? 'Ausblenden' : 'Anzeigen';
+        });
+        const action = root.querySelector('#academyLessonAction');
+        if (action) action.addEventListener('click', () => this._handleLessonAction(action));
     }
 };

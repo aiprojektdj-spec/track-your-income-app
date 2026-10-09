@@ -379,7 +379,7 @@ const GbR = {
             <div id="egbr_felder" style="${einst.firmenform==='eGbR' ? '' : 'display:none;'}">
                 <div style="padding:12px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px;margin-bottom:4px;">
                     <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
-                        💡 Seit 01.01.2024 (MoPeG): eGbR-Pflichtangaben auf Rechnungen (Registernummer + -gericht)
+                        Seit 01.01.2024 (MoPeG): eGbR-Pflichtangaben auf Rechnungen (Registernummer + -gericht)
                     </div>
                     <div class="form-row" style="gap:10px;">
                         <div class="form-group">
@@ -400,7 +400,7 @@ const GbR = {
             <div id="hr_felder" style="${['OHG','KG','GmbH','UG','GmbH & Co. KG'].includes(einst.firmenform) ? '' : 'display:none;'}">
                 <div style="padding:12px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:8px;margin-bottom:4px;">
                     <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
-                        📋 Handelsregister-Pflichtangaben (§37a HGB / §35a GmbHG)
+                        Handelsregister-Pflichtangaben (§37a HGB / §35a GmbHG)
                     </div>
                     <div class="form-row" style="gap:10px;">
                         <div class="form-group">
@@ -492,7 +492,7 @@ const GbR = {
             <button class="btn" data-action="close-modal">Abbrechen</button>
             <button class="btn btn-primary" data-action="gbr-save-settings"><i class="ti ti-device-floppy"></i> Speichern</button>
         `;
-        App.showModal('⚙ GbR / Unternehmensform', body, footer);
+        App.showModal('GbR / Unternehmensform', body, footer);
     },
 
     _selectForm(form) {
@@ -636,7 +636,7 @@ const GbR = {
         });
 
         if (anteilInvalid) {
-            Utils.showToast('⚠️ Ungültiger Anteil — muss eine positive Zahl sein', 'warning');
+            Utils.showToast('Ungültiger Anteil — muss eine positive Zahl sein', 'warning');
             return;
         }
 
@@ -644,7 +644,7 @@ const GbR = {
         if (['GbR', 'eGbR', 'OHG', 'KG', 'GmbH & Co. KG', 'GmbH', 'UG'].includes(firmenform) && newList.length > 0) {
             const sumPct = newList.reduce((s, g) => s + g.anteil, 0);
             if (Math.abs(sumPct - 100) > 0.01) {
-                Utils.showToast(`⚠️ Anteile ergeben ${sumPct.toFixed(1)} % — müssen 100 % sein`, 'warning');
+                Utils.showToast(`Anteile ergeben ${sumPct.toFixed(1)} % — müssen 100 % sein`, 'warning');
                 return;
             }
         }
@@ -664,7 +664,7 @@ const GbR = {
         this.saveGesellschafter(newList);
 
         App.closeModal();
-        Utils.showToast('✅ GbR-Einstellungen gespeichert', 'success');
+        Utils.showToast('GbR-Einstellungen gespeichert', 'success');
 
         // EÜR neu rendern falls gerade offen
         if (typeof App !== 'undefined' && App.currentPage === 'euer') {
@@ -688,7 +688,7 @@ const GbR = {
         <hr style="border-color:var(--border);margin:16px 0;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
             <div>
-                <div style="font-weight:700;font-size:14px;">🤝 Unternehmensform & GbR</div>
+                <div style="font-weight:700;font-size:14px;">Unternehmensform & GbR</div>
                 <div style="font-size:12px;color:var(--text-muted);">
                     Aktuell: <strong>${einst.firmenform}</strong>
                     ${(einst.firmenform==='GbR'||einst.firmenform==='eGbR')
@@ -700,11 +700,11 @@ const GbR = {
                 </div>
             </div>
             <button class="btn btn-small btn-outline" data-action="gbr-close-then-settings"
-                    style="white-space:nowrap;">⚙ Bearbeiten</button>
+                    style="white-space:nowrap;">Bearbeiten</button>
         </div>
         ${!pctOk ? `
         <div style="padding:8px 12px;background:rgba(239,68,68,.1);border:1px solid var(--danger);border-radius:6px;font-size:12px;color:var(--danger);margin-bottom:8px;">
-            ⚠️ Anteile summieren sich auf ${sumPct.toFixed(1)} % statt 100 %
+            Anteile summieren sich auf ${sumPct.toFixed(1)} % statt 100 %
         </div>` : ''}
         ${(einst.firmenform==='GbR'||einst.firmenform==='eGbR') && list.length > 0 ? `
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
@@ -944,8 +944,8 @@ const GbR = {
     // ── Tabbed Auszahlungen-Modal ─────────────────────────────────────────
     _TABS: [
         { key: 'verteilung',   label: '<i class="ti ti-chart-pie-2"></i> Gewinnverteilung' },
-        { key: 'auszahlungen', label: '💸 Auszahlungen'     },
-        { key: 'auswertung',   label: '📈 Auswertung'       },
+        { key: 'auszahlungen', label: 'Auszahlungen'     },
+        { key: 'auswertung',   label: 'Auswertung'       },
     ],
 
     openAuszahlungenModal(year, activeTab) {
@@ -962,7 +962,7 @@ const GbR = {
                 <span style="flex:1;"></span>
                 <button class="btn" data-action="close-modal">Schließen</button>
             </div>`;
-        App.showModal('🤝 GbR — Auswertung & Auszahlungen', body, footer);
+        App.showModal('GbR — Auswertung & Auszahlungen', body, footer);
     },
 
     _buildModalBody(year, tab) {
@@ -1059,7 +1059,7 @@ const GbR = {
                 const statusBorder = offen <= 0 ? 'rgba(34,197,94,.4)'  : 'rgba(239,68,68,.3)';
                 const statusColor2 = offen <= 0 ? 'var(--success)'       : 'var(--danger)';
                 const pill = offen <= 0
-                    ? `<span style="padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:var(--success);">✓ ausgezahlt</span>`
+                    ? `<span style="padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:var(--success);">ausgezahlt</span>`
                     : `<span style="padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--danger);">${fmt(offen)} offen</span>`;
 
                 return `<td style="padding:6px 8px;text-align:center;">
@@ -1101,7 +1101,7 @@ const GbR = {
             }).join('')}
         </tr>`;
 
-        const thGS = gesellsch.map(g => `<th style="padding:8px 10px;text-align:center;min-width:150px;">👤 ${Utils.escapeHtml(g.name)}<br><span style="font-weight:400;font-size:10px;">${g.anteil} %</span></th>`).join('');
+        const thGS = gesellsch.map(g => `<th style="padding:8px 10px;text-align:center;min-width:150px;">${Utils.escapeHtml(g.name)}<br><span style="font-weight:400;font-size:10px;">${g.anteil} %</span></th>`).join('');
 
         return `
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
@@ -1144,7 +1144,7 @@ const GbR = {
 
         const body = `
         <div style="margin-bottom:14px;padding:12px;background:var(--bg-secondary);border-radius:8px;font-size:13px;">
-            <strong>👤 ${Utils.escapeHtml(g.name)}</strong> · ${monatNamen[month]} ${year}<br>
+            <strong>${Utils.escapeHtml(g.name)}</strong> · ${monatNamen[month]} ${year}<br>
             <span style="color:var(--text-muted);">Gewinnanteil: <strong style="color:var(--success);">${fmt(anspruch)}</strong> · Bereits ausgezahlt: <strong>${fmt(ausgez)}</strong> · Offen: <strong style="color:${offen>0?'var(--danger)':'var(--success)'};">${fmt(offen)}</strong></span>
         </div>
         <div style="display:flex;flex-direction:column;gap:12px;">
@@ -1179,7 +1179,7 @@ const GbR = {
         const footer = `
             <button class="btn" data-action="gbr-cancel-ausz" data-args='[${year}]' >Abbrechen</button>
             <button class="btn btn-primary" data-action="gbr-save-ausz" data-args='[${year},${month},"${gsId}"]' ><i class="ti ti-device-floppy"></i> Buchen</button>`;
-        App.showModal(`💸 Auszahlung buchen – ${Utils.escapeHtml(g.name)}`, body, footer);
+        App.showModal(`Auszahlung buchen – ${Utils.escapeHtml(g.name)}`, body, footer);
     },
 
     _saveNewAuszahlung(year, month, gsId) {
@@ -1191,7 +1191,7 @@ const GbR = {
         if (!Number.isFinite(betrag) || betrag <= 0) { Utils.showToast('Bitte gültigen Betrag eingeben', 'warning'); return; }
         const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
         this.addAuszahlungEntry(monthKey, gsId, { datum, betrag, typ, notiz });
-        Utils.showToast('✅ Auszahlung gebucht', 'success');
+        Utils.showToast('Auszahlung gebucht', 'success');
         App.closeModal();
         setTimeout(() => GbR.openAuszahlungenModal(year, 'auszahlungen'), 100);
     },
@@ -1204,7 +1204,7 @@ const GbR = {
         const fmt        = v => Utils.formatCurrency(v);
         const monatNamen = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
         const now        = new Date();
-        const typLabel   = { gewinnvorauszahlung: '💰 Vorauszahlung', entnahme: '📤 Entnahme' };
+        const typLabel   = { gewinnvorauszahlung: 'Vorauszahlung', entnahme: 'Entnahme' };
 
         if (!this.isGbR()) return `<div style="padding:20px;text-align:center;color:var(--text-muted);">Nur für GbR verfügbar.</div>`;
         if (gesellsch.length === 0) return `<div style="padding:20px;text-align:center;color:var(--text-muted);">Noch keine Gesellschafter.</div>`;
@@ -1251,7 +1251,7 @@ const GbR = {
             <div style="margin-bottom:20px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
                 <div style="padding:12px 16px;background:var(--bg-secondary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
                     <div>
-                        <span style="font-weight:700;font-size:15px;">👤 ${Utils.escapeHtml(g.name)}</span>
+                        <span style="font-weight:700;font-size:15px;">${Utils.escapeHtml(g.name)}</span>
                         <span style="font-size:12px;color:var(--text-muted);margin-left:8px;">${g.anteil} % · ${year}</span>
                     </div>
                     <div style="display:flex;gap:16px;font-size:12px;">
@@ -1289,7 +1289,7 @@ const GbR = {
     _deleteAusz(monthKey, gsId, eintragId, year) {
         if (!confirm('Auszahlung wirklich löschen?')) return;
         this.deleteAuszahlungEntry(monthKey, gsId, eintragId);
-        Utils.showToast('🗑 Auszahlung gelöscht', 'success');
+        Utils.showToast('Auszahlung gelöscht', 'success');
         const content = document.getElementById('auszTabContent');
         if (content) content.innerHTML = this._renderTabAuszahlungen(year);
     },
@@ -1322,7 +1322,7 @@ const GbR = {
         // ── 1. Balken-Diagramm CSS ───────────────────────────────────────
         const barChart = `
         <div style="margin-bottom:20px;">
-            <div style="font-weight:700;font-size:14px;margin-bottom:10px;">📊 Einnahmen vs. Ausgaben (${year})</div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:10px;">Einnahmen vs. Ausgaben (${year})</div>
             <div style="display:flex;align-items:flex-end;gap:6px;height:120px;padding:0 4px;">
                 ${months.map(m => `
                 <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%;">
@@ -1349,7 +1349,7 @@ const GbR = {
         const pieSection = `
         <div style="margin-bottom:20px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
             <div>
-                <div style="font-weight:700;font-size:14px;margin-bottom:10px;">🍩 Ausgaben-Kategorien (${year})</div>
+                <div style="font-weight:700;font-size:14px;margin-bottom:10px;">Ausgaben-Kategorien (${year})</div>
                 ${katTotal > 0 ? pieSvg : `<div style="color:var(--text-muted);font-size:13px;padding:20px 0;">Keine Ausgaben im Jahr ${year}</div>`}
             </div>
             <div style="flex:1;min-width:160px;">
@@ -1368,7 +1368,7 @@ const GbR = {
         // ── 3. Pro-Gesellschafter Tabelle ────────────────────────────────
         const gsTable = gesellsch.length === 0 ? '' : `
         <div style="margin-bottom:20px;">
-            <div style="font-weight:700;font-size:14px;margin-bottom:10px;">👥 Aufteilung pro Gesellschafter (${year})</div>
+            <div style="font-weight:700;font-size:14px;margin-bottom:10px;">Aufteilung pro Gesellschafter (${year})</div>
             <div style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;font-size:12px;">
                     <thead><tr style="border-bottom:2px solid var(--border);">
@@ -1390,7 +1390,7 @@ const GbR = {
                         });
                         const offen = gsAnspruch - gsAusgez;
                         return `<tr style="border-bottom:1px solid var(--border);">
-                            <td style="padding:7px 10px;font-weight:600;">👤 ${Utils.escapeHtml(g.name)}</td>
+                            <td style="padding:7px 10px;font-weight:600;">${Utils.escapeHtml(g.name)}</td>
                             <td style="padding:7px 10px;text-align:right;color:var(--text-muted);">${g.anteil} %</td>
                             <td style="padding:7px 10px;text-align:right;font-weight:700;color:var(--success);">${fmt(gsAnspruch)}</td>
                             <td style="padding:7px 10px;text-align:right;">${fmt(gsAusgez)}</td>
@@ -1419,7 +1419,7 @@ const GbR = {
         const detailTable = `
         <details>
             <summary style="cursor:pointer;padding:8px 0;font-weight:700;font-size:14px;list-style:none;display:flex;align-items:center;gap:6px;">
-                📋 Monatsdetails ausklappen
+                Monatsdetails ausklappen
             </summary>
             <div style="overflow-x:auto;margin-top:10px;">
                 <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -1479,17 +1479,17 @@ const GbR = {
         return `
         <div style="grid-column:1/-1;">
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">
-                🤝 Gewinnverteilung GbR
+                Gewinnverteilung GbR
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
                 ${verteilung.map(v => `
                 <div class="card stat-card" style="cursor:pointer;" data-action="navigate" data-args=\'["euer"]\'>
-                    <div class="card-label">👤 ${Utils.escapeHtml(v.name)} · ${v.anteil.toFixed(0)} %</div>
+                    <div class="card-label">${Utils.escapeHtml(v.name)} · ${v.anteil.toFixed(0)} %</div>
                     <div class="card-value" style="color:${v.gewinnanteil>=0?'var(--success)':'var(--danger)'};">${fmt(v.gewinnanteil)}</div>
                     <div class="card-subtitle">Gewinnanteil · GewSt: ${fmt(v.gewStAnteil)}</div>
                 </div>`).join('')}
                 <div class="card stat-card" style="cursor:pointer;border-style:dashed;" data-action="gbr-open-ausz">
-                    <div class="card-label">📅 Auszahlungen</div>
+                    <div class="card-label">Auszahlungen</div>
                     <div class="card-value" style="font-size:20px;">buchen</div>
                     <div class="card-subtitle">Monatliche EÜR öffnen</div>
                 </div>

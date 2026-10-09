@@ -628,7 +628,7 @@ const Buchungen = {
                         </div>`).join('');
                     return `<div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;">
                         <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">
-                            📦 Verpackungsmaterial (optional)
+                            Verpackungsmaterial (optional)
                         </div>
                         ${matRows}
                         <div style="font-size:13px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
@@ -1320,7 +1320,7 @@ const Buchungen = {
                     </div>
                     <div class="form-group">
                         <label class="form-label">Beleg-Foto/Scan ${p.belegFoto ? '(vorhanden — Datei wählen zum Ersetzen)' : ''} <span style="font-weight:400;color:var(--text-muted);">— nur relevant bei Vorsteuerabzug (§14 UStG)</span></label>
-                        ${p.belegFoto ? `<div style="margin-bottom:6px;"><a href="#" id="ep_belegFotoView" style="font-size:12px;">📎 aktuelles Beleg-Foto ansehen</a></div>` : ''}
+                        ${p.belegFoto ? `<div style="margin-bottom:6px;"><a href="#" id="ep_belegFotoView" style="font-size:12px;">aktuelles Beleg-Foto ansehen</a></div>` : ''}
                         <input type="file" accept="image/*" class="form-input" id="ep_belegFoto">
                     </div>
                     <div class="form-group">

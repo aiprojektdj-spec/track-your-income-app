@@ -129,7 +129,7 @@ const Koerperschaftsteuer = {
             </div>
         </div>
 
-        <!-- ⚠️ Pflichthinweis: Cash-EÜR-Näherung, keine bilanzielle Gewinnermittlung -->
+        <!-- Pflichthinweis: Cash-EÜR-Näherung, keine bilanzielle Gewinnermittlung -->
         <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;">
             ⚠️ <strong>Vereinfachte Berechnung — keine bilanzielle Gewinnermittlung.</strong>
             ${rf} ist gem. §8 Abs. 1 KStG i.V.m. §5 Abs. 1 EStG bilanzierungspflichtig. Die Zahlen auf dieser Seite basieren auf einer
@@ -201,7 +201,7 @@ const Koerperschaftsteuer = {
         ${isUG ? `
         <!-- UG Thesaurierung -->
         <div class="card" style="margin-bottom:16px;padding:16px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.3);">
-            <div style="font-weight:700;font-size:14px;color:var(--warning);margin-bottom:6px;">⚠️ UG-Thesaurierungspflicht (§5a GmbHG)</div>
+            <div style="font-weight:700;font-size:14px;color:var(--warning);margin-bottom:6px;">UG-Thesaurierungspflicht (§5a GmbHG)</div>
             <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;">
                 <strong>25% des Jahresüberschusses nach Steuern</strong> müssen als Rücklage einbehalten werden,
                 bis Stammkapital von <strong>25.000 €</strong> erreicht ist.<br>
@@ -273,7 +273,7 @@ const Koerperschaftsteuer = {
                 <strong>§4 SolZG:</strong> Solidaritätszuschlag 5,5% auf KSt.<br>
                 <strong>GewSt:</strong> Kapitalgesellschaften haben <strong>keinen Freibetrag</strong> (§11 Abs. 1 GewStG gilt nur für Personengesellschaften).<br>
                 <strong>§5a GmbHG (UG):</strong> 25% Thesaurierungspflicht bis 25.000 € Stammkapital.<br>
-                ⚠️ Unverbindliche Berechnung — Steuerberater hinzuziehen.
+                Unverbindliche Berechnung — Steuerberater hinzuziehen.
             </div>
         </div>`;
     },

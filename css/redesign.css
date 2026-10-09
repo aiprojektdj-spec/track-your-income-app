@@ -133,6 +133,7 @@ body.stackr-shell { display: block; height: auto; min-height: 100vh; }
 .card-value[style] { font-weight: 400 !important; }
 .card-subtitle[style] { font-size: 14px !important; }
 .eb-warning-box { background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+.info-box[style] { background: var(--surface) !important; border-color: var(--line) !important; }
 .eb-warning-box .wb-title { color: var(--text); font-weight: 550; }
 .eb-warning-box .wb-title i { display: none; }
 /* Eigenständige Lagerseite: Kopf an der Inhaltsbreite ausrichten, der Modul-Titel wiederholt ihn nur. */

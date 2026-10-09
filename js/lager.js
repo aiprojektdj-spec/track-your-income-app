@@ -382,7 +382,7 @@ const Lager = {
 
         const footer = `
             <button class="btn" data-action="close-modal">Abbrechen</button>
-            <button class="btn btn-primary" id="saveVerkauf" style="min-width:140px;">💰 Verkauf speichern</button>
+            <button class="btn btn-primary" id="saveVerkauf" style="min-width:140px;">Verkauf speichern</button>
         `;
 
         App.showModal(isMulti ? `Paketverkauf (${selected.length} Artikel)` : 'Artikel verkaufen', body, footer);
@@ -574,7 +574,7 @@ const Lager = {
     // Kompakter Storno-Hinweis für stornierte Artikel (statt leerer Aktionszelle)
     _stornoHint(p) {
         const g = p.stornoGrund ? ' – ' + Utils.escapeHtml(p.stornoGrund) : '';
-        return `<span style="font-size:10px;color:var(--text-muted);" title="${Utils.escapeHtml(p.stornoGrund || 'Storniert')}">🚫 storniert${g}</span>`;
+        return `<span style="font-size:10px;color:var(--text-muted);" title="${Utils.escapeHtml(p.stornoGrund || 'Storniert')}">storniert${g}</span>`;
     },
 
     // Verkauf direkt am Artikel bearbeiten / stornieren
@@ -587,7 +587,7 @@ const Lager = {
             .map(p => `<option value="${Utils.escapeHtml(p)}" ${s.verkaufsplattform === p ? 'selected' : ''}>${Utils.escapeHtml(p)}</option>`).join('');
         const dis = locked ? 'disabled' : '';
         const body = `
-            ${locked ? `<div style="background:rgba(245,158,11,.12);border:1px solid var(--warning,#f59e0b);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;">🔒 ${Utils.escapeHtml(Store.lockReason(s) || 'Festgeschrieben')} — nur Storno möglich.</div>` : ''}
+            ${locked ? `<div style="background:rgba(245,158,11,.12);border:1px solid var(--warning,#f59e0b);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;">${Utils.escapeHtml(Store.lockReason(s) || 'Festgeschrieben')} — nur Storno möglich.</div>` : ''}
             <div class="form-row">
                 <div class="form-group"><label class="form-label">Datum</label><input type="date" class="form-input" id="se_datum" value="${s.datum || ''}" ${dis}></div>
                 <div class="form-group"><label class="form-label">Plattform</label><select class="form-select" id="se_plattform" ${dis}>${platOpts}<option value="Sonstiges">Sonstiges …</option></select></div>
@@ -918,7 +918,7 @@ const Lager = {
                             <option value="100"   ${this._pageSize===100?'selected':''}>100 / Seite</option>
                             <option value="250"   ${this._pageSize===250?'selected':''}>250 / Seite</option>
                             <option value="500"   ${this._pageSize===500?'selected':''}>500 / Seite</option>
-                            <option value="99999" ${this._pageSize>=99999?'selected':''}>🔍 Alle anzeigen</option>
+                            <option value="99999" ${this._pageSize>=99999?'selected':''}>Alle anzeigen</option>
                         </select>
                     </div>
                 </div>
@@ -998,7 +998,7 @@ const Lager = {
             `;
         } catch(err) {
             console.error('Lager.render error:', err);
-            return `<div class="card" style="padding:20px;color:var(--danger);">⚠ Fehler beim Laden des Lagers: ${Utils.escapeHtml(err.message)}</div>`;
+            return `<div class="card" style="padding:20px;color:var(--danger);">Fehler beim Laden des Lagers: ${Utils.escapeHtml(err.message)}</div>`;
         }
     },
 
@@ -1044,7 +1044,7 @@ const Lager = {
                     } else if (p.status === 'verfuegbar') {
                         zoneBadge = `<div style="margin-top:2px;">
                             <button class="btn btn-small" data-zone-pick="${p.id}" title="Zone zuordnen"
-                                style="font-size:9px;padding:1px 5px;opacity:.55;white-space:nowrap;">📍 Zone</button></div>`;
+                                style="font-size:9px;padding:1px 5px;opacity:.55;white-space:nowrap;">Zone</button></div>`;
                     }
                 }
 
@@ -1176,7 +1176,7 @@ const Lager = {
                     ${p.beschreibung ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${Utils.escapeHtml(p.beschreibung)}</div>` : ''}
                     ${p.tags && p.tags.length ? `<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">${p.tags.map(t=>`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:var(--accent-glow);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);">${Utils.escapeHtml(t)}</span>`).join('')}</div>` : ''}
                     ${p.groesse ? `<div style="font-size:11px;color:var(--text-muted);">Gr. ${Utils.escapeHtml(p.groesse)}</div>` : ''}
-                    ${lagerortStr ? `<div style="font-size:10px;color:var(--text-muted);margin-top:3px;">📍 ${Utils.escapeHtml(lagerortStr)}</div>` : ''}
+                    ${lagerortStr ? `<div style="font-size:10px;color:var(--text-muted);margin-top:3px;">${Utils.escapeHtml(lagerortStr)}</div>` : ''}
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:9px;">
                         <span style="font-weight:700;font-size:15px;">${Utils.formatCurrency(p.einkaufspreis)}</span>
                         <span style="font-size:10px;color:var(--text-muted);">${Utils.formatDate(p.datum)}</span>
@@ -1285,7 +1285,7 @@ const Lager = {
                 </div>
             </button>
         </div>`;
-        App.showModal('📥 Lager exportieren', body, '');
+        App.showModal('Lager exportieren', body, '');
     },
 
     exportXLSX() {
@@ -1324,7 +1324,7 @@ const Lager = {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Lager');
         XLSX.writeFile(wb, `Lager_Export_${new Date().toLocaleDateString('sv-SE')}.xlsx`);
-        Utils.showToast('📥 Excel exportiert', 'success');
+        Utils.showToast('Excel exportiert', 'success');
     },
 
     exportCSV() {
@@ -1356,7 +1356,7 @@ const Lager = {
         a.download = `Lager_Export_${new Date().toLocaleDateString('sv-SE')}.csv`;
         a.click();
         URL.revokeObjectURL(url);
-        Utils.showToast('📥 CSV exportiert', 'success');
+        Utils.showToast('CSV exportiert', 'success');
     },
 
     // ── Lager-Layout (Raumlayout-Editor) ────────────────────────────────────
@@ -1385,8 +1385,8 @@ const Lager = {
 
             <!-- Tab Switcher -->
             <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border);">
-                <button id="tabReal" class="btn" style="border-radius:8px 8px 0 0;border-bottom:2px solid transparent;margin-bottom:-2px;background:transparent;color:var(--text-secondary);padding:8px 20px;font-size:13px;">📦 Lager</button>
-                <button id="tabVirtual" class="btn" style="border-radius:8px 8px 0 0;border-bottom:2px solid var(--accent);margin-bottom:-2px;background:var(--bg-card);font-weight:700;color:var(--accent);padding:8px 20px;font-size:13px;">🗺️ Lager-Layout</button>
+                <button id="tabReal" class="btn" style="border-radius:8px 8px 0 0;border-bottom:2px solid transparent;margin-bottom:-2px;background:transparent;color:var(--text-secondary);padding:8px 20px;font-size:13px;">Lager</button>
+                <button id="tabVirtual" class="btn" style="border-radius:8px 8px 0 0;border-bottom:2px solid var(--accent);margin-bottom:-2px;background:var(--bg-card);font-weight:700;color:var(--accent);padding:8px 20px;font-size:13px;">Lager-Layout</button>
             </div>
 
             <!-- Controls -->
@@ -1394,15 +1394,15 @@ const Lager = {
                 <div style="font-size:13px;color:var(--text-secondary);">
                     <strong style="color:var(--text-primary);">${layout.zones.length}</strong> Zonen ·
                     Gitter: ${layout.gridCols} × ${layout.gridRows}
-                    ${unassignedCount > 0 ? `· <span style="color:var(--warning);">⚠️ ${unassignedCount} nicht zugeordnet</span>` : (layout.zones.length > 0 ? ' · <span style="color:var(--success);">✓ alles zugeordnet</span>' : '')}
+                    ${unassignedCount > 0 ? `· <span style="color:var(--warning);">${unassignedCount} nicht zugeordnet</span>` : (layout.zones.length > 0 ? ' · <span style="color:var(--success);">alles zugeordnet</span>' : '')}
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     ${this._layoutEditMode ? `
-                        <button class="btn btn-small" id="layoutConfigGrid">⚙️ Gitter</button>
+                        <button class="btn btn-small" id="layoutConfigGrid">Gitter</button>
                         <button class="btn btn-small btn-primary" id="layoutAddZone">+ Zone hinzufügen</button>
-                        <button class="btn btn-small btn-success" id="layoutEditToggle">✓ Fertig</button>
+                        <button class="btn btn-small btn-success" id="layoutEditToggle">Fertig</button>
                     ` : `
-                        <button class="btn btn-small" id="layoutEditToggle">✏️ Layout bearbeiten</button>
+                        <button class="btn btn-small" id="layoutEditToggle">Layout bearbeiten</button>
                     `}
                 </div>
             </div>
@@ -1414,7 +1414,7 @@ const Lager = {
                     <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;max-width:400px;margin-left:auto;margin-right:auto;">
                         Baue deinen echten Lagerraum nach — füge Regale, Boxen und Schränke als Zonen hinzu. Artikel ordnen sich automatisch zu.
                     </div>
-                    <button class="btn btn-primary" id="layoutEditStart" style="padding:10px 24px;">✏️ Layout jetzt aufbauen</button>
+                    <button class="btn btn-primary" id="layoutEditStart" style="padding:10px 24px;">Layout jetzt aufbauen</button>
                 </div>
             ` : this._renderLayoutGrid(layout, zoneStats)}
 
@@ -1428,7 +1428,7 @@ const Lager = {
             ` : ''}
 
             <div style="margin-top:14px;padding:10px 14px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.15);border-radius:8px;font-size:12px;color:var(--text-secondary);">
-                💡 <strong>Tipp:</strong> Im Lager-Tab siehst du bei jedem Artikel einen <em>📍 Zone</em>-Button — damit kannst du Artikel direkt einer Zone zuordnen. Alternativ: Klicke eine Zone → "Artikel zuordnen".
+                💡 <strong>Tipp:</strong> Im Lager-Tab siehst du bei jedem Artikel einen <em>Zone</em>-Button — damit kannst du Artikel direkt einer Zone zuordnen. Alternativ: Klicke eine Zone → "Artikel zuordnen".
             </div>
         `;
     },
@@ -1497,7 +1497,7 @@ const Lager = {
                 ? `data-zone-edit="${z.id}"`
                 : `data-zone-click="${z.id}"`;
             const editBadge = this._layoutEditMode
-                ? `<div style="font-size:9px;color:rgba(255,255,255,0.45);margin-top:3px;letter-spacing:.5px;">✏️ Klicken zum Bearbeiten</div>`
+                ? `<div style="font-size:9px;color:rgba(255,255,255,0.45);margin-top:3px;letter-spacing:.5px;">Klicken zum Bearbeiten</div>`
                 : '';
 
             return `
@@ -1536,7 +1536,7 @@ const Lager = {
                     <div style="margin-top:2px;">
                         ${z.bereich
                             ? `<div style="font-size:9px;color:rgba(255,255,255,0.55);letter-spacing:.5px;">BEREICH <strong style="color:${z.color};font-size:10px;">${Utils.escapeHtml(z.bereich)}</strong></div>`
-                            : `<div style="font-size:9px;color:#f59e0b;">⚠ kein Bereich</div>`}
+                            : `<div style="font-size:9px;color:#f59e0b;">kein Bereich</div>`}
                         <div style="font-size:12px;font-weight:700;color:${z.color};line-height:1.2;margin-top:1px;">${stats.count} Artikel${stats.value > 0 ? `<span style="font-size:9px;font-weight:400;color:rgba(255,255,255,0.45);margin-left:4px;">${Utils.formatCurrency(stats.value)}</span>` : ''}</div>
                         ${editBadge}
                     </div>
@@ -1653,7 +1653,7 @@ const Lager = {
         `;
 
         const footer = `
-            ${isEdit ? `<button class="btn btn-danger" id="zmDelete" style="margin-right:auto;">🗑 Löschen</button>` : ''}
+            ${isEdit ? `<button class="btn btn-danger" id="zmDelete" style="margin-right:auto;">Löschen</button>` : ''}
             <button class="btn" data-action="close-modal">Abbrechen</button>
             <button class="btn btn-primary" id="zmSave">${isEdit ? 'Speichern' : '+ Hinzufügen'}</button>
         `;
@@ -1714,7 +1714,7 @@ const Lager = {
                     <div style="font-size:36px;margin-bottom:10px;">⚙️</div>
                     <div>Kein Bereich-Code gesetzt — bearbeite die Zone um Artikel zuzuordnen.</div>
                 </div>`,
-                `<button class="btn btn-primary" data-action="lg-zone-edit" data-args='["${zone.id}"]'>✏️ Zone bearbeiten</button>
+                `<button class="btn btn-primary" data-action="lg-zone-edit" data-args='["${zone.id}"]'>Zone bearbeiten</button>
                  <button class="btn" data-action="close-modal">Schließen</button>`
             );
             return;
@@ -1750,8 +1750,8 @@ const Lager = {
             </div>`;
 
         App.showModal(`${icon} ${Utils.escapeHtml(zone.name)}`, body,
-            `<button class="btn" id="zoneEditBtn" style="margin-right:auto;">✏️ Zone bearbeiten</button>
-             <button class="btn btn-primary" id="zoneAssignBtn">📦 Artikel zuordnen</button>
+            `<button class="btn" id="zoneEditBtn" style="margin-right:auto;">Zone bearbeiten</button>
+             <button class="btn btn-primary" id="zoneAssignBtn">Artikel zuordnen</button>
              <button class="btn" data-action="close-modal">Schließen</button>`
         );
 
@@ -1817,7 +1817,7 @@ const Lager = {
 
         App.showModal(`${icon} Artikel zuordnen → ${Utils.escapeHtml(zone.name)}`, body,
             `<button class="btn" data-action="close-modal">Abbrechen</button>
-             <button class="btn btn-primary" id="confirmZoneAssign">✓ Zuordnen</button>`
+             <button class="btn btn-primary" id="confirmZoneAssign">Zuordnen</button>`
         );
 
         const allCb = document.getElementById('selectAllAssign');
@@ -1849,7 +1849,7 @@ const Lager = {
         if (!purchase) return;
         const layout = this._getLayout();
         if (layout.zones.length === 0) {
-            App.showModal('📍 Zone zuordnen',
+            App.showModal('Zone zuordnen',
                 `<div style="text-align:center;padding:30px;color:var(--text-secondary);">
                     <div style="font-size:36px;margin-bottom:10px;">🗺️</div>
                     <div>Noch keine Zonen definiert. Erstelle zuerst ein Lager-Layout.</div>
@@ -1879,7 +1879,7 @@ const Lager = {
                 <span style="font-size:22px;">${icon}</span>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:700;font-size:13px;color:var(--text-primary);">${Utils.escapeHtml(z.name)}</div>
-                    ${z.bereich ? `<div style="font-size:11px;color:var(--text-muted);">Bereich: <strong style="color:${z.color};">${Utils.escapeHtml(z.bereich)}</strong></div>` : `<div style="font-size:11px;color:var(--warning);">⚠ kein Bereich-Code</div>`}
+                    ${z.bereich ? `<div style="font-size:11px;color:var(--text-muted);">Bereich: <strong style="color:${z.color};">${Utils.escapeHtml(z.bereich)}</strong></div>` : `<div style="font-size:11px;color:var(--warning);">kein Bereich-Code</div>`}
                 </div>
                 ${isActive ? `<span style="color:${z.color};font-size:18px;">✓</span>` : ''}
             </div>`;
@@ -1902,7 +1902,7 @@ const Lager = {
                 </div>` : ''}
             </div>`;
 
-        App.showModal(`📍 Zone zuordnen`, body,
+        App.showModal(`Zone zuordnen`, body,
             `<button class="btn" data-action="close-modal">Abbrechen</button>`
         );
 
@@ -2002,7 +2002,7 @@ const Lager = {
                             <div style="text-align:center;font-size:22px;font-weight:700;margin-top:4px;" id="lgRowsVal">${layout.gridRows}</div>
                         </div>
                     </div>`;
-                App.showModal('⚙️ Gitter konfigurieren', body, `
+                App.showModal('Gitter konfigurieren', body, `
                     <button class="btn" data-action="close-modal">Abbrechen</button>
                     <button class="btn btn-primary" id="saveGridCfg">Übernehmen</button>`);
                 document.getElementById('saveGridCfg').addEventListener('click', () => {
@@ -2050,7 +2050,7 @@ const Lager = {
                     <td style="font-size:12px;padding:5px 8px;">${Utils.escapeHtml(p.groesse||'—')}</td>
                     <td style="font-size:12px;padding:5px 8px;text-align:right;">${Utils.formatCurrency(p.einkaufspreis)}</td>
                 </tr>`).join('');
-                App.showModal('⚠️ Nicht zugeordnete Artikel', `
+                App.showModal('Nicht zugeordnete Artikel', `
                     <div style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">${unassigned.length} verfügbare Artikel ohne Zone</div>
                     <div class="table-container" style="border:none;">
                         <table><thead><tr><th>Art.-Nr.</th><th>Artikel</th><th>Größe</th><th style="text-align:right">EK</th></tr></thead>
@@ -2316,8 +2316,8 @@ const Lager = {
                             <img src="${p.foto}" style="max-width:100%;max-height:60vh;border-radius:8px;object-fit:contain;">
                         </div>
                         <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-                            <button class="btn btn-small" id="changePhoto_${id}">📷 Foto ändern</button>
-                            <button class="btn btn-small btn-danger" id="deletePhoto_${id}">🗑 Foto löschen</button>
+                            <button class="btn btn-small" id="changePhoto_${id}">Foto ändern</button>
+                            <button class="btn btn-small btn-danger" id="deletePhoto_${id}">Foto löschen</button>
                         </div>
                     `;
                     App.showModal(Utils.escapeHtml(p.marke || 'Foto'), body, '<button class="btn" data-action="close-modal">Schließen</button>');
@@ -2469,8 +2469,8 @@ const Lager = {
                                     ? `<img id="lagerPhotoPreview_${id}" src="${p.foto}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;">`
                                     : `<div style="width:64px;height:64px;background:var(--bg-secondary);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:26px;">📦</div>`
                                 }
-                                <button class="btn btn-small" id="lagerPhotoUploadBtn_${id}" type="button">📷 ${p.foto ? 'Ändern' : 'Hinzufügen'}</button>
-                                ${p.foto ? `<button class="btn btn-small btn-danger" id="lagerPhotoDelBtn_${id}" type="button">🗑 Löschen</button>` : ''}
+                                <button class="btn btn-small" id="lagerPhotoUploadBtn_${id}" type="button">${p.foto ? 'Ändern' : 'Hinzufügen'}</button>
+                                ${p.foto ? `<button class="btn btn-small btn-danger" id="lagerPhotoDelBtn_${id}" type="button">Löschen</button>` : ''}
                             </div>
                         </div>
                         <!-- Lagerort -->
@@ -2636,7 +2636,7 @@ const Lager = {
                         if (previewImg) previewImg.remove();
                         delPhotoBtn.remove();
                         const changeBtn2 = document.getElementById(`lagerPhotoUploadBtn_${id}`);
-                        if (changeBtn2) changeBtn2.textContent = '📷 Hinzufügen';
+                        if (changeBtn2) changeBtn2.textContent = 'Hinzufügen';
                     });
 
                     // Status-Dropdown → Badge live aktualisieren

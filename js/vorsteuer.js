@@ -368,7 +368,7 @@ const Vorsteuer = {
                         <tr><td>Kz. 66</td><td>Vorsteuer 7% (Ausgaben)</td><td style="text-align:right">${Utils.formatCurrency(e.netto7)}</td><td style="text-align:right;color:var(--success)">${Utils.formatCurrency(e.vst7)}</td></tr>
                         ${e.unklarCount > 0 ? `<tr>
                             <td></td>
-                            <td style="color:var(--warning);">⚠️ ${e.unklarCount} Ausgabe(n) unklar — kein Vorsteuerabzug, bitte USt-Satz nachpflegen</td>
+                            <td style="color:var(--warning);">${e.unklarCount} Ausgabe(n) unklar — kein Vorsteuerabzug, bitte USt-Satz nachpflegen</td>
                             <td style="text-align:right;color:var(--warning);">${Utils.formatCurrency(e.unklarBetrag)}</td>
                             <td style="text-align:right;color:var(--warning);">${Utils.formatCurrency(0)}</td>
                         </tr>` : ''}
@@ -394,7 +394,7 @@ const Vorsteuer = {
         ${e.unklarCount > 0 ? `
         <div class="card" style="margin-top:16px;padding:14px 16px;border:1px solid var(--warning);">
             <div style="font-weight:700;font-size:13px;color:var(--warning);margin-bottom:4px;">
-                ⚠️ ${e.unklarCount} Betriebsausgabe(n) ohne USt-Satz — unklar, kein Vorsteuerabzug
+                ${e.unklarCount} Betriebsausgabe(n) ohne USt-Satz — unklar, kein Vorsteuerabzug
             </div>
             <div style="font-size:12px;color:var(--text-muted);">
                 Summe betroffener Brutto-Beträge: ${Utils.formatCurrency(e.unklarBetrag)}. Bitte in
@@ -424,7 +424,7 @@ const Vorsteuer = {
                 <strong>§15 UStG — Vorsteuerabzug:</strong> Vorsteuer darf nur abgezogen werden wenn eine ordnungsgemäße Rechnung (§14 UStG) vorliegt.<br>
                 <strong>§13b UStG — Reverse Charge:</strong> Leistungsempfänger schuldet USt (z.B. Bauleistungen, EU-Dienstleistungen). Vorsteuer gleichzeitig abziehbar.<br>
                 <strong>§1a UStG — Innergemeinschaftlicher Erwerb:</strong> Erwerb aus EU → Erwerbsteuer + gleichzeitiger Vorsteuerabzug.<br>
-                <strong>⚠️ Unverbindlich</strong> — Beleg-Nachweis oben ist eine Vollständigkeits-Prüfung der in Stackr hinterlegten Angaben, kein Ersatz für die tatsächliche Papier-/PDF-Rechnung. Steuerberater hinzuziehen.
+                <strong>Unverbindlich</strong> — Beleg-Nachweis oben ist eine Vollständigkeits-Prüfung der in Stackr hinterlegten Angaben, kein Ersatz für die tatsächliche Papier-/PDF-Rechnung. Steuerberater hinzuziehen.
             </div>
         </div>`;
     },

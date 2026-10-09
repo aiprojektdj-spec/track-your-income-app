@@ -447,7 +447,7 @@ var Dokumente = (function() {
             if (document.getElementById('sendConfirmCheck').checked && !alreadySent) {
                 var s14 = Store.getRechUnternehmen ? Store.getRechUnternehmen() : {};
                 if (inv.typ === 'rechnung' && settings.land !== 'CH' && !s14.steuernummer && !s14.ustId) {
-                    Utils.showToast('⛔ Steuernummer/USt-IdNr. fehlt – §14 UStG Pflichtangabe. Bitte in Einstellungen ergänzen.', 'error');
+                    Utils.showToast('Steuernummer/USt-IdNr. fehlt – §14 UStG Pflichtangabe. Bitte in Einstellungen ergänzen.', 'error');
                     return;
                 }
                 Store.setVersandStatus(id);
@@ -669,12 +669,12 @@ var Dokumente = (function() {
             // status 'versendet' (Normalfall) dauerhaft unmöglich.
             var saved = Store.addRechTeilzahlung(inv.id, betrag, datum);
             if (!saved) {
-                Utils.showToast('⛔ Konnte nicht gespeichert werden — Rechnung ist bereits bezahlt oder storniert.', 'error');
+                Utils.showToast('Konnte nicht gespeichert werden — Rechnung ist bereits bezahlt oder storniert.', 'error');
                 return;
             }
             inv.teilzahlungen = saved.teilzahlungen;
             if (saved._teilzahlungSaleBooked === false) {
-                Utils.showToast('⚠️ Teilzahlung erfasst, aber Buchungslimit erreicht — dieser Zahlungseingang zählt erst bei der Schlusszahlung als Einnahme. Für sofortige Verbuchung zum richtigen Zufluss-Datum bitte auf Pro upgraden.', 'warning');
+                Utils.showToast('Teilzahlung erfasst, aber Buchungslimit erreicht — dieser Zahlungseingang zählt erst bei der Schlusszahlung als Einnahme. Für sofortige Verbuchung zum richtigen Zufluss-Datum bitte auf Pro upgraden.', 'warning');
             } else {
                 Utils.showToast('Teilzahlung erfasst — Rest: ' + Utils.formatCurrency(restbetrag(inv)), 'success');
             }

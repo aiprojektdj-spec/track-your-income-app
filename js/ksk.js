@@ -190,7 +190,7 @@ const Ksk = {
                 <strong>Beitragsberechnung:</strong> Der Beitrag basiert auf dem gemeldeten Jahreseinkommen, aufgeteilt auf 12 Monate.<br>
                 <strong>KSK-Anteil:</strong> Du zahlst nur ~50% des Beitrags – die KSK übernimmt die andere Hälfte aus dem Künstlersozialabgabe-Aufkommen.<br>
                 <strong>Mindesteinnahmen:</strong> Dein Jahresarbeitseinkommen muss mind. 3.900 € betragen (Stand 2024).<br>
-                <strong>⚠️ Beitragssätze sind Näherungswerte</strong> – aktuelle Sätze unter ksk.de prüfen.
+                <strong>Beitragssätze sind Näherungswerte</strong> – aktuelle Sätze unter ksk.de prüfen.
             </div>
         </div>
         `;
@@ -231,7 +231,7 @@ const Ksk = {
 
     _openConfig() {
         const cfg = Store.getKskConfig();
-        App.showModal('⚙️ KSK-Konfiguration', `
+        App.showModal('KSK-Konfiguration', `
             <div class="form-group">
                 <label class="form-label">KSK-Mitglied?</label>
                 <select class="form-select" id="ksk_mitglied">
@@ -287,7 +287,7 @@ const Ksk = {
 
     _openMeldung() {
         const today = Utils.todayISO();
-        App.showModal('➕ KSK-Meldung erfassen', `
+        App.showModal('KSK-Meldung erfassen', `
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Datum *</label>

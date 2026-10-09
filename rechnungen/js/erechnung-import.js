@@ -242,7 +242,7 @@ var ERechnungImport = (function () {
         if (!elr) return;
         elr.innerHTML =
             '<div class="card" style="border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.06);padding:18px 20px;">' +
-            '<div style="font-weight:700;color:#f59e0b;margin-bottom:6px;">⚠️ Hinweis</div>' +
+            '<div style="font-weight:700;color:#f59e0b;margin-bottom:6px;">Hinweis</div>' +
             '<div style="font-size:14px;line-height:1.6;">' + msg + '</div>' +
             gobdBox(file, hashHex) +
             '</div>';

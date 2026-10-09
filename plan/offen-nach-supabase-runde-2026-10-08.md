@@ -29,7 +29,9 @@ Vor dem Abarbeiten gegen Code und Konto prüfen, nicht gegen diese Datei (CLAUDE
 
 ## 2. Zum Launch (erst dann, wegen E6)
 
-Reihenfolge einhalten. Rückweg ist jeweils: Variablen tauschen bzw. entfernen.
+Reihenfolge einhalten. Rückweg ist jeweils: Variablen tauschen bzw. entfernen — beim Sync **vorher
+`scripts/backfill-sync-supabase.js --check`** und jede Abweichung bereinigen, sonst kann ein entzogener
+Steuerberater-Zugang zurückkommen (Befund B2, `plan/audit-supabase-security-2026-10-07.md`).
 
 1. [ ] Supabase-Organisation auf **Pro**, Spend Cap setzen.
 2. [ ] Storage → Settings: projektweite Upload-Grenze **≥ 200 MB**.

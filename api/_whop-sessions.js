@@ -135,7 +135,7 @@ function configProblem() {
         return P.name === 'redis'
             ? 'UPSTASH_REDIS_REST_URL/TOKEN nicht gesetzt'
             : (db.isConfigured() ? 'WHOP_SESSION_KEY fehlt oder ist nicht 32 Byte Base64'
-                                 : 'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY nicht gesetzt');
+                                 : 'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY nicht gesetzt oder ungültig');
     }
     return '';
 }

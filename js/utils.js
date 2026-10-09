@@ -237,9 +237,9 @@ const Utils = {
         return vk + vkKaeufer - plattformGebuehr - vkVerkaufer;
     },
 
-    // Verkaufsland eines Verkaufs (sale.land, ISO-3166-Code) — reine Auswertungsangabe für
-    // "Umsatz nach Land" in den Statistiken, fließt in keine Steuerberechnung ein.
-    // Deutschland zuerst, dann EU, dann die häufigsten Nicht-EU-Ziele.
+    // Verkaufsland eines Verkaufs (sale.land, ISO-3166-Code). Steuerlich ausgewertet in
+    // js/oss.js (EU: §3c-Schwelle/OSS) und js/ustvoranmeldung.js (Nicht-EU: Ausfuhr Kz. 43,
+    // nur mit sale.ausfuhrnachweis). Deutschland zuerst, dann EU, dann Nicht-EU.
     VERKAUFSLAENDER: ['DE', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'GR', 'HU', 'IE', 'IT',
         'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'CH', 'GB', 'NO', 'US'],
 
@@ -255,6 +255,30 @@ const Utils = {
         return `<option value="">— keine Angabe —</option>${opt('DE')}`
             + `<optgroup label="EU">${eu.map(opt).join('')}</optgroup>`
             + `<optgroup label="Nicht-EU">${this.VERKAUFSLAENDER.slice(27).map(opt).join('')}</optgroup>`;
+    },
+
+    // Drittland = weder Deutschland noch EU-Mitglied (Index 0..26 der Liste)
+    istDrittland(code) {
+        return !!code && this.VERKAUFSLAENDER.indexOf(code) >= 27;
+    },
+
+    // Land-Auswahl + "Ausfuhrnachweis"-Häkchen (nur bei Drittland sichtbar) für Verkaufsdialoge.
+    // IDs: <prefix>_land, <prefix>_land_ausfuhr; lesen über readLandField(prefix).
+    landFieldHtml(prefix, land, ausfuhrnachweis, selectStyle, disabled) {
+        const id = prefix + '_land';
+        const dis = disabled ? ' disabled' : '';
+        return `<select class="form-select" id="${id}" data-action-change="u-land-change"${selectStyle ? ` style="${selectStyle}"` : ''}${dis}>${this.landOptionsHtml(land || '')}</select>
+            <label id="${id}_ausfuhrWrap" style="${this.istDrittland(land) ? 'display:flex' : 'display:none'};gap:6px;align-items:flex-start;margin-top:6px;font-size:12px;font-weight:400;">
+                <input type="checkbox" id="${id}_ausfuhr" ${ausfuhrnachweis ? 'checked' : ''}${dis} style="margin-top:2px;">
+                <span>Ausfuhrnachweis liegt vor (z.&nbsp;B. Zoll-/Versandbeleg) — nur dann steuerfrei (§&nbsp;4 Nr.&nbsp;1a, §&nbsp;6 UStG)</span>
+            </label>`;
+    },
+
+    readLandField(prefix) {
+        const sel = document.getElementById(prefix + '_land');
+        const cb = document.getElementById(prefix + '_land_ausfuhr');
+        const land = sel ? sel.value : '';
+        return { land, ausfuhrnachweis: this.istDrittland(land) && !!(cb && cb.checked) };
     },
 
     getMonthName(monthIndex) {
@@ -722,5 +746,9 @@ if (typeof document !== 'undefined') {
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
 if (window.Actions) Actions.register({
     'u-date-fmt':    function (e, el) { Utils._autoFormatDate(el); },
-    'u-date-finish': function (e, el) { Utils._finishDate(el); }
+    'u-date-finish': function (e, el) { Utils._finishDate(el); },
+    'u-land-change': function (e, el) {
+        const wrap = document.getElementById(el.id + '_ausfuhrWrap');
+        if (wrap) wrap.style.display = Utils.istDrittland(el.value) ? 'flex' : 'none';
+    }
 });

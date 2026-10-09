@@ -248,7 +248,7 @@ const LagerPage = {
                         <!-- Verkaufsland (nur Auswertung "Umsatz nach Land") -->
                         <div>
                             <label class="form-label" for="buch_land" style="font-size:11px;">Land des Käufers</label>
-                            <select class="form-select" id="buch_land" style="padding:5px 8px;font-size:12px;">${Utils.landOptionsHtml(localStorage.getItem('lager_last_land') || '')}</select>
+                            ${Utils.landFieldHtml('buch', localStorage.getItem('lager_last_land') || '', false, 'padding:5px 8px;font-size:12px;')}
                         </div>
 
                         <!-- Verkaufspreis (groß) -->
@@ -522,13 +522,14 @@ const LagerPage = {
             Store.addPlatform(plattform);
         }
         localStorage.setItem('lager_last_platform', plattform);
-        const land = document.getElementById('buch_land').value;
+        const { land, ausfuhrnachweis } = Utils.readLandField('buch');
         localStorage.setItem('lager_last_land', land);
 
         const saleData = {
             datum,
             verkaufsplattform:      plattform,
             land,
+            ausfuhrnachweis,
             verkaufspreis:          preis,
             versandkostenKaeufer:   parseFloat(document.getElementById('buch_versandKaeufer').value) || 0,
             plattformgebuehrProzent: parseFloat(document.getElementById('buch_gebuehr').value)       || 0,

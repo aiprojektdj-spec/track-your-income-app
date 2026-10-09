@@ -1107,6 +1107,7 @@ const App = {
     },
 
     _checkUstThreshold() {
+        if (typeof OSS !== 'undefined') OSS.checkSchwelle(); // §3c-Schwelle, Regel- und Kleinunternehmer
         const settings = Store.getSettings();
         if ((settings.ustMode || 'klein') !== 'klein') return; // nur für Kleinunternehmer
         const year       = new Date().getFullYear();

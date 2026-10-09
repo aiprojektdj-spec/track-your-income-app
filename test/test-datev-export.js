@@ -648,5 +648,18 @@ block(() => {
     check('M9 Stornierte Anlage erzeugt keine Buchung', storno.length === 0);
 });
 
+// ── N) Vorsteuer aus Betriebsausgaben per BU-Schluessel (2026-10-08) ─────────────────────
+// 9 = Vorsteuer 19 %, 8 = Vorsteuer 7 %. Regeln wie Vorsteuer._expenseUstRaw.
+block(() => {
+    const bu = (ust, settings) => buchungen(Object.assign({ expenses: [Object.assign({}, AUSGABE, { ustSatz: ust })] },
+        settings ? { settings } : {}))[0][8];
+    check('N1 19 % -> BU 9', bu(19) === '9');
+    check('N2 7 % -> BU 8', bu(7) === '8');
+    check('N3 0 % -> kein Schluessel', bu(0) === '');
+    check('N4 unklar -> kein Schluessel (nie als 19 % raten)', bu('unklar') === '' && bu(undefined) === '');
+    check('N5 Reverse Charge -> kein Schluessel (laeuft ueber §13b-Eintraege)', bu('rc') === '');
+    check('N6 Kleinunternehmer -> kein Vorsteuerabzug', bu(19, { ustMode: 'klein' }) === '');
+});
+
 console.log('\n' + pass + '/' + total + ' Checks bestanden');
 assert.strictEqual(pass, total, 'DATEV-Export: ' + (total - pass) + ' Pruefung(en) fehlgeschlagen');

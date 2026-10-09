@@ -376,6 +376,14 @@ var DatevExport = (function () {
             var betrag = parseFloat(e.betrag) || 0;
             if (betrag <= 0) return;
             var konto = kontoForKategorie(e.kategorie, skr);
+            // Vorsteuer: die Aufwandskonten haben keine Steuerautomatik, ohne BU-Schluessel kam
+            // beim Steuerberater bis 2026-10-08 keine einzige Vorsteuer aus Betriebsausgaben an.
+            // 9 = Vorsteuer 19 %, 8 = Vorsteuer 7 % (DATEV-Steuerschluessel). Regeln wie
+            // Vorsteuer._expenseUstRaw: 'unklar' nie als 19 % raten, 'rc' laeuft ueber die
+            // eigenen §13b-Eintraege, Kleinunternehmer haben keinen Vorsteuerabzug.
+            var satz = (e.ustSatz != null && e.ustSatz !== '') ? e.ustSatz
+                     : (e.steuersatz != null && e.steuersatz !== '') ? e.steuersatz : 'unklar';
+            var bu = isKlein ? '' : parseFloat(satz) === 19 ? '9' : parseFloat(satz) === 7 ? '8' : '';
             rows.push({
                 umsatz:       betrag,
                 sh:           'S',
@@ -391,7 +399,7 @@ var DatevExport = (function () {
                 // sondern erst beim Steuerberater — und dort beim Zuordnen der Belege.
                 belegfeld1:   e.belegNr || e.id.slice(0, 12),
                 buchungstext: String(e.beschreibung || e.kategorie || 'Ausgabe').slice(0, 60),
-                buSchluessel: '',
+                buSchluessel: bu,
             });
         });
 

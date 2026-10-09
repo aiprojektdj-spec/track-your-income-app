@@ -48,7 +48,7 @@ function ladeMitDaten(o) {
         // echte Store.getFahrten() filtert Stornos ebenfalls nicht, und genau darin lag der
         // Fehler, den 19b5606 in der EUER geschlossen hat. Ein vorfilternder Shim haette ihn
         // im Export nie zeigen koennen.
-        fahrten: [], materialEinkaeufe: [], eigenbelege: [],
+        fahrten: [], materialEinkaeufe: [], eigenbelege: [], retouren: [], afaAnlagen: [],
     }, o || {});
     const Store = {
         getSettings:        () => d.settings,
@@ -59,6 +59,8 @@ function ladeMitDaten(o) {
         getRechCustomers:   () => d.customers,
         getFahrten:            () => d.fahrten,
         getMaterialEinkauefe:  () => d.materialEinkaeufe,
+        getRetouren:           () => d.retouren,
+        getAfaAnlagen:         () => d.afaAnlagen,
         // Eigenbelege gehen nicht ueber einen Getter, sondern ueber den company-praefixierten
         // Schluessel. Der Shim beantwortet genau den Schluessel, den das Modul bildet.
         _syncReadRaw:       (k) => (k === 'co_test__eigenbelege_belege' ? d.eigenbelege : []),
@@ -153,8 +155,11 @@ console.log('\n── C. Einnahmen ───────────────
 
 block(() => {
     const r = buchungen({ invoices: [RECHNUNG], customers: [] })[0];
-    check('C1 Rechnung 19 % bucht brutto im Haben auf 8400 (SKR03)',
-        r[0] === '238,00' && r[1] === 'H' && r[6] === '8400' && r[7] === '1800');
+    // Gegenkonto 1200: in SKR03 ist 1800 "Privatentnahmen allgemein", nicht die Bank. Bis
+    // 2026-10-08 hielt C1 genau diesen Fehler fest — der Test war gegen den Quelltext
+    // geschrieben, nicht gegen den Kontenrahmen.
+    check('C1 Rechnung 19 % bucht brutto im Haben auf 8400 gegen Bank 1200 (SKR03)',
+        r[0] === '238,00' && r[1] === 'H' && r[6] === '8400' && r[7] === '1200');
 
     const r04 = buchungen({ invoices: [RECHNUNG] }, '2026', 'SKR04')[0];
     check('C2 SKR04 nimmt 4400 statt 8400', r04[6] === '4400');
@@ -167,8 +172,8 @@ block(() => {
         settings: { ustMode: 'klein', ustVersteuerungsart: 'soll' },
         invoices: [Object.assign({}, RECHNUNG, { isKlein: true })],
     })[0];
-    check('C4 Kleinunternehmer bucht auf 8200 ohne Umsatzsteuer',
-        klein[6] === '8200' && klein[0] === '200,00' && klein[8] === '');
+    check('C4 Kleinunternehmer bucht auf 8195 ohne Umsatzsteuer',
+        klein[6] === '8195' && klein[0] === '200,00' && klein[8] === '');
 
     const direkt = buchungen({ sales: [VERKAUF] })[0];
     check('C5 Direktverkauf zaehlt den Kaeufer-Versand zur Einnahme (wie UVA und EUER)',
@@ -227,19 +232,33 @@ block(() => {
 
     const sieben = buchungen({ purchases: [Object.assign({}, EINKAUF, { ustSatz: 7 })] })[0];
     const null_ = buchungen({ purchases: [Object.assign({}, EINKAUF, { ustSatz: 0 })] })[0];
-    check('E4 7 % bucht auf 3300, steuerfrei auf 3200 mit BU-Schluessel 40',
-        sieben[6] === '3300' && null_[6] === '3200' && null_[8] === '40');
+    // Kein BU 40 mehr: er hebt eine Steuerautomatik auf, und 3200 hat keine.
+    check('E4 7 % bucht auf 3300, steuerfrei auf 3200 ohne BU-Schluessel',
+        sieben[6] === '3300' && null_[6] === '3200' && null_[8] === '');
+    const sk04 = buchungen({ purchases: [EINKAUF, Object.assign({}, EINKAUF, { id: 'p0', ustSatz: 0 })] }, '2026', 'SKR04');
+    check('E4b SKR04: 19 % auf 5400, steuerfrei auf 5200 (bis 2026-10-08 vertauscht)',
+        sk04[0][6] === '5400' && sk04[1][6] === '5200');
 
     const konten = ladeMitDaten({});
+    // Sollwerte am 2026-10-08 aus dem DATEV-Kontenrahmen genommen, nicht aus js/datev.js.
+    // Vorher standen hier 4230 (Heizung), 4970 (Geldverkehr), 4660 (Reisekosten Arbeitnehmer)
+    // und 4840 (ausserplanmaessige AfA) — der Test bestaetigte die Fehler, statt sie zu finden.
     check('E5 Kategorien treffen ihr SKR03-Konto',
-        konten.kontoForKategorie('Porto', 'SKR03') === '4230' &&
-        konten.kontoForKategorie('Plattformgebuehr', 'SKR03') === '4970' &&
-        konten.kontoForKategorie('Fahrtkosten', 'SKR03') === '4660' &&
-        konten.kontoForKategorie('AfA', 'SKR03') === '4840' &&
+        konten.kontoForKategorie('Porto', 'SKR03') === '4910' &&
+        konten.kontoForKategorie('Plattformgebuehr', 'SKR03') === '4760' &&
+        konten.kontoForKategorie('Fahrtkosten', 'SKR03') === '4673' &&
+        konten.kontoForKategorie('Verpackung', 'SKR03') === '4710' &&
+        konten.kontoForKategorie('Büro', 'SKR03') === '4930' &&
+        konten.kontoForKategorie('AfA', 'SKR03') === '4830' &&
         konten.kontoForKategorie('Irgendwas', 'SKR03') === '4900');
     check('E6 Dieselben Kategorien treffen in SKR04 andere Konten',
-        konten.kontoForKategorie('Porto', 'SKR04') === '6090' &&
-        konten.kontoForKategorie('AfA', 'SKR04') === '6200');
+        konten.kontoForKategorie('Porto', 'SKR04') === '6800' &&
+        konten.kontoForKategorie('Plattformgebuehr', 'SKR04') === '6770' &&
+        konten.kontoForKategorie('Fahrtkosten', 'SKR04') === '6673' &&
+        konten.kontoForKategorie('Verpackung', 'SKR04') === '6710' &&
+        konten.kontoForKategorie('Büro', 'SKR04') === '6815' &&
+        konten.kontoForKategorie('AfA', 'SKR04') === '6220' &&
+        konten.kontoForKategorie('Irgendwas', 'SKR04') === '6300');
 
     check('E7 Stornierte Belege werden nicht exportiert',
         buchungen({
@@ -315,7 +334,7 @@ block(() => {
     const erwartet = ['getAllExpensesRaw', 'getAllPurchasesRaw', 'getAllSalesRaw',
                       'getExpenses', 'getPurchases', 'getRechCustomers',
                       'getRechInvoices', 'getSales', 'getSettings',
-                      'getFahrten', 'getMaterialEinkauefe'].sort();
+                      'getFahrten', 'getMaterialEinkauefe', 'getRetouren', 'getAfaAnlagen'].sort();
     check('G1 Der Stapel liest genau die bekannten Quellen — keine neue, keine verlorene',
         JSON.stringify(gelesen) === JSON.stringify(erwartet),
         'gelesen: ' + gelesen.join(', '));
@@ -326,13 +345,10 @@ block(() => {
     // der an einer fremden Baustelle haengt, schlaegt aus fremden Gruenden fehl. Die Liste
     // steht deshalb hier, mit Datum.
     //
-    // WAS NOCH FEHLT, und warum es fehlt (Stand 2026-09-17): AfA und Retouren brauchen je eine
-    // Buchungsregel, die Stackr nicht kennt — AfA bucht gegen das Anlagekonto des einzelnen
-    // Gegenstands, und das Anlagenverzeichnis fuehrt keines. Beides ist im Export-Hinweis
-    // benannt, damit die Kanzlei es nachtraegt, statt es zu uebersehen.
-    const fehlendeQuellen = ['getAfaAnlagen', 'getRetouren'];
-    check('G2 Die verbliebene Luecke (AfA, Retouren) ist unveraendert',
-        fehlendeQuellen.every(q => !datevSrc.includes('Store.' + q)));
+    // Seit 2026-10-08 liest der Stapel alle Quellen der EUeR: Retouren (Block K) und das
+    // Anlagenverzeichnis (Block M) sind dazugekommen. G2 haelt fest, dass beide auch drin bleiben.
+    check('G2 Retouren und Anlagen sind Quellen des Stapels',
+        ['getRetouren', 'getAfaAnlagen'].every(q => datevSrc.includes('Store.' + q)));
 
     // Eigenbelege haben keinen Store-Getter — sie liegen company-praefixiert in localStorage.
     // Ohne diesen Check faellt niemandem auf, wenn der Zugriff verschwindet, denn G1 sieht ihn
@@ -352,7 +368,7 @@ block(() => {
 
     let z = buchungen({ fahrten: [FAHRT] });
     check('H1 Fahrtkosten erzeugen eine Buchung', z.length === 1);
-    check('H2 Fahrtkosten auf das Reisekostenkonto (SKR03 4660)', z[0] && z[0][6] === '4660');
+    check('H2 Fahrtkosten auf das Reisekostenkonto (SKR03 4673)', z[0] && z[0][6] === '4673');
     check('H3 Fahrtkosten gegen Privateinlage, nicht gegen Bank', z[0] && z[0][7] === '1890');
     check('H4 Fahrtkosten als Soll (Ausgabe)', z[0] && z[0][1] === 'S');
     check('H5 Belegfeld traegt die Fahrtnummer', z[0] && z[0][10] === 'FB-1');
@@ -367,8 +383,8 @@ block(() => {
 
     z = buchungen({ materialEinkaeufe: [MATERIAL] });
     check('H8 Material-Einkauf erzeugt eine Buchung', z.length === 1);
-    check('H9 Material auf Betriebsbedarf (SKR03 4980)', z[0] && z[0][6] === '4980');
-    check('H10 Material gegen BANK — hier ist echt Geld geflossen', z[0] && z[0][7] === '1800');
+    check('H9 Material auf Verpackungsmaterial (SKR03 4710)', z[0] && z[0][6] === '4710');
+    check('H10 Material gegen BANK — hier ist echt Geld geflossen', z[0] && z[0][7] === '1200');
 
     // Der wichtigste Filter des ganzen Blocks: Material, das schon als Ausgabe erfasst wurde,
     // steckt bereits in expenses. Ohne ihn stuende derselbe Euro zweimal im Stapel.
@@ -379,7 +395,7 @@ block(() => {
 
     z = buchungen({ eigenbelege: [EIGENBEL] });
     check('H13 Eigenbeleg erzeugt eine Buchung', z.length === 1);
-    check('H14 Eigenbeleg nach Kategorie kontiert (Porto -> 4230)', z[0] && z[0][6] === '4230');
+    check('H14 Eigenbeleg nach Kategorie kontiert (Porto -> 4910)', z[0] && z[0][6] === '4910');
     check('H15 Eigenbeleg gegen Privateinlage', z[0] && z[0][7] === '1890');
     // DATEV-Belegdatum ist TTMM, das Jahr kommt aus dem Kopf — "0306" ist der 03.06.
     check('H16 Eigenbeleg nutzt belegDatum, nicht datum', z[0] && z[0][9] === '0306');
@@ -396,13 +412,16 @@ block(() => {
 
     // SKR04 muss auf die andere Kontenwelt umschalten, inklusive Privateinlage 2180.
     z = buchungen({ fahrten: [FAHRT] }, '2026', 'SKR04');
-    check('H20 SKR04: Reisekosten 6320', z[0] && z[0][6] === '6320');
+    check('H20 SKR04: Reisekosten 6673', z[0] && z[0][6] === '6673');
     check('H21 SKR04: Privateinlage 2180', z[0] && z[0][7] === '2180');
 
     // Das waehlbare Gegenkonto (Betreiberentscheidung 2026-09-17).
     const mod = ladeMitDaten({ fahrten: [FAHRT] });
     const mitBank = mod.buildCSV('2026', 'SKR03', 'bank').split('\r\n').slice(2).map(spalten);
-    check('H22 Gegenkonto "bank" wird durchgereicht', mitBank[0] && mitBank[0][7] === '1800');
+    check('H22 Gegenkonto "bank" wird durchgereicht', mitBank[0] && mitBank[0][7] === '1200');
+    const mitKasse04 = mod.buildCSV('2026', 'SKR04', 'kasse').split('\r\n').slice(2).map(spalten);
+    check('H22b SKR04: Kasse ist 1600 (1000 ist dort Roh-, Hilfs- und Betriebsstoffe)',
+        mitKasse04[0] && mitKasse04[0][7] === '1600');
     const mitUnsinn = mod.buildCSV('2026', 'SKR03', 'gibtsnicht').split('\r\n').slice(2).map(spalten);
     check('H23 unbekanntes Gegenkonto faellt auf Privateinlage, nicht auf Bank',
         mitUnsinn[0] && mitUnsinn[0][7] === '1890');
@@ -508,6 +527,138 @@ block(() => {
         zJ.indexOf('RE-2026-777') !== -1);
     check('J5 Die eingetippte Beschreibung steht im Buchungstext',
         zJ.indexOf('Tonerkartusche schwarz') !== -1);
+});
+
+// ── K) Retouren (Entscheidung User 2026-10-08: Gegenbuchung auf dem Erloeskonto) ─────────
+block(() => {
+    const RETOURE = { id: 'r1', nummer: 'RT-1', datum: '2026-03-10', erstattungBetrag: 40,
+                      marke: 'Acme', artikeltyp: 'Regal', saleId: 's1' };
+    const z = buchungen({ sales: [VERKAUF], retouren: [RETOURE] });
+    const rt = z.find(r => r[13].indexOf('Retoure') === 0);
+    const vk = z.find(r => r[13].indexOf('Verkauf') === 0);
+    check('K1 Eine Retoure steht im Stapel', !!rt);
+    check('K2 Betrag ist die Erstattung', rt && rt[0] === '40,00');
+    check('K3 Soll auf dem Erloeskonto des Verkaufs, Gegenkonto Bank',
+        rt && vk && rt[1] === 'S' && rt[6] === vk[6] && rt[7] === '1200');
+    check('K4 Retourennummer in Belegfeld 1', rt && rt[10] === 'RT-1');
+
+    // Stornierter Verkauf steht nicht im Stapel — also darf auch die Erstattung nicht hinein
+    const zS = buchungen({ sales: [Object.assign({}, VERKAUF, { storniert: true })], retouren: [RETOURE] });
+    check('K5 Retoure zu storniertem Verkauf faellt weg (kein Doppelabzug)',
+        !zS.some(r => r[13].indexOf('Retoure') === 0));
+
+    const zJ = buchungen({ retouren: [Object.assign({}, RETOURE, { datum: '2025-12-31', saleId: null })] });
+    check('K6 Retoure aus einem anderen Jahr faellt weg', zJ.length === 0);
+
+    const zK = buchungen({ settings: { ustMode: 'klein' }, retouren: [Object.assign({}, RETOURE, { saleId: null })] });
+    check('K7 Kleinunternehmer: Retoure auf dem Kleinunternehmer-Erloeskonto', !!zK[0] && zK[0][6] === '8195');
+});
+
+// ── L) Buchen je Position nach Art (Entscheidung User 2026-10-08) ──────────────────────
+// Sollkonten aus dem DATEV-Kontenrahmen (SKR03). Bis 2026-10-08 landete eine Rechnung komplett
+// auf dem Konto ihres hoechsten Satzes und jeder Direktverkaeufe auf 8400 — auch §25a.
+// Die EU-Liste und der §25a-Rechenkern kommen aus den echten Modulen, nicht aus Attrappen:
+// weicht der Stapel von der Voranmeldung ab, soll das hier auffallen.
+global.Vorsteuer = { EU_LAENDER: ['AT', 'FR', 'NL'] };
+global.SteuerBerechnung = new Function(fs.readFileSync(__dirname + '/../js/steuer-berechnung.js', 'utf8') + '\n; return SteuerBerechnung;')();
+block(() => {
+    const konto = (zeilen, k) => zeilen.filter(r => r[6] === k).map(r => r[0]);
+
+    const gemischt = buchungen({ invoices: [Object.assign({}, RECHNUNG, { positionen: [
+        { menge: 1, einzelpreis: 100, mwstSatz: 19 }, { menge: 1, einzelpreis: 100, mwstSatz: 7 }] })] });
+    check('L1 Gemischte Rechnung: 19 % auf 8400, 7 % auf 8300, je brutto',
+        konto(gemischt, '8400')[0] === '119,00' && konto(gemischt, '8300')[0] === '107,00' && gemischt.length === 2);
+    check('L2 Kein BU-Schluessel mehr auf Erloeszeilen', gemischt.every(r => r[8] === ''));
+
+    const EU = { id: 'k2', firma: 'Client SARL', land: 'FR', ustIdNr: 'FR123' };
+    const igl = buchungen({ customers: [EU], invoices: [Object.assign({}, RECHNUNG, { kundeId: 'k2', positionen: [
+        { menge: 1, einzelpreis: 300, mwstSatz: 0, igArt: 'ware' },
+        { menge: 1, einzelpreis: 50, mwstSatz: 0, igArt: 'leistung' }] })] });
+    check('L3 EU-Kunde mit USt-IdNr: Ware auf 8125 (ig. Lieferung)', konto(igl, '8125')[0] === '300,00');
+    check('L4 EU-Kunde mit USt-IdNr: Leistung auf 8336 (Reverse Charge)', konto(igl, '8336')[0] === '50,00');
+
+    const dritt = buchungen({ customers: [{ id: 'k3', firma: 'Acme Inc', land: 'US' }],
+        invoices: [Object.assign({}, RECHNUNG, { kundeId: 'k3', positionen: [{ menge: 1, einzelpreis: 80, mwstSatz: 0 }] })] });
+    check('L5 Drittland: 0 % auf 8120 (Ausfuhr)', konto(dritt, '8120')[0] === '80,00');
+
+    const inland0 = buchungen({ invoices: [Object.assign({}, RECHNUNG, { positionen: [{ menge: 1, einzelpreis: 40, mwstSatz: 0 }] })] });
+    check('L6 Inland 0 %: 8200 ohne BU 40', konto(inland0, '8200')[0] === '40,00' && inland0[0][8] === '');
+
+    // §25a in der Rechnung: Marge 150-100 = 50 auf 8191, der Rest 100 auf 8193
+    const P25 = { id: 'p25', datum: '2026-01-10', einkaufspreis: 100, differenzbesteuert: true, ustSatz: 0 };
+    const r25 = buchungen({ purchases: [P25], invoices: [Object.assign({}, RECHNUNG, { positionen: [
+        { menge: 1, einzelpreis: 150, mwstSatz: 0, differenzbesteuert: true, lagerArtikelId: 'p25' }] })] });
+    check('L7 §25a-Rechnung: Marge auf 8191, Rest auf 8193',
+        konto(r25, '8191')[0] === '50,00' && konto(r25, '8193')[0] === '100,00');
+
+    // §25a-Direktverkauf mit Verlust: Marge 0, alles auf 8193 (Einzeldifferenz, Floor)
+    const v25 = buchungen({ purchases: [P25], sales: [Object.assign({}, VERKAUF, { verkaufspreis: 80, versandkostenKaeufer: 0, purchaseId: 'p25' })] })
+        .filter(r => r[13].indexOf('Verkauf') === 0);
+    check('L8 §25a-Direktverkauf mit Verlust: nichts auf 8191, alles auf 8193',
+        konto(v25, '8191').length === 0 && konto(v25, '8193')[0] === '80,00');
+
+    const v7 = buchungen({ sales: [Object.assign({}, VERKAUF, { steuersatz: 7 })] });
+    check('L9 Direktverkauf zu 7 % auf 8300 (bis 2026-10-08 immer 8400)', v7[0][6] === '8300');
+
+    const rt25 = buchungen({ purchases: [P25],
+        sales: [Object.assign({}, VERKAUF, { id: 's25', verkaufspreis: 150, versandkostenKaeufer: 0, purchaseId: 'p25' })],
+        retouren: [{ id: 'r9', nummer: 'RT-9', datum: '2026-03-20', erstattungBetrag: 150, saleId: 's25' }] })
+        .filter(r => r[13].indexOf('Retoure') === 0);
+    check('L10 Volle Retoure auf §25a-Verkauf: Marge zurueck auf 8191, Rest auf 8193, beides im Soll',
+        konto(rt25, '8191')[0] === '50,00' && konto(rt25, '8193')[0] === '100,00' && rt25.every(r => r[1] === 'S'));
+
+    const r25_04 = buchungen({ purchases: [P25], invoices: [Object.assign({}, RECHNUNG, { positionen: [
+        { menge: 1, einzelpreis: 150, mwstSatz: 0, differenzbesteuert: true, lagerArtikelId: 'p25' }] })] }, '2026', 'SKR04');
+    check('L11 SKR04: §25a auf 4136/4138', konto(r25_04, '4136')[0] === '50,00' && konto(r25_04, '4138')[0] === '100,00');
+});
+
+// ── M) Anlagen: Zugang und AfA gegen das Anlagekonto (Entscheidung User 2026-10-08) ─────
+global.Afa = new Function(fs.readFileSync(__dirname + '/../js/afa.js', 'utf8') + '\n; return Afa;')();
+block(() => {
+    const LAPTOP = { id: 'a1', bezeichnung: 'Laptop', anschaffungsdatum: '2026-01-15', anschaffungskosten: 1500,
+                     nutzungsdauer: 3, methode: 'linear', anlagenart: 'buero' };
+    const z = buchungen({ afaAnlagen: [LAPTOP] });
+    const zugang = z.find(r => r[13].indexOf('Zugang') === 0);
+    const afa = z.find(r => r[13].indexOf('AfA') === 0);
+    check('M1 Zugang im Kaufjahr: Anlagekonto 0420 an Bank', zugang && zugang[6] === '0420' && zugang[7] === '1200' && zugang[0] === '1500,00');
+    check('M2 AfA: 4830 an Anlagekonto 0420, Betrag aus Afa._calcJahresAfa',
+        afa && afa[6] === '4830' && afa[7] === '0420' && afa[0] === global.Afa._calcJahresAfa(LAPTOP, 2026).toFixed(2).replace('.', ','));
+    check('M3 AfA steht zum 31.12.', afa && afa[9] === '3112');
+
+    const folgejahr = buchungen({ afaAnlagen: [LAPTOP] }, '2027');
+    check('M4 Folgejahr: nur AfA, kein zweiter Zugang',
+        folgejahr.length === 1 && folgejahr[0][13].indexOf('AfA') === 0);
+
+    const alt = buchungen({ afaAnlagen: [Object.assign({}, LAPTOP, { anlagenart: undefined })] });
+    check('M5 Anlage ohne Art (Altbestand) gilt als sonstige BGA 0490', alt.every(r => r[6] === '0490' || r[7] === '0490'));
+
+    const pkw = buchungen({ afaAnlagen: [Object.assign({}, LAPTOP, { anlagenart: 'pkw', anschaffungskosten: 30000, nutzungsdauer: 6 })] })
+        .find(r => r[13].indexOf('AfA') === 0);
+    check('M6 Pkw: 4832 an 0320', pkw && pkw[6] === '4832' && pkw[7] === '0320');
+
+    const sw = buchungen({ afaAnlagen: [Object.assign({}, LAPTOP, { anlagenart: 'software' })] }, '2026', 'SKR04')
+        .find(r => r[13].indexOf('AfA') === 0);
+    check('M7 SKR04 Software: 6200 an 0135', sw && sw[6] === '6200' && sw[7] === '0135');
+
+    const gwg = buchungen({ afaAnlagen: [Object.assign({}, LAPTOP, { methode: 'sofort', anschaffungskosten: 600, anlagenart: 'pkw' })] })
+        .find(r => r[13].indexOf('AfA') === 0);
+    check('M8 GWG (Methode sofort) schlaegt die Art: 4855 an 0480, volle AK', gwg && gwg[6] === '4855' && gwg[7] === '0480' && gwg[0] === '600,00');
+
+    const storno = buchungen({ afaAnlagen: [Object.assign({}, LAPTOP, { storniert: true })] });
+    check('M9 Stornierte Anlage erzeugt keine Buchung', storno.length === 0);
+});
+
+// ── N) Vorsteuer aus Betriebsausgaben per BU-Schluessel (2026-10-08) ─────────────────────
+// 9 = Vorsteuer 19 %, 8 = Vorsteuer 7 %. Regeln wie Vorsteuer._expenseUstRaw.
+block(() => {
+    const bu = (ust, settings) => buchungen(Object.assign({ expenses: [Object.assign({}, AUSGABE, { ustSatz: ust })] },
+        settings ? { settings } : {}))[0][8];
+    check('N1 19 % -> BU 9', bu(19) === '9');
+    check('N2 7 % -> BU 8', bu(7) === '8');
+    check('N3 0 % -> kein Schluessel', bu(0) === '');
+    check('N4 unklar -> kein Schluessel (nie als 19 % raten)', bu('unklar') === '' && bu(undefined) === '');
+    check('N5 Reverse Charge -> kein Schluessel (laeuft ueber §13b-Eintraege)', bu('rc') === '');
+    check('N6 Kleinunternehmer -> kein Vorsteuerabzug', bu(19, { ustMode: 'klein' }) === '');
 });
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');

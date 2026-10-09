@@ -97,6 +97,26 @@ const UstVoranmeldung = {
         let bruttoUmsatz19 = 0, bruttoUmsatz7 = 0;
         let nettoIgLieferung = 0, nettoIgLeistung = 0, nettoAusfuhr = 0;
 
+        // Marktplatz-Verkäufe mit erfasstem Land (sale.land), die NICHT in die deutsche
+        // Umsatzsteuer gehören:
+        // - EU-Privatkäufer ab Überschreiten der §3c-Schwelle → USt des Ziellandes, Meldung über
+        //   OSS (js/oss.js entscheidet, §25a-Verkäufe sind dort schon ausgenommen).
+        // - Drittland MIT Ausfuhrnachweis → steuerfreie Ausfuhrlieferung (§4 Nr. 1a, §6 UStG),
+        //   Kz. 43 mit dem vollen Preis. Ohne Nachweis bleibt es bei deutscher USt — die Befreiung
+        //   hängt am Beleg- und Buchnachweis (§6 Abs. 4 UStG, §§ 8 ff. UStDV).
+        // Annahme: Das gilt auch für §25a-Ware — §25a Abs. 7 Nr. 3 schließt nur §3c und die
+        // ig. Lieferung aus, nicht die Ausfuhrbefreiung.
+        // Verkäufe aus Rechnungen (_invoiceId) laufen weiter über den Rechnungspfad unten.
+        const _ossSaleIds = (typeof OSS !== 'undefined' && typeof OSS._ueberSchwelleIds === 'function')
+            ? OSS._ueberSchwelleIds(parseInt(String(startDate).slice(0, 4), 10)) : new Set();
+        const _istAusfuhrSale = s => !s._invoiceId && !!s.ausfuhrnachweis && Utils.istDrittland(s.land);
+        const _nichtInDeUSt = s => !s._invoiceId && (_ossSaleIds.has(s.id) || _istAusfuhrSale(s));
+        // Liefert true, wenn der Verkauf hier abschließend behandelt ist (Ausfuhr gezählt bzw. OSS).
+        const _sonderfallSale = s => {
+            if (_istAusfuhrSale(s)) { nettoAusfuhr += _brutto(s); return true; }
+            return _ossSaleIds.has(s.id);
+        };
+
         if (this._isSoll() && typeof Store.getRechInvoices === 'function') {
             // OSS (§3c UStG): sobald die EU-weite 10.000€-Jahresschwelle überschritten ist, ist für
             // EU-B2C-Fernverkäufe die USt des Ziellandes fällig statt deutscher USt — diese Rechnungen
@@ -110,7 +130,7 @@ const UstVoranmeldung = {
             // pro Rechnung prüfen (chronologische Laufsumme), statt ein Jahres-Flag auf jede Periode
             // anzuwenden — sonst verschwinden früh im Jahr korrekt dt.-versteuerte Rechnungen aus der
             // UVA, sobald die Schwelle später im Jahr überschritten wird.
-            const ossUeberInvoiceIds = (typeof OSS !== 'undefined') ? OSS._ueberSchwelleInvoiceIds(periodYear) : null;
+            const ossUeberInvoiceIds = (typeof OSS !== 'undefined') ? OSS._ueberSchwelleIds(periodYear) : null;
 
             // Soll: alle ausgestellten Rechnungen zum Rechnungsdatum, unabhängig vom Zahlungseingang.
             // Gutschriften (Kreditnoten) laufen mit umgekehrtem Vorzeichen mit — sie mindern die
@@ -179,6 +199,7 @@ const UstVoranmeldung = {
             // Direktverkäufe ohne zugehörige Rechnung (Marktplatz) weiterhin über Verkaufsdatum
             Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate))
                 .forEach(s => {
+                    if (_sonderfallSale(s)) return;
                     if (_istDiff25aSale(s)) {
                         diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s), ref: _refSale25a(s), pauschalmarge: _saleIstPauschal25a(s), jahr: this._year });
                         return;
@@ -192,7 +213,8 @@ const UstVoranmeldung = {
             // Ist: alle Verkäufe (Direktverkäufe + aus bezahlten Rechnungen synchronisiert) zum
             // Zahlungsdatum in Store.getSales() gebucht — anders als bei Soll gibt es hier keinen
             // separaten Rechnungs-Pfad, der Rechnungs-Umsätze schon zählt, also KEIN _invoiceId-Ausschluss.
-            const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate));
+            const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate))
+                .filter(s => !_sonderfallSale(s));
             sales.filter(_istDiff25aSale).forEach(s => {
                 diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s), ref: _refSale25a(s), pauschalmarge: _saleIstPauschal25a(s), jahr: this._year });
             });
@@ -242,6 +264,8 @@ const UstVoranmeldung = {
         retouren.forEach(r => {
             const linked = r.saleId ? salesById[r.saleId] : null;
             if (linked && linked.storniert) return;
+            // Verkauf war nicht in der deutschen USt (OSS/Ausfuhr) → Retoure auch nicht abziehen
+            if (linked && _nichtInDeUSt(linked)) return;
             if (linked && _istDiff25aSale(linked)) {
                 // §25a-Verkauf: Erstattung läuft NICHT über retour7/retour19 (dort ausgeschlossen,
                 // s. Zeile oben), sonst verschwindet sie spurlos statt die versteuerte Marge zu

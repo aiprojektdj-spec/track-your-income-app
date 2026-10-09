@@ -36,7 +36,7 @@ const OSS = {
     // (Inkonsistenz zur UVA-Logik in ustvoranmeldung.js, die Gutschriften bereits gegenrechnet).
     _getB2CInvoices(year) {
         if (typeof Store.getRechInvoices !== 'function') return [];
-        const euLaender = (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : Object.keys(this.EU_VAT_RATES);
+        const euLaender = this._euLaender();
         const customers = Store.getRechCustomers ? Store.getRechCustomers() : [];
         return Store.getRechInvoices()
             .filter(i => (i.typ === 'rechnung' || i.typ === 'gutschrift') && (i.status === 'versendet' || i.status === 'bezahlt') && (i.datum || '').startsWith(String(year)))
@@ -58,10 +58,67 @@ const OSS = {
         return sign * (inv.positionen || []).reduce((s, p) => s + (parseFloat(p.menge) || 0) * (parseFloat(p.einzelpreis) || 0), 0);
     },
 
+    // Marktplatz-Verkäufe ohne Rechnung an Käufer im EU-Ausland (sale.land, beim Verkauf
+    // erfasst). Auf Vinted & Co. sind das Privatkäufer, also B2C-Fernverkäufe nach §3c UStG.
+    // Verkäufe aus Rechnungen (_invoiceId) zählen schon über _getB2CInvoices — nicht doppelt.
+    // §25a-Verkäufe fallen heraus: "Die Anwendung des § 3c ... [ist] bei der
+    // Differenzbesteuerung ausgeschlossen" (§25a Abs. 7 Nr. 3 UStG) — sie bleiben immer
+    // deutsch versteuert und zählen auch nicht zur Schwelle.
+    // Annahme: Retouren mindern die Schwellensumme nicht (warnt im Zweifel früher).
+    _getB2CSales(year) {
+        if (typeof Store.getSales !== 'function') return [];
+        const euLaender = this._euLaender();
+        const diff25a = {};
+        (typeof Store.getPurchases === 'function' ? Store.getPurchases(true) : [])
+            .forEach(p => { if (p.differenzbesteuert) diff25a[p.id] = true; });
+        return Store.getSales().filter(s => {
+            if (s._invoiceId || !(s.datum || '').startsWith(String(year))) return false;
+            if (!s.land || s.land === 'DE' || euLaender.indexOf(s.land) === -1) return false;
+            const ids = (s.purchaseIds && s.purchaseIds.length) ? s.purchaseIds : (s.purchaseId ? [s.purchaseId] : []);
+            return !ids.some(id => diff25a[id]);
+        });
+    },
+
+    _euLaender() {
+        return (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : Object.keys(this.EU_VAT_RATES);
+    },
+
+    // Verkaufspreise auf Marktplätzen sind Bruttopreise. Bis zur Schwelle steckt die deutsche
+    // USt darin (Satz des Verkaufs, Default 19 % wie in der UStVA), danach die des Ziellandes —
+    // der Kunde zahlt denselben Preis, nur der Steueranteil darin wechselt. Kleinunternehmer
+    // weisen keine USt aus: dort ist der Preis das Entgelt.
+    // Annahme: ermäßigte Ziellandsätze sind nicht abgebildet (Hinweis auf der OSS-Seite).
+    _saleBrutto(s) {
+        return (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
+    },
+    _saleNettoDE(s) {
+        if (!this._isRegel()) return this._saleBrutto(s);
+        const satz = parseFloat(s.steuersatz);
+        return this._saleBrutto(s) / (1 + (isNaN(satz) ? 19 : satz) / 100);
+    },
+    _saleNettoZielland(s) {
+        const rate = this.EU_VAT_RATES[s.land];
+        return rate === undefined ? this._saleNettoDE(s) : this._saleBrutto(s) / (1 + rate / 100);
+    },
+
+    // Alle B2C-Fernverkäufe eines Jahres in einer Liste: Rechnungen und Marktplatz-Verkäufe.
+    // netto = Entgelt bei deutschem Leistungsort (Schwellensumme), nettoOSS = Entgelt, wenn der
+    // Umsatz im Zielland zu versteuern ist (bei Rechnungen identisch: dort sind Positionen netto).
+    _umsaetze(year) {
+        const inv = this._getB2CInvoices(year).map(({ inv, kunde }) => {
+            const n = this._netto(inv);
+            return { id: inv.id, datum: inv.datum || '', land: kunde.land, netto: n, nettoOSS: n };
+        });
+        const sales = this._getB2CSales(year).map(s => ({
+            id: s.id, datum: s.datum || '', land: s.land, netto: this._saleNettoDE(s), nettoOSS: this._saleNettoZielland(s)
+        }));
+        return inv.concat(sales);
+    },
+
     _calcLaender(year) {
         const byLand = {};
-        this._getB2CInvoices(year).forEach(({ inv, kunde }) => {
-            byLand[kunde.land] = (byLand[kunde.land] || 0) + this._netto(inv);
+        this._umsaetze(year).forEach(u => {
+            byLand[u.land] = (byLand[u.land] || 0) + u.netto;
         });
         return byLand;
     },
@@ -72,46 +129,94 @@ const OSS = {
     // aus der Zeit vor der Schwelle, die deutsch versteuert und schon in der UStVA erklärt sind,
     // ein zweites Mal im "OSS-Meldung Referenzdaten"-Export (plan/funde-oss-2026-09-15.md).
     _calcLaenderOSS(year) {
-        const ids = this._ueberSchwelleInvoiceIds(year);
+        const ids = this._ueberSchwelleIds(year);
         const byLand = {};
-        this._getB2CInvoices(year).forEach(({ inv, kunde }) => {
-            if (!ids.has(inv.id)) return;
-            byLand[kunde.land] = (byLand[kunde.land] || 0) + this._netto(inv);
+        this._umsaetze(year).forEach(u => {
+            if (!ids.has(u.id)) return;
+            byLand[u.land] = (byLand[u.land] || 0) + u.nettoOSS;
         });
         return byLand;
     },
 
     _jahresumsatz(year) {
-        return this._getB2CInvoices(year).reduce((s, { inv }) => s + this._netto(inv), 0);
+        return this._umsaetze(year).reduce((s, u) => s + u.netto, 0);
     },
 
-    // Rechnungs-IDs, die dem Bestimmungslandprinzip unterliegen (OSS-pflichtig statt dt. USt).
+    // IDs (Rechnungen UND Marktplatz-Verkäufe), die dem Bestimmungslandprinzip unterliegen
+    // (OSS-pflichtig statt dt. USt) — js/ustvoranmeldung.js nimmt sie aus der UStVA heraus.
     // §3c Abs. 4 S. 1 UStG wirkt PROSPEKTIV ab dem Umsatz, der die 10.000€-Schwelle reißt — nicht
     // rückwirkend auf bereits getätigte Umsätze desselben Jahres. Nur die Vorjahresschwelle (S. 2)
     // wirkt rückwirkend ab dem 1. Umsatz. Darum hier chronologische Laufsumme statt Jahres-Flag.
     // ponytail: Tie-Break bei gleichem Rechnungsdatum = Einfügereihenfolge, in der Praxis irrelevant.
-    _ueberSchwelleInvoiceIds(year) {
+    _ueberSchwelleIds(year) {
         // §3c Abs. 4 UStG: "nicht überschritten"/"nicht übersteigt" -> bei exakt 10.000,00 €
         // greift die Ausnahme (Ursprungslandprinzip) noch. Erst der Umsatz, der die Schwelle
         // tatsächlich UEBERsteigt, loest das Bestimmungslandprinzip aus -> strikt '>'.
         if (this._jahresumsatz(year - 1) > this._getSchwelle(year - 1)) {
-            return new Set(this._getB2CInvoices(year).map(({ inv }) => inv.id));
+            return new Set(this._umsaetze(year).map(u => u.id));
         }
-        const sorted = this._getB2CInvoices(year).slice().sort((a, b) => (a.inv.datum || '').localeCompare(b.inv.datum || ''));
+        const sorted = this._umsaetze(year).sort((a, b) => a.datum.localeCompare(b.datum));
         let kumuliert = 0, ueberschritten = false;
         const ids = new Set();
-        sorted.forEach(({ inv }) => {
-            if (ueberschritten) { ids.add(inv.id); return; }
-            kumuliert += this._netto(inv);
-            if (kumuliert > this._getSchwelle(year)) { ueberschritten = true; ids.add(inv.id); }
+        sorted.forEach(u => {
+            if (ueberschritten) { ids.add(u.id); return; }
+            kumuliert += u.netto;
+            if (kumuliert > this._getSchwelle(year)) { ueberschritten = true; ids.add(u.id); }
         });
         return ids;
     },
 
+    // Schwelle im laufenden Jahr oder Vorjahr überschritten? (§3c Abs. 4 S. 1+2, strikt '>')
+    _schwelleUeberschritten(year) {
+        return this._jahresumsatz(year) > this._getSchwelle(year) || this._jahresumsatz(year - 1) > this._getSchwelle(year - 1);
+    },
+
+    // Marktplatz-Verkäufe des Jahres ohne Land: sie zählen als Inland, könnten aber EU-Verkäufe
+    // sein und dann zur Schwelle gehören. Nicht still übergehen, sondern zum Nachtragen zeigen.
+    _ohneLand(year) {
+        if (typeof Store.getSales !== 'function') return 0;
+        return Store.getSales().filter(s => !s._invoiceId && !s.land && (s.datum || '').startsWith(String(year))).length;
+    },
+
+    _ohneLandHinweis(year) {
+        const n = this._ohneLand(year);
+        return n ? `<div class="card" style="padding:12px 16px;margin-bottom:16px;border-color:var(--warning);font-size:13px;">
+            <strong>${n} Verkäufe in ${year} ohne Land des Käufers.</strong> Sie zählen hier als Inlandsverkäufe.
+            Gingen welche ins EU-Ausland, gehören sie zur 10.000-€-Schwelle — Land über „Verkauf bearbeiten" nachtragen.
+        </div>` : '';
+    },
+
+    // Einmal-Hinweis pro Jahr und Firma nach dem Speichern eines Verkaufs (Aufruf aus
+    // App._checkUstThreshold). Regelbesteuerer: Zielland-USt + OSS-Anmeldung. Kleinunternehmer:
+    // §19 befreit nur Umsätze mit deutschem Leistungsort — über der Schwelle liegt der Ort im
+    // Zielland, dort greift die deutsche Befreiung nicht.
+    checkSchwelle() {
+        const year = new Date().getFullYear();
+        const key = 'oss_schwelle_warned_' + year;
+        if (Store.get(key) || !this._schwelleUeberschritten(year)) return;
+        Store.set(key, '1');
+        Utils.showToast(this._isRegel()
+            ? 'EU-Fernverkäufe über 10.000 €: ab jetzt USt des Ziellandes (OSS). Details unter Steuer → OSS.'
+            : 'EU-Fernverkäufe über 10.000 €: Die Kleinunternehmer-Befreiung gilt dafür nicht mehr. Bitte mit Steuerberater klären — Details unter Steuer → OSS.', 'warning');
+    },
+
     render() {
         if (!this._isRegel()) {
+            const y = this._year;
+            const umsatzKU = this._jahresumsatz(y);
+            const kuWarnung = this._schwelleUeberschritten(y) ? `
+            <div class="card danger" style="padding:16px 20px;margin-bottom:16px;font-size:13px;line-height:1.6;">
+                <strong>EU-Fernverkäufe ${y}: ${Utils.formatCurrency(umsatzKU)} — Schwelle von ${Utils.formatCurrency(this._getSchwelle(y))} überschritten${umsatzKU <= this._getSchwelle(y) ? ' (im Vorjahr)' : ''}.</strong><br>
+                Ab dem Verkauf, der die Schwelle überschreitet, liegt der Ort der Lieferung im Land des Käufers (§3c UStG).
+                Die Kleinunternehmer-Befreiung (§19 UStG) gilt nur für Umsätze in Deutschland — für diese Verkäufe fällt die
+                Umsatzsteuer des Ziellandes an (Meldung über das OSS-Verfahren beim BZSt), außer du nimmst am
+                EU-Kleinunternehmerverfahren teil (§19a UStG). <strong>Bitte mit Steuerberater klären.</strong>
+                Verkäufe mit Differenzbesteuerung (§25a) zählen nicht mit.
+            </div>` : (umsatzKU > 0 ? `<div class="card" style="padding:12px 16px;margin-bottom:16px;font-size:13px;">EU-Fernverkäufe ${y}: ${Utils.formatCurrency(umsatzKU)} von ${Utils.formatCurrency(this._getSchwelle(y))} (§3c UStG) — unter der Schwelle, die Kleinunternehmer-Befreiung gilt.</div>` : '');
             return `
             <div class="page-header"><h2>OSS (EU-Fernverkauf)</h2></div>
+            ${kuWarnung}
+            ${this._ohneLandHinweis(y)}
             <div class="card">
                 <div style="padding:32px;text-align:center;">
                     <div style="font-size:48px;margin-bottom:16px;">📋</div>
@@ -127,7 +232,7 @@ const OSS = {
         // §3c Abs. 4 UStG: Schwelle muss im Vorjahr UND im laufenden Jahr unterschritten sein —
         // nach einem Überschreitungsjahr gilt das Bestimmungslandprinzip ab dem ersten Euro
         const vorjahrUmsatz = this._jahresumsatz(year - 1);
-        // strikt '>' -> siehe Begruendung bei _ueberSchwelleInvoiceIds()
+        // strikt '>' -> siehe Begruendung bei _ueberSchwelleIds()
         const ueberSchwelle = umsatz > this._getSchwelle(year) || vorjahrUmsatz > this._getSchwelle(year - 1);
         const nurWegenVorjahr = ueberSchwelle && umsatz <= this._getSchwelle(year);
         const byLand = this._calcLaender(year);
@@ -146,6 +251,8 @@ const OSS = {
             </div>
         </div>
 
+        ${this._ohneLandHinweis(year)}
+
         <div class="card ${ueberSchwelle ? 'danger' : ''}" style="padding:20px;margin-bottom:20px;">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
                 <div>
@@ -156,7 +263,7 @@ const OSS = {
                 <div style="text-align:right;">
                     ${ueberSchwelle
                         ? `<span class="badge badge-danger">Schwelle überschritten${nurWegenVorjahr ? ' (Vorjahr)' : ''}</span><div style="font-size:12px;color:var(--text-muted);margin-top:6px;max-width:280px;">${nurWegenVorjahr ? `Das Vorjahr lag mit ${Utils.formatCurrency(vorjahrUmsatz)} über der Schwelle — das Bestimmungslandprinzip gilt daher schon ab dem ersten Euro dieses Jahres (§3c Abs. 4 UStG). ` : 'USt ist ab Überschreiten im jeweiligen Bestimmungsland fällig. '}Melde dich beim <a href="https://www.bzst.de" target="_blank" rel="noopener">BZSt</a> für das OSS-Verfahren an.</div>`
-                        : '<span class="badge badge-success">Unter Schwelle</span><div style="font-size:12px;color:var(--text-muted);margin-top:6px;max-width:280px;">Bis hierhin gilt das Ursprungslandprinzip — normale deutsche USt auf diesen Rechnungen ist korrekt (Vorjahr ebenfalls unter der Schwelle).</div>'}
+                        : '<span class="badge badge-success">Unter Schwelle</span><div style="font-size:12px;color:var(--text-muted);margin-top:6px;max-width:280px;">Bis hierhin gilt das Ursprungslandprinzip — normale deutsche USt auf diesen Umsätzen ist korrekt (Vorjahr ebenfalls unter der Schwelle).</div>'}
                 </div>
             </div>
             <div style="margin-top:14px;height:8px;background:var(--bg-secondary);border-radius:4px;overflow:hidden;">
@@ -189,7 +296,8 @@ const OSS = {
 
         <div class="card" style="margin-top:16px;">
             <div style="padding:12px 16px;font-size:13px;color:var(--text-muted);line-height:1.7;">
-                <strong>Wer ist betroffen:</strong> Verkäufe von Waren/digitalen Leistungen an <strong>Privatpersonen</strong> in anderen EU-Ländern (erkannt an: Kundenland ≠ DE, EU-Mitglied, keine USt-IdNr. hinterlegt).<br>
+                <strong>Wer ist betroffen:</strong> Verkäufe von Waren/digitalen Leistungen an <strong>Privatpersonen</strong> in anderen EU-Ländern — Rechnungen (Kundenland ≠ DE, EU-Mitglied, keine USt-IdNr.) und Marktplatz-Verkäufe mit erfasstem Land des Käufers. Differenzbesteuerte Verkäufe (§25a) zählen nicht (§25a Abs. 7 Nr. 3 UStG).<br>
+                <strong>Marktplatz-Verkäufe:</strong> Der Verkaufspreis gilt als Bruttopreis; über der Schwelle wird der Ziellandsatz aus ihm herausgerechnet. Retouren solcher Verkäufe stehen nicht in der UStVA — als Korrektur in der OSS-Meldung angeben.<br>
                 <strong>Unter 10.000 €/Jahr</strong> (EU-weit kumuliert, nicht pro Land): weiterhin deutsche USt zulässig (Ursprungslandprinzip).<br>
                 <strong>Ab 10.000 €/Jahr:</strong> USt des Ziellandes fällig, Meldung quartalsweise über das <a href="https://www.bzst.de" target="_blank" rel="noopener">BZSt-Portal (One-Stop-Shop)</a> statt Einzelregistrierung in jedem Land.<br>
                 <strong>Regelsteuersätze</strong> sind Referenzwerte (Stand ${Utils.formatDate(this.RATES_STAND)}) – bei ermäßigt besteuerten Waren/Leistungen im Zielland weichen sie ab, und EU-Länder ändern Sätze gelegentlich. Bei Zweifel offizielle Quelle (z.B. <a href="https://ec.europa.eu/taxation_customs/tedb/" target="_blank" rel="noopener">EU-Steuersatzdatenbank</a>) prüfen.<br>

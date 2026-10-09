@@ -26,12 +26,18 @@ const SteuerBerechnung = {
     // `steuersatz` und fiel bei der zweiten Form auf den 19%-Default zurück: der 7%-Anteil
     // wurde mit 19% genettet, also zu wenig Gewinn und zu viel Umsatzsteuer ausgewiesen
     // (Fund D1, Steuer-Delta-Audit 2026-08-11).
+    //
+    // Marktplatz-Verkäufe außerhalb der deutschen USt (sale.land, s. js/oss.js) nettet
+    // _sondersatz() am richtigen Satz: steuerfreie Ausfuhr 0 %, OSS-Fernverkauf Ziellandsatz.
     nettoSales(sales, isRegel) {
         let brutto = 0, netto = 0;
+        const ossCache = {};
         sales.forEach(s => {
             const b = (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
             brutto += b;
             if (!isRegel) { netto += b; return; }
+            const sonder = this._sondersatz(s, ossCache);
+            if (sonder !== null) { netto += this.nettoAusBrutto(b, sonder).netto; return; }
             const groups = (typeof Store !== 'undefined' && Store.salePerRate)
                 ? Store.salePerRate(s)
                 : [{ satz: s.steuersatz, brutto: b }];
@@ -44,15 +50,34 @@ const SteuerBerechnung = {
     // stornierter, zum Nachschlagen), Fallback 19% ohne Verknüpfung.
     nettoRetouren(retouren, allSalesRaw, isRegel) {
         let brutto = 0, netto = 0;
+        const ossCache = {};
         retouren.forEach(r => {
             const b = parseFloat(r.erstattungBetrag) || 0;
             brutto += b;
             if (!isRegel) { netto += b; return; }
             const relSale = r.saleId ? (allSalesRaw || []).find(s => s.id === r.saleId) : null;
+            const sonder = relSale ? this._sondersatz(relSale, ossCache) : null;
+            if (sonder !== null) { netto += this.nettoAusBrutto(b, sonder).netto; return; }
             const rate = (relSale && relSale.steuersatz != null && relSale.steuersatz !== '') ? relSale.steuersatz : 19;
             netto += this.nettoAusBrutto(b, rate).netto;
         });
         return { brutto, netto, ust: brutto - netto };
+    },
+
+    // Steuersatz für Marktplatz-Verkäufe, die nicht der deutschen USt unterliegen — dieselbe
+    // Abgrenzung wie in js/ustvoranmeldung.js: Drittland mit Ausfuhrnachweis → 0 % (§4 Nr. 1a
+    // UStG), EU-Privatkäufer ab Überschreiten der §3c-Schwelle → Regelsatz des Ziellandes.
+    // null = normaler Weg. Verkäufe aus Rechnungen (_invoiceId) laufen über den Rechnungspfad.
+    // ossCache: { jahr: Set } je Aufruf, damit die Schwellenprüfung nicht pro Verkauf läuft.
+    _sondersatz(s, ossCache) {
+        if (!s || s._invoiceId) return null;
+        if (s.ausfuhrnachweis && typeof Utils !== 'undefined' && Utils.istDrittland(s.land)) return 0;
+        if (typeof OSS === 'undefined' || !s.land || !s.datum) return null;
+        const y = parseInt(String(s.datum).slice(0, 4), 10);
+        if (!ossCache[y]) ossCache[y] = OSS._ueberSchwelleIds(y);
+        if (!ossCache[y].has(s.id)) return null;
+        const r = OSS.EU_VAT_RATES[s.land];
+        return r === undefined ? null : r;
     },
 
     // Rechnungspositionen sind bereits NETTO gespeichert (MwSt wird in rechnung.js separat

@@ -2650,6 +2650,7 @@ const Store = {
             artikeltyp: 'Rechnung',
             beschreibung: (invoice.nummer || '') + (kundeName ? ' – ' + kundeName : '') + (isTeilzahlung ? ' (Teilzahlung)' : ''),
             verkaufsplattform: platform || invoice.verkaufsplattform || '',
+            land: (kunde && kunde.land) || '',  // Auswertung "Umsatz nach Land" (Statistiken)
             verkaufspreis: brutto,
             versandkostenKaeufer: 0,
             plattformgebuehrProzent: 0,

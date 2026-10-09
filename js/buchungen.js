@@ -580,6 +580,10 @@ const Buchungen = {
                         <input type="text" class="form-input" id="vk_customPlattform" maxlength="300" placeholder="Plattform eingeben...">
                     </div>
                     <div class="form-group">
+                        <label class="form-label" for="vk_land">Land des Käufers</label>
+                        ${Utils.landFieldHtml('vk', localStorage.getItem('lager_last_land') || '')}
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">Käufer (optional)</label>
                         <input type="text" class="form-input" id="vk_kaeufer" maxlength="300">
                     </div>
@@ -814,6 +818,7 @@ const Buchungen = {
                     id: saleId,
                     datum: Utils.getDateInputValue('vk_datum'),
                     verkaufsplattform: plattform,
+                    ...Utils.readLandField('vk'),
                     verkaufspreis: vkPreisVal,
                     versandkostenKaeufer: vkVersandKVal,
                     plattformgebuehrProzent: vkGebuehrVal,
@@ -1464,6 +1469,10 @@ const Buchungen = {
                             <label class="form-label">Käufer</label>
                             <input type="text" class="form-input" id="es_kaeufer" maxlength="300" value="${Utils.escapeHtml(s.kaeufer || '')}">
                         </div>
+                        <div class="form-group">
+                            <label class="form-label" for="es_land">Land des Käufers</label>
+                            ${Utils.landFieldHtml('es', s.land, s.ausfuhrnachweis)}
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Notizen</label>
@@ -1515,6 +1524,7 @@ const Buchungen = {
                     groesse: document.getElementById('es_groesse').value.trim(),
                     beschreibung: document.getElementById('es_beschreibung').value.trim(),
                     verkaufsplattform: plat,
+                    ...Utils.readLandField('es'),
                     verkaufspreis: esPreisVal,
                     versandkostenKaeufer: esVersandKVal,
                     plattformgebuehrProzent: esGebuehrVal,

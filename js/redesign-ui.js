@@ -42,7 +42,8 @@
             const headers = Array.from(header.cells);
             headers.forEach(function (cell) { if (!cell.hasAttribute('scope')) cell.scope = 'col'; });
             // Nur einfache Datensatzlisten umbrechen. Formular-/Vergleichstabellen bleiben Tabellen.
-            const plain = headers.length >= 3 && headers.length <= 8 && table.tHead.rows.length === 1 &&
+            const plain = !table.closest('.academy-lesson-content') &&
+                headers.length >= 3 && headers.length <= 8 && table.tHead.rows.length === 1 &&
                 !table.querySelector('tbody input:not([type="checkbox"]), tbody select, tbody textarea, [rowspan]');
             if (plain) {
                 table.classList.add('sr-mobile-table');

@@ -3099,12 +3099,12 @@ body.stb-readonly #emptyNewOffer { display: none !important; }
    Akademie — ruhiger, einfarbiger Lernbereich
    Bewusst lokal: bestehende App-Bereiche behalten ihre Gestaltung.
    ============================================ */
-.main-content:has(.academy) {
+.main-content:has(#content .academy) {
     padding: 32px 32px 48px;
     background: #111111;
 }
 
-:root[data-theme="light"] .main-content:has(.academy) {
+:root[data-theme="light"] .main-content:has(#content .academy) {
     background: #fafafa;
 }
 
@@ -3552,14 +3552,14 @@ body.stb-readonly #emptyNewOffer { display: none !important; }
     margin-top: 8px;
 }
 
-.academy .academy-lesson-content {
+#content .academy .academy-lesson-content {
     margin-top: 32px;
 }
 
 /* Die Inhalte bleiben erhalten; alte Inline-Farben und -Schriftgroessen
    werden nur in der Lesespalte an das neue Design angeglichen. */
-.academy .academy-lesson-content,
-.academy .academy-lesson-content * {
+#content .academy .academy-lesson-content,
+#content .academy .academy-lesson-content * {
     color: var(--academy-text) !important;
     font-family: inherit;
     font-size: 16px !important;
@@ -3568,7 +3568,7 @@ body.stb-readonly #emptyNewOffer { display: none !important; }
     letter-spacing: normal;
 }
 
-.academy .academy-lesson-content :is(h2, h3, h4) {
+#content .academy .academy-lesson-content :is(h2, h3, h4) {
     margin: 32px 0 12px !important;
     font-size: 24px !important;
     font-weight: 450;
@@ -3576,30 +3576,30 @@ body.stb-readonly #emptyNewOffer { display: none !important; }
     letter-spacing: -0.025em;
 }
 
-.academy .academy-lesson-content :is(h2, h3, h4) * {
+#content .academy .academy-lesson-content :is(h2, h3, h4) * {
     font-size: inherit !important;
     line-height: inherit !important;
     letter-spacing: inherit;
 }
 
-.academy .academy-lesson-content :is(p, ul, ol) {
+#content .academy .academy-lesson-content :is(p, ul, ol) {
     margin: 0 0 16px !important;
 }
 
-.academy .academy-lesson-content :is(ul, ol) {
+#content .academy .academy-lesson-content :is(ul, ol) {
     padding-left: 24px;
 }
 
-.academy .academy-lesson-content li + li {
+#content .academy .academy-lesson-content li + li {
     margin-top: 8px;
 }
 
-.academy .academy-lesson-content a {
+#content .academy .academy-lesson-content a {
     text-decoration: underline;
     text-underline-offset: 3px;
 }
 
-.academy .academy-lesson-content :is(.akademie-tip, .akademie-tip-warn, pre, blockquote) {
+#content .academy .academy-lesson-content :is(.akademie-tip, .akademie-tip-warn, pre, blockquote) {
     margin: 24px 0 !important;
     padding: 20px !important;
     border: 0 !important;
@@ -3607,12 +3607,12 @@ body.stb-readonly #emptyNewOffer { display: none !important; }
     background: var(--academy-muted-surface) !important;
 }
 
-.academy .academy-lesson-content pre {
+#content .academy .academy-lesson-content pre {
     white-space: pre-wrap !important;
     overflow-wrap: anywhere;
 }
 
-.academy .academy-lesson-content table {
+#content .academy .academy-lesson-content table {
     width: 100% !important;
     max-width: 100%;
     margin: 24px 0 !important;
@@ -3620,29 +3620,29 @@ body.stb-readonly #emptyNewOffer { display: none !important; }
     table-layout: fixed;
 }
 
-.academy .academy-lesson-content :is(thead, tbody, tr, th, td) {
+#content .academy .academy-lesson-content :is(thead, tbody, tr, th, td) {
     background: transparent !important;
     white-space: normal;
     overflow-wrap: anywhere;
 }
 
-.academy .academy-lesson-content thead {
+#content .academy .academy-lesson-content thead {
     position: static;
 }
 
-.academy .academy-lesson-content :is(th, td) {
+#content .academy .academy-lesson-content :is(th, td) {
     padding: 10px 8px !important;
     border-bottom: 1px solid var(--academy-line);
     vertical-align: top;
     cursor: auto;
 }
 
-.academy .academy-lesson-content th {
+#content .academy .academy-lesson-content th {
     font-weight: 450;
     user-select: text;
 }
 
-.academy .academy-lesson-content tr[style*="border-top"] {
+#content .academy .academy-lesson-content tr[style*="border-top"] {
     border-top: 1px solid var(--academy-line) !important;
 }
 
@@ -3711,12 +3711,12 @@ body.stb-readonly #emptyNewOffer { display: none !important; }
         gap: 8px;
     }
 
-    .academy .academy-lesson-content :is(h2, h3, h4) {
+    #content .academy .academy-lesson-content :is(h2, h3, h4) {
         font-size: 22px !important;
         line-height: 30px !important;
     }
 
-    .academy .academy-lesson-content :is(.akademie-tip, .akademie-tip-warn, pre, blockquote) {
+    #content .academy .academy-lesson-content :is(.akademie-tip, .akademie-tip-warn, pre, blockquote) {
         padding: 16px !important;
     }
 }

@@ -75,6 +75,8 @@ function ladeMitDaten(o) {
         escapeHtml: (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
                                           .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
                                           .replace(/'/g, '&#39;'),
+        // wie js/utils.js: Index >= 27 der Verkaufslaenderliste = Drittland
+        istDrittland: (c) => ['CH', 'GB', 'NO', 'US'].indexOf(c) !== -1,
     };
     return new Function('Store', 'Utils', datevSrc + '\n; return DatevExport;')(Store, Utils);
 }
@@ -659,6 +661,26 @@ block(() => {
     check('N4 unklar -> kein Schluessel (nie als 19 % raten)', bu('unklar') === '' && bu(undefined) === '');
     check('N5 Reverse Charge -> kein Schluessel (laeuft ueber §13b-Eintraege)', bu('rc') === '');
     check('N6 Kleinunternehmer -> kein Vorsteuerabzug', bu(19, { ustMode: 'klein' }) === '');
+});
+
+// ── O) Verkaufsland: Ausfuhr und OSS bei Marktplatz-Verkaeufen (2026-10-09) ─────────────
+// Gleiche Abgrenzung wie die Voranmeldung: Drittland nur MIT Ausfuhrnachweis auf 8120,
+// OSS-Verkauf (js/oss.js) auf das Sammelkonto 8200 wie OSS-Rechnungen, Retoure folgt.
+block(() => {
+    global.OSS = { _ueberSchwelleIds: () => new Set(['oss1']) };
+    try {
+        const v = (id, land, extra) => Object.assign({ id, datum: '2026-05-01', verkaufspreis: 119, versandkostenKaeufer: 0, land }, extra || {});
+        const konto = (s, skr) => buchungen({ sales: [s] }, '2026', skr)[0][6];
+        check('O1 Drittland mit Nachweis -> 8120', konto(v('a1', 'CH', { ausfuhrnachweis: true })) === '8120');
+        check('O2 Drittland ohne Nachweis -> 8400', konto(v('a2', 'US')) === '8400');
+        check('O3 OSS-Verkauf -> 8200, brutto', konto(v('oss1', 'FR')) === '8200');
+        check('O4 SKR04 Ausfuhr -> 4120', konto(v('a3', 'CH', { ausfuhrnachweis: true }), 'SKR04') === '4120');
+        check('O5 EU-Land vor der Schwelle -> 8400', konto(v('eu1', 'FR')) === '8400');
+        const ret = buchungen({ sales: [v('oss1', 'FR')], retouren: [{ id: 'r1', datum: '2026-06-01', saleId: 'oss1', erstattungBetrag: 50 }] })
+            .find(r => r[13].indexOf('Retoure') === 0);
+        check('O6 Retoure eines OSS-Verkaufs -> 8200', ret && ret[6] === '8200');
+        check('O7 Kleinunternehmer bleibt 8195', buchungen({ sales: [v('oss1', 'FR')], settings: { ustMode: 'klein' } })[0][6] === '8195');
+    } finally { delete global.OSS; }
 });
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');

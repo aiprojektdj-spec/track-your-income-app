@@ -4,7 +4,7 @@
 // plan/funde-vollaudit-2026-09-09.md). Das Modul ist klein, aber es entscheidet eine Frage mit
 // Geld dahinter: ob auf eine Rechnung deutsche Umsatzsteuer gehoert oder die des Ziellandes.
 //
-// Der Kern ist _ueberSchwelleInvoiceIds() — und der wird nicht nur von der OSS-Seite benutzt,
+// Der Kern ist _ueberSchwelleIds() — und der wird nicht nur von der OSS-Seite benutzt,
 // sondern von js/ustvoranmeldung.js:113, also von der Meldung, die beim Finanzamt landet.
 // Genau deshalb steht hier die Schwellenmechanik im Mittelpunkt und nicht die Oberflaeche.
 //
@@ -127,7 +127,7 @@ block(() => {
         re('IT', 3000, '2026-06-01'),   // dieser Umsatz uebersteigt die Schwelle
         re('PL', 1000, '2026-08-01'),
     ];
-    const ids = lade({ invoices: inv, customers: KUNDEN })._ueberSchwelleInvoiceIds(2026);
+    const ids = lade({ invoices: inv, customers: KUNDEN })._ueberSchwelleIds(2026);
 
     check('B1 Die beiden Rechnungen vor dem Ueberschreiten bleiben deutsch versteuert',
         !ids.has(inv[0].id) && !ids.has(inv[1].id));
@@ -142,10 +142,10 @@ block(() => {
     // Ein '>=' statt '>' wuerde hier faelschlich das Bestimmungslandprinzip ausloesen.
     const exakt = [re('AT', 6000, '2026-02-01'), re('FR', 4000, '2026-04-01')];
     check('B5 Exakt 10.000,00 € reissen die Schwelle NICHT (striktes groesser-als)',
-        lade({ invoices: exakt, customers: KUNDEN })._ueberSchwelleInvoiceIds(2026).size === 0);
+        lade({ invoices: exakt, customers: KUNDEN })._ueberSchwelleIds(2026).size === 0);
 
     const einCent = [re('AT', 6000, '2026-02-01'), re('FR', 4000.01, '2026-04-01')];
-    const idsCent = lade({ invoices: einCent, customers: KUNDEN })._ueberSchwelleInvoiceIds(2026);
+    const idsCent = lade({ invoices: einCent, customers: KUNDEN })._ueberSchwelleIds(2026);
     check('B6 Ein Cent darueber reisst sie — und trifft genau die zweite Rechnung',
         idsCent.size === 1 && idsCent.has(einCent[1].id));
 });
@@ -158,7 +158,7 @@ block(() => {
         re('AT', 9500, '2026-01-01'),
         re('FR', 400,  '2026-06-01'),
     ];
-    const ids = lade({ invoices: unsortiert, customers: KUNDEN })._ueberSchwelleInvoiceIds(2026);
+    const ids = lade({ invoices: unsortiert, customers: KUNDEN })._ueberSchwelleIds(2026);
     check('B7 Die Laufsumme laeuft nach Datum, nicht nach Eingabereihenfolge',
         !ids.has(unsortiert[1].id) && !ids.has(unsortiert[2].id) && ids.has(unsortiert[0].id));
 
@@ -169,7 +169,7 @@ block(() => {
         re('IT', 2000, '2026-03-01'),
     ];
     check('B8 Eine Gutschrift senkt die Laufsumme, die Schwelle bleibt ungerissen',
-        lade({ invoices: mitGutschrift, customers: KUNDEN })._ueberSchwelleInvoiceIds(2026).size === 0);
+        lade({ invoices: mitGutschrift, customers: KUNDEN })._ueberSchwelleIds(2026).size === 0);
 });
 
 console.log('\n── C. §3c Abs. 4 Satz 2 — Vorjahr wirkt rueckwirkend ─────────');
@@ -180,17 +180,17 @@ block(() => {
         re('FR', 100,   '2026-02-01'),   // laufendes Jahr: winzig
         re('IT', 50,    '2026-03-01'),
     ];
-    const ids = lade({ invoices: vorjahrDrueber, customers: KUNDEN })._ueberSchwelleInvoiceIds(2026);
+    const ids = lade({ invoices: vorjahrDrueber, customers: KUNDEN })._ueberSchwelleIds(2026);
     check('C1 Vorjahr ueber der Schwelle: schon der erste Euro des Jahres ist OSS-pflichtig',
         ids.size === 2 && ids.has(vorjahrDrueber[1].id) && ids.has(vorjahrDrueber[2].id));
 
     const vorjahrExakt = [re('AT', 10000, '2025-05-01'), re('FR', 100, '2026-02-01')];
     check('C2 Vorjahr exakt auf der Schwelle wirkt NICHT rueckwirkend',
-        lade({ invoices: vorjahrExakt, customers: KUNDEN })._ueberSchwelleInvoiceIds(2026).size === 0);
+        lade({ invoices: vorjahrExakt, customers: KUNDEN })._ueberSchwelleIds(2026).size === 0);
 
     const vorjahrDrunter = [re('AT', 9999, '2025-05-01'), re('FR', 100, '2026-02-01')];
     check('C3 Vorjahr knapp darunter: das laufende Jahr faengt wieder bei null an',
-        lade({ invoices: vorjahrDrunter, customers: KUNDEN })._ueberSchwelleInvoiceIds(2026).size === 0);
+        lade({ invoices: vorjahrDrunter, customers: KUNDEN })._ueberSchwelleIds(2026).size === 0);
 });
 
 console.log('\n── D. Steuersaetze und Kleinunternehmer ──────────────────────');
@@ -243,7 +243,7 @@ block(() => {
         at[4] === '800.00');
 
     // Gegenprobe gegen die UStVA-Auswahl: dieselbe Zahl, aus derselben Funktion.
-    const ids = O._ueberSchwelleInvoiceIds(2026);
+    const ids = O._ueberSchwelleIds(2026);
     const uva = inv.filter(i => ids.has(i.id)).reduce((s, i) => s + i.positionen[0].einzelpreis, 0);
     check('E5 OSS-Spalte und UStVA-Auswahl stimmen ueberein', parseFloat(at[2]) === uva);
 });

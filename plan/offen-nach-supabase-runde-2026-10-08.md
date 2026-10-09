@@ -15,16 +15,17 @@ Vor dem Abarbeiten gegen Code und Konto prüfen, nicht gegen diese Datei (CLAUDE
   `stackr-preview` umbenennen). Die CSP in `vercel.json` zeigt auf das Prod-Projekt.
 - [ ] **Supabase-DPA abschließen** (F1): Dashboard → Organization → Legal Documents → DPA.
   Geht auch im Free-Plan. Danach Datum in der Datenschutzerklärung nachziehen lassen.
-- [ ] **DATEV-Export** (Fragen aus PR #16):
-  - 0-%-Rechnungen (Reverse Charge, §25a, steuerfrei): **A** = nur ungewöhnliche Sätze wie 19 %,
-    0 % bleibt steuerfrei (empfohlen) · **B** = alles außer 7 % als 19 % (würde bei Reverse Charge
-    nicht geschuldete USt erzeugen). Dazu: bleibt BU-Schlüssel `40` für 0 %?
-  - AfA im Buchungsstapel: (a) Anlagekonto je Anlage · (b) ein Sammelkonto · (c) bleibt draußen.
-  - Retouren: (a) Gegenbuchung auf dem Erlöskonto · (b) eigenes Konto „Erlösschmälerungen“.
-  - Steuerberater fragen: Sind die Abschreibungskonten 4840/6200 richtig, oder 4830/6220?
-- [ ] **Alarm-Log `api/_alert.js`**: Es schreibt heute nach Vercel Blob (zweites Ziel neben Make).
-  Supabase-Tabelle als Ersatz, oder reicht Make allein? Blockiert das spätere Entfernen von
-  `@vercel/blob`.
+- [x] **DATEV-Export** — entschieden und gebaut 2026-10-08 (Branch `claude/datev-alarm-2026-10-08`):
+  - 0 %: weder A noch B, sondern **je Position nach Art** — ig. Lieferung 8125, Reverse Charge
+    (Leistung) 8336, Ausfuhr 8120, §25a Marge 8191 / Rest 8193, sonst 8200; kein BU `40` mehr.
+  - AfA: **(a)** Anlagekonto je Anlage, neues Feld „Anlagenart“ im Anlagenverzeichnis, dazu die
+    Zugangsbuchung im Kaufjahr.
+  - Retouren: **(a)** Gegenbuchung auf dem Erlöskonto des verknüpften Verkaufs.
+  - AfA-Konten: **4830 / 6220** (4840 = außerplanmäßig, 6200 = immateriell) — keine StB-Frage mehr.
+  - Beifund: rund die Hälfte der Kontentabelle war falsch (u. a. Bank SKR03 1800 = Privatentnahmen,
+    SKR04 Wareneingang 19 %/0 % vertauscht, Kasse SKR04 1000). Korrigiert, je Konto ein Test.
+- [x] **Alarm-Log `api/_alert.js`**: Supabase-Tabelle `ops_alerts` — war schon gebaut
+  (`_writeSupabase`, Entscheidung 2026-10-07); Blob fällt beim Umzug weg.
 
 ## 2. Zum Launch (erst dann, wegen E6)
 
@@ -32,11 +33,11 @@ Reihenfolge einhalten. Rückweg ist jeweils: Variablen tauschen bzw. entfernen.
 
 1. [ ] Supabase-Organisation auf **Pro**, Spend Cap setzen.
 2. [ ] Storage → Settings: projektweite Upload-Grenze **≥ 200 MB**.
-3. [ ] **Migrationen ausführen** (SQL-Editor, Dateinamen-Reihenfolge, alle aus `supabase/migrations/`):
-   - Prod `usrhhjwvoefjdgrwovkg`: fehlt nur `20261008000001_whop_sessions.sql`
-     (die anderen fünf sind drin, Stand 2026-10-07 geprüft).
-   - Preview `nvtjzeffngwfsqjzdrdz`: alle sechs.
-   - Prüfen: `anon` darf keine `sync_*`-Funktion ausführen, alle Tabellen haben RLS.
+3. [x] **Migrationen** — am 2026-10-08 per Supabase-MCP geprüft: Prod und Preview haben dieselben
+   13 Tabellen (alle mit RLS) und 32 `sync_*`-Funktionen; Prod trägt die frühen Migrationen nicht in
+   der Historie (damals über den SQL-Editor), die Objekte sind aber da. Security-Advisor in beiden:
+   kein `sync_*` für `anon` ausführbar. Offen als Härtung: `function_search_path_mutable` für alle
+   32 `sync_*`-Funktionen, und die Supabase-eigene `rls_auto_enable()` ist für `anon` ausführbar.
 4. [ ] **Vercel-Variablen** (Sensitive, getrennt für Production und Preview):
    `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (bisheriger JWT-`service_role`-Key, nicht
    `sb_secret_…`, solange nicht getestet), `WHOP_SESSION_KEY` erzeugen mit

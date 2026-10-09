@@ -206,6 +206,16 @@ var DatevExport = (function () {
             return ids.map(function (id) { return purchById[id]; }).filter(Boolean);
         };
         var ist25aVerkauf = function (s) { return verknuepft(s).some(function (p) { return p.differenzbesteuert; }); };
+        // Marktplatz-Verkaeufe ausserhalb der deutschen USt — dieselbe Abgrenzung wie in
+        // js/ustvoranmeldung.js: Drittland mit Ausfuhrnachweis → Ausfuhrkonto (Kz. 43),
+        // EU-Privatkaeufer ab Ueberschreiten der §3c-Schwelle (js/oss.js) → Sammelkonto ohne
+        // Steuerautomatik, brutto — genau wie OSS-Rechnungen unten.
+        var ossIds = (typeof OSS !== 'undefined' && OSS._ueberSchwelleIds) ? OSS._ueberSchwelleIds(parseInt(year, 10)) : new Set();
+        var sonderKonto = function (s) {
+            if (!s || s._invoiceId) return null;
+            if (s.ausfuhrnachweis && typeof Utils !== 'undefined' && Utils.istDrittland && Utils.istDrittland(s.land)) return accounts.erloese_ausfuhr;
+            return ossIds.has(s.id) ? accounts.erloese_0 : null;
+        };
         var ekSumme = function (s) { return verknuepft(s).reduce(function (a, p) { return a + (parseFloat(p.einkaufspreis) || 0); }, 0); };
         var istPauschal = function (p) { return !!(p && p.pauschalmarge && p.warenart === 'kunst'); };
         var verkaufPauschal = function (s) { var ps = verknuepft(s); return ps.length === 1 && istPauschal(ps[0]); };
@@ -290,6 +300,7 @@ var DatevExport = (function () {
             // Käufer-Versand zählt zur Einnahme (konsistent zu UVA/EÜR)
             var konten = sammler();
             if (isKlein) konten.add(accounts.erloese_klein, verkaufBrutto(s));
+            else if (sonderKonto(s)) konten.add(sonderKonto(s), verkaufBrutto(s));
             else if (ist25aVerkauf(s)) teile25a(verkaufBrutto(s), ekSumme(s), verkaufPauschal(s)).forEach(function (t) { konten.add(t[0], t[1]); });
             else verkaufSaetze(s).forEach(function (g) { konten.add(kontoFuerSatz(g[0]), g[1]); });
             konten.zeilen({
@@ -323,6 +334,7 @@ var DatevExport = (function () {
                 var vk = r.saleId ? salesById[r.saleId] : null;
                 var konten = sammler();
                 if (isKlein) konten.add(accounts.erloese_klein, betrag);
+                else if (sonderKonto(vk)) konten.add(sonderKonto(vk), betrag);
                 else if (vk && ist25aVerkauf(vk)) {
                     var vkPreis = parseFloat(vk.verkaufspreis) || 0;
                     var anteil = vkPreis !== 0 ? Math.min(1, betrag / Math.abs(vkPreis)) : 0;

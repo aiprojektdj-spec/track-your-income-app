@@ -273,6 +273,14 @@ const Afa = {
                 </div>
             </div>
             <div class="form-group">
+                <label class="form-label">Anlagenart</label>
+                <select class="form-select" id="afa_art">
+                    ${[['bga', 'Sonstige Betriebs- und Geschäftsausstattung'], ['buero', 'Büroeinrichtung'], ['pkw', 'Pkw'], ['software', 'EDV-Software']]
+                        .map(([v, t]) => `<option value="${v}" ${(existing.anlagenart || 'bga') === v ? 'selected' : ''}>${t}</option>`).join('')}
+                </select>
+                <div class="form-hint">Bestimmt das Anlagekonto im DATEV-Export. GWG (Methode „Sofort") bucht unabhängig davon auf das GWG-Konto.</div>
+            </div>
+            <div class="form-group">
                 <label class="form-label">Kategorie / Notiz</label>
                 <input type="text" class="form-input" id="afa_notiz" maxlength="1000" value="${Utils.escapeHtml(existing.notiz || '')}" placeholder="z.B. Büroausstattung, Fahrzeug, IT-Equipment ...">
             </div>
@@ -330,6 +338,8 @@ const Afa = {
             anschaffungskosten: ak,
             nutzungsdauer: nd,
             methode,
+            // DATEV-Anlagekonto (js/datev.js, ANLAGEN). Fehlt es — Anlagen vor 2026-10-08 —, gilt 'bga'.
+            anlagenart: document.getElementById('afa_art')?.value || 'bga',
             notiz: notiz || ''
         };
 

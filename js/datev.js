@@ -6,25 +6,41 @@
 var DatevExport = (function () {
 
     // ── SKR03 Konto-Mapping ─────────────────────────────────────────────
+    // Am 2026-10-08 Konto fuer Konto gegen den DATEV-Kontenrahmen geprueft (Abschrift
+    // steuerschroeder.de, Rechtsstand 30.06.2026). Bis dahin stand hier u. a. Bank auf 1800 —
+    // in SKR03 ist das "Privatentnahmen allgemein", jede Zahlung landete also als Entnahme beim
+    // Steuerberater. Porto stand auf 4230 (Heizung), Provisionen auf 4970 (Geldverkehr), die AfA
+    // auf 4840 (ausserplanmaessig). Jede Nummer hier ist eine Behauptung ueber den Kontenrahmen:
+    // vor dem Aendern dort nachschlagen, nicht hier abschreiben.
     var SKR03 = {
         // Erlöse
-        erloese_19:     '8400',  // Erlöse 19% USt
-        erloese_7:      '8300',  // Erlöse 7% USt
-        erloese_0:      '8200',  // Steuerfreie Erlöse
-        erloese_klein:  '8200',  // Kleinunternehmer §19 UStG
+        erloese_19:     '8400',  // Erlöse 19 % USt
+        erloese_7:      '8300',  // Erlöse 7 % USt
+        erloese_0:      '8200',  // Erlöse (ohne Steuerautomatik) — 0 % ohne eigene Kennzahl
+        erloese_klein:  '8195',  // Erlöse als Kleinunternehmer i.S.d. § 19 Abs. 1 UStG
+        erloese_igl:    '8125',  // Steuerfreie innergemeinschaftliche Lieferungen § 4 Nr. 1b UStG
+        erloese_ausfuhr:'8120',  // Steuerfreie Umsätze § 4 Nr. 1a UStG (Ausfuhr)
+        erloese_rc_eu:  '8336',  // Erlöse aus im anderen EG-Land stpfl. sonstigen Leistungen, Empfänger schuldet die USt
+        erloese_25a:    '8191',  // Umsatzerlöse nach §§ 25 und 25a UStG 19 % USt (die Marge)
+        erloese_25a_0:  '8193',  // Umsatzerlöse nach §§ 25 und 25a UStG ohne USt (der Rest)
         // Wareneinkauf
-        waren_19:       '3400',  // Wareneinkauf 19% Vorsteuer
-        waren_7:        '3300',  // Wareneinkauf 7% Vorsteuer
-        waren_0:        '3200',  // Wareneinkauf steuerfrei
+        waren_19:       '3400',  // Wareneingang 19 % Vorsteuer
+        waren_7:        '3300',  // Wareneingang 7 % Vorsteuer
+        waren_0:        '3200',  // Wareneingang
         // Betriebsausgaben
-        versand:        '4230',  // Porto & Versand
-        plattform:      '4970',  // Provisionen (Plattformgebühren)
-        fahrt:          '4660',  // Reisekosten
-        material:       '4980',  // Büro-/Betriebsbedarf
-        afa:            '4840',  // Abschreibungen (AfA)
-        sonstige:       '4900',  // Sonstige Betriebsausgaben
+        versand:        '4910',  // Porto
+        plattform:      '4760',  // Verkaufsprovisionen
+        fahrt:          '4673',  // Reisekosten Unternehmer, Fahrtkosten
+        buero:          '4930',  // Bürobedarf
+        verpackung:     '4710',  // Verpackungsmaterial
+        sonstige:       '4900',  // Sonstige betriebliche Aufwendungen
+        // AfA — Aufwand je Anlagenart, Gegenkonto ist das Anlagekonto (siehe ANLAGEN unten)
+        afa:            '4830',  // Abschreibungen, Anlagevermögen (ohne AfA auf Kfz und Gebäude)
+        afa_kfz:        '4832',  // Abschreibungen auf Kfz
+        afa_immat:      '4822',  // Abschreibungen auf immaterielle Vermögensgegenstände
+        afa_gwg:        '4855',  // Sofortabschreibung geringwertiger Wirtschaftsgüter
         // Bank / Kasse / Privat
-        bank:           '1800',  // Bank
+        bank:           '1200',  // Bank
         kasse:          '1000',  // Kasse
         // Privateinlagen: Gegenkonto fuer Aufwand OHNE Zahlungsvorgang. Eine
         // Kilometerpauschale und ein Eigenbeleg sind Betriebsausgabe, aber es verlaesst kein
@@ -34,33 +50,66 @@ var DatevExport = (function () {
     };
 
     // ── SKR04 Konto-Mapping ─────────────────────────────────────────────
+    // Gleiche Pruefung wie SKR03. Hier waren Wareneingang 19 % und 0 % vertauscht (5200 ist der
+    // Wareneingang OHNE Vorsteuer, 5400 der mit 19 %) und Kasse stand auf 1000 — in SKR04 der
+    // Bestand an Roh-, Hilfs- und Betriebsstoffen.
     var SKR04 = {
-        erloese_19:     '4400',
-        erloese_7:      '4300',
-        erloese_0:      '4200',
-        erloese_klein:  '4200',
-        waren_19:       '5200',
-        waren_7:        '5300',
-        waren_0:        '5400',
-        versand:        '6090',
-        plattform:      '6300',
-        fahrt:          '6320',
-        material:       '6810',
-        afa:            '6200',
-        sonstige:       '6850',
-        bank:           '1800',
-        kasse:          '1000',
+        erloese_19:     '4400',  // Erlöse 19 % USt
+        erloese_7:      '4300',  // Erlöse 7 % USt
+        erloese_0:      '4200',  // Erlöse
+        erloese_klein:  '4185',  // Erlöse als Kleinunternehmer i.S.d. § 19 Abs. 1 UStG
+        erloese_igl:    '4125',  // Steuerfreie innergemeinschaftliche Lieferungen § 4 Nr. 1b UStG
+        erloese_ausfuhr:'4120',  // Steuerfreie Umsätze § 4 Nr. 1a UStG
+        erloese_rc_eu:  '4336',  // wie 8336
+        erloese_25a:    '4136',  // Umsatzerlöse nach §§ 25 und 25a UStG 19 % USt
+        erloese_25a_0:  '4138',  // Umsatzerlöse nach §§ 25 und 25a UStG ohne USt
+        waren_19:       '5400',  // Wareneingang 19 % Vorsteuer
+        waren_7:        '5300',  // Wareneingang 7 % Vorsteuer
+        waren_0:        '5200',  // Wareneingang
+        versand:        '6800',  // Porto
+        plattform:      '6770',  // Verkaufsprovisionen
+        fahrt:          '6673',  // Reisekosten Unternehmer, Fahrtkosten
+        buero:          '6815',  // Bürobedarf
+        verpackung:     '6710',  // Verpackungsmaterial
+        sonstige:       '6300',  // Sonstige betriebliche Aufwendungen
+        afa:            '6220',  // Abschreibungen, Anlagevermögen (ohne AfA auf Kfz und Gebäude)
+        afa_kfz:        '6222',  // Abschreibungen auf Kfz
+        afa_immat:      '6200',  // Abschreibungen auf immaterielle Vermögensgegenstände
+        afa_gwg:        '6260',  // Sofortabschreibungen geringwertiger Wirtschaftsgüter
+        bank:           '1800',  // Bank
+        kasse:          '1600',  // Kasse
         privat:         '2180',  // Privateinlagen (SKR04)
     };
 
+    // ── Anlagenart → Anlagekonto und AfA-Aufwandskonto ──────────────────
+    // Entscheidung User 2026-10-08: AfA wird je Anlage gegen ihr eigenes Anlagekonto gebucht.
+    // Die Art waehlt der Nutzer im Anlagenverzeichnis (js/afa.js, Feld `anlagenart`); eine
+    // Anlage ohne Angabe — alles vor diesem Tag — gilt als sonstige Betriebs- und
+    // Geschaeftsausstattung. GWG ergibt sich aus der Methode 'sofort', nicht aus der Art.
+    var ANLAGEN = {
+        SKR03: { software: '0027', pkw: '0320', buero: '0420', bga: '0490', gwg: '0480' },
+        SKR04: { software: '0135', pkw: '0520', buero: '0650', bga: '0690', gwg: '0670' },
+    };
+    function anlageKonten(anlage, skr) {
+        var accounts = skr === 'SKR04' ? SKR04 : SKR03;
+        var anl = ANLAGEN[skr === 'SKR04' ? 'SKR04' : 'SKR03'];
+        if (anlage.methode === 'sofort') return { anlage: anl.gwg, afa: accounts.afa_gwg };
+        var art = anl[anlage.anlagenart] ? anlage.anlagenart : 'bga';
+        var afa = art === 'pkw' ? accounts.afa_kfz : art === 'software' ? accounts.afa_immat : accounts.afa;
+        return { anlage: anl[art], afa: afa };
+    }
+
     // ── Kategorie → SKR-Konto (auch für Finanzen-Modul-Anzeige nutzbar) ──
+    // Die Kategorien stehen in js/ausgaben.js (_kategorien). "Verpackung" fiel bis 2026-10-08
+    // auf "sonstige", weil nur nach "material" gesucht wurde — diese Kategorie gibt es nicht.
     function kontoForKategorie(kategorie, skr) {
         var accounts = skr === 'SKR04' ? SKR04 : SKR03;
         var cat = (kategorie || '').toLowerCase();
         if (cat.indexOf('versand') > -1 || cat.indexOf('porto') > -1) return accounts.versand;
         if (cat.indexOf('plattform') > -1 || cat.indexOf('provision') > -1) return accounts.plattform;
         if (cat.indexOf('fahrt') > -1 || cat.indexOf('reise') > -1) return accounts.fahrt;
-        if (cat.indexOf('material') > -1 || cat.indexOf('büro') > -1) return accounts.material;
+        if (cat.indexOf('verpackung') > -1 || cat.indexOf('material') > -1) return accounts.verpackung;
+        if (cat.indexOf('büro') > -1) return accounts.buero;
         if (cat.indexOf('afa') > -1 || cat.indexOf('abschreibung') > -1) return accounts.afa;
         return accounts.sonstige;
     }
@@ -130,11 +179,71 @@ var DatevExport = (function () {
         // ── Buchungszeilen ───────────────────────────────────────────────
         var rows = [];
 
+        // ── Gemeinsame Zuordnung fuer Rechnungen, Direktverkaeufe und Retouren ───
+        // Entscheidung User 2026-10-08: gebucht wird je Position nach Art, nicht mehr je Rechnung
+        // auf das Konto des hoechsten Satzes. Bis dahin landete eine Rechnung mit 19 %- und
+        // 7 %-Positionen komplett auf 8400, und jeder Direktverkauf — auch §25a — auf dem
+        // 19 %-Konto. Die Unterscheidungen sind dieselben wie in js/ustvoranmeldung.js
+        // (_calcPeriode); weicht eine ab, nennen Voranmeldung und Stapel verschiedene Zahlen.
+        var euLaender = (typeof Vorsteuer !== 'undefined' && Vorsteuer.EU_LAENDER) || [];
+        var kontoFuerSatz = function (satz) {
+            return satz === 19 ? accounts.erloese_19 : satz === 7 ? accounts.erloese_7 : accounts.erloese_0;
+        };
+        // §25a: die Marge (USt darin) auf das 19 %-Konto, der Rest ohne USt. Negative Marge = 0
+        // (Einzeldifferenz, §25a Abs. 3 UStG). Satz 19 fest wie in der Voranmeldung.
+        var pauschalSatz = (typeof SteuerBerechnung !== 'undefined' && SteuerBerechnung.pauschalmargeSatz)
+            ? SteuerBerechnung.pauschalmargeSatz(parseInt(year, 10)) : null;
+        var teile25a = function (vk, ek, pauschal) {
+            var marge = (pauschal && pauschalSatz != null) ? vk * pauschalSatz : vk - ek;
+            marge = Math.min(Math.max(0, marge), Math.max(0, vk));
+            return [[accounts.erloese_25a, marge], [accounts.erloese_25a_0, vk - marge]];
+        };
+        var purchById = {};
+        (Store.getAllPurchasesRaw ? Store.getAllPurchasesRaw() : Store.getPurchases ? Store.getPurchases(true) : [])
+            .forEach(function (p) { purchById[p.id] = p; });
+        var verknuepft = function (s) {
+            var ids = (s.purchaseIds && s.purchaseIds.length) ? s.purchaseIds : (s.purchaseId ? [s.purchaseId] : []);
+            return ids.map(function (id) { return purchById[id]; }).filter(Boolean);
+        };
+        var ist25aVerkauf = function (s) { return verknuepft(s).some(function (p) { return p.differenzbesteuert; }); };
+        var ekSumme = function (s) { return verknuepft(s).reduce(function (a, p) { return a + (parseFloat(p.einkaufspreis) || 0); }, 0); };
+        var istPauschal = function (p) { return !!(p && p.pauschalmarge && p.warenart === 'kunst'); };
+        var verkaufPauschal = function (s) { var ps = verknuepft(s); return ps.length === 1 && istPauschal(ps[0]); };
+        var verkaufBrutto = function (s) { return (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0); };
+        // Satz eines Direktverkaufs: wie _rate/_perRateGroups in der Voranmeldung
+        var verkaufSaetze = function (s) {
+            if (s.steuersaetze && Object.keys(s.steuersaetze).length) {
+                return Object.keys(s.steuersaetze).map(function (k) { return [parseFloat(k), s.steuersaetze[k]]; });
+            }
+            var r = parseFloat(s.steuersatz);
+            return [[isNaN(r) ? 19 : r, verkaufBrutto(s)]];
+        };
+        // Eine Buchungszeile je Konto: Teilbetraege desselben Belegs werden zusammengefasst.
+        var sammler = function () {
+            var summe = {}, folge = [];
+            return {
+                add: function (konto, betrag) {
+                    if (!(konto in summe)) { summe[konto] = 0; folge.push(konto); }
+                    summe[konto] += betrag;
+                },
+                zeilen: function (basis) {
+                    return folge.map(function (k) { return Object.assign({ konto: k, umsatz: summe[k] }, basis); });
+                },
+            };
+        };
+
         // Verkäufe (Einnahmen) aus Rechnungen
+        var customers = Store.getRechCustomers ? Store.getRechCustomers() : [];
         invoices.forEach(function (inv) {
-            var isKlein = inv.isKlein !== undefined ? inv.isKlein : (settings.ustMode === 'klein');
-            var netto = 0;
-            var mwstMap = {};
+            var invKlein = inv.isKlein !== undefined ? inv.isKlein : isKlein;
+            var kunde = customers.find(function (c) { return c.id === inv.kundeId; });
+            var kundeName = kunde ? (kunde.firma || kunde.ansprechpartner || '') : '';
+            var land = kunde && kunde.land;
+            var istIg = !!(land && land !== 'DE' && euLaender.indexOf(land) !== -1 && kunde.ustIdNr);
+            // Ohne EU-Liste ist "Drittland" nicht entscheidbar — dann lieber 8200 als eine
+            // falsche Ausfuhr.
+            var istAusfuhr = !!(land && land !== 'DE' && euLaender.length && euLaender.indexOf(land) === -1);
+            var konten = sammler();
             (inv.positionen || []).forEach(function (pos) {
                 // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
                 // `|| 0` gehoert AUSSERHALB von parseFloat — sonst wird ein nicht-numerischer
@@ -142,90 +251,98 @@ var DatevExport = (function () {
                 // an mehreren Stellen im Projekt; test/test-parsefloat-klammer.js haelt sie
                 // alle fest und nennt die Zahl, damit sie hier nicht veraltet.
                 var ln = (parseFloat(pos.menge) || 0) * (parseFloat(pos.einzelpreis) || 0);
-                netto += ln;
-                var rate = isKlein ? 0 : (parseInt(pos.mwstSatz) || 0);
-                if (rate > 0) mwstMap[rate] = (mwstMap[rate] || 0) + ln * rate / 100;
+                if (invKlein) { konten.add(accounts.erloese_klein, ln); return; }
+                if (pos.differenzbesteuert) {
+                    var lp = pos.lagerArtikelId ? purchById[pos.lagerArtikelId] : null;
+                    var ek = lp ? (parseFloat(lp.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0);
+                    teile25a(ln, ek, istPauschal(lp)).forEach(function (t) { konten.add(t[0], t[1]); });
+                    return;
+                }
+                var rate = parseInt(pos.mwstSatz);
+                if (rate === 19 || isNaN(rate)) konten.add(accounts.erloese_19, ln * 1.19);
+                else if (rate === 7)            konten.add(accounts.erloese_7, ln * 1.07);
+                else if (rate === 0 && istIg)   konten.add((pos.igArt || inv.igArt || 'ware') === 'leistung' ? accounts.erloese_rc_eu : accounts.erloese_igl, ln);
+                else if (rate === 0 && istAusfuhr) konten.add(accounts.erloese_ausfuhr, ln);
+                // Uebrige Saetze (0 % im Inland, OSS-Saetze anderer Laender): Sammelkonto ohne
+                // Steuerautomatik, brutto. Kein BU-Schluessel 40 mehr — der hebt die Automatik
+                // eines Kontos auf, und 8200/4200 hat keine.
+                else konten.add(accounts.erloese_0, ln * (1 + (rate > 0 ? rate / 100 : 0)));
             });
-            var mwstTotal = Object.keys(mwstMap).reduce(function (s, r) { return s + mwstMap[r]; }, 0);
-            var brutto = netto + mwstTotal;
-
-            // Hauptkonto: je nach USt-Satz (vereinfacht: nimm ersten Satz)
-            var rates = Object.keys(mwstMap).map(Number);
-            var primaryRate = rates.length ? Math.max.apply(null, rates) : 0;
-            var erloesKonto;
-            if (isKlein) erloesKonto = accounts.erloese_klein;
-            else if (primaryRate === 19) erloesKonto = accounts.erloese_19;
-            else if (primaryRate === 7)  erloesKonto = accounts.erloese_7;
-            else                         erloesKonto = accounts.erloese_0;
-
-            var customers = Store.getRechCustomers ? Store.getRechCustomers() : [];
-            var kunde = customers.find(function (c) { return c.id === inv.kundeId; });
-            var kundeName = kunde ? (kunde.firma || kunde.ansprechpartner || '') : '';
 
             // Gutschrift (Kreditnote) mindert den Umsatz (§17 UStG) → Buchung gegenläufig zur
             // normalen Rechnung (Soll statt Haben auf dem Erlöskonto), Betrag bleibt absolut.
             var isGutschrift = inv.typ === 'gutschrift';
-
-            rows.push({
-                umsatz:       brutto,
+            konten.zeilen({
                 sh:           isGutschrift ? 'S' : 'H',
-                konto:        erloesKonto,
                 gegenkonto:   accounts.bank,
                 datum:        invKeyDate(inv),
                 belegfeld1:   inv.nummer || '',
                 buchungstext: ((isGutschrift ? 'Gutschrift ' : 'Rechnung ') + (inv.nummer || '') + (kundeName ? ' ' + kundeName : '')).slice(0, 60),
-                buSchluessel: isKlein ? '' : (primaryRate === 19 ? '' : primaryRate === 7 ? '2' : '40'),
-            });
+                buSchluessel: '',
+            }).forEach(function (z) { rows.push(z); });
         });
 
         // Direktverkäufe (Marktplatz) — immer exportieren, aber Sales aus bezahlten Rechnungen
         // (_invoiceId) ausschließen: die sind oben schon als Rechnungszeile gebucht. Der frühere
         // Guard `invoices.length === 0` verschluckte sonst ALLE Direktverkäufe, sobald im Jahr
         // eine einzige Rechnung existierte.
-        {
-            sales.filter(function (s) { return !s._invoiceId; }).forEach(function (s) {
-                // Käufer-Versand zählt zur Einnahme (konsistent zu UVA/EÜR)
-                var vkp = (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
-                var erloesKonto = isKlein ? accounts.erloese_klein : accounts.erloese_19;
-                rows.push({
-                    umsatz:       vkp,
-                    sh:           'H',
-                    konto:        erloesKonto,
-                    gegenkonto:   accounts.bank,
-                    datum:        s.datum,
-                    belegfeld1:   s.id ? s.id.slice(0, 12) : '',
-                    buchungstext: ('Verkauf ' + (s.plattform || '') + ' ' + ((s.marke || '') + ' ' + (s.artikeltyp || ''))).slice(0, 60),
-                    buSchluessel: '',
-                });
-            });
-        }
+        sales.filter(function (s) { return !s._invoiceId; }).forEach(function (s) {
+            // Käufer-Versand zählt zur Einnahme (konsistent zu UVA/EÜR)
+            var konten = sammler();
+            if (isKlein) konten.add(accounts.erloese_klein, verkaufBrutto(s));
+            else if (ist25aVerkauf(s)) teile25a(verkaufBrutto(s), ekSumme(s), verkaufPauschal(s)).forEach(function (t) { konten.add(t[0], t[1]); });
+            else verkaufSaetze(s).forEach(function (g) { konten.add(kontoFuerSatz(g[0]), g[1]); });
+            konten.zeilen({
+                sh:           'H',
+                gegenkonto:   accounts.bank,
+                datum:        s.datum,
+                belegfeld1:   s.id ? s.id.slice(0, 12) : '',
+                buchungstext: ('Verkauf ' + (s.plattform || '') + ' ' + ((s.marke || '') + ' ' + (s.artikeltyp || ''))).slice(0, 60),
+                buSchluessel: '',
+            }).forEach(function (z) { rows.push(z); });
+        });
 
         // ── Retouren ────────────────────────────────────────────────────
         // Entscheidung User 2026-10-08: Gegenbuchung auf dem Erloeskonto (Soll), kein eigenes
-        // Konto "Erloesschmaelerungen". Das Konto spiegelt die Verkaufszeile oben — wird dort
-        // einmal nach Steuersatz unterschieden, muss es hier mitziehen.
+        // Konto "Erloesschmaelerungen". Das Konto folgt dem verknuepften Verkauf: sein Satz, bei
+        // §25a anteilig Marge/Rest wie die Korrektur in js/ustvoranmeldung.js. Ohne Verknuepfung
+        // gilt 19 % — derselbe Rueckfall wie in der Voranmeldung.
         // Filter zeichengleich mit js/euer.js: Ist der verknuepfte Verkauf storniert, steht er
         // gar nicht im Stapel, und die Erstattung abzuziehen waere ein Doppelabzug.
-        var stornierteSaleIds = {};
+        var salesById = {};
         (Store.getAllSalesRaw ? Store.getAllSalesRaw() : Store.getSales ? Store.getSales(true) : [])
-            .forEach(function (s) { if (s.storniert) stornierteSaleIds[s.id] = true; });
+            .forEach(function (s) { salesById[s.id] = s; });
         (Store.getRetouren ? Store.getRetouren() : [])
             .filter(function (r) {
-                return r.datum >= vonDate && r.datum <= bisDate && !(r.saleId && stornierteSaleIds[r.saleId]);
+                var vk = r.saleId ? salesById[r.saleId] : null;
+                return r.datum >= vonDate && r.datum <= bisDate && !(vk && vk.storniert);
             })
             .forEach(function (r) {
                 var betrag = parseFloat(r.erstattungBetrag) || 0;
                 if (betrag <= 0) return;
-                rows.push({
-                    umsatz:       betrag,
+                var vk = r.saleId ? salesById[r.saleId] : null;
+                var konten = sammler();
+                if (isKlein) konten.add(accounts.erloese_klein, betrag);
+                else if (vk && ist25aVerkauf(vk)) {
+                    var vkPreis = parseFloat(vk.verkaufspreis) || 0;
+                    var anteil = vkPreis !== 0 ? Math.min(1, betrag / Math.abs(vkPreis)) : 0;
+                    var margeAnteil = teile25a(vkPreis, ekSumme(vk), verkaufPauschal(vk))[0][1] * anteil;
+                    konten.add(accounts.erloese_25a, margeAnteil);
+                    konten.add(accounts.erloese_25a_0, betrag - margeAnteil);
+                } else {
+                    // Gemischter Satz: der Satz mit dem groessten Anteil, wie _rate() dort
+                    var saetze = vk ? verkaufSaetze(vk) : [[19, betrag]];
+                    var dominant = saetze.reduce(function (a, b) { return Math.abs(b[1]) > Math.abs(a[1]) ? b : a; });
+                    konten.add(kontoFuerSatz(dominant[0]), betrag);
+                }
+                konten.zeilen({
                     sh:           'S',              // mindert den Erloes: gegenlaeufig zum Verkauf
-                    konto:        isKlein ? accounts.erloese_klein : accounts.erloese_19,
                     gegenkonto:   accounts.bank,
                     datum:        r.datum,
                     belegfeld1:   r.nummer || String(r.id || '').slice(0, 12),
                     buchungstext: ('Retoure ' + (r.nummer || '') + ' ' + ((r.marke || '') + ' ' + (r.artikeltyp || ''))).slice(0, 60),
                     buSchluessel: '',
-                });
+                }).forEach(function (z) { rows.push(z); });
             });
 
         // Wareneinkäufe
@@ -249,7 +366,8 @@ var DatevExport = (function () {
                 datum:        p.datum,
                 belegfeld1:   p.artikelNr || p.id.slice(0, 12),
                 buchungstext: ('EK ' + ((p.marke || '') + ' ' + (p.artikeltyp || ''))).slice(0, 60),
-                buSchluessel: ustSatz > 0 ? '' : '40',
+                // Kein BU-Schluessel 40: 3200/5200 haben keine Steuerautomatik, die er aufheben koennte.
+                buSchluessel: '',
             });
         });
 
@@ -320,7 +438,7 @@ var DatevExport = (function () {
                 rows.push({
                     umsatz:       betrag,
                     sh:           'S',
-                    konto:        accounts.material,
+                    konto:        accounts.verpackung,
                     gegenkonto:   accounts.bank,              // echte Zahlung, anders als die Pauschale
                     datum:        e.datum,
                     belegfeld1:   String(e.id || '').slice(0, 12),
@@ -359,6 +477,36 @@ var DatevExport = (function () {
                     // (§15 Abs. 1 UStG verlangt eine Rechnung eines Dritten) — kein BU-Schluessel.
                     buSchluessel: '',
                 });
+            });
+
+        // ── Anlagen: Zugang im Kaufjahr, AfA in jedem Jahr ─────────────
+        // Entscheidung User 2026-10-08: AfA gegen das Anlagekonto der einzelnen Anlage, dazu im
+        // Kaufjahr der Zugang (Anlagekonto an Bank) — ohne ihn liefe das Anlagekonto beim
+        // Steuerberater ins Minus. Betrag der AfA aus derselben Funktion wie in der EUeR
+        // (Afa._calcJahresAfa), Stornos fallen weg wie dort.
+        (Store.getAfaAnlagen ? Store.getAfaAnlagen() : [])
+            .filter(function (a) { return !a.storniert; })
+            .forEach(function (a) {
+                var k = anlageKonten(a, skr);
+                var bez = String(a.bezeichnung || 'Anlage');
+                var beleg = String(a.id || '').slice(0, 12);
+                var ak = parseFloat(a.anschaffungskosten) || 0;
+                var kauf = a.anschaffungsdatum || '';
+                if (ak > 0 && kauf >= vonDate && kauf <= bisDate) {
+                    rows.push({
+                        umsatz: ak, sh: 'S', konto: k.anlage, gegenkonto: accounts.bank,
+                        datum: kauf, belegfeld1: beleg,
+                        buchungstext: ('Zugang ' + bez).slice(0, 60), buSchluessel: '',
+                    });
+                }
+                var afa = (typeof Afa !== 'undefined' && Afa._calcJahresAfa) ? Afa._calcJahresAfa(a, parseInt(year, 10)) : 0;
+                if (afa > 0) {
+                    rows.push({
+                        umsatz: afa, sh: 'S', konto: k.afa, gegenkonto: k.anlage,
+                        datum: bisDate, belegfeld1: beleg,
+                        buchungstext: ('AfA ' + bez).slice(0, 60), buSchluessel: '',
+                    });
+                }
             });
 
         // Sort by date
@@ -690,8 +838,9 @@ var DatevExport = (function () {
             '--------------',
             '- Berater-Nummer und Mandanten-Nummer im Stapel sind Platzhalter (00000 / 00001)',
             '  und muessen vor dem Import angepasst werden.',
-            '- Nicht im Stapel enthalten: Abschreibungen (AfA). Sie stehen in der EUER und',
-            '  brauchen eine Kontenzuordnung, die Stackr nicht kennt.',
+            '- Anlagen: Zugang im Kaufjahr (Anlagekonto an Bank, Anschaffungskosten netto) und',
+            '  AfA zum 31.12. gegen das Anlagekonto. Wurde der Kauf zusaetzlich als Ausgabe',
+            '  erfasst, steht er doppelt im Stapel.',
             ohne ? '- ' + ohne + ' Beleg(e) konnten nicht ins Archiv uebernommen werden.' : '',
             ''
         ].filter(function (z) { return z !== ''; }).join('\r\n');
@@ -705,7 +854,7 @@ var DatevExport = (function () {
 
         var html = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">';
         html += '<div style="font-weight:700;font-size:15px;margin-bottom:4px;">DATEV-Export (Buchungsstapel)</div>';
-        html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Exportiert Einnahmen, Retouren, Ausgaben, Wareneinkäufe, Fahrtkosten, Verpackungsmaterial und Eigenbelege im DATEV ASCII-Format für deinen Steuerberater.</div>';
+        html += '<div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;">Exportiert Einnahmen, Retouren, Ausgaben, Wareneinkäufe, Fahrtkosten, Verpackungsmaterial, Eigenbelege und Anlagen (Zugang + AfA) im DATEV ASCII-Format für deinen Steuerberater.</div>';
         html += '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">';
         html += '<div><label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Jahr</label>';
         html += '<select class="form-select" id="datevYear" style="min-width:90px;">';
@@ -733,7 +882,7 @@ var DatevExport = (function () {
         html += '<span>Belegbilder mitliefern — Ausgabe als <strong>ZIP</strong> statt einzelner CSV</span></label>';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-left:24px;">Im Archiv liegt der Stapel neben einem Ordner <code>belege/</code>. Jede Datei traegt die Belegnummer, die im Stapel in Belegfeld 1 steht.</div>';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:10px;">⚠ Berater-Nr. und Mandanten-Nr. sind Platzhalter (00000 / 00001). Bitte vor dem Import in DATEV anpassen.</div>';
-        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Nicht enthalten: <strong>Abschreibungen (AfA)</strong> — sie brauchen eine Kontenzuordnung, die Stackr nicht kennt. Stehen in deiner EÜR, müssen im Stapel nachgetragen werden.</div>';
+        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Anlagen werden im Kaufjahr als <strong>Zugang</strong> gebucht und jährlich abgeschrieben. Hast du einen Anlagenkauf zusätzlich als Ausgabe erfasst, steht er doppelt im Stapel.</div>';
         html += '</div>';
         return html;
     }

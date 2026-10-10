@@ -22,9 +22,9 @@ behoben, zwei niedrige Befunde sind dokumentiert.
 
 | # | Schwere | Ort | Kurz | Status |
 |---|---|---|---|---|
-| B1 | Mittel (Verfügbarkeit/Backup) | `api/sync.js:288` | `push` lehnt `sb:`-Referenzen ab → große Ledger synchronisieren mit `BLOB_BACKEND=supabase` nicht | **behoben** in diesem Branch, Test in `test/test-api-sync.js` |
-| B2 | Niedrig | `api/_sync-store.js:192`, `:264` | Rückweg (Variablen tauschen) kann einen entzogenen StB-Grant wiederbeleben | dokumentiert, Runbook-Fix |
-| B3 | Niedrig (nur Fehlkonfiguration) | `api/_db.js:31`, `api/_storage.js` (5 `fetch`) | Service-Key landet in Log und Alarm-Mail, wenn der Env-Wert ein ungültiges Header-Zeichen enthält | dokumentiert |
+| B1 | Mittel (Verfügbarkeit/Backup) | `api/sync.js:288` | `push` lehnt `sb:`-Referenzen ab → große Ledger synchronisieren mit `BLOB_BACKEND=supabase` nicht | ✅ behoben (PR #17), Test in `test/test-api-sync.js` |
+| B2 | Niedrig | `api/_sync-store.js:192`, `:264` | Rückweg (Variablen tauschen) kann einen entzogenen StB-Grant wiederbeleben | ✅ Runbook 2026-10-09 (`--check` vor dem Rückweg) |
+| B3 | Niedrig (nur Fehlkonfiguration) | `api/_db.js:31`, `api/_storage.js` (5 `fetch`) | Service-Key landet in Log und Alarm-Mail, wenn der Env-Wert ein ungültiges Header-Zeichen enthält | ✅ behoben 2026-10-09, `test/test-db-service-key.js` |
 
 ---
 
@@ -179,6 +179,21 @@ enthalten Whop-User-IDs — das ist für ein lokal vom Betreiber ausgeführtes S
 ---
 
 ## Härtung (kein Befund, Entscheidung beim User)
+
+> **Stand 2026-10-09:** H1 ✅ (`627f3e2`, Migration `20261009000001_search_path.sql`, alle
+> `sync_*`-Funktionen mit `search_path = public, pg_temp`). H2 ✅ als Test:
+> `test/test-migration-rechte.js` prüft jede Migration auf RLS, `revoke` für Tabellen, Sequenzen
+> und Funktionen, `grant` an `service_role`, `sync_`-Präfix, kein `SECURITY DEFINER` und — für
+> Migrationen ab `20261009000001` — eine eigene `set search_path`. H3 **offen** (CSP-Änderung in
+> `vercel.json` braucht Freigabe). H4 ✅ (blob-upload zählt über den Speicher-Adapter).
+>
+> **Live gegengeprüft am 2026-10-09** in beiden Projekten (`usrhhjwvoefjdgrwovkg`,
+> `nvtjzeffngwfsqjzdrdz`), nur lesend: alle 32 `sync_*`-Funktionen, 13 Tabellen und 2 Sequenzen
+> sind für `anon`/`authenticated` gesperrt, RLS überall an, `search_path` überall gesetzt.
+> Einzige Funktion mit `anon`-Ausführrecht ist `public.rls_auto_enable()` (vom Dashboard,
+> `SECURITY DEFINER`) — sie liefert `event_trigger`, ist also nicht per `/rpc/` aufrufbar, und
+> schaltet über das Event-Trigger `ensure_rls` RLS für jede neue Tabelle in `public` ein: ein
+> zweites Netz für H2, kein Befund.
 
 - **H1 `search_path` festnageln.** `set search_path = ''` an jeder Funktion und alle Tabellen
   schema-qualifiziert (`public.sync_snapshots`). Räumt die Advisor-Warnung ab und schützt, falls

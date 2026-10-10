@@ -11,14 +11,28 @@
 // Fehler tragen nur Funktionsname und HTTP-Status, nie den Antwort-Body: der kann
 // bei PostgREST Parameterwerte wiederholen (siehe api/_log.js).
 //
+// Der Service-Key wird vor Gebrauch geprüft (Befund B3, plan/audit-supabase-security-
+// 2026-10-07.md): Steckt ein Zeichen darin, das in einem HTTP-Header ungültig ist (z. B.
+// ein Zeilenumbruch MITTEN im Wert nach dem Kopieren), wirft fetch eine Meldung, die den
+// vollen Wert wiederholt — und die landete über _log/alertOps in Log und Alarm-Mail. Ein
+// solcher Wert gilt deshalb als nicht gesetzt; die Meldung nennt dann nur den Namen.
+//
 // Der Dateiname beginnt mit "_", damit Vercel sie NICHT als Route ausliefert.
 // =============================================================================
 
 function config() {
     return {
         url: (process.env.SUPABASE_URL || '').replace(/\/+$/, ''),
-        key: process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+        key: serviceKey()
     };
+}
+
+// Service-Key, oder '' wenn er fehlt oder ein Zeichen außerhalb von sichtbarem ASCII
+// enthält (JWT und sb_secret_… bestehen nur daraus). Leerraum am Rand wird abgeschnitten,
+// wie es fetch ohnehin täte.
+function serviceKey() {
+    var k = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+    return /^[\x21-\x7e]+$/.test(k) ? k : '';
 }
 
 function isConfigured() {
@@ -47,4 +61,4 @@ async function rpc(name, args, timeoutMs) {
     return text ? JSON.parse(text) : null;
 }
 
-module.exports = { rpc: rpc, isConfigured: isConfigured };
+module.exports = { rpc: rpc, isConfigured: isConfigured, serviceKey: serviceKey };

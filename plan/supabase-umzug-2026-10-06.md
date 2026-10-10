@@ -95,6 +95,7 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 
 - **Preview und Production teilen Redis** (Commit `36be024`). Setzt man in Preview `STORAGE_MIRROR=supabase` mit dem Preview-Projekt, landen **Produktionsdaten** (Chiffrat) im Preview-Projekt. Backfill daher nur Prod-Redis → `stackr-prod`. Für Preview entweder eigenes Redis oder den Spiegel dort nicht setzen.
 - **Spiegel-Ausfall = stiller Drift.** Ein fehlgeschlagener Spiegel-Write bricht den Request nicht ab. Schutz: Alarm + `--check` vor dem Umschalten (Schritt 6/7).
+- **Rückweg erst nach `--check`** (Befund B2, [`audit-supabase-security-2026-10-07.md`](audit-supabase-security-2026-10-07.md)). Schlug während `STORAGE_BACKEND=supabase` die Spiegelung eines Grant-Entzugs nach Redis fehl, steht der Grant dort noch — nach dem Variablentausch liest der Steuerberater wieder mit. Vor jedem Rückweg daher `scripts/backfill-sync-supabase.js --check`; jede `ABWEICHUNG grant:…` erst in Redis bereinigen (Grant löschen), dann tauschen. Nach jedem `mirror-failed`-Alarm mit `revokeGrant` den Grant im Spiegel sofort von Hand löschen.
 - **jsonb ordnet Objektschlüssel um.** Vergleiche immer schlüsselsortiert (der Backfill-Check macht das).
 - **Größe:** Inline-Chiffrat bis ~3,5 MB pro Scope als jsonb-String. Ab dem 2026-10-20 schreibt der Client gzip-komprimiert (Commit `b648d34`), das entlastet auch Supabase.
 - **Whop-Refresh-Sitzungen** sind der empfindlichste Teil. Erst umziehen, wenn der Sync-Umzug stabil läuft. Details unten.

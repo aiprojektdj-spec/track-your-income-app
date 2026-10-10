@@ -218,7 +218,7 @@ function configProblem() {
     if (!P.isConfigured()) {
         return P.name === 'redis'
             ? 'KV_REST_API_URL/TOKEN bzw. UPSTASH_REDIS_REST_* fehlen — Sync ist komplett aus'
-            : 'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY fehlen — Sync ist komplett aus';
+            : 'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY fehlen oder ungültig — Sync ist komplett aus';
     }
     return '';
 }

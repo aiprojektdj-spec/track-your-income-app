@@ -3,6 +3,8 @@
     { "source": "/app", "destination": "/app.html" }
   ],
   "redirects": [
+    { "source": "/", "has": [{ "type": "host", "value": "track-your-income-app.vercel.app" }], "destination": "https://getstackr.de/", "permanent": false },
+    { "source": "/:seite(index\\.html|landing-v2\\.html|agb\\.html|datenschutz\\.html|impressum\\.html|cookies\\.html|refund\\.html|barrierefreiheit\\.html)", "has": [{ "type": "host", "value": "track-your-income-app.vercel.app" }], "destination": "https://getstackr.de/:seite", "permanent": false },
     { "source": "/stackr-broschuere.html", "destination": "/", "permanent": false },
     { "source": "/stackr-onepager.html", "destination": "/", "permanent": false }
   ],

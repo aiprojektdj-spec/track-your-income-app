@@ -29,6 +29,7 @@
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps = require('./_alert.js').alertOps;
 var _log     = require('./_log.js');
+var setzeCorsOrigin = require('./_cors.js');
 
 //   prod_wgVmaJg4sBVOD = "Stackr Pro" 15 €/Mon · prod_p1WHi5t65rAA6 = "Stackr" 135 €/Jahr · biz_2OEWYGlOwb8b0f = Company
 var ACCESS_IDS = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
@@ -190,7 +191,7 @@ async function _checkAccess(userToken, userId) {
 }
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', 'https://track-your-income-app.vercel.app');
+    setzeCorsOrigin(req, res);  // getstackr.de und alte Adresse, s. api/_cors.js
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Cache-Control', 'no-store');

@@ -15,5 +15,6 @@ Allow: /datenschutz.html
 Allow: /impressum.html
 Allow: /cookies.html
 Allow: /refund.html
+Allow: /barrierefreiheit.html
 
 Sitemap: https://getstackr.de/sitemap.xml

@@ -33,6 +33,7 @@ var alertOps = require('./_alert.js').alertOps;
 var _log     = require('./_log.js');
 var sessions = require('./_whop-sessions.js');
 var store    = require('./_sync-store.js');   // nur fuer den IP-Deckel (rateHit)
+var setzeCorsOrigin = require('./_cors.js');
 
 var CLIENT_ID = 'app_dc3OND8eGv2Iim';
 var RATE_MAX  = 30;   // pro Minute pro IP — Refresh laeuft oefter als ein Login (mehrere Tabs)
@@ -47,7 +48,7 @@ var LOCK_S    = 10;   // Sperre gegen gleichzeitigen Refresh aus zwei Tabs
 // Ablage, TTL (30 Tage) und Sperre: api/_whop-sessions.js.
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', 'https://track-your-income-app.vercel.app');
+    setzeCorsOrigin(req, res);  // getstackr.de und alte Adresse, s. api/_cors.js
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Cache-Control', 'no-store');

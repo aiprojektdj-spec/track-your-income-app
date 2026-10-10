@@ -37,6 +37,7 @@ var alertOps = require('./_alert.js').alertOps;
 var _log     = require('./_log.js');
 var storage  = require('./_storage.js');
 var store    = require('./_sync-store.js');   // Grant-Check (sign), Rate-Limit, Byte-Budget, Commit-Sperre
+var setzeCorsOrigin = require('./_cors.js');
 
 // ── Auth: identisch zu api/sync.js (bewusst dupliziert, siehe dortiger Kommentar) ──
 var ACCESS_IDS   = (process.env.WHOP_ACCESS_IDS || 'prod_wgVmaJg4sBVOD,prod_p1WHi5t65rAA6,biz_2OEWYGlOwb8b0f')
@@ -193,7 +194,7 @@ function isReadableRef(u, targetId) {
 }
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', 'https://track-your-income-app.vercel.app');
+    setzeCorsOrigin(req, res);  // getstackr.de und alte Adresse, s. api/_cors.js
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Cache-Control', 'no-store');

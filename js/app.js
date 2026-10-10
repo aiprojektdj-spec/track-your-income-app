@@ -103,6 +103,11 @@ const App = {
     },
 
     _continueInit() {
+        // Domain-Umzug (js/domain-umzug.js) kann den Start uebernehmen und setzt ihn dann fort.
+        if (!this._umzugGeprueft && window.DomainUmzug) {
+            this._umzugGeprueft = true;
+            if (DomainUmzug.vorDemStart(() => this._continueInit())) return;
+        }
         // Apply i18n translations to static DOM elements
         if (typeof I18n !== 'undefined') I18n.applyAll();
 

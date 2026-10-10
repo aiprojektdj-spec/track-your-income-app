@@ -516,6 +516,9 @@ var BackupCrypto = (function () {
         doExport: doExport,
         doExportPlain: doExportPlain,
         doImport: doImport,
+        // Domain-Umzug (js/domain-umzug.js): gleicher Umfang und Merge wie Export/Import
+        buildBundle: _buildBundle,
+        restore: _restore,
         _selftest: _selftest,
         _test: {
             buildBundle: _buildBundle, mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, mergeKey: _mergeKey,

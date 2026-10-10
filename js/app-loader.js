@@ -76,6 +76,7 @@
         'js/blob-attachments.js',
         'js/cloud-sync.js',
         'js/stb-share.js',
+        'js/domain-umzug.js',
 
         // Einstieg zuletzt: startet sofort beim Ausfuehren (DOMContentLoaded ist vorbei),
         // frueher lief der Start erst nach allen Skripten — so bleibt die Reihenfolge gleich.

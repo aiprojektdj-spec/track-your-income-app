@@ -10,9 +10,9 @@ Vor dem Abarbeiten gegen Code und Konto prüfen, nicht gegen diese Datei (CLAUDE
 
 ## 1. Entscheidungen (du)
 
-- [ ] **Prod/Preview bestätigen.** Laut Plandatei (aus PR #18):
-  Prod = `usrhhjwvoefjdgrwovkg`, Preview = `nvtjzeffngwfsqjzdrdz` (Anzeigename „Stackr“ → in
-  `stackr-preview` umbenennen). Die CSP in `vercel.json` zeigt auf das Prod-Projekt.
+- [x] **Prod/Preview** — bestätigt und umbenannt 2026-10-10: Prod = `usrhhjwvoefjdgrwovkg`
+  („stackr-prod“), Preview = `nvtjzeffngwfsqjzdrdz` („stackr-preview“). Die CSP in `vercel.json`
+  zeigt auf das Prod-Projekt.
 - [ ] **Supabase-DPA abschließen** (F1): Dashboard → Organization → Legal Documents → DPA.
   Geht auch im Free-Plan. Danach Datum in der Datenschutzerklärung nachziehen lassen.
 - [x] **DATEV-Export** — entschieden und gebaut 2026-10-08 (Branch `claude/datev-alarm-2026-10-08`):

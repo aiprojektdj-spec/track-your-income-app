@@ -31,6 +31,7 @@
 var alertOps = require('./_alert.js').alertOps;
 var _log     = require('./_log.js');
 var store    = require('./_sync-store.js');
+var setzeCorsOrigin = require('./_cors.js');
 
 // Zugangs-Check — zwei unabhängige Wege, Zugang sobald EINER bestätigt (identisch zu
 // api/whop-access.js): (1) User-Token gegen https://api.whop.com/api/v2/me/has_access/<id>
@@ -154,7 +155,7 @@ var MAX_SCOPES   = parseInt(process.env.SYNC_MAX_SCOPES || '25', 10);
 var MAX_GRANTS   = parseInt(process.env.SYNC_MAX_GRANTS || '10', 10);
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', 'https://track-your-income-app.vercel.app');
+    setzeCorsOrigin(req, res);  // getstackr.de und alte Adresse, s. api/_cors.js
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Cache-Control', 'no-store');

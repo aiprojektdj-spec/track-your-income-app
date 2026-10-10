@@ -24,19 +24,25 @@ Stand: 2026-10-08. Gegen den Code pruefen, nicht gegen diese Datei.
 
 ## Phase 1 - Oeffentliche Seiten auf die neue Domain (keine Kundendaten)
 
-- [ ] canonical, og:url, og:image, JSON-LD in `index.html` und `landing-v2.html` -> getstackr.de
-- [ ] `sitemap.xml`, `robots.txt` -> getstackr.de
-- [ ] `datenschutz.html`: Domain nennen (beide, solange die alte laeuft). Rechtstext -> Anwalt-Liste.
-- [ ] `vercel.json`: Redirect **nur** fuer Landing/Rechtsseiten auf der alten Domain -> getstackr.de
+- [x] canonical, og:url, og:image, JSON-LD in `index.html` und `landing-v2.html` -> getstackr.de
+- [x] `sitemap.xml`, `robots.txt` -> getstackr.de (2026-10-10: Barrierefreiheit ergaenzt)
+- [x] `datenschutz.html`: Domain nennen (beide, solange die alte laeuft). Rechtstext -> Anwalt-Liste.
+- [x] `vercel.json`: Redirect **nur** fuer Landing/Rechtsseiten auf der alten Domain -> getstackr.de
       (host-basiert). **Nie** fuer app.html, rechnungen/, lager/, eigenbelege/, api/.
-- [ ] `api/*.js`: Access-Control-Allow-Origin ist fest auf die alte Domain. Same-Origin-Aufrufe
+- [x] `api/*.js`: Access-Control-Allow-Origin ist fest auf die alte Domain. Same-Origin-Aufrufe
       brauchen keinen CORS-Header, also kein Fehler; trotzdem auf Host-Liste umstellen, damit es
       nicht spaeter als Bug auffaellt.
-- [ ] `scripts/check-live-exposure.js`: auch getstackr.de pruefen.
+- [x] `scripts/check-live-exposure.js`: auch getstackr.de pruefen.
 - [ ] **User:** In Whop pruefen, ob Produkt-/Checkout-Seiten auf die alte Domain verlinken
       (Weiterleitung nach Kauf, Produktbeschreibung) -> auf getstackr.de/app.html umstellen.
 
 Abnahme: alte Landing leitet auf getstackr.de, alte app.html laedt weiterhin ohne Redirect.
+
+Stand 2026-10-10 (Branch `claude/domain-phase1`): Redirect `/` + Rechtsseiten + landing-v2 per
+`has: host` und **307** (nicht permanent, bleibt umkehrbar). Entscheidung User: Startseite leitet
+schon VOR Phase 2 um — Bestandskunden, die ueber die alte Startseite einloggen, landen in der
+leeren App auf getstackr.de, bis der Assistent steht. CORS ueber `api/_cors.js` (Liste beider
+Domains). Tests: `test/test-domain-umzug-redirect.js`, `test/test-cors-domains.js`.
 
 ## Phase 2 - Umzugs-Assistent (Tab zu Tab, kein Server)
 

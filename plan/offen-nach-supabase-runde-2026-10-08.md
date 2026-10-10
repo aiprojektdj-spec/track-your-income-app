@@ -13,8 +13,11 @@ Vor dem Abarbeiten gegen Code und Konto prüfen, nicht gegen diese Datei (CLAUDE
 - [x] **Prod/Preview** — bestätigt und umbenannt 2026-10-10: Prod = `usrhhjwvoefjdgrwovkg`
   („stackr-prod“), Preview = `nvtjzeffngwfsqjzdrdz` („stackr-preview“). Die CSP in `vercel.json`
   zeigt auf das Prod-Projekt.
-- [ ] **Supabase-DPA abschließen** (F1): Dashboard → Organization → Legal Documents → DPA.
-  Geht auch im Free-Plan. Danach Datum in der Datenschutzerklärung nachziehen lassen.
+- [x] **AV-Verträge (DPA)** — keine Handlung nötig, am 2026-10-10 gegengeprüft:
+  Supabase: DPA ist Teil der Terms, gilt für alle Organisationen auch im Free-Plan (seit 2026-10-07
+  im Dashboard bestätigt, `plan/rechtstexte-supabase-entwurf.md` F1). Vercel: DPA gilt für Pro;
+  das Team mit `track-your-income-app` ist laut Billing-Seite auf **Pro (aktiv)**. Datenschutzerklärung
+  sagt seit 84baa5c „besteht“.
 - [x] **DATEV-Export** — entschieden und gebaut 2026-10-08 (Branch `claude/datev-alarm-2026-10-08`):
   - 0 %: weder A noch B, sondern **je Position nach Art** — ig. Lieferung 8125, Reverse Charge
     (Leistung) 8336, Ausfuhr 8120, §25a Marge 8191 / Rest 8193, sonst 8200; kein BU `40` mehr.

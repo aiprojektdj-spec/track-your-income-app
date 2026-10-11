@@ -2,6 +2,12 @@
 -- =============================================================================
 -- In BEIDEN Projekten ausführen. Wiederholbar (ALTER setzt nur den Wert neu).
 --
+-- WICHTIG: Wird eine ÄLTERE Migration erneut ausgeführt, setzt ihr `create or replace function`
+-- die search_path dieser Funktionen zurück — Postgres übernimmt beim Ersetzen alle Eigenschaften
+-- aus dem neuen Befehl, nur Besitzer und Rechte bleiben. Danach diese Datei erneut ausführen.
+-- Neue Funktionen (Migrationen ab dieser) setzen `set search_path = public, pg_temp` selbst;
+-- test/test-migration-rechte.js prüft das.
+--
 -- Anlass: Der Supabase-Security-Advisor meldete am 2026-10-08 für alle 32 sync_*-Funktionen
 -- "function_search_path_mutable". Ohne feste search_path löst eine Funktion unqualifizierte
 -- Namen (sync_snapshots, …) über den search_path des AUFRUFERS auf — wer ein gleichnamiges

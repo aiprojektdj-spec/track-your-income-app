@@ -42,8 +42,11 @@ Steuerberater-Zugang zurückkommen (Befund B2, `plan/audit-supabase-security-202
    13 Tabellen (alle mit RLS) und 32 `sync_*`-Funktionen; Prod trägt die frühen Migrationen nicht in
    der Historie (damals über den SQL-Editor), die Objekte sind aber da. Security-Advisor in beiden:
    kein `sync_*` für `anon` ausführbar. `function_search_path_mutable` am 2026-10-09 in beiden
-   Projekten behoben (`20261009000001_search_path.sql`). Offen nur: die Supabase-eigene
-   `rls_auto_enable()` ist für `anon` ausführbar (nicht von uns, bewusst nicht angefasst).
+   Projekten behoben (`20261009000001_search_path.sql`). Die Supabase-eigene `rls_auto_enable()`
+   ist für `anon` ausführbar, aber ein Event-Trigger (nicht per `/rpc/` aufrufbar) — kein Befund.
+   Am 2026-10-11 erneut live geprüft, alle neun Migrationen in beiden Projekten.
+   **Wer eine ältere Migration erneut ausführt, führt danach `20261009000001_search_path.sql`
+   noch einmal aus** — `create or replace function` setzt die search_path sonst zurück.
 4. [ ] **Vercel-Variablen** (Sensitive, getrennt für Production und Preview):
    `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (bisheriger JWT-`service_role`-Key, nicht
    `sb_secret_…`, solange nicht getestet), `WHOP_SESSION_KEY` erzeugen mit

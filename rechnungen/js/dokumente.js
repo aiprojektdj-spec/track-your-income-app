@@ -131,7 +131,7 @@ var Dokumente = (function() {
         var statusClass, statusLabel;
         switch (inv.status) {
             case 'bezahlt':    statusClass = 'badge-success'; statusLabel = 'Bezahlt'; break;
-            case 'ueberfaellig': statusClass = 'badge-danger'; statusLabel = '\u00DCberf\u00E4llig'; break;
+            case 'ueberfaellig': statusClass = 'badge-danger is-overdue'; statusLabel = '\u00DCberf\u00E4llig'; break;
             case 'storniert':  statusClass = 'badge-neutral'; statusLabel = 'Storniert'; break;
             case 'versendet':  statusClass = 'badge-warning'; statusLabel = 'Versendet'; break;
             default:           statusClass = 'badge-info';    statusLabel = 'Offen';

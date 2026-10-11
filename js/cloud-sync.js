@@ -58,6 +58,14 @@ var CloudSync = (function () {
     var ANCHOR_CHECK_INTERVAL_MS = 24 * 3600000;   // taeglich reicht — kein manueller Klick noetig, um eine Abweichung zu bemerken
     var LS_KEY_MISMATCH = 'oyi_sync_key_mismatch';   // Sackgasse: Cloud-Daten liegen unter einem anderen Schlüssel als dem lokalen
     var LS_ERR_TOAST    = 'oyi_sync_err_toast_last'; // Drosselung der allgemeinen Fehlermeldung (nicht bei jedem Start nerven)
+    // Start-Sync drosseln: Jeder Seitenaufruf (App, /rechnungen/, /lager/, /eigenbelege/) zog bisher
+    // __account + jede Firma einzeln — bei 8 Firmen 9+ Aufrufe pro Laden. Wer schnell zwischen den
+    // Seiten wechselte, lief in das 40/min-Limit von api/sync.js (429, gesehen 2026-10-11).
+    // Lief der letzte erfolgreiche Lauf vor weniger als STARTUP_SKIP_MS an und gab es seitdem keine
+    // lokale Änderung, ist der Start-Sync überflüssig.
+    var LS_CLEAN_AT     = 'oyi_sync_clean_at';       // Startzeit des letzten erfolgreichen Laufs
+    var LS_LAST_CHANGE  = 'oyi_sync_last_change';    // Zeitpunkt der letzten lokalen Änderung (setzt Store._triggerAutoBackup)
+    var STARTUP_SKIP_MS = 60000;
     var ERR_TOAST_INTERVAL_MS = 24 * 3600000;
 
     var _cryptoKeyCache = null;   // importierter CryptoKey (für aktuellen User)
@@ -810,6 +818,7 @@ var CloudSync = (function () {
         if (typeof StbShare !== 'undefined' && StbShare.isReadonly && StbShare.isReadonly()) return;
         if (_running || !_enabled() || !_hasKey() || !_token() || !_isPro()) return;
         _running = true; _needReload = false; _changedActive = false; _conflicts = [];
+        var laufStart = Date.now();
         _setDot('sync');
         try {
             retryPendingDeletions().catch(function (e) { console.warn('[CloudSync] retryPendingDeletions:', e && e.message); }); // fire-and-forget, blockiert den Sync nicht
@@ -831,7 +840,7 @@ var CloudSync = (function () {
             _refreshSwitcher(regBefore);
             _setDot('ok');
             _setMismatch(false);   // Lauf komplett durch → Schlüssel passt, alte Sackgassen-Markierung weg
-            try { localStorage.setItem(LS_LAST_OK, String(Date.now())); } catch (e) {}
+            try { localStorage.setItem(LS_LAST_OK, String(Date.now())); localStorage.setItem(LS_CLEAN_AT, String(laufStart)); } catch (e) {}
             _maybeAutoVerifyAnchors();   // fire-and-forget, taeglich throttled
             if (_conflicts.length) {
                 console.warn('[CloudSync] Parallel-Konflikte erkannt (beide Fassungen gesichert):', _conflicts);
@@ -956,6 +965,16 @@ var CloudSync = (function () {
         }, 6000);
     }
 
+    function _startupSyncNoetig() {
+        var cleanAt = 0, change = 0;
+        try {
+            cleanAt = parseInt(localStorage.getItem(LS_CLEAN_AT) || '0', 10);
+            change  = parseInt(localStorage.getItem(LS_LAST_CHANGE) || '0', 10);
+        } catch (e) { return true; }
+        if (!cleanAt || _hasMismatch() || _loadConflicts().length) return true;
+        return (Date.now() - cleanAt) >= STARTUP_SKIP_MS || change >= cleanAt;
+    }
+
     // ── Init: Dot setzen, beim Start Pull (sobald Store bereit) ───────────────
     function init() {
         // Reihenfolge nach Dringlichkeit: eine Schlüssel-Sackgasse überlebt den Reload und muss
@@ -987,6 +1006,7 @@ var CloudSync = (function () {
             tries++;
             if (typeof Store !== 'undefined' && (Store._mainIdbReady || tries > 20)) {
                 clearInterval(iv);
+                if (!_startupSyncNoetig()) return;
                 _syncAll(true);
             }
             if (tries > 40) clearInterval(iv);
@@ -1420,7 +1440,7 @@ var CloudSync = (function () {
             if (!k) continue;
             for (var p = 0; p < prefixes.length; p++) if (k.indexOf(prefixes[p]) === 0) { doomed.push(k); break; }
         }
-        doomed.push(LS_CONFLICTS, LS_LAST_OK, LS_PENDING_DEL, LS_ANCHOR_CHECK, LS_ERR_TOAST,
+        doomed.push(LS_CONFLICTS, LS_LAST_OK, LS_CLEAN_AT, LS_LAST_CHANGE, LS_PENDING_DEL, LS_ANCHOR_CHECK, LS_ERR_TOAST,
                     LS_KEY(uid), LS_KEY_PRESENT(uid));
         doomed.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
         // Der Schlüssel liegt seit der IndexedDB-Umstellung dort, nicht mehr in localStorage —

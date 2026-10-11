@@ -153,7 +153,7 @@ var Kunden = (function() {
             html += '</tr></thead><tbody>';
             invoices.forEach(function(inv) {
                 var typLabel = inv.typ === 'rechnung' ? 'Rechnung' : inv.typ === 'angebot' ? 'Angebot' : 'Gutschrift';
-                var statusClass = inv.status === 'bezahlt' ? 'badge-success' : inv.status === 'ueberfaellig' ? 'badge-danger' : inv.status === 'storniert' ? 'badge-neutral' : 'badge-info';
+                var statusClass = inv.status === 'bezahlt' ? 'badge-success' : inv.status === 'ueberfaellig' ? 'badge-danger is-overdue' : inv.status === 'storniert' ? 'badge-neutral' : 'badge-info';
                 var statusLabel = inv.status === 'bezahlt' ? 'Bezahlt' : inv.status === 'ueberfaellig' ? '\u00DCberf\u00E4llig' : inv.status === 'storniert' ? 'Storniert' : 'Offen';
                 var isKlein = inv.isKlein !== undefined ? inv.isKlein : (settings.ustMode === 'klein');
                 var brutto = 0;

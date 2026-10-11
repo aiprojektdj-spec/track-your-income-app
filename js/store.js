@@ -753,6 +753,9 @@ const Store = {
     // Debouncte Auto-Backup: 1,5 Sekunden nach letzter Änderung
     // Schreibt ALLE Schichten gleichzeitig: IDB-Snapshot + LS-Spiegel + Datei
     _triggerAutoBackup() {
+        // Sofort, nicht erst nach dem Debounce: js/cloud-sync.js ueberspringt den Start-Sync,
+        // wenn seit dem letzten Lauf nichts geaendert wurde (oyi_sync_last_change).
+        try { localStorage.setItem('oyi_sync_last_change', String(Date.now())); } catch (e) {}
         if (this._isImporting) return;
         clearTimeout(this._autoBackupDebounce);
         this._autoBackupDebounce = setTimeout(() => {

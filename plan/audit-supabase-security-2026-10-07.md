@@ -184,8 +184,8 @@ enthalten Whop-User-IDs — das ist für ein lokal vom Betreiber ausgeführtes S
 > `sync_*`-Funktionen mit `search_path = public, pg_temp`). H2 ✅ als Test:
 > `test/test-migration-rechte.js` prüft jede Migration auf RLS, `revoke` für Tabellen, Sequenzen
 > und Funktionen, `grant` an `service_role`, `sync_`-Präfix, kein `SECURITY DEFINER` und — für
-> Migrationen ab `20261009000001` — eine eigene `set search_path`. H3 **offen** (CSP-Änderung in
-> `vercel.json` braucht Freigabe). H4 ✅ (blob-upload zählt über den Speicher-Adapter).
+> Migrationen ab `20261009000001` — eine eigene `set search_path`. H3 ✅ 2026-10-11 (Preview-Projekt
+> `nvtjzeffngwfsqjzdrdz` in `connect-src` der fünf App-Routen, vom User freigegeben). H4 ✅ (blob-upload zählt über den Speicher-Adapter).
 >
 > **Live gegengeprüft am 2026-10-09** in beiden Projekten (`usrhhjwvoefjdgrwovkg`,
 > `nvtjzeffngwfsqjzdrdz`), nur lesend: alle 32 `sync_*`-Funktionen, 13 Tabellen und 2 Sequenzen

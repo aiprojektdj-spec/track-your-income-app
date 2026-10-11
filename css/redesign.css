@@ -129,6 +129,7 @@ body.stackr-shell { display: block; height: auto; min-height: 100vh; }
 .card-subtitle { color: var(--muted); font-size: 14px; }
 /* Ältere Kennzahl-Karten (Jahresgewinn, Lager) setzen Großschrift und Farbkante inline. */
 .stat-card[style*="border-left"] { border-left: 1px solid var(--line) !important; }
+:is(.stats-grid, .stats-grid-primary, .stats-grid-secondary) > .stat-card[style*="border-left"] { border-left: 0 !important; }
 .card-label[style] { font-size: 14px !important; font-weight: 400 !important; text-transform: none !important; letter-spacing: 0 !important; color: var(--muted) !important; }
 .card-value[style] { font-weight: 400 !important; }
 .card-subtitle[style] { font-size: 14px !important; }
@@ -327,8 +328,12 @@ body > :not(.print-container):not(#printArea) :is(#content, .modal, .onboarding-
   .card { padding: 20px 16px; }
   .form-row, .ust-picker, .ust-picker--compact { grid-template-columns: 1fr !important; flex-direction: column; }
   .form-row > * { width: 100%; min-width: 0; }
-  .filter-bar { flex-wrap: wrap; }
-  .filter-group { flex: 1 1 140px; }
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-group { flex: 0 0 auto; }
+  /* Unternavigation: eine Zeile, seitlich wischbar statt mehrzeilig zentriert. */
+  .sr-context-nav { flex-wrap: nowrap; }
+  .sr-context-tabs { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+  .sr-context-tabs > * { flex: 0 0 auto; white-space: nowrap; }
   #content [style*="grid-template-columns"], .modal [style*="grid-template-columns"] { grid-template-columns: minmax(0, 1fr) !important; }
   #content [style*="display:flex"]:has(> button), #content [style*="display: flex"]:has(> button) { flex-wrap: wrap; }
   #content [style*="display:flex"]:has(> .btn-group), #content [style*="display: flex"]:has(> .btn-group) { flex-wrap: wrap; }
@@ -423,6 +428,7 @@ a.sr-settings-row:hover strong { text-decoration: underline; text-underline-offs
   .sr-document-filter-main .filter-search { grid-column: 1 / -1; }
   .sr-document-filter-extra { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
   .sr-document-filter-extra .filter-group:last-child { grid-column: 1 / -1; }
+  .sr-document-header { align-items: flex-start; }
   .sr-document-header .page-header-actions { width: auto; }
 }
 @media (min-width: 1024px) and (max-width: 1279px) {

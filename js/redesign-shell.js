@@ -324,6 +324,10 @@
         el.innerHTML = links.length ? '<div class="sr-context-tabs">' + visible.join('') + '</div>' +
             (extra.length ? '<details class="sr-more-tasks"><summary aria-label="Mehr Aufgaben">Mehr</summary><div class="sr-task-links">' + extra.join('') + '</div></details>' : '') : '';
         el.hidden = !links.length;
+        // Mobil ist die Leiste seitlich wischbar; der aktive Reiter soll ganz sichtbar sein.
+        var tabs = el.querySelector('.sr-context-tabs');
+        var current = tabs && tabs.querySelector('[aria-current="page"]');
+        if (current && tabs.scrollWidth > tabs.clientWidth) tabs.scrollLeft = current.offsetLeft - tabs.offsetLeft;
     }
 
     function onClick(event) {

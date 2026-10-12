@@ -219,7 +219,7 @@ var DatevExport = (function () {
                 konto:        warenKonto,
                 gegenkonto:   accounts.bank,
                 datum:        p.datum,
-                belegfeld1:   p.artikelNr || p.id.slice(0, 12),
+                belegfeld1:   p.belegNr || p.artikelNr || p.id.slice(0, 12),
                 buchungstext: ('EK ' + ((p.marke || '') + ' ' + (p.artikeltyp || ''))).slice(0, 60),
                 buSchluessel: ustSatz > 0 ? '' : '40',
             });

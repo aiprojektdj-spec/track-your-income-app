@@ -154,7 +154,24 @@ Die SHA-256-Summen der fünf Vendor-Dateien wurden bei der Gelegenheit gegen
 - **A5 — Landmarks benannt** · WCAG 1.3.1. [`app.html:51`](../app.html) `aria-label="Anwendungen"`
   (Topnav) und `:95` `aria-label="Module"` (Sidebar).
 
-**Damit ist kein offener WCAG-AA-Verstoß mehr bekannt.**
+- **A1 — Akademie tastaturbedienbar** · WCAG 2.1.1 A. Keydown-Handler
+  [`js/akademie.js:2013`](../js/akademie.js), `role="button" tabindex="0"` an Modulkarten,
+  Lektionszeilen und Weiterlesen-Banner. *(Nachgetragen 2026-09-29, stand nur in `OFFEN.md` als offen.)*
+- **A3 — Lager-Foto-Kachel** · anders gelöst als im Fund vorgeschlagen: kein `<label>`, sondern
+  die Kachel ist `aria-hidden` und **bewusst ohne** `tabindex`, weil der echte Button
+  „Foto wählen" direkt daneben dieselbe Aktion auslöst ([`lager/page.js:627`](../lager/page.js),
+  Kommentar dort). Die Bulk-Kacheln haben `role="button"` + Keydown (`:1316`, `:1398`).
+  *(Geprüft 2026-09-29.)*
+
+~~**Damit ist kein offener WCAG-AA-Verstoß mehr bekannt.**~~
+
+> **Korrektur 2026-09-29:** Das galt nur fürs **dunkle** Design. Die Kontrastmatrix aus Audit 12
+> (45/45) hatte ausschließlich die Dark-Tokens gerechnet. Neu gerechnet aus `css/style.css`:
+> **hell nur 20 von 45** Paarungen ≥ 4,5:1 — `--accent`, `--success`, `--warning` durchgehend
+> darunter (tiefster Wert `--success` auf `--bg-elevated` 2,66:1), dazu `--danger`, `--info`,
+> `--accent-text` teilweise. Da `js/theme.js` standardmäßig dem System folgt, sehen alle Nutzer
+> mit hellem OS diese Palette. Offen als Aufgabe 1.11 in [`01-AUFGABEN.md`](01-AUFGABEN.md).
+> Die Feldrand-Werte (A2) bestehen in beiden Designs (≥ 3,11:1).
 
 ---
 

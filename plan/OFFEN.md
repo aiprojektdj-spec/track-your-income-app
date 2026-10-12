@@ -309,7 +309,12 @@ Aus dem Delta-Audit ([Funde](funde-audit-10-steuern-delta-2026-08-10.md)).
   auf die Schlusszahlung und verursacht dadurch genau den **§11-EStG-Zuflussfehler**, den die
   Teilzahlungs-Logik verhindern soll. Vor dem Entfernen einen Testfall anlegen
   (7 %+19 % → Teilzahlung → UVA-Kennzahlen prüfen).
-### 2.11 Accessibility-Funde 2026-08-12 — offen **[geprüft]**
+### 2.11 Accessibility-Funde 2026-08-12 — ✅ erledigt, geprüft 2026-09-29
+
+> **Alle fünf Funde sind im Code erledigt** (gegen den Code geprüft am 2026-09-29). Belege und
+> der eine Nachtrag, der **nicht** erledigt ist (Kontrast im hellen Design), stehen in
+> [`ERLEDIGT-2026-08.md`](ERLEDIGT-2026-08.md), Abschnitt „Barrierefreiheit". Der Text unten ist
+> der ursprüngliche Fund und nur noch Archiv.
 
 Aus dem WCAG-2.1-Rest-Check ([Funde](funde-audit-12-accessibility-2026-08-10.md)).
 Kontrastwerte berechnet, nicht geschätzt.

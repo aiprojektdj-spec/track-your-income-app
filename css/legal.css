@@ -4,7 +4,7 @@
 :root {
     --bg: #0a0c0b; --surface: #101312; --card: #161a18;
     --border: rgba(255,255,255,.06); --accent: #10b981;
-    --text: #eef2f0; --muted: #71807a; --subtle: #9ba8a1;
+    --text: #eef2f0; --muted: #7d8c86; --subtle: #9ba8a1;
 }
 body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; line-height: 1.7; -webkit-font-smoothing: antialiased; }
 nav {
@@ -102,3 +102,13 @@ footer a:hover { color:var(--subtle); }
     margin-bottom: 32px;
 }
 .info-box strong { color: #34d399; }
+
+/* Barrierefreiheit: Skip-Link (bis :focus versteckt) und sichtbarer Tastaturfokus */
+.skip-link {
+    position: absolute; top: -100px; left: 12px; z-index: 1000;
+    background: var(--accent); color: #04120c; padding: 10px 18px;
+    border-radius: 8px; font-weight: 600; text-decoration: none;
+}
+.skip-link:focus { top: 12px; }
+a:focus-visible { outline: 2px solid #34d399; outline-offset: 2px; border-radius: 2px; }
+main:focus { outline: none; }

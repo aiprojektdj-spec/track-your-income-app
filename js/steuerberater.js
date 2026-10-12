@@ -93,15 +93,16 @@ var Steuerberater = (function () {
         var vonDate = year + '-01-01';
         var bisDate = year + '-12-31';
 
+        // Nur noch für den Firmennamen im Kopf — die Besteuerungsform liest buildEurSection()
+        // aus der EÜR-Rechnung, damit beide dieselbe Vorgabe verwenden.
         var settings  = Store.getSettings ? Store.getSettings() : {};
-        var isKlein   = settings.ustMode === 'klein';
 
         // ── Collect data ────────────────────────────────────────────────
         var purchases = (Store.getAllPurchasesRaw ? Store.getAllPurchasesRaw() : [])
             .filter(function (p) { return !p.storniert && p.datum >= vonDate && p.datum <= bisDate; });
 
-        var sales = (Store.getAllSalesRaw ? Store.getAllSalesRaw() : [])
-            .filter(function (s) { return !s.storniert && s.datum >= vonDate && s.datum <= bisDate; });
+        // Die Verkäufe werden hier bewusst nicht mehr gelesen: sie gingen nur in die eigene
+        // Gewinnformel, und die ist weg. Das Paket listet Verkäufe nicht auf.
 
         var expenses = (Store.getAllExpensesRaw ? Store.getAllExpensesRaw() : [])
             .filter(function (e) { return !e.storniert && e.datum >= vonDate && e.datum <= bisDate; });
@@ -117,11 +118,29 @@ var Steuerberater = (function () {
 
         var auditLog = inclAudit ? (Store.getAuditLog ? Store.getAuditLog() : []).slice(-500) : [];
 
-        // ── EÜR calculation ─────────────────────────────────────────────
-        var einnahmen = sales.reduce(function (s, x) { return s + (parseFloat(x.verkaufspreis) || 0) + (parseFloat(x.versandkostenKaeufer) || 0); }, 0);
-        var wareneinkauf = purchases.reduce(function (s, p) { return s + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1); }, 0);
-        var sonstigeAusgaben = expenses.reduce(function (s, e) { return s + (parseFloat(e.betrag) || 0); }, 0);
-        var gewinn = einnahmen - wareneinkauf - sonstigeAusgaben;
+        // ── EÜR: EINE Quelle, und die ist js/euer.js ────────────────────
+        //
+        // Bis 2026-09-28 rechnete diese Datei den Gewinn selbst:
+        //   Verkäufe − Wareneinkauf − sonstige Ausgaben.
+        // Das ist genau Fund A1 des Vollaudits, nur an der schlimmstmöglichen Stelle — dem
+        // Dokument, das beim Steuerberater landet. Es fehlten: Rechnungseinnahmen, Retouren,
+        // Verkäufer-Versand, Plattformgebühren, Fahrtkosten, Verpackungsmaterial, Eigenbelege,
+        // AfA und bei Regelbesteuerung die gesamte Netto-Umstellung (§ 4 Abs. 3 EStG: die
+        // vereinnahmte USt ist Durchlaufposten, die Vorsteuer mindert die Ausgaben). Die
+        // EÜR-Seite der App zeigte für dasselbe Jahr eine andere Zahl als das Paket, das der
+        // Berater aufmacht.
+        //
+        // Denselben Weg geht js/gewerbesteuer.js seit dem A1-Fix; test/test-gewinn-eine-quelle.js
+        // hält fest, dass es genau eine Formel gibt. Dieser Aufruf gehört seit heute dazu.
+        var euerDaten = null;
+        if (typeof Euer !== 'undefined' && typeof Euer._berechne === 'function') {
+            euerDaten = Euer._berechne(year, 0, 'jahr');
+        } else {
+            // Im Browser nicht erreichbar (app.html lädt js/euer.js, und gerechnet wird erst
+            // beim Klick). Falls doch: sichtbar nichts ausweisen statt eine geratene EÜR — der
+            // Berater soll die Lücke sehen, nicht eine Zahl, die nach Ergebnis aussieht.
+            console.error('[Steuerberater] js/euer.js nicht geladen — EUER nicht ermittelbar');
+        }
 
         // ── Build HTML ──────────────────────────────────────────────────
         var companyName = Utils.escapeHtml(settings.firmenname || 'Mein Unternehmen');
@@ -130,7 +149,7 @@ var Steuerberater = (function () {
         var sections = '';
 
         if (inclEur) {
-            sections += buildEurSection(year, einnahmen, wareneinkauf, sonstigeAusgaben, gewinn, isKlein, sales, purchases, expenses);
+            sections += buildEurSection(year, euerDaten);
         }
 
         if (inclInvoices) {
@@ -166,13 +185,43 @@ var Steuerberater = (function () {
     function fmtDt(s) { if (!s) return '—'; var p = s.split('-'); if (p.length < 3) return s; return p[2] + '.' + p[1] + '.' + p[0]; }
     function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-    function buildEurSection(year, ein, ek, ba, gew, isKlein, sales, purchases, expenses) {
+    // `d` ist die Rückgabe von Euer._berechne(year, 0, 'jahr') — oder null, wenn js/euer.js
+    // fehlt. Die Zeilen spiegeln die Gewinnzusammensetzung der EÜR-Seite (js/euer.js, Block
+    // `type === 'gewinn'`), damit Berater und Mandant dieselbe Aufstellung vor sich haben.
+    function buildEurSection(year, d) {
+        if (!d) {
+            return '<section id="s_eur"><h2 style="margin:24px 0 8px;">📊 EÜR — Steuerjahr ' + year + '</h2>'
+                + '<p style="padding:12px;border:1px solid #fca5a5;background:#fef2f2;border-radius:8px;font-size:13px;color:#991b1b;">'
+                + 'Die EÜR konnte nicht berechnet werden — das Rechenmodul war beim Export nicht geladen. '
+                + 'Bitte den Export wiederholen; dieses Paket enthält <strong>keine</strong> Gewinnermittlung.'
+                + '</p></section>';
+        }
+
+        // Besteuerungsform aus derselben Rechnung, nicht aus einer zweiten Settings-Lesung:
+        // js/euer.js setzt `ustMode || 'klein'` als Vorgabe. Wer hier eigenständig auf
+        // `settings.ustMode === 'klein'` prüft, bekommt bei leerem Feld weder den einen noch
+        // den anderen Hinweis zu sehen, während gerechnet wird, als wäre es Kleinunternehmer.
+        var isRegel = !!d.isRegel;
+        var isKlein = !isRegel;
+        // Eine Zeile je Ausgabenart, in der Reihenfolge der EÜR-Seite. Nullzeilen bleiben
+        // sichtbar, wo die App sie auch zeigt (Wareneinkauf, Versand, Plattformgebühren) —
+        // ein Berater liest an einer fehlenden Zeile nicht ab, ob sie 0 war oder vergessen wurde.
         var rows = [
-            ['Betriebseinnahmen (Verkäufe)', ein, '#16a34a'],
-            ['− Wareneinkauf', ek, '#dc2626'],
-            ['− Betriebsausgaben', ba, '#dc2626'],
-            ['= Gewinn / Überschuss', gew, gew >= 0 ? '#16a34a' : '#dc2626'],
+            ['Summe Betriebseinnahmen' + (isRegel ? ' (netto)' : ''), d.summeEinnahmen, '#16a34a'],
+            ['− Wareneinkauf', d.wareneinkauf, '#dc2626'],
+            ['− Versandkosten (Verkäufer)', d.versandkosten, '#dc2626'],
+            ['− Plattformgebühren', d.plattformgebuehren, '#dc2626'],
         ];
+        if (d.fahrtkosten > 0)          rows.push(['− Fahrtkosten (Fahrtenbuch, §9 EStG)', d.fahrtkosten, '#dc2626']);
+        if (d.materialEinkauf > 0)      rows.push(['− Verpackungsmaterial (eingekauft)', d.materialEinkauf, '#dc2626']);
+        if (d.afaKosten > 0)            rows.push(['− Abschreibungen AfA (§7 EStG)', d.afaKosten, '#dc2626']);
+        if (d.sonstigeAusgaben > 0)     rows.push(['− Sonstige Betriebsausgaben', d.sonstigeAusgaben, '#dc2626']);
+        if (d.eigenbelegeAusgaben > 0)  rows.push(['− Eigenbelege (Ersatzbelege)', d.eigenbelegeAusgaben, '#dc2626']);
+        // Ohne diese Zeile summiert die Spalte bei Regelbesteuerung nicht auf den Gewinn: die
+        // Ausgaben oben stehen brutto, abzugsfähig ist aber nur netto (§ 15 UStG).
+        if (isRegel && d.vorsteuer > 0) rows.push(['+ abziehbare Vorsteuer (Durchlaufposten)', d.vorsteuer, '#16a34a']);
+        rows.push(['= ' + (d.gewinn >= 0 ? 'Gewinn' : 'Verlust'), d.gewinn, d.gewinn >= 0 ? '#16a34a' : '#dc2626']);
+
         var rowHtml = rows.map(function (r) {
             return '<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">' + r[0] + '</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:' + r[2] + ';">' + fmtCur(r[1]) + '</td></tr>';
         }).join('');
@@ -180,7 +229,9 @@ var Steuerberater = (function () {
             + '<table style="width:100%;max-width:480px;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">'
             + '<thead><tr style="background:#f8fafc;"><th style="padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb;">Position</th><th style="padding:8px 12px;text-align:right;font-size:11px;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb;">Betrag</th></tr></thead>'
             + '<tbody>' + rowHtml + '</tbody></table>'
-            + (isKlein ? '<p style="font-size:12px;color:#6b7280;margin-top:8px;">§19 UStG: Keine Umsatzsteuer ausgewiesen (Kleinunternehmer).</p>' : '')
+            + (isKlein ? '<p style="font-size:12px;color:#6b7280;margin-top:8px;">§19 UStG: Keine Umsatzsteuer ausgewiesen (Kleinunternehmer) — Einnahmen und Ausgaben stehen brutto.</p>' : '')
+            + (isRegel ? '<p style="font-size:12px;color:#6b7280;margin-top:8px;">Regelbesteuerung: Betriebseinnahmen netto, vereinnahmte Umsatzsteuer ist Durchlaufposten (§ 4 Abs. 3 Satz 1 EStG). Die Ausgabenzeilen stehen brutto, die abziehbare Vorsteuer ist als eigene Zeile gegengerechnet.</p>' : '')
+            + '<p style="font-size:11px;color:#9ca3af;margin-top:6px;">Diese Aufstellung stammt aus derselben Rechnung wie die EÜR-Seite in Stackr — Rechnungen, Retouren, Fahrtkosten, Verpackungsmaterial, Eigenbelege und AfA sind enthalten.</p>'
             + '</section>';
     }
 

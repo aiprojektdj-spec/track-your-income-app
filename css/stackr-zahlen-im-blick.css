@@ -1,0 +1,246 @@
+/* Entwurf: Fokus final mit der Headline „Zahlen im Blick.“ */
+.hero {
+  padding-top: 76px;
+}
+
+.hero h1 {
+  font-size: clamp(44px, 4.5vw, 64px);
+  font-weight: 450;
+  line-height: 1.12;
+  letter-spacing: -.045em;
+}
+
+.lead {
+  max-width: 520px;
+  margin: 24px auto 0;
+  color: #b6b6b6;
+  font-size: 16px;
+  line-height: 1.85;
+}
+
+.hero-actions {
+  margin-top: 29px;
+}
+
+.hero-price {
+  margin-top: 15px;
+  color: #aaa;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.product-figure {
+  margin-top: 58px;
+}
+
+.dashboard-heading > span {
+  color: #aaa;
+  font-size: 11px;
+}
+
+.metrics span {
+  color: #b6b6b6;
+  font-size: 12px;
+}
+
+.metrics strong {
+  font-size: 30px;
+}
+
+.chart-title,
+.chart-title > span {
+  color: #aaa;
+  font-size: 11px;
+}
+
+.chart-scale {
+  width: 44px;
+  color: #a8a8a8;
+  font-size: 10px;
+}
+
+.chart-area svg {
+  height: 110px;
+}
+
+.chart-months {
+  padding-left: 58px;
+  color: #aaa;
+  font-size: 10px;
+}
+
+figcaption {
+  color: #999;
+  font-size: 10px;
+}
+
+.hero-data {
+  max-width: 650px;
+  margin: 29px auto 0;
+  color: #aaa;
+  font-size: 12px;
+  line-height: 1.8;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.hero-data a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: #666;
+}
+
+.hero-data a:hover {
+  color: #eee;
+}
+
+@media (max-width: 700px) {
+  .hero {
+    padding-top: 55px;
+  }
+
+  .lead {
+    font-size: 14px;
+  }
+
+  .metrics strong {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 540px) {
+  .hero {
+    padding-top: 44px;
+  }
+
+  .hero h1 {
+    font-size: clamp(36px, 9.5vw, 46px);
+    line-height: 1.15;
+  }
+
+  .lead {
+    max-width: 340px;
+    margin-top: 22px;
+    font-size: 14px;
+    line-height: 1.8;
+    text-wrap: pretty;
+  }
+
+  .hero-actions {
+    margin-top: 25px;
+  }
+
+  .hero-actions .action {
+    min-height: 47px;
+    font-size: 13px;
+    padding-inline: 25px;
+  }
+
+  .hero-price {
+    margin-top: 13px;
+    font-size: 11px;
+  }
+
+  .product-figure {
+    margin-top: 39px;
+  }
+
+  .dashboard {
+    padding: 22px 18px;
+  }
+
+  .dashboard-heading {
+    margin-bottom: 24px;
+  }
+
+  .dashboard-heading h2 {
+    font-size: 17px;
+  }
+
+  .dashboard-heading > span {
+    font-size: 10px;
+  }
+
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 18px;
+    margin-bottom: 26px;
+  }
+
+  .metrics > div,
+  .metrics > div:first-child,
+  .metrics > div:last-child {
+    min-width: 0;
+    border: 0;
+    padding: 0;
+  }
+
+  .metrics span {
+    font-size: 11px;
+  }
+
+  .metrics strong {
+    margin-top: 6px;
+    font-size: clamp(18px, 5.1vw, 25px);
+    letter-spacing: -.6px;
+  }
+
+  .metrics small {
+    font-size: 12px;
+  }
+
+  .metrics > div:last-child {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    border-top: 1px solid #303030;
+    padding-top: 16px;
+  }
+
+  .metrics > div:last-child strong {
+    margin-top: 0;
+    font-size: 26px;
+  }
+
+  .chart-title,
+  .chart-title > span {
+    font-size: 10px;
+  }
+
+  .chart-scale {
+    width: 40px;
+    font-size: 9px;
+  }
+
+  .chart-area {
+    gap: 8px;
+    margin-top: 15px;
+  }
+
+  .chart-area svg {
+    height: 82px;
+  }
+
+  .chart-months {
+    padding-left: 48px;
+    font-size: 9px;
+    margin-top: 8px;
+  }
+
+  figcaption {
+    font-size: 10px;
+    margin-top: 13px;
+  }
+
+  .hero-data {
+    margin-top: 25px;
+    font-size: 12px;
+    max-width: 315px;
+  }
+
+  .features {
+    padding-top: 55px;
+  }
+}

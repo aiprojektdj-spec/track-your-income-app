@@ -17,7 +17,7 @@ def build(src, dst, fix_legal=False):
     html = html.replace('fonts/inter-var-latin.woff2', 'data:font/woff2;base64,' + inter)
     html = html.replace('fonts/fraunces-var-latin.woff2', 'data:font/woff2;base64,' + fraun)
     if fix_legal:
-        for p in ('datenschutz.html', 'impressum.html', 'agb.html'):
+        for p in ('datenschutz.html', 'impressum.html', 'agb.html', 'barrierefreiheit.html'):
             html = html.replace('href="%s"' % p, 'href="https://track-your-income-app.vercel.app/%s"' % p)
     # sanity: no relative font/legal refs left
     assert 'fonts/inter-var-latin.woff2' not in html

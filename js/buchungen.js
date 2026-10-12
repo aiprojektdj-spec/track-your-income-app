@@ -64,6 +64,7 @@ const Buchungen = {
         const sessionBudget = meta ? (meta.budget || '') : '';
         const sessionLieferant  = meta ? (meta.lieferantName || '') : '';
         const sessionLiefSteuer = meta ? (meta.lieferantSteuerId || '') : '';
+        const sessionBelegNr    = meta ? (meta.belegNr || '') : '';
 
         const quellenOptions = einkaufsquellen.map(q =>
             `<option value="${Utils.escapeHtml(q)}" ${q === sessionQuelle ? 'selected' : ''}>${Utils.escapeHtml(q)}</option>`
@@ -129,6 +130,10 @@ const Buchungen = {
                     <div class="form-group">
                         <label class="form-label" for="sess_lieferantSteuerId">Steuernr. / USt-IdNr. des Lieferanten</label>
                         <input type="text" class="form-input" id="sess_lieferantSteuerId" maxlength="50" placeholder="nur bei Rechnung >250€ Pflicht" value="${Utils.escapeHtml(sessionLiefSteuer)}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="sess_belegNr">Belegnummer</label>
+                        <input type="text" class="form-input" id="sess_belegNr" maxlength="100" placeholder="z.B. RE-2026-001" value="${Utils.escapeHtml(sessionBelegNr)}">
                     </div>
                 </div>
             </div>
@@ -320,6 +325,9 @@ const Buchungen = {
                 // §14 UStG: Aussteller-Angaben gelten für die ganze Einkaufs-Session (eine Quelle = ein Beleg)
                 const lieferantName    = (document.getElementById('sess_lieferant') || {}).value?.trim() || '';
                 const lieferantSteuerId = (document.getElementById('sess_lieferantSteuerId') || {}).value?.trim() || '';
+                // Ohne dieses Feld war die Spalte "Belegnummer" in einkaeufe.csv (Z3) immer leer,
+                // und DATEV musste mit der Artikelnummer als Belegfeld 1 aushelfen.
+                const belegNr = (document.getElementById('sess_belegNr') || {}).value?.trim() || '';
 
                 if (!this._sessionMeta) {
                     this._sessionMeta = { datum, einkaufsquelle: quelle, budget, sessionId: Store.generateId() };
@@ -330,6 +338,7 @@ const Buchungen = {
                 }
                 this._sessionMeta.lieferantName = lieferantName;
                 this._sessionMeta.lieferantSteuerId = lieferantSteuerId;
+                this._sessionMeta.belegNr = belegNr;
 
                 const { datum: sDatum, einkaufsquelle: sQuelle, sessionId } = this._sessionMeta;
                 const count = this._sessionItems.length;
@@ -354,6 +363,7 @@ const Buchungen = {
                             sessionId: sessionId,
                             lieferantName,
                             lieferantSteuerId,
+                            belegNr,
                             status: 'verfuegbar'
                         });
                         savedCount++;
@@ -1308,6 +1318,10 @@ const Buchungen = {
                             <label class="form-label">Steuernr. / USt-IdNr. Verkäufer</label>
                             <input type="text" class="form-input" id="ep_lieferantSteuerId" maxlength="50" value="${Utils.escapeHtml(p.lieferantSteuerId || '')}" placeholder="nur bei Rechnung >250€ Pflicht">
                         </div>
+                        <div class="form-group">
+                            <label class="form-label" for="ep_belegNr">Belegnummer</label>
+                            <input type="text" class="form-input" id="ep_belegNr" maxlength="100" value="${Utils.escapeHtml(p.belegNr || '')}" placeholder="z.B. RE-2026-001">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Beleg-Foto/Scan ${p.belegFoto ? '(vorhanden — Datei wählen zum Ersetzen)' : ''} <span style="font-weight:400;color:var(--text-muted);">— nur relevant bei Vorsteuerabzug (§14 UStG)</span></label>
@@ -1370,7 +1384,11 @@ const Buchungen = {
                     return;
                 }
 
+                // `...p` zuerst: dieser Dialog kennt nicht alle Felder eines Einkaufs. Ohne den
+                // Spread gingen beim Speichern still sessionId, warenkategorie, lagerort und vor
+                // allem die §25a-Kennzeichnung (differenzbesteuert/warenart) verloren.
                 Store.savePurchase({
+                    ...p,
                     id: p.id,
                     datum: Utils.getDateInputValue('ep_datum'),
                     marke,
@@ -1383,6 +1401,7 @@ const Buchungen = {
                     einkaufsquelle: einkaufsquelle,
                     lieferantName: document.getElementById('ep_lieferant').value.trim(),
                     lieferantSteuerId: document.getElementById('ep_lieferantSteuerId').value.trim(),
+                    belegNr: document.getElementById('ep_belegNr').value.trim(),
                     belegFoto,
                     notizen: document.getElementById('ep_notizen').value.trim(),
                     status: p.status,

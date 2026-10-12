@@ -103,6 +103,12 @@
       ]
     },
     {
+      "source": "/barrierefreiheit.html",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'" }
+      ]
+    },
+    {
       "source": "/refund.html",
       "headers": [
         { "key": "Content-Security-Policy", "value": "default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'" }

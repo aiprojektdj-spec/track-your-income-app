@@ -1,0 +1,119 @@
+/* Gemeinsamer Entwurf: Direkt-Einstieg, Ruhe-Beispiele, Studio-Preisbereich. */
+.combined{--paper:#090909;--ink:#f2f2f2;--muted:#a3a3a3;--line:#272727;--soft:#111}
+.combined .wrap{width:min(1120px,calc(100% - 80px))}
+.combined .header{height:88px;border-bottom:1px solid #242424}
+.combined .brand{font-size:26px;font-weight:650;gap:7px}
+.combined .brand svg{width:21px;height:30px}
+.combined .nav{gap:30px;font-size:12px;color:#c1c1c1}
+.combined .header-actions{gap:23px;font-size:12px}
+.combined .header .btn{padding:11px 19px;min-height:41px;font-size:11px}
+.combined .btn{border-radius:5px;min-height:48px;font-size:12px;font-weight:550;padding:14px 24px;gap:0;transition:background .18s,color .18s,border-color .18s}
+.combined .btn:hover{transform:none;opacity:1;background:#ddd}
+.combined .btn.outline{border-color:#363636;color:#d5d5d5}
+.combined .btn.outline:hover{background:#191919;border-color:#666}
+.combined .hero{text-align:center;padding:76px 0 64px}
+.combined .hero .eyebrow{justify-content:center;text-transform:none;font-weight:450;letter-spacing:.02em;font-size:11px;color:#b0b0b0}
+.combined .hero h1{font-size:clamp(50px,5.3vw,76px);line-height:1.07;letter-spacing:-.055em;font-weight:520;max-width:950px;margin:24px auto}
+.combined .hero h1 span{color:#999}
+.combined .hero .lead{max-width:530px;margin:0 auto;font-size:14px;line-height:1.85;color:#aaa}
+.combined .hero-actions{justify-content:center;gap:12px;margin-top:28px}
+.combined .hero .small-note{font-size:10px;line-height:1.8;margin:18px 0 0;color:#949494}
+.combined-product{max-width:940px;margin:55px auto 0;position:relative;padding:0 70px 58px 0;text-align:left}
+.combined-product .workspace{box-shadow:none;border:1px solid #303030;border-radius:11px;background:#0f0f0f}
+.combined-product .ws-bar{height:34px;background:#141414;padding:0 20px;justify-content:space-between;font-size:8px}
+.combined-product .ws-shell{grid-template-columns:133px 1fr;min-height:353px}
+.combined-product .ws-sidebar{padding:25px 13px;background:#111;border-color:#262626}
+.combined-product .ws-sidebar>span{padding:11px 10px;font-size:9px}
+.combined-product .ws-logo{font-size:18px;gap:5px;margin-bottom:22px}
+.combined-product .ws-logo svg{width:14px;height:22px}
+.combined-product .ws-main{padding:27px 26px}
+.combined-product .ws-heading h3{font-size:19px;font-weight:520}
+.combined-product .ws-heading span{border:0;background:transparent;padding:0;font-size:8px}
+.combined-product .ws-sub{margin-bottom:24px;font-size:8px}
+.combined-product .ws-kpis{gap:10px}
+.combined-product .ws-kpi{padding:15px 13px;background:#161616;border-color:#2a2a2a;border-radius:6px}
+.combined-product .ws-kpi strong{font-size:25px;font-weight:470;letter-spacing:-.9px}
+.combined-product .ws-kpi span{font-size:8px}
+.combined-product .ws-kpi p{font-size:7px}
+.combined-product .ws-lower{display:block;margin-top:17px}
+.combined-product .ws-task-card{display:none}
+.combined-product .ws-chart-card{padding:16px 18px;background:transparent;border-color:#292929;border-radius:6px}
+.combined-product .ws-line-chart{height:110px;margin-top:16px}
+.combined-product .ws-bottom{font-size:7px}
+.combined-product .ws-transaction{display:none}
+.combined-product .invoice-float{width:242px;right:0;bottom:0;padding:25px;background:#ececec;transform:none;box-shadow:0 16px 35px #0006;border:1px solid #eee;border-radius:9px}
+.combined-product .invoice-float h4{font-size:23px;font-weight:480;line-height:1.25;margin:22px 0 9px;letter-spacing:-.6px}
+.combined-product .invoice-float p{font-size:9px;margin:0;color:#666}
+.combined-product .invoice-float .invoice-label{font-size:8px}
+.combined-product .invoice-float .invoice-line{font-size:9px;padding:17px 0;margin-top:23px;border-color:#d0d0d0}
+.combined-product .invoice-float .invoice-status{background:transparent;padding:0;font-size:9px;color:#5c5c5c}
+.combined .product-caption{font-size:9px;text-align:center;color:#888;margin:24px 0 0;letter-spacing:.015em}
+.combined .calm-ticker{padding:24px 0;background:transparent}
+.combined .calm-ticker .wrap{font-size:11px;color:#bbb}
+.combined .calm-ticker .wrap>span:first-child{font-size:10px;letter-spacing:0;text-transform:none;color:#888}
+.combined .section{padding:86px 0}
+.combined .eyebrow{font-size:10px;font-weight:450;text-transform:none;letter-spacing:.02em;color:#949494}
+.combined .section h2{font-size:clamp(34px,3.3vw,45px);font-weight:500;letter-spacing:-.04em;line-height:1.15}
+.combined .calm-feature{gap:95px;padding:70px 0;border-color:#252525;grid-template-columns:1fr 1fr}
+.combined .calm-feature:first-child{padding-top:0}
+.combined .calm-feature:last-child{padding-bottom:0}
+.combined .calm-feature p{font-size:13px;line-height:1.9;max-width:370px;margin:24px 0 0}
+.combined .calm-feature .feature-link{display:none}
+.combined .calm-detail{padding:30px 33px;background:#111;border:1px solid #2b2b2b;border-radius:9px}
+.combined .calm-detail .detail-head{margin-bottom:28px}
+.combined .calm-detail .detail-head b{font-size:11px;font-weight:450}
+.combined .calm-detail .label{font-size:9px}
+.combined .calm-detail .detail-total{font-size:43px;font-weight:430;margin:13px 0 30px}
+.combined .detail-line{padding:17px 0;font-size:11px;border-color:#2b2b2b}
+.combined .detail-line:last-child{padding-bottom:0}
+.combined .detail-line b{font-weight:450;font-size:10px}
+.combined .invoice-detail{background:#ececec;border-color:#ececec;color:#171717}
+.combined .invoice-detail .detail-line{border-color:#d1d1d1}
+.combined .invoice-detail .detail-total{font-size:35px;letter-spacing:-1.2px;line-height:1.15}
+.combined .detail-status{border:0;border-radius:0;padding:0;font-size:9px;color:#b2b2b2}
+.combined .invoice-detail .detail-status{color:#666}
+.combined .privacy{background:#101010;border-block:1px solid #252525}
+.combined .why-grid{gap:96px;grid-template-columns:1fr 1fr}
+.combined .why-grid p{font-size:13px;line-height:1.9;margin:24px 0 22px}
+.combined .text-link{border-color:#555;font-size:11px;padding-bottom:5px;color:#d0d0d0}
+.combined .why-item{font-size:11px;padding:21px 0;line-height:1.8}
+.combined .why-item b{font-size:10px;font-weight:400;max-width:170px}
+.combined .pricing-grid{grid-template-columns:1fr .85fr;gap:115px}
+.combined .pricing-intro>p{font-size:13px;max-width:390px;line-height:1.9}
+.combined .billing-toggle{margin-top:21px;padding:4px;border-color:#333;border-radius:5px;background:#111;gap:3px}
+.combined .billing-toggle button{font-size:11px;padding:11px 21px;border-radius:3px}
+.combined .price-card{border-radius:9px;padding:32px 33px;background:#ececec;--paper:#ececec;--ink:#111;--muted:#626262;--line:#d0d0d0;color:#111}
+.combined .price-card .plan-name{font-size:13px;font-weight:550}
+.combined .price{font-size:62px;font-weight:480;margin:25px 0 10px;letter-spacing:-3px}
+.combined .price-card ul{padding:15px 0 16px;margin:18px 0 7px}
+.combined .price-card li{font-size:12px;line-height:2.25}
+.combined .price-card li:before{content:none;margin:0}
+.combined .price-card .btn{background:#111;color:#f4f4f4;border-color:#111}
+.combined .price-card .btn:hover{background:#303030}
+.combined .price-card .small-note{font-size:9px;line-height:1.8;margin-top:17px}
+.combined .plan-tag{border:0;padding:0;color:#666;font-size:9px;align-self:center}
+.combined .faq-layout{gap:95px;grid-template-columns:1fr 1fr}
+.combined .faq-list summary{font-size:13px;font-weight:450;gap:20px;line-height:1.7}
+.combined .faq-list summary:after{content:'Ansehen';font-size:9px;font-weight:400;color:#969696}
+.combined .faq-list details[open] summary:after{content:'Schließen'}
+.combined .faq-list p{font-size:12px;line-height:1.9}
+.combined .closing{padding:69px 0;background:#101010;color:#eee;border-block:1px solid #282828}
+.combined .closing h2{font-size:40px;letter-spacing:-1.5px;line-height:1.15;font-weight:480}
+.combined .closing p{font-size:12px;opacity:1;color:#999;line-height:1.8}
+.combined .closing .btn{color:#111;background:#ececec;border-color:#ececec}
+.combined .closing .btn:hover{background:#d5d5d5}
+.combined .footer{padding:36px 0 28px}
+.combined .footer .brand{font-size:22px}
+.combined .footer .brand svg{height:27px;width:18px}
+.combined .footer nav{font-size:10px;gap:21px}
+.combined .footer-bottom{font-size:9px;color:#888;border-color:#272727}
+.combined .menu-toggle{border-color:#363636;border-radius:5px}
+.combined .nav a:hover{opacity:1;color:#fff}
+.combined .nav.is-open{box-shadow:none;background:#111}
+.clean-version-banner{display:flex;align-items:center;justify-content:space-between;gap:20px;background:#141414;border:1px solid #363636;border-radius:8px;padding:20px 24px;margin-bottom:31px;font-size:13px;color:#eee}
+.clean-version-banner small{display:block;margin-top:7px;font-size:11px;color:#aaa;line-height:1.7}
+.clean-version-banner>span{font-size:11px;border-bottom:1px solid #999;padding-bottom:4px;white-space:nowrap}
+.clean-version-banner:hover{background:#1c1c1c}
+@media(max-width:1100px){.combined .wrap{width:calc(100% - 64px)}.combined-product{padding-right:50px}.combined-product .ws-shell{grid-template-columns:114px 1fr}.combined-product .ws-main{padding:24px 22px}.combined-product .ws-kpi strong{font-size:23px}.combined .calm-feature,.combined .why-grid,.combined .faq-layout{gap:60px}.combined .pricing-grid{gap:80px}.combined .nav{gap:23px}}
+@media(max-width:800px){.combined .wrap{width:calc(100% - 40px)}.combined .header{height:78px}.combined .header-actions{gap:10px}.combined .hero{padding:59px 0 48px}.combined .hero h1{font-size:57px}.combined-product{margin-top:43px;padding-right:28px;padding-bottom:64px}.combined-product .ws-shell{grid-template-columns:88px 1fr;min-height:326px}.combined-product .ws-sidebar{padding:22px 9px}.combined-product .ws-sidebar>span{font-size:7px;padding:10px 7px}.combined-product .ws-logo{font-size:15px}.combined-product .ws-main{padding:22px 18px}.combined-product .ws-heading h3{font-size:16px}.combined-product .ws-kpi{padding:12px 9px}.combined-product .ws-kpi strong{font-size:21px}.combined-product .ws-kpi span{font-size:7px}.combined-product .ws-kpi p{font-size:6px}.combined-product .ws-line-chart{height:90px}.combined-product .invoice-float{width:220px;padding:22px}.combined-product .invoice-float h4{font-size:21px}.combined .calm-ticker .wrap{font-size:10px}.combined .section{padding:66px 0}.combined .calm-feature{gap:35px;padding:52px 0}.combined .calm-feature h2{font-size:34px}.combined .calm-detail{padding:24px}.combined .calm-detail .detail-total{font-size:34px}.combined .invoice-detail .detail-total{font-size:29px}.combined .detail-line{font-size:10px;padding:14px 0}.combined .detail-line b{font-size:9px}.combined .pricing-grid,.combined .faq-layout,.combined .why-grid{grid-template-columns:1fr;gap:37px}.combined .pricing-intro>p{max-width:500px}.combined .closing h2{font-size:37px}.combined .closing .wrap{display:block}.combined .closing .btn{margin-top:26px}.combined .footer-top{align-items:start}.combined .footer nav{gap:16px;max-width:350px;justify-content:end}}
+@media(max-width:480px){.combined .wrap{width:calc(100% - 36px)}.combined .header{height:76px}.combined .brand{font-size:23px}.combined .header .btn{padding:11px 13px;font-size:10px;min-height:44px}.combined .hero{padding:48px 0 40px}.combined .hero .eyebrow{font-size:10px;line-height:1.7}.combined .hero h1{font-size:clamp(39px,11.2vw,46px);margin:23px auto 24px;line-height:1.1}.combined .hero .lead{font-size:13px;line-height:1.9}.combined .hero-actions{gap:10px;margin-top:25px}.combined .hero-actions .btn{padding:14px 17px;font-size:11px;min-height:48px}.combined .hero .small-note{font-size:9px;max-width:290px;margin:17px auto 0;line-height:1.85}.combined-product{margin-top:36px;padding-right:0;padding-bottom:87px}.combined-product .ws-bar{padding:0 12px;height:31px;font-size:6px}.combined-product .ws-shell{grid-template-columns:59px 1fr;min-height:284px}.combined-product .ws-sidebar{padding:16px 5px;gap:2px}.combined-product .ws-sidebar>span{font-size:5px;padding:8px 4px}.combined-product .ws-logo{font-size:10px;gap:2px;margin-bottom:19px}.combined-product .ws-logo svg{width:9px;height:15px}.combined-product .ws-main{padding:17px 10px}.combined-product .ws-heading{gap:9px}.combined-product .ws-heading h3{font-size:12px}.combined-product .ws-heading span{font-size:5px}.combined-product .ws-sub{font-size:6px;margin:6px 0 17px}.combined-product .ws-kpis{gap:5px}.combined-product .ws-kpi{padding:9px 5px;border-radius:4px}.combined-product .ws-kpi strong{font-size:clamp(11px,3.5vw,13px);letter-spacing:-.4px;margin:9px 0 6px}.combined-product .ws-kpi span{font-size:5px}.combined-product .ws-kpi p{font-size:4px}.combined-product .ws-chart-card{padding:10px;border-radius:4px}.combined-product .ws-lower{margin-top:12px}.combined-product .ws-line-chart{height:78px;margin-top:11px}.combined-product .ws-panel-heading{font-size:6px}.combined-product .ws-panel-heading span{font-size:5px}.combined-product .ws-bottom{font-size:5px}.combined-product .ws-months{font-size:5px}.combined-product .invoice-float{width:172px;bottom:0;right:10px;padding:18px;border-radius:7px}.combined-product .invoice-float h4{font-size:18px;margin:17px 0 7px;line-height:1.25}.combined-product .invoice-float .invoice-label{font-size:7px}.combined-product .invoice-float p{font-size:7px}.combined-product .invoice-float .invoice-line{font-size:7px;padding:13px 0;margin-top:17px}.combined-product .invoice-float .invoice-status{font-size:7px}.combined .product-caption{font-size:8px;margin-top:20px}.combined .calm-ticker{padding:23px 0}.combined .calm-ticker .wrap>span:first-child{font-size:9px}.combined .calm-ticker .wrap{font-size:10px;gap:16px 21px}.combined .section h2,.combined .calm-feature h2{font-size:34px}.combined .calm-feature{grid-template-columns:1fr;gap:30px;padding:48px 0}.combined .calm-feature p{max-width:none;font-size:12px;margin-top:22px}.combined .calm-detail{padding:26px}.combined .calm-detail .detail-total{font-size:36px}.combined .invoice-detail .detail-total{font-size:31px}.combined .detail-line{font-size:10px;line-height:1.8}.combined .detail-line b{font-size:9px}.combined .calm-detail .detail-head b{font-size:10px}.combined .calm-detail .label{font-size:8px}.combined .why-item{font-size:10px;gap:18px}.combined .why-item b{font-size:9px;max-width:125px}.combined .why-grid p,.combined .pricing-intro>p{font-size:12px}.combined .pricing-grid,.combined .faq-layout{gap:33px}.combined .price-card{padding:28px 27px}.combined .price{font-size:58px}.combined .price-card li{font-size:11px;line-height:2.3}.combined .price-card .btn{font-size:11px}.combined .billing-toggle button{padding:11px 20px;font-size:10px}.combined .faq-list summary{font-size:12px;line-height:1.8}.combined .faq-list summary:after{font-size:8px}.combined .faq-list p{font-size:11px;margin-right:0}.combined .closing{padding:53px 0}.combined .closing h2{font-size:33px;letter-spacing:-1px}.combined .closing p{font-size:11px}.combined .footer-top{display:block}.combined .footer nav{justify-content:start;max-width:none;gap:16px;margin-top:23px}.combined .footer-bottom{font-size:8px}.clean-version-banner{align-items:start;flex-direction:column;gap:16px;padding:22px;font-size:12px}}

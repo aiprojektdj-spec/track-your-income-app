@@ -32,7 +32,7 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Stand 2026-09-13: zwei offene Punkte, siehe 1.8 und 1.9.** Hier stand bis heute „dieser
+**Stand 2026-09-29: drei offene Punkte, siehe 1.11, 1.8 und 1.9.** Hier stand bis heute „dieser
 Abschnitt ist wieder leer" (vom 2026-09-04). Das stimmte nicht mehr: Fund C des Vollaudits lebte
 nur im Auditbericht und war nie in diese Liste gewandert, und am 2026-09-13 kamen die offenen
 DATEV-Punkte dazu.
@@ -40,6 +40,22 @@ DATEV-Punkte dazu.
 Die drei Funde aus Live-Test 5 sind weiterhin gefixt und stehen unten als ✅ — jeweils mit dem,
 was sich beim Bauen gegenüber der ursprünglichen Fundbeschreibung als falsch herausgestellt hat.
 Das ist bei zweien von dreien passiert, also beim Lesen der Fundtexte einkalkulieren.
+
+### 1.11 Helles Design: Status- und Akzentfarben unter WCAG-AA-Kontrast · offen, gefunden 2026-09-29
+
+Beim Anlegen von [`barrierefreiheit.html`](../barrierefreiheit.html) nachgerechnet: im **hellen**
+Design erreichen nur **20 von 45** Paarungen aus Textfarbe × Hintergrund 4,5:1 (dunkel: 45/45).
+Unter 4,5:1 liegen `--accent` (3,19–3,94), `--success` (2,66–3,30), `--warning` (2,68–3,31)
+durchgehend, `--danger`, `--info`, `--accent-text` und `--text-muted` auf `--bg-elevated` (4,49)
+teilweise. Werte in `css/style.css`, Block `:root[data-theme="light"]`.
+
+- Betrifft jeden Nutzer mit hellem Betriebssystem — `js/theme.js` folgt standardmäßig dem System.
+- `--accent` ist oft **Hintergrund** von Buttons (dann zählt der Kontrast des Button-Texts dagegen,
+  nicht dieser Wert). Vor dem Dunklermachen prüfen, wo das Token als Textfarbe läuft.
+- **Neue Hex-Werte nachrechnen, bevor sie eingetragen werden** (siehe Korrektur A2 in
+  `ERLEDIGT-2026-08.md`). Ziel: alle 45 Paarungen ≥ 4,5:1.
+- Danach in `barrierefreiheit.html` den Punkt „Kontrast im hellen Design" aus den
+  Einschränkungen nehmen und „Kontrast" unter „Was umgesetzt ist" auf beide Designs erweitern.
 
 ### 1.8 Harnesse für die ungetesteten Rechenmodule (Fund C des Vollaudits) · **teilweise** — 6 von 11, Stand 2026-09-16
 
@@ -750,6 +766,10 @@ Gebaut und committet, aber nie unter echten Bedingungen gelaufen:
 - **Excel-Import mit einer echten Datei** (Buchungen + Lager)
 - **Edge-Tastaturtest der Gate-Overlays** — die Logik ist geprüft, die Wahrnehmung nicht
 - **Lager-Feature-Batch Punkt 10** — Live-Durchklick
+- **Barrierefreiheit (2026-09-29):** Lighthouse-Accessibility auf `index.html`, `app.html`,
+  `barrierefreiheit.html` (Ziel ≥ 95) · 5-Minuten-Tastaturtest Dashboard → Rechnung anlegen →
+  Akademie · optional NVDA-Kurztest. Danach Datum und ggf. den Punkt „Noch nicht praktisch
+  getestet" in `barrierefreiheit.html` anpassen.
 
 > **Wichtig:** Claude loggt sich **nicht** selbst bei Whop ein. Wenn ein Test einen Login
 > braucht, meldest du dich einmal im Browser-Pane an; die Session bleibt danach erhalten. Ein

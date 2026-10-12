@@ -219,7 +219,7 @@ const Statistiken = {
                 <td style="text-align:right">${Utils.formatCurrency(v.umsatz)}</td>
                 <td style="text-align:right">${Utils.formatCurrency(avgVK)}</td>
                 <td style="text-align:right;color:${v.gewinn >= 0 ? 'var(--success)' : 'var(--danger)'};">${Utils.formatCurrency(v.gewinn)}</td>
-                <td><span class="badge ${pflicht ? 'badge-danger' : 'badge-success'}">${pflicht ? '⚠️ Meldepflicht' : '✓ OK'}</span></td>
+                <td><span class="badge ${pflicht ? 'badge-danger is-alert' : 'badge-success'}">${pflicht ? 'Meldepflicht' : '✓ OK'}</span></td>
             </tr>`;
         }).join('');
 
@@ -395,7 +395,6 @@ const Statistiken = {
             const first = document.getElementById('platAnalyseSection');
             if (first) first.innerHTML = `
                 <div class="card" style="text-align:center;padding:48px 24px;margin-bottom:20px;">
-                    <div style="font-size:52px;margin-bottom:16px;">📊</div>
                     <h3 style="margin:0 0 8px;color:var(--text-primary);">Keine Daten für ${periodLabel}</h3>
                     <p style="color:var(--text-muted);max-width:380px;margin:0 auto 20px;">
                         Trage Einkäufe und Verkäufe ein – danach erscheinen hier Auswertungen nach Marke,
@@ -709,14 +708,13 @@ const Statistiken = {
                 const marge     = v.totalNet > 0 ? v.totalGewinn / v.totalNet * 100 : 0;
                 const avgSt     = v.stCount > 0 ? Math.round(v.stSum / v.stCount) : null;
                 const mCol = marge >= 30 ? 'var(--success)' : marge >= 10 ? 'var(--warning)' : 'var(--danger)';
-                const mBadge = marge >= 30 ? '🟢' : marge >= 10 ? '🟡' : '🔴';
                 return `<tr>
                     <td><strong>${Utils.escapeHtml(name)}</strong></td>
                     <td style="text-align:right">${v.count}</td>
                     <td style="text-align:right">${Utils.formatCurrency(avgEK)}</td>
                     <td style="text-align:right">${Utils.formatCurrency(avgVK)}</td>
                     <td style="text-align:right;color:${avgProfit >= 0 ? 'var(--success)' : 'var(--danger)'};">${Utils.formatCurrency(avgProfit)}</td>
-                    <td style="text-align:right;color:${mCol};font-weight:600">${mBadge} ${marge.toFixed(1)}%</td>
+                    <td style="text-align:right;color:${mCol};font-weight:600">${marge.toFixed(1)}%</td>
                     <td style="text-align:right;color:var(--text-muted)">${avgSt !== null ? avgSt + ' T.' : '—'}</td>
                 </tr>`;
             }).join('');

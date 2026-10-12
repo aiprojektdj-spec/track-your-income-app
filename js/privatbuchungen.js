@@ -44,7 +44,7 @@ const Privatbuchungen = {
                 </td>
                 <td>${Utils.escapeHtml(b.beschreibung || '')}</td>
                 <td>
-                    <button class="btn btn-sm btn-danger" data-action="pb-storno" data-args='["${b.id}"]' >🗑️</button>
+                    <button class="btn btn-sm btn-danger" data-action="pb-storno" data-args='["${b.id}"]' title="Stornieren" aria-label="Stornieren"><i class="ti ti-trash" aria-hidden="true"></i></button>
                 </td>
             </tr>
         `).join('');
@@ -89,7 +89,7 @@ const Privatbuchungen = {
 
         ${entnahmen > gewinn && gewinn > 0 ? `
         <div style="background:var(--warning-bg);border:1px solid var(--warning);border-radius:8px;padding:12px 16px;margin-bottom:16px;color:var(--text-primary);">
-            ⚠️ <strong>Hinweis:</strong> Die Privatentnahmen (${Utils.formatCurrency(entnahmen)}) übersteigen den Betriebsgewinn (${Utils.formatCurrency(gewinn)}).
+            <strong>Hinweis:</strong> Die Privatentnahmen (${Utils.formatCurrency(entnahmen)}) übersteigen den Betriebsgewinn (${Utils.formatCurrency(gewinn)}).
             Das kann zu einer Überschuldung des Betriebsvermögens führen.
         </div>` : ''}
 

@@ -385,7 +385,6 @@ const Euer = {
             const istHandelsges = !istKapges && Rechtsform.getConfig().bilanzPflicht;
             return `${viewTabs}<div class="page-header"><h2><i class="ti ti-file-analytics" style="margin-right:6px;"></i> EÜR</h2></div>
             <div class="card" style="padding:40px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:12px;">📊</div>
                 <div style="font-weight:700;font-size:16px;margin-bottom:8px;">EÜR nicht verfügbar</div>
                 <div style="color:var(--text-muted);margin-bottom:16px;">
                     ${istKapges

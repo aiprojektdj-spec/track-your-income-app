@@ -88,7 +88,6 @@ const Koerperschaftsteuer = {
             return `
             <div class="page-header"><h2><i class="ti ti-building-bank" style="margin-right:6px;"></i> Körperschaftsteuer</h2></div>
             <div class="card" style="padding:32px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:16px;">🏢</div>
                 <h3>Nur für Kapitalgesellschaften</h3>
                 <p style="color:var(--text-muted);margin:8px 0 20px;">
                     KSt betrifft nur <strong>GmbH</strong> und <strong>UG (haftungsbeschränkt)</strong>.<br>
@@ -131,7 +130,7 @@ const Koerperschaftsteuer = {
 
         <!-- Pflichthinweis: Cash-EÜR-Näherung, keine bilanzielle Gewinnermittlung -->
         <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;">
-            ⚠️ <strong>Vereinfachte Berechnung — keine bilanzielle Gewinnermittlung.</strong>
+            <strong>Vereinfachte Berechnung — keine bilanzielle Gewinnermittlung.</strong>
             ${rf} ist gem. §8 Abs. 1 KStG i.V.m. §5 Abs. 1 EStG bilanzierungspflichtig. Die Zahlen auf dieser Seite basieren auf einer
             reinen <strong>Cash-EÜR-Näherung</strong> (Einnahmen − Wareneinkauf − Ausgaben) und berücksichtigen <strong>keine</strong> Rückstellungen,
             Abgrenzungen, Forderungen/Verbindlichkeiten oder sonstigen bilanziellen Anpassungen zum Stichtag. Der tatsächliche steuerliche Gewinn
@@ -253,7 +252,7 @@ const Koerperschaftsteuer = {
                         <td style="padding:7px 8px;font-size:12px;">Q${v.quartal}</td>
                         <td style="padding:7px 8px;font-size:12px;color:var(--text-secondary);">${Utils.escapeHtml(v.notiz || '')}</td>
                         <td style="padding:7px 8px;font-size:12px;font-weight:700;text-align:right;">${Utils.formatCurrency(v.betrag)}</td>
-                        <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="kst-del-vz" data-args='["${v.id}"]' >🗑</button></td>
+                        <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="kst-del-vz" data-args='["${v.id}"]' aria-label="Löschen"><i class="ti ti-trash" aria-hidden="true"></i></button></td>
                     </tr>`).join('')}
                 </tbody>
                 ${vz.length > 0 ? `<tfoot><tr style="font-weight:700;">

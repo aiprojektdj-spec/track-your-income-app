@@ -416,7 +416,7 @@ const CompanyManager = {
                 }
                 <button data-action="co-manage" data-args='["${co.id}"]' 
                         title="Bearbeiten"
-                        style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;padding:2px 4px;flex-shrink:0;">⚙</button>
+                        style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:14px;padding:2px 4px;flex-shrink:0;" aria-label="Bearbeiten"><i class="ti ti-settings" aria-hidden="true"></i></button>
             </div>`;
         }).join('');
 
@@ -559,7 +559,7 @@ const CompanyManager = {
             // Direkt zur neuen Firma wechseln
             setTimeout(() => this.switchTo(co.id), 600);
         } catch(err) {
-            Utils.showToast('❌ ' + err.message, 'error');
+            Utils.showToast(err.message, 'error');
         }
     },
 
@@ -648,7 +648,7 @@ const CompanyManager = {
             App.closeModal();
             Utils.showToast('Firma gelöscht', 'success');
         } catch(err) {
-            Utils.showToast('❌ ' + err.message, 'error');
+            Utils.showToast(err.message, 'error');
         }
     },
 

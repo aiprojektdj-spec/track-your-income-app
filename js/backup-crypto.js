@@ -305,7 +305,7 @@ var BackupCrypto = (function () {
               'Kein Server, keine Anmeldung.' +
             '</div>' +
             '<div style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:11px;font-size:12px;">' +
-              '⚠️ <strong>' + _esc(WARN) + '</strong>' +
+              '<strong>' + _esc(WARN) + '</strong>' +
             '</div>' +
 
             // Export
@@ -378,7 +378,7 @@ var BackupCrypto = (function () {
             '</div>' +
             '<div style="display:flex;flex-direction:column;gap:8px;">' + rows + '</div>' +
             '<div style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:11px;font-size:12px;">' +
-              '⚠️ <strong>Die Datei ist unverschlüsselt</strong> — sie enthält alle Finanzdaten im Klartext. ' +
+              '<strong>Die Datei ist unverschlüsselt</strong> — sie enthält alle Finanzdaten im Klartext. ' +
               'Sicher aufbewahren und nach erfolgreichem Import löschen.' +
             '</div>' +
             '<div id="bcExpPlainCount" style="font-size:12px;color:var(--text-muted);"></div>' +
@@ -420,7 +420,7 @@ var BackupCrypto = (function () {
             document.body.appendChild(a); a.click();
             setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
             if (sel && typeof App !== 'undefined' && App.closeModal) App.closeModal();
-            _toast('✅ Wechsel-Datei gespeichert (' + deCount + ' Firma' + (deCount === 1 ? '' : 'en') + '): ' + name, 'success', 5000);
+            _toast('Wechsel-Datei gespeichert (' + deCount + ' Firma' + (deCount === 1 ? '' : 'en') + '): ' + name, 'success', 5000);
         } catch (e) {
             console.error('[Backup] exportPlain', e);
             _toast('Export fehlgeschlagen: ' + (e && e.message || e), 'error');
@@ -441,7 +441,7 @@ var BackupCrypto = (function () {
             document.body.appendChild(a); a.click();
             setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
             try { localStorage.setItem('last_backup_date', new Date().toISOString()); } catch (e) {}
-            _toast('✅ Verschlüsseltes Backup gespeichert: ' + name, 'success', 5000);
+            _toast('Verschlüsseltes Backup gespeichert: ' + name, 'success', 5000);
         } catch (e) {
             console.error('[Backup] export', e);
             _toast('Export fehlgeschlagen: ' + (e && e.message || e), 'error');
@@ -478,7 +478,7 @@ var BackupCrypto = (function () {
                 // Frueher stand hier eine Warnung, dass ueber MAX_COMPANIES hinaus "Neue Firma
                 // anlegen" gesperrt bleibe. Das Stueck-Limit ist am 2026-08-24 entfallen — die
                 // Meldung haette eine Sperre angekuendigt, die es nicht mehr gibt.
-                _toast('✅ Daten importiert — lade neu…', 'success', 1800);
+                _toast('Daten importiert — lade neu…', 'success', 1800);
                 setTimeout(function () { location.reload(); }, 1300);
             } catch (e) {
                 console.warn('[Backup] import', e && e.message);

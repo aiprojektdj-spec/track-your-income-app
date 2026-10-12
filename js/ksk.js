@@ -99,7 +99,6 @@ const Ksk = {
         ${!istMitglied ? `
         <div class="card" style="margin-bottom:16px;">
             <div style="padding:24px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:12px;">🎨</div>
                 <h3>KSK-Mitgliedschaft nicht aktiv</h3>
                 <p style="color:var(--text-muted);margin:8px 0 20px;max-width:500px;margin-left:auto;margin-right:auto;">
                     Die KSK bietet Künstlern und Publizisten Zugang zur gesetzlichen Kranken-, Pflege- und

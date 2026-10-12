@@ -99,7 +99,6 @@ var UserPlan = (function () {
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px;';
         overlay.innerHTML = [
             '<div style="background:var(--surface,#1e1e2e);border:1px solid rgba(99,102,241,.4);border-radius:16px;padding:36px 32px;max-width:420px;width:100%;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,.8);">',
-            '<div style="font-size:44px;margin-bottom:14px;">🔒</div>',
             '<h2 style="color:var(--text-primary,#fff);font-size:20px;margin:0 0 10px;font-weight:800;">Abo abgelaufen</h2>',
             '<p style="color:var(--text-muted,#888);font-size:14px;margin:0 0 24px;line-height:1.6;">Dein Stackr Pro Abo ist nicht mehr aktiv.<br>Verlängere es direkt über Whop.</p>',
             '<a href="' + WHOP_URL_YEARLY + '" target="_blank" rel="noopener" ',

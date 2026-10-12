@@ -70,11 +70,11 @@ const GbrModul = {
         const { einnahmen, wareneinkauf, betriebsausgaben, gewinn, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview } = this._calcJahresgewinn(year);
 
         const tabs = [
-            ['uebersicht',    '📊', 'Übersicht'],
-            ['verrechnung',   '💳', 'Verrechnungskonten'],
-            ['gewerbesteuer', '🏛️', 'Gewerbesteuer'],
-            ['feststellung',  '📄', 'Feststellung'],
-            ['stammdaten',    '⚙️', 'Stammdaten'],
+            ['uebersicht',    'Übersicht'],
+            ['verrechnung',   'Verrechnungskonten'],
+            ['gewerbesteuer', 'Gewerbesteuer'],
+            ['feststellung',  'Feststellung'],
+            ['stammdaten',    'Stammdaten'],
         ];
 
         return `
@@ -99,9 +99,9 @@ const GbrModul = {
 
             <!-- Tab Bar -->
             <div style="display:flex;gap:2px;margin-bottom:20px;background:var(--bg-secondary);border-radius:10px;padding:4px;flex-wrap:wrap;">
-                ${tabs.map(([key,icon,label])=>`
+                ${tabs.map(([key,label])=>`
                     <button data-gbr-tab="${key}" style="flex:1;min-width:110px;padding:8px 10px;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;background:${this._tab===key?'var(--bg-card)':'transparent'};color:${this._tab===key?'var(--accent)':'var(--text-secondary)'};box-shadow:${this._tab===key?'0 1px 4px rgba(0,0,0,.2)':'none'};">
-                        ${icon} ${label}
+                        ${label}
                     </button>`).join('')}
             </div>
 
@@ -149,13 +149,13 @@ const GbrModul = {
         ${ao141Hinweis}
         <!-- KPI-Kacheln -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:24px;">
-            ${this._kpi('Einnahmen '+year,    Utils.formatCurrency(einnahmen),    'var(--success)', '📈')}
-            ${this._kpi('Wareneinkauf',       Utils.formatCurrency(wareneinkauf), 'var(--danger)',  '🛒')}
-            ${this._kpi('Betriebsausgaben',   Utils.formatCurrency(betriebsausgaben), 'var(--danger)', '💸')}
-            ${this._kpi('Jahresgewinn',        Utils.formatCurrency(gewinn),        gewinn>=0?'var(--success)':'var(--danger)', '💰')}
-            ${this._kpi('Gewerbesteuer',       Utils.formatCurrency(gewSt),         'var(--warning)', '🏛️')}
-            ${this._kpi('Netto-Gewinn',        Utils.formatCurrency(nettoGewinn),   nettoGewinn>=0?'var(--success)':'var(--danger)', '✅')}
-            ${this._kpi('Auszahlungen YTD',    Utils.formatCurrency(totalAusz),     'var(--accent)', '📤')}
+            ${this._kpi('Einnahmen '+year,    Utils.formatCurrency(einnahmen),    'var(--success)')}
+            ${this._kpi('Wareneinkauf',       Utils.formatCurrency(wareneinkauf), 'var(--danger)')}
+            ${this._kpi('Betriebsausgaben',   Utils.formatCurrency(betriebsausgaben), 'var(--danger)')}
+            ${this._kpi('Jahresgewinn',        Utils.formatCurrency(gewinn),        gewinn>=0?'var(--success)':'var(--danger)')}
+            ${this._kpi('Gewerbesteuer',       Utils.formatCurrency(gewSt),         'var(--warning)')}
+            ${this._kpi('Netto-Gewinn',        Utils.formatCurrency(nettoGewinn),   nettoGewinn>=0?'var(--success)':'var(--danger)')}
+            ${this._kpi('Auszahlungen YTD',    Utils.formatCurrency(totalAusz),     'var(--accent)')}
         </div>
         ${diff25aUmsatz > 0 ? `<div class="card" style="padding:14px 16px;margin-bottom:16px;font-size:12px;color:var(--text-secondary);">
             <strong><i class="ti ti-tag" style="margin-right:4px;"></i> Differenzbesteuerung §25a UStG</strong> — nur Anzeige, keine Auswirkung auf den Jahresgewinn oben.<br>
@@ -186,7 +186,7 @@ const GbrModul = {
                     return `
                     <div style="background:var(--bg-secondary);border-radius:10px;padding:16px;border:1px solid var(--border);">
                         <div style="font-weight:700;font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
-                            <span style="width:32px;height:32px;border-radius:50%;background:var(--accent-glow);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px;">👤</span>
+                            <span style="width:32px;height:32px;border-radius:50%;background:var(--accent-glow);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:16px;"><i class="ti ti-user" aria-hidden="true"></i></span>
                             ${Utils.escapeHtml(g.name)}
                             <span style="margin-left:auto;font-size:11px;padding:2px 8px;border-radius:10px;background:var(--accent-glow);color:var(--accent);">${g.anteil}%</span>
                         </div>
@@ -219,15 +219,15 @@ const GbrModul = {
 
         <!-- Hinweis-Box -->
         <div style="background:var(--info-bg);border:1px solid var(--info);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--text-secondary);">
-            <strong style="color:var(--info);">ℹ Gesonderte Feststellungserklärung (Anlage FE)</strong><br>
+            <strong style="color:var(--info);">Gesonderte Feststellungserklärung (Anlage FE)</strong><br>
             Die GbR muss jährlich eine gesonderte und einheitliche Feststellungserklärung beim Finanzamt einreichen.
             Alle benötigten Daten findest du im Tab <strong>Feststellung</strong>.
         </div>`;
     },
 
-    _kpi(label, value, color, icon) {
+    _kpi(label, value, color) {
         return `<div class="card" style="padding:14px 16px;">
-            <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">${icon} ${label}</div>
+            <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">${label}</div>
             <div style="font-size:20px;font-weight:800;color:${color};">${value}</div>
         </div>`;
     },
@@ -277,7 +277,7 @@ const GbrModul = {
                                 </td>
                                 <td style="padding:7px 12px;font-size:12px;color:var(--text-secondary);">${Utils.escapeHtml(b.beschreibung||'—')}</td>
                                 <td style="padding:7px 12px;font-size:12px;font-weight:700;text-align:right;white-space:nowrap;color:${isPos(b.typ)?'var(--success)':'var(--danger)'};">${isPos(b.typ)?'+':'−'} ${Utils.formatCurrency(Math.abs(parseFloat(b.betrag)||0))}</td>
-                                <td style="padding:7px 8px;text-align:center;"><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;" data-action="gm-del-verr" data-args='["${b.id}"]' >🗑</button></td>
+                                <td style="padding:7px 8px;text-align:center;"><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:13px;" data-action="gm-del-verr" data-args='["${b.id}"]' aria-label="Löschen"><i class="ti ti-trash" aria-hidden="true"></i></button></td>
                             </tr>`).join('')}
                         </tbody>
                     </table>
@@ -415,7 +415,7 @@ const GbrModul = {
                     <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:3px;">Quartal ${q}</div>
                     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px;">${label}</div>
                     <div style="font-weight:700;font-size:13px;color:${vzqSum>0?'var(--success)':fällig?'var(--danger)':'var(--text-secondary)'};">
-                        ${vzqSum>0 ? '✅ '+Utils.formatCurrency(vzqSum) : fällig ? 'Fällig!' : '—'}
+                        ${vzqSum>0 ? Utils.formatCurrency(vzqSum) : fällig ? 'Fällig!' : '—'}
                     </div>
                 </div>`;
             }).join('')}
@@ -444,7 +444,7 @@ const GbrModul = {
                         <td style="padding:7px 8px;font-size:12px;">Q${v.quartal}</td>
                         <td style="padding:7px 8px;font-size:12px;color:var(--text-secondary);">${Utils.escapeHtml(v.notizen||'')}</td>
                         <td style="padding:7px 8px;font-size:12px;font-weight:700;text-align:right;">${Utils.formatCurrency(v.betrag)}</td>
-                        <td style="padding:7px 8px;text-align:center;"><button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text-muted);" data-action="gm-del-gewstvz" data-args='[${year},"${v.id}"]' >🗑</button></td>
+                        <td style="padding:7px 8px;text-align:center;"><button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text-muted);" data-action="gm-del-gewstvz" data-args='[${year},"${v.id}"]' aria-label="Löschen"><i class="ti ti-trash" aria-hidden="true"></i></button></td>
                     </tr>`).join('')}
                 </tbody>
             </table>
@@ -534,7 +534,7 @@ const GbrModul = {
 
             ${checks.map(c=>`
             <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
-                <span style="font-size:15px;flex-shrink:0;">${c.ok?'✅':'❌'}</span>
+                <span style="font-size:15px;flex-shrink:0;color:${c.ok?'var(--text)':'var(--danger)'};">${c.ok?'<i class="ti ti-check" aria-hidden="true"></i>':'<i class="ti ti-x" aria-hidden="true"></i>'}</span>
                 <span style="flex:1;font-size:13px;${c.ok?'':'color:var(--danger);font-weight:600;'}">${c.label}</span>
                 ${!c.ok?`<span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${c.hint}</span>`:''}
             </div>`).join('')}
@@ -773,7 +773,6 @@ const GbrModul = {
     _renderNotAvailable() {
         return `
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:55vh;text-align:center;padding:40px;">
-            <div style="font-size:52px;margin-bottom:16px;">🤝</div>
             <h2 style="margin-bottom:10px;color:var(--text-primary);">Gesellschafter-Modul nicht aktiv</h2>
             <p style="color:var(--text-secondary);max-width:400px;margin-bottom:24px;line-height:1.6;">
                 Dieses Modul ist für <strong>Personengesellschaften</strong> verfügbar (GbR, eGbR, OHG, KG, GmbH & Co. KG).

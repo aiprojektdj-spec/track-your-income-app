@@ -203,7 +203,6 @@ const Vorsteuer = {
             return `
             <div class="page-header"><h2><i class="ti ti-receipt-tax" style="margin-right:6px;"></i> Vorsteuer</h2></div>
             <div class="card" style="padding:32px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:16px;">🧾</div>
                 <h3>Nur für Regelbesteuerer</h3>
                 <p style="color:var(--text-muted);margin:8px 0 20px;">
                     Als <strong>Kleinunternehmer (§19 UStG)</strong> hast du keinen Vorsteuerabzug.<br>
@@ -411,7 +410,7 @@ const Vorsteuer = {
             return `
         <div class="card" style="margin-top:16px;padding:14px 16px;border:1px solid ${ok ? 'var(--success)' : 'var(--warning)'};">
             <div style="font-weight:700;font-size:13px;color:${ok ? 'var(--success)' : 'var(--warning)'};margin-bottom:4px;">
-                ${ok ? '✅' : '⚠️'} Beleg-Nachweis: ${bs.complete} von ${bs.total} Vorsteuer-Buchungen vollständig dokumentiert
+                Beleg-Nachweis: ${bs.complete} von ${bs.total} Vorsteuer-Buchungen vollständig dokumentiert
             </div>
             <div style="font-size:12px;color:var(--text-muted);">
                 ${incomplete > 0 ? `${incomplete} Buchung(en) ohne Aussteller-Name bzw. (bei Rechnungen &gt;250€) ohne Steuernr./USt-IdNr. — Details in „Wareneinkauf"/„Betriebsausgaben".` : 'Aussteller-Name und Steuernr./USt-IdNr. sind bei allen Vorsteuer-relevanten Buchungen hinterlegt.'}
@@ -467,7 +466,7 @@ const Vorsteuer = {
                                 <td style="text-align:center">${rate}%</td>
                                 <td style="text-align:right">${Utils.formatCurrency(netto)}</td>
                                 <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(vst)}</td>
-                                <td style="text-align:center;" title="${beleg ? Utils.escapeHtml(beleg.missing.join(', ') || 'vollständig') : 'kein Vorsteuerabzug'}">${beleg ? (beleg.complete ? '✅' : '⚠️') : '—'}</td>
+                                <td style="text-align:center;" title="${beleg ? Utils.escapeHtml(beleg.missing.join(', ') || 'vollständig') : 'kein Vorsteuerabzug'}">${beleg ? (beleg.complete ? '<i class="ti ti-check" aria-hidden="true"></i>' : '<i class="ti ti-alert-triangle" style="color:var(--danger);" aria-hidden="true"></i>') : '—'}</td>
                             </tr>`;
                         }).join('')}
                     </tbody>
@@ -518,7 +517,7 @@ const Vorsteuer = {
                                 <td style="text-align:right">${Utils.formatCurrency(brutto)}</td>
                                 <td style="text-align:center">${rateLabel}</td>
                                 <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(vst)}</td>
-                                <td style="text-align:center;" title="${beleg ? Utils.escapeHtml(beleg.missing.join(', ') || 'vollständig') : (isUnklar ? 'USt-Satz unklar — kein Vorsteuerabzug, bitte nachpflegen' : 'kein Vorsteuerabzug')}">${beleg ? (beleg.complete ? '✅' : '⚠️') : (isUnklar ? '❓' : '—')}</td>
+                                <td style="text-align:center;" title="${beleg ? Utils.escapeHtml(beleg.missing.join(', ') || 'vollständig') : (isUnklar ? 'USt-Satz unklar — kein Vorsteuerabzug, bitte nachpflegen' : 'kein Vorsteuerabzug')}">${beleg ? (beleg.complete ? '<i class="ti ti-check" aria-hidden="true"></i>' : '<i class="ti ti-alert-triangle" style="color:var(--danger);" aria-hidden="true"></i>') : (isUnklar ? '?' : '—')}</td>
                             </tr>`;
                         }).join('')}
                     </tbody>

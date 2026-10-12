@@ -296,7 +296,6 @@ var Steuerberater = (function () {
         if (pin) {
             pinOverlay = '<div id="pinOverlay" style="position:fixed;inset:0;background:#1e293b;z-index:9999;display:flex;align-items:center;justify-content:center;">'
                 + '<div style="background:#fff;border-radius:12px;padding:32px;text-align:center;max-width:320px;width:90%;">'
-                + '<div style="font-size:32px;margin-bottom:12px;">🔐</div>'
                 + '<div style="font-weight:800;font-size:18px;margin-bottom:6px;">Steuerberater-Paket</div>'
                 + '<div style="font-size:13px;color:#6b7280;margin-bottom:20px;">' + esc(companyName) + ' · ' + year + '</div>'
                 + '<input type="password" id="pinInput" placeholder="PIN eingeben" style="width:100%;padding:10px 14px;border:2px solid #e5e7eb;border-radius:8px;font-size:16px;text-align:center;box-sizing:border-box;margin-bottom:12px;" autofocus>'

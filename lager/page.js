@@ -139,7 +139,7 @@ const LagerPage = {
                            data-action="stop">
                 </td>
                 ${p.foto ? `<td style="width:40px;padding:4px;"><img src="${p.foto}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;"></td>`
-                          : `<td style="width:40px;text-align:center;color:var(--text-muted);font-size:18px;">📦</td>`}
+                          : `<td style="width:40px;text-align:center;color:var(--text-muted);font-size:18px;"><i class="ti ti-package" aria-hidden="true"></i></td>`}
                 <td style="padding:6px 8px;font-family:monospace;font-size:11px;white-space:nowrap;color:var(--text-muted);">${Utils.escapeHtml(p.artikelNr||'—')}</td>
                 <td style="padding:6px 8px;font-size:13px;font-weight:600;">${Utils.escapeHtml((p.marke||'—')+' '+(p.artikeltyp||''))}</td>
                 <td style="padding:6px 8px;font-size:12px;color:var(--text-secondary);">${Utils.escapeHtml(p.groesse||'—')}</td>
@@ -218,7 +218,7 @@ const LagerPage = {
                 <div class="card" id="buchFormCard"
                      style="padding:14px;transition:opacity .15s;${selectedCount === 0 ? 'opacity:.45;pointer-events:none;' : ''}">
                     <div style="font-weight:700;font-size:13px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-                        💰 Verkauf verbuchen
+                        Verkauf verbuchen
                         <span id="buchFormBadge"
                               style="font-size:11px;background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-weight:600;${selectedCount === 0 ? 'display:none;' : ''}">${selectedCount}</span>
                     </div>
@@ -317,7 +317,7 @@ const LagerPage = {
                         <button class="btn btn-primary" id="buchSaveBtn"
                                 style="width:100%;padding:10px;font-size:14px;font-weight:700;"
                                 ${selectedCount === 0 ? 'disabled' : ''}>
-                            💰 Verkauf speichern
+                            Verkauf speichern
                         </button>
                         <p id="buchSelHint" style="text-align:center;font-size:12px;color:var(--text-muted);margin:0;${selectedCount > 0 ? 'display:none;' : ''}">← Bitte zuerst Artikel auswählen</p>
                     </div>
@@ -558,7 +558,7 @@ const LagerPage = {
             Store.saveSaleMulti(saleData);
         }
 
-        Utils.showToast(`✅ Verkauf gespeichert${selected.length > 1 ? ` (${selected.length} Artikel)` : ''}`, 'success');
+        Utils.showToast(`Verkauf gespeichert${selected.length > 1 ? ` (${selected.length} Artikel)` : ''}`, 'success');
         this._buchSelected.clear();
         this._buchSearchTerm = '';
 
@@ -641,9 +641,9 @@ function openNeuArtikelModal() {
                      aria-hidden, damit der Screenreader nicht ein nacktes Kamera-Emoji ansagt. -->
                 <div id="neuFotoPreviewWrap" aria-hidden="true"
                      style="width:52px;height:52px;background:var(--bg-secondary);border-radius:8px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;cursor:pointer;"
-                     data-action="lgp-foto">📷</div>
+                     data-action="lgp-foto"><i class="ti ti-camera" aria-hidden="true"></i></div>
                 <div>
-                    <button class="btn btn-small" type="button" data-action="lgp-foto">📷 Foto wählen</button>
+                    <button class="btn btn-small" type="button" data-action="lgp-foto">Foto wählen</button>
                     <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">JPG / PNG · optional</div>
                 </div>
                 <input type="file" id="neuFotoInput" accept="image/*" style="display:none;">
@@ -762,7 +762,7 @@ function openNeuArtikelModal() {
             <!-- Lagerort + Notizen (einklappbar) -->
             <details style="border:1px solid var(--border);border-radius:8px;">
                 <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-secondary);list-style:none;display:flex;align-items:center;gap:6px;">
-                    📍 Lagerort &amp; Notizen <span style="font-weight:400;color:var(--text-muted);">&nbsp;(optional)</span>
+                    Lagerort &amp; Notizen <span style="font-weight:400;color:var(--text-muted);">&nbsp;(optional)</span>
                 </summary>
                 <div style="padding:12px 14px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:10px;">
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
@@ -790,7 +790,7 @@ function openNeuArtikelModal() {
 
     const footer = `
         <button class="btn" data-action="close-modal">Abbrechen</button>
-        <button class="btn btn-primary" id="saveNeuArtikel" style="min-width:130px;">💾 Speichern</button>
+        <button class="btn btn-primary" id="saveNeuArtikel" style="min-width:130px;">Speichern</button>
     `;
 
     App.showModal('Neuer Artikel', body, footer);
@@ -803,11 +803,11 @@ function openNeuArtikelModal() {
         if (!file) return;
         // Validierung: Typ + Größe (max 15 MB)
         if (!file.type || !file.type.startsWith('image/')) {
-            Utils.showToast('⚠️ Datei ist kein Bild (' + (file.type || 'unbekannt') + ')', 'warning');
+            Utils.showToast('Datei ist kein Bild (' + (file.type || 'unbekannt') + ')', 'warning');
             return;
         }
         if (file.size > 15 * 1024 * 1024) {
-            Utils.showToast('⚠️ Bild zu groß (' + (file.size/1024/1024).toFixed(1) + ' MB · max 15 MB)', 'warning');
+            Utils.showToast('Bild zu groß (' + (file.size/1024/1024).toFixed(1) + ' MB · max 15 MB)', 'warning');
             return;
         }
         const reader = new FileReader();
@@ -930,7 +930,7 @@ function openNeuArtikelModal() {
 
         Store.savePurchase(purchase);
         App.closeModal();
-        Utils.showToast('✅ Artikel gespeichert · EÜR aktualisiert', 'success');
+        Utils.showToast('Artikel gespeichert · EÜR aktualisiert', 'success');
 
         // Filter auf "Verfügbar" setzen damit neuer Artikel sofort sichtbar ist
         Lager._filters.status = 'verfuegbar';
@@ -948,8 +948,8 @@ function openKategorienModal() {
                 ${kategorien.map(k => `
                     <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;">
                         <span style="flex:1;font-size:13px;">${Utils.escapeHtml(k)}</span>
-                        <button class="btn btn-small" data-kat-rename="${Utils.escapeHtml(k)}" title="Umbenennen">✏️</button>
-                        <button class="btn btn-small btn-danger" data-kat-delete="${Utils.escapeHtml(k)}" title="Löschen">🗑</button>
+                        <button class="btn btn-small" data-kat-rename="${Utils.escapeHtml(k)}" title="Umbenennen" aria-label="Umbenennen"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+                        <button class="btn btn-small btn-danger" data-kat-delete="${Utils.escapeHtml(k)}" title="Löschen" aria-label="Löschen"><i class="ti ti-trash" aria-hidden="true"></i></button>
                     </div>
                 `).join('') || '<div style="font-size:13px;color:var(--text-muted);">Keine Kategorien angelegt</div>'}
             </div>
@@ -960,7 +960,7 @@ function openKategorienModal() {
             <div style="font-size:11px;color:var(--text-muted);margin-top:10px;">Löschen entfernt die Kategorie nur aus der Auswahlliste — bereits zugeordnete Artikel behalten ihre Kategorie-Angabe.</div>
         `;
         const footer = `<button class="btn btn-primary" id="katModalCloseBtn">Fertig</button>`;
-        App.showModal('🏷️ Kategorien verwalten', body, footer);
+        App.showModal('Kategorien verwalten', body, footer);
         document.getElementById('katModalCloseBtn').addEventListener('click', () => {
             App.closeModal();
             renderPage();
@@ -1005,13 +1005,13 @@ function openStatusModal() {
             <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
                 ${liste.map(s => `
                     <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;">
-                        <span style="font-size:15px;">${s.icon}</span>
+                        
                         <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${s.color};"></span>
                         <span style="flex:1;font-size:13px;">${Utils.escapeHtml(s.label)}</span>
                         ${s.system
                             ? '<span class="badge badge-neutral" style="font-size:10px;" title="System-Status, nicht änderbar">System</span>'
-                            : `<button class="btn btn-small" data-status-rename="${s.key}" title="Umbenennen">✏️</button>
-                               <button class="btn btn-small btn-danger" data-status-delete="${s.key}" title="Löschen">🗑</button>`}
+                            : `<button class="btn btn-small" data-status-rename="${s.key}" title="Umbenennen" aria-label="Umbenennen"><i class="ti ti-pencil" aria-hidden="true"></i></button>
+                               <button class="btn btn-small btn-danger" data-status-delete="${s.key}" title="Löschen" aria-label="Löschen"><i class="ti ti-trash" aria-hidden="true"></i></button>`}
                     </div>
                 `).join('')}
             </div>
@@ -1150,7 +1150,7 @@ function openBulkArtikelModal() {
         <!-- Lagerort gemeinsam -->
         <details style="border:1px solid var(--border);border-radius:8px;margin-bottom:14px;">
             <summary style="padding:9px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-secondary);list-style:none;display:flex;align-items:center;gap:6px;">
-                📍 Lagerort für alle <span style="font-weight:400;color:var(--text-muted);">&nbsp;(optional)</span>
+                Lagerort für alle <span style="font-weight:400;color:var(--text-muted);">&nbsp;(optional)</span>
             </summary>
             <div style="padding:12px 14px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
                 <div>
@@ -1170,7 +1170,7 @@ function openBulkArtikelModal() {
 
         <!-- MwSt + Versandkosten -->
         <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px;">
-            <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">💶 Kosten-Aufschläge <span style="font-weight:400;color:var(--text-muted);">(gelten für alle Artikel dieser Session)</span></div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">Kosten-Aufschläge <span style="font-weight:400;color:var(--text-muted);">(gelten für alle Artikel dieser Session)</span></div>
             <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;">
 
                 <!-- Versandkosten -->
@@ -1258,17 +1258,16 @@ function openBulkArtikelModal() {
 
         <!-- GoBD-Hinweis -->
         <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text-secondary);display:flex;gap:8px;align-items:flex-start;">
-            <span style="font-size:15px;flex-shrink:0;">✅</span>
             <span>Jedes Exemplar wird als <strong>eigener Eintrag</strong> angelegt (GoBD-konform &amp; einzeln verkaufbar). Alle Artikel dieser Session sind im Lager als <em>Bulk</em> erkennbar.</span>
         </div>
     `;
 
     const footer = `
         <button class="btn" data-action="close-modal">Abbrechen</button>
-        <button class="btn btn-primary" id="bulkSaveBtn" style="min-width:180px;">💾 Alle anlegen</button>
+        <button class="btn btn-primary" id="bulkSaveBtn" style="min-width:180px;">Alle anlegen</button>
     `;
 
-    App.showModal('📦 Bulk-Einkauf', body, footer);
+    App.showModal('Bulk-Einkauf', body, footer);
     Lager._bindFarbenPicker('bulk');
 
     // Händler "Sonstiges" toggle
@@ -1330,7 +1329,7 @@ function _renderBulkRows() {
             : `<div id="bulkPh_${row.id}" role="button" tabindex="0"
                     aria-label="Foto hinzufügen"
                     style="width:40px;height:40px;background:var(--bg-secondary);border-radius:4px;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;"
-                    title="Foto hinzufügen">📷</div>`;
+                    title="Foto hinzufügen"><i class="ti ti-camera" aria-hidden="true"></i></div>`;
 
         // Speicher-Schätzung wenn viele Artikel + Foto
         const anzVal = parseInt(row.anzahl) || 1;
@@ -1389,7 +1388,7 @@ function _renderBulkRows() {
                     <button class="btn btn-small" title="Zeile duplizieren"
                             data-action="lgp-bulk-dup" data-args='[${row.id}]' >↻</button>
                     <button class="btn btn-small btn-danger" title="Zeile löschen"
-                            data-action="lgp-bulk-del" data-args='[${row.id}]'  ${onlyOne ? 'disabled' : ''}>🗑</button>
+                            data-action="lgp-bulk-del" data-args='[${row.id}]'  ${onlyOne ? 'disabled' : ''} aria-label="Zeile entfernen"><i class="ti ti-trash" aria-hidden="true"></i></button>
                 </div>
             </td>
         </tr>`;
@@ -1417,10 +1416,10 @@ function _renderBulkRows() {
             if (!file) return;
             // Validierung
             if (!file.type || !file.type.startsWith('image/')) {
-                Utils.showToast('⚠️ Datei ist kein Bild', 'warning'); return;
+                Utils.showToast('Datei ist kein Bild', 'warning'); return;
             }
             if (file.size > 15 * 1024 * 1024) {
-                Utils.showToast('⚠️ Bild zu groß (' + (file.size/1024/1024).toFixed(1) + ' MB · max 15 MB)', 'warning'); return;
+                Utils.showToast('Bild zu groß (' + (file.size/1024/1024).toFixed(1) + ' MB · max 15 MB)', 'warning'); return;
             }
             const reader = new FileReader();
             reader.onerror = () => Utils.showToast('Datei konnte nicht gelesen werden', 'error');
@@ -1524,7 +1523,7 @@ function _updateBulkSummary() {
     if (g('bulkSumBrutto'))        g('bulkSumBrutto').textContent      = Utils.formatCurrency(brutto);
     if (g('bulkSumBruttoPerPiece'))g('bulkSumBruttoPerPiece').textContent =
         totalArticles > 1 ? `(Ø ${Utils.formatCurrency(bruttoProStk)} / Stk)` : '';
-    if (g('bulkSaveBtn'))          g('bulkSaveBtn').textContent        = `💾 Alle anlegen (${totalArticles} Artikel)`;
+    if (g('bulkSaveBtn'))          g('bulkSaveBtn').textContent        = `Alle anlegen (${totalArticles} Artikel)`;
 }
 
 function _bulkDuplicateRow(rowId) {
@@ -1605,7 +1604,7 @@ function _saveBulkArtikel() {
 
     // Button sperren
     const saveBtn = document.getElementById('bulkSaveBtn');
-    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Wird gespeichert…'; }
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Wird gespeichert…'; }
 
     // Batch-Speicherung (async — wartet auf IDB-Bestätigung)
     setTimeout(async () => {
@@ -1686,7 +1685,7 @@ function _saveBulkArtikel() {
             });
 
             // Einmaliger Batch-Write — wartet auf echte IDB-Bestätigung
-            if (saveBtn) saveBtn.textContent = '⏳ Schreibe in Datenbank…';
+            if (saveBtn) saveBtn.textContent = 'Schreibe in Datenbank…';
             await Store.setAsync('purchases', [...existing, ...newRecords]);
 
             // GoBD (§146 Abs. 4 AO, Rz. 64): Store.setAsync() ist ein reiner Schreibpfad ohne
@@ -1712,7 +1711,7 @@ function _saveBulkArtikel() {
             const mwstInfo  = mwstSatz > 0    ? ` · MwSt ${mwstSatz}%` : '';
             const versandInfo = versandGesamt > 0 ? ` · Versand ${Utils.formatCurrency(versandGesamt)}` : '';
             Utils.showToast(
-                `✅ ${totalToCreate} Artikel persistiert${validRows.length > 1 ? ` (${validRows.length} Typen)` : ''}${mwstInfo}${versandInfo} · Brutto-EK gespeichert`,
+                `${totalToCreate} Artikel persistiert${validRows.length > 1 ? ` (${validRows.length} Typen)` : ''}${mwstInfo}${versandInfo} · Brutto-EK gespeichert`,
                 'success'
             );
             Lager._filters.status = 'verfuegbar';
@@ -1721,8 +1720,8 @@ function _saveBulkArtikel() {
 
         } catch(err) {
             console.error('[Bulk] Speicherfehler:', err);
-            Utils.showToast('❌ Speichern fehlgeschlagen: ' + (err.message || err.name || err), 'error');
-            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Alle anlegen'; }
+            Utils.showToast('Speichern fehlgeschlagen: ' + (err.message || err.name || err), 'error');
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Alle anlegen'; }
         }
     }, 20);
 }
@@ -1812,7 +1811,7 @@ const ExcelImport = {
         const body = `
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--text-secondary);">
-                    <div style="font-weight:700;color:var(--info);margin-bottom:4px;">📊 Excel-Import</div>
+                    <div style="font-weight:700;color:var(--info);margin-bottom:4px;">Excel-Import</div>
                     <div>Lade eine <strong>.xlsx, .xls oder .csv</strong>-Datei mit deinen Artikeln hoch. Spalten werden automatisch erkannt — du kannst sie zuordnen.
                     Hast du eine eigene <strong>Artikelnummer</strong>-Spalte, wird sie übernommen; sonst vergibt Stackr automatisch fortlaufende Nummern.</div>
                 </div>
@@ -1861,10 +1860,10 @@ const ExcelImport = {
 
         const footer = `
             <button class="btn" data-action="close-modal">Abbrechen</button>
-            <button class="btn btn-primary" id="excelImportBtn" disabled style="min-width:200px;">📥 Importieren</button>
+            <button class="btn btn-primary" id="excelImportBtn" disabled style="min-width:200px;">Importieren</button>
         `;
 
-        App.showModal('📊 Excel-Import', body, footer);
+        App.showModal('Excel-Import', body, footer);
 
         document.getElementById('excelFileInput').addEventListener('change', e => this._handleFile(e.target.files[0]));
         document.getElementById('excelImportBtn').addEventListener('click', () => this._import());
@@ -1946,7 +1945,7 @@ const ExcelImport = {
         document.getElementById('excelPreviewSection').style.display = '';
         document.getElementById('excelCommonFields').style.display = '';
         document.getElementById('excelImportBtn').disabled = false;
-        Utils.showToast(`✅ ${json.length} Zeilen geladen aus ${sheetName}`, 'success');
+        Utils.showToast(`${json.length} Zeilen geladen aus ${sheetName}`, 'success');
     },
 
     _renderMapping() {
@@ -2020,7 +2019,7 @@ const ExcelImport = {
         const c = this._artNrConflicts();
         const warn = (c.taken + c.dupes) > 0
             ? `<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.5;margin-bottom:8px;">
-                   ⚠️ <strong>${c.taken + c.dupes} Artikelnummern kollidieren</strong>
+                   <strong>${c.taken + c.dupes} Artikelnummern kollidieren</strong>
                    (${c.taken} bereits im Lager vergeben, ${c.dupes} doppelt in dieser Datei).
                    Sie bekommen beim Import automatisch ein Suffix (-2, -3, …) und bleiben damit eindeutig —
                    es geht nichts verloren und nichts wird überschrieben.
@@ -2103,7 +2102,7 @@ const ExcelImport = {
         if (!confirm(`${validRows.length} Excel-Zeilen → ${totalToCreate} einzelne Artikel werden angelegt.${soldToCreate > 0 ? `\n\nDavon ${soldToCreate} direkt als „verkauft" markiert (mit Verkaufspreis + Verkaufsdatum).` : ''}${skipped > 0 ? `\n\n${skipped} Zeilen übersprungen (ungültiger Preis oder fehlende Marke/Beschreibung).` : ''}\n\nFortfahren?`)) return;
 
         btn.disabled = true;
-        btn.textContent = '⏳ Importiere…';
+        btn.textContent = 'Importiere…';
 
         try {
             const sessionId = 'xlsx_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
@@ -2217,7 +2216,7 @@ const ExcelImport = {
             }
 
             App.closeModal();
-            Utils.showToast(`✅ ${totalToCreate} Artikel aus Excel importiert${soldToCreate > 0 ? ` · ${soldToCreate} als verkauft` : ''}${skipped > 0 ? ` · ${skipped} übersprungen` : ''}`, 'success');
+            Utils.showToast(`${totalToCreate} Artikel aus Excel importiert${soldToCreate > 0 ? ` · ${soldToCreate} als verkauft` : ''}${skipped > 0 ? ` · ${skipped} übersprungen` : ''}`, 'success');
             Lager._filters.status = '';
             renderPage();
             document.getElementById('mainContent').scrollTop = 0;
@@ -2229,9 +2228,9 @@ const ExcelImport = {
 
         } catch (err) {
             console.error('[ExcelImport] Speicherfehler:', err);
-            Utils.showToast('❌ Import fehlgeschlagen: ' + err.message, 'error');
+            Utils.showToast('Import fehlgeschlagen: ' + err.message, 'error');
             btn.disabled = false;
-            btn.textContent = '📥 Importieren';
+            btn.textContent = 'Importieren';
         }
     }
 };
@@ -2332,7 +2331,7 @@ const SalesImport = {
         const body = `
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--text-secondary);">
-                    <div style="font-weight:700;color:var(--success);margin-bottom:4px;">📥 Verkäufe-Import</div>
+                    <div style="font-weight:700;color:var(--success);margin-bottom:4px;">Verkäufe-Import</div>
                     <div>Lade die <strong>Verkaufshistorie</strong> deiner Plattform als CSV/Excel-Datei hoch. Die Verkäufe werden direkt in Buchungen gespeichert. <br>
                     <strong>Tipp:</strong> Wenn die Artikel-Nr. (<code>2026-042</code> oder deine eigene, z.&nbsp;B. <code>SV-1042</code>) im Titel steht, wird der Verkauf automatisch dem Lager-Artikel zugeordnet.</div>
                 </div>
@@ -2375,10 +2374,10 @@ const SalesImport = {
 
         const footer = `
             <button class="btn" data-action="close-modal">Abbrechen</button>
-            <button class="btn btn-primary" id="salesImportBtn" disabled style="min-width:200px;">📥 Importieren</button>
+            <button class="btn btn-primary" id="salesImportBtn" disabled style="min-width:200px;">Importieren</button>
         `;
 
-        App.showModal('📥 Verkäufe-Import (CSV)', body, footer);
+        App.showModal('Verkäufe-Import (CSV)', body, footer);
 
         // Plattform-Wechsel
         document.getElementById('salesPlatform').addEventListener('change', (e) => {
@@ -2425,7 +2424,7 @@ const SalesImport = {
                 document.getElementById('salesMappingSection').style.display = '';
                 document.getElementById('salesPreviewSection').style.display = '';
                 document.getElementById('salesImportBtn').disabled = false;
-                Utils.showToast(`✅ ${json.length} Zeilen geladen`, 'success');
+                Utils.showToast(`${json.length} Zeilen geladen`, 'success');
             } catch (err) {
                 console.error('[SalesImport] Parse-Fehler:', err);
                 Utils.showToast('Datei konnte nicht gelesen werden: ' + err.message, 'error');
@@ -2538,9 +2537,9 @@ const SalesImport = {
                 <tbody>
                     ${parsed.map(p => `
                         <tr>
-                            <td style="padding:4px 8px;border-bottom:1px solid var(--border);${p.datum ? '' : 'color:var(--danger);'}">${p.datum || '⚠ ungültig'}</td>
+                            <td style="padding:4px 8px;border-bottom:1px solid var(--border);${p.datum ? '' : 'color:var(--danger);'}">${p.datum || 'ungültig'}</td>
                             <td style="padding:4px 8px;border-bottom:1px solid var(--border);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${Utils.escapeHtml(p.beschr)}">${Utils.escapeHtml(p.beschr || '—')}</td>
-                            <td style="padding:4px 8px;border-bottom:1px solid var(--border);text-align:right;${p.preis > 0 ? '' : 'color:var(--danger);'}">${p.preis > 0 ? fmt(p.preis) : '⚠ 0'}</td>
+                            <td style="padding:4px 8px;border-bottom:1px solid var(--border);text-align:right;${p.preis > 0 ? '' : 'color:var(--danger);'}">${p.preis > 0 ? fmt(p.preis) : '0'}</td>
                             <td style="padding:4px 8px;border-bottom:1px solid var(--border);text-align:right;">${p.gebuehr > 0 ? fmt(p.gebuehr) : '—'}</td>
                             <td style="padding:4px 8px;border-bottom:1px solid var(--border);text-align:right;">${p.vsk > 0 ? fmt(p.vsk) : '—'}</td>
                             <td style="padding:4px 8px;border-bottom:1px solid var(--border);">${Utils.escapeHtml(p.kaeufer || '—')}</td>
@@ -2566,9 +2565,9 @@ const SalesImport = {
         const totalMatched = allParsed.filter(p => p.valid && p.matchNr).length;
 
         document.getElementById('salesStats').innerHTML = `
-            ✅ <strong>${totalValid}</strong> gültige Verkäufe ·
-            🔗 <strong>${totalMatched}</strong> automatisch dem Lager zugeordnet ·
-            ${totalSkipped > 0 ? `⚠️ <strong>${totalSkipped}</strong> übersprungen (Datum/Preis fehlt)` : ''}
+            <strong>${totalValid}</strong> gültige Verkäufe ·
+            <strong>${totalMatched}</strong> automatisch dem Lager zugeordnet ·
+            ${totalSkipped > 0 ? `<strong>${totalSkipped}</strong> übersprungen (Datum/Preis fehlt)` : ''}
         `;
     },
 
@@ -2657,7 +2656,7 @@ const SalesImport = {
 
         const btn = document.getElementById('salesImportBtn');
         btn.disabled = true;
-        btn.textContent = '⏳ Importiere…';
+        btn.textContent = 'Importiere…';
 
         try {
             // Verkäufe persistieren
@@ -2700,13 +2699,13 @@ const SalesImport = {
             if (Store._addAuditEntriesBatch && auditItems.length) Store._addAuditEntriesBatch(auditItems);
 
             App.closeModal();
-            Utils.showToast(`✅ ${total} Verkäufe importiert · ${matched} Lager-Artikel als verkauft markiert`, 'success');
+            Utils.showToast(`${total} Verkäufe importiert · ${matched} Lager-Artikel als verkauft markiert`, 'success');
             renderPage();
         } catch (err) {
             console.error('[SalesImport] Fehler:', err);
-            Utils.showToast('❌ Import fehlgeschlagen: ' + err.message, 'error');
+            Utils.showToast('Import fehlgeschlagen: ' + err.message, 'error');
             btn.disabled = false;
-            btn.textContent = '📥 Importieren';
+            btn.textContent = 'Importieren';
         }
     }
 };
@@ -2748,7 +2747,7 @@ async function lagerBoot() {
             const tot  = (est.quota  / 1024 / 1024).toFixed(0);
             const pct  = (est.usage / est.quota * 100).toFixed(1);
             const color = pct > 80 ? 'var(--danger)' : pct > 50 ? 'var(--warning)' : 'var(--text-muted)';
-            el.innerHTML = `<span style="color:${color};">💾 ${used} / ${tot} MB (${pct}%)</span>`;
+            el.innerHTML = `<span style="color:${color};">${used} / ${tot} MB (${pct}%)</span>`;
         }).catch(() => {});
     }
 

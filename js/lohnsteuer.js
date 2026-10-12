@@ -226,8 +226,8 @@ const Lohnsteuer = {
                                     <td style="text-align:right;color:var(--success)">${Utils.formatCurrency(c.netto)}</td>
                                     <td><span class="badge ${e.aktiv ? 'badge-success' : ''}">${e.aktiv ? 'Aktiv' : 'Inaktiv'}</span></td>
                                     <td style="display:flex;gap:4px;">
-                                        <button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="lst-toggle" data-args='["${e.id}"]' >${e.aktiv ? '⏸' : '▶'}</button>
-                                        <button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="lst-del" data-args='["${e.id}"]' >🗑</button>
+                                        <button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="lst-toggle" data-args='["${e.id}"]' aria-label="${e.aktiv ? 'Pausieren' : 'Aktivieren'}">${e.aktiv ? '<i class="ti ti-player-pause" aria-hidden="true"></i>' : '<i class="ti ti-player-play" aria-hidden="true"></i>'}</button>
+                                        <button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="lst-del" data-args='["${e.id}"]' aria-label="Löschen"><i class="ti ti-trash" aria-hidden="true"></i></button>
                                     </td>
                                 </tr>`;
                             }).join('')}
@@ -254,7 +254,7 @@ const Lohnsteuer = {
             </div>
             <div style="margin-top:10px;font-size:11px;color:var(--text-muted);">
                 BBG KV/PV: ${Utils.formatCurrency(this.BBG.kv)}/Jahr · BBG RV/AV: ${Utils.formatCurrency(this.BBG.rv)}/Jahr (bundeseinheitlich)<br>
-                ⚠️ <strong>Vereinfachte Näherung, keine amtliche Lohnsteuerberechnung</strong> — exakte Werte über DATEV/Lohnsoftware oder Steuerberater. Keine Lohnsteuerberatung.
+                <strong>Vereinfachte Näherung, keine amtliche Lohnsteuerberechnung</strong> — exakte Werte über DATEV/Lohnsoftware oder Steuerberater. Keine Lohnsteuerberatung.
             </div>
         </div>`;
     },

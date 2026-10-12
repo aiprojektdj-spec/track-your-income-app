@@ -901,7 +901,7 @@ var DatevExport = (function () {
         html += '<input type="checkbox" id="datevBelege" checked style="width:16px;height:16px;">';
         html += '<span>Belegbilder mitliefern — Ausgabe als <strong>ZIP</strong> statt einzelner CSV</span></label>';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-left:24px;">Im Archiv liegt der Stapel neben einem Ordner <code>belege/</code>. Jede Datei traegt die Belegnummer, die im Stapel in Belegfeld 1 steht.</div>';
-        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:10px;">⚠ Berater-Nr. und Mandanten-Nr. sind Platzhalter (00000 / 00001). Bitte vor dem Import in DATEV anpassen.</div>';
+        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:10px;">Berater-Nr. und Mandanten-Nr. sind Platzhalter (00000 / 00001). Bitte vor dem Import in DATEV anpassen.</div>';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Anlagen werden im Kaufjahr als <strong>Zugang</strong> gebucht und jährlich abgeschrieben. Hast du einen Anlagenkauf zusätzlich als Ausgabe erfasst, steht er doppelt im Stapel.</div>';
         html += '</div>';
         return html;

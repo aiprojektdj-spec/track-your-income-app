@@ -849,8 +849,8 @@ var CloudSync = (function () {
                 if (!_needReload) openConflicts();
                 else _setDot('warn');
             }
-            if (_needReload)      { Utils.showToast('☁ Cloud-Daten übernommen — lade neu…', 'info', 1800); setTimeout(function () { location.reload(); }, 1300); }
-            else if (_changedActive) Utils.showToast('☁ Daten aus der Cloud zusammengeführt', 'info', 3000);
+            if (_needReload)      { Utils.showToast('Cloud-Daten übernommen — lade neu…', 'info', 1800); setTimeout(function () { location.reload(); }, 1300); }
+            else if (_changedActive) Utils.showToast('Daten aus der Cloud zusammengeführt', 'info', 3000);
         } catch (e) {
             console.warn('[CloudSync] sync error:', e && e.message);
             var msg = (e && e.message) || '';
@@ -860,7 +860,7 @@ var CloudSync = (function () {
                 _setMismatch(true);
                 _setDot('broken');
                 if (typeof Utils !== 'undefined') Utils.showToast(
-                    '⛔ Cloud-Sync gestoppt: Der Schlüssel dieses Geräts passt nicht zu den Cloud-Daten deines Accounts. ' +
+                    'Cloud-Sync gestoppt: Der Schlüssel dieses Geräts passt nicht zu den Cloud-Daten deines Accounts. ' +
                     'Deine lokalen Daten sind vollständig sicher. Klick auf das Wolken-Symbol oben → „Problem beheben“.', 'error', 15000);
             } else {
                 _setDot('err');
@@ -896,7 +896,7 @@ var CloudSync = (function () {
         var cnt = function (s) { try { return (JSON.parse(s || '[]') || []).length; } catch (e) { return 0; } };
         var neu = cnt(regNow) - cnt(regBefore);
         if (neu > 0 && !_needReload && typeof Utils !== 'undefined') {
-            Utils.showToast('☁ ' + neu + ' weitere' + (neu === 1 ? 's Unternehmen' : ' Unternehmen') +
+            Utils.showToast(neu + ' weitere' + (neu === 1 ? 's Unternehmen' : ' Unternehmen') +
                             ' aus der Cloud übernommen', 'info', 5000);
         }
     }
@@ -995,7 +995,7 @@ var CloudSync = (function () {
         retryPendingDeletions().catch(function (e) { console.warn('[CloudSync] Nachhol-Löschung:', e && e.message); });
         if (_hasMismatch() && typeof Utils !== 'undefined') {
             setTimeout(function () {
-                Utils.showToast('⛔ Cloud-Sync steht still: Schlüssel und Cloud-Daten passen nicht zusammen. ' +
+                Utils.showToast('Cloud-Sync steht still: Schlüssel und Cloud-Daten passen nicht zusammen. ' +
                                 'Klick auf das Wolken-Symbol oben, um es zu beheben.', 'error', 12000);
             }, 4000);
         }
@@ -1023,11 +1023,11 @@ var CloudSync = (function () {
     function _repairBlock() {
         if (!_hasMismatch()) return '';
         return '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);border-radius:8px;padding:12px;font-size:13px;line-height:1.5;">' +
-                 '⛔ <strong>Cloud-Sync steht.</strong> Die in der Cloud liegenden Daten dieses Accounts sind mit einem <strong>anderen Schlüssel</strong> ' +
+                 '<strong>Cloud-Sync steht.</strong> Die in der Cloud liegenden Daten dieses Accounts sind mit einem <strong>anderen Schlüssel</strong> ' +
                  'verschlüsselt als dem auf diesem Gerät. Es geht dadurch nichts verloren: deine Buchhaltung liegt vollständig lokal auf diesem Gerät.' +
                  '<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px;">' +
-                   '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">🔑 Richtigen Wiederherstellungscode eingeben</button>' +
-                   '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">🗑 Cloud-Daten verwerfen &amp; neu aufsetzen</button>' +
+                   '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">Richtigen Wiederherstellungscode eingeben</button>' +
+                   '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">Cloud-Daten verwerfen &amp; neu aufsetzen</button>' +
                  '</div>' +
                '</div>';
     }
@@ -1041,11 +1041,11 @@ var CloudSync = (function () {
                 _repairBlock() +
                 (_hasMismatch() ? '' :
                 '<div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:12px;font-size:13px;">' +
-                  '☁ <strong>Cloud-Sync ist aktiv.</strong> Deine Daten werden Ende-zu-Ende-verschlüsselt zwischen deinen Geräten synchronisiert. Der Server kann sie nicht lesen.' +
+                  '<strong>Cloud-Sync ist aktiv.</strong> Deine Daten werden Ende-zu-Ende-verschlüsselt zwischen deinen Geräten synchronisiert. Der Server kann sie nicht lesen.' +
                 '</div>') +
-                '<button class="btn btn-outline" data-action="cs-show-code" style="width:100%;">🔑 Wiederherstellungscode anzeigen</button>' +
-                '<button class="btn btn-outline" data-action="cs-sync-now" style="width:100%;">🔄 Jetzt synchronisieren</button>' +
-                '<button class="btn btn-outline" data-action="cs-diagnose" style="width:100%;">🩺 Sync-Diagnose</button>' +
+                '<button class="btn btn-outline" data-action="cs-show-code" style="width:100%;">Wiederherstellungscode anzeigen</button>' +
+                '<button class="btn btn-outline" data-action="cs-sync-now" style="width:100%;">Jetzt synchronisieren</button>' +
+                '<button class="btn btn-outline" data-action="cs-diagnose" style="width:100%;">Sync-Diagnose</button>' +
                 '<button class="btn" data-action="cs-disable" style="width:100%;background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.3);">Cloud-Sync deaktivieren</button>' +
               '</div>';
         } else {
@@ -1058,12 +1058,12 @@ var CloudSync = (function () {
                   'Aufbewahrung beim Auftragsverarbeiter <strong>Upstash (Frankfurt, EU)</strong>, große Anhänge wie Belegfotos bei <strong>Vercel Blob</strong>.' +
                 '</div>' +
                 '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px;font-size:12px;">' +
-                  '⚠️ Du erhältst einen <strong>Wiederherstellungscode</strong>. Er ist der EINZIGE Weg, die Cloud-Daten zu entschlüsseln. ' +
+                  'Du erhältst einen <strong>Wiederherstellungscode</strong>. Er ist der EINZIGE Weg, die Cloud-Daten zu entschlüsseln. ' +
                   'Geht er samt aller Geräte verloren, sind die Cloud-Daten <strong>unwiederbringlich</strong>. Wir können ihn nicht zurücksetzen.' +
                 '</div>' +
-                '<button class="btn btn-primary" data-action="cs-enable" style="width:100%;">☁ Cloud-Sync aktivieren</button>' +
-                '<button class="btn btn-outline" data-action="cs-connect" style="width:100%;">📲 Mit bestehendem Sync verbinden</button>' +
-                '<button class="btn btn-outline" data-action="cs-diagnose" style="width:100%;">🩺 Sync-Diagnose</button>' +
+                '<button class="btn btn-primary" data-action="cs-enable" style="width:100%;">Cloud-Sync aktivieren</button>' +
+                '<button class="btn btn-outline" data-action="cs-connect" style="width:100%;">Mit bestehendem Sync verbinden</button>' +
+                '<button class="btn btn-outline" data-action="cs-diagnose" style="width:100%;">Sync-Diagnose</button>' +
               '</div>';
         }
         App.showModal('Cloud-Sync', body, '');
@@ -1199,15 +1199,15 @@ var CloudSync = (function () {
         var body =
           '<div style="display:flex;flex-direction:column;gap:14px;">' +
             '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px;font-size:13px;line-height:1.5;">' +
-              '⚠️ Für deinen Account liegen <strong>bereits verschlüsselte Cloud-Daten</strong> (' + _esc(_blobInfo(blob)) + ').' +
+              'Für deinen Account liegen <strong>bereits verschlüsselte Cloud-Daten</strong> (' + _esc(_blobInfo(blob)) + ').' +
             '</div>' +
             '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
               'Würde dieses Gerät jetzt einen <strong>neuen</strong> Schlüssel erzeugen, könnte es die vorhandenen Daten nie mehr lesen — ' +
               'und der hier angezeigte Wiederherstellungscode wäre für sie wertlos. Wähle deshalb:' +
             '</div>' +
-            '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">📲 Mit bestehendem Sync verbinden (empfohlen)</button>' +
+            '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">Mit bestehendem Sync verbinden (empfohlen)</button>' +
             '<div style="font-size:12px;color:var(--text-muted);">Du brauchst dafür den Wiederherstellungscode deines anderen Geräts.</div>' +
-            '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">🗑 Cloud-Daten verwerfen &amp; neu aufsetzen</button>' +
+            '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">Cloud-Daten verwerfen &amp; neu aufsetzen</button>' +
             '<div style="font-size:12px;color:var(--text-muted);">Nur wenn du den Code nicht mehr hast. Deine lokalen Daten bleiben unberührt.</div>' +
           '</div>';
         App.showModal('Es gibt schon Cloud-Daten', body, '');
@@ -1241,11 +1241,11 @@ var CloudSync = (function () {
               _esc(grouped) +
             '</div>' +
             '<div style="display:flex;gap:10px;">' +
-              '<button class="btn btn-outline" data-action="cs-copy-code" style="flex:1;">📋 Kopieren</button>' +
-              '<button class="btn btn-outline" data-action="cs-download-code" style="flex:1;">💾 Als .txt</button>' +
+              '<button class="btn btn-outline" data-action="cs-copy-code" style="flex:1;">Kopieren</button>' +
+              '<button class="btn btn-outline" data-action="cs-download-code" style="flex:1;">Als .txt</button>' +
             '</div>' +
             '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px;font-size:12px;">' +
-              '💡 Tipp: Behalte zusätzlich ein <strong>unverschlüsseltes lokales Backup</strong> (Backup &amp; Daten) als letzten Rückfall.' +
+              'Tipp: Behalte zusätzlich ein <strong>unverschlüsseltes lokales Backup</strong> (Backup &amp; Daten) als letzten Rückfall.' +
             '</div>' +
             confirmBlock +
           '</div>';
@@ -1275,7 +1275,7 @@ var CloudSync = (function () {
         localStorage.setItem(LS_ENABLED, '1');
         _setMismatch(false);
         App.closeModal();
-        Utils.showToast('☁ Cloud-Sync aktiviert', 'success');
+        Utils.showToast('Cloud-Sync aktiviert', 'success');
         _setDot('sync');
         _syncAll(false);
     }
@@ -1313,7 +1313,7 @@ var CloudSync = (function () {
         var body =
           '<div style="display:flex;flex-direction:column;gap:14px;">' +
             '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);border-radius:8px;padding:12px;font-size:13px;line-height:1.5;">' +
-              '❌ <strong>Dieser Code passt nicht zu den Cloud-Daten deines Accounts.</strong>' +
+              '<strong>Dieser Code passt nicht zu den Cloud-Daten deines Accounts.</strong>' +
             '</div>' +
             '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
               'Die Daten in der Cloud (' + _esc(_blobInfo(blob)) + ') wurden mit einem <strong>anderen Schlüssel</strong> verschlüsselt. ' +
@@ -1322,10 +1322,10 @@ var CloudSync = (function () {
             '</div>' +
             '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
               '<strong>Was jetzt hilft:</strong> Öffne auf dem Gerät, das zuletzt erfolgreich synchronisiert hat, ' +
-              '„Cloud-Sync → 🔑 Wiederherstellungscode anzeigen“ und gib <em>diesen</em> Code hier ein.' +
+              '„Cloud-Sync → Wiederherstellungscode anzeigen“ und gib <em>diesen</em> Code hier ein.' +
             '</div>' +
-            '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">🔑 Anderen Code eingeben</button>' +
-            '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">🗑 Cloud-Daten verwerfen &amp; neu aufsetzen</button>' +
+            '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">Anderen Code eingeben</button>' +
+            '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">Cloud-Daten verwerfen &amp; neu aufsetzen</button>' +
             '<div style="font-size:12px;color:var(--text-muted);line-height:1.5;">' +
               'Verwerfen löscht nur die <strong>unlesbaren Cloud-Kopien</strong>. Deine Buchhaltung auf diesem Gerät bleibt vollständig erhalten.' +
             '</div>' +
@@ -1346,7 +1346,7 @@ var CloudSync = (function () {
                             'Beachte: er enthält keine Ziffern 0, 1, 8 und 9 — das sind O, I, B bzw. G.', 'error', 10000);
             return;
         }
-        if (btn) { btn.disabled = true; btn.textContent = '⏳ Prüfe…'; }
+        if (btn) { btn.disabled = true; btn.textContent = 'Prüfe…'; }
         try {
             // Test-Entschlüsselung gegen die Account-Registry des anderen Geräts
             var pull = await _api({ action: 'pull', scope: '__account' });
@@ -1378,7 +1378,7 @@ var CloudSync = (function () {
             // Schließen NICHT zurückkommen — die Daten sind unterwegs und gleich folgt der Reload.
             if (typeof App !== 'undefined') App._modalCloseCb = null;
             App.closeModal();
-            Utils.showToast('✅ Verbunden — synchronisiere…', 'success');
+            Utils.showToast('Verbunden — synchronisiere…', 'success');
             // Firmen, die dieses Gerät vor dem Merge kannte — alles Neue kommt aus der Cloud.
             var knownBefore = {};
             try {
@@ -1410,14 +1410,14 @@ var CloudSync = (function () {
         var body =
           '<div style="display:flex;flex-direction:column;gap:14px;">' +
             '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);border-radius:8px;padding:12px;font-size:13px;line-height:1.5;">' +
-              '🗑 Alle <strong>verschlüsselten Cloud-Kopien</strong> deines Accounts werden gelöscht und der Sync mit einem neuen Schlüssel neu aufgebaut.' +
+              'Alle <strong>verschlüsselten Cloud-Kopien</strong> deines Accounts werden gelöscht und der Sync mit einem neuen Schlüssel neu aufgebaut.' +
             '</div>' +
             '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">' +
               '<strong>Deine Buchhaltung auf diesem Gerät bleibt vollständig erhalten</strong> — gelöscht wird nur, was in der Cloud liegt ' +
               'und ohnehin von keinem deiner Geräte mehr entschlüsselt werden kann. Nach dem Zurücksetzen lädt <strong>dieses</strong> Gerät seinen Stand neu hoch.' +
             '</div>' +
             '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:10px;font-size:12px;line-height:1.5;">' +
-              '⚠️ <strong>Vorher auf deinen anderen Geräten prüfen:</strong> Hat dort noch ein Gerät Daten, die es nur in der Cloud gibt? ' +
+              '<strong>Vorher auf deinen anderen Geräten prüfen:</strong> Hat dort noch ein Gerät Daten, die es nur in der Cloud gibt? ' +
               'Dann zuerst dort ein lokales Backup (Backup &amp; Daten) ziehen. Nach dem Zurücksetzen verbindest du jedes weitere Gerät ' +
               'über „Mit bestehendem Sync verbinden“ mit dem <strong>neuen</strong> Code.' +
             '</div>' +
@@ -1463,7 +1463,7 @@ var CloudSync = (function () {
         if (typed !== 'LÖSCHEN') { Utils.showToast('Bitte LÖSCHEN eintippen, um zu bestätigen.', 'warning'); if (inp) inp.focus(); return; }
         var uid = _userId();
         if (!uid) { Utils.showToast('Bitte zuerst mit Whop anmelden.', 'warning'); return; }
-        if (btn) { btn.disabled = true; btn.textContent = '⏳ Verwerfe…'; }
+        if (btn) { btn.disabled = true; btn.textContent = 'Verwerfe…'; }
         try {
             var res = await _api({ action: 'reset_all' });
             if (res.status !== 200) {
@@ -1482,7 +1482,7 @@ var CloudSync = (function () {
             _setMismatch(false);
             if (!(await _mintKey(uid))) return;
 
-            Utils.showToast('✅ Cloud-Daten verworfen' + (blobsOk ? '' : ' (Anhang-Aufräumung folgt später)') +
+            Utils.showToast('Cloud-Daten verworfen' + (blobsOk ? '' : ' (Anhang-Aufräumung folgt später)') +
                             ' — hier ist dein NEUER Wiederherstellungscode.', 'success', 9000);
             await showCode(true);
         } catch (e) {
@@ -1496,7 +1496,7 @@ var CloudSync = (function () {
     // Diagnose — beantwortet "warum synchronisiert es nicht?" ohne Konsole
     // ========================================================================
     async function diagnoseFlow() {
-        App.showModal('Sync-Diagnose', '<div style="font-size:13px;color:var(--text-secondary);">⏳ Prüfe Anmeldung, Schlüssel und Cloud-Daten…</div>', '');
+        App.showModal('Sync-Diagnose', '<div style="font-size:13px;color:var(--text-secondary);">Prüfe Anmeldung, Schlüssel und Cloud-Daten…</div>', '');
         var uid = _userId(), rows = [], plain = [], verdict = '', actions = '';
         function row(label, value, state) {
             var color = state === 'ok' ? 'var(--accent,#10b981)' : state === 'bad' ? 'var(--danger,#ef4444)' : state === 'warn' ? '#f59e0b' : 'var(--text-secondary)';
@@ -1536,8 +1536,8 @@ var CloudSync = (function () {
                 if (!kb) {
                     row('Test-Entschlüsselung', 'nicht möglich — kein Schlüssel auf diesem Gerät', 'bad');
                     verdict = 'In der Cloud liegen Daten, dieses Gerät hat aber keinen Schlüssel. Verbinde es mit dem Wiederherstellungscode deines anderen Geräts.';
-                    actions = '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">🔑 Wiederherstellungscode eingeben</button>' +
-                              '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">🗑 Cloud-Daten verwerfen &amp; neu aufsetzen</button>';
+                    actions = '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">Wiederherstellungscode eingeben</button>' +
+                              '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">Cloud-Daten verwerfen &amp; neu aufsetzen</button>';
                 } else {
                     var probe = await _probeKey(pull.json.blob, kb);
                     if (probe === 'ok') {
@@ -1555,8 +1555,8 @@ var CloudSync = (function () {
                         verdict = 'Gefunden: Die Cloud-Daten sind mit einem anderen Schlüssel verschlüsselt als dem dieses Geräts. ' +
                                   'Deshalb steht der Sync. Gib den Wiederherstellungscode des Geräts ein, das zuletzt erfolgreich synchronisiert hat — ' +
                                   'oder verwirf die Cloud-Daten und setze neu auf.';
-                        actions = '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">🔑 Anderen Code eingeben</button>' +
-                                  '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">🗑 Cloud-Daten verwerfen &amp; neu aufsetzen</button>';
+                        actions = '<button class="btn btn-primary" data-action="cs-connect" style="width:100%;">Anderen Code eingeben</button>' +
+                                  '<button class="btn btn-outline" data-action="cs-reset" style="width:100%;">Cloud-Daten verwerfen &amp; neu aufsetzen</button>';
                     }
                 }
             }
@@ -1569,7 +1569,7 @@ var CloudSync = (function () {
               '<strong>Ergebnis:</strong> ' + _esc(verdict) +
             '</div>' +
             actions +
-            '<button class="btn btn-outline" data-action="cs-copy-diagnosis" style="width:100%;">📋 Bericht für den Support kopieren</button>' +
+            '<button class="btn btn-outline" data-action="cs-copy-diagnosis" style="width:100%;">Bericht für den Support kopieren</button>' +
           '</div>';
         // Klartext-Fassung für den Support-Button (ohne HTML, ohne Schlüsselmaterial)
         window.__syncDiagnosis = 'Stackr Sync-Diagnose ' + new Date().toLocaleString('de-DE') + '\n' +
@@ -1639,7 +1639,7 @@ var CloudSync = (function () {
         _clearConflicts();
         App.closeModal();
         _setDot('sync');
-        Utils.showToast('✅ Konflikte gelöst — synchronisiere…', 'success');
+        Utils.showToast('Konflikte gelöst — synchronisiere…', 'success');
         _syncAll(false);
     }
 
@@ -1910,7 +1910,7 @@ var CloudSync = (function () {
             var res = await verifyAuditAnchors();
             if (res.enabled && !res.error && res.mismatches && res.mismatches.length && typeof Utils !== 'undefined') {
                 Utils.showToast(
-                    '⚠ Audit-Log: ' + res.mismatches.length + ' Eintrag/Einträge weichen vom Cloud-Anker ab (Manipulationsverdacht) — Details im Modul „Protokoll“.',
+                    'Audit-Log: ' + res.mismatches.length + ' Eintrag/Einträge weichen vom Cloud-Anker ab (Manipulationsverdacht) — Details im Modul „Protokoll“.',
                     'error', 12000
                 );
             }

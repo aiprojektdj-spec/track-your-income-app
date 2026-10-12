@@ -196,15 +196,15 @@ function plattform(anzahlVerkaeufe, preisJeVerkauf, jahr) {
 check('B1 29 Verkaeufe unter 2.000 € gelten als nicht meldepflichtig',
     plattform(29, 50).includes('✓ OK'));
 check('B2 Der 30. Verkauf loest die Meldepflicht aus, auch bei kleinen Betraegen',
-    plattform(30, 1).includes('⚠️ Meldepflicht'));
+    plattform(30, 1).includes('is-alert">Meldepflicht'));
 check('B3 1.999 € aus wenigen Verkaeufen bleiben unter der Schwelle',
     plattform(2, 999.5).includes('✓ OK'));
 check('B4 2.000 € loesen die Meldepflicht aus, auch bei einem einzigen Verkauf',
-    plattform(1, 2000).includes('⚠️ Meldepflicht'));
+    plattform(1, 2000).includes('is-alert">Meldepflicht'));
 check('B5 Vor Inkrafttreten des PStTG (2022) gibt es keine Meldepflicht',
     plattform(50, 500, 2022).includes('✓ OK'));
 check('B6 Im ersten Geltungsjahr 2023 greift sie',
-    plattform(50, 500, 2023).includes('⚠️ Meldepflicht'));
+    plattform(50, 500, 2023).includes('is-alert">Meldepflicht'));
 
 // Der Fall, der bis 2026-09-18 falsch lief: die Plattform meldet die Verguetung MIT dem vom
 // Kaeufer bezahlten Versand. 1.950 € Artikel + 80 € Versand = 2.030 € — gemeldet. Stackr zaehlte
@@ -216,7 +216,7 @@ block(() => {
     S._renderPlatformAnalyse(s, []);
     const html = abschnitte['platAnalyseSection'].innerHTML;
     check('B7 Kaeufer-Versand zaehlt zur PStTG-Schwelle (1.950 + 80 = 2.030 → Meldepflicht)',
-        html.includes('⚠️ Meldepflicht'));
+        html.includes('is-alert">Meldepflicht'));
     check('B8 Die Umsatzspalte weist dieselben 2.030 € aus', betraege(zeile(html, 'Vinted'))[0] === 2030);
 });
 

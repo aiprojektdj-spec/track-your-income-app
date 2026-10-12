@@ -219,7 +219,6 @@ const OSS = {
             ${this._ohneLandHinweis(y)}
             <div class="card">
                 <div style="padding:32px;text-align:center;">
-                    <div style="font-size:48px;margin-bottom:16px;">📋</div>
                     <h3>Nur für Regelbesteuerer</h3>
                     <p style="color:var(--text-muted);margin:8px 0 20px;">Als Kleinunternehmer (§19 UStG) weist du generell keine USt aus – das OSS-Verfahren betrifft nur Regelbesteuerer.</p>
                     <button class="btn btn-primary" data-action="navigate" data-args=\'["euer"]\'>Zur EÜR → USt-Modus ändern</button>

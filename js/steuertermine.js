@@ -226,7 +226,7 @@ const Steuertermine = {
 
         const pstpgWarning = pstpgPflicht.length > 0
             ? `<div style="margin-bottom:12px;padding:10px;background:rgba(239,68,68,0.08);border:1px solid var(--danger);border-radius:6px;font-size:13px;color:var(--danger);">
-                ⚠️ <strong>Meldepflicht (PStTG)</strong> bei: ${pstpgPflicht.map(([p]) => p).join(', ')} – bis 31. März melden!
+                <strong>Meldepflicht (PStTG)</strong> bei: ${pstpgPflicht.map(([p]) => p).join(', ')} – bis 31. März melden!
                </div>` : '';
 
         const pstpgRows = Object.entries(platStats).map(([plat, v]) => {

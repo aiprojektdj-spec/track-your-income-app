@@ -613,7 +613,7 @@ const Buchungen = {
                 ${(() => {
                     const mat = Store.getMaterialBestand();
                     if (!mat.length) return `<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">
-                        📦 <a href="#" data-action="navigate" data-args=\'["materiallager"]\' style="color:var(--info);">Materiallager einrichten</a>
+                        <a href="#" data-action="navigate" data-args=\'["materiallager"]\' style="color:var(--info);">Materiallager einrichten</a>
                         um Verpackungskosten pro Verkauf zu tracken.
                     </div>`;
                     const matRows = mat.map(m => `

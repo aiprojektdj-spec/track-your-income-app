@@ -500,7 +500,7 @@ const UstVoranmeldung = {
                 monatspflichtHinweis = `
                 <div class="card" style="margin-bottom:16px;border-left:3px solid var(--warning);">
                     <div style="padding:12px 16px;font-size:13px;">
-                        ⚠️ <strong>Monatliche Voranmeldung vermutlich Pflicht:</strong> Die Zahllast ${year - 1} lag bei ${Utils.formatCurrency(vjZahllast)} und damit über der 7.500 €-Grenze (§18 Abs. 2 Satz 2 UStG). Bitte in den <strong>Einstellungen</strong> auf "Monatlich" umstellen und mit dem Finanzamt/Steuerberater abstimmen.
+                        <strong>Monatliche Voranmeldung vermutlich Pflicht:</strong> Die Zahllast ${year - 1} lag bei ${Utils.formatCurrency(vjZahllast)} und damit über der 7.500 €-Grenze (§18 Abs. 2 Satz 2 UStG). Bitte in den <strong>Einstellungen</strong> auf "Monatlich" umstellen und mit dem Finanzamt/Steuerberater abstimmen.
                     </div>
                 </div>`;
             }
@@ -514,14 +514,14 @@ const UstVoranmeldung = {
         const istEuHinweis = !this._isSoll() ? `
         <div class="card" style="margin-bottom:16px;border-left:3px solid var(--warning);">
             <div style="padding:12px 16px;font-size:13px;">
-                ⚠️ <strong>Ist-Versteuerung + EU-Geschäft:</strong> Bei Ist-Versteuerung (§20 UStG, Zahlungsdatum) werden innergemeinschaftliche Lieferungen/sonstige Leistungen (Kz. 41/21) und der OSS-Schwellenwert (§3c UStG) hier <u>nicht gesondert erfasst</u> — dieses Modell ist auf Soll-Versteuerung ausgelegt.${istEuBetragText} Bei EU-Kunden im Ist-Modus die Zuordnung bitte manuell mit deinem Steuerberater klären.
+                <strong>Ist-Versteuerung + EU-Geschäft:</strong> Bei Ist-Versteuerung (§20 UStG, Zahlungsdatum) werden innergemeinschaftliche Lieferungen/sonstige Leistungen (Kz. 41/21) und der OSS-Schwellenwert (§3c UStG) hier <u>nicht gesondert erfasst</u> — dieses Modell ist auf Soll-Versteuerung ausgelegt.${istEuBetragText} Bei EU-Kunden im Ist-Modus die Zuordnung bitte manuell mit deinem Steuerberater klären.
             </div>
         </div>` : '';
 
         const kz500Hinweis = calc.diff25a.margeBrutto > 0 ? `
         <div class="card" style="margin-bottom:16px;border-left:3px solid var(--warning);">
             <div style="padding:12px 16px;font-size:13px;">
-                ℹ️ <strong>Kennziffer 500 (neu ab Besteuerungszeitraum 2026):</strong> Diese Voranmeldung enthält Umsätze mit abweichender Bemessungsgrundlage (§25a UStG Differenzbesteuerung). Ist Kz. 500 in ELSTER aktiv, nimmt das automatisierte Prüfverfahren die UVA aus der Vorabprüfung heraus — ein Sachbearbeiter prüft dann manuell. Das kann die Bearbeitung verzögern, ist aber kein Fehler.
+                <strong>Kennziffer 500 (neu ab Besteuerungszeitraum 2026):</strong> Diese Voranmeldung enthält Umsätze mit abweichender Bemessungsgrundlage (§25a UStG Differenzbesteuerung). Ist Kz. 500 in ELSTER aktiv, nimmt das automatisierte Prüfverfahren die UVA aus der Vorabprüfung heraus — ein Sachbearbeiter prüft dann manuell. Das kann die Bearbeitung verzögern, ist aber kein Fehler.
             </div>
         </div>` : '';
 
@@ -580,7 +580,7 @@ const UstVoranmeldung = {
         <div class="card" style="margin-bottom:16px;">
             <div class="card-header">
                 <div class="card-title">Kennzahlen ${this._periodeLabel(year, typ, idx)} (${Utils.formatDate(start)} – ${Utils.formatDate(end)})</div>
-                ${gesperrt ? '<span class="badge badge-success">Eingereicht</span>' : '<span class="badge badge-warning">⏳ Offen</span>'}
+                ${gesperrt ? '<span class="badge badge-success">Eingereicht</span>' : '<span class="badge badge-warning">Offen</span>'}
             </div>
             <div class="table-container" style="border:none;">
                 <table class="euer-table">
@@ -637,7 +637,7 @@ const UstVoranmeldung = {
                             <td style="text-align:right">${Utils.formatCurrency(c.ust19)}</td>
                             <td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(c.vorsteuer)}</td>
                             <td style="text-align:right;color:${c.zahllast >= 0 ? 'var(--danger)' : 'var(--success)'};font-weight:600">${Utils.formatCurrency(c.zahllast)}</td>
-                            <td>${g ? '<span class="badge badge-success">✅</span>' : '<span class="badge badge-warning">Offen</span>'}</td>
+                            <td>${g ? '<span class="badge badge-success">Eingereicht</span>' : '<span class="badge badge-warning">Offen</span>'}</td>
                         </tr>`).join('')}
                     </tbody>
                     <tfoot>

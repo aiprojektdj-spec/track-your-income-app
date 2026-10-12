@@ -990,7 +990,6 @@ const App = {
         declineBtn.addEventListener('click', () => {
             document.getElementById('content').innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;text-align:center;padding:40px;">
-                    <div style="font-size:48px;margin-bottom:16px;">🚫</div>
                     <h2 style="color:var(--text-primary);margin-bottom:12px;">Nutzung nicht möglich</h2>
                     <p style="color:var(--text-secondary);max-width:400px;">Die Nutzung dieser Software ist nur nach Akzeptanz der AGB möglich.<br><br>Bitte lade die Seite neu, um die Hinweise erneut anzuzeigen.</p>
                     <button class="btn btn-primary" style="margin-top:24px;" data-action="reload">Seite neu laden</button>
@@ -1278,7 +1277,6 @@ const App = {
         document.getElementById('onboarding').innerHTML = `
             <div class="onboarding-overlay">
                 <div class="onboarding-card" style="text-align:center;max-width:420px;">
-                    <div style="font-size:36px;color:var(--accent);margin-bottom:16px;">☁</div>
                     <h2 style="margin-bottom:8px;">Einen Moment</h2>
                     <p style="color:var(--text-muted);font-size:13px;margin:0;">Wir prüfen, ob für dein Konto schon Daten in der Cloud liegen…</p>
                 </div>
@@ -1294,7 +1292,6 @@ const App = {
         document.getElementById('onboarding').innerHTML = `
             <div class="onboarding-overlay">
                 <div class="onboarding-card" style="max-width:480px;">
-                    <div style="font-size:36px;color:var(--accent);margin-bottom:14px;text-align:center;">☁</div>
                     <h2 style="text-align:center;">Wir haben deine Daten gefunden</h2>
                     <div class="subtitle" style="text-align:center;">Für dein Konto liegen bereits verschlüsselte Cloud-Daten${info ? ' (' + Utils.escapeHtml(info) + ')' : ''}. Hol sie auf dieses Gerät, statt hier von vorn anzufangen.</div>
                     <button class="btn btn-primary" id="obCloudRestore" style="width:100%;">Daten übernehmen — Code eingeben</button>
@@ -1686,7 +1683,7 @@ const App = {
         // seit je richtig — hier angeglichen.
         Store.saveSettings(Object.assign({}, Store.getSettings(), d));
         document.getElementById('onboarding').innerHTML = '';
-        Utils.showToast('Einrichtung abgeschlossen! 🎉', 'success');
+        Utils.showToast('Einrichtung abgeschlossen!', 'success');
         this.navigate('dashboard');
     },
 
@@ -2227,7 +2224,6 @@ const App = {
                 block.innerHTML = `
                     <div style="padding:12px 14px;border-radius:8px;background:rgba(34,197,94,0.1);border:1px solid var(--success);font-size:13px;margin-bottom:4px;">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                            <span style="font-size:18px;">🛡️</span>
                             <strong style="color:var(--success);">Speicher ist dauerhaft geschützt</strong>
                         </div>
                         <div style="color:var(--text-secondary);font-size:12px;line-height:1.6;">
@@ -2240,7 +2236,6 @@ const App = {
                 block.innerHTML = `
                     <div style="padding:12px 14px;border-radius:8px;background:rgba(34,197,94,0.08);border:1px solid var(--success);font-size:13px;margin-bottom:4px;">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
-                            <span style="font-size:18px;">✅</span>
                             <strong style="color:var(--success);">Daten sind durch Datei-Backup geschützt</strong>
                         </div>
                         <div style="color:var(--text-secondary);font-size:12px;line-height:1.6;">
@@ -2256,7 +2251,6 @@ const App = {
                 block.innerHTML = `
                     <div style="padding:12px 14px;border-radius:8px;background:rgba(220,38,38,0.08);border:2px solid var(--danger);font-size:13px;margin-bottom:4px;">
                         <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
-                            <span style="font-size:20px;flex-shrink:0;">⚠️</span>
                             <div>
                                 <strong style="color:var(--danger);">Speicher nicht dauerhaft geschützt</strong><br>
                                 <span style="color:var(--text-secondary);font-size:12px;">
@@ -2270,7 +2264,7 @@ const App = {
                         </div>
                         ${isFileProtocol
                             ? `<div style="background:rgba(251,191,36,0.15);border:1px solid var(--warning);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text-secondary);">
-                                ℹ️ Browser-Schutz ist auf <code>file://</code>-URLs technisch nicht möglich — das ist kein Fehler der App.
+                                Browser-Schutz ist auf <code>file://</code>-URLs technisch nicht möglich — das ist kein Fehler der App.
                                 Richte das <strong>Datei-Backup</strong> (oben) ein, um deine Daten dauerhaft zu sichern.
                                </div>`
                             : `<button class="btn btn-primary btn-small" id="requestPersistBtn">Browser-Schutz versuchen</button>`}
@@ -2279,7 +2273,7 @@ const App = {
                 if (persistBtn) {
                     persistBtn.addEventListener('click', async () => {
                         persistBtn.disabled = true;
-                        persistBtn.textContent = '⏳ Anfrage läuft…';
+                        persistBtn.textContent = 'Anfrage läuft…';
                         const granted = await Store.requestPersistentStorage();
                         if (granted) {
                             Utils.showToast('Browser-Speicherschutz aktiviert!', 'success');
@@ -2341,7 +2335,7 @@ const App = {
                     ? ((s.size || 0) / 1024).toFixed(1)
                     : ((s.data ? s.data.length / 1024 : 0)).toFixed(1);
                 const badge = s._opfs
-                    ? `<span style="font-size:10px;color:var(--info);margin-left:6px;" title="Komprimiert im OPFS gespeichert">⚡gz</span>`
+                    ? `<span style="font-size:10px;color:var(--info);margin-left:6px;" title="Komprimiert im OPFS gespeichert">gz</span>`
                     : '';
                 return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);">
                     <div>
@@ -2414,7 +2408,7 @@ const App = {
             fsSelectBtn.addEventListener('click', async () => {
                 try {
                     fsSelectBtn.disabled = true;
-                    fsSelectBtn.textContent = '⏳ Ordner wird gewählt…';
+                    fsSelectBtn.textContent = 'Ordner wird gewählt…';
                     const handle = await Store.selectBackupFolder();
                     // Sofort ein Backup schreiben um Berechtigung zu testen
                     const filename = await Store.writeFileSystemBackup('einrichtung');
@@ -2438,7 +2432,7 @@ const App = {
         if (fsNowBtn) {
             fsNowBtn.addEventListener('click', async () => {
                 fsNowBtn.disabled = true;
-                fsNowBtn.textContent = '⏳ Schreibe…';
+                fsNowBtn.textContent = 'Schreibe…';
                 // Berechtigung ggf. erneut anfragen (benötigt User-Geste ✓)
                 if (!Store.getFsBackupFolderName()) {
                     const granted = await Store.requestFsPermission();
@@ -2468,7 +2462,7 @@ const App = {
         if (fsListBtn) {
             fsListBtn.addEventListener('click', async () => {
                 fsListBtn.disabled = true;
-                fsListBtn.textContent = '⏳ Lade Liste…';
+                fsListBtn.textContent = 'Lade Liste…';
                 const files = await Store.listFileSystemBackups();
                 fsListBtn.disabled = false;
                 fsListBtn.textContent = 'Vorhandene Backups';
@@ -2514,7 +2508,7 @@ const App = {
                         if (!confirm(`"${name}" wiederherstellen?\n\nAlle aktuellen Daten werden überschrieben!`)) return;
                         try {
                             btn.disabled = true;
-                            btn.textContent = '⏳';
+                            btn.textContent = '…';
                             App.showSpinner('Backup wird wiederhergestellt…');
                             const jsonStr = await Store.readFileSystemBackup(entry.handle);
                             Store.importAll(jsonStr);
@@ -2752,7 +2746,7 @@ const App = {
             }
 
             const statusEl = document.getElementById('xlsxImportStatus');
-            if (statusEl) statusEl.textContent = '⏳ Lese Datei…';
+            if (statusEl) statusEl.textContent = 'Lese Datei…';
 
             Utils.ensureXlsx().then(() => {
             const reader = new FileReader();
@@ -3042,7 +3036,7 @@ const App = {
                         const text = `Spaltenüberschriften passen nicht zur Vorlage: ${details}. `
                                    + `Lade dir die Excel-Vorlage herunter und übertrage deine Daten dort hinein.`;
                         if (statusEl) statusEl.innerHTML = `<span style="color:var(--${nichts ? 'danger' : 'warning'});">`
-                            + `${nichts ? '❌' : '⚠️'} ${Utils.escapeHtml(text)}</span>`
+                            + `${Utils.escapeHtml(text)}</span>`
                             + (nichts ? '' : `<br><span style="color:var(--success);">Importiert: ${msg}${skipText}</span>`);
                         Utils.showToast(text, nichts ? 'error' : 'warning');
                         if (nichts) { e.target.value = ''; return; }
@@ -3068,7 +3062,7 @@ const App = {
 
         document.getElementById('emergencyRecoverBtn').addEventListener('click', () => {
             const btn = document.getElementById('emergencyRecoverBtn');
-            if (btn) { btn.disabled = true; btn.textContent = '⏳ Prüfe Quellen…'; }
+            if (btn) { btn.disabled = true; btn.textContent = 'Prüfe Quellen…'; }
             Store.emergencyRecover().then(results => {
                 if (!results || results.length === 0) {
                     Utils.showToast('Keine Backup-Quellen gefunden. Leider kein Recovery möglich.', 'error');
@@ -3088,7 +3082,7 @@ const App = {
 
                 const body = `
                     <div style="margin-bottom:12px;padding:10px;background:rgba(220,38,38,0.06);border-radius:6px;font-size:13px;">
-                        ⚠️ <strong>${results.length} Backup-Quelle(n) gefunden.</strong><br>
+                        <strong>${results.length} Backup-Quelle(n) gefunden.</strong><br>
                         Wähle einen Stand zum Wiederherstellen. <em>Aktuelle Daten werden überschrieben!</em>
                     </div>
                     ${opts}
@@ -3102,7 +3096,7 @@ const App = {
                         if (!confirm(`"${r.label}" jetzt wiederherstellen?\n\nDies überschreibt alle aktuellen Daten!`)) return;
 
                         const doRestore = () => {
-                            Utils.showToast('Daten wiederhergestellt ✅', 'success');
+                            Utils.showToast('Daten wiederhergestellt', 'success');
                             this.closeModal();
                             this.navigate(this.currentPage);
                         };
@@ -3145,10 +3139,10 @@ const App = {
                         Gelöscht wird der <strong>gesamte verschlüsselte Cloud-Bestand</strong> dieses Whop-Kontos — jede Firma, nicht nur die gerade aktive — samt aller ausgelagerten Anhänge (Logos, Belegfotos, PDFs). Dafür ist <strong>kein Wiederherstellungscode nötig</strong>.
                     </p>
                     <p style="color:var(--text-secondary);font-size:12px;margin:0 0 8px;">
-                        ✅ <strong>Bleibt erhalten:</strong> deine <strong>lokalen</strong> Daten auf diesem Gerät und das Änderungsprotokoll. Gelöscht wird nur, was in der Cloud liegt. Cloud-Sync wird dabei ausgeschaltet.
+                        <strong>Bleibt erhalten:</strong> deine <strong>lokalen</strong> Daten auf diesem Gerät und das Änderungsprotokoll. Gelöscht wird nur, was in der Cloud liegt. Cloud-Sync wird dabei ausgeschaltet.
                     </p>
                     <p style="color:var(--text-secondary);font-size:12px;margin:0;">
-                        ℹ️ Die Anker-Liste des Audit-Logs bleibt bestehen — sie enthält keine Geschäftsdaten, sondern nur Prüfsummen, und ist dein GoBD-Nachweis gegen nachträgliche Änderungen.
+                        Die Anker-Liste des Audit-Logs bleibt bestehen — sie enthält keine Geschäftsdaten, sondern nur Prüfsummen, und ist dein GoBD-Nachweis gegen nachträgliche Änderungen.
                     </p>
                 </div>
                 <div class="form-group">
@@ -3166,7 +3160,7 @@ const App = {
             inp.addEventListener('input', () => { go.disabled = inp.value !== 'LÖSCHEN'; });
             go.addEventListener('click', async () => {
                 if (inp.value !== 'LÖSCHEN') return;
-                go.disabled = true; go.textContent = '⏳ Lösche…';
+                go.disabled = true; go.textContent = 'Lösche…';
                 const r = await CloudSync.deleteAllRemote();
                 if (!r || !r.ok) {
                     // Kein Teil-Erfolg vortäuschen: Bei Serverfehler ist nichts gelöscht, und der
@@ -3200,7 +3194,7 @@ const App = {
                         <li>Akademie-Fortschritt &amp; Achievements</li>
                     </ul>
                     <p style="color:var(--text-secondary);font-size:12px;margin:0 0 8px;">
-                        ✅ <strong>Erhalten bleiben:</strong> Audit-Log (GoBD), App-Einstellungen, Theme, Backup-Konfiguration, Passwort.
+                        <strong>Erhalten bleiben:</strong> Audit-Log (GoBD), App-Einstellungen, Theme, Backup-Konfiguration, Passwort.
                     </p>
                     <p style="color:var(--text-secondary);font-size:12px;margin:0;">
                         ${(typeof CloudSync !== 'undefined' && document.getElementById('cloudSyncDot') && localStorage.getItem('oyi_sync_enabled') === '1')
@@ -3293,7 +3287,6 @@ const App = {
                 </div>
 
                 <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text-secondary);display:flex;gap:8px;align-items:flex-start;">
-                    <span style="font-size:15px;flex-shrink:0;">✅</span>
                     <span><strong>GoBD-Hinweis:</strong> Alle Datensätze (auch verkaufte und stornierte Artikel) bleiben erhalten. Nur Fotos werden bereinigt — diese sind keine Pflicht-Belege.</span>
                 </div>
 
@@ -3358,7 +3351,7 @@ const App = {
             const btn = document.getElementById('cleanupCompress');
             const orig = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '⏳ Komprimiere…';
+            btn.innerHTML = 'Komprimiere…';
 
             try {
                 const all = Store.getPurchases(true);
@@ -3368,7 +3361,7 @@ const App = {
                     p.foto = await this._recompressPhoto(p.foto, 600, 0.55);
                     processed++;
                     if (processed % 20 === 0) {
-                        btn.innerHTML = `⏳ Komprimiere… (${processed}/${purchasesWithFoto.length})`;
+                        btn.innerHTML = `Komprimiere… (${processed}/${purchasesWithFoto.length})`;
                         await new Promise(r => setTimeout(r, 0)); // UI atmen lassen
                     }
                 }
@@ -3436,7 +3429,7 @@ const App = {
                 </div>
             </div>
             <div style="background:rgba(251,191,36,0.1);border:1px solid var(--warning);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary);">
-                💡 <strong>Empfehlung:</strong> Richte jetzt einen Backup-Ordner ein (Backup & Daten → Ordner wählen)
+                <strong>Empfehlung:</strong> Richte jetzt einen Backup-Ordner ein (Backup & Daten → Ordner wählen)
                 damit zukünftige Backups als echte Dateien auf deinem PC gespeichert werden.
             </div>
         `;
@@ -3446,7 +3439,6 @@ const App = {
     _showDataLossModal() {
         const body = `
             <div style="text-align:center;padding:8px 0 16px;">
-                <div style="font-size:48px;margin-bottom:12px;">😔</div>
                 <h3 style="color:var(--danger);margin-bottom:8px;">Datenverlust — keine Wiederherstellung möglich</h3>
                 <p style="color:var(--text-secondary);font-size:14px;margin-bottom:16px;">
                     Das System hat beim Start erkannt, dass Daten fehlen — konnte aber keine

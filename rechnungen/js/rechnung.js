@@ -163,13 +163,13 @@ var Rechnung = (function() {
         html += '</select></div>';
         html += '</div>';
         html += '<div id="reverseChargeHint" style="display:none;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);">';
-        html += 'ℹ️ <strong>§13b UStG – Reverse Charge:</strong> EU-Geschäftskunde mit USt-IdNr. erkannt. Steuerschuldnerschaft geht auf den Empfänger über, USt-Sätze wurden auf 0% gesetzt. Bitte bei jeder Position unten „Art des Umsatzes" wählen (entscheidet Kz. 41 vs. Kz. 21 – eine Rechnung kann Ware <em>und</em> Leistung an denselben Kunden mischen).';
+        html += '<strong>§13b UStG – Reverse Charge:</strong> EU-Geschäftskunde mit USt-IdNr. erkannt. Steuerschuldnerschaft geht auf den Empfänger über, USt-Sätze wurden auf 0% gesetzt. Bitte bei jeder Position unten „Art des Umsatzes" wählen (entscheidet Kz. 41 vs. Kz. 21 – eine Rechnung kann Ware <em>und</em> Leistung an denselben Kunden mischen).';
         html += '</div>';
         // §14 UStG (Wachstumschancengesetz): seit 01.01.2025 müssen inländische Unternehmen (auch KU)
         // strukturierte E-Rechnungen empfangen können; die aktive Versandpflicht greift gestaffelt ab 2027/2028.
         // Export: „XR"-Button je Rechnung in der Dokumente-Übersicht. Empfang: eigener „E-Rechnung"-Tab.
         html += '<div style="background:rgba(148,163,184,0.08);border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-muted);">';
-        html += 'ℹ️ <strong>E-Rechnungspflicht (B2B):</strong> Seit 01.01.2025 muss jedes inländische Unternehmen — auch Kleinunternehmer — strukturierte E-Rechnungen (XRechnung/ZUGFeRD) <em>empfangen</em> können; die Versandpflicht folgt gestaffelt ab 2027. Stackr exportiert XRechnung über den „XR"-Button in der Dokumente-Übersicht und empfängt eingehende E-Rechnungen im Tab „E-Rechnung".';
+        html += '<strong>E-Rechnungspflicht (B2B):</strong> Seit 01.01.2025 muss jedes inländische Unternehmen — auch Kleinunternehmer — strukturierte E-Rechnungen (XRechnung/ZUGFeRD) <em>empfangen</em> können; die Versandpflicht folgt gestaffelt ab 2027. Stackr exportiert XRechnung über den „XR"-Button in der Dokumente-Übersicht und empfängt eingehende E-Rechnungen im Tab „E-Rechnung".';
         html += '</div>';
 
         // Inline new customer fields (hidden by default)
@@ -263,13 +263,13 @@ var Rechnung = (function() {
         var products = Store.getRechProducts();
         // Lager-Artikel Info für bestehende Verknüpfungen
         var lagerArtikelId = pos.lagerArtikelId || '';
-        var lagerBtnLabel = '🔗';
+        var lagerBtnLabel = '<i class="ti ti-link" aria-hidden="true"></i>';
         var lagerBtnTitle = 'Lagerartikel verknüpfen';
         if (lagerArtikelId) {
             var allArts = Store.getPurchases(true);
             var linkedArt = allArts.find(function(a) { return a.id === lagerArtikelId; });
             if (linkedArt) {
-                lagerBtnLabel = '🔗 ' + Utils.escapeHtml(linkedArt.artikelNr || (linkedArt.marke + ' ' + linkedArt.artikeltyp).trim().slice(0, 12));
+                lagerBtnLabel = Utils.escapeHtml(linkedArt.artikelNr || (linkedArt.marke + ' ' + linkedArt.artikeltyp).trim().slice(0, 12));
                 lagerBtnTitle = 'Verknüpft: ' + Utils.escapeHtml((linkedArt.marke || '') + ' ' + (linkedArt.artikeltyp || '') + ' ' + (linkedArt.beschreibung || ''));
             }
         }
@@ -502,7 +502,7 @@ var Rechnung = (function() {
                     // Button-Label aktualisieren
                     var lagerBtn = row.querySelector('.pos-lager-btn');
                     if (lagerBtn) {
-                        lagerBtn.textContent = '🔗 ' + (art.artikelNr || (art.marke + ' ' + art.artikeltyp).trim().slice(0, 12));
+                        lagerBtn.textContent = (art.artikelNr || (art.marke + ' ' + art.artikeltyp).trim().slice(0, 12));
                         lagerBtn.title = 'Verknüpft: ' + Utils.escapeHtml((art.marke || '') + ' ' + (art.artikeltyp || '') + ' ' + (art.beschreibung || ''));
                         lagerBtn.style.background = 'rgba(16,185,129,0.15)';
                         lagerBtn.style.borderColor = 'var(--success,#10b981)';
@@ -528,7 +528,7 @@ var Rechnung = (function() {
                 markLagerVerfuegbar(oldArtId);
                 var lagerBtn = row.querySelector('.pos-lager-btn');
                 if (lagerBtn) {
-                    lagerBtn.textContent = '🔗';
+                    lagerBtn.innerHTML = '<i class="ti ti-link" aria-hidden="true"></i>';
                     lagerBtn.title = 'Lagerartikel verknüpfen';
                     lagerBtn.style.background = '';
                     lagerBtn.style.borderColor = '';

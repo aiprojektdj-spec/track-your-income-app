@@ -13,8 +13,9 @@
   --border: var(--line); --border-light: var(--line); --border-strong: var(--control); --border-field: var(--control);
   --accent: var(--text); --accent-hover: var(--primary-bg); --accent-light: var(--text); --accent-text: var(--text);
   --accent-deep: var(--surface-muted); --accent-glow: transparent; --accent-subtle: var(--surface-muted); --accent-ring: var(--control);
-  --success: var(--text); --warning: var(--text); --danger: var(--text); --info: var(--text);
-  --success-bg: var(--surface-muted); --warning-bg: var(--surface-muted); --danger-bg: var(--surface-muted); --info-bg: var(--surface-muted);
+  /* Signalfarben neutral, nur --danger bleibt rot (Fehler, Überfälliges, negative Beträge) – User-Entscheidung 2026-10-11 */
+  --success: var(--text); --warning: var(--text); --danger: #f87171; --info: var(--text);
+  --success-bg: var(--surface-muted); --warning-bg: var(--surface-muted); --danger-bg: rgb(248 113 113 / 12%); --info-bg: var(--surface-muted);
   --shadow: none; --shadow-lg: none; --highlight: none; --transition: background-color 120ms ease;
   --sidebar-width: 0px; --topnav-height: 64px; --content-max: 1200px;
   color-scheme: dark;
@@ -24,6 +25,7 @@
   --text: #171717; --muted: #595959; --line: #dedede; --control: #808080;
   --hover: #e8e8e8; --primary-bg: #171717; --primary-text: #fafafa;
   --focus: #171717; --overlay: rgb(0 0 0 / 40%);
+  --danger: #c62828; --danger-bg: rgb(198 40 40 / 8%);
   color-scheme: light;
 }
 html { scroll-padding-top: 80px; }
@@ -162,6 +164,7 @@ tbody tr:hover { background: var(--surface-muted); }
 .table-container { overflow-x: auto; }
 .badge, .platform-badge, [class^="badge-"] { border-radius: 4px; background: var(--surface-muted) !important; color: var(--text) !important; border: 1px solid var(--line); font-size: 14px; font-weight: 400; padding: 4px 8px; letter-spacing: 0; }
 .badge-danger, .badge-warning { border-color: var(--control); border-style: dashed; }
+.badge.is-alert { color: var(--danger) !important; border-color: var(--danger); border-style: solid; }
 .empty-state { padding: 48px 24px !important; text-align: left; }
 .empty-state h3 { font-size: 24px; margin-bottom: 12px; }
 .empty-state p { font-size: 16px; max-width: 600px; color: var(--muted); }

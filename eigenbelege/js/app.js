@@ -220,7 +220,7 @@ const esc   = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 
 function getAllKat()     { return [...STD_KAT, ...EB.getKategorien()]; }
 function getKat(id)      { return getAllKat().find(k=>k.id===id) || {name:id, farbe:'#94a3b8'}; }
-function getZw(id)       { return ZAHLUNGSWEGE.find(z=>z.id===id) || {name:id, icon:'💰'}; }
+function getZw(id)       { return ZAHLUNGSWEGE.find(z=>z.id===id) || {name:id, icon:''}; }
 function getBegrName(id) { return BEGRUENDUNGEN.find(b=>b.id===id)?.name || id; }
 
 function calcMwst(brutto, satz) {
@@ -330,7 +330,7 @@ function renderDashboard() {
                         const z=getZw(zw), pct=summe>0?Math.round(s/summe*100):0;
                         return `<div style="margin-bottom:10px">
                             <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
-                                <span>${z.icon} ${z.name}</span>
+                                <span>${z.name}</span>
                                 <span style="color:var(--accent-light);font-weight:600">${euro(s)}</span>
                             </div>
                             <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
@@ -1316,7 +1316,7 @@ function applyFilter() {
                     <td>${esc(vName)}</td>
                     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.zweck||'')}">${esc(x.zweck||'—')}</td>
                     <td><span class="badge" style="background:${kObj.farbe}22;color:${kObj.farbe}">${esc(kObj.name)}</span></td>
-                    <td style="white-space:nowrap">${zObj.icon} ${esc(x.zahlungsweg==='sonstiges'?(x.zahlungswegSonstig||'Sonstiges'):zObj.name)}</td>
+                    <td style="white-space:nowrap">${esc(x.zahlungsweg==='sonstiges'?(x.zahlungswegSonstig||'Sonstiges'):zObj.name)}</td>
                     <td style="text-align:right;font-weight:600;white-space:nowrap">${euro(x.betragBrutto)}</td>
                     <td style="white-space:nowrap">
                         <button class="action-btn" data-action="eb-view" data-id="${x.id}"   aria-label="Ansehen" title="Ansehen"><i class="ti ti-eye"></i></button>
@@ -1413,7 +1413,7 @@ function viewBeleg(id) {
                         <div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Zahlungsdatum</div>
                         <strong>${datum(b.zahlungsDatum)}</strong>
                     </div>
-                    <div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Zahlungsweg</div><strong>${zObj.icon} ${b.zahlungsweg==='sonstiges'?esc(b.zahlungswegSonstig):zObj.name}</strong></div>
+                    <div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Zahlungsweg</div><strong>${b.zahlungsweg==='sonstiges'?esc(b.zahlungswegSonstig):zObj.name}</strong></div>
                     <div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px">Kategorie</div><span class="badge" style="background:${kObj.farbe}22;color:${kObj.farbe}">${esc(kObj.name)}</span></div>
                 </div>
                 <div style="background:var(--bg-card);border-radius:var(--radius);padding:12px;margin-bottom:14px">
@@ -1693,7 +1693,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:24px;max-
 <!-- 7. ZAHLUNGSART -->
 <div class="section">
     <h3>Zahlungsart</h3>
-    <p><strong>${zObj.icon} ${b.zahlungsweg==='sonstiges'?esc(b.zahlungswegSonstig||'Sonstiges'):zObj.name}</strong></p>
+    <p><strong>${b.zahlungsweg==='sonstiges'?esc(b.zahlungswegSonstig||'Sonstiges'):zObj.name}</strong></p>
 </div>
 
 <!-- 8. KATEGORIE (EÜR) -->
@@ -2138,7 +2138,6 @@ if (!document.getElementById('moduleSubnav')) {
         // Fail-Closed statt Fail-Open: AuthUI-Script konnte nicht laden (Netzwerk/CDN-Fehler)
         // -> NICHT ungeprüft booten (Fund 21, Vollaudit 2026-07-23), sondern Fehler anzeigen.
         document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;padding:40px;font-family:sans-serif;">' +
-            '<div style="font-size:48px;margin-bottom:16px;">⚠️</div>' +
             '<h2>Anmeldung konnte nicht geladen werden</h2>' +
             '<p style="color:#888;max-width:420px;">Ein Skript zur Zugriffsprüfung ist nicht geladen. Bitte Seite neu laden oder Internetverbindung prüfen.</p>' +
             '<button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;border-radius:8px;border:none;background:#4f46e5;color:#fff;cursor:pointer;">Seite neu laden</button>' +

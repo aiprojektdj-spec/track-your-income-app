@@ -205,15 +205,15 @@ const Materiallager = {
                     <td style="color:var(--text-muted);font-size:12px;">${Utils.escapeHtml(m.kategorie || '')}</td>
                     <td style="text-align:right;font-weight:600;color:${warn ? 'var(--danger)' : 'var(--success)'};">
                         ${bestandVal} ${Utils.escapeHtml(m.einheit || 'Stück')}
-                        ${warn ? ' ⚠️' : ''}
+                        ${warn ? ' <i class="ti ti-alert-triangle" title="Unter Mindestbestand" aria-label="Unter Mindestbestand"></i>' : ''}
                     </td>
                     <td style="text-align:right;color:var(--text-muted);">${mindest > 0 ? mindest + ' ' + (m.einheit || 'Stück') : '–'}</td>
                     <td style="text-align:right">${Utils.formatCurrency(m.kostenProEinheit)}</td>
                     <td style="text-align:right;font-weight:600;">${Utils.formatCurrency(restwert)}</td>
                     <td class="table-actions">
-                        <button class="btn btn-small" data-ml-edit="${m.id}" title="Bearbeiten">✏️</button>
+                        <button class="btn btn-small" data-ml-edit="${m.id}" title="Bearbeiten" aria-label="Bearbeiten"><i class="ti ti-pencil" aria-hidden="true"></i></button>
                         <button class="btn btn-small" data-ml-einkauf="${m.id}" title="Bestand erhöhen (Einkauf)">+</button>
-                        <button class="btn btn-small btn-danger" data-ml-delete="${m.id}" title="Löschen">🗑️</button>
+                        <button class="btn btn-small btn-danger" data-ml-delete="${m.id}" title="Löschen" aria-label="Löschen"><i class="ti ti-trash" aria-hidden="true"></i></button>
                     </td>
                 </tr>`;
             }).join('');
@@ -317,7 +317,7 @@ const Materiallager = {
                 <td style="text-align:right;font-weight:600;">${Utils.formatCurrency(e.gesamtkosten)}</td>
                 <td>${Utils.escapeHtml(e.lieferant || '–')}</td>
                 <td class="table-actions">
-                    <button class="btn btn-small btn-danger" data-ml-del-einkauf="${e.id}">🗑️</button>
+                    <button class="btn btn-small btn-danger" data-ml-del-einkauf="${e.id}" title="Löschen" aria-label="Löschen"><i class="ti ti-trash" aria-hidden="true"></i></button>
                 </td>
             </tr>`).join('');
 
@@ -563,7 +563,7 @@ const Materiallager = {
                         <div class="form-group"><label class="form-label">€/Einheit</label>
                             <input type="number" step="0.001" min="0" max="99999999" class="form-input" id="me_kosten" value="${m.kostenProEinheit || 0}"></div>
                     </div>`;
-                App.showModal('✏️ ' + m.name + ' bearbeiten', body,
+                App.showModal(m.name + ' bearbeiten', body,
                     `<button class="btn btn-primary" data-action="ml-save-edit" data-args='["${m.id}"]' >Speichern</button>
                     <button class="btn btn-secondary" data-action="close-modal">Abbrechen</button>`
                 );

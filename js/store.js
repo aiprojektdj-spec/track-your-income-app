@@ -183,19 +183,19 @@ const Store = {
                             req2.onerror = () => {
                                 // Auch nach Bereinigung voll — kritischer Fehler
                                 if (typeof Utils !== 'undefined' && Utils.showToast) {
-                                    Utils.showToast('🚨 Speicher kritisch voll! Daten konnten nicht gespeichert werden. Bitte sofort Backup erstellen und Daten bereinigen.', 'error', 12000);
+                                    Utils.showToast('Speicher kritisch voll! Daten konnten nicht gespeichert werden. Bitte sofort Backup erstellen und Daten bereinigen.', 'error', 12000);
                                 }
                             };
                             tx2.oncomplete = () => {
                                 if (typeof Utils !== 'undefined' && Utils.showToast) {
-                                    Utils.showToast('🧹 Speicher war voll — alte Auto-Backups bereinigt. Daten wurden gespeichert.', 'info', 5000);
+                                    Utils.showToast('Speicher war voll — alte Auto-Backups bereinigt. Daten wurden gespeichert.', 'info', 5000);
                                 }
                             };
                         } catch(e2) {}
                     });
                 } else if (err) {
                     if (typeof Utils !== 'undefined' && Utils.showToast) {
-                        Utils.showToast(`⚠️ Speicher-Fehler: ${err.name || 'Unbekannt'}`, 'error');
+                        Utils.showToast(`Speicher-Fehler: ${err.name || 'Unbekannt'}`, 'error');
                     }
                 }
             };
@@ -205,7 +205,7 @@ const Store = {
         } catch(e) {
             console.error('[Store] _idbPut Exception:', key, e);
             if (typeof Utils !== 'undefined' && Utils.showToast) {
-                Utils.showToast(`⚠️ Speicher-Fehler: ${e.message || e.name}`, 'error');
+                Utils.showToast(`Speicher-Fehler: ${e.message || e.name}`, 'error');
             }
         }
     },
@@ -665,16 +665,16 @@ const Store = {
             if (err.name === 'NotAllowedError') {
                 this._fsDirHandle = null;  // Handle zurücksetzen, beim nächsten Klick neu anfragen
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
-                    Utils.showToast('⚠️ Datei-Backup-Berechtigung abgelaufen. Backup-Ordner neu wählen.', 'warning');
+                    Utils.showToast('Datei-Backup-Berechtigung abgelaufen. Backup-Ordner neu wählen.', 'warning');
                 }
             } else if (err.name === 'NotFoundError') {
                 this._fsDirHandle = null;
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
-                    Utils.showToast('⚠️ Backup-Ordner nicht erreichbar (z.B. USB nicht angesteckt)', 'warning');
+                    Utils.showToast('Backup-Ordner nicht erreichbar (z.B. USB nicht angesteckt)', 'warning');
                 }
             } else {
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
-                    Utils.showToast('⚠️ Datei-Backup fehlgeschlagen: ' + (err.name || err.message), 'warning');
+                    Utils.showToast('Datei-Backup fehlgeschlagen: ' + (err.name || err.message), 'warning');
                 }
             }
             console.warn('[Store] Datei-Backup Fehler:', err.message);
@@ -753,6 +753,9 @@ const Store = {
     // Debouncte Auto-Backup: 1,5 Sekunden nach letzter Änderung
     // Schreibt ALLE Schichten gleichzeitig: IDB-Snapshot + LS-Spiegel + Datei
     _triggerAutoBackup() {
+        // Sofort, nicht erst nach dem Debounce: js/cloud-sync.js ueberspringt den Start-Sync,
+        // wenn seit dem letzten Lauf nichts geaendert wurde (oyi_sync_last_change).
+        try { localStorage.setItem('oyi_sync_last_change', String(Date.now())); } catch (e) {}
         if (this._isImporting) return;
         clearTimeout(this._autoBackupDebounce);
         this._autoBackupDebounce = setTimeout(() => {
@@ -807,11 +810,11 @@ const Store = {
                             tx2.objectStore(this.IDB_STORE).add(snapshot);
                             tx2.oncomplete = () => {
                                 if (typeof Utils !== 'undefined' && Utils.showToast)
-                                    Utils.showToast('🧹 Speicher bereinigt — Auto-Backup gespeichert.', 'info', 5000);
+                                    Utils.showToast('Speicher bereinigt — Auto-Backup gespeichert.', 'info', 5000);
                             };
                             tx2.onerror = () => {
                                 if (typeof Utils !== 'undefined' && Utils.showToast)
-                                    Utils.showToast('⚠️ Speicher voll — Auto-Backup übersprungen. Datei-Backup bleibt aktiv.', 'warning', 8000);
+                                    Utils.showToast('Speicher voll — Auto-Backup übersprungen. Datei-Backup bleibt aktiv.', 'warning', 8000);
                             };
                         } catch(e2) {}
                     });
@@ -1350,7 +1353,7 @@ const Store = {
         try {
             if (!this.isPeriodLocked(dateStr)) return;
             if (typeof Utils !== 'undefined' && Utils.showToast) {
-                Utils.showToast('⚠️ Buchung liegt in einer bereits eingereichten/abgeschlossenen USt-Periode — bitte als Korrektur in der nächsten offenen Periode nachmelden (§153 AO).', 'warning', 8000);
+                Utils.showToast('Buchung liegt in einer bereits eingereichten/abgeschlossenen USt-Periode — bitte als Korrektur in der nächsten offenen Periode nachmelden (§153 AO).', 'warning', 8000);
             }
         } catch (e) {}
     },
@@ -2906,7 +2909,7 @@ const Store = {
                 console.error('[Store] _idbPutBatch Transaktion fehlgeschlagen:', err);
                 if (err && err.name === 'QuotaExceededError') {
                     if (typeof Utils !== 'undefined' && Utils.showToast) {
-                        Utils.showToast('⚠️ Speicher voll! Backup konnte nicht vollständig geschrieben werden.', 'error');
+                        Utils.showToast('Speicher voll! Backup konnte nicht vollständig geschrieben werden.', 'error');
                     }
                 }
             };

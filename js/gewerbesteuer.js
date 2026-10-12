@@ -85,7 +85,6 @@ const Gewerbesteuer = {
         if (!this._isGewStPflichtig()) {
             return `<div class="page-header"><h2><i class="ti ti-building-store" style="margin-right:6px;"></i> Gewerbesteuer</h2></div>
             <div class="card" style="padding:40px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:12px;">🏠</div>
                 <div style="font-weight:700;font-size:16px;margin-bottom:8px;">Keine Gewerbesteuerpflicht</div>
                 <div style="color:var(--text-muted);">Als ${typeof Rechtsform !== 'undefined' ? Rechtsform.get() : 'Freiberufler'} bist du nicht gewerbesteuerpflichtig.</div>
             </div>`;

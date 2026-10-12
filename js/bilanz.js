@@ -126,7 +126,6 @@ const Bilanz = {
             return `
             <div class="page-header"><h2><i class="ti ti-report-analytics" style="margin-right:6px;"></i> Bilanz / GuV</h2></div>
             <div class="card" style="padding:32px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:16px;">📊</div>
                 <h3>Nicht verfügbar für diese Rechtsform</h3>
                 <p style="color:var(--text-muted);">Freiberufler sind nicht bilanzpflichtig und nutzen die EÜR.</p>
             </div>`;

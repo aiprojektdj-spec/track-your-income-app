@@ -344,12 +344,10 @@ const GbR = {
                 <label class="form-label" style="font-weight:700;">Unternehmensform</label>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:6px;">
                     ${(typeof Rechtsform !== 'undefined' ? Object.keys(Rechtsform.FORMEN) : ['Einzelunternehmen','Freiberufler','GbR','eGbR','OHG','KG','GmbH','UG','GmbH & Co. KG']).map(f => {
-                        const icons = {'Einzelunternehmen':'👤','Freiberufler':'💼','GbR':'🤝','eGbR':'🏛','OHG':'🏪','KG':'🏭','GmbH':'🏢','UG':'🏠','GmbH & Co. KG':'🏗'};
                         return `<div data-action="gbr-select-form" data-args='["${f}"]' id="gbr_form_${f.replace(/[^a-z0-9]/gi,'')}" style="
                         border:2px solid ${einst.firmenform===f ? 'var(--accent)' : 'var(--border)'};
                         background:${einst.firmenform===f ? 'rgba(99,102,241,.1)' : 'var(--bg-secondary)'};
                         border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .15s;">
-                        <div style="font-size:18px;">${icons[f]||'🏢'}</div>
                         <div style="font-weight:700;font-size:11px;margin-top:4px;">${f}</div>
                     </div>`;
                     }).join('')}
@@ -368,7 +366,6 @@ const GbR = {
                         border:2px solid ${(einst.taetigkeitsart||'gewerblich')===t ? 'var(--accent)' : 'var(--border)'};
                         background:${(einst.taetigkeitsart||'gewerblich')===t ? 'rgba(99,102,241,.1)' : 'var(--bg-secondary)'};
                         border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .15s;">
-                        <div style="font-size:18px;">${t==='freiberuflich'?'💼':'🏭'}</div>
                         <div style="font-weight:700;font-size:12px;margin-top:4px;">${t==='freiberuflich'?'Freiberuflich':'Gewerblich'}</div>
                     </div>`).join('')}
                 </div>
@@ -569,7 +566,7 @@ const GbR = {
                 <input type="date" class="form-input" id="gs_eintritt_${tempId}" value="${today}" style="font-size:12px;padding:5px 6px;">
             </td>
             <td style="padding:6px 8px;width:40px;text-align:center;">
-                <button data-action="gbr-remove-gs" data-args='["${tempId}"]' style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;">🗑</button>
+                <button data-action="gbr-remove-gs" data-args='["${tempId}"]' style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;" aria-label="Gesellschafter entfernen"><i class="ti ti-trash" aria-hidden="true"></i></button>
             </td>`;
         tbody.appendChild(tr);
         document.getElementById('gs_name_' + tempId)?.focus();
@@ -711,7 +708,6 @@ const GbR = {
             ${list.map(g => `
             <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;
                         background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;font-size:12px;">
-                <span>👤</span>
                 <strong>${Utils.escapeHtml(g.name)}</strong>
                 <span style="color:var(--text-muted);">${g.anteil} %</span>
             </div>`).join('')}

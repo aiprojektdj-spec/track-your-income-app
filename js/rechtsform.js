@@ -305,7 +305,7 @@ const Rechtsform = {
     renderPflichtenOverview(form) {
         const c = this.getConfig(form);
         const check = (v, label) => `<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0;">
-            <span style="color:${v ? 'var(--success)' : 'var(--text-muted)'};">${v ? '✅' : '➖'}</span>
+            <span style="color:${v ? 'var(--success)' : 'var(--text-muted)'};">${v ? '<i class="ti ti-check" aria-hidden="true"></i>' : '–'}</span>
             <span style="${v ? '' : 'color:var(--text-muted);'}">${label}</span>
         </div>`;
 
@@ -346,7 +346,7 @@ const Rechtsform = {
         <div class="card" style="margin-bottom:16px;padding:20px;">
             <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
                 <div style="width:48px;height:48px;border-radius:12px;background:var(--accent-glow);border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:22px;">
-                    ${this.isKapitalgesellschaft() ? '🏢' : this.isPersonengesellschaft() ? '🤝' : '👤'}
+                    <i class="ti ${this.isKapitalgesellschaft() ? 'ti-building' : this.isPersonengesellschaft() ? 'ti-users' : 'ti-user'}" aria-hidden="true"></i>
                 </div>
                 <div>
                     <div style="font-weight:800;font-size:17px;">${config.label}</div>

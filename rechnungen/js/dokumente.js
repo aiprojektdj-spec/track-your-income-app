@@ -131,7 +131,7 @@ var Dokumente = (function() {
         var statusClass, statusLabel;
         switch (inv.status) {
             case 'bezahlt':    statusClass = 'badge-success'; statusLabel = 'Bezahlt'; break;
-            case 'ueberfaellig': statusClass = 'badge-danger'; statusLabel = '\u00DCberf\u00E4llig'; break;
+            case 'ueberfaellig': statusClass = 'badge-danger is-alert'; statusLabel = '\u00DCberf\u00E4llig'; break;
             case 'storniert':  statusClass = 'badge-neutral'; statusLabel = 'Storniert'; break;
             case 'versendet':  statusClass = 'badge-warning'; statusLabel = 'Versendet'; break;
             default:           statusClass = 'badge-info';    statusLabel = 'Offen';
@@ -489,7 +489,7 @@ var Dokumente = (function() {
         // Verknüpfte Artikel aus Positionen anzeigen
         if (posLinkedArts.length > 0) {
             body += '<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;">';
-            body += '<div style="font-weight:600;font-size:12px;color:#065f46;margin-bottom:6px;">✅ ' + posLinkedArts.length + ' Lagerartikel aus Positionen sind bereits als <em>Verkauft</em> markiert (Verkaufsdatum wird auf das Zahlungsdatum aktualisiert):</div>';
+            body += '<div style="font-weight:600;font-size:12px;color:#065f46;margin-bottom:6px;">' + posLinkedArts.length + ' Lagerartikel aus Positionen sind bereits als <em>Verkauft</em> markiert (Verkaufsdatum wird auf das Zahlungsdatum aktualisiert):</div>';
             posLinkedArts.forEach(function(a) {
                 body += '<div style="font-size:12px;color:var(--text-secondary);margin-top:3px;">• <span style="font-family:monospace;color:var(--accent);">' + Utils.escapeHtml(a.artikelNr || '—') + '</span> ' + Utils.escapeHtml((a.marke || '') + ' ' + (a.artikeltyp || '') + (a.beschreibung ? ' – ' + a.beschreibung : '')) + ' (' + Utils.formatCurrency(a.einkaufspreis) + ')</div>';
             });

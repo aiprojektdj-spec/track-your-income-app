@@ -302,7 +302,7 @@ const Dashboard = {
                         <p>Abschreibungen und weitere Fachmodule fließen in die steuerliche Gewinnermittlung ein. Die Zahlen dieser Übersicht können deshalb vom Jahresgewinn in der EÜR abweichen.</p>
                         ${(typeof GbR !== 'undefined') ? GbR.renderDashboardKacheln(yearProfit) : ''}
                         ${this._renderTopMarkenWidget(allSales, allPurchases, year)}
-                        <div class="redesign-link-row"><button class="btn btn-outline" data-action="navigate" data-args='["statistiken"]'>Auswertungen öffnen</button><button class="btn btn-outline" data-action="navigate" data-args='["akademie"]'>Lernfortschritt ansehen</button></div>
+                        <div class="redesign-link-row"><button class="btn btn-outline" data-action="navigate" data-args='["statistiken"]'>Analyse öffnen</button><button class="btn btn-outline" data-action="navigate" data-args='["akademie"]'>Lernfortschritt ansehen</button></div>
                     </div>
                 </details>
             </div>`;

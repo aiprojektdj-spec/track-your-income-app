@@ -1,31 +1,50 @@
-import base64, os
+"""Optionales Deployment-Verzeichnis aus den aktuellen oeffentlichen Quellen erzeugen.
 
-root = os.path.dirname(os.path.abspath(__file__))
+Das normale Vercel-Deployment nutzt das Repository direkt, ohne Build-Schritt.
+Auch diese lokale Exportvariante verwendet ausschliesslich index.html als Startseite.
+"""
 
-def b64(path):
-    with open(path, 'rb') as f:
-        return base64.b64encode(f.read()).decode('ascii')
+import base64
+from pathlib import Path
+import shutil
 
-inter = b64(os.path.join(root, 'fonts', 'inter-var-latin.woff2'))
-fraun = b64(os.path.join(root, 'fonts', 'fraunces-var-latin.woff2'))
 
-os.makedirs(os.path.join(root, 'deploy'), exist_ok=True)
+ROOT = Path(__file__).resolve().parent
+DEPLOY = ROOT / 'deploy'
 
-def build(src, dst, fix_legal=False):
-    with open(src, 'r', encoding='utf-8') as f:
-        html = f.read()
-    html = html.replace('fonts/inter-var-latin.woff2', 'data:font/woff2;base64,' + inter)
-    html = html.replace('fonts/fraunces-var-latin.woff2', 'data:font/woff2;base64,' + fraun)
-    if fix_legal:
-        for p in ('datenschutz.html', 'impressum.html', 'agb.html'):
-            html = html.replace('href="%s"' % p, 'href="https://track-your-income-app.vercel.app/%s"' % p)
-    # sanity: no relative font/legal refs left
-    assert 'fonts/inter-var-latin.woff2' not in html
-    assert 'fonts/fraunces-var-latin.woff2' not in html
-    with open(dst, 'w', encoding='utf-8', newline='\n') as f:
-        f.write(html)
-    print('wrote', os.path.relpath(dst, root), round(len(html.encode('utf-8'))/1024), 'KB')
+# App, Rechtstexte und Serverless-Funktionen bleiben auch beim Export erreichbar.
+# Keine Arbeitsdateien, Umgebungsvariablen oder Vercel-Verknuepfung kopieren.
+FILES = (
+    'index.html', 'landing-v2.html', 'app.html', 'agb.html', 'barrierefreiheit.html', 'cookies.html',
+    'datenschutz.html', 'impressum.html', 'refund.html',
+    'verfahrensdokumentation.html', 'icon-stackr.svg', 'og-image.png',
+    'manifest.json', 'robots.txt', 'sitemap.xml', 'vercel.json',
+    'package.json', 'package-lock.json', '.vercelignore',
+    'stackr-broschuere.html', 'stackr-onepager.html',
+)
+DIRECTORIES = ('api', 'assets', 'css', 'eigenbelege', 'fonts', 'js', 'lager', 'rechnungen')
 
-build(os.path.join(root, 'stackr-broschuere.html'), os.path.join(root, 'deploy', 'index.html'), True)
-build(os.path.join(root, 'stackr-onepager.html'), os.path.join(root, 'deploy', 'onepager.html'), False)
-print('done')
+
+def build():
+    DEPLOY.mkdir(exist_ok=True)
+    for name in FILES:
+        shutil.copy2(ROOT / name, DEPLOY / name)
+    for name in DIRECTORIES:
+        shutil.copytree(
+            ROOT / name, DEPLOY / name, dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns('*.md', 'ui-lab.*', '__pycache__'),
+        )
+
+    # Die bisherige eigenstaendige Onepager-Ausgabe als Referenz erhalten.
+    onepager = (ROOT / 'stackr-onepager.html').read_text(encoding='utf-8')
+    for font in ('inter-var-latin.woff2', 'fraunces-var-latin.woff2'):
+        data = base64.b64encode((ROOT / 'fonts' / font).read_bytes()).decode('ascii')
+        onepager = onepager.replace('fonts/' + font, 'data:font/woff2;base64,' + data)
+    (DEPLOY / 'onepager.html').write_text(onepager, encoding='utf-8', newline='\n')
+
+    print('deploy/index.html entspricht index.html; App, Rechtstexte, Assets und API kopiert.')
+    print('Die lokale Vorschau fuehrt keine Serverless-Funktionen aus.')
+
+
+if __name__ == '__main__':
+    build()

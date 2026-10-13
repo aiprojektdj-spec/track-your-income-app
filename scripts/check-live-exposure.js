@@ -25,6 +25,7 @@ const DELAY = parseInt(process.env.CHECK_DELAY_MS || '300', 10);
 const LEAK_PATHS = [
     '/CLAUDE.md', '/CLOUD-SYNC.md', '/plan/00-STAND.md', '/plan/vercel-einrichtung.md',
     '/test/test-api-sync.js', '/scripts/lager-dubletten.js', '/scripts/check-live-exposure.js',
+    '/deploy/index.html', '/deploy/api/whop-token.js',
     '/build-deploy.py', '/ui-lab.html', '/css/ui-lab.css', '/js/ui-lab.js',
     '/js/vendor/VERSIONS.md', '/.github/workflows/tests.yml', '/graphify-out/GRAPH_REPORT.md',
     '/.env', '/.env.local', '/.git/config', '/.vercel/project.json', '/package.json',

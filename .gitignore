@@ -31,3 +31,6 @@ graphify-out/
 
 # Dependencies
 node_modules/
+
+# Lokal erzeugter Deployment-Export.
+deploy/

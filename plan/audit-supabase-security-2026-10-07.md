@@ -185,7 +185,9 @@ enthalten Whop-User-IDs — das ist für ein lokal vom Betreiber ausgeführtes S
 > `test/test-migration-rechte.js` prüft jede Migration auf RLS, `revoke` für Tabellen, Sequenzen
 > und Funktionen, `grant` an `service_role`, `sync_`-Präfix, kein `SECURITY DEFINER` und — für
 > Migrationen ab `20261009000001` — eine eigene `set search_path`. H3 ✅ 2026-10-11 (Preview-Projekt
-> `nvtjzeffngwfsqjzdrdz` in `connect-src` der fünf App-Routen, vom User freigegeben). H4 ✅ (blob-upload zählt über den Speicher-Adapter).
+> `nvtjzeffngwfsqjzdrdz` in `connect-src` der fünf App-Routen, vom User freigegeben). Nachtrag 2026-10-13: Die
+> Meta-CSPs der vier App-Seiten kannten Supabase nicht und hätten die signierten URLs trotzdem
+> blockiert — angeglichen, `test/test-csp-meta-header.js` hält Meta- und Header-`connect-src` gleich. H4 ✅ (blob-upload zählt über den Speicher-Adapter).
 >
 > **Live gegengeprüft am 2026-10-09** in beiden Projekten (`usrhhjwvoefjdgrwovkg`,
 > `nvtjzeffngwfsqjzdrdz`), nur lesend: alle 32 `sync_*`-Funktionen, 13 Tabellen und 2 Sequenzen

@@ -32,7 +32,13 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Stand 2026-10-07 (gegen den Code geprüft): offen sind nur noch 1.9 (zwei DATEV-Festlegungen)
+**Stand 2026-10-13 (gegen den Code geprüft): Abschnitt 1 ist leer.** 1.8: `webhooks` hat
+`test-webhooks.js` (`9272008`), `error-logger` sendet seit `0aff90d` an `/api/client-error` und
+hat `test-error-logger-beacon.js`. 1.9: Retouren (`b14ebfd`), AfA gegen Anlagekonto und Buchung
+je Position (`62aac4b`), BU-Schlüssel neu festgelegt (`da7b384`, `5352ba9`) — alles
+User-Entscheidung 2026-10-08. Die Texte unten bei 1.8/1.9 sind damit überholt.
+
+Älterer Stand 2026-10-07: offen waren nur noch 1.9 (zwei DATEV-Festlegungen)
 und in 1.8 die Entscheidung über `webhooks`/`error-logger`.** Die Kilometersätze (Regel-7-Rest
 aus 1.8) sind seit `8abd2b6` erledigt, `protokoll`, `steuerberater` und `blob-attachments` haben
 einen Harness. — Älterer Stand: **2026-09-13: zwei offene Punkte, siehe 1.8 und 1.9.** Hier stand bis heute „dieser

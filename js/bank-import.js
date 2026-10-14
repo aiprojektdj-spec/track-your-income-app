@@ -66,6 +66,10 @@ var BankImport = (function () {
                 if (!isCredit && creditorName) counterparty = creditorName.textContent.trim();
                 if (isCredit  && debitorName)  counterparty = debitorName.textContent.trim();
 
+                // Stabile Kennung der Bank, wenn vorhanden (Audit 2026-10-13, L3)
+                var ref = txt(ntry, 'AcctSvcrRef') || txt(ntry, 'NtryRef');
+                if (!ref) { var e2e = txt(ntry, 'EndToEndId'); if (e2e && e2e !== 'NOTPROVIDED') ref = e2e; }
+
                 if (amount > 0) {
                     transactions.push({
                         date:         normalizeDate(date),
@@ -74,6 +78,7 @@ var BankImport = (function () {
                         currency:     currency,
                         description:  ustrd || counterparty || '',
                         counterparty: counterparty,
+                        ref:          ref || '',
                         raw:          'CAMT'
                     });
                 }
@@ -116,6 +121,8 @@ var BankImport = (function () {
                         var amtStr = m[4].replace(',', '.');
                         var amount = parseFloat(amtStr);
                         var isCredit = cdCode.charAt(0) === 'C';
+                        // Referenz des kontoführenden Instituts steht hinter "//" (L3)
+                        var bankRef = (txLine.split('//')[1] || '').trim().split(/\s/)[0] || '';
                         currentTx = {
                             date:        year + '-' + month + '-' + day,
                             amount:      amount,
@@ -123,6 +130,7 @@ var BankImport = (function () {
                             currency:    'EUR',
                             description: '',
                             counterparty: '',
+                            ref:         bankRef,
                             raw:         'MT940',
                             details:     []
                         };
@@ -431,6 +439,51 @@ var BankImport = (function () {
         }
     }
 
+    // ── Wiederholter Import (Audit 2026-10-13, L3) ─────────────────────────────────────
+    // Vorher bekam jede importierte Zeile eine neue ID; derselbe Auszug zweimal ergab zwei
+    // Ausgaben. Jetzt hat jeder Umsatz einen Schlüssel:
+    //  - 'ref:…'  wenn die Bank eine Referenz liefert (CAMT AcctSvcrRef/NtryRef/EndToEndId,
+    //             MT940 Bankreferenz) — sicher.
+    //  - 'fp:…#n' sonst: Datum, Betrag, Richtung, Gegenpartei, Verwendungszweck, dazu die laufende
+    //             Nummer innerhalb der Datei. Zwei tatsächlich verschiedene, gleich aussehende
+    //             Zahlungen im selben Auszug bekommen so #1 und #2 und bleiben zwei Buchungen;
+    //             ein überlappender Auszug mit denselben beiden ergibt wieder #1/#2 und ist bekannt.
+    // Bekannte Schlüssel stehen im Register 'bank_import_keys' (firmenbezogen, mit synchronisiert)
+    // und an der Ausgabe (_bankTx). Eine bekannte Zeile lässt sich nicht erneut anhaken.
+    var REGISTER = 'bank_import_keys';
+    function _norm(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+    function fingerprint(tx) {
+        return [tx.date, (Math.round((parseFloat(tx.amount) || 0) * 100)), tx.isCredit ? 'H' : 'S', _norm(tx.counterparty), _norm(tx.description)].join('|');
+    }
+    function vergebeSchluessel(transactions) {
+        var zaehler = {};
+        transactions.forEach(function (tx) {
+            if (tx.ref) { tx._key = 'ref:' + tx.ref; return; }
+            var fp = fingerprint(tx);
+            zaehler[fp] = (zaehler[fp] || 0) + 1;
+            tx._key = 'fp:' + fp + '#' + zaehler[fp];
+        });
+        return transactions;
+    }
+    function bekannteSchluessel() {
+        var set = {};
+        (Store.get(REGISTER) || []).forEach(function (e) { if (e && e.key) set[e.key] = e; });
+        (Store.getExpenses ? Store.getExpenses() : []).forEach(function (e) { if (e && e._bankTx && e._bankTx.key) set[e._bankTx.key] = set[e._bankTx.key] || { key: e._bankTx.key, typ: 'ausgabe', ziel: e.id }; });
+        return set;
+    }
+    function registriere(key, typ, ziel, datum) {
+        var list = (Store.get(REGISTER) || []).filter(function (e) { return e && e.key !== key; });
+        list.push({ key: key, typ: typ, ziel: ziel || null, datum: datum || '', importiertAm: new Date().toISOString() });
+        Store.set(REGISTER, list);
+    }
+    // Hinweis auf eine von Hand erfasste Ausgabe mit gleichem Datum und Betrag — Verdacht, keine Sperre
+    function aehnlicheAusgabe(tx) {
+        if (tx.isCredit) return null;
+        return (Store.getExpenses ? Store.getExpenses() : []).find(function (e) {
+            return !e._bankTx && e.datum === tx.date && Math.abs((parseFloat(e.betrag) || 0) - tx.amount) < 0.005;
+        }) || null;
+    }
+
     function renderPreview(transactions) {
         var container = document.getElementById('bankImportPreview');
         if (!container) return;
@@ -459,16 +512,22 @@ var BankImport = (function () {
         html += '</tr></thead><tbody>';
 
         var offene = openInvoices();
+        vergebeSchluessel(transactions);
+        var bekannt = bekannteSchluessel();
 
         transactions.forEach(function (tx, idx) {
+            tx._bekannt = !!bekannt[tx._key];
             var categories = ['Versandkosten', 'Plattformgebühren', 'Fahrtkosten', 'Büro & Material', 'Wareneinkauf', 'Sonstiges'];
             var autoCategory = guessCategory(tx.description);
             var catOptions = categories.map(function (c) {
                 return '<option value="' + c + '"' + (c === autoCategory ? ' selected' : '') + '>' + c + '</option>';
             }).join('');
 
-            html += '<tr data-idx="' + idx + '">';
-            html += '<td><input type="checkbox" class="bank-row-check" data-idx="' + idx + '"></td>';
+            var verdacht = !tx._bekannt ? aehnlicheAusgabe(tx) : null;
+            html += '<tr data-idx="' + idx + '"' + (tx._bekannt ? ' style="opacity:.55;"' : '') + '>';
+            html += '<td><input type="checkbox" class="bank-row-check" data-idx="' + idx + '"' + (tx._bekannt ? ' disabled aria-label="Bereits importiert"' : '') + '>'
+                 +  (tx._bekannt ? '<div style="font-size:10px;color:var(--text-muted);">bereits importiert</div>' : '')
+                 +  (verdacht ? '<div style="font-size:10px;color:var(--warning);" title="Gleiches Datum und gleicher Betrag wie eine erfasste Ausgabe">ähnliche Ausgabe vorhanden</div>' : '') + '</td>';
             html += '<td>' + Utils.formatDate(tx.date) + '</td>';
             html += '<td style="font-weight:700;color:' + (tx.isCredit ? 'var(--success)' : 'var(--danger)') + ';">';
             html += (tx.isCredit ? '+' : '−') + Utils.formatCurrency(tx.amount) + '</td>';
@@ -557,18 +616,28 @@ var BankImport = (function () {
      *  und jede Einnahme, für die eine Rechnung ausgewählt ist. */
     function istBuchbar(idx) {
         var tx = _parsed[idx];
-        if (!tx) return false;
+        if (!tx || tx._bekannt) return false;
         if (!tx.isCredit) return true;
         var sel = document.querySelector('.bank-inv-select[data-idx="' + idx + '"]');
         return !!(sel && sel.value);
     }
 
+    var _importLaeuft = false;
     function importSelected() {
+        if (_importLaeuft) return; // Doppelklick
         var checks = document.querySelectorAll('.bank-row-check:checked');
         if (!checks.length) {
             Utils.showToast('Keine Buchungen ausgewählt', 'warning');
             return;
         }
+        _importLaeuft = true;
+        try { _importiere(checks); } finally { _importLaeuft = false; }
+    }
+
+    function _importiere(checks) {
+        vergebeSchluessel(_parsed);
+        var bekannt = bekannteSchluessel();
+        var doppelt = 0;
 
         var imported = 0;      // Ausgaben
         var bezahlt = 0;       // vollständig beglichene Rechnungen
@@ -579,6 +648,8 @@ var BankImport = (function () {
             var idx = parseInt(cb.dataset.idx);
             var tx = _parsed[idx];
             if (!tx) return;
+            // Bereits verarbeitet (früherer Import, Abbruch mittendrin, zweiter Klick): nichts buchen
+            if (bekannt[tx._key]) { doppelt++; return; }
 
             // ── Einnahme: einer offenen Rechnung zuordnen ────────────────────
             if (tx.isCredit) {
@@ -598,12 +669,14 @@ var BankImport = (function () {
                     inv.bezahltAm = tx.date;
                     var saved = Store.saveRechInvoice(inv);
                     if (!saved) { uebersprungen.push((inv.nummer || invId) + ' ist gesperrt'); return; }
+                    registriere(tx._key, 'rechnung', invId, tx.date); bekannt[tx._key] = true;
                     bezahlt++;
                 } else {
                     // Teilzahlung: eigener Store-Pfad, weil er den anteiligen Zufluss nach
                     // §11 EStG zum Zahlungsdatum mitbucht und das Audit-Log schreibt.
                     var res = Store.addRechTeilzahlung(invId, tx.amount, tx.date);
                     if (!res) { uebersprungen.push((inv.nummer || invId) + ' nimmt keine Teilzahlung an'); return; }
+                    registriere(tx._key, 'teilzahlung', invId, tx.date); bekannt[tx._key] = true;
                     teilzahlungen++;
                 }
                 return;
@@ -613,17 +686,20 @@ var BankImport = (function () {
             var catEl = document.querySelector('.bank-cat-select[data-idx="' + idx + '"]');
             var kategorie = catEl ? catEl.value : 'Sonstiges';
 
+            // Ohne vorab vergebene ID: so läuft der normale Neuanlage-Pfad des Store
+            // (Audit-Eintrag "erstellt", Buchungslimit, Steuerstatus-Stempel).
             var expense = {
-                id:          Store.generateId(),
                 datum:       tx.date,
                 betrag:      tx.amount,
                 kategorie:   kategorie,
                 beschreibung: tx.description.substring(0, 100),
                 belegnummer:  'BANK-' + tx.date.replace(/-/g, ''),
-                createdAt:   new Date().toISOString(),
-                _bankImport: true
+                _bankImport: true,
+                _bankTx:     { key: tx._key, ref: tx.ref || '', quelle: tx.raw || '' }
             };
-            Store.saveExpense(expense);
+            var gespeichert = Store.saveExpense(expense);
+            if (!gespeichert || !gespeichert.id) { uebersprungen.push('Ausgabe ' + tx.date + ' nicht gespeichert'); return; }
+            registriere(tx._key, 'ausgabe', gespeichert.id, tx.date); bekannt[tx._key] = true;
             imported++;
         });
 
@@ -636,6 +712,7 @@ var BankImport = (function () {
         if (imported)      teile.push(imported + ' Ausgabe(n) gebucht');
         if (bezahlt)       teile.push(bezahlt + ' Rechnung(en) als bezahlt markiert');
         if (teilzahlungen) teile.push(teilzahlungen + ' Teilzahlung(en) erfasst');
+        if (doppelt)       uebersprungen.push(doppelt + ' bereits importiert');
         var msg = teile.length ? teile.join(', ') : 'Nichts gebucht';
 
         Utils.showToast(msg + (uebersprungen.length ? ' — ' + uebersprungen.length + ' übersprungen' : ''),
@@ -650,5 +727,6 @@ var BankImport = (function () {
         _parsed = [];
     }
 
-    return { render: render, init: init, parse: parse, parseCamt: parseCamt, parseMt940: parseMt940 };
+    return { render: render, init: init, parse: parse, parseCamt: parseCamt, parseMt940: parseMt940,
+             _test: { vergebeSchluessel: vergebeSchluessel, setParsed: function (t) { _parsed = t; }, renderPreview: renderPreview, importSelected: importSelected } };
 })();

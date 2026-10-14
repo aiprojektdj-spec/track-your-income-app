@@ -60,7 +60,7 @@ const Steuertermine = {
 
     // ── UStVA-Termine aus dem eingestellten Rhythmus erzeugen ────────────────
     // Vorher waren vier Quartalstermine hart gelistet. Wer monatlich voranmelden muss (Vorjahres-
-    // Zahllast über 7.500 €, §18 Abs. 2 UStG, oder Gründungsjahr/Folgejahr), bekam damit acht
+    // Steuer über der Grenze aus UstVoranmeldung._voranmeldungsRegeln, §18 Abs. 2 UStG), bekam damit acht
     // fehlende Fristen im Jahr — und das trifft genau die wachsenden Nutzer. Quelle für Rhythmus
     // und Dauerfristverlängerung sind dieselben Einstellungen, die js/ustvoranmeldung.js benutzt.
     _ustTermine(year) {
@@ -140,7 +140,11 @@ const Steuertermine = {
         const w = (iso) => this._naechsterWerktag(iso);
         return [
             { id: 'fix_eur_' + year,   datum: w(`${year}-07-31`), beschreibung: 'Steuererklärung / EÜR Vorjahr abgeben', typ: 'steuer', fix: true },
-            { id: 'fix_pstg_' + year,  datum: w(`${year}-03-31`), beschreibung: 'PStTG: Jahresbericht Plattformdaten',    typ: 'pstg',   fix: true },
+            // PStTG: meldepflichtig ist die PLATTFORM (Frist 31.01., §13 PStTG), nicht der Verkäufer.
+            // Bis 2026-10-13 (Audit T11) stand hier für jeden Nutzer eine eigene "Meldung" zum 31.03.
+            // Für Verkäufer bleibt nur der freiwillige Abgleich der Mitteilung, die die Plattform bis
+            // zum 31.01. schickt — deshalb kein Werktag-Verschieben und kein Pflicht-Etikett.
+            { id: 'fix_pstg_' + year,  datum: `${year}-01-31`, beschreibung: 'Freiwillig: PStTG-Mitteilung der Plattformen mit eigenen Zahlen abgleichen (Meldung macht die Plattform)', typ: 'pstg', fix: true },
             { id: 'fix_gewa_' + year,  datum: w(`${year}-02-15`), beschreibung: 'Gewerbesteuer-Vorauszahlung Q1',         typ: 'gewerbe', fix: true },
             { id: 'fix_gewb_' + year,  datum: w(`${year}-05-15`), beschreibung: 'Gewerbesteuer-Vorauszahlung Q2',         typ: 'gewerbe', fix: true },
             { id: 'fix_gewc_' + year,  datum: w(`${year}-08-15`), beschreibung: 'Gewerbesteuer-Vorauszahlung Q3',         typ: 'gewerbe', fix: true },
@@ -191,7 +195,7 @@ const Steuertermine = {
         const pstpgPflicht = Object.entries(platStats).filter(([, v]) => v.count >= 30 || v.umsatz >= 2000);
 
         const colorVars = { danger: 'var(--danger)', warning: 'var(--warning)', success: 'var(--success)' };
-        const typColors = { steuer: 'badge-info', ust: 'badge-warning', gewerbe: 'badge-neutral', pstg: 'badge-danger', svs: 'badge-warning', lohn: 'badge-info', custom: 'badge-success' };
+        const typColors = { steuer: 'badge-info', ust: 'badge-warning', gewerbe: 'badge-neutral', pstg: 'badge-info', svs: 'badge-warning', lohn: 'badge-info', custom: 'badge-success' };
 
         const upcomingCards = upcoming.length > 0 ? upcoming.map(t => {
             const c = this._ampelColor(t.datum);
@@ -225,8 +229,9 @@ const Steuertermine = {
         }
 
         const pstpgWarning = pstpgPflicht.length > 0
-            ? `<div style="margin-bottom:12px;padding:10px;background:rgba(239,68,68,0.08);border:1px solid var(--danger);border-radius:6px;font-size:13px;color:var(--danger);">
-                <strong>Meldepflicht (PStTG)</strong> bei: ${pstpgPflicht.map(([p]) => p).join(', ')} – bis 31. März melden!
+            ? `<div style="margin-bottom:12px;padding:10px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+                <strong>Voraussichtlich von der Plattform gemeldet (PStTG):</strong> ${pstpgPflicht.map(([p]) => Utils.escapeHtml(p)).join(', ')}.
+                Die Plattform meldet bis 31. Januar an das Bundeszentralamt für Steuern und schickt dir eine Kopie. Für dich entsteht daraus keine eigene Meldepflicht — gleiche die Mitteilung mit deinen Buchungen ab.
                </div>` : '';
 
         const pstpgRows = Object.entries(platStats).map(([plat, v]) => {
@@ -235,7 +240,7 @@ const Steuertermine = {
                 <td>${Utils.escapeHtml(plat)}</td>
                 <td style="text-align:right">${v.count}</td>
                 <td style="text-align:right">${Utils.formatCurrency(v.umsatz)}</td>
-                <td><span class="badge ${pflicht ? 'badge-danger' : 'badge-success'}">${pflicht ? 'Meldepflicht' : 'OK'}</span></td>
+                <td><span class="badge ${pflicht ? 'badge-info' : 'badge-neutral'}">${pflicht ? 'wird gemeldet' : 'unter Schwelle'}</span></td>
             </tr>`;
         }).join('');
 
@@ -300,8 +305,8 @@ const Steuertermine = {
             ${Object.keys(platStats).length > 0 ? `
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">PStTG – Plattformmeldepflicht ${year}</div>
-                    <div style="font-size:12px;color:var(--text-muted);">Meldepflicht ab 30 Verkäufe ODER 2.000 € je Plattform</div>
+                    <div class="card-title">PStTG – Meldung durch die Plattformen ${year}</div>
+                    <div style="font-size:12px;color:var(--text-muted);">Plattformen melden Verkäufer ab 30 Verkäufen oder 2.000 € je Plattform</div>
                 </div>
                 ${pstpgWarning}
                 <div class="table-container" style="border:none;">

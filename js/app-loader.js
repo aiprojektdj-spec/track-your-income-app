@@ -27,6 +27,7 @@
         'js/bank-import.js',
         'js/steuerberater.js',
         'js/steuer-berechnung.js',
+        'js/kleinunternehmer.js',
         'js/euer.js',
         'js/ausgaben.js',
         'js/statistiken.js',

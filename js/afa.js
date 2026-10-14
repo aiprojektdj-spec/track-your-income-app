@@ -22,39 +22,8 @@ const Afa = {
 
         if (year > kaufJahr + nd) return 0; // vollständig abgeschrieben (inkl. anteiliges Abschlussjahr)
 
-        if (asset.methode === 'degressiv') {
-            // Degressiver AfA-Satz hängt gesetzlich vom Anschaffungsjahr ab (§7 Abs. 2 EStG):
-            //  2020–2022: 2,5×/max 25%  ·  2024: 2,0×/max 20% (Wachstumschancengesetz)
-            //  2025–2027: 3,0×/max 30%  ·  sonst degressiv nicht zulässig → konservativ 2,0×/20%
-            const linRate = 1 / nd;
-            let degFactor = 2.0, degCap = 0.20;
-            if (kaufJahr >= 2020 && kaufJahr <= 2022)      { degFactor = 2.5; degCap = 0.25; }
-            else if (kaufJahr === 2024)                    { degFactor = 2.0; degCap = 0.20; }
-            else if (kaufJahr >= 2025 && kaufJahr <= 2027) { degFactor = 3.0; degCap = 0.30; }
-            const degRate = Math.min(linRate * degFactor, degCap);
-            let bw = ak;
-            for (let y = kaufJahr; y < year; y++) {
-                const afa = y === kaufJahr
-                    ? bw * degRate * ((12 - kaufMonat) / 12)
-                    : bw * degRate;
-                bw -= afa;
-                if (bw < 0) bw = 0;
-            }
-            const thisYearAfa = year === kaufJahr
-                ? bw * degRate * ((12 - kaufMonat) / 12)
-                : bw * degRate;
-            // Wechsel zu linear wenn linear höher (Optimierung).
-            // WICHTIG: Im Anschaffungsjahr muss der lineare Vergleichswert ebenfalls
-            // zeitanteilig (gleicher Monatsanteil wie die degressive Berechnung) sein —
-            // sonst wird der volle lineare Jahresbetrag gegen die zeitanteilige degressive
-            // AfA verglichen (Vergleich auf ungleicher Grundlage) und im Anschaffungsjahr
-            // systematisch zu früh/fälschlich auf linear gewechselt.
-            const verbleibend = (kaufJahr + nd) - year;
-            const linearVoll = verbleibend > 0 ? bw / verbleibend : 0;
-            const linearNow = year === kaufJahr
-                ? linearVoll * ((12 - kaufMonat) / 12)
-                : linearVoll;
-            return Math.max(thisYearAfa, linearNow);
+        if (asset.methode === 'degressiv' && this._degressivRegel(asset.anschaffungsdatum)) {
+            return this._degressivPlan(asset)[year] || 0;
         } else {
             // Lineare AfA: gleichmäßig über Nutzungsdauer
             const jahresAfa = ak / nd;
@@ -73,6 +42,57 @@ const Afa = {
             }
             return jahresAfa;
         }
+    },
+
+    // Degressive AfA ist nur für bewegliche Wirtschaftsgüter mit Anschaffung in gesetzlich
+    // festgelegten Zeitfenstern zulässig (§7 Abs.2 EStG in der jeweiligen Fassung). Maßgeblich ist
+    // der Anschaffungstag, nicht das Jahr: 2024 erst ab 01.04. (Wachstumschancengesetz),
+    // 2025 erst ab 01.07. (Gesetz für ein steuerliches Investitionssofortprogramm).
+    // Quelle: BMF-Übersicht der Abschreibungszeiträume, EStH 2025 Anhang 1 I.1.
+    // Außerhalb aller Fenster → null: dann wird linear gerechnet und die Anlage markiert (T08).
+    _DEGRESSIV_FENSTER: [
+        { von: '2009-01-01', bis: '2010-12-31', faktor: 2.5, cap: 0.25 },
+        { von: '2020-01-01', bis: '2022-12-31', faktor: 2.5, cap: 0.25 },
+        { von: '2024-04-01', bis: '2024-12-31', faktor: 2.0, cap: 0.20 },
+        { von: '2025-07-01', bis: '2027-12-31', faktor: 3.0, cap: 0.30 }
+    ],
+    _degressivRegel(datumISO) {
+        const d = String(datumISO || '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+        return this._DEGRESSIV_FENSTER.find(f => d >= f.von && d <= f.bis) || null;
+    },
+    // true, wenn eine Anlage als degressiv erfasst ist, das Anschaffungsdatum das aber nicht trägt.
+    _degressivUnzulaessig(asset) {
+        return !!asset && asset.methode === 'degressiv' && !this._degressivRegel(asset.anschaffungsdatum);
+    },
+
+    // Jahresplan der degressiven AfA mit Wechsel zur linearen Methode (§7 Abs.3 EStG).
+    // Der Buchwert wird mit den TATSÄCHLICH angesetzten Jahresbeträgen fortgeschrieben, ein einmal
+    // vollzogener Wechsel bleibt bestehen, linear = Restbuchwert / Restnutzungsdauer (monatsgenau),
+    // und kein Jahresbetrag übersteigt den Restbuchwert → Summe aller Jahre = AK (T03).
+    _degressivPlan(asset) {
+        const ak = parseFloat(asset.anschaffungskosten) || 0;
+        const nd = parseInt(asset.nutzungsdauer) || 1;
+        const regel = this._degressivRegel(asset.anschaffungsdatum);
+        const kaufDatum = new Date(asset.anschaffungsdatum);
+        const kaufJahr = kaufDatum.getFullYear();
+        const kaufMonat = kaufDatum.getMonth();
+        const degRate = Math.min((1 / nd) * regel.faktor, regel.cap);
+        const r2 = v => Math.round(v * 100) / 100;
+        const plan = {};
+        let bw = ak, restMonate = nd * 12, linear = false;
+        for (let y = kaufJahr; restMonate > 0 && bw > 0; y++) {
+            const monate = Math.min(y === kaufJahr ? 12 - kaufMonat : 12, restMonate);
+            const deg = bw * degRate * monate / 12;
+            const lin = bw * monate / restMonate;
+            if (!linear && lin >= deg) linear = true;
+            let afa = restMonate === monate ? bw : r2(linear ? lin : deg);
+            if (afa > bw) afa = bw;
+            plan[y] = afa;
+            bw = r2(bw - afa);
+            restMonate -= monate;
+        }
+        return plan;
     },
 
     // Buchwert zum 31.12. des Jahres
@@ -116,7 +136,7 @@ const Afa = {
                 <td>${Utils.formatDate(a.anschaffungsdatum)}</td>
                 <td style="text-align:right">${Utils.formatCurrency(ak)}</td>
                 <td style="text-align:center">${nd} J.</td>
-                <td style="text-align:center">${a.methode === 'sofort' ? 'Sofort (GWG)' : a.methode === 'degressiv' ? 'Degr.' : 'Linear'}</td>
+                <td style="text-align:center">${a.methode === 'sofort' ? 'Sofort (GWG)' : this._degressivUnzulaessig(a) ? '<span title="Für dieses Anschaffungsdatum ist die degressive AfA gesetzlich nicht zulässig (§7 Abs.2 EStG). Gerechnet wird linear — bitte die Methode korrigieren." style="color:var(--warning)"><i class="ti ti-alert-triangle"></i> Linear*</span>' : a.methode === 'degressiv' ? 'Degr.' : 'Linear'}</td>
                 <td style="text-align:right;color:var(--danger)">${afaJahr > 0 ? '−' + Utils.formatCurrency(afaJahr) : '–'}</td>
                 <td style="text-align:right">
                     ${Utils.formatCurrency(bwEnde)}
@@ -329,6 +349,11 @@ const Afa = {
         // §6 Abs.2 EStG: Sofortabschreibung nur für GWG bis 800€ netto — sonst Bußgeldrisiko bei Betriebsprüfung
         if (methode === 'sofort' && ak > 800) { Utils.showToast('Sofortabschreibung (GWG) nur bis 800€ netto AK zulässig (§6 Abs.2 EStG)', 'error'); return; }
         if (methode === 'sofort') nd = 1; // Nutzungsdauer irrelevant bei Sofortabschreibung
+        // §7 Abs.2 EStG: degressiv nur bei Anschaffung in einem begünstigten Zeitfenster (T08)
+        if (methode === 'degressiv' && !this._degressivRegel(datum)) {
+            Utils.showToast('Degressive AfA ist für dieses Anschaffungsdatum nicht zulässig (§7 Abs.2 EStG: z. B. 01.04.–31.12.2024, 01.07.2025–31.12.2027). Bitte linear wählen.', 'error');
+            return;
+        }
         if (!Number.isFinite(nd) || nd < 1) { Utils.showToast('Nutzungsdauer muss ≥ 1 sein', 'error'); return; }
 
         const item = {

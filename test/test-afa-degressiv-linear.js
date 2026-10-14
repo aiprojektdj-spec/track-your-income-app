@@ -69,22 +69,23 @@ let pass = 0;
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Test 3: Sanity-Check — Januar-Kauf (voller Jahresanteil, fraction=1) bleibt unverändert.
-// Hier ist kaufMonat=0, also (12-0)/12=1 → linearNow===linearVoll, der Fix darf
-// dieses (unkritische) Verhalten nicht verändern.
+// Test 3: Sanity-Check — Januar-Kauf (voller Jahresanteil, fraction=1).
+// Hier ist kaufMonat=0, also (12-0)/12=1 → linearNow===linearVoll.
+// Früher stand hier der 01.01.2024: der liegt vor dem Fenster ab 01.04.2024 und ist seit
+// Audit 2026-10-13/T08 nicht mehr degressiv zulässig (siehe test-afa-restbuchwert.js).
 // ─────────────────────────────────────────────────────────────────
 {
     const asset = {
         anschaffungskosten: 6000,
         nutzungsdauer: 6,
-        anschaffungsdatum: '2024-01-01',
+        anschaffungsdatum: '2021-01-01',
         methode: 'degressiv'
     };
-    // Degressiv: 6000 * 0.20 = 1200€. Linear voll = 1000€. Degressiv gewinnt (1200 > 1000).
-    const afa2024 = Afa._calcJahresAfa(asset, 2024);
-    assert.ok(Math.abs(afa2024 - 1200) < 0.01,
-        `Voll-Jahr-Kauf: AfA muss 1200€ sein (degressiv, kein Zeitanteil-Unterschied), war ${afa2024}`);
-    pass++; console.log(`✓ Test 3: Januar-Kauf (Vollanteil) = ${afa2024.toFixed(2)}€ (erwartet 1200€, Verhalten unverändert)`);
+    // Degressiv 2021: min(2,5/6, 25 %) = 25 % → 1500€. Linear voll = 1000€. Degressiv gewinnt.
+    const afa2021 = Afa._calcJahresAfa(asset, 2021);
+    assert.ok(Math.abs(afa2021 - 1500) < 0.01,
+        `Voll-Jahr-Kauf: AfA muss 1500€ sein (degressiv, kein Zeitanteil-Unterschied), war ${afa2021}`);
+    pass++; console.log(`✓ Test 3: Januar-Kauf (Vollanteil) = ${afa2021.toFixed(2)}€ (erwartet 1500€)`);
 }
 
 console.log(`\n${pass}/3 Tests bestanden ✅`);

@@ -752,8 +752,8 @@ steht (§7 Abs. 3 UWG). Einfügen musst du sie selbst, reine Backend-Konfigurati
 
 - **3 Tage vor der Jahresverlängerung** — 135 € ohne Vorwarnung ist die Buchung, die zu
   Rückfragen und Rückbuchungen führt.
-- **7 Tage nach der Kündigung**, mit dem Hinweis dass die Daten erhalten bleiben. Der
-  Winback-Screen in der App ist gut gemacht, erreicht aber nur Rückkehrer.
+- **Sofort bei Eingang der Kündigung** (nicht erst nach Ablauf — danach sperrt das Gate auch
+  *Backup & Daten*): Daten bleiben erhalten, Backup bis Periodenende ziehen. Umgestellt 2026-10-14.
 
 ### 2.3 Live-Tests — brauchen echte Logins
 

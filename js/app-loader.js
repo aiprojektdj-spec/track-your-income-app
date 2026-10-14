@@ -57,6 +57,7 @@
         'rechnungen/js/erechnung-import.js',
         'rechnungen/js/rech-dashboard.js',
         'rechnungen/js/rechnung.js',
+        'js/storno-vorgang.js',
         'rechnungen/js/dokumente.js',
         'rechnungen/js/kunden.js',
         'rechnungen/js/produkte.js',

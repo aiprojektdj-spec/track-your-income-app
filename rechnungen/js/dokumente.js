@@ -310,6 +310,24 @@ var Dokumente = (function() {
         body += '<div class="form-group" id="stornoFreitextGroup" style="display:none;"><label class="form-label" for="stornoFreitext">Freitext Begr\u00FCndung</label>';
         body += '<input class="form-input" type="text" id="stornoFreitext" maxlength="300" placeholder="Bitte Grund eingeben..."></div>';
 
+        // Geld und Ware sind eigene Sachverhalte (Audit 2026-10-13, L1): ein eingegangener Betrag
+        // bleibt eingegangen; nur eine tatsächliche Rückzahlung wird mit Datum gebucht.
+        var stornoZahl = (typeof StornoVorgang !== 'undefined') ? StornoVorgang.bezahlt(id) : { offen: 0 };
+        var stornoInv = Store.getRechInvoices().find(function(i) { return i.id === id; }) || {};
+        var stornoArtikel = (typeof StornoVorgang !== 'undefined') ? StornoVorgang.artikel(stornoInv) : [];
+        if (stornoZahl.offen > 0) {
+            body += '<fieldset class="form-group" style="border:1px solid var(--border);border-radius:6px;padding:10px 14px;"><legend style="font-size:13px;padding:0 4px;">Bereits gezahlt: ' + Utils.formatCurrency(stornoZahl.offen) + '</legend>';
+            body += '<label style="display:flex;gap:8px;align-items:center;font-size:13px;"><input type="checkbox" id="stornoErstattet"> Betrag wurde (teilweise) zur\u00FCckgezahlt</label>';
+            body += '<div id="stornoErstattungFelder" style="display:none;margin-top:8px;"><div class="form-row">';
+            body += '<div class="form-group"><label class="form-label" for="stornoErstattBetrag">R\u00FCckzahlung (\u20AC)</label><input class="form-input" type="number" step="0.01" min="0.01" max="' + stornoZahl.offen.toFixed(2) + '" id="stornoErstattBetrag" value="' + stornoZahl.offen.toFixed(2) + '"></div>';
+            body += '<div class="form-group"><label class="form-label" for="stornoErstattDatum">Datum der R\u00FCckzahlung</label><input class="form-input" type="date" id="stornoErstattDatum" value="' + Utils.todayISO() + '"></div>';
+            body += '</div></div>';
+            body += '<div class="form-hint">Ohne R\u00FCckzahlung bleibt der Zahlungseingang als Einnahme stehen. Eine sp\u00E4tere R\u00FCckzahlung kannst du unter Retouren nachtragen.</div></fieldset>';
+        }
+        if (stornoArtikel.length) {
+            body += '<div class="form-group"><label style="display:flex;gap:8px;align-items:center;font-size:13px;"><input type="checkbox" id="stornoWareZurueck" checked> ' + stornoArtikel.length + ' verkn\u00FCpfte(r) Lagerartikel wieder verf\u00FCgbar (Ware zur\u00FCck oder nie geliefert)</label></div>';
+        }
+
         body += '<div style="background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.3);border-radius:6px;padding:10px 14px;margin-top:8px;font-size:12px;color:#b91c1c;">';
         body += '\u26A0\uFE0F Diese Aktion kann nicht r\u00FCckg\u00E4ngig gemacht werden (GoBD-Konformit\u00E4t).';
         body += '</div>';
@@ -320,6 +338,10 @@ var Dokumente = (function() {
 
         document.getElementById('stornoGrund').addEventListener('change', function() {
             document.getElementById('stornoFreitextGroup').style.display = this.value === 'sonstiges' ? '' : 'none';
+        });
+        var erstattetBox = document.getElementById('stornoErstattet');
+        if (erstattetBox) erstattetBox.addEventListener('change', function() {
+            document.getElementById('stornoErstattungFelder').style.display = this.checked ? '' : 'none';
         });
 
         document.getElementById('confirmStorno').addEventListener('click', async function() {
@@ -338,8 +360,23 @@ var Dokumente = (function() {
             }
             if (this.disabled) return;
             this.disabled = true;
-            await Store.createStornoRechnung(id, grund, grundText);
-            Utils.showToast('Stornorechnung erstellt.', 'success');
+            var erstBox = document.getElementById('stornoErstattet');
+            var wareBox = document.getElementById('stornoWareZurueck');
+            var res = await StornoVorgang.ausfuehren({
+                invoiceId: id, grund: grund, grundText: grundText,
+                erstattung: (erstBox && erstBox.checked) ? {
+                    betrag: document.getElementById('stornoErstattBetrag').value,
+                    datum: document.getElementById('stornoErstattDatum').value
+                } : null,
+                wareZurueck: !!(wareBox && wareBox.checked)
+            });
+            if (!res.ok) {
+                this.disabled = false;
+                Utils.showToast(res.fehler, 'error');
+                return;
+            }
+            if (res.hinweise.length) Utils.showToast('Stornorechnung erstellt. ' + res.hinweise.join(' '), 'warning');
+            else Utils.showToast('Stornorechnung erstellt.', 'success');
             RechApp.closeModal();
             RechApp.navigate('dokumente');
         });
@@ -458,7 +495,10 @@ var Dokumente = (function() {
         });
     }
 
-    function showBezahltModal(inv) {
+    // vorgabeDatum: aus der Teilzahlungserfassung übernommenes Zahlungsdatum (Audit 2026-10-13,
+    // L2). Vorher ging es beim Übergang zur Schlusszahlung verloren und `bezahltAm` wurde
+    // stillschweigend "heute" — ein Zufluss vom 31.12. landete so im Folgejahr.
+    function showBezahltModal(inv, vorgabeDatum) {
         var platforms = Store.getPlatforms();
         var purchases = Store.getPurchases();
         var invPlattform = inv.verkaufsplattform || '';
@@ -496,6 +536,10 @@ var Dokumente = (function() {
             body += '</div>';
         }
 
+        body += '<div class="form-group"><label class="form-label" for="bezahltDatum">Zahlungsdatum (Geldeingang)</label>';
+        body += '<input class="form-input" type="date" id="bezahltDatum" max="' + Utils.todayISO() + '" value="' + Utils.escapeHtml(vorgabeDatum || Utils.todayISO()) + '" aria-describedby="bezahltDatumHint">';
+        body += '<div class="form-hint" id="bezahltDatumHint">Bestimmt das Jahr der Einnahme (§11 EStG) — bitte das Datum des tatsächlichen Geldeingangs.</div></div>';
+
         body += '<div class="form-group"><label class="form-label" for="bezahltPlattform">Verkaufsplattform</label>';
         body += '<select class="form-select" id="bezahltPlattform">' + platOptions + '</select></div>';
 
@@ -526,6 +570,17 @@ var Dokumente = (function() {
         });
 
         document.getElementById('confirmBezahlt').addEventListener('click', function() {
+            if (this.disabled) return; // Doppelklick: kein zweiter Verkauf
+            var zahlDatum = (document.getElementById('bezahltDatum') || {}).value || '';
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(zahlDatum)) {
+                Utils.showToast('Bitte das Zahlungsdatum angeben.', 'error');
+                return;
+            }
+            if (zahlDatum > Utils.todayISO()) {
+                Utils.showToast('Das Zahlungsdatum liegt in der Zukunft.', 'error');
+                return;
+            }
+            this.disabled = true;
             var platform = document.getElementById('bezahltPlattform').value;
             var ekTyp = document.getElementById('bezahltEkTyp').value;
             var purchaseId = ekTyp === 'lager' ? document.getElementById('bezahltPurchaseId').value : null;
@@ -533,12 +588,12 @@ var Dokumente = (function() {
 
             // Lagerartikel aus Positionen automatisch als verkauft markieren
             posLinkedArts.forEach(function(art) {
-                var updated = Object.assign({}, art, { status: 'verkauft', verkaufsdatum: Utils.todayISO() });
+                var updated = Object.assign({}, art, { status: 'verkauft', verkaufsdatum: zahlDatum });
                 Store.savePurchase(updated);
             });
 
             inv.status = 'bezahlt';
-            inv.bezahltAm = Utils.todayISO();
+            inv.bezahltAm = zahlDatum;
             inv.verkaufsplattform = platform;
             Store.saveRechInvoice(inv);
 
@@ -547,7 +602,15 @@ var Dokumente = (function() {
             if (!ekPurchaseId && posLinkedArts.length > 0 && !manualEK) {
                 ekPurchaseId = posLinkedArts[0].id;
             }
-            Store.createSaleFromInvoice(inv, platform, ekPurchaseId || null, manualEK);
+            var sale = Store.createSaleFromInvoice(inv, platform, ekPurchaseId || null, manualEK);
+            if (!sale || !sale.id) {
+                // Rechnung ist bezahlt, der Verkauf aber nicht angelegt (z. B. Buchungslimit) —
+                // die EÜR zählt die Rechnung dann zum Zahlungsdatum, bis sie synchronisiert wird.
+                Utils.showToast('Als bezahlt markiert, aber kein Verkauf angelegt — bitte in der EÜR synchronisieren.', 'warning');
+                RechApp.closeModal();
+                RechApp.navigate('dokumente');
+                return;
+            }
 
             var msg = 'Als bezahlt markiert und Verkauf eingetragen!';
             if (posLinkedArts.length > 0) msg += ' ' + posLinkedArts.length + ' Lagerartikel als verkauft markiert.';
@@ -659,7 +722,7 @@ var Dokumente = (function() {
                 // Restschuld gedeckt: statt Sackgasse direkt in den bestehenden Bezahlt-Flow
                 // (inkl. Lager-Sync/EK-Erfassung) überleiten, keine zweite Statuslogik pflegen.
                 RechApp.closeModal();
-                showBezahltModal(inv);
+                showBezahltModal(inv, datum);
                 Utils.showToast('Restbetrag gedeckt — bitte Zahlung final bestätigen.', 'info');
                 return;
             }
@@ -800,5 +863,5 @@ var Dokumente = (function() {
         });
     }
 
-    return { render: render, init: init, showPreview: showPreview, showStornoModal: showStornoModal, showSendModal: showSendModal, showBezahltModal: showBezahltModal };
+    return { render: render, init: init, showPreview: showPreview, showStornoModal: showStornoModal, showSendModal: showSendModal, showBezahltModal: showBezahltModal, showTeilzahlungModal: showTeilzahlungModal };
 })();

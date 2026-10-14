@@ -2410,17 +2410,16 @@ const Store = {
         inv._storniert = true;
         inv.storniertAm = new Date().toISOString();
         inv.stornoGrund = grund || 'Storniert';
+        inv.stornoModell = 2;
+        inv.statusVorStorno = old.status;
         this._stampRecord(inv);
         this._rechSet('dokumente', invoices);
         this._addAuditEntry('storniert', 'dokument', id, old, inv, grund || 'Dokument storniert: ' + (inv.nummer || ''));
-        // Cascade: alle verknuepften Verkaeufe stornieren — nicht nur den ersten (find()), da eine
-        // teilbezahlte Rechnung mehrere Sales haben kann (je ein anteiliger pro Teilzahlung plus
-        // ggf. der Schlusszahlungs-Sale). Sonst bleiben teilzahlungsbezogene Sales unstorniert als
-        // Einnahme in EÜR/Bilanz stehen, obwohl die Rechnung selbst storniert ist.
-        const linkedSales = this.getAllSalesRaw().filter(s => s._invoiceId === id && !s.storniert);
-        linkedSales.forEach(ls => {
-            this.stornoSale(ls.id, 'Automatisch: Rechnung ' + (inv.nummer || id) + ' storniert', true);
-        });
+        // Bis zum Audit 2026-10-13 (L1) wurden hier alle verknüpften Verkäufe storniert — damit
+        // verschwand bereits zugeflossenes Geld rückwirkend, während der sichtbare Stornodialog
+        // die Verkäufe stehen ließ. Beide Pfade folgen jetzt demselben Modell (js/storno-vorgang.js):
+        // der Zufluss bleibt, eine echte Rückzahlung ist ein eigener datierter Vorgang.
+        // Dieser Pfad erzeugt KEIN Stornodokument und wird von der Oberfläche nicht benutzt.
     },
 
     deleteRechInvoice(id) {
@@ -2446,7 +2445,11 @@ const Store = {
         });
     },
 
-    async createStornoRechnung(originalId, grund, grundText) {
+    // opts.stornoModell === 2 (js/storno-vorgang.js): Original und Stornorechnung werden so
+    // markiert, dass der Zufluss stehen bleibt und die Korrektur im Zeitraum der Stornorechnung
+    // wirkt (Audit 2026-10-13, L1).
+    async createStornoRechnung(originalId, grund, grundText, opts) {
+        opts = opts || {};
         const invoices = this._rechGet('dokumente') || [];
         const orig = invoices.find(x => x.id === originalId);
         if (!orig || orig.typ === 'stornorechnung') return null;
@@ -2479,12 +2482,20 @@ const Store = {
             versandDatum: null,
             createdAt: new Date().toISOString()
         };
+        if (opts.stornoModell === 2) {
+            stornoDoc.stornoModell = 2;
+            stornoDoc.originalStatus = old.status;
+        }
         this._stampRecord(stornoDoc);
         // Originalrechnung als storniert markieren
         orig.status = 'storniert';
         orig.storniertAm = today;
         orig.stornoGrund = grund || '';
         orig.stornoRechnungId = stornoDoc.id;
+        if (opts.stornoModell === 2) {
+            orig.stornoModell = 2;
+            orig.statusVorStorno = old.status;
+        }
         this._stampRecord(orig);
         const idx = invoices.findIndex(x => x.id === originalId);
         if (idx >= 0) invoices[idx] = orig;

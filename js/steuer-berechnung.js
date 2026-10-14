@@ -58,6 +58,13 @@ const SteuerBerechnung = {
             const relSale = r.saleId ? (allSalesRaw || []).find(s => s.id === r.saleId) : null;
             const sonder = relSale ? this._sondersatz(relSale, ossCache) : null;
             if (sonder !== null) { netto += this.nettoAusBrutto(b, sonder).netto; return; }
+            // Rückzahlung auf einen Verkauf mit gemischten Sätzen (Rechnung mit 7 %/19 %): anteilig
+            // aufteilen statt alles zum 19 %-Default (Audit 2026-10-13, Storno-Rückzahlungen).
+            if (relSale && relSale.steuersaetze && Object.keys(relSale.steuersaetze).length) {
+                const gruppen = Object.keys(relSale.steuersaetze).map(k => ({ satz: parseFloat(k), brutto: parseFloat(relSale.steuersaetze[k]) || 0 }));
+                const ges = gruppen.reduce((x, g) => x + g.brutto, 0);
+                if (ges) { gruppen.forEach(g => { netto += this.nettoAusBrutto(b * g.brutto / ges, g.satz).netto; }); return; }
+            }
             const rate = (relSale && relSale.steuersatz != null && relSale.steuersatz !== '') ? relSale.steuersatz : 19;
             netto += this.nettoAusBrutto(b, rate).netto;
         });

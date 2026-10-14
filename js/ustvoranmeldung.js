@@ -184,8 +184,14 @@ const UstVoranmeldung = {
             // Soll: alle ausgestellten Rechnungen zum Rechnungsdatum, unabhängig vom Zahlungseingang.
             // Gutschriften (Kreditnoten) laufen mit umgekehrtem Vorzeichen mit — sie mindern die
             // Bemessungsgrundlage zum Gutschriftsdatum (§17 UStG Änderung der Bemessungsgrundlage).
+            // Storno nach Modell 2 (js/storno-vorgang.js, Audit 2026-10-13 L1): die ursprünglich
+            // ausgestellte Rechnung bleibt in ihrem Leistungszeitraum, die Stornorechnung mindert im
+            // Zeitraum ihres Datums (§17 UStG). Ältere Stornos (ohne Modell) verschwinden wie bisher.
+            const _warAusgestellt = st => st === 'versendet' || st === 'bezahlt';
             const sollInvoices = Store.getRechInvoices()
-                .filter(i => (i.typ === 'rechnung' || i.typ === 'gutschrift') && (i.status === 'versendet' || i.status === 'bezahlt'));
+                .filter(i => ((i.typ === 'rechnung' || i.typ === 'gutschrift')
+                        && (_warAusgestellt(i.status) || (i.status === 'storniert' && i.stornoModell === 2 && _warAusgestellt(i.statusVorStorno))))
+                    || (i.typ === 'stornorechnung' && i.stornoModell === 2 && _warAusgestellt(i.originalStatus)));
             const sollInvById = {};
             sollInvoices.forEach(i => { sollInvById[i.id] = i; });
             // Anzahlungen (§13 Abs.1 Nr.1a S.4 UStG): wird vor Ausführung der Leistung gezahlt,
@@ -208,6 +214,8 @@ const UstVoranmeldung = {
                 .filter(i => Utils.isInPeriod(this._steuerentstehung(i), startDate, endDate))
                 .forEach(i => {
                     const sign = i.typ === 'gutschrift' ? -1 : 1;
+                    // Stornorechnung: Positionen sind schon negativ gespeichert; für §25a zählt sie wie eine Gutschrift
+                    const istStornoDoc = i.typ === 'stornorechnung';
                     // Im Leistungszeitraum: schon vorher als Anzahlung versteuerte Beträge abziehen
                     _anzahlungen(i.id).filter(a => a.datum < startDate).forEach(a => {
                         _perRateGroups(a).forEach(g => {
@@ -237,10 +245,10 @@ const UstVoranmeldung = {
                             // nicht-numerischer Einzelpreis NaN, die §25a-Marge wird NaN und
                             // landet so in Kz. 81 der Voranmeldung. Dasselbe Muster stand an
                             // mehreren Stellen im Projekt, s. test/test-parsefloat-klammer.js.
-                            const vk = (parseFloat(pos.menge) || 0) * (parseFloat(pos.einzelpreis) || 0);
+                            const vk = (parseFloat(pos.menge) || 0) * Math.abs(parseFloat(pos.einzelpreis) || 0);
                             const ek = linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0);
                             const istPauschal = _istPauschal25a(linkedPurch);
-                            if (sign === -1) {
+                            if (sign === -1 || istStornoDoc) {
                                 // Gutschrift auf einen §25a-Artikel (§17 UStG Korrektur): die URSPRÜNGLICH
                                 // versteuerte Marge (max(0,vk-ek)) zurücknehmen. NICHT die negierten vk/ek
                                 // erneut auf 0 klemmen lassen — sonst verschwindet die Korrektur bei
@@ -360,10 +368,15 @@ const UstVoranmeldung = {
                 diff25aPositionenRoh.push({ margeKorrektur: -(originalMarge * anteil), satz: 19, ref: _refSale25a(linked) });
                 return;
             }
-            const rate = _rate(linked || r);
             const betrag = parseFloat(r.erstattungBetrag) || 0;
-            if (rate === 7) retour7 += betrag;
-            else if (rate !== 0) retour19 += betrag;
+            // Gemischte Sätze anteilig (Rückzahlung zu einer 7 %/19 %-Rechnung)
+            const gruppen = linked ? _perRateGroups(linked) : [{ satz: _rate(r), brutto: 1 }];
+            const ges = gruppen.reduce((x, g) => x + (parseFloat(g.brutto) || 0), 0);
+            gruppen.forEach(g => {
+                const teil = ges ? betrag * (parseFloat(g.brutto) || 0) / ges : (gruppen.length === 1 ? betrag : 0);
+                if (g.satz === 7) retour7 += teil;
+                else if (g.satz !== 0) retour19 += teil;
+            });
         });
         const bruttoUmsatz7adj  = bruttoUmsatz7  - retour7;
         let bruttoUmsatz19adj = bruttoUmsatz19 - retour19;

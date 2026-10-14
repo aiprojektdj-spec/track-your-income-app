@@ -620,16 +620,40 @@ var CloudSync = (function () {
         try { localStorage.setItem(LS_CO_TOMBS, JSON.stringify(list)); } catch (e) {}
     }
 
-    function _mergeRecords(localArr, remoteArr, base, entityType) {
-        var byId = {}, localDirty = false, remoteDirty = false, remoteIds = {}, conflicts = [];
-        (localArr || []).forEach(function (r) { if (r && r.id != null) byId[r.id] = r; });
+    // tombs (optional): { 'typ:id': deletedAt } — die Löschmarken DIESES Scopes, beide Seiten
+    // vereinigt (s. _merge). Ohne tombs gilt wie früher Store.isTombstoned() (aktive Firma).
+    //
+    // Regel bei gelöschten Datensätzen (Audit 2026-10-13, L6/L7): Die Löschmarke wirkt auf die
+    // GESAMTE Menge — lokale und entfernte Datensätze. Ein Gerät mit Altbestand behält den
+    // gelöschten Datensatz also nicht und lädt ihn nicht wieder hoch. Löschung gewinnt immer;
+    // wurde der Datensatz nach der Löschung noch auf einem anderen Gerät geändert, geht diese
+    // Änderung verloren und wird als loeschKonflikt gemeldet (Vergleich nur zur Meldung, die
+    // Entscheidung hängt nicht an der Systemuhr). IDs werden nie wiederverwendet; eine
+    // "Wiederherstellung" ist deshalb immer eine Neuanlage mit neuer ID.
+    function _mergeRecords(localArr, remoteArr, base, entityType, tombs) {
+        var byId = {}, localDirty = false, remoteDirty = false, remoteIds = {}, conflicts = [], loeschKonflikte = [];
+        var istTot = function (id) {
+            if (!entityType) return false;
+            if (tombs) return Object.prototype.hasOwnProperty.call(tombs, entityType + ':' + id);
+            return _isTombstoned(entityType, id);
+        };
+        var melde = function (r) {
+            var t = tombs ? tombs[entityType + ':' + r.id] : null;
+            if (t && (r.updatedAt || 0) > t) loeschKonflikte.push({ id: r.id, geaendert: r.updatedAt, geloescht: t });
+        };
+        (localArr || []).forEach(function (r) {
+            if (!r || r.id == null) return;
+            if (istTot(r.id)) { melde(r); localDirty = true; return; }   // lokaler Altbestand trotz Löschmarke
+            byId[r.id] = r;
+        });
         var localIds = Object.keys(byId);
         (remoteArr || []).forEach(function (r) {
             if (!r || r.id == null) return;
             var ex = byId[r.id];
-            if (!ex && entityType && _isTombstoned(entityType, r.id)) {
-                // Lokal bewusst gelöscht (Tombstone vorhanden) — NICHT wieder aufnehmen. remoteDirty,
-                // damit der nächste Push die veraltete Remote-Kopie ebenfalls entfernt.
+            if (istTot(r.id)) {
+                // Gelöscht — NICHT wieder aufnehmen. remoteDirty, damit der nächste Push die
+                // veraltete Remote-Kopie ebenfalls entfernt.
+                melde(r);
                 remoteDirty = true;
                 return;
             }
@@ -646,7 +670,7 @@ var CloudSync = (function () {
             }
         });
         localIds.forEach(function (id) { if (!remoteIds[id]) remoteDirty = true; });
-        return { val: Object.keys(byId).map(function (id) { return byId[id]; }), localDirty: localDirty, remoteDirty: remoteDirty, conflicts: conflicts };
+        return { val: Object.keys(byId).map(function (id) { return byId[id]; }), localDirty: localDirty, remoteDirty: remoteDirty, conflicts: conflicts, loeschKonflikte: loeschKonflikte };
     }
 
     // Audit-Log: append-only Union + deterministisches Re-Chaining (GoBD)
@@ -679,7 +703,22 @@ var CloudSync = (function () {
         if (remote) Object.keys(remote.keys).forEach(function (k) { all[k] = 1; });
         var aKey = scope + '__audit_log';
 
+        // Löschmarken ZUERST vereinigen, und zwar die dieses Scopes (L6: vorher las der Merge die
+        // der gerade aktiven Firma — die Reihenfolge der zuletzt geöffneten Firma entschied, ob
+        // eine gelöschte Ausgabe wiederkam). Danach gilt die vereinigte Menge für alle Keys.
+        var tKey = null;
+        Object.keys(all).forEach(function (k) { if (/__reselling_tombstones$/.test(k)) tKey = k; });
+        var tombs = {}, loeschKonflikte = [];
+        if (tKey) {
+            var rt = _mergeRecords(local.keys[tKey], remote ? remote.keys[tKey] : undefined, base[tKey], null);
+            mergedKeys[tKey] = rt.val; if (rt.localDirty) localDirty = true; if (rt.remoteDirty) remoteDirty = true;
+            (rt.val || []).forEach(function (t) {
+                if (t && t.entityType && t.entityId != null) tombs[t.entityType + ':' + t.entityId] = t.deletedAt || 0;
+            });
+        }
+
         Object.keys(all).forEach(function (k) {
+            if (k === tKey) return;
             var lv = local.keys[k], rv = remote ? remote.keys[k] : undefined;
             if (k === aKey) {
                 var ra = _mergeAudit(lv, rv);
@@ -691,8 +730,9 @@ var CloudSync = (function () {
                     // Ohne diesen Zweig lief die Firmenregistry ohne Grabsteinpruefung durch die
                     // Union: eine geloeschte Firma kam beim naechsten Sync als leerer Zombie zurueck.
                     : (k === 'oyi_companies') ? 'firma' : null;
-                var rr = _mergeRecords(lv, rv, base[k], entityType);
+                var rr = _mergeRecords(lv, rv, base[k], entityType, entityType && entityType !== 'firma' ? tombs : undefined);
                 mergedKeys[k] = rr.val; if (rr.localDirty) localDirty = true; if (rr.remoteDirty) remoteDirty = true;
+                if (rr.loeschKonflikte && rr.loeschKonflikte.length) rr.loeschKonflikte.forEach(function (c) { loeschKonflikte.push({ key: k, id: c.id }); });
                 if (rr.conflicts.length) rr.conflicts.forEach(function (c) { conflicts.push({ key: k, id: c.id, mine: c.mine, theirs: c.theirs }); });
             } else {
                 // Whole-Value-LWW über Key-Meta
@@ -704,7 +744,8 @@ var CloudSync = (function () {
                 else                        { mergedKeys[k] = lv; mergedMeta[k] = lu; if (JSON.stringify(lv) !== JSON.stringify(rv)) remoteDirty = true; }
             }
         });
-        return { keys: mergedKeys, meta: mergedMeta, localDirty: localDirty, remoteDirty: remoteDirty, conflicts: conflicts };
+        if (loeschKonflikte.length) console.warn('[CloudSync] Löschung gewinnt gegen spätere Änderung:', loeschKonflikte);
+        return { keys: mergedKeys, meta: mergedMeta, localDirty: localDirty, remoteDirty: remoteDirty, conflicts: conflicts, loeschKonflikte: loeschKonflikte };
     }
 
     // ── Lokalen Snapshot bauen ────────────────────────────────────────────────

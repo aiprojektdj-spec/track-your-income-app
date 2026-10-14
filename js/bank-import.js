@@ -310,14 +310,9 @@ var BankImport = (function () {
     // Kontoauszug überhaupt zu importieren. Gebucht wird hier nichts automatisch: der Import
     // schlägt eine Zuordnung vor, entscheiden muss der Nutzer.
 
+    // Derselbe Betrag wie auf Rechnung und XRechnung (js/rechnung-summen.js, Audit 2026-10-13 L5)
     function invoiceBrutto(inv) {
-        var isKlein = inv.isKlein !== undefined ? inv.isKlein : (Store.getSettings().ustMode === 'klein');
-        var sum = 0;
-        (inv.positionen || []).forEach(function (p) {
-            var netto = (p.menge || 0) * (p.einzelpreis || 0);
-            sum += netto + (isKlein ? 0 : netto * (parseFloat(p.mwstSatz) || 0) / 100);
-        });
-        return sum;
+        return RechnungSummen.fuerRechnung(inv, Store.getSettings()).brutto;
     }
 
     function invoiceRest(inv) {

@@ -94,6 +94,14 @@ const SteuerBerechnung = {
         let netto = 0, ust = 0;
         (invoices || []).forEach(inv => {
             const sign = inv.typ === 'gutschrift' ? -1 : 1;
+            // Gerundet wie auf der Rechnung (js/rechnung-summen.js, Audit 2026-10-13 L5). isKlein
+            // nur, wenn die Rechnung es selbst sagt — sonst wie bisher der gespeicherte Satz.
+            if (typeof RechnungSummen !== 'undefined') {
+                const sm = RechnungSummen.berechne(inv.positionen, inv.isKlein === true);
+                netto += sign * sm.netto;
+                ust += sign * sm.steuer;
+                return;
+            }
             (inv.positionen || []).forEach(p => {
                 const posNetto = (p.menge || 0) * (p.einzelpreis || 0);
                 netto += sign * posNetto;

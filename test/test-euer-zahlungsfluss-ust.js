@@ -139,7 +139,7 @@ check('T06: am Vorgang gestempelte Behandlung schlägt die Historie', () => {
 check('T06 Store: Moduswechsel wird datiert festgehalten, Formular-Speichern verliert die Historie nicht, Vorgänge werden gestempelt', () => {
     const mem = {};
     const localStorage = { getItem: k => k in mem ? mem[k] : null, setItem: (k, v) => { mem[k] = String(v); }, removeItem: k => { delete mem[k]; } };
-    const ctx = ladeModule(['js/steuerstatus.js', 'js/store.js'], { localStorage });
+    const ctx = ladeModule(['js/steuerstatus.js', 'js/rechnung-summen.js', 'js/store.js'], { localStorage });
     const S = ctx.Store;
     S.saveSettings({ ustMode: 'klein' });
     S.saveSettings({ ustMode: 'regel', _ustModeAb: '2026-01-01' });

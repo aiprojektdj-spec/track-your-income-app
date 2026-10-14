@@ -2615,19 +2615,14 @@ const Store = {
         const isKlein = invoice.isKlein !== undefined ? invoice.isKlein
             : (typeof SteuerStatus !== 'undefined' ? SteuerStatus.modeAm(invoice.lieferdatum || invoice.datum, settings) === 'klein' : settings.ustMode === 'klein');
         const isGutschrift = invoice.typ === 'gutschrift';
-        let brutto = 0;
         // Bruttoumsatz PRO Steuersatz mitführen (nicht nur die Gesamtsumme) — sonst geht bei
         // Rechnungen mit gemischten 7%/19%-Positionen die Aufteilung verloren, sobald daraus
-        // ein einzelner Sale-Datensatz wird (s. Fix Ist-UVA gemischte Sätze).
-        const perRateBrutto = {};
-        (invoice.positionen || []).forEach(p => {
-            const netto = (p.menge || 0) * (p.einzelpreis || 0);
-            const satz  = isKlein ? 0 : (parseFloat(p.mwstSatz) || 0);
-            const mwst  = isKlein ? 0 : netto * satz / 100;
-            const posBrutto = netto + mwst;
-            brutto += posBrutto;
-            perRateBrutto[satz] = (perRateBrutto[satz] || 0) + posBrutto;
-        });
+        // ein einzelner Sale-Datensatz wird (s. Fix Ist-UVA gemischte Sätze). Beträge aus dem
+        // gemeinsamen Rechenkern, damit der Verkauf genau die Forderung der Rechnung trägt
+        // (Audit 2026-10-13, L5: vorher ungerundet, XML 0,40 / Buchung 0,36).
+        const summen = RechnungSummen.berechne(invoice.positionen, isKlein);
+        let brutto = summen.brutto;
+        const perRateBrutto = Object.assign({}, summen.bruttoJeSatz);
         // Gutschrift (Kreditnote) mindert den Umsatz statt ihn zu erhöhen (§17 UStG
         // Änderung der Bemessungsgrundlage) — als Sale daher mit negativem Betrag verbucht.
         if (isGutschrift) {

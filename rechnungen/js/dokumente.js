@@ -1,14 +1,8 @@
 var Dokumente = (function() {
 
+    // Ein Rechenweg für alle Ausgaben (js/rechnung-summen.js, Audit 2026-10-13 L5)
     function calcBrutto(invoice) {
-        var isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (Store.getSettings().ustMode === 'klein');
-        var sum = 0;
-        (invoice.positionen || []).forEach(function(pos) {
-            var netto = pos.menge * pos.einzelpreis;
-            var mwst = isKlein ? 0 : (netto * pos.mwstSatz / 100);
-            sum += netto + mwst;
-        });
-        return sum;
+        return RechnungSummen.fuerRechnung(invoice, Store.getSettings()).brutto;
     }
 
     // Teilzahlungen (Fund 9, Vollaudit 2026-07-23): additiv, ändert bewusst NICHT den
@@ -390,13 +384,7 @@ var Dokumente = (function() {
         var customers = Store.getRechCustomers();
         var kunde = customers.find(function(c) { return c.id === inv.kundeId; });
         var kundeEmail = kunde ? (kunde.email || '') : '';
-        var brutto = 0;
-        var isKlein = inv.isKlein !== undefined ? inv.isKlein : (settings.ustMode === 'klein');
-        (inv.positionen || []).forEach(function(pos) {
-            var netto = pos.menge * pos.einzelpreis;
-            var mwst = isKlein ? 0 : (netto * pos.mwstSatz / 100);
-            brutto += netto + mwst;
-        });
+        var brutto = calcBrutto(inv);
 
         var subject = 'Rechnung ' + (inv.nummer || '') + ' von ' + (settings.firmenname || '');
         var mailBody = 'Sehr geehrte Damen und Herren,\n\nbitte begleichen Sie beigef\u00FCgte Rechnung ' + (inv.nummer || '') + ' \u00FCber ' + Utils.formatCurrency(brutto) + '.\n\nF\u00E4lligkeitsdatum: ' + Utils.formatDate(inv.faelligkeit) + '\nIBAN: ' + (settings.iban || '-') + '\nVerwendungszweck: ' + (inv.nummer || '') + '\n\nMit freundlichen Gr\u00FC\u00DFen\n' + (settings.firmenname || '');

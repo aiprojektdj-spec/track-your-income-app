@@ -37,16 +37,9 @@ var Rechnung = (function() {
         return d.toLocaleDateString('sv-SE');
     }
 
+    // Ein Rechenweg für alle Ausgaben (js/rechnung-summen.js, Audit 2026-10-13 L5)
     function calcBrutto(invoice) {
-        var settings = Store.getSettings();
-        var isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (settings.ustMode === 'klein');
-        var sum = 0;
-        (invoice.positionen || []).forEach(function(pos) {
-            var netto = pos.menge * pos.einzelpreis;
-            var mwst = isKlein ? 0 : (netto * pos.mwstSatz / 100);
-            sum += netto + mwst;
-        });
-        return sum;
+        return RechnungSummen.fuerRechnung(invoice, Store.getSettings()).brutto;
     }
 
     function render(params) {
@@ -624,28 +617,15 @@ var Rechnung = (function() {
         var settings = Store.getSettings();
         var isKlein = editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (settings.ustMode === 'klein');
 
-        var netto = 0;
-        var mwstMap = {};
-        positionen.forEach(function(pos) {
-            // Auf Cent gerundet akkumulieren, nicht mit voller Gleitkomma-Präzision — sonst
-            // kann die Gesamtsumme um 1 Cent von der Summe der einzeln angezeigten (gerundeten)
-            // Positionsbeträge abweichen (Fund 18, Vollaudit 2026-07-23).
-            var lineNetto = Math.round(pos.menge * pos.einzelpreis * 100) / 100;
-            netto += lineNetto;
-            if (!isKlein && !pos.differenzbesteuert && pos.mwstSatz > 0) {
-                if (!mwstMap[pos.mwstSatz]) mwstMap[pos.mwstSatz] = 0;
-                mwstMap[pos.mwstSatz] += lineNetto * pos.mwstSatz / 100;
-            }
-        });
-
-        var totalMwst = 0;
+        // Derselbe Rechenkern wie PDF, XML und Buchung (js/rechnung-summen.js, Audit 2026-10-13 L5)
+        var summen = RechnungSummen.berechne(positionen, isKlein);
+        var netto = summen.netto;
         var mwstHtml = '';
-        Object.keys(mwstMap).sort(function(a, b) { return a - b; }).forEach(function(satz) {
-            totalMwst += mwstMap[satz];
-            mwstHtml += '<div>' + satz + '% MwSt: ' + Utils.formatCurrency(mwstMap[satz]) + '</div>';
+        Object.keys(summen.gruppen).map(Number).filter(function(s) { return s > 0; }).sort(function(a, b) { return a - b; }).forEach(function(satz) {
+            mwstHtml += '<div>' + satz + '% MwSt: ' + Utils.formatCurrency(summen.gruppen[satz].steuer) + '</div>';
         });
 
-        var brutto = netto + totalMwst;
+        var brutto = summen.brutto;
 
         var html = '<div style="font-size: 0.95rem;">';
         html += '<div>Zwischensumme (netto): <strong>' + Utils.formatCurrency(netto) + '</strong></div>';
@@ -1330,18 +1310,12 @@ var Rechnung = (function() {
         html += '<th scope="col" class="r">Gesamt (netto)</th>';
         html += '</tr></thead><tbody>';
 
-        var netto = 0;
-        var mwstMap = {};
+        // Zeilen, Steuer je Satz und Gesamt aus dem gemeinsamen Rechenkern — PDF, XRechnung und
+        // Buchung zeigen dieselbe Forderung (js/rechnung-summen.js, Audit 2026-10-13 L5).
+        var summen = RechnungSummen.berechne(inv.positionen, isKlein);
+        var netto = summen.netto;
         (inv.positionen || []).forEach(function(pos, idx) {
-            // Auf Cent gerundet akkumulieren, nicht mit voller Gleitkomma-Präzision — sonst
-            // kann die Gesamtsumme um 1 Cent von der Summe der einzeln angezeigten (gerundeten)
-            // Positionsbeträge abweichen (Fund 18, Vollaudit 2026-07-23).
-            var lineNetto = Math.round(pos.menge * pos.einzelpreis * 100) / 100;
-            netto += lineNetto;
-            if (!isKlein && !pos.differenzbesteuert && pos.mwstSatz > 0) {
-                if (!mwstMap[pos.mwstSatz]) mwstMap[pos.mwstSatz] = 0;
-                mwstMap[pos.mwstSatz] += lineNetto * pos.mwstSatz / 100;
-            }
+            var lineNetto = summen.zeilen[idx].netto;
             html += '<tr>';
             html += '<td class="pos r">' + (idx + 1) + '</td>';
             html += '<td>' + Utils.escapeHtml(pos.beschreibung || '') + '</td>';
@@ -1355,17 +1329,15 @@ var Rechnung = (function() {
         html += '</tbody></table>';
 
         // Totals block
-        var totalMwst = 0;
         html += '<div class="inv-totals">';
         html += '<div class="inv-tr"><span>Nettobetrag</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
         if (isKlein) {
             html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
         } else {
-            Object.keys(mwstMap).sort(function(a, b) { return a - b; }).forEach(function(satz) {
-                totalMwst += mwstMap[satz];
-                html += '<div class="inv-tr"><span>MwSt. ' + satz + '%</span><span>' + Utils.formatCurrency(mwstMap[satz]) + '</span></div>';
+            Object.keys(summen.gruppen).map(Number).filter(function(s) { return s > 0; }).sort(function(a, b) { return a - b; }).forEach(function(satz) {
+                html += '<div class="inv-tr"><span>MwSt. ' + satz + '%</span><span>' + Utils.formatCurrency(summen.gruppen[satz].steuer) + '</span></div>';
             });
-            html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(netto + totalMwst) + '</span></div>';
+            html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(summen.brutto) + '</span></div>';
         }
         html += '</div>';
 

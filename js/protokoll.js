@@ -86,12 +86,8 @@ const Protokoll = {
                 // in js/datev.js gebildet werden — sonst blieben die drei Betragsspalten leer,
                 // und eine Rechnungstabelle ohne Beträge nützt dem Prüfer nichts.
                 return docs.map(function (d) {
-                    var netto = 0, ust = 0;
-                    (d.positionen || []).forEach(function (p) {
-                        var zeile = (parseFloat(p.menge) || 0) * (parseFloat(p.einzelpreis) || 0);
-                        netto += zeile;
-                        if (!d.isKlein) ust += zeile * (parseInt(p.mwstSatz) || 0) / 100;
-                    });
+                    var _sum = (typeof RechnungSummen !== 'undefined') ? RechnungSummen.berechne(d.positionen, !!d.isKlein) : null;
+                    var netto = _sum ? _sum.netto : 0, ust = _sum ? _sum.steuer : 0;
                     return Object.assign({}, d, {
                         gesamtNetto:  netto,
                         gesamtUst:    ust,

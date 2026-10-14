@@ -53,7 +53,7 @@ function welt(settings) {
         showToast: (t, a) => toasts.push({ t, a }), getDateInputValue: id => (dom.el(id) || {}).value
     };
     const RechApp = { showModal: (t, b, f) => dom.zeige(b, f), closeModal() {}, navigate() {} };
-    const ctx = ladeModule(['js/steuerstatus.js', 'js/store.js', 'js/steuer-berechnung.js', 'js/euer.js',
+    const ctx = ladeModule(['js/steuerstatus.js', 'js/rechnung-summen.js', 'js/store.js', 'js/steuer-berechnung.js', 'js/euer.js',
         'js/ustvoranmeldung.js', 'js/retouren.js', 'js/storno-vorgang.js', 'rechnungen/js/dokumente.js'],
         { localStorage, Utils, RechApp, document: dom.document, navigator: {} });
     ctx.Store.saveSettings(settings || { ustMode: 'klein' });

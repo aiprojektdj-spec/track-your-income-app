@@ -727,6 +727,7 @@ var BankImport = (function () {
         _parsed = [];
     }
 
-    return { render: render, init: init, parse: parse, parseCamt: parseCamt, parseMt940: parseMt940,
-             _test: { vergebeSchluessel: vergebeSchluessel, setParsed: function (t) { _parsed = t; }, renderPreview: renderPreview, importSelected: importSelected } };
+    // Für test/test-bankimport-dubletten.js (Audit 2026-10-13, L3)
+    var _test = { vergebeSchluessel: vergebeSchluessel, setParsed: function (t) { _parsed = t; }, renderPreview: renderPreview, importSelected: importSelected };
+    return { render: render, init: init, parse: parse, parseCamt: parseCamt, parseMt940: parseMt940, _test: _test };
 })();

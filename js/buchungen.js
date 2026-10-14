@@ -14,7 +14,7 @@ const Buchungen = {
     // Verkauf: selected purchase IDs
     _selectedPurchaseIds: [],
     _verkaufManual: false,
-    _verkaufFilters: { marke: '', status: 'verfuegbar' },
+    _verkaufFilters: { marke: '', status: 'verfuegbar', search: '' },
 
     render() {
         return `
@@ -440,6 +440,15 @@ const Buchungen = {
         let filtered = allPurchases;
         if (vf.marke) filtered = filtered.filter(p => p.marke === vf.marke);
         if (vf.status) filtered = filtered.filter(p => p.status === vf.status);
+        if (vf.search && vf.search.trim()) {
+            // Gleiche Felder wie die Lager-Suche (js/lager.js)
+            const term = vf.search.trim().toLowerCase();
+            filtered = filtered.filter(p =>
+                [p.marke, p.artikeltyp, p.beschreibung, p.artikelNr, p.groesse, p.einkaufsquelle,
+                 ...(p.tags || [])]
+                    .some(v => v && String(v).toLowerCase().includes(term))
+            );
+        }
 
         const selectedIds = this._selectedPurchaseIds;
         const selectedEK = allPurchases
@@ -452,7 +461,7 @@ const Buchungen = {
 
         let invRows = '';
         if (filtered.length === 0) {
-            invRows = '<tr><td colspan="8" class="table-empty">Keine Artikel im Lager</td></tr>';
+            invRows = `<tr><td colspan="8" class="table-empty">${allPurchases.length ? 'Keine passenden Artikel' : 'Keine Artikel im Lager'}</td></tr>`;
         } else {
             invRows = filtered.map(p => {
                 const isChecked = selectedIds.includes(p.id);
@@ -512,6 +521,12 @@ const Buchungen = {
                     </div>
                 </div>
                 <div class="filter-bar no-print" style="margin-bottom:12px;">
+                    <div class="filter-group" style="flex:1;min-width:200px;">
+                        <label for="vkSearch">Suche</label>
+                        <input type="text" class="form-input" id="vkSearch"
+                               placeholder="Art.-Nr., Typ, Größe … + Enter"
+                               value="${Utils.escapeHtml(vf.search || '')}">
+                    </div>
                     <div class="filter-group">
                         <label>Marke</label>
                         <select class="form-select" id="vkFilterMarke">
@@ -674,6 +689,18 @@ const Buchungen = {
             this._verkaufFilters.status = vkFilterStatus.value;
             this._selectedPurchaseIds = [];  // reset on filter change
             this._renderTab();
+        });
+
+        // Suche: Enter sucht, Escape leert — wie im Lager. Auswahl bleibt erhalten,
+        // damit man nacheinander mehrere Artikel per Suche zusammenstellen kann.
+        const vkSearch = document.getElementById('vkSearch');
+        if (vkSearch) vkSearch.addEventListener('keydown', e => {
+            if (e.key !== 'Enter' && e.key !== 'Escape') return;
+            e.preventDefault();
+            this._verkaufFilters.search = e.key === 'Enter' ? vkSearch.value : '';
+            this._renderTab();
+            const el = document.getElementById('vkSearch');
+            if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
         });
 
         // Select all / clear selection (visible filtered items only)

@@ -172,23 +172,31 @@ const SteuerBerechnung = {
     // eine Position (ref = die verknüpften Lagerartikel). Ohne ref bildet jeder Eintrag seine eigene
     // Gruppe — Verhalten dann exakt wie vorher.
     //
-    // Bewusste Grenze: findet eine Korrektur in der Periode keine passende Position (Verkauf in Q1,
-    // Retoure in Q2), läuft sie gegen 0 und bleibt wirkungslos. Die Einzeldifferenz kennt anders als
-    // die Gesamtdifferenz keinen Vortrag (§25a Abs. 4 UStG), in den ein Negativbetrag wandern könnte.
+    // Korrektur OHNE passende Position in der Periode (Verkauf in Q1, Retoure in Q2): sie ist die
+    // §17-Berichtigung derselben Lieferung im Zeitraum der Änderung und wird mit Vorzeichen gebucht —
+    // KEIN Verlust aus anderer Ware, also auch kein Fall für den Floor. Bis zum Audit 2026-10-13 (T07)
+    // lief sie gegen 0 und die in Q1 gezahlte USt blieb stehen. Der Aufrufer bemisst die Korrektur
+    // an der ursprünglich versteuerten (bereits auf ≥ 0 gekappten) Marge.
+    // Der Floor wirkt nur auf die ursprüngliche Margenbestimmung einer Position: hat eine Gruppe
+    // eine Position, ist ihr Ergebnis nie negativ (B2: Überhang greift nicht auf andere Ware).
     margeEinzeldifferenz(positionen) {
         const gruppen = new Map();
         (positionen || []).forEach((pos, i) => {
             // Ohne ref ist jeder Eintrag seine eigene Gruppe (Index als Schlüssel) — nie mit einer
             // ref-Gruppe kollidierbar, weil die Präfixe sich unterscheiden.
             const key = (pos.ref !== undefined && pos.ref !== null && pos.ref !== '') ? 'r:' + pos.ref : 'i:' + i;
-            if (!gruppen.has(key)) gruppen.set(key, { summe: 0, satz: pos.satz });
+            if (!gruppen.has(key)) gruppen.set(key, { roh: 0, korrektur: 0, hatPosition: false, satz: pos.satz });
             const g = gruppen.get(key);
-            g.summe += this._margeRoh(pos) + (parseFloat(pos.margeKorrektur) || 0);
+            const istKorrektur = pos.margeKorrektur != null && pos.verkaufspreis == null && pos.einkaufspreis == null;
+            if (!istKorrektur) { g.roh += this._margeRoh(pos); g.hatPosition = true; }
+            g.korrektur += parseFloat(pos.margeKorrektur) || 0;
             if (g.satz == null) g.satz = pos.satz;
         });
         let margeBrutto = 0, margeNetto = 0;
         gruppen.forEach(g => {
-            const marge = Math.max(0, g.summe);
+            const marge = g.hatPosition
+                ? Math.max(0, Math.max(0, g.roh) + g.korrektur)
+                : g.korrektur;
             margeBrutto += marge;
             margeNetto += this.nettoAusBrutto(marge, g.satz).netto;
         });

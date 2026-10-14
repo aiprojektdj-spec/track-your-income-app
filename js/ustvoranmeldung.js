@@ -11,7 +11,8 @@ const UstVoranmeldung = {
         return (Store.getSettings().ustMode || 'klein') === 'regel';
     },
 
-    // Soll-Versteuerung (§13 UStG, Regelfall) = Rechnungsdatum zählt, egal ob bezahlt.
+    // Soll-Versteuerung (§13 UStG, Regelfall) = Leistungszeitpunkt zählt, egal ob bezahlt
+    // (s. _steuerentstehung; Anzahlungen vor der Leistung zum Zahlungszeitpunkt).
     // Ist-Versteuerung (§20 UStG, nur bis 800k€ Vorjahresumsatz/Freiberufler) = Zahlungsdatum zählt.
     _isSoll() {
         return (Store.getSettings().ustVersteuerungsart || 'soll') !== 'ist';
@@ -27,8 +28,25 @@ const UstVoranmeldung = {
         return this._typ() === 'monat' ? this._monat : this._quartal;
     },
 
+    // Tag, an dem die Steuer bei Sollbesteuerung entsteht (§13 Abs.1 Nr.1a S.1 UStG): mit Ablauf
+    // des Voranmeldungszeitraums, in dem die Leistung ausgeführt wurde — nicht der, in dem die
+    // Rechnung geschrieben wurde (Audit 2026-10-13, T04). Maßgeblich ist das auf der Rechnung
+    // gewählte Datumsfeld; ohne Liefer-/Leistungsangabe gilt laut Rechnung "Leistungsdatum
+    // entspricht Rechnungsdatum". Bei einem Leistungszeitraum ist die Leistung mit dessen Ende
+    // ausgeführt.
+    _steuerentstehung(inv) {
+        if (!inv) return '';
+        if (inv.datumsOption === 'lieferdatum' && inv.lieferdatum) return inv.lieferdatum;
+        if (inv.datumsOption === 'lieferzeitraum' && inv.lieferBis) return inv.lieferBis;
+        return inv.datum;
+    },
+
     // Berechnet Kennzahlen für einen Zeitraum
     _calcPeriode(startDate, endDate) {
+        // Steuerstatus je Vorgang (T06): Vorgänge aus einer Kleinunternehmer-Zeit gehören nie in
+        // die Voranmeldung, auch wenn die Firma heute regelbesteuert ist.
+        const _settingsUva = Store.getSettings();
+        const _regelUva = v => typeof SteuerStatus === 'undefined' || SteuerStatus.istRegel(v, _settingsUva);
         const purchases = Store.getPurchases().filter(p => Utils.isInPeriod(p.datum, startDate, endDate));
         const expenses  = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
         const retouren  = Store.getRetouren().filter(r => Utils.isInPeriod(r.datum, startDate, endDate));
@@ -135,10 +153,37 @@ const UstVoranmeldung = {
             // Soll: alle ausgestellten Rechnungen zum Rechnungsdatum, unabhängig vom Zahlungseingang.
             // Gutschriften (Kreditnoten) laufen mit umgekehrtem Vorzeichen mit — sie mindern die
             // Bemessungsgrundlage zum Gutschriftsdatum (§17 UStG Änderung der Bemessungsgrundlage).
-            Store.getRechInvoices()
-                .filter(i => (i.typ === 'rechnung' || i.typ === 'gutschrift') && (i.status === 'versendet' || i.status === 'bezahlt') && Utils.isInPeriod(i.datum, startDate, endDate))
+            const sollInvoices = Store.getRechInvoices()
+                .filter(i => (i.typ === 'rechnung' || i.typ === 'gutschrift') && (i.status === 'versendet' || i.status === 'bezahlt'));
+            const sollInvById = {};
+            sollInvoices.forEach(i => { sollInvById[i.id] = i; });
+            // Anzahlungen (§13 Abs.1 Nr.1a S.4 UStG): wird vor Ausführung der Leistung gezahlt,
+            // entsteht die Steuer für diesen Teil schon mit Ablauf des Zahlungszeitraums. Sie
+            // stehen als Teilzahlungs-Verkäufe (_teilzahlung) zur Rechnung im Bestand.
+            const _anzahlungen = invId => Store.getSales().filter(s => s._invoiceId === invId && s._teilzahlung);
+            sollInvoices.forEach(i => {
+                const sd = this._steuerentstehung(i);
+                _anzahlungen(i.id).forEach(a => {
+                    // In diesem Zeitraum gezahlt, Leistung erst später → hier versteuern
+                    if (Utils.isInPeriod(a.datum, startDate, endDate) && sd > endDate) {
+                        _perRateGroups(a).forEach(g => {
+                            if (g.satz === 7) bruttoUmsatz7 += g.brutto;
+                            else if (g.satz !== 0) bruttoUmsatz19 += g.brutto;
+                        });
+                    }
+                });
+            });
+            sollInvoices
+                .filter(i => Utils.isInPeriod(this._steuerentstehung(i), startDate, endDate))
                 .forEach(i => {
                     const sign = i.typ === 'gutschrift' ? -1 : 1;
+                    // Im Leistungszeitraum: schon vorher als Anzahlung versteuerte Beträge abziehen
+                    _anzahlungen(i.id).filter(a => a.datum < startDate).forEach(a => {
+                        _perRateGroups(a).forEach(g => {
+                            if (g.satz === 7) bruttoUmsatz7 -= g.brutto;
+                            else if (g.satz !== 0) bruttoUmsatz19 -= g.brutto;
+                        });
+                    });
                     const kunde = customers.find(c => c.id === i.kundeId);
                     const kundeLand = kunde && kunde.land;
                     // ig. Lieferung/sonstige Leistung (§4 Nr.1b+§6a bzw. §3a Abs.2 UStG): B2B-Kunde
@@ -197,7 +242,7 @@ const UstVoranmeldung = {
                     });
                 });
             // Direktverkäufe ohne zugehörige Rechnung (Marktplatz) weiterhin über Verkaufsdatum
-            Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate))
+            Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate) && _regelUva(s))
                 .forEach(s => {
                     if (_sonderfallSale(s)) return;
                     if (_istDiff25aSale(s)) {
@@ -213,7 +258,7 @@ const UstVoranmeldung = {
             // Ist: alle Verkäufe (Direktverkäufe + aus bezahlten Rechnungen synchronisiert) zum
             // Zahlungsdatum in Store.getSales() gebucht — anders als bei Soll gibt es hier keinen
             // separaten Rechnungs-Pfad, der Rechnungs-Umsätze schon zählt, also KEIN _invoiceId-Ausschluss.
-            const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate))
+            const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate) && _regelUva(s))
                 .filter(s => !_sonderfallSale(s));
             sales.filter(_istDiff25aSale).forEach(s => {
                 diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s), ref: _refSale25a(s), pauschalmarge: _saleIstPauschal25a(s), jahr: this._year });
@@ -264,6 +309,8 @@ const UstVoranmeldung = {
         retouren.forEach(r => {
             const linked = r.saleId ? salesById[r.saleId] : null;
             if (linked && linked.storniert) return;
+            // Rückzahlung auf einen Kleinunternehmer-Verkauf: nie USt-wirksam (T06)
+            if (!_regelUva(linked || r)) return;
             // Verkauf war nicht in der deutschen USt (OSS/Ausfuhr) → Retoure auch nicht abziehen
             if (linked && _nichtInDeUSt(linked)) return;
             if (linked && _istDiff25aSale(linked)) {

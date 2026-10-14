@@ -1762,6 +1762,18 @@ const App = {
                     </div>
                 </div>
             </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="set_taetigkeitsbeginn">Tätigkeitsbeginn</label>
+                    <input type="date" class="form-input" id="set_taetigkeitsbeginn" value="${Utils.escapeHtml(s.taetigkeitsbeginn || '')}" aria-describedby="set_taetigkeitsbeginn_hint">
+                    <div class="form-hint" id="set_taetigkeitsbeginn_hint">Erster Tag der unternehmerischen Tätigkeit. Bestimmt die Kleinunternehmer-Grenze im Gründungsjahr und die Voranmeldungsregeln für Gründer.</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="set_ustModeAb">Neuer USt-Modus gilt ab</label>
+                    <input type="date" class="form-input" id="set_ustModeAb" value="${new Date().toLocaleDateString('sv-SE')}" aria-describedby="set_ustModeAb_hint">
+                    <div class="form-hint" id="set_ustModeAb_hint">Nur bei einem Wechsel des USt-Modus: erster Tag mit dem neuen Modus. Vorgänge davor behalten ihre bisherige Behandlung.${(typeof SteuerStatus !== 'undefined' && !SteuerStatus.unbelegt(s)) ? ' Bisher: ' + SteuerStatus.historie(s).filter(e => e.ab !== '0000-01-01').map(e => Utils.escapeHtml(Utils.formatDate(e.ab)) + ' → ' + (e.mode === 'regel' ? 'Regelbesteuerung' : 'Kleinunternehmer')).join(', ') + '.' : ''}</div>
+                </div>
+            </div>
             <div class="form-group" id="set_versteuerungsart_group" style="${s.ustMode === 'regel' ? '' : 'display:none'}">
                 <label class="form-label" for="set_ustVersteuerungsart">Versteuerungsart (UVA + DATEV)</label>
                 <select class="form-select" id="set_ustVersteuerungsart">
@@ -1876,6 +1888,8 @@ const App = {
                 steuernummer: document.getElementById('set_steuernummer').value.trim(),
                 ustId: document.getElementById('set_ustId').value.trim(),
                 ustMode: document.getElementById('set_ustMode').value,
+                _ustModeAb: (document.getElementById('set_ustModeAb') || {}).value || '',
+                taetigkeitsbeginn: (document.getElementById('set_taetigkeitsbeginn') || {}).value || '',
                 ustVersteuerungsart: (document.getElementById('set_ustVersteuerungsart') || {}).value || 'soll',
                 ustVaPeriodenTyp: (document.getElementById('set_ustVaPeriodenTyp') || {}).value || 'quartal',
                 ustDauerfristverlaengerung: !!(document.getElementById('set_ustDauerfrist') || {}).checked,

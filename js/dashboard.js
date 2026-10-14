@@ -372,8 +372,10 @@ const Dashboard = {
     // plan/funde-vollaudit-2026-09-09.md). Die Spalte hieß trotzdem "Gewinn" und stand damit
     // neben einer EÜR, die für dasselbe Jahr etwas anderes sagte.
     //
-    // Bei Regelbesteuerung sind die Werte damit NETTO (die vereinnahmte USt ist ein
-    // Durchlaufposten und kein Gewinn) — vorher waren sie brutto.
+    // Das Dashboard ist der betriebliche Überblick: es zeigt den WIRTSCHAFTLICHEN Nettogewinn
+    // (ohne Umsatzsteuer und ohne Zahlungen mit dem Finanzamt). Der steuerliche EÜR-Gewinn
+    // enthält seit dem Audit 2026-10-13 (T01) vereinnahmte USt und Vorsteuer im Zahlungsjahr
+    // und steht in der EÜR. Beide kommen aus derselben Rechnung, Euer._berechne().
     //
     // anzahl/avgVK bleiben Vertriebskennzahlen und werden weiter direkt aus den Verkäufen
     // gebildet: "Ø Verkaufspreis" ist der Verkaufspreis, nicht der anteilige Gewinn.
@@ -386,10 +388,10 @@ const Dashboard = {
         const anzahl = d.sales.length;
         const vkSumme = d.sales.reduce((sum, s) => sum + (parseFloat(s.verkaufspreis) || 0), 0);
         return {
-            einnahmen: d.summeEinnahmen,
-            ausgaben:  d.summeAusgaben,
-            gewinn:    d.gewinn,
-            marge:     d.summeEinnahmen > 0 ? (d.gewinn / d.summeEinnahmen * 100) : 0,
+            einnahmen: d.einnahmenNetto,
+            ausgaben:  d.ausgabenNetto,
+            gewinn:    d.nettoGewinn,
+            marge:     d.einnahmenNetto > 0 ? (d.nettoGewinn / d.einnahmenNetto * 100) : 0,
             anzahl:    anzahl,
             avgVK:     anzahl > 0 ? vkSumme / anzahl : 0,
         };

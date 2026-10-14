@@ -100,9 +100,6 @@ var Steuerberater = (function () {
         var purchases = (Store.getAllPurchasesRaw ? Store.getAllPurchasesRaw() : [])
             .filter(function (p) { return !p.storniert && p.datum >= vonDate && p.datum <= bisDate; });
 
-        var sales = (Store.getAllSalesRaw ? Store.getAllSalesRaw() : [])
-            .filter(function (s) { return !s.storniert && s.datum >= vonDate && s.datum <= bisDate; });
-
         var expenses = (Store.getAllExpensesRaw ? Store.getAllExpensesRaw() : [])
             .filter(function (e) { return !e.storniert && e.datum >= vonDate && e.datum <= bisDate; });
 
@@ -175,25 +172,27 @@ var Steuerberater = (function () {
     function fmtDt(s) { if (!s) return '—'; var p = s.split('-'); if (p.length < 3) return s; return p[2] + '.' + p[1] + '.' + p[0]; }
     function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-    // Nur Darstellung — die drei Zahlen kommen unveraendert aus Euer._berechne(). Keine
-    // Aufschluesselung nach Wareneinkauf: bei Regelbesteuerung ist summeAusgaben netto, die
-    // Einzelposten dort teils brutto; eine Teilsumme daneben wuerde nicht aufgehen.
+    // Nur Darstellung. Die Zeilen kommen aus Euer._elsterZeilen(), also aus demselben
+    // Ergebnis von Euer._berechne() wie die EÜR-Seite und die Übertragungshilfe (Audit
+    // 2026-10-13, T02). Seit T01 enthält der steuerliche Gewinn vereinnahmte USt und
+    // gezahlte Vorsteuer als eigene Zeilen; die Spalte summiert deshalb auf den Gewinn.
     function buildEurSection(year, eur, isKlein) {
-        var netto = eur.isRegel ? ' (netto)' : '';
-        var gew = eur.gewinn;
-        var rows = [
-            ['Betriebseinnahmen' + netto, eur.summeEinnahmen, '#16a34a'],
-            ['− Betriebsausgaben' + netto, eur.summeAusgaben, '#dc2626'],
-            ['= Gewinn / Überschuss', gew, gew >= 0 ? '#16a34a' : '#dc2626'],
-        ];
+        var zeilen = (typeof Euer._elsterZeilen === 'function') ? Euer._elsterZeilen(eur) : [];
+        var rows = zeilen.filter(function (z) { return z.key !== 'gewinn' && Math.abs(z.betrag) >= 0.005; })
+            .map(function (z) {
+                var ausgabe = ['waren', 'afa', 'fahrt', 'sonstige', 'vorsteuer', 'ustZahlung'].indexOf(z.key) !== -1;
+                return [(ausgabe ? '− ' : '+ ') + z.bezeichnung, z.betrag, ausgabe ? '#dc2626' : '#16a34a'];
+            });
+        rows.push(['= Gewinn / Überschuss', eur.gewinn, eur.gewinn >= 0 ? '#16a34a' : '#dc2626']);
         var rowHtml = rows.map(function (r) {
-            return '<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">' + r[0] + '</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:' + r[2] + ';">' + fmtCur(r[1]) + '</td></tr>';
+            return '<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">' + esc(r[0]) + '</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:' + r[2] + ';">' + fmtCur(r[1]) + '</td></tr>';
         }).join('');
         return '<section id="s_eur"><h2 style="margin:24px 0 8px;">EÜR — Steuerjahr ' + year + '</h2>'
-            + '<table style="width:100%;max-width:480px;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">'
+            + '<table style="width:100%;max-width:560px;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">'
             + '<thead><tr style="background:#f8fafc;"><th style="padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb;">Position</th><th style="padding:8px 12px;text-align:right;font-size:11px;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb;">Betrag</th></tr></thead>'
             + '<tbody>' + rowHtml + '</tbody></table>'
-            + (isKlein ? '<p style="font-size:12px;color:#6b7280;margin-top:8px;">§19 UStG: Keine Umsatzsteuer ausgewiesen (Kleinunternehmer).</p>' : '')
+            + '<p style="font-size:12px;color:#6b7280;margin-top:8px;">Zahlungsrechnung nach §4 Abs.3 EStG: Umsatzsteuer und Vorsteuer im Jahr der Zahlung. Wirtschaftlicher Nettogewinn zum Vergleich: ' + fmtCur(eur.nettoGewinn) + '.</p>'
+            + (isKlein ? '<p style="font-size:12px;color:#6b7280;margin-top:4px;">§19 UStG: Keine Umsatzsteuer ausgewiesen (Kleinunternehmer).</p>' : '')
             + '</section>';
     }
 

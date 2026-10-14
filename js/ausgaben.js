@@ -6,7 +6,11 @@ const Ausgaben = {
     _filterVon: '',
     _filterBis: '',
 
-    _kategorien: ['Versand', 'Verpackung', 'Plattformgebühren', 'Fahrtkosten', 'Büro', 'Equipment', 'Software/Abos', 'Honorare an Künstler/Publizisten', 'Sonstiges'],
+    // Die beiden Umsatzsteuer-Kategorien sind keine Betriebsausgaben im engeren Sinn: die EÜR
+    // weist sie als "an das Finanzamt gezahlte" bzw. "vom Finanzamt erstattete Umsatzsteuer"
+    // aus (js/euer.js KAT_UST_*, Audit 2026-10-13 T01). Die Erstattung wird hier als positiver
+    // Betrag erfasst und dort als Einnahme gezählt. Namen nur gemeinsam mit euer.js ändern.
+    _kategorien: ['Versand', 'Verpackung', 'Plattformgebühren', 'Fahrtkosten', 'Büro', 'Equipment', 'Software/Abos', 'Honorare an Künstler/Publizisten', 'Sonstiges', 'Umsatzsteuer an Finanzamt', 'Umsatzsteuer-Erstattung vom Finanzamt'],
 
     // Künstlersozialabgabe (§24-§28 KSVG): Unternehmer, die nicht nur gelegentlich Aufträge an
     // freie Künstler/Publizisten vergeben (Grafik/Foto/Text für eigene Werbung, §24 Abs.2 KSVG),

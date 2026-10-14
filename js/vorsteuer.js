@@ -22,7 +22,9 @@ const Vorsteuer = {
     // ── Vorsteuer aus Einkäufen berechnen (per-item, nicht flat rate) ──
     _calcFromPurchases(startDate, endDate) {
         const purchases = (Store.getPurchases ? Store.getPurchases() : Store.get('purchases') || [])
-            .filter(p => Utils.isInPeriod(p.datum, startDate, endDate) && !p.storniert);
+            .filter(p => Utils.isInPeriod(p.datum, startDate, endDate) && !p.storniert
+                // Vorsteuer nur für Vorgänge, die zu ihrem Datum regelbesteuert waren (Audit 2026-10-13, T06)
+                && (typeof SteuerStatus === 'undefined' || SteuerStatus.istRegel(p, Store.getSettings ? Store.getSettings() : {})));
 
         let vst19 = 0, vst7 = 0, netto19 = 0, netto7 = 0;
         purchases.forEach(p => {
@@ -57,8 +59,10 @@ const Vorsteuer = {
 
     // ── Vorsteuer aus Betriebsausgaben ──
     _calcFromExpenses(startDate, endDate) {
+        // Umsatzsteuer-Zahlungen/-Erstattungen mit dem Finanzamt tragen nie Vorsteuer (Audit 2026-10-13)
         const expenses = (Store.getExpenses ? Store.getExpenses() : Store.get('ausgaben') || [])
-            .filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
+            .filter(e => Utils.isInPeriod(e.datum, startDate, endDate) && !/^Umsatzsteuer/.test(e.kategorie || '')
+                && (typeof SteuerStatus === 'undefined' || SteuerStatus.istRegel(e, Store.getSettings ? Store.getSettings() : {})));
 
         let vst19 = 0, vst7 = 0, vst0 = 0, netto19 = 0, netto7 = 0;
         let unklarCount = 0, unklarBetrag = 0;

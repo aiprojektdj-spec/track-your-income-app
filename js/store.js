@@ -1408,7 +1408,41 @@ const Store = {
     },
 
     saveSettings(settings) {
+        // USt-Moduswechsel als datierten Historieneintrag festhalten (Audit 2026-10-13, T06),
+        // damit alte Vorgänge ihre damalige Behandlung behalten. settings._ustModeAb (optional,
+        // transient) ist der erste Tag des neuen Modus; ohne Angabe gilt heute.
+        const vorherAlle = this.getSettings();
+        // Das Einstellungsformular speichert ein neu gebautes Objekt — Historie und
+        // Tätigkeitsbeginn dürfen dabei nicht verloren gehen.
+        ['ustModeHistorie', 'taetigkeitsbeginn'].forEach(k => {
+            if (settings[k] === undefined && vorherAlle[k] !== undefined) settings[k] = vorherAlle[k];
+        });
+        const ab = settings._ustModeAb;
+        delete settings._ustModeAb;
+        if (typeof SteuerStatus !== 'undefined') {
+            const vorher = vorherAlle;
+            const alt = vorher.ustMode === 'regel' ? 'regel' : 'klein';
+            const neu = settings.ustMode === 'regel' ? 'regel' : 'klein';
+            if (settings.ustMode && neu !== alt) {
+                const basis = Object.assign({}, settings, { ustMode: alt,
+                    ustModeHistorie: vorher.ustModeHistorie || settings.ustModeHistorie });
+                const mitHistorie = SteuerStatus.wechsel(basis, neu, ab || new Date().toLocaleDateString('sv-SE'));
+                settings.ustModeHistorie = mitHistorie.ustModeHistorie;
+                settings.ustMode = mitHistorie.ustMode;
+            }
+        }
         this.set('settings', settings);
+    },
+
+    // Steuerbehandlung am Vorgang festhalten (T06): beim Anlegen nach der Historie zum
+    // Vorgangsdatum; beim Bearbeiten nur neu bestimmen, wenn sich das Datum geändert hat.
+    // Ein ausdrücklich gesetzter Wert (z. B. aus einer KU-Rechnung) bleibt unangetastet.
+    _ustStempel(rec, old) {
+        if (!rec || typeof SteuerStatus === 'undefined') return;
+        if (old && old.ustBehandlung && rec.ustBehandlung === old.ustBehandlung && rec.datum !== old.datum) delete rec.ustBehandlung;
+        if (rec.ustBehandlung === 'klein' || rec.ustBehandlung === 'regel') return;
+        if (!rec.datum) return;
+        rec.ustBehandlung = SteuerStatus.modeAm(rec.datum, this.getSettings());
     },
 
     // ---- Tombstones ----
@@ -1492,6 +1526,7 @@ const Store = {
                 } else {
                     purchase.artikelNr = gewuenschteNr;
                 }
+                this._ustStempel(purchase, old);
                 this._addAuditEntry('bearbeitet', 'einkauf', purchase.id, old, purchase, 'Einkauf bearbeitet');
                 purchases[idx] = this._stampRecord(purchase);
             } else {
@@ -1505,6 +1540,7 @@ const Store = {
             }
             purchase.id = this.generateId();
             purchase.createdAt = new Date().toISOString();
+            this._ustStempel(purchase, null);
             // Auto-generate Artikelnummer (YYYY-NNN)
             if (!purchase.artikelNr) {
                 const year = new Date().getFullYear();
@@ -1580,6 +1616,7 @@ const Store = {
             if (idx >= 0) {
                 const old = Object.assign({}, sales[idx]);
                 if (this.isLocked(old)) return sale; // GoBD: festgeschriebene/stornierte Verkäufe nicht bearbeitbar
+                this._ustStempel(sale, old);
                 this._addAuditEntry('bearbeitet', 'verkauf', sale.id, old, sale, 'Verkauf bearbeitet');
                 sales[idx] = this._stampRecord(sale);
             } else {
@@ -1593,6 +1630,7 @@ const Store = {
             }
             sale.id = this.generateId();
             sale.createdAt = new Date().toISOString();
+            this._ustStempel(sale, null);
             this._stampRecord(sale);
             sales.push(sale);
             this._addAuditEntry('erstellt', 'verkauf', sale.id, null, sale, 'Verkauf erstellt');
@@ -1634,6 +1672,7 @@ const Store = {
         const sales = this.getAllSalesRaw();
         sale.id = this.generateId();
         sale.createdAt = new Date().toISOString();
+        this._ustStempel(sale, null);
         this._stampRecord(sale);
         sales.push(sale);
         this._addAuditEntry('erstellt', 'verkauf', sale.id, null, sale,
@@ -1754,6 +1793,7 @@ const Store = {
             if (idx >= 0) {
                 const old = Object.assign({}, expenses[idx]);
                 if (this.isLocked(old)) return expense; // GoBD: festgeschriebene/stornierte Ausgaben nicht bearbeitbar
+                this._ustStempel(expense, old);
                 this._addAuditEntry('bearbeitet', 'ausgabe', expense.id, old, expense, 'Ausgabe bearbeitet');
                 expenses[idx] = this._stampRecord(expense);
             } else {
@@ -1767,6 +1807,7 @@ const Store = {
             }
             expense.id = this.generateId();
             expense.createdAt = new Date().toISOString();
+            this._ustStempel(expense, null);
             this._stampRecord(expense);
             expenses.push(expense);
             this._addAuditEntry('erstellt', 'ausgabe', expense.id, null, expense, 'Ausgabe erstellt');
@@ -2560,7 +2601,8 @@ const Store = {
     createSaleFromInvoice(invoice, platform, purchaseId, manualEK, opts) {
         opts = opts || {};
         const settings = this.getSettings();
-        const isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (settings.ustMode === 'klein');
+        const isKlein = invoice.isKlein !== undefined ? invoice.isKlein
+            : (typeof SteuerStatus !== 'undefined' ? SteuerStatus.modeAm(invoice.lieferdatum || invoice.datum, settings) === 'klein' : settings.ustMode === 'klein');
         const isGutschrift = invoice.typ === 'gutschrift';
         let brutto = 0;
         // Bruttoumsatz PRO Steuersatz mitführen (nicht nur die Gesamtsumme) — sonst geht bei
@@ -2681,6 +2723,8 @@ const Store = {
                 sale.steuersaetze = nonZero; // { "7": 107.00, "19": 119.00, ... }
             }
         }
+        // Behandlung der Rechnung übernehmen, nicht aus dem Zahlungsdatum ableiten (T06)
+        sale.ustBehandlung = isKlein ? 'klein' : 'regel';
 
         return this.saveSale(sale);
     },

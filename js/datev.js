@@ -41,6 +41,7 @@ var DatevExport = (function () {
         afa_gwg:        '4855',  // Sofortabschreibung geringwertiger Wirtschaftsgüter
         // Bank / Kasse / Privat
         bank:           '1200',  // Bank
+        ust_vz:         '1780',  // Umsatzsteuer-Vorauszahlungen (Zahlung an / Erstattung vom Finanzamt)
         kasse:          '1000',  // Kasse
         // Privateinlagen: Gegenkonto fuer Aufwand OHNE Zahlungsvorgang. Eine
         // Kilometerpauschale und ein Eigenbeleg sind Betriebsausgabe, aber es verlaesst kein
@@ -77,6 +78,7 @@ var DatevExport = (function () {
         afa_immat:      '6200',  // Abschreibungen auf immaterielle Vermögensgegenstände
         afa_gwg:        '6260',  // Sofortabschreibungen geringwertiger Wirtschaftsgüter
         bank:           '1800',  // Bank
+        ust_vz:         '3820',  // Umsatzsteuer-Vorauszahlungen (Zahlung an / Erstattung vom Finanzamt)
         kasse:          '1600',  // Kasse
         privat:         '2180',  // Privateinlagen (SKR04)
     };
@@ -105,6 +107,9 @@ var DatevExport = (function () {
     function kontoForKategorie(kategorie, skr) {
         var accounts = skr === 'SKR04' ? SKR04 : SKR03;
         var cat = (kategorie || '').toLowerCase();
+        // Zahlungsverkehr mit dem Finanzamt (Audit 2026-10-13, T01) — vor 'versand' prüfen,
+        // kein Aufwandskonto.
+        if (cat.indexOf('umsatzsteuer') === 0) return accounts.ust_vz;
         if (cat.indexOf('versand') > -1 || cat.indexOf('porto') > -1) return accounts.versand;
         if (cat.indexOf('plattform') > -1 || cat.indexOf('provision') > -1) return accounts.plattform;
         if (cat.indexOf('fahrt') > -1 || cat.indexOf('reise') > -1) return accounts.fahrt;
@@ -395,10 +400,12 @@ var DatevExport = (function () {
             // eigenen §13b-Eintraege, Kleinunternehmer haben keinen Vorsteuerabzug.
             var satz = (e.ustSatz != null && e.ustSatz !== '') ? e.ustSatz
                      : (e.steuersatz != null && e.steuersatz !== '') ? e.steuersatz : 'unklar';
-            var bu = isKlein ? '' : parseFloat(satz) === 19 ? '9' : parseFloat(satz) === 7 ? '8' : '';
+            var istUstFA = /^umsatzsteuer/i.test(e.kategorie || '');
+            var bu = (isKlein || istUstFA) ? '' : parseFloat(satz) === 19 ? '9' : parseFloat(satz) === 7 ? '8' : '';
             rows.push({
                 umsatz:       betrag,
-                sh:           'S',
+                // Erstattung vom Finanzamt ist ein Zufluss: Haben auf dem USt-Konto, Soll Bank
+                sh:           /erstattung/i.test(e.kategorie || '') && istUstFA ? 'H' : 'S',
                 konto:        konto,
                 gegenkonto:   accounts.bank,
                 datum:        e.datum,

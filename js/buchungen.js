@@ -869,9 +869,6 @@ const Buchungen = {
                     Store.addPlatform(plattform);
                 }
 
-                // Pre-generate ID so we can link material usage
-                const saleId = Store.generateId();
-
                 const vkPreisVal = parseFloat(document.getElementById('vk_preis').value) || 0;
                 const vkVersandKVal = parseFloat(document.getElementById('vk_versandKaeufer').value) || 0;
                 const vkGebuehrVal = parseFloat(document.getElementById('vk_gebuehr').value) || 0;
@@ -881,8 +878,10 @@ const Buchungen = {
                     return;
                 }
 
+                // Keine ID vorab setzen: saveSale() behandelt einen Datensatz mit id als Bearbeitung
+                // (ohne Limitprüfung, USt-Stempel, Audit 'erstellt', Webhook), und saveSaleMulti()
+                // vergibt ohnehin eine eigene. Der Materialverbrauch hängt an der zurückgegebenen id.
                 const saleData = {
-                    id: saleId,
                     datum: Utils.getDateInputValue('vk_datum'),
                     verkaufsplattform: plattform,
                     ...Utils.readLandField('vk'),
@@ -906,6 +905,7 @@ const Buchungen = {
                     saleData.beschreibung = val('vk_beschreibung');
                 };
 
+                let saved;
                 if (isManual && this._selectedPurchaseIds.length === 0) {
                     // Manual sale - no linked purchases
                     const markeEl = document.getElementById('vk_marke');
@@ -916,7 +916,7 @@ const Buchungen = {
                     saleData.artikeltyp = typEl ? typEl.value.trim() : '';
                     saleData.groesse = grEl ? grEl.value.trim() : '';
                     saleData.beschreibung = beschEl ? beschEl.value.trim() : '';
-                    Store.saveSale(saleData);
+                    saved = Store.saveSale(saleData);
                 } else if (this._selectedPurchaseIds.length === 1) {
                     // Single item - use legacy purchaseId for compatibility
                     const pid = this._selectedPurchaseIds[0];
@@ -927,7 +927,7 @@ const Buchungen = {
                     saleData.groesse = p ? p.groesse : '';
                     saleData.beschreibung = p ? p.beschreibung : '';
                     manuelleFelder();
-                    Store.saveSale(saleData);
+                    saved = Store.saveSale(saleData);
                 } else {
                     // Multi item - use purchaseIds array
                     const purchases = Store.getPurchases().filter(p => this._selectedPurchaseIds.includes(p.id));
@@ -937,8 +937,10 @@ const Buchungen = {
                     saleData.artikeltyp = `${purchases.length} Artikel`;
                     saleData.beschreibung = `Paket: ${purchases.map(p => [p.marke, p.artikeltyp, p.groesse].filter(Boolean).join(' ')).join(', ')}`;
                     manuelleFelder();
-                    Store.saveSaleMulti(saleData);
+                    saved = Store.saveSaleMulti(saleData);
                 }
+                // Free-Tier-Limit erreicht: kein Eintrag, keine id (requirePro zeigt den Hinweis)
+                if (!saved || !saved.id) return;
 
                 // Book material usage if any quantities entered
                 const matItems = [];
@@ -947,7 +949,7 @@ const Buchungen = {
                     if (menge > 0) matItems.push({ materialId: inp.dataset.matId, menge });
                 });
                 if (matItems.length > 0) {
-                    Store.bookMaterialVerbrauch(matItems, saleData.datum, 'verkauf', saleId,
+                    Store.bookMaterialVerbrauch(matItems, saleData.datum, 'verkauf', saved.id,
                         (saleData.marke || '') + ' ' + (saleData.artikeltyp || ''));
                 }
 

@@ -438,6 +438,7 @@ const Lager = {
                 notizen:  document.getElementById('vk_notizen').value.trim()
             };
 
+            let saved;
             if (selected.length === 1) {
                 const p = selected[0];
                 saleData.purchaseId  = p.id;
@@ -445,15 +446,17 @@ const Lager = {
                 saleData.artikeltyp  = p.artikeltyp || '';
                 saleData.groesse     = p.groesse || '';
                 saleData.beschreibung = p.beschreibung || '';
-                Store.saveSale(saleData);
+                saved = Store.saveSale(saleData);
             } else {
                 const marken = [...new Set(selected.map(p => p.marke).filter(Boolean))];
                 saleData.purchaseIds = ids;
                 saleData.marke       = marken.join(', ');
                 saleData.artikeltyp  = `${selected.length} Artikel`;
                 saleData.beschreibung = `Paket: ${selected.map(p => [p.marke, p.artikeltyp, p.groesse].filter(Boolean).join(' ')).join(', ')}`;
-                Store.saveSaleMulti(saleData);
+                saved = Store.saveSaleMulti(saleData);
             }
+            // Free-Tier-Limit erreicht: kein Eintrag, keine id (requirePro zeigt den Hinweis)
+            if (!saved || !saved.id) return;
 
             App.closeModal();
             this._selected.clear();

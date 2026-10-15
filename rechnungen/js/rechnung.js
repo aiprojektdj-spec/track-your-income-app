@@ -927,7 +927,35 @@ var Rechnung = (function() {
         }
     }
 
+    // Fachliche Fehler dauerhaft am Feld + Übersicht (js/fachfehler.js, Audit 2026-10-13 D3).
+    // Der Toast bleibt als kurzer Hinweis, die Korrekturanweisung verschwindet aber nicht mehr.
+    function fachFehler(fehler) {
+        Utils.showToast(fehler[0].text, 'error');
+        if (typeof FachFehler !== 'undefined') {
+            var nr = document.getElementById('invNummer');
+            FachFehler.zeige(nr && nr.closest ? nr.closest('.card') : null, fehler);
+        }
+        return null;
+    }
+    // Positionszeilen, auf die eine Bedingung zutrifft — mit Zeilennummer wie in der Ansicht
+    function positionsZeilen(bedingung) {
+        var treffer = [];
+        Array.prototype.forEach.call(document.querySelectorAll('.position-row'), function (row, i) {
+            var wert = function (sel) { var el = row.querySelector(sel); return el ? el.value : ''; };
+            var diff = row.querySelector('.pos-diff25a');
+            var z = {
+                beschreibung: wert('.pos-beschreibung').trim(), mengeRoh: wert('.pos-menge'), preisRoh: wert('.pos-einzelpreis'),
+                menge: parseFloat(wert('.pos-menge')), preis: parseFloat(wert('.pos-einzelpreis')),
+                mwst: parseFloat(wert('.pos-mwst')) || 0, igArt: wert('.pos-igart'), diff: !!(diff && diff.checked)
+            };
+            if (!(z.beschreibung || (parseFloat(z.preisRoh) || 0) > 0)) return;   // leere Zeile, wie collectPositionen
+            if (bedingung(z)) treffer.push({ row: row, nr: i + 1 });
+        });
+        return treffer;
+    }
+
     async function buildInvoiceObject() {
+        if (typeof FachFehler !== 'undefined') FachFehler.leeren();
         var typ = document.getElementById('invTyp').value;
         var nummer = document.getElementById('invNummer').value.trim();
         var datum = document.getElementById('invDatum').value;
@@ -988,13 +1016,11 @@ var Rechnung = (function() {
             // der Gate lief vorher nur f\u00FCr typ==='rechnung', Gutschriften konnten ihn umgehen.
             var kd = Store.getRechCustomers().find(function(c) { return c.id === kundeId; });
             if (kd && (!kd.strasse || !kd.plz || !kd.ort)) {
-                Utils.showToast('\u26A0\uFE0F Kundenadresse unvollst\u00E4ndig (Stra\u00DFe, PLZ, Ort) \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Kundendaten erg\u00E4nzen.', 'error');
-                return null;
+                return fachFehler([{ text: 'Kundenadresse unvollst\u00E4ndig (Stra\u00DFe, PLZ, Ort) \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Kundendaten erg\u00E4nzen.', feld: document.getElementById('invKunde'), ort: 'Zum Kunden' }]);
             }
             var s14 = Store.getRechUnternehmen ? Store.getRechUnternehmen() : {};
             if (!s14.steuernummer && !s14.ustId) {
-                Utils.showToast('\u26A0\uFE0F Keine Steuernummer / USt-IdNr. hinterlegt \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Unternehmensdaten erg\u00E4nzen.', 'error');
-                return null;
+                return fachFehler([{ text: 'Keine Steuernummer / USt-IdNr. hinterlegt \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Unternehmensdaten erg\u00E4nzen.' }]);
             }
         }
 
@@ -1008,12 +1034,17 @@ var Rechnung = (function() {
 
         var positionen = collectPositionen();
         if (positionen.length === 0) {
-            Utils.showToast('Mindestens eine Position erforderlich', 'warning');
-            return null;
+            return fachFehler([{ text: 'Mindestens eine Position erforderlich.', feld: document.querySelector('.position-row .pos-beschreibung'), ort: 'Zur Position' }]);
         }
         if (positionen.some(function(p) { return !Number.isFinite(p.menge) || !Number.isFinite(p.einzelpreis) || p.menge < 0 || p.einzelpreis < 0 || p.menge > 999999 || p.einzelpreis > 99999999; })) {
-            Utils.showToast('Menge und Einzelpreis müssen gültige, nicht-negative Zahlen in einem plausiblen Bereich sein.', 'error');
-            return null;
+            var schlecht = function (v, max) { return !Number.isFinite(v) || v < 0 || v > max; };
+            var fz = [];
+            positionsZeilen(function (z) { return schlecht(parseFloat(z.mengeRoh) || 0, 999999) || schlecht(parseFloat(z.preisRoh) || 0, 99999999); }).forEach(function (t) {
+                var m = parseFloat(t.row.querySelector('.pos-menge').value) || 0;
+                var feld = schlecht(m, 999999) ? t.row.querySelector('.pos-menge') : t.row.querySelector('.pos-einzelpreis');
+                fz.push({ text: 'Position ' + t.nr + ': Menge und Einzelpreis müssen gültige, nicht-negative Zahlen in einem plausiblen Bereich sein.', feld: feld, ort: 'Zu Position ' + t.nr });
+            });
+            return fachFehler(fz.length ? fz : [{ text: 'Menge und Einzelpreis müssen gültige, nicht-negative Zahlen in einem plausiblen Bereich sein.' }]);
         }
 
         // §13b UStG EU-B2B: "Art des Umsatzes" muss pro 0%-Position explizit gewählt sein (Kz. 41 vs.
@@ -1023,16 +1054,20 @@ var Rechnung = (function() {
         var isKlein13b = editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (settings13b.ustMode === 'klein');
         var isEuB2B13b = !isKlein13b && kd13b && kd13b.ustIdNr && kd13b.land && kd13b.land !== 'DE' && rcEuLaender().indexOf(kd13b.land) !== -1;
         if (isEuB2B13b && positionen.some(function(p) { return p.mwstSatz === 0 && !p.igArt; })) {
-            Utils.showToast('Bitte bei jeder 0%-Position „Art des Umsatzes" (Ware/Leistung) wählen — entscheidet Kz. 41 vs. Kz. 21.', 'error');
-            return null;
+            var ig = positionsZeilen(function (z) { return !z.diff && z.mwst === 0 && !z.igArt; }).map(function (t) {
+                return { text: 'Position ' + t.nr + ': „Art des Umsatzes" (Ware/Leistung) wählen — entscheidet Kz. 41 vs. Kz. 21.', feld: t.row.querySelector('.pos-igart') || t.row.querySelector('.pos-mwst'), ort: 'Zu Position ' + t.nr };
+            });
+            return fachFehler(ig.length ? ig : [{ text: 'Bitte bei jeder 0%-Position „Art des Umsatzes" (Ware/Leistung) wählen — entscheidet Kz. 41 vs. Kz. 21.' }]);
         }
         // §13b UStG — bei Reverse Charge darf KEINE deutsche USt ausgewiesen werden (sonst §14c Abs.1
         // UStG: unrichtiger Steuerausweis, Steuerschuld trotzdem). Guard deckte bisher nur die 0%-igArt-
         // Pflicht ab, nicht den Fall, dass eine Position noch einen Steuersatz &gt;0% trägt (z.B. nach
         // nachträglicher USt-IdNr. beim Kunden oder Produkt-Einfügen mit fixem 19%-Satz).
         if (isEuB2B13b && positionen.some(function(p) { return p.mwstSatz > 0; })) {
-            Utils.showToast('Reverse-Charge-Kunde (EU-Ausland mit USt-IdNr.): Positionen dürfen keine deutsche USt tragen. Bitte MwSt-Satz auf 0% setzen.', 'error');
-            return null;
+            var rc = positionsZeilen(function (z) { return !z.diff && z.mwst > 0; }).map(function (t) {
+                return { text: 'Position ' + t.nr + ': Reverse-Charge-Kunde (EU-Ausland mit USt-IdNr.) — keine deutsche USt ausweisen, MwSt-Satz auf 0 % setzen.', feld: t.row.querySelector('.pos-mwst'), ort: 'Zu Position ' + t.nr };
+            });
+            return fachFehler(rc.length ? rc : [{ text: 'Reverse-Charge-Kunde (EU-Ausland mit USt-IdNr.): Positionen dürfen keine deutsche USt tragen. Bitte MwSt-Satz auf 0% setzen.' }]);
         }
 
         // Duplikatsprüfung nur für vom Nutzer selbst eingetragene Nummern nötig — eine automatisch
@@ -1040,8 +1075,7 @@ var Rechnung = (function() {
         if (!wasAutoPreview && nummer && Store.getRechInvoices(true).some(function(d) {
             return d.nummer === nummer && (!editingInvoice || d.id !== editingInvoice.id);
         })) {
-            Utils.showToast('Rechnungsnummer "' + nummer + '" ist bereits vergeben.', 'error');
-            return null;
+            return fachFehler([{ text: 'Rechnungsnummer "' + nummer + '" ist bereits vergeben.', feld: document.getElementById('invNummer'), ort: 'Zur Nummer' }]);
         }
 
         // Jetzt, nach allen Validierungen, die Nummer final fixieren (Counter tatsächlich verbrauchen).

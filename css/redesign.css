@@ -358,6 +358,25 @@ body > :not(.print-container):not(#printArea) :is(#content, .modal, .onboarding-
   .sr-mobile-table td::before { content: attr(data-label); text-align: left; color: var(--muted); flex-shrink: 0; max-width: 48%; }
   .sr-mobile-table td[colspan] { display: block; text-align: left; }
   .sr-mobile-table .table-actions { justify-content: flex-end; flex-wrap: wrap; }
+  /* Buchungskarte (Audit 2026-10-13, D2): Beschreibung und Betrag oben, Datum/Art darunter,
+     Status und Details am Ende — statt jede Desktopspalte als eigene beschriftete Zeile. */
+  .sr-booking-table tr.sr-booking-row { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 4px; }
+  .sr-booking-table tr.sr-booking-row td { display: block; width: auto !important; min-height: 0; padding: 0; text-align: left; }
+  .sr-booking-table tr.sr-booking-row td::before { content: none; }
+  /* Beschreibung und Betrag teilen sich die erste Zeile; ist der Betrag zu breit, rutscht er
+     darunter statt die Beschreibung zu zerquetschen. */
+  .sr-booking-table .sr-col-desc { order: 1; flex: 1 1 55%; min-width: 0; }
+  .sr-booking-table .sr-col-amount { order: 2; flex: 0 0 auto; margin-left: auto; text-align: right !important; font-weight: 600; white-space: nowrap; overflow-wrap: normal; }
+  .sr-booking-table .sr-col-date { order: 3; flex: 1 0 100%; color: var(--muted); font-size: 14px; }
+  .sr-booking-table .sr-col-kind { order: 4; flex: 1 0 100%; font-size: 14px; }
+  .sr-booking-table .sr-col-kind .sr-cell-text { flex-direction: row; gap: 8px; flex-wrap: wrap; }
+  .sr-booking-table .sr-col-state { order: 5; flex: 1 1 auto; align-self: center; }
+  .sr-booking-table .sr-col-state .badge { white-space: nowrap; }
+  .sr-booking-table .sr-col-action { order: 6; flex: 0 0 auto; margin-left: auto; align-self: center; }
+  /* Filter (D1): Suche direkt, Rest einklappbar */
+  .filter-bar.sr-booking-filterbar { align-items: stretch; gap: 12px; }
+  .filter-bar.sr-booking-filterbar .sr-filter-more > summary { width: 100%; justify-content: space-between; }
+  .filter-bar.sr-booking-filterbar .sr-filter-more-body { flex-direction: column; align-items: stretch; }
   #authGateOverlay > div { padding: 28px 20px !important; }
   .redesign-page-heading { flex-wrap: wrap; align-items: flex-start; }
   .redesign-page-heading h2 { font-size: 28px; }
@@ -378,6 +397,26 @@ body > :not(.print-container):not(#printArea) :is(#content, .modal, .onboarding-
   .stackr-shell .topnav, .stackr-shell .sidebar, .sr-context-nav { display: none !important; }
   .stackr-shell .main-content { margin: 0; width: 100%; padding: 0; }
 }
+
+/* Buchungsliste (Audit 2026-10-13, D1/D2): Textblock je Zelle, einklappbare Filter, Chips. */
+.sr-cell-text { display: flex; flex-direction: column; min-width: 0; overflow-wrap: break-word; hyphens: auto; }
+.sr-cell-sub { color: var(--muted); font-size: 14px; }
+.sr-booking-filterbar { flex-wrap: wrap; align-items: flex-end; }
+.sr-filter-more { min-width: 0; }
+.sr-filter-more > summary { cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; }
+.sr-filter-more[open] > summary { margin-bottom: 12px; }
+.sr-filter-more-body { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+.sr-filter-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; width: 100%; }
+.sr-filter-chips:empty { display: none; }
+.sr-filter-chip { min-height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); cursor: pointer; }
+.sr-filter-chip:focus-visible, .sr-filter-more > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Fachliche Formularfehler (Audit 2026-10-13, D3, js/fachfehler.js) */
+.sr-fach-fehler { border: 1px solid var(--danger); border-radius: 8px; padding: 16px; margin-bottom: 16px; color: var(--text); background: var(--bg-card, transparent); }
+.sr-fach-fehler:focus-visible { outline: 2px solid var(--danger); outline-offset: 2px; }
+.sr-fach-fehler ul { margin: 8px 0 0; padding-left: 20px; }
+.sr-fach-fehler li { margin: 4px 0; }
+.sr-fach-fehler li .btn { margin-left: 8px; }
 
 /* Einstellungen: ruhige Abschnitte mit direkten Zugängen zu den bestehenden Funktionen. */
 .sr-settings-section { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); gap: 48px; border-top: 1px solid var(--line); padding: 32px 0; }

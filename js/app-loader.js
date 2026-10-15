@@ -56,6 +56,7 @@
         'rechnungen/js/xrechnung.js',
         'rechnungen/js/erechnung-import.js',
         'rechnungen/js/rech-dashboard.js',
+        'js/fachfehler.js',
         'rechnungen/js/rechnung.js',
         'js/storno-vorgang.js',
         'rechnungen/js/dokumente.js',

@@ -44,7 +44,7 @@ const Privatbuchungen = {
                 </td>
                 <td>${Utils.escapeHtml(b.beschreibung || '')}</td>
                 <td>
-                    <button class="btn btn-sm btn-danger" data-action="pb-storno" data-args='["${b.id}"]' >🗑️</button>
+                    <button class="btn btn-sm btn-danger" data-action="pb-storno" data-args='["${b.id}"]' title="Stornieren" aria-label="Stornieren"><i class="ti ti-trash" aria-hidden="true"></i></button>
                 </td>
             </tr>
         `).join('');
@@ -89,7 +89,7 @@ const Privatbuchungen = {
 
         ${entnahmen > gewinn && gewinn > 0 ? `
         <div style="background:var(--warning-bg);border:1px solid var(--warning);border-radius:8px;padding:12px 16px;margin-bottom:16px;color:var(--text-primary);">
-            ⚠️ <strong>Hinweis:</strong> Die Privatentnahmen (${Utils.formatCurrency(entnahmen)}) übersteigen den Betriebsgewinn (${Utils.formatCurrency(gewinn)}).
+            <strong>Hinweis:</strong> Die Privatentnahmen (${Utils.formatCurrency(entnahmen)}) übersteigen den Betriebsgewinn (${Utils.formatCurrency(gewinn)}).
             Das kann zu einer Überschuldung des Betriebsvermögens führen.
         </div>` : ''}
 
@@ -128,7 +128,7 @@ const Privatbuchungen = {
                 <strong>Privatentnahme:</strong> Geld, das du für private Zwecke aus dem Betrieb entnimmst (mindert das Betriebskapital).<br>
                 <strong>Privateinlage:</strong> Privates Geld, das du in den Betrieb einbringst (erhöht das Betriebskapital).<br>
                 <strong>Steuerlich:</strong> Entnahmen und Einlagen sind keine Betriebsausgaben/-einnahmen – sie berühren die EÜR nicht direkt.<br>
-                <strong>⚠️ Unverbindlich</strong> – Prüfung durch Steuerberater empfohlen.
+                <strong>Unverbindlich</strong> – Prüfung durch Steuerberater empfohlen.
             </div>
         </div>
         `;
@@ -149,7 +149,7 @@ const Privatbuchungen = {
 
     _openForm() {
         const today = Utils.todayISO();
-        App.showModal('➕ Privatbuchung erfassen', `
+        App.showModal('Privatbuchung erfassen', `
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Datum *</label>

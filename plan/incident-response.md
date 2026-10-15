@@ -60,8 +60,16 @@ informieren.
 ## Wer uns meldet
 
 Auftragsverarbeiter müssen uns eine Panne bei sich unverzüglich melden (Art. 33 Abs. 2 DSGVO).
-Die Meldung kommt an die Konto-E-Mail des jeweiligen Dashboards: Vercel (auch für Blob) und Upstash. Whop ist für den Login eigenständig verantwortlich und meldet selbst, der Whop-Support ist trotzdem zu informieren.
+Die Meldung kommt an die Konto-E-Mail des jeweiligen Dashboards. Whop ist für den Login
+eigenständig verantwortlich und meldet selbst, der Whop-Support ist trotzdem zu informieren.
+
+| Anbieter | Konto / Team | Postfach (geprüft 08.10.2026) |
+|----------|--------------|-------------------------------|
+| Vercel (inkl. Blob) | Team `aiprojektdj-specs-projects` | aiprojektdj@gmail.com |
+| Upstash Redis | Vercel-Marketplace-Store `upstash-kv-cyan-globe`, kein eigenes Upstash-Login | über Vercel: aiprojektdj@gmail.com |
+
 Diese Postfächer müssen gelesen werden. Die 72 Stunden laufen ab dem Lesen der Mail.
+Kommt Supabase Storage dazu (`api/_storage.js`), dessen Konto hier nachtragen.
 
 ## Vorlage: Meldung an den LfDI
 

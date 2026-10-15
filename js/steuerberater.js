@@ -67,7 +67,7 @@ var Steuerberater = (function () {
         html += '<li>Der Steuerberater öffnet die Datei im Browser — keine Software-Installation nötig</li>';
         html += '<li>Optional: PIN schützt den Inhalt vor unbefugtem Zugriff</li>';
         html += '</ol>';
-        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:8px;">⚠️ Das Paket enthält keine Passwörter oder Zugangsdaten. Es ist eine Nur-Lese-Ansicht deiner Buchungen.</div>';
+        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Das Paket enthält keine Passwörter oder Zugangsdaten. Es ist eine Nur-Lese-Ansicht deiner Buchungen.</div>';
         html += '</div>';
 
         return html;
@@ -99,9 +99,6 @@ var Steuerberater = (function () {
         // ── Collect data ────────────────────────────────────────────────
         var purchases = (Store.getAllPurchasesRaw ? Store.getAllPurchasesRaw() : [])
             .filter(function (p) { return !p.storniert && p.datum >= vonDate && p.datum <= bisDate; });
-
-        var sales = (Store.getAllSalesRaw ? Store.getAllSalesRaw() : [])
-            .filter(function (s) { return !s.storniert && s.datum >= vonDate && s.datum <= bisDate; });
 
         var expenses = (Store.getAllExpensesRaw ? Store.getAllExpensesRaw() : [])
             .filter(function (e) { return !e.storniert && e.datum >= vonDate && e.datum <= bisDate; });
@@ -175,30 +172,32 @@ var Steuerberater = (function () {
     function fmtDt(s) { if (!s) return '—'; var p = s.split('-'); if (p.length < 3) return s; return p[2] + '.' + p[1] + '.' + p[0]; }
     function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-    // Nur Darstellung — die drei Zahlen kommen unveraendert aus Euer._berechne(). Keine
-    // Aufschluesselung nach Wareneinkauf: bei Regelbesteuerung ist summeAusgaben netto, die
-    // Einzelposten dort teils brutto; eine Teilsumme daneben wuerde nicht aufgehen.
+    // Nur Darstellung. Die Zeilen kommen aus Euer._elsterZeilen(), also aus demselben
+    // Ergebnis von Euer._berechne() wie die EÜR-Seite und die Übertragungshilfe (Audit
+    // 2026-10-13, T02). Seit T01 enthält der steuerliche Gewinn vereinnahmte USt und
+    // gezahlte Vorsteuer als eigene Zeilen; die Spalte summiert deshalb auf den Gewinn.
     function buildEurSection(year, eur, isKlein) {
-        var netto = eur.isRegel ? ' (netto)' : '';
-        var gew = eur.gewinn;
-        var rows = [
-            ['Betriebseinnahmen' + netto, eur.summeEinnahmen, '#16a34a'],
-            ['− Betriebsausgaben' + netto, eur.summeAusgaben, '#dc2626'],
-            ['= Gewinn / Überschuss', gew, gew >= 0 ? '#16a34a' : '#dc2626'],
-        ];
+        var zeilen = (typeof Euer._elsterZeilen === 'function') ? Euer._elsterZeilen(eur) : [];
+        var rows = zeilen.filter(function (z) { return z.key !== 'gewinn' && Math.abs(z.betrag) >= 0.005; })
+            .map(function (z) {
+                var ausgabe = ['waren', 'afa', 'fahrt', 'sonstige', 'vorsteuer', 'ustZahlung'].indexOf(z.key) !== -1;
+                return [(ausgabe ? '− ' : '+ ') + z.bezeichnung, z.betrag, ausgabe ? '#dc2626' : '#16a34a'];
+            });
+        rows.push(['= Gewinn / Überschuss', eur.gewinn, eur.gewinn >= 0 ? '#16a34a' : '#dc2626']);
         var rowHtml = rows.map(function (r) {
-            return '<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">' + r[0] + '</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:' + r[2] + ';">' + fmtCur(r[1]) + '</td></tr>';
+            return '<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">' + esc(r[0]) + '</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:' + r[2] + ';">' + fmtCur(r[1]) + '</td></tr>';
         }).join('');
-        return '<section id="s_eur"><h2 style="margin:24px 0 8px;">📊 EÜR — Steuerjahr ' + year + '</h2>'
-            + '<table style="width:100%;max-width:480px;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">'
+        return '<section id="s_eur"><h2 style="margin:24px 0 8px;">EÜR — Steuerjahr ' + year + '</h2>'
+            + '<table style="width:100%;max-width:560px;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">'
             + '<thead><tr style="background:#f8fafc;"><th style="padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb;">Position</th><th style="padding:8px 12px;text-align:right;font-size:11px;text-transform:uppercase;color:#6b7280;border-bottom:2px solid #e5e7eb;">Betrag</th></tr></thead>'
             + '<tbody>' + rowHtml + '</tbody></table>'
-            + (isKlein ? '<p style="font-size:12px;color:#6b7280;margin-top:8px;">§19 UStG: Keine Umsatzsteuer ausgewiesen (Kleinunternehmer).</p>' : '')
+            + '<p style="font-size:12px;color:#6b7280;margin-top:8px;">Zahlungsrechnung nach §4 Abs.3 EStG: Umsatzsteuer und Vorsteuer im Jahr der Zahlung. Wirtschaftlicher Nettogewinn zum Vergleich: ' + fmtCur(eur.nettoGewinn) + '.</p>'
+            + (isKlein ? '<p style="font-size:12px;color:#6b7280;margin-top:4px;">§19 UStG: Keine Umsatzsteuer ausgewiesen (Kleinunternehmer).</p>' : '')
             + '</section>';
     }
 
     function buildInvoicesSection(invoices, customerMap) {
-        if (!invoices.length) return '<section id="s_inv"><h2 style="margin:24px 0 8px;">🧾 Rechnungen</h2><p style="color:#6b7280;font-size:13px;">Keine Rechnungen im Zeitraum.</p></section>';
+        if (!invoices.length) return '<section id="s_inv"><h2 style="margin:24px 0 8px;">Rechnungen</h2><p style="color:#6b7280;font-size:13px;">Keine Rechnungen im Zeitraum.</p></section>';
         var rows = invoices.map(function (inv) {
             var kunde = customerMap[inv.kundeId];
             var kundeName = kunde ? (kunde.firma || kunde.ansprechpartner || '') : '—';
@@ -211,14 +210,14 @@ var Steuerberater = (function () {
                 + '<td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;color:' + statusCls + ';">' + esc(inv.status) + '</td>'
                 + '</tr>';
         }).join('');
-        return '<section id="s_inv"><h2 style="margin:24px 0 8px;">🧾 Rechnungen (' + invoices.length + ')</h2>'
+        return '<section id="s_inv"><h2 style="margin:24px 0 8px;">Rechnungen (' + invoices.length + ')</h2>'
             + '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;">'
             + '<thead><tr style="background:#f8fafc;font-size:11px;text-transform:uppercase;color:#6b7280;"><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Nr.</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Datum</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Kunde</th><th style="padding:8px 10px;text-align:right;border-bottom:2px solid #e5e7eb;">Netto</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Status</th></tr></thead>'
             + '<tbody>' + rows + '</tbody></table></div></section>';
     }
 
     function buildExpensesSection(expenses) {
-        if (!expenses.length) return '<section id="s_exp"><h2 style="margin:24px 0 8px;">💼 Betriebsausgaben</h2><p style="color:#6b7280;font-size:13px;">Keine Ausgaben im Zeitraum.</p></section>';
+        if (!expenses.length) return '<section id="s_exp"><h2 style="margin:24px 0 8px;">Betriebsausgaben</h2><p style="color:#6b7280;font-size:13px;">Keine Ausgaben im Zeitraum.</p></section>';
         var rows = expenses.map(function (e) {
             return '<tr><td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;">' + fmtDt(e.datum) + '</td>'
                 + '<td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;">' + esc(e.kategorie || 'Sonstiges') + '</td>'
@@ -227,14 +226,14 @@ var Steuerberater = (function () {
                 + '</tr>';
         }).join('');
         var total = expenses.reduce(function (s, e) { return s + (parseFloat(e.betrag) || 0); }, 0);
-        return '<section id="s_exp"><h2 style="margin:24px 0 8px;">💼 Betriebsausgaben (' + expenses.length + ') — ' + fmtCur(total) + '</h2>'
+        return '<section id="s_exp"><h2 style="margin:24px 0 8px;">Betriebsausgaben (' + expenses.length + ') — ' + fmtCur(total) + '</h2>'
             + '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;">'
             + '<thead><tr style="background:#f8fafc;font-size:11px;text-transform:uppercase;color:#6b7280;"><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Datum</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Kategorie</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Beschreibung</th><th style="padding:8px 10px;text-align:right;border-bottom:2px solid #e5e7eb;">Betrag</th></tr></thead>'
             + '<tbody>' + rows + '</tbody></table></div></section>';
     }
 
     function buildPurchasesSection(purchases) {
-        if (!purchases.length) return '<section id="s_pur"><h2 style="margin:24px 0 8px;">🛒 Wareneinkäufe</h2><p style="color:#6b7280;font-size:13px;">Keine Einkäufe im Zeitraum.</p></section>';
+        if (!purchases.length) return '<section id="s_pur"><h2 style="margin:24px 0 8px;">Wareneinkäufe</h2><p style="color:#6b7280;font-size:13px;">Keine Einkäufe im Zeitraum.</p></section>';
         var rows = purchases.map(function (p) {
             var total = (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1);
             return '<tr><td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;">' + fmtDt(p.datum) + '</td>'
@@ -245,14 +244,14 @@ var Steuerberater = (function () {
                 + '</tr>';
         }).join('');
         var total = purchases.reduce(function (s, p) { return s + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1); }, 0);
-        return '<section id="s_pur"><h2 style="margin:24px 0 8px;">🛒 Wareneinkäufe (' + purchases.length + ') — ' + fmtCur(total) + '</h2>'
+        return '<section id="s_pur"><h2 style="margin:24px 0 8px;">Wareneinkäufe (' + purchases.length + ') — ' + fmtCur(total) + '</h2>'
             + '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;">'
             + '<thead><tr style="background:#f8fafc;font-size:11px;text-transform:uppercase;color:#6b7280;"><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Datum</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Art.-Nr.</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Artikel</th><th style="padding:8px 10px;text-align:right;border-bottom:2px solid #e5e7eb;">Menge</th><th style="padding:8px 10px;text-align:right;border-bottom:2px solid #e5e7eb;">Gesamt EK</th></tr></thead>'
             + '<tbody>' + rows + '</tbody></table></div></section>';
     }
 
     function buildAfaSection(anlagen, year) {
-        if (!anlagen.length) return '<section id="s_afa"><h2 style="margin:24px 0 8px;">📉 AfA / Anlagevermögen</h2><p style="color:#6b7280;font-size:13px;">Kein Anlagevermögen erfasst — Wirtschaftsgüter über 800 € netto gehören ins Anlagenverzeichnis (§6 Abs. 2 EStG), erfassbar unter „AfA".</p></section>';
+        if (!anlagen.length) return '<section id="s_afa"><h2 style="margin:24px 0 8px;">AfA / Anlagevermögen</h2><p style="color:#6b7280;font-size:13px;">Kein Anlagevermögen erfasst — Wirtschaftsgüter über 800 € netto gehören ins Anlagenverzeichnis (§6 Abs. 2 EStG), erfassbar unter „AfA".</p></section>';
         var rows = anlagen.map(function (a) {
             var jahresAfa = 0;
             if (typeof Afa !== 'undefined' && Afa._calcJahresAfa) {
@@ -267,7 +266,7 @@ var Steuerberater = (function () {
                 + '<td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;font-size:12px;text-align:right;color:#dc2626;">' + fmtCur(jahresAfa) + '</td>'
                 + '</tr>';
         }).join('');
-        return '<section id="s_afa"><h2 style="margin:24px 0 8px;">📉 AfA / Anlagevermögen (' + anlagen.length + ' Anlagen)</h2>'
+        return '<section id="s_afa"><h2 style="margin:24px 0 8px;">AfA / Anlagevermögen (' + anlagen.length + ' Anlagen)</h2>'
             + '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;">'
             + '<thead><tr style="background:#f8fafc;font-size:11px;text-transform:uppercase;color:#6b7280;"><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Bezeichnung</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Anschaffung</th><th style="padding:8px 10px;text-align:right;border-bottom:2px solid #e5e7eb;">AK</th><th style="padding:8px 10px;text-align:right;border-bottom:2px solid #e5e7eb;">ND</th><th style="padding:8px 10px;text-align:right;border-bottom:2px solid #e5e7eb;">Jahres-AfA</th></tr></thead>'
             + '<tbody>' + rows + '</tbody></table></div></section>';
@@ -281,7 +280,7 @@ var Steuerberater = (function () {
                 + '<td style="padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;">' + esc((e.details || '').substring(0, 80)) + '</td>'
                 + '</tr>';
         }).join('');
-        return '<section id="s_audit"><h2 style="margin:24px 0 8px;">🔒 Änderungsprotokoll (GoBD) — ' + auditLog.length + ' Einträge</h2>'
+        return '<section id="s_audit"><h2 style="margin:24px 0 8px;">Änderungsprotokoll (GoBD) — ' + auditLog.length + ' Einträge</h2>'
             + '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;border:1px solid #e5e7eb;">'
             + '<thead><tr style="background:#f8fafc;font-size:11px;text-transform:uppercase;color:#6b7280;"><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Zeitpunkt</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Aktion</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Bereich</th><th style="padding:8px 10px;text-align:left;border-bottom:2px solid #e5e7eb;">Details</th></tr></thead>'
             + '<tbody>' + rows + '</tbody></table></div>'
@@ -296,7 +295,6 @@ var Steuerberater = (function () {
         if (pin) {
             pinOverlay = '<div id="pinOverlay" style="position:fixed;inset:0;background:#1e293b;z-index:9999;display:flex;align-items:center;justify-content:center;">'
                 + '<div style="background:#fff;border-radius:12px;padding:32px;text-align:center;max-width:320px;width:90%;">'
-                + '<div style="font-size:32px;margin-bottom:12px;">🔐</div>'
                 + '<div style="font-weight:800;font-size:18px;margin-bottom:6px;">Steuerberater-Paket</div>'
                 + '<div style="font-size:13px;color:#6b7280;margin-bottom:20px;">' + esc(companyName) + ' · ' + year + '</div>'
                 + '<input type="password" id="pinInput" placeholder="PIN eingeben" style="width:100%;padding:10px 14px;border:2px solid #e5e7eb;border-radius:8px;font-size:16px;text-align:center;box-sizing:border-box;margin-bottom:12px;" autofocus>'
@@ -345,7 +343,7 @@ var Steuerberater = (function () {
             + '</head>\n<body>\n'
             + pinOverlay
             + '<header>'
-            + '<h1>📊 Steuerberater-Paket — ' + esc(companyName) + '</h1>'
+            + '<h1>Steuerberater-Paket — ' + esc(companyName) + '</h1>'
             + '<div class="sub">Steuerjahr ' + year + ' · Erstellt am ' + esc(generatedAt) + ' · Erstellt mit Stackr</div>'
             + '</header>'
             + '<nav class="nav">'

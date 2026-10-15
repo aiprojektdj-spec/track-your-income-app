@@ -131,7 +131,7 @@ const Fahrtenbuch = {
             </div>
 
             <div class="info-box" style="margin-bottom:12px;padding:10px 14px;background:var(--info-bg);border:1px solid var(--info);border-radius:var(--radius);font-size:13px;color:var(--text-secondary);">
-                <strong style="color:var(--info);">💡 §9 EStG Pauschalen:</strong>
+                <strong style="color:var(--info);">§9 EStG Pauschalen:</strong>
                 ${(() => { const s = this._getKmSaetze(new Date().getFullYear()); const f = v => v.toFixed(2).replace('.', ','); return `PKW: ${f(s.pauschale_pkw)} €/km · Motorrad: ${f(s.pauschale_motorrad)} €/km · Fahrrad/Zu Fuß: ${f(s.fahrrad)} €.`; })()}
                 Fahrtkosten fließen automatisch in die EÜR ein.
             </div>
@@ -182,7 +182,7 @@ const Fahrtenbuch = {
             <div class="card" style="margin-bottom:16px;" id="fbFormCard">
                 <div class="card-header">
                     <div class="card-title">${editId ? 'Fahrt bearbeiten' : '+ Neue Fahrt erfassen'}</div>
-                    <button class="btn btn-secondary btn-small" id="fbFormClose">✕ Schließen</button>
+                    <button class="btn btn-secondary btn-small" id="fbFormClose">Schließen</button>
                 </div>
                 ${orteDatalist}
                 <form id="fahrtForm">
@@ -285,7 +285,7 @@ const Fahrtenbuch = {
                         </div>
                     </div>
                     ${berechnungsartDef === 'tatsaechlich' ? `<div class="form-hint" style="margin-top:-8px;margin-bottom:8px;font-size:12px;color:var(--text-muted);">
-                        💡 Bitte separate Belege (Tankquittung etc.) als Ausgabe erfassen und dort verknüpfen.
+                        Bitte separate Belege (Tankquittung etc.) als Ausgabe erfassen und dort verknüpfen.
                     </div>` : ''}
 
                     <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 8px;">Zweck &amp; Notizen</div>
@@ -405,7 +405,7 @@ const Fahrtenbuch = {
 
         return `
             <div class="card">
-                <div class="card-header"><div class="card-title">📅 Monatsübersicht</div></div>
+                <div class="card-header"><div class="card-title">Monatsübersicht</div></div>
                 <div style="display:flex;flex-direction:column;gap:8px;padding:0 16px 16px;">
                     ${Object.entries(monate).sort(([a], [b]) => b.localeCompare(a)).map(([key, data]) => {
                         const [year, month] = key.split('-');
@@ -644,7 +644,7 @@ const Fahrtenbuch = {
             tr:nth-child(even){background:#fafafa;}
             @media print{@page{size:A4 landscape;margin:10mm;}}
         </style></head><body>
-        <h1>🚗 Fahrtenbuch – ${label}</h1>
+        <h1>Fahrtenbuch – ${label}</h1>
         <div class="sub">
             Erstellt: ${new Date().toLocaleDateString('de-DE')} |
             §9 EStG Kilometerpauschale |

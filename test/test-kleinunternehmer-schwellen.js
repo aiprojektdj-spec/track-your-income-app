@@ -42,19 +42,12 @@ eq('Grenzen 2020 (Einführung 22k/50k)', getUstGrenzen(2020), { vj: 22000, lfd: 
 eq('Grenzen 2019 (Ur-Fassung 17.500)', getUstGrenzen(2019), { vj: 17500, lfd: 50000 });
 eq('Grenzen 2010 (Ur-Fassung)', getUstGrenzen(2010), { vj: 17500, lfd: 50000 });
 
-// ── Operator-Fix absichern: strikt "größer als" (>), nicht ">=" ────────────────────────
-ok('obere Grenze prüft strikt ">" (nicht ">=")',
-    /if\s*\(umsatz\s*>\s*GRENZE_LFD\)/.test(appSrc) && !/if\s*\(umsatz\s*>=\s*GRENZE_LFD\)/.test(appSrc));
-ok('Vorjahresgrenze prüft strikt ">" (nicht ">=")',
-    /if\s*\(umsatz\s*>\s*GRENZE_VJ\)/.test(appSrc) && !/if\s*\(umsatz\s*>=\s*GRENZE_VJ\)/.test(appSrc));
-
-// ── End-to-End-Klassifikation: nutzt die ECHTE getUstGrenzen() + die (quelltext-verifizierten)
-//    ">"-Vergleiche, um die drei geforderten Szenarien nachzubilden ─────────────────────
-function classify(umsatz, year) {
-    const { vj, lfd } = getUstGrenzen(year);
-    if (umsatz > lfd) return 'sofort';     // 100k/50k/50k-Grenze überschritten → sofortiger Wechsel
-    if (umsatz > vj)  return 'folgejahr';  // Vorjahresgrenze überschritten → Wechsel ab Folgejahr
-    return 'klein';                        // Kleinunternehmer bleibt bestehen
+// ── Klassifikation über den ECHTEN Rechenkern js/kleinunternehmer.js (seit Audit 2026-10-13,
+//    T05; vorher Quelltext-Regex auf die Vergleiche in js/app.js) — strikt ">" bleibt geprüft ──
+const Kleinunternehmer = require(path.join(__dirname, '..', 'js', 'kleinunternehmer.js'));
+function classify(umsatz, year, extra) {
+    return Kleinunternehmer.pruefe(Object.assign({ year, grenzen: getUstGrenzen(year),
+        umsaetze: [{ datum: year + '-06-01', betrag: umsatz }], vorjahresUmsatz: 0 }, extra || {})).status;
 }
 
 // Szenario 1: exakt 25.000,00 € Vorjahresumsatz (2026) → Grenze NICHT überschritten → bleibt Kleinunternehmer
@@ -68,6 +61,21 @@ eq('Vorjahresumsatz 25.000,01 € (2026) → Wechsel zur Regelbesteuerung', clas
 eq('Vorjahresumsatz 23.000 € im Jahr 2022 → historische 22k-Grenze überschritten', classify(23000, 2022), 'folgejahr');
 // Gegenprobe: dieselben 23.000 € wären 2026 noch unter der (höheren) aktuellen Grenze
 eq('Gegenprobe: dieselben 23.000 € wären 2026 noch Kleinunternehmer', classify(23000, 2026), 'klein');
+
+// ── T05: Gründungsjahr — die laufende Grenze ist 25.000 €, nicht 100.000 € ─────────────
+const TB = { taetigkeitsbeginn: '2026-03-01' };
+eq('Gründer 2026: exakt 25.000,00 € → Kleinunternehmer', classify(25000, 2026, TB), 'klein');
+eq('Gründer 2026: 25.001 € → sofort steuerpflichtig (nicht "dieses Jahr weiter steuerfrei")', classify(25001, 2026, TB), 'sofort');
+{
+    const r = Kleinunternehmer.pruefe({ year: 2026, grenzen: getUstGrenzen(2026), taetigkeitsbeginn: '2026-03-01',
+        umsaetze: [{ datum: '2026-05-02', betrag: 20000 }, { datum: '2026-09-15', betrag: 5000 }, { datum: '2026-10-01', betrag: 0.01 }, { datum: '2026-11-01', betrag: 300 }] });
+    eq('Gründer: der überschreitende Einzelumsatz bestimmt den Beginn', [r.status, r.ab], ['sofort', '2026-10-01']);
+}
+eq('Kein Gründer: 25.001 € → erst ab Folgejahr', classify(25001, 2026), 'folgejahr');
+eq('Kein Gründer: 100.000,01 € → sofort', classify(100000.01, 2026), 'sofort');
+eq('Vorjahr 25.000,01 € → ganzes Jahr nicht befreit', classify(100, 2026, { vorjahresUmsatz: 25000.01 }), 'vorjahr');
+eq('Vorjahr exakt 25.000 € → befreit', classify(100, 2026, { vorjahresUmsatz: 25000 }), 'klein');
+eq('Gründungsjahr ignoriert ein (nicht existierendes) Vorjahr', classify(100, 2026, Object.assign({ vorjahresUmsatz: 99999 }, TB)), 'klein');
 
 // ── Akademie: Achievement-Schwelle und -Text müssen konsistent sein (beide 25.000 €) ───
 const achMatch = akademieSrc.match(/\{\s*id:\s*'umsatz_25k'[\s\S]*?\}/);

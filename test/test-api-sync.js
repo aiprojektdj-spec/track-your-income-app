@@ -291,12 +291,13 @@ async function call(token, body) { const res = mkRes(); await handler({ method: 
     assert.ok(store.get('sync:owner1:__account'), 'fremder Snapshot unangetastet');
     pass++; console.log('✓ reset_all mit owner-Param → 403 readonly');
 
-    // Ohne Pro kein Reset (Owner-Aktion, kein Grantee-Read)
+    // Ohne Abo: Löschen der EIGENEN Cloud-Daten bleibt möglich (Audit 2026-10-13, S9) —
+    // vorher 403 pro_required. Fremde Daten bleiben unberührt.
     resetRate();
     r = await call('tok_stb', { action: 'reset_all' });
-    assert.strictEqual(r.code, 403);
-    assert.strictEqual(r.body.error, 'pro_required');
-    pass++; console.log('✓ reset_all ohne Pro → 403 pro_required');
+    assert.strictEqual(r.code, 200, 'eigene Daten ohne Abo löschbar');
+    assert.ok(store.get('sync:owner1:__account'), 'fremder Snapshot unangetastet');
+    pass++; console.log('✓ reset_all ohne Abo → 200, nur eigene Daten');
 
     // Ausgelagertes Ledger: im Supabase-Modus liefert api/blob-upload.js "sb:…"-Referenzen.
     // Bis 2026-10-07 nahm push nur https:// an — große Ledger liefen dann in 400 bad_payload.

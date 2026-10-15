@@ -10,12 +10,7 @@ var Kunden = (function() {
         var sum = 0;
         invoices.forEach(function(inv) {
             if (inv.kundeId === customerId && inv.typ === 'rechnung' && inv.status === 'bezahlt') {
-                var isKlein = inv.isKlein !== undefined ? inv.isKlein : (settings.ustMode === 'klein');
-                (inv.positionen || []).forEach(function(pos) {
-                    var netto = pos.menge * pos.einzelpreis;
-                    var mwst = isKlein ? 0 : (netto * pos.mwstSatz / 100);
-                    sum += netto + mwst;
-                });
+                sum += RechnungSummen.fuerRechnung(inv, settings).brutto;
             }
         });
         return sum;
@@ -153,14 +148,9 @@ var Kunden = (function() {
             html += '</tr></thead><tbody>';
             invoices.forEach(function(inv) {
                 var typLabel = inv.typ === 'rechnung' ? 'Rechnung' : inv.typ === 'angebot' ? 'Angebot' : 'Gutschrift';
-                var statusClass = inv.status === 'bezahlt' ? 'badge-success' : inv.status === 'ueberfaellig' ? 'badge-danger' : inv.status === 'storniert' ? 'badge-neutral' : 'badge-info';
+                var statusClass = inv.status === 'bezahlt' ? 'badge-success' : inv.status === 'ueberfaellig' ? 'badge-danger is-alert' : inv.status === 'storniert' ? 'badge-neutral' : 'badge-info';
                 var statusLabel = inv.status === 'bezahlt' ? 'Bezahlt' : inv.status === 'ueberfaellig' ? '\u00DCberf\u00E4llig' : inv.status === 'storniert' ? 'Storniert' : 'Offen';
-                var isKlein = inv.isKlein !== undefined ? inv.isKlein : (settings.ustMode === 'klein');
-                var brutto = 0;
-                (inv.positionen || []).forEach(function(pos) {
-                    var n = pos.menge * pos.einzelpreis;
-                    brutto += n + (isKlein ? 0 : n * pos.mwstSatz / 100);
-                });
+                var brutto = RechnungSummen.fuerRechnung(inv, settings).brutto;
                 html += '<tr>';
                 html += '<td>' + Utils.escapeHtml(inv.nummer || '') + '</td>';
                 html += '<td>' + typLabel + '</td>';

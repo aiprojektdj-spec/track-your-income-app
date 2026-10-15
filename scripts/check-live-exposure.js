@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Live-Check nach jedem Deploy:  node scripts/check-live-exposure.js [basis-url]
+// (ohne basis-url: getstackr.de und track-your-income-app.vercel.app nacheinander)
 //
 // Seiten-Check R2 (plan/seiten-check-40-2026-10-03.md). Prüft von außen, was nach einem Deploy
 // nie wieder kaputtgehen darf: interne Dateien liefern 404, Security-Header sind überall da,
@@ -12,9 +13,13 @@
 'use strict';
 const tls = require('tls');
 
-const BASE = (process.argv[2] || process.env.CHECK_BASE_URL || 'https://track-your-income-app.vercel.app').replace(/\/+$/, '');
+// Ohne Angabe beide Domains (Domain-Umzug 2026-10-10): getstackr.de und die alte Adresse, die
+// laut plan/domain-umzug-getstackr-2026-10-08.md nie abgeschaltet wird.
+const BASES = (process.argv[2] || process.env.CHECK_BASE_URL)
+    ? [process.argv[2] || process.env.CHECK_BASE_URL]
+    : ['https://getstackr.de', 'https://track-your-income-app.vercel.app'];
+let BASE = '';
 const DELAY = parseInt(process.env.CHECK_DELAY_MS || '300', 10);
-const OWN_ORIGIN = 'https://track-your-income-app.vercel.app';
 
 // Muss zu .vercelignore passen: je Eintrag dort mindestens ein Pfad, der live existieren würde.
 const LEAK_PATHS = [
@@ -65,6 +70,9 @@ async function checkHeaders() {
     for (const p of PAGES) {
         const res = await req(p, { method: 'GET' });
         const h = (n) => res.headers.get(n) || '';
+        // Domain-Umzug: auf der alten Adresse leiten Startseite und Rechtsseiten um (vercel.json).
+        // Die App-Seiten in PAGES muessen dort weiter mit 200 antworten — das prueft die Zeile darunter.
+        if (res.status === 307 && h('location').indexOf('https://getstackr.de/') === 0) { ok(p + ' → getstackr.de'); continue; }
         if (res.status !== 200) { bad(p + ': Status ' + res.status); continue; }
         const missing = [];
         if (!/max-age=\d{8,}/.test(h('strict-transport-security'))) missing.push('HSTS');
@@ -139,12 +147,15 @@ async function checkTransport() {
 }
 
 (async () => {
-    console.log('Live-Check gegen ' + BASE + '\n');
-    await checkLeaks();
-    await checkHeaders();
-    await checkApi();
-    await checkScripts();
-    await checkTransport();
+    for (const b of BASES) {
+        BASE = b.replace(/\/+$/, '');
+        console.log('\nLive-Check gegen ' + BASE + '\n');
+        await checkLeaks();
+        await checkHeaders();
+        await checkApi();
+        await checkScripts();
+        await checkTransport();
+    }
     console.log('\n' + pass + ' ok, ' + fail + ' rot, ' + unknown + ' unbestimmt');
     process.exit(fail ? 1 : 0);
 })().catch((e) => { console.error('✗ Abbruch:', e.message); process.exit(1); });

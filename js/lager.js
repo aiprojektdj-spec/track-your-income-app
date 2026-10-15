@@ -29,11 +29,11 @@ const Lager = {
     _layoutEditMode: false,
 
     ZONE_TYPES: {
-        regal:     { label: 'Regal',      icon: '🗄️' },
-        box:       { label: 'Box/Karton', icon: '📦' },
-        schrank:   { label: 'Schrank',    icon: '🗃️' },
-        boden:     { label: 'Boden',      icon: '📐' },
-        sonstiges: { label: 'Sonstiges',  icon: '📍' }
+        regal:     { label: 'Regal',      icon: 'ti-stack' },
+        box:       { label: 'Box/Karton', icon: 'ti-package' },
+        schrank:   { label: 'Schrank',    icon: 'ti-box' },
+        boden:     { label: 'Boden',      icon: 'ti-layout-grid' },
+        sonstiges: { label: 'Sonstiges',  icon: 'ti-map-pin' }
     },
     ZONE_COLORS: ['#10b981','#2563eb','#8b93f8','#d97706','#dc2626','#0891b2','#9333ea','#16a34a','#ea580c','#be185d'],
 
@@ -265,7 +265,7 @@ const Lager = {
         // Kompakte Artikel-Info-Zeilen
         const artikelInfo = selected.map(p =>
             `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
-                ${p.foto ? `<img src="${p.foto}" style="width:28px;height:28px;object-fit:cover;border-radius:4px;flex-shrink:0;">` : `<span style="font-size:18px;line-height:1;">📦</span>`}
+                ${p.foto ? `<img src="${p.foto}" style="width:28px;height:28px;object-fit:cover;border-radius:4px;flex-shrink:0;">` : `<i class="ti ti-package" aria-hidden="true" style="font-size:18px;color:var(--text-muted);"></i>`}
                 <div style="flex:1;min-width:0;">
                     <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${Utils.escapeHtml((p.marke||'') + ' ' + (p.artikeltyp||''))}</div>
                     <div style="font-size:10px;color:var(--text-muted);">${Utils.escapeHtml(p.artikelNr||'')}${p.groesse ? ' · Gr. '+Utils.escapeHtml(p.groesse) : ''}</div>
@@ -306,6 +306,12 @@ const Lager = {
                     <div id="vk_customPlattformWrap" style="display:none;">
                         <label class="form-label" style="font-size:11px;">Eigene Plattform</label>
                         <input type="text" class="form-input" id="vk_customPlattform" placeholder="Plattform …" style="padding:6px 10px;font-size:13px;">
+                    </div>
+
+                    <!-- Verkaufsland (nur Auswertung "Umsatz nach Land") -->
+                    <div>
+                        <label class="form-label" for="vk_land" style="font-size:11px;">Land des Käufers</label>
+                        ${Utils.landFieldHtml('vk', localStorage.getItem('lager_last_land') || '', false, 'padding:6px 10px;font-size:13px;')}
                     </div>
 
                     <!-- Verkaufspreis (groß) -->
@@ -376,7 +382,7 @@ const Lager = {
 
         const footer = `
             <button class="btn" data-action="close-modal">Abbrechen</button>
-            <button class="btn btn-primary" id="saveVerkauf" style="min-width:140px;">💰 Verkauf speichern</button>
+            <button class="btn btn-primary" id="saveVerkauf" style="min-width:140px;">Verkauf speichern</button>
         `;
 
         App.showModal(isMulti ? `Paketverkauf (${selected.length} Artikel)` : 'Artikel verkaufen', body, footer);
@@ -389,6 +395,15 @@ const Lager = {
         platSel.addEventListener('change', () => {
             document.getElementById('vk_customPlattformWrap').style.display =
                 platSel.value === 'Sonstiges' ? '' : 'none';
+        });
+
+        // Schnellverkauf: Cursor direkt im Preis, Enter speichert
+        const preisEl = document.getElementById('vk_preis');
+        preisEl.focus();
+        preisEl.addEventListener('keydown', e => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            document.getElementById('saveVerkauf').click();
         });
 
         // Save
@@ -407,10 +422,14 @@ const Lager = {
                 Store.addPlatform(plattform);
             }
             localStorage.setItem('lager_last_platform', plattform);
+            const { land, ausfuhrnachweis } = Utils.readLandField('vk');
+            localStorage.setItem('lager_last_land', land);
 
             const saleData = {
                 datum,
                 verkaufsplattform: plattform,
+                land,
+                ausfuhrnachweis,
                 verkaufspreis:     preis,
                 versandkostenKaeufer:   parseFloat(document.getElementById('vk_versandKaeufer').value) || 0,
                 plattformgebuehrProzent: parseFloat(document.getElementById('vk_gebuehr').value)      || 0,
@@ -419,6 +438,7 @@ const Lager = {
                 notizen:  document.getElementById('vk_notizen').value.trim()
             };
 
+            let saved;
             if (selected.length === 1) {
                 const p = selected[0];
                 saleData.purchaseId  = p.id;
@@ -426,15 +446,17 @@ const Lager = {
                 saleData.artikeltyp  = p.artikeltyp || '';
                 saleData.groesse     = p.groesse || '';
                 saleData.beschreibung = p.beschreibung || '';
-                Store.saveSale(saleData);
+                saved = Store.saveSale(saleData);
             } else {
                 const marken = [...new Set(selected.map(p => p.marke).filter(Boolean))];
                 saleData.purchaseIds = ids;
                 saleData.marke       = marken.join(', ');
                 saleData.artikeltyp  = `${selected.length} Artikel`;
                 saleData.beschreibung = `Paket: ${selected.map(p => [p.marke, p.artikeltyp, p.groesse].filter(Boolean).join(' ')).join(', ')}`;
-                Store.saveSaleMulti(saleData);
+                saved = Store.saveSaleMulti(saleData);
             }
+            // Free-Tier-Limit erreicht: kein Eintrag, keine id (requirePro zeigt den Hinweis)
+            if (!saved || !saved.id) return;
 
             App.closeModal();
             this._selected.clear();
@@ -549,7 +571,7 @@ const Lager = {
             b += `<button class="action-btn action-btn-accent" data-edit-sale="${saleId}" aria-label="Verkauf bearbeiten / stornieren" title="Verkauf bearbeiten / stornieren"><i class="ti ti-receipt"></i></button>`;
         }
         if (locked) {
-            b += `<span title="${Utils.escapeHtml(Store.lockReason(p) || 'Festgeschrieben')} — nicht mehr bearbeitbar" style="font-size:12px;opacity:.7;">🔒</span>`;
+            b += `<span title="${Utils.escapeHtml(Store.lockReason(p) || 'Festgeschrieben')} — nicht mehr bearbeitbar" style="font-size:12px;opacity:.7;"><i class="ti ti-lock" aria-hidden="true"></i></span>`;
             b += `<button class="action-btn action-btn-danger" data-storno-lager="${p.id}" aria-label="Stornieren" title="Stornieren"><i class="ti ti-ban"></i></button>`;
         } else {
             b += `<button class="action-btn" data-status-modal="${p.id}" aria-label="Status ändern" title="Status ändern"><i class="ti ti-bolt"></i></button>`;
@@ -564,7 +586,7 @@ const Lager = {
     // Kompakter Storno-Hinweis für stornierte Artikel (statt leerer Aktionszelle)
     _stornoHint(p) {
         const g = p.stornoGrund ? ' – ' + Utils.escapeHtml(p.stornoGrund) : '';
-        return `<span style="font-size:10px;color:var(--text-muted);" title="${Utils.escapeHtml(p.stornoGrund || 'Storniert')}">🚫 storniert${g}</span>`;
+        return `<span style="font-size:10px;color:var(--text-muted);" title="${Utils.escapeHtml(p.stornoGrund || 'Storniert')}">storniert${g}</span>`;
     },
 
     // Verkauf direkt am Artikel bearbeiten / stornieren
@@ -577,7 +599,7 @@ const Lager = {
             .map(p => `<option value="${Utils.escapeHtml(p)}" ${s.verkaufsplattform === p ? 'selected' : ''}>${Utils.escapeHtml(p)}</option>`).join('');
         const dis = locked ? 'disabled' : '';
         const body = `
-            ${locked ? `<div style="background:rgba(245,158,11,.12);border:1px solid var(--warning,#f59e0b);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;">🔒 ${Utils.escapeHtml(Store.lockReason(s) || 'Festgeschrieben')} — nur Storno möglich.</div>` : ''}
+            ${locked ? `<div style="background:rgba(245,158,11,.12);border:1px solid var(--warning,#f59e0b);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:12px;">${Utils.escapeHtml(Store.lockReason(s) || 'Festgeschrieben')} — nur Storno möglich.</div>` : ''}
             <div class="form-row">
                 <div class="form-group"><label class="form-label">Datum</label><input type="date" class="form-input" id="se_datum" value="${s.datum || ''}" ${dis}></div>
                 <div class="form-group"><label class="form-label">Plattform</label><select class="form-select" id="se_plattform" ${dis}>${platOpts}<option value="Sonstiges">Sonstiges …</option></select></div>
@@ -590,6 +612,7 @@ const Lager = {
                 <div class="form-group"><label class="form-label">Gebühr (%)</label><input type="number" step="0.01" class="form-input" id="se_gebuehr" value="${s.plattformgebuehrProzent || 0}" ${dis}></div>
                 <div class="form-group"><label class="form-label">Versand Verkäufer (€)</label><input type="number" step="0.01" class="form-input" id="se_versandV" value="${s.versandkostenVerkaufer || 0}" ${dis}></div>
             </div>
+            <div class="form-group"><label class="form-label" for="se_land">Land des Käufers</label>${Utils.landFieldHtml('se', s.land, s.ausfuhrnachweis, '', locked)}</div>
             <div class="form-group"><label class="form-label">Käufer</label><input type="text" class="form-input" id="se_kaeufer" value="${Utils.escapeHtml(s.kaeufer || '')}" ${dis}></div>
             <div class="form-group"><label class="form-label">Notizen</label><textarea class="form-textarea" id="se_notizen" ${dis}>${Utils.escapeHtml(s.notizen || '')}</textarea></div>
         `;
@@ -624,6 +647,7 @@ const Lager = {
                 versandkostenKaeufer: parseFloat(document.getElementById('se_versandK').value) || 0,
                 plattformgebuehrProzent: parseFloat(document.getElementById('se_gebuehr').value) || 0,
                 versandkostenVerkaufer: parseFloat(document.getElementById('se_versandV').value) || 0,
+                ...Utils.readLandField('se'),
                 kaeufer: document.getElementById('se_kaeufer').value.trim(),
                 notizen: document.getElementById('se_notizen').value.trim()
             });
@@ -906,7 +930,7 @@ const Lager = {
                             <option value="100"   ${this._pageSize===100?'selected':''}>100 / Seite</option>
                             <option value="250"   ${this._pageSize===250?'selected':''}>250 / Seite</option>
                             <option value="500"   ${this._pageSize===500?'selected':''}>500 / Seite</option>
-                            <option value="99999" ${this._pageSize>=99999?'selected':''}>🔍 Alle anzeigen</option>
+                            <option value="99999" ${this._pageSize>=99999?'selected':''}>Alle anzeigen</option>
                         </select>
                     </div>
                 </div>
@@ -986,7 +1010,7 @@ const Lager = {
             `;
         } catch(err) {
             console.error('Lager.render error:', err);
-            return `<div class="card" style="padding:20px;color:var(--danger);">⚠ Fehler beim Laden des Lagers: ${Utils.escapeHtml(err.message)}</div>`;
+            return `<div class="card" style="padding:20px;color:var(--danger);">Fehler beim Laden des Lagers: ${Utils.escapeHtml(err.message)}</div>`;
         }
     },
 
@@ -1008,9 +1032,9 @@ const Lager = {
                     : '';
 
                 const invNrs  = invoiceMap[p.id];
-                const invBadge = invNrs ? `<span class="badge badge-success" style="font-size:9px;padding:1px 5px;" title="Rechnung(en): ${Utils.escapeHtml(invNrs.join(', '))}">🧾${invNrs.length}</span>` : '';
+                const invBadge = invNrs ? `<span class="badge badge-success" style="font-size:9px;padding:1px 5px;" title="Rechnung(en): ${Utils.escapeHtml(invNrs.join(', '))}"><i class="ti ti-receipt" aria-hidden="true"></i>${invNrs.length}</span>` : '';
                 const ebCount  = ebMap[p.id];
-                const ebBadge  = ebCount ? `<span class="badge" style="font-size:9px;padding:1px 5px;background:rgba(124,58,237,0.12);color:var(--accent);" title="${ebCount} Eigenbeleg(e)">📋${ebCount}</span>` : '';
+                const ebBadge  = ebCount ? `<span class="badge" style="font-size:9px;padding:1px 5px;background:rgba(124,58,237,0.12);color:var(--accent);" title="${ebCount} Eigenbeleg(e)"><i class="ti ti-file-text" aria-hidden="true"></i>${ebCount}</span>` : '';
 
                 const lo = p.lagerort;
                 const lagerortStr = lo && (lo.bereich || lo.regal || lo.fach)
@@ -1019,26 +1043,26 @@ const Lager = {
 
                 // Zone badge / quick-assign button
                 const assignedZone = (lo && lo.bereich) ? zoneByBereich[lo.bereich] : null;
-                const ZICONS = { regal:'🗄️', box:'📦', schrank:'🗃️', boden:'📐', sonstiges:'📍' };
+                const ZICONS = { regal:'ti-stack', box:'ti-package', schrank:'ti-box', boden:'ti-layout-grid', sonstiges:'ti-map-pin' };
                 let zoneBadge = '';
                 if (!p.storniert && hasZones) {
                     if (assignedZone) {
-                        const zIcon = ZICONS[assignedZone.type] || '📍';
+                        const zIcon = ZICONS[assignedZone.type] || 'ti-map-pin';
                         zoneBadge = `<div style="margin-top:2px;">
                             <button class="btn btn-small" data-zone-pick="${p.id}" title="Zone wechseln"
                                 style="font-size:9px;padding:1px 5px;border-color:${assignedZone.color};color:${assignedZone.color};background:${assignedZone.color}15;white-space:nowrap;max-width:90px;overflow:hidden;text-overflow:ellipsis;">
-                                ${zIcon} ${Utils.escapeHtml(assignedZone.name)}
+                                <i class="ti ${zIcon}" aria-hidden="true"></i> ${Utils.escapeHtml(assignedZone.name)}
                             </button></div>`;
                     } else if (p.status === 'verfuegbar') {
                         zoneBadge = `<div style="margin-top:2px;">
                             <button class="btn btn-small" data-zone-pick="${p.id}" title="Zone zuordnen"
-                                style="font-size:9px;padding:1px 5px;opacity:.55;white-space:nowrap;">📍 Zone</button></div>`;
+                                style="font-size:9px;padding:1px 5px;opacity:.55;white-space:nowrap;">Zone</button></div>`;
                     }
                 }
 
                 const photoCell = p.foto
                     ? `<img src="${p.foto}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;cursor:pointer;vertical-align:middle;" data-photo-preview="${p.id}" title="Foto">`
-                    : `<button class="btn btn-small" style="font-size:11px;padding:2px 5px;opacity:.6;" data-upload-photo="${p.id}" title="Foto hinzufügen">📷</button>`;
+                    : `<button class="btn btn-small" style="font-size:11px;padding:2px 5px;opacity:.6;" data-upload-photo="${p.id}" title="Foto hinzufügen" aria-label="Foto hinzufügen"><i class="ti ti-camera" aria-hidden="true"></i></button>`;
 
                 const isSelected = this._selected.has(p.id);
                 const titleParts = [p.marke, p.artikeltyp].filter(Boolean).join(' ');
@@ -1150,7 +1174,7 @@ const Lager = {
                 <div style="position:relative;background:var(--bg-secondary);">
                     ${p.foto
                         ? `<img src="${p.foto}" style="width:100%;height:130px;object-fit:cover;display:block;">`
-                        : `<div style="width:100%;height:70px;display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--text-muted);">📦</div>`
+                        : `<div style="width:100%;height:70px;display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--text-muted);"><i class="ti ti-package" aria-hidden="true"></i></div>`
                     }
                     ${p.storniert ? '' : `<div style="position:absolute;top:6px;left:6px;">
                         <input type="checkbox" class="lager-select-cb" data-id="${p.id}" ${isSelected ? 'checked' : ''} style="width:17px;height:17px;cursor:pointer;accent-color:var(--accent);">
@@ -1164,7 +1188,7 @@ const Lager = {
                     ${p.beschreibung ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${Utils.escapeHtml(p.beschreibung)}</div>` : ''}
                     ${p.tags && p.tags.length ? `<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">${p.tags.map(t=>`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:var(--accent-glow);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);">${Utils.escapeHtml(t)}</span>`).join('')}</div>` : ''}
                     ${p.groesse ? `<div style="font-size:11px;color:var(--text-muted);">Gr. ${Utils.escapeHtml(p.groesse)}</div>` : ''}
-                    ${lagerortStr ? `<div style="font-size:10px;color:var(--text-muted);margin-top:3px;">📍 ${Utils.escapeHtml(lagerortStr)}</div>` : ''}
+                    ${lagerortStr ? `<div style="font-size:10px;color:var(--text-muted);margin-top:3px;">${Utils.escapeHtml(lagerortStr)}</div>` : ''}
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:9px;">
                         <span style="font-weight:700;font-size:15px;">${Utils.formatCurrency(p.einkaufspreis)}</span>
                         <span style="font-size:10px;color:var(--text-muted);">${Utils.formatDate(p.datum)}</span>
@@ -1194,7 +1218,7 @@ const Lager = {
                 ${Object.entries(this.STATUS_CONFIG).map(([k,v]) => `
                     <button class="btn" style="justify-content:flex-start;gap:8px;padding:10px 14px;border:1px solid ${v.color};${p.status===k ? `background:${v.bg};color:${v.color};font-weight:600;` : ''}"
                         data-set-status="${k}" data-status-id="${id}">
-                        <span style="font-size:15px;">${v.icon}</span> ${v.label}
+                        ${v.label}
                     </button>
                 `).join('')}
             </div>
@@ -1258,7 +1282,6 @@ const Lager = {
         <div style="display:flex;flex-direction:column;gap:10px;">
             <button class="btn btn-primary" style="padding:12px 20px;font-size:14px;justify-content:flex-start;gap:12px;"
                     data-action="lg-export-xlsx">
-                <span style="font-size:20px;">📊</span>
                 <div style="text-align:left;">
                     <div style="font-weight:700;">Excel exportieren (.xlsx)</div>
                     <div style="font-size:12px;font-weight:400;opacity:.8;">Öffnet direkt in Excel / LibreOffice</div>
@@ -1266,14 +1289,13 @@ const Lager = {
             </button>
             <button class="btn btn-outline" style="padding:12px 20px;font-size:14px;justify-content:flex-start;gap:12px;"
                     data-action="lg-export-csv">
-                <span style="font-size:20px;">📄</span>
                 <div style="text-align:left;">
                     <div style="font-weight:700;">CSV exportieren (.csv)</div>
                     <div style="font-size:12px;font-weight:400;opacity:.8;">Universalformat, Semikolon-getrennt, UTF-8</div>
                 </div>
             </button>
         </div>`;
-        App.showModal('📥 Lager exportieren', body, '');
+        App.showModal('Lager exportieren', body, '');
     },
 
     exportXLSX() {
@@ -1312,7 +1334,7 @@ const Lager = {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Lager');
         XLSX.writeFile(wb, `Lager_Export_${new Date().toLocaleDateString('sv-SE')}.xlsx`);
-        Utils.showToast('📥 Excel exportiert', 'success');
+        Utils.showToast('Excel exportiert', 'success');
     },
 
     exportCSV() {
@@ -1344,7 +1366,7 @@ const Lager = {
         a.download = `Lager_Export_${new Date().toLocaleDateString('sv-SE')}.csv`;
         a.click();
         URL.revokeObjectURL(url);
-        Utils.showToast('📥 CSV exportiert', 'success');
+        Utils.showToast('CSV exportiert', 'success');
     },
 
     // ── Lager-Layout (Raumlayout-Editor) ────────────────────────────────────
@@ -1373,8 +1395,8 @@ const Lager = {
 
             <!-- Tab Switcher -->
             <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border);">
-                <button id="tabReal" class="btn" style="border-radius:8px 8px 0 0;border-bottom:2px solid transparent;margin-bottom:-2px;background:transparent;color:var(--text-secondary);padding:8px 20px;font-size:13px;">📦 Lager</button>
-                <button id="tabVirtual" class="btn" style="border-radius:8px 8px 0 0;border-bottom:2px solid var(--accent);margin-bottom:-2px;background:var(--bg-card);font-weight:700;color:var(--accent);padding:8px 20px;font-size:13px;">🗺️ Lager-Layout</button>
+                <button id="tabReal" class="btn" style="border-radius:8px 8px 0 0;border-bottom:2px solid transparent;margin-bottom:-2px;background:transparent;color:var(--text-secondary);padding:8px 20px;font-size:13px;">Lager</button>
+                <button id="tabVirtual" class="btn" style="border-radius:8px 8px 0 0;border-bottom:2px solid var(--accent);margin-bottom:-2px;background:var(--bg-card);font-weight:700;color:var(--accent);padding:8px 20px;font-size:13px;">Lager-Layout</button>
             </div>
 
             <!-- Controls -->
@@ -1382,33 +1404,31 @@ const Lager = {
                 <div style="font-size:13px;color:var(--text-secondary);">
                     <strong style="color:var(--text-primary);">${layout.zones.length}</strong> Zonen ·
                     Gitter: ${layout.gridCols} × ${layout.gridRows}
-                    ${unassignedCount > 0 ? `· <span style="color:var(--warning);">⚠️ ${unassignedCount} nicht zugeordnet</span>` : (layout.zones.length > 0 ? ' · <span style="color:var(--success);">✓ alles zugeordnet</span>' : '')}
+                    ${unassignedCount > 0 ? `· <span style="color:var(--warning);">${unassignedCount} nicht zugeordnet</span>` : (layout.zones.length > 0 ? ' · <span style="color:var(--success);">alles zugeordnet</span>' : '')}
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     ${this._layoutEditMode ? `
-                        <button class="btn btn-small" id="layoutConfigGrid">⚙️ Gitter</button>
+                        <button class="btn btn-small" id="layoutConfigGrid">Gitter</button>
                         <button class="btn btn-small btn-primary" id="layoutAddZone">+ Zone hinzufügen</button>
-                        <button class="btn btn-small btn-success" id="layoutEditToggle">✓ Fertig</button>
+                        <button class="btn btn-small btn-success" id="layoutEditToggle">Fertig</button>
                     ` : `
-                        <button class="btn btn-small" id="layoutEditToggle">✏️ Layout bearbeiten</button>
+                        <button class="btn btn-small" id="layoutEditToggle">Layout bearbeiten</button>
                     `}
                 </div>
             </div>
 
             ${layout.zones.length === 0 && !this._layoutEditMode ? `
                 <div style="text-align:center;padding:80px 20px;background:var(--bg-secondary);border-radius:12px;border:2px dashed var(--border);">
-                    <div style="font-size:56px;margin-bottom:14px;">🗺️</div>
                     <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Noch kein Lager-Layout definiert</div>
                     <div style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;max-width:400px;margin-left:auto;margin-right:auto;">
                         Baue deinen echten Lagerraum nach — füge Regale, Boxen und Schränke als Zonen hinzu. Artikel ordnen sich automatisch zu.
                     </div>
-                    <button class="btn btn-primary" id="layoutEditStart" style="padding:10px 24px;">✏️ Layout jetzt aufbauen</button>
+                    <button class="btn btn-primary" id="layoutEditStart" style="padding:10px 24px;">Layout jetzt aufbauen</button>
                 </div>
             ` : this._renderLayoutGrid(layout, zoneStats)}
 
             ${unassignedCount > 0 && layout.zones.length > 0 ? `
                 <div style="margin-top:14px;padding:10px 16px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;font-size:13px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                    <span style="font-size:18px;">⚠️</span>
                     <div style="flex:1;"><strong>${unassignedCount} verfügbare Artikel</strong> sind keiner Zone zugeordnet.
                     <span style="color:var(--text-muted);">Bearbeite den Artikel → Lagerort → Bereich.</span></div>
                     <button class="btn btn-small btn-warning" id="showUnassigned">Anzeigen</button>
@@ -1416,7 +1436,7 @@ const Lager = {
             ` : ''}
 
             <div style="margin-top:14px;padding:10px 14px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.15);border-radius:8px;font-size:12px;color:var(--text-secondary);">
-                💡 <strong>Tipp:</strong> Im Lager-Tab siehst du bei jedem Artikel einen <em>📍 Zone</em>-Button — damit kannst du Artikel direkt einer Zone zuordnen. Alternativ: Klicke eine Zone → "Artikel zuordnen".
+                <strong>Tipp:</strong> Im Lager-Tab siehst du bei jedem Artikel einen <em>Zone</em>-Button — damit kannst du Artikel direkt einer Zone zuordnen. Alternativ: Klicke eine Zone → "Artikel zuordnen".
             </div>
         `;
     },
@@ -1434,7 +1454,7 @@ const Lager = {
             }
         });
 
-        const ICONS = { regal:'🗄️', box:'📦', schrank:'🗃️', boden:'📐', sonstiges:'📍' };
+        const ICONS = { regal:'ti-stack', box:'ti-package', schrank:'ti-box', boden:'ti-layout-grid', sonstiges:'ti-map-pin' };
 
         // Darken a hex color for the 3D depth side panel
         const hexDarken = (hex, amt = 50) => {
@@ -1472,7 +1492,7 @@ const Lager = {
         // Render zones with 3D depth effect
         const zonesHTML = zones.map(z => {
             const stats       = zoneStats[z.id] || { count: 0, value: 0 };
-            const icon        = ICONS[z.type] || '📍';
+            const icon        = ICONS[z.type] || 'ti-map-pin';
             const safeCol     = Math.max(1, Math.min(z.col     || 1, gridCols));
             const safeRow     = Math.max(1, Math.min(z.row     || 1, gridRows));
             const safeColSpan = Math.max(1, Math.min(z.colSpan || 1, gridCols - safeCol + 1));
@@ -1485,7 +1505,7 @@ const Lager = {
                 ? `data-zone-edit="${z.id}"`
                 : `data-zone-click="${z.id}"`;
             const editBadge = this._layoutEditMode
-                ? `<div style="font-size:9px;color:rgba(255,255,255,0.45);margin-top:3px;letter-spacing:.5px;">✏️ Klicken zum Bearbeiten</div>`
+                ? `<div style="font-size:9px;color:rgba(255,255,255,0.45);margin-top:3px;letter-spacing:.5px;">Klicken zum Bearbeiten</div>`
                 : '';
 
             return `
@@ -1515,7 +1535,7 @@ const Lager = {
                 ">
                     <!-- Header: icon + name -->
                     <div style="display:flex;align-items:center;gap:5px;min-width:0;">
-                        <span style="font-size:16px;line-height:1;flex-shrink:0;">${icon}</span>
+                        <i class="ti ${icon}" aria-hidden="true" style="font-size:16px;line-height:1;flex-shrink:0;"></i>
                         <span style="font-weight:700;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.6);">${Utils.escapeHtml(z.name)}</span>
                     </div>
                     <!-- Type decoration -->
@@ -1524,7 +1544,7 @@ const Lager = {
                     <div style="margin-top:2px;">
                         ${z.bereich
                             ? `<div style="font-size:9px;color:rgba(255,255,255,0.55);letter-spacing:.5px;">BEREICH <strong style="color:${z.color};font-size:10px;">${Utils.escapeHtml(z.bereich)}</strong></div>`
-                            : `<div style="font-size:9px;color:#f59e0b;">⚠ kein Bereich</div>`}
+                            : `<div style="font-size:9px;color:#f59e0b;">kein Bereich</div>`}
                         <div style="font-size:12px;font-weight:700;color:${z.color};line-height:1.2;margin-top:1px;">${stats.count} Artikel${stats.value > 0 ? `<span style="font-size:9px;font-weight:400;color:rgba(255,255,255,0.45);margin-left:4px;">${Utils.formatCurrency(stats.value)}</span>` : ''}</div>
                         ${editBadge}
                     </div>
@@ -1604,7 +1624,7 @@ const Lager = {
         ).join('');
 
         const typeOpts = Object.entries(this.ZONE_TYPES)
-            .map(([k,v]) => `<option value="${k}" ${z.type===k?'selected':''}>${v.icon} ${v.label}</option>`).join('');
+            .map(([k,v]) => `<option value="${k}" ${z.type===k?'selected':''}>${v.label}</option>`).join('');
 
         const body = `
             <div class="form-row">
@@ -1641,7 +1661,7 @@ const Lager = {
         `;
 
         const footer = `
-            ${isEdit ? `<button class="btn btn-danger" id="zmDelete" style="margin-right:auto;">🗑 Löschen</button>` : ''}
+            ${isEdit ? `<button class="btn btn-danger" id="zmDelete" style="margin-right:auto;">Löschen</button>` : ''}
             <button class="btn" data-action="close-modal">Abbrechen</button>
             <button class="btn btn-primary" id="zmSave">${isEdit ? 'Speichern' : '+ Hinzufügen'}</button>
         `;
@@ -1694,15 +1714,14 @@ const Lager = {
         const layout = this._getLayout();
         const zone   = layout.zones.find(z => z.id === zoneId);
         if (!zone) return;
-        const icon = (this.ZONE_TYPES[zone.type] || { icon: '📍' }).icon;
+        const icon = (this.ZONE_TYPES[zone.type] || { icon: 'ti-map-pin' }).icon;
 
         if (!zone.bereich) {
-            App.showModal(`${icon} ${Utils.escapeHtml(zone.name)}`,
+            App.showModal(Utils.escapeHtml(zone.name),
                 `<div style="text-align:center;padding:30px;color:var(--text-secondary);">
-                    <div style="font-size:36px;margin-bottom:10px;">⚙️</div>
                     <div>Kein Bereich-Code gesetzt — bearbeite die Zone um Artikel zuzuordnen.</div>
                 </div>`,
-                `<button class="btn btn-primary" data-action="lg-zone-edit" data-args='["${zone.id}"]'>✏️ Zone bearbeiten</button>
+                `<button class="btn btn-primary" data-action="lg-zone-edit" data-args='["${zone.id}"]'>Zone bearbeiten</button>
                  <button class="btn" data-action="close-modal">Schließen</button>`
             );
             return;
@@ -1737,9 +1756,9 @@ const Lager = {
                 </table>
             </div>`;
 
-        App.showModal(`${icon} ${Utils.escapeHtml(zone.name)}`, body,
-            `<button class="btn" id="zoneEditBtn" style="margin-right:auto;">✏️ Zone bearbeiten</button>
-             <button class="btn btn-primary" id="zoneAssignBtn">📦 Artikel zuordnen</button>
+        App.showModal(Utils.escapeHtml(zone.name), body,
+            `<button class="btn" id="zoneEditBtn" style="margin-right:auto;">Zone bearbeiten</button>
+             <button class="btn btn-primary" id="zoneAssignBtn">Artikel zuordnen</button>
              <button class="btn" data-action="close-modal">Schließen</button>`
         );
 
@@ -1764,13 +1783,12 @@ const Lager = {
             !p.storniert && p.status === 'verfuegbar' &&
             (!p.lagerort || !p.lagerort.bereich || !allZoneIds.has(p.lagerort.bereich))
         );
-        const ICONS = { regal:'🗄️', box:'📦', schrank:'🗃️', boden:'📐', sonstiges:'📍' };
-        const icon  = ICONS[zone.type] || '📍';
+        const ICONS = { regal:'ti-stack', box:'ti-package', schrank:'ti-box', boden:'ti-layout-grid', sonstiges:'ti-map-pin' };
+        const icon  = ICONS[zone.type] || 'ti-map-pin';
 
         if (unassigned.length === 0) {
-            App.showModal(`${icon} ${Utils.escapeHtml(zone.name)} — Artikel zuordnen`,
+            App.showModal(`${Utils.escapeHtml(zone.name)} — Artikel zuordnen`,
                 `<div style="text-align:center;padding:30px;color:var(--text-secondary);">
-                    <div style="font-size:32px;margin-bottom:10px;">✅</div>
                     <div>Alle verfügbaren Artikel sind bereits einer Zone zugeordnet.</div>
                 </div>`,
                 `<button class="btn" data-action="close-modal">Schließen</button>`
@@ -1803,9 +1821,9 @@ const Lager = {
                 </table>
             </div>`;
 
-        App.showModal(`${icon} Artikel zuordnen → ${Utils.escapeHtml(zone.name)}`, body,
+        App.showModal(`Artikel zuordnen → ${Utils.escapeHtml(zone.name)}`, body,
             `<button class="btn" data-action="close-modal">Abbrechen</button>
-             <button class="btn btn-primary" id="confirmZoneAssign">✓ Zuordnen</button>`
+             <button class="btn btn-primary" id="confirmZoneAssign">Zuordnen</button>`
         );
 
         const allCb = document.getElementById('selectAllAssign');
@@ -1837,9 +1855,8 @@ const Lager = {
         if (!purchase) return;
         const layout = this._getLayout();
         if (layout.zones.length === 0) {
-            App.showModal('📍 Zone zuordnen',
+            App.showModal('Zone zuordnen',
                 `<div style="text-align:center;padding:30px;color:var(--text-secondary);">
-                    <div style="font-size:36px;margin-bottom:10px;">🗺️</div>
                     <div>Noch keine Zonen definiert. Erstelle zuerst ein Lager-Layout.</div>
                 </div>`,
                 `<button class="btn btn-primary" data-action="lg-goto-virtual">Zum Layout</button>
@@ -1848,12 +1865,12 @@ const Lager = {
             return;
         }
 
-        const ICONS = { regal:'🗄️', box:'📦', schrank:'🗃️', boden:'📐', sonstiges:'📍' };
+        const ICONS = { regal:'ti-stack', box:'ti-package', schrank:'ti-box', boden:'ti-layout-grid', sonstiges:'ti-map-pin' };
         const curBereich = purchase.lagerort && purchase.lagerort.bereich;
         const title = [purchase.marke, purchase.artikeltyp].filter(Boolean).join(' ') || 'Artikel';
 
         const zoneCards = layout.zones.map(z => {
-            const icon    = ICONS[z.type] || '📍';
+            const icon    = ICONS[z.type] || 'ti-map-pin';
             const isActive = z.bereich && z.bereich === curBereich;
             return `
             <div class="lg-pickzone" data-pick-zone="${Utils.escapeHtml(z.bereich||'')}" data-pick-zone-id="${Utils.escapeHtml(z.id)}" style="
@@ -1864,10 +1881,10 @@ const Lager = {
                 display:flex;align-items:center;gap:10px;
                 transition:border-color .1s,background .1s;
             ">
-                <span style="font-size:22px;">${icon}</span>
+                <i class="ti ${icon}" aria-hidden="true" style="font-size:22px;"></i>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:700;font-size:13px;color:var(--text-primary);">${Utils.escapeHtml(z.name)}</div>
-                    ${z.bereich ? `<div style="font-size:11px;color:var(--text-muted);">Bereich: <strong style="color:${z.color};">${Utils.escapeHtml(z.bereich)}</strong></div>` : `<div style="font-size:11px;color:var(--warning);">⚠ kein Bereich-Code</div>`}
+                    ${z.bereich ? `<div style="font-size:11px;color:var(--text-muted);">Bereich: <strong style="color:${z.color};">${Utils.escapeHtml(z.bereich)}</strong></div>` : `<div style="font-size:11px;color:var(--warning);">kein Bereich-Code</div>`}
                 </div>
                 ${isActive ? `<span style="color:${z.color};font-size:18px;">✓</span>` : ''}
             </div>`;
@@ -1890,7 +1907,7 @@ const Lager = {
                 </div>` : ''}
             </div>`;
 
-        App.showModal(`📍 Zone zuordnen`, body,
+        App.showModal(`Zone zuordnen`, body,
             `<button class="btn" data-action="close-modal">Abbrechen</button>`
         );
 
@@ -1990,7 +2007,7 @@ const Lager = {
                             <div style="text-align:center;font-size:22px;font-weight:700;margin-top:4px;" id="lgRowsVal">${layout.gridRows}</div>
                         </div>
                     </div>`;
-                App.showModal('⚙️ Gitter konfigurieren', body, `
+                App.showModal('Gitter konfigurieren', body, `
                     <button class="btn" data-action="close-modal">Abbrechen</button>
                     <button class="btn btn-primary" id="saveGridCfg">Übernehmen</button>`);
                 document.getElementById('saveGridCfg').addEventListener('click', () => {
@@ -2038,11 +2055,11 @@ const Lager = {
                     <td style="font-size:12px;padding:5px 8px;">${Utils.escapeHtml(p.groesse||'—')}</td>
                     <td style="font-size:12px;padding:5px 8px;text-align:right;">${Utils.formatCurrency(p.einkaufspreis)}</td>
                 </tr>`).join('');
-                App.showModal('⚠️ Nicht zugeordnete Artikel', `
+                App.showModal('Nicht zugeordnete Artikel', `
                     <div style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">${unassigned.length} verfügbare Artikel ohne Zone</div>
                     <div class="table-container" style="border:none;">
                         <table><thead><tr><th>Art.-Nr.</th><th>Artikel</th><th>Größe</th><th style="text-align:right">EK</th></tr></thead>
-                        <tbody>${rows || '<tr><td colspan="4" class="table-empty">Alle zugeordnet ✅</td></tr>'}</tbody></table>
+                        <tbody>${rows || '<tr><td colspan="4" class="table-empty">Alle zugeordnet</td></tr>'}</tbody></table>
                     </div>`,
                     '<button class="btn" data-action="close-modal">Schließen</button>'
                 );
@@ -2253,7 +2270,7 @@ const Lager = {
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                         ${Object.entries(this.STATUS_CONFIG).map(([k,v]) => `
                             <button class="btn" style="justify-content:flex-start;gap:8px;padding:10px 14px;border:1px solid ${v.color};" data-bulk-set-status="${k}">
-                                <span style="font-size:15px;">${v.icon}</span> ${v.label}
+                                ${v.label}
                             </button>
                         `).join('')}
                     </div>
@@ -2304,8 +2321,8 @@ const Lager = {
                             <img src="${p.foto}" style="max-width:100%;max-height:60vh;border-radius:8px;object-fit:contain;">
                         </div>
                         <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-                            <button class="btn btn-small" id="changePhoto_${id}">📷 Foto ändern</button>
-                            <button class="btn btn-small btn-danger" id="deletePhoto_${id}">🗑 Foto löschen</button>
+                            <button class="btn btn-small" id="changePhoto_${id}">Foto ändern</button>
+                            <button class="btn btn-small btn-danger" id="deletePhoto_${id}">Foto löschen</button>
                         </div>
                     `;
                     App.showModal(Utils.escapeHtml(p.marke || 'Foto'), body, '<button class="btn" data-action="close-modal">Schließen</button>');
@@ -2430,7 +2447,7 @@ const Lager = {
                     const lo = p.lagerort || {};
 
                     const statusOptions = Object.entries(this.STATUS_CONFIG).map(([k, v]) =>
-                        `<option value="${k}" ${p.status === k ? 'selected' : ''}>${v.icon} ${v.label}</option>`
+                        `<option value="${k}" ${p.status === k ? 'selected' : ''}>${v.label}</option>`
                     ).join('');
 
                     const body = `
@@ -2455,10 +2472,10 @@ const Lager = {
                             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                                 ${p.foto
                                     ? `<img id="lagerPhotoPreview_${id}" src="${p.foto}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;">`
-                                    : `<div style="width:64px;height:64px;background:var(--bg-secondary);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:26px;">📦</div>`
+                                    : `<div style="width:64px;height:64px;background:var(--bg-secondary);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:26px;color:var(--text-muted);"><i class="ti ti-package" aria-hidden="true"></i></div>`
                                 }
-                                <button class="btn btn-small" id="lagerPhotoUploadBtn_${id}" type="button">📷 ${p.foto ? 'Ändern' : 'Hinzufügen'}</button>
-                                ${p.foto ? `<button class="btn btn-small btn-danger" id="lagerPhotoDelBtn_${id}" type="button">🗑 Löschen</button>` : ''}
+                                <button class="btn btn-small" id="lagerPhotoUploadBtn_${id}" type="button">${p.foto ? 'Ändern' : 'Hinzufügen'}</button>
+                                ${p.foto ? `<button class="btn btn-small btn-danger" id="lagerPhotoDelBtn_${id}" type="button">Löschen</button>` : ''}
                             </div>
                         </div>
                         <!-- Lagerort -->
@@ -2553,7 +2570,7 @@ const Lager = {
                         <div class="form-row">
                             <div class="form-group">
                                 <label class="form-label">Einkaufspreis (Brutto)
-                                    ${p.einkaufspreis_netto != null ? `<span style="font-weight:400;font-size:11px;color:var(--text-muted);margin-left:6px;" title="Netto ${Utils.formatCurrency(p.einkaufspreis_netto)} · Versandanteil ${Utils.formatCurrency(p.versandanteil||0)} · MwSt ${p.mwst_satz||0}%">ℹ Netto: ${Utils.formatCurrency(p.einkaufspreis_netto)}</span>` : ''}
+                                    ${p.einkaufspreis_netto != null ? `<span style="font-weight:400;font-size:11px;color:var(--text-muted);margin-left:6px;" title="Netto ${Utils.formatCurrency(p.einkaufspreis_netto)} · Versandanteil ${Utils.formatCurrency(p.versandanteil||0)} · MwSt ${p.mwst_satz||0}%">Netto: ${Utils.formatCurrency(p.einkaufspreis_netto)}</span>` : ''}
                                 </label>
                                 <input type="number" step="0.01" class="form-input" id="le_preis" value="${p.einkaufspreis || 0}">
                             </div>
@@ -2624,7 +2641,7 @@ const Lager = {
                         if (previewImg) previewImg.remove();
                         delPhotoBtn.remove();
                         const changeBtn2 = document.getElementById(`lagerPhotoUploadBtn_${id}`);
-                        if (changeBtn2) changeBtn2.textContent = '📷 Hinzufügen';
+                        if (changeBtn2) changeBtn2.textContent = 'Hinzufügen';
                     });
 
                     // Status-Dropdown → Badge live aktualisieren

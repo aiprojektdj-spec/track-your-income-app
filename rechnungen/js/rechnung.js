@@ -37,16 +37,9 @@ var Rechnung = (function() {
         return d.toLocaleDateString('sv-SE');
     }
 
+    // Ein Rechenweg für alle Ausgaben (js/rechnung-summen.js, Audit 2026-10-13 L5)
     function calcBrutto(invoice) {
-        var settings = Store.getSettings();
-        var isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (settings.ustMode === 'klein');
-        var sum = 0;
-        (invoice.positionen || []).forEach(function(pos) {
-            var netto = pos.menge * pos.einzelpreis;
-            var mwst = isKlein ? 0 : (netto * pos.mwstSatz / 100);
-            sum += netto + mwst;
-        });
-        return sum;
+        return RechnungSummen.fuerRechnung(invoice, Store.getSettings()).brutto;
     }
 
     function render(params) {
@@ -163,13 +156,13 @@ var Rechnung = (function() {
         html += '</select></div>';
         html += '</div>';
         html += '<div id="reverseChargeHint" style="display:none;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);">';
-        html += 'ℹ️ <strong>§13b UStG – Reverse Charge:</strong> EU-Geschäftskunde mit USt-IdNr. erkannt. Steuerschuldnerschaft geht auf den Empfänger über, USt-Sätze wurden auf 0% gesetzt. Bitte bei jeder Position unten „Art des Umsatzes" wählen (entscheidet Kz. 41 vs. Kz. 21 – eine Rechnung kann Ware <em>und</em> Leistung an denselben Kunden mischen).';
+        html += '<strong>§13b UStG – Reverse Charge:</strong> EU-Geschäftskunde mit USt-IdNr. erkannt. Steuerschuldnerschaft geht auf den Empfänger über, USt-Sätze wurden auf 0% gesetzt. Bitte bei jeder Position unten „Art des Umsatzes" wählen (entscheidet Kz. 41 vs. Kz. 21 – eine Rechnung kann Ware <em>und</em> Leistung an denselben Kunden mischen).';
         html += '</div>';
         // §14 UStG (Wachstumschancengesetz): seit 01.01.2025 müssen inländische Unternehmen (auch KU)
         // strukturierte E-Rechnungen empfangen können; die aktive Versandpflicht greift gestaffelt ab 2027/2028.
         // Export: „XR"-Button je Rechnung in der Dokumente-Übersicht. Empfang: eigener „E-Rechnung"-Tab.
         html += '<div style="background:rgba(148,163,184,0.08);border:1px solid var(--border);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-muted);">';
-        html += 'ℹ️ <strong>E-Rechnungspflicht (B2B):</strong> Seit 01.01.2025 muss jedes inländische Unternehmen — auch Kleinunternehmer — strukturierte E-Rechnungen (XRechnung/ZUGFeRD) <em>empfangen</em> können; die Versandpflicht folgt gestaffelt ab 2027. Stackr exportiert XRechnung über den „XR"-Button in der Dokumente-Übersicht und empfängt eingehende E-Rechnungen im Tab „E-Rechnung".';
+        html += '<strong>E-Rechnungspflicht (B2B):</strong> Seit 01.01.2025 muss jedes inländische Unternehmen — auch Kleinunternehmer — strukturierte E-Rechnungen (XRechnung/ZUGFeRD) <em>empfangen</em> können; die Versandpflicht folgt gestaffelt ab 2027. Stackr exportiert XRechnung über den „XR"-Button in der Dokumente-Übersicht und empfängt eingehende E-Rechnungen im Tab „E-Rechnung".';
         html += '</div>';
 
         // Inline new customer fields (hidden by default)
@@ -243,7 +236,7 @@ var Rechnung = (function() {
 
         // Eigenbelege-Verknüpfung
         var verknuepfteEB = editingInvoice ? (editingInvoice.verknuepfteEigenbelege || []) : [];
-        html += '<div class="card"><div class="card-header"><div class="card-title">🧾 Verknüpfte Eigenbelege <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(optional)</span></div></div>';
+        html += '<div class="card"><div class="card-header"><div class="card-title">Verknüpfte Eigenbelege <span style="font-weight:400;font-size:12px;color:var(--text-muted);">(optional)</span></div></div>';
         html += '<div style="padding: 1rem;">';
         html += '<p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">Eigenbelege verknüpfen die Einkaufskosten direkt mit dieser Rechnung – ideal für vollständige Gewinnübersicht.</p>';
         html += renderEigenbelegAuswahl(verknuepfteEB);
@@ -263,13 +256,13 @@ var Rechnung = (function() {
         var products = Store.getRechProducts();
         // Lager-Artikel Info für bestehende Verknüpfungen
         var lagerArtikelId = pos.lagerArtikelId || '';
-        var lagerBtnLabel = '🔗';
+        var lagerBtnLabel = '<i class="ti ti-link" aria-hidden="true"></i>';
         var lagerBtnTitle = 'Lagerartikel verknüpfen';
         if (lagerArtikelId) {
             var allArts = Store.getPurchases(true);
             var linkedArt = allArts.find(function(a) { return a.id === lagerArtikelId; });
             if (linkedArt) {
-                lagerBtnLabel = '🔗 ' + Utils.escapeHtml(linkedArt.artikelNr || (linkedArt.marke + ' ' + linkedArt.artikeltyp).trim().slice(0, 12));
+                lagerBtnLabel = Utils.escapeHtml(linkedArt.artikelNr || (linkedArt.marke + ' ' + linkedArt.artikeltyp).trim().slice(0, 12));
                 lagerBtnTitle = 'Verknüpft: ' + Utils.escapeHtml((linkedArt.marke || '') + ' ' + (linkedArt.artikeltyp || '') + ' ' + (linkedArt.beschreibung || ''));
             }
         }
@@ -426,7 +419,7 @@ var Rechnung = (function() {
                 var isSelected = !isNewMode && a.id === currentId;
                 var actionCell;
                 if (isSelected) {
-                    actionCell = '<span style="color:var(--success);">✓ Aktiv</span>';
+                    actionCell = '<span style="color:var(--success);">Aktiv</span>';
                 } else {
                     actionCell = '<button class="btn btn-small btn-primary lp-select" data-id="' + a.id + '">' + (isNewMode ? '+ Hinzufügen' : 'Auswählen') + '</button>';
                 }
@@ -446,7 +439,7 @@ var Rechnung = (function() {
         }
 
         // Aktuelle Verknüpfung aufheben Button
-        var clearBtn = currentId ? '<button class="btn btn-small btn-danger" id="lpClearBtn" style="margin-left:8px;">🗑 Verknüpfung entfernen</button>' : '';
+        var clearBtn = currentId ? '<button class="btn btn-small btn-danger" id="lpClearBtn" style="margin-left:8px;">Verknüpfung entfernen</button>' : '';
 
         var introText = isNewMode
             ? 'Wähle einen oder mehrere verfügbare Lagerartikel aus – für jeden wird eine neue Position angelegt.'
@@ -502,7 +495,7 @@ var Rechnung = (function() {
                     // Button-Label aktualisieren
                     var lagerBtn = row.querySelector('.pos-lager-btn');
                     if (lagerBtn) {
-                        lagerBtn.textContent = '🔗 ' + (art.artikelNr || (art.marke + ' ' + art.artikeltyp).trim().slice(0, 12));
+                        lagerBtn.textContent = (art.artikelNr || (art.marke + ' ' + art.artikeltyp).trim().slice(0, 12));
                         lagerBtn.title = 'Verknüpft: ' + Utils.escapeHtml((art.marke || '') + ' ' + (art.artikeltyp || '') + ' ' + (art.beschreibung || ''));
                         lagerBtn.style.background = 'rgba(16,185,129,0.15)';
                         lagerBtn.style.borderColor = 'var(--success,#10b981)';
@@ -528,7 +521,7 @@ var Rechnung = (function() {
                 markLagerVerfuegbar(oldArtId);
                 var lagerBtn = row.querySelector('.pos-lager-btn');
                 if (lagerBtn) {
-                    lagerBtn.textContent = '🔗';
+                    lagerBtn.innerHTML = '<i class="ti ti-link" aria-hidden="true"></i>';
                     lagerBtn.title = 'Lagerartikel verknüpfen';
                     lagerBtn.style.background = '';
                     lagerBtn.style.borderColor = '';
@@ -624,28 +617,15 @@ var Rechnung = (function() {
         var settings = Store.getSettings();
         var isKlein = editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (settings.ustMode === 'klein');
 
-        var netto = 0;
-        var mwstMap = {};
-        positionen.forEach(function(pos) {
-            // Auf Cent gerundet akkumulieren, nicht mit voller Gleitkomma-Präzision — sonst
-            // kann die Gesamtsumme um 1 Cent von der Summe der einzeln angezeigten (gerundeten)
-            // Positionsbeträge abweichen (Fund 18, Vollaudit 2026-07-23).
-            var lineNetto = Math.round(pos.menge * pos.einzelpreis * 100) / 100;
-            netto += lineNetto;
-            if (!isKlein && !pos.differenzbesteuert && pos.mwstSatz > 0) {
-                if (!mwstMap[pos.mwstSatz]) mwstMap[pos.mwstSatz] = 0;
-                mwstMap[pos.mwstSatz] += lineNetto * pos.mwstSatz / 100;
-            }
-        });
-
-        var totalMwst = 0;
+        // Derselbe Rechenkern wie PDF, XML und Buchung (js/rechnung-summen.js, Audit 2026-10-13 L5)
+        var summen = RechnungSummen.berechne(positionen, isKlein);
+        var netto = summen.netto;
         var mwstHtml = '';
-        Object.keys(mwstMap).sort(function(a, b) { return a - b; }).forEach(function(satz) {
-            totalMwst += mwstMap[satz];
-            mwstHtml += '<div>' + satz + '% MwSt: ' + Utils.formatCurrency(mwstMap[satz]) + '</div>';
+        Object.keys(summen.gruppen).map(Number).filter(function(s) { return s > 0; }).sort(function(a, b) { return a - b; }).forEach(function(satz) {
+            mwstHtml += '<div>' + satz + '% MwSt: ' + Utils.formatCurrency(summen.gruppen[satz].steuer) + '</div>';
         });
 
-        var brutto = netto + totalMwst;
+        var brutto = summen.brutto;
 
         var html = '<div style="font-size: 0.95rem;">';
         html += '<div>Zwischensumme (netto): <strong>' + Utils.formatCurrency(netto) + '</strong></div>';
@@ -947,7 +927,35 @@ var Rechnung = (function() {
         }
     }
 
+    // Fachliche Fehler dauerhaft am Feld + Übersicht (js/fachfehler.js, Audit 2026-10-13 D3).
+    // Der Toast bleibt als kurzer Hinweis, die Korrekturanweisung verschwindet aber nicht mehr.
+    function fachFehler(fehler) {
+        Utils.showToast(fehler[0].text, 'error');
+        if (typeof FachFehler !== 'undefined') {
+            var nr = document.getElementById('invNummer');
+            FachFehler.zeige(nr && nr.closest ? nr.closest('.card') : null, fehler);
+        }
+        return null;
+    }
+    // Positionszeilen, auf die eine Bedingung zutrifft — mit Zeilennummer wie in der Ansicht
+    function positionsZeilen(bedingung) {
+        var treffer = [];
+        Array.prototype.forEach.call(document.querySelectorAll('.position-row'), function (row, i) {
+            var wert = function (sel) { var el = row.querySelector(sel); return el ? el.value : ''; };
+            var diff = row.querySelector('.pos-diff25a');
+            var z = {
+                beschreibung: wert('.pos-beschreibung').trim(), mengeRoh: wert('.pos-menge'), preisRoh: wert('.pos-einzelpreis'),
+                menge: parseFloat(wert('.pos-menge')), preis: parseFloat(wert('.pos-einzelpreis')),
+                mwst: parseFloat(wert('.pos-mwst')) || 0, igArt: wert('.pos-igart'), diff: !!(diff && diff.checked)
+            };
+            if (!(z.beschreibung || (parseFloat(z.preisRoh) || 0) > 0)) return;   // leere Zeile, wie collectPositionen
+            if (bedingung(z)) treffer.push({ row: row, nr: i + 1 });
+        });
+        return treffer;
+    }
+
     async function buildInvoiceObject() {
+        if (typeof FachFehler !== 'undefined') FachFehler.leeren();
         var typ = document.getElementById('invTyp').value;
         var nummer = document.getElementById('invNummer').value.trim();
         var datum = document.getElementById('invDatum').value;
@@ -1008,13 +1016,11 @@ var Rechnung = (function() {
             // der Gate lief vorher nur f\u00FCr typ==='rechnung', Gutschriften konnten ihn umgehen.
             var kd = Store.getRechCustomers().find(function(c) { return c.id === kundeId; });
             if (kd && (!kd.strasse || !kd.plz || !kd.ort)) {
-                Utils.showToast('\u26A0\uFE0F Kundenadresse unvollst\u00E4ndig (Stra\u00DFe, PLZ, Ort) \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Kundendaten erg\u00E4nzen.', 'error');
-                return null;
+                return fachFehler([{ text: 'Kundenadresse unvollst\u00E4ndig (Stra\u00DFe, PLZ, Ort) \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Kundendaten erg\u00E4nzen.', feld: document.getElementById('invKunde'), ort: 'Zum Kunden' }]);
             }
             var s14 = Store.getRechUnternehmen ? Store.getRechUnternehmen() : {};
             if (!s14.steuernummer && !s14.ustId) {
-                Utils.showToast('\u26A0\uFE0F Keine Steuernummer / USt-IdNr. hinterlegt \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Unternehmensdaten erg\u00E4nzen.', 'error');
-                return null;
+                return fachFehler([{ text: 'Keine Steuernummer / USt-IdNr. hinterlegt \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Unternehmensdaten erg\u00E4nzen.' }]);
             }
         }
 
@@ -1028,12 +1034,17 @@ var Rechnung = (function() {
 
         var positionen = collectPositionen();
         if (positionen.length === 0) {
-            Utils.showToast('Mindestens eine Position erforderlich', 'warning');
-            return null;
+            return fachFehler([{ text: 'Mindestens eine Position erforderlich.', feld: document.querySelector('.position-row .pos-beschreibung'), ort: 'Zur Position' }]);
         }
         if (positionen.some(function(p) { return !Number.isFinite(p.menge) || !Number.isFinite(p.einzelpreis) || p.menge < 0 || p.einzelpreis < 0 || p.menge > 999999 || p.einzelpreis > 99999999; })) {
-            Utils.showToast('Menge und Einzelpreis müssen gültige, nicht-negative Zahlen in einem plausiblen Bereich sein.', 'error');
-            return null;
+            var schlecht = function (v, max) { return !Number.isFinite(v) || v < 0 || v > max; };
+            var fz = [];
+            positionsZeilen(function (z) { return schlecht(parseFloat(z.mengeRoh) || 0, 999999) || schlecht(parseFloat(z.preisRoh) || 0, 99999999); }).forEach(function (t) {
+                var m = parseFloat(t.row.querySelector('.pos-menge').value) || 0;
+                var feld = schlecht(m, 999999) ? t.row.querySelector('.pos-menge') : t.row.querySelector('.pos-einzelpreis');
+                fz.push({ text: 'Position ' + t.nr + ': Menge und Einzelpreis müssen gültige, nicht-negative Zahlen in einem plausiblen Bereich sein.', feld: feld, ort: 'Zu Position ' + t.nr });
+            });
+            return fachFehler(fz.length ? fz : [{ text: 'Menge und Einzelpreis müssen gültige, nicht-negative Zahlen in einem plausiblen Bereich sein.' }]);
         }
 
         // §13b UStG EU-B2B: "Art des Umsatzes" muss pro 0%-Position explizit gewählt sein (Kz. 41 vs.
@@ -1043,16 +1054,20 @@ var Rechnung = (function() {
         var isKlein13b = editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (settings13b.ustMode === 'klein');
         var isEuB2B13b = !isKlein13b && kd13b && kd13b.ustIdNr && kd13b.land && kd13b.land !== 'DE' && rcEuLaender().indexOf(kd13b.land) !== -1;
         if (isEuB2B13b && positionen.some(function(p) { return p.mwstSatz === 0 && !p.igArt; })) {
-            Utils.showToast('Bitte bei jeder 0%-Position „Art des Umsatzes" (Ware/Leistung) wählen — entscheidet Kz. 41 vs. Kz. 21.', 'error');
-            return null;
+            var ig = positionsZeilen(function (z) { return !z.diff && z.mwst === 0 && !z.igArt; }).map(function (t) {
+                return { text: 'Position ' + t.nr + ': „Art des Umsatzes" (Ware/Leistung) wählen — entscheidet Kz. 41 vs. Kz. 21.', feld: t.row.querySelector('.pos-igart') || t.row.querySelector('.pos-mwst'), ort: 'Zu Position ' + t.nr };
+            });
+            return fachFehler(ig.length ? ig : [{ text: 'Bitte bei jeder 0%-Position „Art des Umsatzes" (Ware/Leistung) wählen — entscheidet Kz. 41 vs. Kz. 21.' }]);
         }
         // §13b UStG — bei Reverse Charge darf KEINE deutsche USt ausgewiesen werden (sonst §14c Abs.1
         // UStG: unrichtiger Steuerausweis, Steuerschuld trotzdem). Guard deckte bisher nur die 0%-igArt-
         // Pflicht ab, nicht den Fall, dass eine Position noch einen Steuersatz &gt;0% trägt (z.B. nach
         // nachträglicher USt-IdNr. beim Kunden oder Produkt-Einfügen mit fixem 19%-Satz).
         if (isEuB2B13b && positionen.some(function(p) { return p.mwstSatz > 0; })) {
-            Utils.showToast('Reverse-Charge-Kunde (EU-Ausland mit USt-IdNr.): Positionen dürfen keine deutsche USt tragen. Bitte MwSt-Satz auf 0% setzen.', 'error');
-            return null;
+            var rc = positionsZeilen(function (z) { return !z.diff && z.mwst > 0; }).map(function (t) {
+                return { text: 'Position ' + t.nr + ': Reverse-Charge-Kunde (EU-Ausland mit USt-IdNr.) — keine deutsche USt ausweisen, MwSt-Satz auf 0 % setzen.', feld: t.row.querySelector('.pos-mwst'), ort: 'Zu Position ' + t.nr };
+            });
+            return fachFehler(rc.length ? rc : [{ text: 'Reverse-Charge-Kunde (EU-Ausland mit USt-IdNr.): Positionen dürfen keine deutsche USt tragen. Bitte MwSt-Satz auf 0% setzen.' }]);
         }
 
         // Duplikatsprüfung nur für vom Nutzer selbst eingetragene Nummern nötig — eine automatisch
@@ -1060,8 +1075,7 @@ var Rechnung = (function() {
         if (!wasAutoPreview && nummer && Store.getRechInvoices(true).some(function(d) {
             return d.nummer === nummer && (!editingInvoice || d.id !== editingInvoice.id);
         })) {
-            Utils.showToast('Rechnungsnummer "' + nummer + '" ist bereits vergeben.', 'error');
-            return null;
+            return fachFehler([{ text: 'Rechnungsnummer "' + nummer + '" ist bereits vergeben.', feld: document.getElementById('invNummer'), ort: 'Zur Nummer' }]);
         }
 
         // Jetzt, nach allen Validierungen, die Nummer final fixieren (Counter tatsächlich verbrauchen).
@@ -1330,18 +1344,12 @@ var Rechnung = (function() {
         html += '<th scope="col" class="r">Gesamt (netto)</th>';
         html += '</tr></thead><tbody>';
 
-        var netto = 0;
-        var mwstMap = {};
+        // Zeilen, Steuer je Satz und Gesamt aus dem gemeinsamen Rechenkern — PDF, XRechnung und
+        // Buchung zeigen dieselbe Forderung (js/rechnung-summen.js, Audit 2026-10-13 L5).
+        var summen = RechnungSummen.berechne(inv.positionen, isKlein);
+        var netto = summen.netto;
         (inv.positionen || []).forEach(function(pos, idx) {
-            // Auf Cent gerundet akkumulieren, nicht mit voller Gleitkomma-Präzision — sonst
-            // kann die Gesamtsumme um 1 Cent von der Summe der einzeln angezeigten (gerundeten)
-            // Positionsbeträge abweichen (Fund 18, Vollaudit 2026-07-23).
-            var lineNetto = Math.round(pos.menge * pos.einzelpreis * 100) / 100;
-            netto += lineNetto;
-            if (!isKlein && !pos.differenzbesteuert && pos.mwstSatz > 0) {
-                if (!mwstMap[pos.mwstSatz]) mwstMap[pos.mwstSatz] = 0;
-                mwstMap[pos.mwstSatz] += lineNetto * pos.mwstSatz / 100;
-            }
+            var lineNetto = summen.zeilen[idx].netto;
             html += '<tr>';
             html += '<td class="pos r">' + (idx + 1) + '</td>';
             html += '<td>' + Utils.escapeHtml(pos.beschreibung || '') + '</td>';
@@ -1355,17 +1363,15 @@ var Rechnung = (function() {
         html += '</tbody></table>';
 
         // Totals block
-        var totalMwst = 0;
         html += '<div class="inv-totals">';
         html += '<div class="inv-tr"><span>Nettobetrag</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
         if (isKlein) {
             html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
         } else {
-            Object.keys(mwstMap).sort(function(a, b) { return a - b; }).forEach(function(satz) {
-                totalMwst += mwstMap[satz];
-                html += '<div class="inv-tr"><span>MwSt. ' + satz + '%</span><span>' + Utils.formatCurrency(mwstMap[satz]) + '</span></div>';
+            Object.keys(summen.gruppen).map(Number).filter(function(s) { return s > 0; }).sort(function(a, b) { return a - b; }).forEach(function(satz) {
+                html += '<div class="inv-tr"><span>MwSt. ' + satz + '%</span><span>' + Utils.formatCurrency(summen.gruppen[satz].steuer) + '</span></div>';
             });
-            html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(netto + totalMwst) + '</span></div>';
+            html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(summen.brutto) + '</span></div>';
         }
         html += '</div>';
 

@@ -183,19 +183,19 @@ const Store = {
                             req2.onerror = () => {
                                 // Auch nach Bereinigung voll — kritischer Fehler
                                 if (typeof Utils !== 'undefined' && Utils.showToast) {
-                                    Utils.showToast('🚨 Speicher kritisch voll! Daten konnten nicht gespeichert werden. Bitte sofort Backup erstellen und Daten bereinigen.', 'error', 12000);
+                                    Utils.showToast('Speicher kritisch voll! Daten konnten nicht gespeichert werden. Bitte sofort Backup erstellen und Daten bereinigen.', 'error', 12000);
                                 }
                             };
                             tx2.oncomplete = () => {
                                 if (typeof Utils !== 'undefined' && Utils.showToast) {
-                                    Utils.showToast('🧹 Speicher war voll — alte Auto-Backups bereinigt. Daten wurden gespeichert.', 'info', 5000);
+                                    Utils.showToast('Speicher war voll — alte Auto-Backups bereinigt. Daten wurden gespeichert.', 'info', 5000);
                                 }
                             };
                         } catch(e2) {}
                     });
                 } else if (err) {
                     if (typeof Utils !== 'undefined' && Utils.showToast) {
-                        Utils.showToast(`⚠️ Speicher-Fehler: ${err.name || 'Unbekannt'}`, 'error');
+                        Utils.showToast(`Speicher-Fehler: ${err.name || 'Unbekannt'}`, 'error');
                     }
                 }
             };
@@ -205,7 +205,7 @@ const Store = {
         } catch(e) {
             console.error('[Store] _idbPut Exception:', key, e);
             if (typeof Utils !== 'undefined' && Utils.showToast) {
-                Utils.showToast(`⚠️ Speicher-Fehler: ${e.message || e.name}`, 'error');
+                Utils.showToast(`Speicher-Fehler: ${e.message || e.name}`, 'error');
             }
         }
     },
@@ -665,16 +665,16 @@ const Store = {
             if (err.name === 'NotAllowedError') {
                 this._fsDirHandle = null;  // Handle zurücksetzen, beim nächsten Klick neu anfragen
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
-                    Utils.showToast('⚠️ Datei-Backup-Berechtigung abgelaufen. Backup-Ordner neu wählen.', 'warning');
+                    Utils.showToast('Datei-Backup-Berechtigung abgelaufen. Backup-Ordner neu wählen.', 'warning');
                 }
             } else if (err.name === 'NotFoundError') {
                 this._fsDirHandle = null;
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
-                    Utils.showToast('⚠️ Backup-Ordner nicht erreichbar (z.B. USB nicht angesteckt)', 'warning');
+                    Utils.showToast('Backup-Ordner nicht erreichbar (z.B. USB nicht angesteckt)', 'warning');
                 }
             } else {
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
-                    Utils.showToast('⚠️ Datei-Backup fehlgeschlagen: ' + (err.name || err.message), 'warning');
+                    Utils.showToast('Datei-Backup fehlgeschlagen: ' + (err.name || err.message), 'warning');
                 }
             }
             console.warn('[Store] Datei-Backup Fehler:', err.message);
@@ -753,6 +753,9 @@ const Store = {
     // Debouncte Auto-Backup: 1,5 Sekunden nach letzter Änderung
     // Schreibt ALLE Schichten gleichzeitig: IDB-Snapshot + LS-Spiegel + Datei
     _triggerAutoBackup() {
+        // Sofort, nicht erst nach dem Debounce: js/cloud-sync.js ueberspringt den Start-Sync,
+        // wenn seit dem letzten Lauf nichts geaendert wurde (oyi_sync_last_change).
+        try { localStorage.setItem('oyi_sync_last_change', String(Date.now())); } catch (e) {}
         if (this._isImporting) return;
         clearTimeout(this._autoBackupDebounce);
         this._autoBackupDebounce = setTimeout(() => {
@@ -807,11 +810,11 @@ const Store = {
                             tx2.objectStore(this.IDB_STORE).add(snapshot);
                             tx2.oncomplete = () => {
                                 if (typeof Utils !== 'undefined' && Utils.showToast)
-                                    Utils.showToast('🧹 Speicher bereinigt — Auto-Backup gespeichert.', 'info', 5000);
+                                    Utils.showToast('Speicher bereinigt — Auto-Backup gespeichert.', 'info', 5000);
                             };
                             tx2.onerror = () => {
                                 if (typeof Utils !== 'undefined' && Utils.showToast)
-                                    Utils.showToast('⚠️ Speicher voll — Auto-Backup übersprungen. Datei-Backup bleibt aktiv.', 'warning', 8000);
+                                    Utils.showToast('Speicher voll — Auto-Backup übersprungen. Datei-Backup bleibt aktiv.', 'warning', 8000);
                             };
                         } catch(e2) {}
                     });
@@ -1350,7 +1353,7 @@ const Store = {
         try {
             if (!this.isPeriodLocked(dateStr)) return;
             if (typeof Utils !== 'undefined' && Utils.showToast) {
-                Utils.showToast('⚠️ Buchung liegt in einer bereits eingereichten/abgeschlossenen USt-Periode — bitte als Korrektur in der nächsten offenen Periode nachmelden (§153 AO).', 'warning', 8000);
+                Utils.showToast('Buchung liegt in einer bereits eingereichten/abgeschlossenen USt-Periode — bitte als Korrektur in der nächsten offenen Periode nachmelden (§153 AO).', 'warning', 8000);
             }
         } catch (e) {}
     },
@@ -1405,7 +1408,41 @@ const Store = {
     },
 
     saveSettings(settings) {
+        // USt-Moduswechsel als datierten Historieneintrag festhalten (Audit 2026-10-13, T06),
+        // damit alte Vorgänge ihre damalige Behandlung behalten. settings._ustModeAb (optional,
+        // transient) ist der erste Tag des neuen Modus; ohne Angabe gilt heute.
+        const vorherAlle = this.getSettings();
+        // Das Einstellungsformular speichert ein neu gebautes Objekt — Historie und
+        // Tätigkeitsbeginn dürfen dabei nicht verloren gehen.
+        ['ustModeHistorie', 'taetigkeitsbeginn'].forEach(k => {
+            if (settings[k] === undefined && vorherAlle[k] !== undefined) settings[k] = vorherAlle[k];
+        });
+        const ab = settings._ustModeAb;
+        delete settings._ustModeAb;
+        if (typeof SteuerStatus !== 'undefined') {
+            const vorher = vorherAlle;
+            const alt = vorher.ustMode === 'regel' ? 'regel' : 'klein';
+            const neu = settings.ustMode === 'regel' ? 'regel' : 'klein';
+            if (settings.ustMode && neu !== alt) {
+                const basis = Object.assign({}, settings, { ustMode: alt,
+                    ustModeHistorie: vorher.ustModeHistorie || settings.ustModeHistorie });
+                const mitHistorie = SteuerStatus.wechsel(basis, neu, ab || new Date().toLocaleDateString('sv-SE'));
+                settings.ustModeHistorie = mitHistorie.ustModeHistorie;
+                settings.ustMode = mitHistorie.ustMode;
+            }
+        }
         this.set('settings', settings);
+    },
+
+    // Steuerbehandlung am Vorgang festhalten (T06): beim Anlegen nach der Historie zum
+    // Vorgangsdatum; beim Bearbeiten nur neu bestimmen, wenn sich das Datum geändert hat.
+    // Ein ausdrücklich gesetzter Wert (z. B. aus einer KU-Rechnung) bleibt unangetastet.
+    _ustStempel(rec, old) {
+        if (!rec || typeof SteuerStatus === 'undefined') return;
+        if (old && old.ustBehandlung && rec.ustBehandlung === old.ustBehandlung && rec.datum !== old.datum) delete rec.ustBehandlung;
+        if (rec.ustBehandlung === 'klein' || rec.ustBehandlung === 'regel') return;
+        if (!rec.datum) return;
+        rec.ustBehandlung = SteuerStatus.modeAm(rec.datum, this.getSettings());
     },
 
     // ---- Tombstones ----
@@ -1489,6 +1526,7 @@ const Store = {
                 } else {
                     purchase.artikelNr = gewuenschteNr;
                 }
+                this._ustStempel(purchase, old);
                 this._addAuditEntry('bearbeitet', 'einkauf', purchase.id, old, purchase, 'Einkauf bearbeitet');
                 purchases[idx] = this._stampRecord(purchase);
             } else {
@@ -1502,6 +1540,7 @@ const Store = {
             }
             purchase.id = this.generateId();
             purchase.createdAt = new Date().toISOString();
+            this._ustStempel(purchase, null);
             // Auto-generate Artikelnummer (YYYY-NNN)
             if (!purchase.artikelNr) {
                 const year = new Date().getFullYear();
@@ -1577,6 +1616,7 @@ const Store = {
             if (idx >= 0) {
                 const old = Object.assign({}, sales[idx]);
                 if (this.isLocked(old)) return sale; // GoBD: festgeschriebene/stornierte Verkäufe nicht bearbeitbar
+                this._ustStempel(sale, old);
                 this._addAuditEntry('bearbeitet', 'verkauf', sale.id, old, sale, 'Verkauf bearbeitet');
                 sales[idx] = this._stampRecord(sale);
             } else {
@@ -1590,6 +1630,7 @@ const Store = {
             }
             sale.id = this.generateId();
             sale.createdAt = new Date().toISOString();
+            this._ustStempel(sale, null);
             this._stampRecord(sale);
             sales.push(sale);
             this._addAuditEntry('erstellt', 'verkauf', sale.id, null, sale, 'Verkauf erstellt');
@@ -1631,6 +1672,7 @@ const Store = {
         const sales = this.getAllSalesRaw();
         sale.id = this.generateId();
         sale.createdAt = new Date().toISOString();
+        this._ustStempel(sale, null);
         this._stampRecord(sale);
         sales.push(sale);
         this._addAuditEntry('erstellt', 'verkauf', sale.id, null, sale,
@@ -1751,6 +1793,7 @@ const Store = {
             if (idx >= 0) {
                 const old = Object.assign({}, expenses[idx]);
                 if (this.isLocked(old)) return expense; // GoBD: festgeschriebene/stornierte Ausgaben nicht bearbeitbar
+                this._ustStempel(expense, old);
                 this._addAuditEntry('bearbeitet', 'ausgabe', expense.id, old, expense, 'Ausgabe bearbeitet');
                 expenses[idx] = this._stampRecord(expense);
             } else {
@@ -1764,6 +1807,7 @@ const Store = {
             }
             expense.id = this.generateId();
             expense.createdAt = new Date().toISOString();
+            this._ustStempel(expense, null);
             this._stampRecord(expense);
             expenses.push(expense);
             this._addAuditEntry('erstellt', 'ausgabe', expense.id, null, expense, 'Ausgabe erstellt');
@@ -2366,17 +2410,16 @@ const Store = {
         inv._storniert = true;
         inv.storniertAm = new Date().toISOString();
         inv.stornoGrund = grund || 'Storniert';
+        inv.stornoModell = 2;
+        inv.statusVorStorno = old.status;
         this._stampRecord(inv);
         this._rechSet('dokumente', invoices);
         this._addAuditEntry('storniert', 'dokument', id, old, inv, grund || 'Dokument storniert: ' + (inv.nummer || ''));
-        // Cascade: alle verknuepften Verkaeufe stornieren — nicht nur den ersten (find()), da eine
-        // teilbezahlte Rechnung mehrere Sales haben kann (je ein anteiliger pro Teilzahlung plus
-        // ggf. der Schlusszahlungs-Sale). Sonst bleiben teilzahlungsbezogene Sales unstorniert als
-        // Einnahme in EÜR/Bilanz stehen, obwohl die Rechnung selbst storniert ist.
-        const linkedSales = this.getAllSalesRaw().filter(s => s._invoiceId === id && !s.storniert);
-        linkedSales.forEach(ls => {
-            this.stornoSale(ls.id, 'Automatisch: Rechnung ' + (inv.nummer || id) + ' storniert', true);
-        });
+        // Bis zum Audit 2026-10-13 (L1) wurden hier alle verknüpften Verkäufe storniert — damit
+        // verschwand bereits zugeflossenes Geld rückwirkend, während der sichtbare Stornodialog
+        // die Verkäufe stehen ließ. Beide Pfade folgen jetzt demselben Modell (js/storno-vorgang.js):
+        // der Zufluss bleibt, eine echte Rückzahlung ist ein eigener datierter Vorgang.
+        // Dieser Pfad erzeugt KEIN Stornodokument und wird von der Oberfläche nicht benutzt.
     },
 
     deleteRechInvoice(id) {
@@ -2402,7 +2445,11 @@ const Store = {
         });
     },
 
-    async createStornoRechnung(originalId, grund, grundText) {
+    // opts.stornoModell === 2 (js/storno-vorgang.js): Original und Stornorechnung werden so
+    // markiert, dass der Zufluss stehen bleibt und die Korrektur im Zeitraum der Stornorechnung
+    // wirkt (Audit 2026-10-13, L1).
+    async createStornoRechnung(originalId, grund, grundText, opts) {
+        opts = opts || {};
         const invoices = this._rechGet('dokumente') || [];
         const orig = invoices.find(x => x.id === originalId);
         if (!orig || orig.typ === 'stornorechnung') return null;
@@ -2435,12 +2482,20 @@ const Store = {
             versandDatum: null,
             createdAt: new Date().toISOString()
         };
+        if (opts.stornoModell === 2) {
+            stornoDoc.stornoModell = 2;
+            stornoDoc.originalStatus = old.status;
+        }
         this._stampRecord(stornoDoc);
         // Originalrechnung als storniert markieren
         orig.status = 'storniert';
         orig.storniertAm = today;
         orig.stornoGrund = grund || '';
         orig.stornoRechnungId = stornoDoc.id;
+        if (opts.stornoModell === 2) {
+            orig.stornoModell = 2;
+            orig.statusVorStorno = old.status;
+        }
         this._stampRecord(orig);
         const idx = invoices.findIndex(x => x.id === originalId);
         if (idx >= 0) invoices[idx] = orig;
@@ -2557,21 +2612,17 @@ const Store = {
     createSaleFromInvoice(invoice, platform, purchaseId, manualEK, opts) {
         opts = opts || {};
         const settings = this.getSettings();
-        const isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (settings.ustMode === 'klein');
+        const isKlein = invoice.isKlein !== undefined ? invoice.isKlein
+            : (typeof SteuerStatus !== 'undefined' ? SteuerStatus.modeAm(invoice.lieferdatum || invoice.datum, settings) === 'klein' : settings.ustMode === 'klein');
         const isGutschrift = invoice.typ === 'gutschrift';
-        let brutto = 0;
         // Bruttoumsatz PRO Steuersatz mitführen (nicht nur die Gesamtsumme) — sonst geht bei
         // Rechnungen mit gemischten 7%/19%-Positionen die Aufteilung verloren, sobald daraus
-        // ein einzelner Sale-Datensatz wird (s. Fix Ist-UVA gemischte Sätze).
-        const perRateBrutto = {};
-        (invoice.positionen || []).forEach(p => {
-            const netto = (p.menge || 0) * (p.einzelpreis || 0);
-            const satz  = isKlein ? 0 : (parseFloat(p.mwstSatz) || 0);
-            const mwst  = isKlein ? 0 : netto * satz / 100;
-            const posBrutto = netto + mwst;
-            brutto += posBrutto;
-            perRateBrutto[satz] = (perRateBrutto[satz] || 0) + posBrutto;
-        });
+        // ein einzelner Sale-Datensatz wird (s. Fix Ist-UVA gemischte Sätze). Beträge aus dem
+        // gemeinsamen Rechenkern, damit der Verkauf genau die Forderung der Rechnung trägt
+        // (Audit 2026-10-13, L5: vorher ungerundet, XML 0,40 / Buchung 0,36).
+        const summen = RechnungSummen.berechne(invoice.positionen, isKlein);
+        let brutto = summen.brutto;
+        const perRateBrutto = Object.assign({}, summen.bruttoJeSatz);
         // Gutschrift (Kreditnote) mindert den Umsatz statt ihn zu erhöhen (§17 UStG
         // Änderung der Bemessungsgrundlage) — als Sale daher mit negativem Betrag verbucht.
         if (isGutschrift) {
@@ -2650,6 +2701,7 @@ const Store = {
             artikeltyp: 'Rechnung',
             beschreibung: (invoice.nummer || '') + (kundeName ? ' – ' + kundeName : '') + (isTeilzahlung ? ' (Teilzahlung)' : ''),
             verkaufsplattform: platform || invoice.verkaufsplattform || '',
+            land: (kunde && kunde.land) || '',  // Auswertung "Umsatz nach Land" (Statistiken)
             verkaufspreis: brutto,
             versandkostenKaeufer: 0,
             plattformgebuehrProzent: 0,
@@ -2677,6 +2729,8 @@ const Store = {
                 sale.steuersaetze = nonZero; // { "7": 107.00, "19": 119.00, ... }
             }
         }
+        // Behandlung der Rechnung übernehmen, nicht aus dem Zahlungsdatum ableiten (T06)
+        sale.ustBehandlung = isKlein ? 'klein' : 'regel';
 
         return this.saveSale(sale);
     },
@@ -2905,7 +2959,7 @@ const Store = {
                 console.error('[Store] _idbPutBatch Transaktion fehlgeschlagen:', err);
                 if (err && err.name === 'QuotaExceededError') {
                     if (typeof Utils !== 'undefined' && Utils.showToast) {
-                        Utils.showToast('⚠️ Speicher voll! Backup konnte nicht vollständig geschrieben werden.', 'error');
+                        Utils.showToast('Speicher voll! Backup konnte nicht vollständig geschrieben werden.', 'error');
                     }
                 }
             };

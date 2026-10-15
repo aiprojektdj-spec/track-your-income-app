@@ -311,7 +311,6 @@ var RechApp = (function() {
             overlay.classList.remove('active');
             document.getElementById('content').innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;text-align:center;padding:40px;">
-                    <div style="font-size:48px;margin-bottom:16px;">🚫</div>
                     <h2>Nutzung nicht möglich</h2>
                     <p style="color:var(--text-secondary);">Die Nutzung ist nur nach Akzeptanz der AGB möglich.</p>
                     <button class="btn btn-primary" style="margin-top:24px;" data-action="reload">Seite neu laden</button>
@@ -382,13 +381,13 @@ var RechApp = (function() {
                 setTimeout(() => {
                     const ts = recovered.ts ? new Date(recovered.ts).toLocaleString('de-DE') : '';
                     Utils.showToast(
-                        `⚠️ Daten aus Backup (${recovered.source}${ts ? ' · ' + ts : ''}) wiederhergestellt`,
+                        `Daten aus Backup (${recovered.source}${ts ? ' · ' + ts : ''}) wiederhergestellt`,
                         'warning'
                     );
                 }, 1000);
             } else if (lossDetected && !recovered) {
                 setTimeout(() => {
-                    Utils.showToast('❌ Datenverlust erkannt — kein Backup gefunden. Bitte Hauptapp öffnen.', 'error');
+                    Utils.showToast('Datenverlust erkannt — kein Backup gefunden. Bitte Hauptapp öffnen.', 'error');
                 }, 1000);
             }
         });
@@ -415,7 +414,6 @@ var RechApp = (function() {
             // -> NICHT ungeprüft booten (Fund 21, Vollaudit 2026-07-23), sondern Fehler anzeigen.
             var showGateError = function () {
                 document.body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;text-align:center;padding:40px;font-family:sans-serif;">' +
-                    '<div style="font-size:48px;margin-bottom:16px;">⚠️</div>' +
                     '<h2>Anmeldung konnte nicht geladen werden</h2>' +
                     '<p style="color:#888;max-width:420px;">Ein Skript zur Zugriffsprüfung ist nicht geladen. Bitte Seite neu laden oder Internetverbindung prüfen.</p>' +
                     '<button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;border-radius:8px;border:none;background:#4f46e5;color:#fff;cursor:pointer;">Seite neu laden</button>' +

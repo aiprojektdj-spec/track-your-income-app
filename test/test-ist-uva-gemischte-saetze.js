@@ -14,6 +14,8 @@ const endIdx = src.indexOf(endMarker, startIdx);
 assert.ok(startIdx !== -1 && endIdx !== -1, 'createSaleFromInvoice nicht gefunden — hat sich die Methodensignatur geändert?');
 const body = src.slice(startIdx + startMarker.length, endIdx + endMarker.length);
 // eslint-disable-next-line no-new-func
+// Gemeinsamer Rechenkern der Rechnungssummen (Audit 2026-10-13, L5) — echte Abhängigkeit
+global.RechnungSummen = require('../js/rechnung-summen.js');
 const createSaleFromInvoice = new Function('invoice', 'platform', 'purchaseId', 'manualEK', 'opts', body);
 
 // Minimaler Store-Mock: nur was diese eine Methode aufruft.

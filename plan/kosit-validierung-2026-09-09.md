@@ -23,6 +23,17 @@ Sonderfassung für den Test — erzeugt am 2026-09-09 mit dem Stand nach `1d2824
 | `03-25a-gemischt.xml` | `S` und `E` in derselben Rechnung — die Steueraufteilung muss beide Gruppen getrennt ausweisen |
 | `04-25a-eu-kunde.xml` | EU-Kunde mit USt-IdNr. Muss `E` bleiben und darf **nicht** zu `K` werden (§25a Abs. 5 Satz 2 UStG nimmt die ig. Lieferung von den fortgeltenden Befreiungen aus). Das war bis `e265a4b` eine Unterzahlung |
 
+**Nachtrag 2026-10-14 (Audit 2026-10-13, L5):** zwei weitere Proben zur Rundung, erzeugt mit
+dem korrigierten Generator (Steuer je Satz einmal aus der Bemessungsgrundlage, BR-CO-17):
+
+| Datei | Was sie belegen soll |
+|---|---|
+| `05-rundung-10x003.xml` | Zehn Positionen à 0,03 € zu 19 %: Gesamt **0,36 €** (vorher erzeugte der Generator 0,40 €, PDF und Buchung 0,36 €) |
+| `06-gemischt-rundungsgrenze.xml` | 7 % und 19 % mit Rundungsgrenzen (1,005 / 1,9095): Gesamt **13,04 €** |
+
+Stand 2026-10-14: **noch nicht amtlich validiert** — auf dem Rechner, auf dem die Proben entstanden,
+gibt es kein Java für den KoSIT-Validator. Hochladen und Ergebnis eintragen bleibt beim User.
+
 Alle vier deklarieren `urn:cen.eu:en16931:2017#compliant#urn:xoev-de:kosit:standard:xrechnung_3.0`
 im **CII**-Format (nicht UBL) — beim Hochladen ggf. entsprechend auswählen.
 

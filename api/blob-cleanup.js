@@ -7,8 +7,9 @@
 //   stackr/alerts/  → abgelegte Betriebsalarme (api/_alert.js), älter als 30 Tage.
 //                     Ohne diesen Durchgang wüchse der Alarmspeicher unbegrenzt — dasselbe
 //                     Argument, das es für tmp/ schon gab.
+//   stackr/attachments/…/ledger-* → überholte Ledger-Chiffrate, älter als 24 h (ledgerAufraeumen).
 //
-// Echte Anhänge (stackr/attachments/) bleiben in beiden Fällen unangetastet.
+// Echte Anhänge (stackr/attachments/, alles außer ledger-*) bleiben unangetastet.
 // tmp/ liegt je nach BLOB_BACKEND in Vercel Blob und/oder Supabase Storage und läuft
 // deshalb über api/_storage.js; die Alarme liegen weiter nur in Vercel Blob (_alert.js).
 var { list, del } = require('@vercel/blob');
@@ -45,6 +46,49 @@ async function sweep(prefix, maxAgeMs, now) {
         cursor = page.hasMore ? page.cursor : undefined;
     } while (cursor);
     return deleted;
+}
+
+// Überholte Ledger-Chiffrate. js/cloud-sync.js lädt bei jedem Push, dessen Chiffrat zu groß
+// für den Inline-Eintrag ist, ein NEUES stackr/attachments/<user>/<scope>/ledger-<zeit> hoch.
+// Der Sync-Eintrag zeigt danach nur auf das neueste; das alte blieb bisher für immer liegen
+// (Fund 2026-10-08: 70 Dateien à ~15 MB eines einzigen Nutzers = 97 % des Blob-Speichers).
+// Dazu kommen Uploads aus Pushes, die an einem Versionskonflikt (409) gescheitert sind.
+//
+// Gelöscht wird nur, was nachweislich ersetzt ist: Es gibt einen Eintrag, und der zeigt auf
+// eine andere Datei oder ist inline. Fehlt der Eintrag, bleibt die Datei liegen. Das kann
+// auch ein Lesefehler oder ein Speicherwechsel (Redis → Supabase) sein, und dann wäre es der
+// einzige Stand des Nutzers. Die 24 h schützen einen Push, der gerade hochgeladen, aber noch
+// nicht eingetragen hat. Nur Vercel Blob: Supabase-Referenzen (sb:) entstehen erst mit
+// BLOB_BACKEND=supabase und brauchen dann einen eigenen Durchgang über api/_storage.js.
+// Wirft nie: ein Fehler wird gemeldet, Aufräumlauf und Heartbeat laufen weiter.
+var LEDGER_MIN_AGE_MS = 24 * 60 * 60 * 1000;
+
+async function ledgerAufraeumen(now) {
+    var token = process.env.BLOB_READ_WRITE_TOKEN, deleted = 0, cursor, eintraege = {};
+    if (!token) return null;
+    try {
+        do {
+            var page = await list({ prefix: 'stackr/attachments/', cursor: cursor, limit: 1000, token: token });
+            var weg = [];
+            for (var i = 0; i < (page.blobs || []).length; i++) {
+                var b = page.blobs[i];
+                var teile = String(b.pathname || '').split('/');   // stackr/attachments/<user>/<scope>/<name>
+                if (teile.length !== 5 || teile[4].indexOf('ledger-') !== 0) continue;
+                var ts = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
+                if (!ts || (now - ts) <= LEDGER_MIN_AGE_MS) continue;
+                var k = teile[2] + '/' + teile[3];
+                if (!(k in eintraege)) eintraege[k] = await speicher.get(teile[2], teile[3]);
+                var cur = eintraege[k];
+                if (cur && cur.blobUrl !== b.url) weg.push(b.url);
+            }
+            if (weg.length) { await del(weg, { token: token }); deleted += weg.length; }
+            cursor = page.hasMore ? page.cursor : undefined;
+        } while (cursor);
+        return deleted;
+    } catch (e) {
+        await alertOps('blob-cleanup', 'aufraeumen-failed', 'ledger: ' + (e && e.message));
+        return deleted;
+    }
 }
 
 // Dead-Man-Switch (plan/betrieb-luecken-2026-09-29.md §3): healthchecks.io erwartet
@@ -130,16 +174,19 @@ module.exports = async function handler(req, res) {
         var now = Date.now();
         var deleted      = await storage.sweep('stackr/tmp/', TMP_MAX_AGE_MS, now);
         var alertsDeleted = await sweep('stackr/alerts/', ALERT_MAX_AGE_MS, now);
+        var ledgerDeleted = await ledgerAufraeumen(now);
         // 'deleted' behält seine alte Bedeutung (nur tmp/), damit die Gegenprobe in
         // plan/vercel-einrichtung.md weiter stimmt. Der zweite Wert kommt additiv dazu.
         await clientErrorSummary(now);
         await supabaseAufraeumen();
         await sitzungenAufraeumen();
         await heartbeat();
-        return res.status(200).json({ ok: true, deleted: deleted, alertsDeleted: alertsDeleted });
+        return res.status(200).json({ ok: true, deleted: deleted, alertsDeleted: alertsDeleted, ledgerDeleted: ledgerDeleted });
     } catch (e) {
         // Nach bestandener Auth — hier ist der Aufrufer wirklich der Cron, ein Fehler also echt.
         await alertOps('blob-cleanup', 'cleanup-failed', e && e.message);
         return res.status(500).json({ error: 'cleanup_failed' });
     }
 };
+
+module.exports.ledgerAufraeumen = ledgerAufraeumen;   // für test/test-ledger-cleanup.js

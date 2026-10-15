@@ -56,10 +56,17 @@ check('B2 Ueberschiessende Retoure greift NICHT auf die andere Position durch (�
           verkauf, verkaufB, { ref: 'art1', margeKorrektur: -500, satz: 19 }
       ]).margeBrutto) === 100);
 
-check('B3 Korrektur ohne passende Position (Verkauf in der Vorperiode) zieht nichts ab',
+// B3 hiess bis zum Audit 2026-10-13 (T07) "Korrektur ohne passende Position zieht nichts ab" und
+// erklaerte damit genau den Fehler zum Sollwert: die Berichtigung einer in der Vorperiode
+// versteuerten Marge verschwand, die USt blieb gezahlt. §17 UStG verlangt sie im Zeitraum der
+// Aenderung. Sie ist die Korrektur derselben Lieferung (art9), keine Verrechnung mit art2.
+check('B3 Korrektur ohne passende Position (Verkauf in der Vorperiode) wird mit Vorzeichen gebucht',
       rund(SteuerBerechnung.margeEinzeldifferenz([
           verkaufB, { ref: 'art9', margeKorrektur: -50, satz: 19 }
-      ]).margeBrutto) === 100);
+      ]).margeBrutto) === 50);
+check('B3b reine Vorperioden-Korrektur: Marge −50, USt −7,98',
+      (() => { const r = SteuerBerechnung.margeEinzeldifferenz([{ ref: 'art9', margeKorrektur: -50, satz: 19 }]);
+               return rund(r.margeBrutto) === -50 && rund(r.ust) === -7.98; })());
 
 check('B4 Verlustposition bleibt bei 0, macht die Gewinnposition nicht kleiner',
       rund(SteuerBerechnung.margeEinzeldifferenz([

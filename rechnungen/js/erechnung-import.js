@@ -242,7 +242,7 @@ var ERechnungImport = (function () {
         if (!elr) return;
         elr.innerHTML =
             '<div class="card" style="border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.06);padding:18px 20px;">' +
-            '<div style="font-weight:700;color:#f59e0b;margin-bottom:6px;">⚠️ Hinweis</div>' +
+            '<div style="font-weight:700;color:#f59e0b;margin-bottom:6px;">Hinweis</div>' +
             '<div style="font-size:14px;line-height:1.6;">' + msg + '</div>' +
             gobdBox(file, hashHex) +
             '</div>';
@@ -300,7 +300,7 @@ var ERechnungImport = (function () {
         }
         if (r.warnings && r.warnings.length) {
             html += '<div style="padding:12px 20px;background:rgba(245,158,11,.05);border-bottom:1px solid var(--border);">';
-            r.warnings.forEach(function (w) { html += '<div style="font-size:13px;color:#f59e0b;margin:2px 0;">⚠ ' + esc(w) + '</div>'; });
+            r.warnings.forEach(function (w) { html += '<div style="font-size:13px;color:#f59e0b;margin:2px 0;">' + esc(w) + '</div>'; });
             html += '</div>';
         }
 
@@ -354,7 +354,6 @@ var ERechnungImport = (function () {
         '<div class="page-header"><h1>E-Rechnung empfangen</h1>' +
         '<p style="color:var(--text-secondary);margin-top:4px;">Eingehende XRechnung / ZUGFeRD prüfen und anzeigen. Seit 01.01.2025 müssen alle inländischen Unternehmen — auch Kleinunternehmer — E-Rechnungen empfangen können.</p></div>' +
         '<div id="erechnung-drop" style="margin-top:18px;border:2px dashed var(--border);border-radius:14px;padding:38px 24px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;">' +
-            '<div style="font-size:38px;line-height:1;margin-bottom:10px;">📥</div>' +
             '<div style="font-weight:700;font-size:15px;">E-Rechnung hierher ziehen oder klicken</div>' +
             '<div style="color:var(--text-secondary);font-size:13px;margin-top:6px;">XRechnung (.xml, UBL + CII) · ZUGFeRD / Factur-X (.xml oder .pdf)</div>' +
             '<input type="file" id="erechnung-file" accept=".xml,.pdf,application/xml,text/xml,application/pdf" style="display:none;">' +

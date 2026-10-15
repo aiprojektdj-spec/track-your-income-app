@@ -108,10 +108,44 @@ var redis = {
     listScopes:   async function (u) { return (await redisCmd(['SMEMBERS', 'scopes:' + u])) || []; },
     clearScopes:  async function (u) { await redisCmd(['DEL', 'scopes:' + u]); },
 
-    appendAnchors: async function (u, s, rows, max) {
-        var key = 'syncanchor:' + u + ':' + s;
-        await redisCmd(['RPUSH', key].concat(rows.map(function (r) { return JSON.stringify(r); })));
-        await redisCmd(['LTRIM', key, String(-max), '-1']);
+    // Unverdrängbar (Audit 2026-10-13, S3) — vorher RPUSH + LTRIM auf die neuesten `max`:
+    // neue Einträge schoben die alten Beweise hinaus. Jetzt je Event-ID ein eigener Schlüssel
+    // (SET NX), gleicher Hash = idempotent, anderer Hash = Konflikt, Kapazität vor dem Schreiben.
+    // Rückgabe wie sync_append_anchors_v2: { status: 'ok'|'conflict'|'capacity', ... }.
+    // Nicht atomar über mehrere Kommandos; zwei gleichzeitige Anfragen desselben Nutzers können
+    // die Kapazität um höchstens eine Anfrage überziehen, die Einmaligkeit sichert SET NX.
+    appendAnchors: async function (u, s, rows, max, maxUser) {
+        var key = 'syncanchor:' + u + ':' + s, idPfx = 'syncanchorid:' + u + ':' + s + ':';
+        var konflikt = [], neu = [], gesehen = {};
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i];
+            if (gesehen[r.id] !== undefined) { if (gesehen[r.id] !== r.h) konflikt.push(r.id); continue; }
+            gesehen[r.id] = r.h;
+            var alt = await redisCmd(['GET', idPfx + r.id]);
+            if (alt === null || alt === undefined) neu.push(r);
+            else if (alt !== r.h) konflikt.push(r.id);
+        }
+        if (konflikt.length) return { status: 'conflict', ids: konflikt };
+        if (!neu.length) return { status: 'ok', added: 0 };
+        var lenScope = Number(await redisCmd(['LLEN', key])) || 0;
+        var lenUser  = Number(await redisCmd(['GET', 'syncanchorcount:' + u])) || 0;
+        if (lenScope + neu.length > max || lenUser + neu.length > maxUser)
+            return { status: 'capacity', scope: lenScope, user: lenUser };
+        var geschrieben = [];
+        for (var j = 0; j < neu.length; j++) {
+            var setz = await redisCmd(['SET', idPfx + neu[j].id, neu[j].h, 'NX']);
+            if (setz === null) {   // parallel angelegt — nur bei gleichem Hash harmlos
+                if ((await redisCmd(['GET', idPfx + neu[j].id])) !== neu[j].h) konflikt.push(neu[j].id);
+                continue;
+            }
+            geschrieben.push(neu[j]);
+        }
+        if (geschrieben.length) {
+            await redisCmd(['RPUSH', key].concat(geschrieben.map(function (r) { return JSON.stringify(r); })));
+            await redisCmd(['INCRBY', 'syncanchorcount:' + u, String(geschrieben.length)]);
+        }
+        if (konflikt.length) return { status: 'conflict', ids: konflikt, added: geschrieben.length };
+        return { status: 'ok', added: geschrieben.length };
     },
     listAnchors: async function (u, s) {
         var raw = (await redisCmd(['LRANGE', 'syncanchor:' + u + ':' + s, '0', '-1'])) || [];
@@ -182,7 +216,10 @@ var supabase = {
     listScopes:   async function (u) { return (await db.rpc('sync_list_scopes', { p_user: u })) || []; },
     clearScopes:  async function (u) { await db.rpc('sync_clear_scopes', { p_user: u }); },
 
-    appendAnchors: async function (u, s, rows, max) { await db.rpc('sync_append_anchors', { p_user: u, p_scope: s, p_rows: rows, p_max: max }); },
+    // supabase/migrations/20261015000001_anker_unverdraengbar.sql (S3)
+    appendAnchors: async function (u, s, rows, max, maxUser) {
+        return (await db.rpc('sync_append_anchors_v2', { p_user: u, p_scope: s, p_rows: rows, p_max: max, p_max_user: maxUser })) || { status: 'ok' };
+    },
     listAnchors:   async function (u, s) { return (await db.rpc('sync_list_anchors', { p_user: u, p_scope: s })) || []; },
 
     setPubkey: async function (u, data) { await db.rpc('sync_set_pubkey', { p_user: u, p_data: data }); },
@@ -218,7 +255,7 @@ function configProblem() {
     if (!P.isConfigured()) {
         return P.name === 'redis'
             ? 'KV_REST_API_URL/TOKEN bzw. UPSTASH_REDIS_REST_* fehlen — Sync ist komplett aus'
-            : 'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY fehlen — Sync ist komplett aus';
+            : 'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY fehlen oder ungültig — Sync ist komplett aus';
     }
     return '';
 }
@@ -264,9 +301,11 @@ module.exports = {
         await P.clearScopes(u);
         await mirror('clearScopes', function (m) { return m.clearScopes(u); });
     },
-    appendAnchors: async function (u, s, rows, max) {
-        await P.appendAnchors(u, s, rows, max);
-        await mirror('appendAnchors', function (m) { return m.appendAnchors(u, s, rows, max); });
+    appendAnchors: async function (u, s, rows, max, maxUser) {
+        var r = await P.appendAnchors(u, s, rows, max, maxUser);
+        // Spiegel nur mit dem tatsächlich Angenommenen; ohne eigenen Deckel (NO_CAP)
+        if (r && r.status === 'ok' && r.added) await mirror('appendAnchors', function (m) { return m.appendAnchors(u, s, rows, NO_CAP, NO_CAP); });
+        return r;
     },
     setPubkey: async function (u, data) {
         await P.setPubkey(u, data);

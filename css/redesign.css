@@ -13,8 +13,9 @@
   --border: var(--line); --border-light: var(--line); --border-strong: var(--control); --border-field: var(--control);
   --accent: var(--text); --accent-hover: var(--primary-bg); --accent-light: var(--text); --accent-text: var(--text);
   --accent-deep: var(--surface-muted); --accent-glow: transparent; --accent-subtle: var(--surface-muted); --accent-ring: var(--control);
-  --success: var(--text); --warning: var(--text); --danger: var(--text); --info: var(--text);
-  --success-bg: var(--surface-muted); --warning-bg: var(--surface-muted); --danger-bg: var(--surface-muted); --info-bg: var(--surface-muted);
+  /* Signalfarben neutral, nur --danger bleibt rot (Fehler, Überfälliges, negative Beträge) – User-Entscheidung 2026-10-11 */
+  --success: var(--text); --warning: var(--text); --danger: #f87171; --info: var(--text);
+  --success-bg: var(--surface-muted); --warning-bg: var(--surface-muted); --danger-bg: rgb(248 113 113 / 12%); --info-bg: var(--surface-muted);
   --shadow: none; --shadow-lg: none; --highlight: none; --transition: background-color 120ms ease;
   --sidebar-width: 0px; --topnav-height: 64px; --content-max: 1200px;
   color-scheme: dark;
@@ -24,6 +25,7 @@
   --text: #171717; --muted: #595959; --line: #dedede; --control: #808080;
   --hover: #e8e8e8; --primary-bg: #171717; --primary-text: #fafafa;
   --focus: #171717; --overlay: rgb(0 0 0 / 40%);
+  --danger: #c62828; --danger-bg: rgb(198 40 40 / 8%);
   color-scheme: light;
 }
 html { scroll-padding-top: 80px; }
@@ -66,6 +68,8 @@ body.stackr-shell { display: block; height: auto; min-height: 100vh; }
 .stackr-shell .topnav > .sr-context-nav { order: 3; flex: 1 0 100%; max-width: none; width: 100%; margin: 0 !important; padding-bottom: 4px; border: 0; }
 .sr-storage-status { max-width: 220px; color: var(--muted); font-size: 12px; }
 .sr-storage-status:empty { display: none; }
+/* Wie in der Haupt-App: Neben der Firmenauswahl ist für die Speicheranzeige kein Platz. */
+.stackr-shell .topnav-controls:has(#companySwitcher:not(:empty)) .sr-storage-status { display: none; }
 .sr-nav-footer p, .sr-nav-footer small { color: var(--muted); font-size: 12px; padding: 8px 14px; }
 .sr-nav-tools { font-size: 14px; color: var(--muted); padding: 8px 14px; }
 .sr-nav-tools summary { cursor: pointer; min-height: 44px; padding-block: 10px; }
@@ -118,13 +122,26 @@ body.stackr-shell { display: block; height: auto; min-height: 100vh; }
 .card .card, .card .table-container { border: 0; border-radius: 0; }
 .card-header { margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
 .card-title { font-size: 20px; }
-.stats-grid, .stats-grid-primary { gap: 0; margin: 0 0 32px; background: transparent; }
-.stats-grid > .stat-card, .stats-grid-primary > .card { border: 0; border-right: 1px solid var(--line); border-radius: 0; background: transparent; padding: 16px 24px; }
-.stats-grid > .stat-card:first-child, .stats-grid-primary > .card:first-child { padding-left: 0; }
-.stats-grid > .stat-card:last-child, .stats-grid-primary > .card:last-child { border-right: 0; }
+.stats-grid, .stats-grid-primary, .stats-grid-secondary { gap: 0; margin: 0 0 32px; background: transparent; }
+.stats-grid > .stat-card, .stats-grid-primary > .card, .stats-grid-secondary > .card { border: 0 !important; border-right: 1px solid var(--line) !important; border-radius: 0; background: transparent; padding: 16px 24px !important; }
+.stats-grid > .stat-card:first-child, .stats-grid-primary > .card:first-child, .stats-grid-secondary > .card:first-child { padding-left: 0 !important; }
+.stats-grid > .stat-card:last-child, .stats-grid-primary > .card:last-child, .stats-grid-secondary > .card:last-child { border-right: 0 !important; }
 .card-label { color: var(--muted); font-size: 14px; font-weight: 400; text-transform: none; letter-spacing: 0; }
 .card-value { color: var(--text) !important; font: 400 36px/1.3 var(--font-sans); letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
 .card-subtitle { color: var(--muted); font-size: 14px; }
+/* Ältere Kennzahl-Karten (Jahresgewinn, Lager) setzen Großschrift und Farbkante inline. */
+.stat-card[style*="border-left"] { border-left: 1px solid var(--line) !important; }
+:is(.stats-grid, .stats-grid-primary, .stats-grid-secondary) > .stat-card[style*="border-left"] { border-left: 0 !important; }
+.card-label[style] { font-size: 14px !important; font-weight: 400 !important; text-transform: none !important; letter-spacing: 0 !important; color: var(--muted) !important; }
+.card-value[style] { font-weight: 400 !important; }
+.card-subtitle[style] { font-size: 14px !important; }
+.eb-warning-box { background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+.info-box[style] { background: var(--surface) !important; border-color: var(--line) !important; }
+.eb-warning-box .wb-title { color: var(--text); font-weight: 550; }
+.eb-warning-box .wb-title i { display: none; }
+/* Eigenständige Lagerseite: Kopf an der Inhaltsbreite ausrichten, der Modul-Titel wiederholt ihn nur. */
+.stackr-shell #lagerTabContent > .no-print:first-child { max-width: 1200px; margin-inline: auto; }
+.stackr-shell #lagerTabContent #content > .page-header:first-child { display: none; }
 .card-label i, .empty-state > .icon { display: none; }
 .form-label, .form-group > label, .filter-group label { display: block; margin-bottom: 8px; color: var(--text); font-size: 14px; font-weight: 450; letter-spacing: 0; text-transform: none; }
 .form-input, .form-select, .form-textarea, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]), select, textarea { min-height: 48px; border: 1px solid var(--control); border-radius: 6px; background: var(--bg-input); color: var(--text); padding: 11px 12px; font-size: 16px; line-height: 1.5; max-width: 100%; box-shadow: none; }
@@ -147,6 +164,7 @@ tbody tr:hover { background: var(--surface-muted); }
 .table-container { overflow-x: auto; }
 .badge, .platform-badge, [class^="badge-"] { border-radius: 4px; background: var(--surface-muted) !important; color: var(--text) !important; border: 1px solid var(--line); font-size: 14px; font-weight: 400; padding: 4px 8px; letter-spacing: 0; }
 .badge-danger, .badge-warning { border-color: var(--control); border-style: dashed; }
+.badge.is-alert { color: var(--danger) !important; border-color: var(--danger); border-style: solid; }
 .empty-state { padding: 48px 24px !important; text-align: left; }
 .empty-state h3 { font-size: 24px; margin-bottom: 12px; }
 .empty-state p { font-size: 16px; max-width: 600px; color: var(--muted); }
@@ -203,7 +221,7 @@ details.sr-details[open] > summary { margin-bottom: 16px; color: var(--text); }
 .redesign-kpi:first-child { padding-left: 0; }
 .redesign-kpi:last-child { border: 0; }
 .redesign-kpi-value { display: block; margin: 12px 0 8px; font-size: 36px; line-height: 1.3; font-weight: 400; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
-.redesign-text-link { color: var(--text); text-decoration: underline; text-underline-offset: 4px; }
+.redesign-text-link { color: var(--text); text-decoration: underline; text-underline-offset: 4px; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
 .redesign-section { margin-top: 48px; }
 .redesign-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 20px; }
 .redesign-section-heading h3 { font-size: 20px; }
@@ -423,13 +441,17 @@ body > :not(.print-container):not(#printArea) :is(#content, .modal, .onboarding-
   .sr-more-tasks > :not(summary) { left: 0; right: 0; min-width: 0; }
   .sr-more-tasks { position: static; }
   .stats-grid, .stats-grid-primary, .stats-grid-secondary { grid-template-columns: 1fr !important; }
-  .stats-grid > .stat-card, .stats-grid-primary > .card { border-right: 0; border-bottom: 1px solid var(--line); padding: 20px 0; }
+  .stats-grid > .stat-card, .stats-grid-primary > .card, .stats-grid-secondary > .card { border-right: 0 !important; border-bottom: 1px solid var(--line) !important; padding: 20px 0 !important; }
   .card-value { font-size: 32px; }
   .card { padding: 20px 16px; }
   .form-row, .ust-picker, .ust-picker--compact { grid-template-columns: 1fr !important; flex-direction: column; }
   .form-row > * { width: 100%; min-width: 0; }
-  .filter-bar { flex-wrap: wrap; }
-  .filter-group { flex: 1 1 140px; }
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-group { flex: 0 0 auto; }
+  /* Unternavigation: eine Zeile, seitlich wischbar statt mehrzeilig zentriert. */
+  .sr-context-nav { flex-wrap: nowrap; }
+  .sr-context-tabs { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+  .sr-context-tabs > * { flex: 0 0 auto; white-space: nowrap; }
   #content [style*="grid-template-columns"], .modal [style*="grid-template-columns"] { grid-template-columns: minmax(0, 1fr) !important; }
   #content [style*="display:flex"]:has(> button), #content [style*="display: flex"]:has(> button) { flex-wrap: wrap; }
   #content [style*="display:flex"]:has(> .btn-group), #content [style*="display: flex"]:has(> .btn-group) { flex-wrap: wrap; }
@@ -451,6 +473,25 @@ body > :not(.print-container):not(#printArea) :is(#content, .modal, .onboarding-
   .sr-mobile-table td::before { content: attr(data-label); text-align: left; color: var(--muted); flex-shrink: 0; max-width: 48%; }
   .sr-mobile-table td[colspan] { display: block; text-align: left; }
   .sr-mobile-table .table-actions { justify-content: flex-end; flex-wrap: wrap; }
+  /* Buchungskarte (Audit 2026-10-13, D2): Beschreibung und Betrag oben, Datum/Art darunter,
+     Status und Details am Ende — statt jede Desktopspalte als eigene beschriftete Zeile. */
+  .sr-booking-table tr.sr-booking-row { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 4px; }
+  .sr-booking-table tr.sr-booking-row td { display: block; width: auto !important; min-height: 0; padding: 0; text-align: left; }
+  .sr-booking-table tr.sr-booking-row td::before { content: none; }
+  /* Beschreibung und Betrag teilen sich die erste Zeile; ist der Betrag zu breit, rutscht er
+     darunter statt die Beschreibung zu zerquetschen. */
+  .sr-booking-table .sr-col-desc { order: 1; flex: 1 1 55%; min-width: 0; }
+  .sr-booking-table .sr-col-amount { order: 2; flex: 0 0 auto; margin-left: auto; text-align: right !important; font-weight: 600; white-space: nowrap; overflow-wrap: normal; }
+  .sr-booking-table .sr-col-date { order: 3; flex: 1 0 100%; color: var(--muted); font-size: 14px; }
+  .sr-booking-table .sr-col-kind { order: 4; flex: 1 0 100%; font-size: 14px; }
+  .sr-booking-table .sr-col-kind .sr-cell-text { flex-direction: row; gap: 8px; flex-wrap: wrap; }
+  .sr-booking-table .sr-col-state { order: 5; flex: 1 1 auto; align-self: center; }
+  .sr-booking-table .sr-col-state .badge { white-space: nowrap; }
+  .sr-booking-table .sr-col-action { order: 6; flex: 0 0 auto; margin-left: auto; align-self: center; }
+  /* Filter (D1): Suche direkt, Rest einklappbar */
+  .filter-bar.sr-booking-filterbar { align-items: stretch; gap: 12px; }
+  .filter-bar.sr-booking-filterbar .sr-filter-more > summary { width: 100%; justify-content: space-between; }
+  .filter-bar.sr-booking-filterbar .sr-filter-more-body { flex-direction: column; align-items: stretch; }
   #authGateOverlay > div { padding: 28px 20px !important; }
   .redesign-page-heading { flex-wrap: wrap; align-items: flex-start; }
   .redesign-page-heading h2 { font-size: 28px; }
@@ -471,6 +512,26 @@ body > :not(.print-container):not(#printArea) :is(#content, .modal, .onboarding-
   .stackr-shell .topnav, .stackr-shell .sidebar, .sr-context-nav { display: none !important; }
   .stackr-shell .main-content { margin: 0; width: 100%; padding: 0; }
 }
+
+/* Buchungsliste (Audit 2026-10-13, D1/D2): Textblock je Zelle, einklappbare Filter, Chips. */
+.sr-cell-text { display: flex; flex-direction: column; min-width: 0; overflow-wrap: break-word; hyphens: auto; }
+.sr-cell-sub { color: var(--muted); font-size: 14px; }
+.sr-booking-filterbar { flex-wrap: wrap; align-items: flex-end; }
+.sr-filter-more { min-width: 0; }
+.sr-filter-more > summary { cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; }
+.sr-filter-more[open] > summary { margin-bottom: 12px; }
+.sr-filter-more-body { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+.sr-filter-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; width: 100%; }
+.sr-filter-chips:empty { display: none; }
+.sr-filter-chip { min-height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); cursor: pointer; }
+.sr-filter-chip:focus-visible, .sr-filter-more > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Fachliche Formularfehler (Audit 2026-10-13, D3, js/fachfehler.js) */
+.sr-fach-fehler { border: 1px solid var(--danger); border-radius: 8px; padding: 16px; margin-bottom: 16px; color: var(--text); background: var(--bg-card, transparent); }
+.sr-fach-fehler:focus-visible { outline: 2px solid var(--danger); outline-offset: 2px; }
+.sr-fach-fehler ul { margin: 8px 0 0; padding-left: 20px; }
+.sr-fach-fehler li { margin: 4px 0; }
+.sr-fach-fehler li .btn { margin-left: 8px; }
 
 /* Einstellungen: ruhige Abschnitte mit direkten Zugängen zu den bestehenden Funktionen. */
 .sr-settings-section { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); gap: 48px; border-top: 1px solid var(--line); padding: 32px 0; }
@@ -524,6 +585,7 @@ a.sr-settings-row:hover strong { text-decoration: underline; text-underline-offs
   .sr-document-filter-main .filter-search { grid-column: 1 / -1; }
   .sr-document-filter-extra { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
   .sr-document-filter-extra .filter-group:last-child { grid-column: 1 / -1; }
+  .sr-document-header { align-items: flex-start; }
   .sr-document-header .page-header-actions { width: auto; }
 }
 @media (min-width: 1024px) and (max-width: 1279px) {

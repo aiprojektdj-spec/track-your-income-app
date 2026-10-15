@@ -36,7 +36,7 @@ function vercelBlob()     { return require('@vercel/blob'); }
 
 function sbBase() { return (process.env.SUPABASE_URL || '').replace(/\/+$/, '') + '/storage/v1'; }
 function sbHeaders(extra) {
-    var k = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    var k = db.serviceKey();   // geprüft, siehe api/_db.js (Befund B3)
     return Object.assign({ 'apikey': k, 'Authorization': 'Bearer ' + k }, extra || {});
 }
 function encKey(key) { return key.split('/').map(encodeURIComponent).join('/'); }
@@ -45,7 +45,7 @@ function encKey(key) { return key.split('/').map(encodeURIComponent).join('/'); 
 function configProblem() {
     var b = backend();
     if (b === 'vercel')   return vercelToken() ? '' : 'BLOB_READ_WRITE_TOKEN fehlt';
-    if (b === 'supabase') return db.isConfigured() ? '' : 'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY fehlen';
+    if (b === 'supabase') return db.isConfigured() ? '' : 'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY fehlen oder ungültig';
     return 'BLOB_BACKEND unbekannt: ' + b;
 }
 

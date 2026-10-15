@@ -43,7 +43,9 @@ function check(name, cond) {
     check('11) nur type/message/source/line/col/v', Object.keys(b0).sort().join(',') === 'col,line,message,source,type,v');
     check('11) Quelle nur Pfad', b0.source === '/js/app.js');
     check('12) gleicher Fehler nur einmal', k.beacons.length === 1);
-    for (let i = 0; i < 20; i++) k.win.ErrorLogger.log(new Error('e' + i));
+    // Seit Audit 2026-10-13 (S8) zählt der feste Fehlercode, nicht die freie Meldung — 20
+    // verschiedene Orte (context) ergeben 20 verschiedene Codes.
+    for (let i = 0; i < 20; i++) k.win.ErrorLogger.log(new Error('e' + i), 'ort' + i);
     check('12) höchstens 10 pro Seitenaufruf', k.beacons.length === 10);
     check('   manuelle Meldung ohne Quelle -> leere Quelle', JSON.parse(k.beacons[1].b.text).source === '');
     check('13) nichts im sessionStorage', Object.keys(k.ss).length === 0);

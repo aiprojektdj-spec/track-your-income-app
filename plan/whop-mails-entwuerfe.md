@@ -1,6 +1,7 @@
 # Zwei Whop-Mails — fertige Entwürfe (N4)
 
-**Stand: 2026-08-16.** Aufgabe 2.2 aus [`01-AUFGABEN.md`](01-AUFGABEN.md). Reine
+**Stand: 2026-08-16, gegen den Code nachgezogen 2026-10-14** (Preis exklusiv USt, Backup-Knopf,
+Cloud-Sync, §147 AO 8/10 Jahre). Aufgabe 2.2 aus [`01-AUFGABEN.md`](01-AUFGABEN.md). Reine
 Whop-Backend-Konfiguration, kein Code in diesem Repo. Einfügen musst du sie selbst — Claude
 meldet sich nicht bei Whop an.
 
@@ -8,7 +9,7 @@ meldet sich nicht bei Whop an.
 E-Mail-Automation. Auslöser sind die Membership-Ereignisse, nicht ein Datum.
 
 > **Rechtliches, bevor du sendest:** Beide Mails sind **Bestandskunden-Service zum laufenden
-> Vertrag**, keine Werbung — sie brauchen deshalb keine gesonderte Einwilligung. Die Winback-Mail
+> Vertrag**, keine Werbung — sie brauchen deshalb keine gesonderte Einwilligung. Die Kündigungsmail
 > kippt in Werbung, sobald sie einen Rabatt oder ein Angebot enthält. **Deshalb steht in Entwurf 2
 > bewusst kein Rabatt.** Willst du einen, brauchst du §7 Abs. 3 UWG (eigene Ware, Hinweis auf
 > Widerspruchsrecht bei jeder Nutzung) oder eine Einwilligung.
@@ -27,7 +28,7 @@ Eine Rückbuchung kostet dich Gebühr **und** Konto-Reputation — die Mail ist 
 >
 > kurze Vorwarnung, damit auf deinem Kontoauszug keine Überraschung steht: Dein Stackr-Jahresabo
 > verlängert sich am **{{renewal_date}}** automatisch um zwölf Monate. Abgebucht werden
-> **135 € inkl. MwSt.** über die bei Whop hinterlegte Zahlungsart.
+> **160,65 € (135 € zzgl. 19 % USt)** über die bei Whop hinterlegte Zahlungsart.
 >
 > Du musst nichts tun — alles läuft weiter wie bisher, deine Daten und Einstellungen bleiben
 > unverändert.
@@ -35,9 +36,9 @@ Eine Rückbuchung kostet dich Gebühr **und** Konto-Reputation — die Mail ist 
 > **Wenn du nicht verlängern willst,** kündigst du bis zum {{renewal_date}} hier:
 > {{manage_membership_url}}
 >
-> Auch danach bleiben deine Buchhaltungsdaten erhalten — sie liegen in deinem Browser, nicht bei
-> uns. Denk in dem Fall trotzdem an ein Backup über *Backup & Daten*, bevor du das Gerät
-> wechselst.
+> Auch danach bleiben deine Buchhaltungsdaten erhalten — sie liegen in deinem Browser. Nach dem
+> Ende des Abos kommst du aber nicht mehr in die App: Zieh dir deshalb **vor** dem
+> {{renewal_date}} ein Backup über *Backup & Daten → Backup herunterladen*.
 >
 > Fragen zur Rechnung? Antworte einfach auf diese Mail.
 >
@@ -50,27 +51,30 @@ Datumsformat** stehen.
 
 ---
 
-## 2. Winback — 7 Tage nach der Kündigung
+## 2. Kündigungsbestätigung — sofort bei Eingang der Kündigung
 
-**Auslöser:** Membership-Status auf `canceled`/`expired`, +7 Tage.
-**Warum:** Der Winback-Screen in der App ist gut gemacht, erreicht aber nur die, die von selbst
-zurückkommen. Diese Mail erreicht die anderen. Der Kernsatz ist nicht das Angebot, sondern die
-**Beruhigung**: die Daten sind nicht weg.
+**Auslöser:** Kündigung eingegangen (`cancel_at_period_end` bzw. das Whop-Ereignis „Membership
+canceled", solange der Zugang noch läuft) — **nicht** erst nach Ablauf.
+**Warum so früh:** Nach dem Ende des Abos sperrt das Whop-Gate die ganze App, auch *Backup &
+Daten*. Ein Backup-Hinweis sieben Tage nach Ablauf (alte Fassung dieses Entwurfs) liefe ins
+Leere. Entscheidung User 2026-10-14: Mail bei Kündigung statt Backup-Knopf im Sperrbildschirm.
+Der Kernsatz bleibt die **Beruhigung**: die Daten sind nicht weg — plus die Frist fürs Backup.
 
-> **Betreff:** Deine Stackr-Daten sind noch da
+> **Betreff:** Deine Kündigung — und was mit deinen Daten passiert
 >
 > Hallo {{first_name}},
 >
-> dein Stackr-Zugang ist seit einer Woche beendet. Eine Sache, die viele an dieser Stelle nicht
-> wissen und die dir Ärger ersparen kann:
+> deine Kündigung ist angekommen. Dein Stackr-Zugang läuft noch bis zum **{{expiry_date}}**.
 >
-> **Deine Buchhaltungsdaten sind nicht gelöscht.** Sie liegen dort, wo sie immer lagen — in dem
-> Browser, in dem du gearbeitet hast. Wir haben sie nie im Klartext gehabt und deshalb auch nichts
-> zu löschen. Kommst du zurück, ist alles da, wo du es verlassen hast.
+> **Deine Buchhaltungsdaten werden nicht gelöscht.** Sie liegen dort, wo sie immer lagen — in dem
+> Browser, in dem du gearbeitet hast. Hattest du Cloud-Sync an, liegt zusätzlich eine
+> verschlüsselte Kopie bei uns, die wir nicht lesen können. Kommst du zurück, ist alles da, wo du
+> es verlassen hast.
 >
-> **Was du jetzt trotzdem tun solltest:** Zieh dir einmal ein Backup über *Backup & Daten →
-> Backup erstellen*. Löschst du irgendwann die Browserdaten oder wechselst das Gerät, sind die
-> Daten sonst wirklich weg — und deine Aufbewahrungspflicht nach §147 AO läuft zehn Jahre.
+> **Eine Sache solltest du bis zum {{expiry_date}} erledigen:** Zieh dir ein Backup über
+> *Backup & Daten → Backup herunterladen*. Danach kommst du ohne Abo nicht mehr in die App.
+> Löschst du irgendwann die Browserdaten oder wechselst das Gerät, sind die Daten ohne Backup
+> wirklich weg — und deine Aufbewahrungspflicht nach §147 AO läuft bis zu zehn Jahre.
 >
 > Falls dir etwas gefehlt hat oder etwas im Weg war: Antworte auf diese Mail und schreib es mir in
 > einem Satz. Ich lese jede Antwort selbst.
@@ -84,6 +88,5 @@ zurückkommen. Diese Mail erreicht die anderen. Der Kernsatz ist nicht das Angeb
 
 ## Wenn du nur eine von beiden baust
 
-**Nimm die Vorwarnung.** Sie verhindert Rückbuchungen bei bereits zahlenden Kunden, die Winback
-gewinnt bestenfalls einen Teil der Abgesprungenen zurück. Vorwarnung schützt Bestand, Winback ist
-Akquise.
+**Nimm die Vorwarnung.** Sie verhindert Rückbuchungen bei bereits zahlenden Kunden, die Kündigungsmail
+sichert den Gekündigten das Backup. Beide sind Service, keine Werbung — solange kein Rabatt drinsteht.

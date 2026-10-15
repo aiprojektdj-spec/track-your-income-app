@@ -9,7 +9,7 @@
         { id: 'invoices', label: 'Rechnungen', page: 'rechnungen', icon: 'ti-file-invoice' },
         { id: 'inventory', label: 'Lager', page: 'lager', icon: 'ti-package' },
         { id: 'tax', label: 'Steuern', page: 'euer', icon: 'ti-receipt-tax' },
-        { id: 'reports', label: 'Auswertungen', page: 'statistiken', icon: 'ti-chart-line' }
+        { id: 'reports', label: 'Analyse', page: 'statistiken', icon: 'ti-chart-line' }
     ];
     var ROUTES = {
         dashboard: ['overview', 'Übersicht'],
@@ -34,7 +34,7 @@
         koerperschaftsteuer: ['tax', 'Körperschaftsteuer'],
         lohnsteuer: ['tax', 'Beschäftigte und Lohnsteuer'],
         ksk: ['tax', 'Kunst und Publizistik (KSK)'],
-        statistiken: ['reports', 'Entwicklung'],
+        statistiken: ['reports', 'Verkaufskanäle'],
         bilanz: ['reports', 'Jahresabschluss'],
         steuerberater: ['reports', 'Steuerberater'],
         gbr: ['reports', 'Gesellschaft und Verteilung'],
@@ -134,6 +134,11 @@
         if (!sidebar || !main || !topbar) return;
         initialized = true;
         document.body.classList.add('stackr-shell');
+        // Eigenständige Seiten zeigen dieselbe Firmenauswahl wie die Haupt-App.
+        var switcher = document.getElementById('companySwitcher');
+        if (standalone && switcher && !switcher.firstChild && typeof CompanyManager !== 'undefined') {
+            switcher.innerHTML = CompanyManager.renderSwitcherBtn();
+        }
         currentPage = standalone || new URLSearchParams(location.search).get('page') || 'dashboard';
         if (!ROUTES[currentPage]) currentPage = 'dashboard';
         pendingView = new URLSearchParams(location.search).get('view') || '';
@@ -291,7 +296,7 @@
             SUBPAGES[page].forEach(function (item) {
                 if (!isSettingsView(page, item[0]) && (!item[2] || !readonly())) links.push(routeLink(page, item[1], item[0]));
             });
-            if (page === 'gbr') links.push(routeLink('statistiken', 'Entwicklung'), routeLink('steuerberater', 'Steuerberater'), routeLink('protokoll', 'Änderungsprotokoll'));
+            if (page === 'gbr') links.push(routeLink('statistiken', 'Verkaufskanäle'), routeLink('steuerberater', 'Steuerberater'), routeLink('protokoll', 'Änderungsprotokoll'));
         } else if (page !== 'einstellungen' && ROUTES[page] && ROUTES[page][0] !== 'overview' && ROUTES[page][0] !== 'help') {
             var group = ROUTES[page][0];
             Object.keys(ROUTES).filter(function (key) { return ROUTES[key][0] === group; }).sort(function (a, b) {
@@ -319,6 +324,10 @@
         el.innerHTML = links.length ? '<div class="sr-context-tabs">' + visible.join('') + '</div>' +
             (extra.length ? '<details class="sr-more-tasks"><summary aria-label="Mehr Aufgaben">Mehr</summary><div class="sr-task-links">' + extra.join('') + '</div></details>' : '') : '';
         el.hidden = !links.length;
+        // Mobil ist die Leiste seitlich wischbar; der aktive Reiter soll ganz sichtbar sein.
+        var tabs = el.querySelector('.sr-context-tabs');
+        var current = tabs && tabs.querySelector('[aria-current="page"]');
+        if (current && tabs.scrollWidth > tabs.clientWidth) tabs.scrollLeft = current.offsetLeft - tabs.offsetLeft;
     }
 
     function onClick(event) {

@@ -511,7 +511,6 @@ var AuthUI = (function () {
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px;';
         overlay.innerHTML = [
             '<div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e2e42);border-radius:16px;padding:32px 28px;max-width:460px;width:100%;text-align:left;box-shadow:0 32px 80px rgba(0,0,0,.8);">',
-            '<div style="font-size:34px;margin-bottom:10px;line-height:1;">🔒</div>',
             '<h2 id="waDeviceLockTitle" style="color:var(--text-primary,#fff);font-size:19px;margin:0 0 10px;font-weight:800;">Gerät gesperrt — anderes Konto erkannt</h2>',
             '<p style="color:var(--text-muted,#aaa);font-size:13.5px;margin:0 0 14px;line-height:1.6;">',
             'Dieser Browser enthält bereits lokale Geschäftsdaten eines <strong>anderen</strong> Stackr-Kontos als <strong style="color:var(--text-secondary,#ddd);">' + _esc(user && (user.username || user.email) || 'dieses Konto') + '</strong>. ',
@@ -626,20 +625,35 @@ var AuthUI = (function () {
     }
 
     // ── Abmelden ──────────────────────────────────────────────
-    function _logout() {
+    // Serverseitigen Widerruf versuchen; true nur bei bestätigtem Erfolg (Audit 2026-10-13, S7 —
+    // vorher galt jede Abmeldung als erfolgreich, auch wenn der Server die Sitzung behielt).
+    var LS_REVOKE_PENDING = 'whop_revoke_pending';
+    function _revokeSession(sid) {
+        return fetch('/api/whop-refresh', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ session_id: sid, revoke: true }),
+            keepalive: true,
+            signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(4000) : undefined
+        }).then(function (r) { return r.ok; }).catch(function () { return false; });
+    }
+    // Beim nächsten Login-Bildschirm einen offenen Widerruf nachholen
+    function _retryPendingRevoke() {
+        var sid = null;
+        try { sid = localStorage.getItem(LS_REVOKE_PENDING); } catch (e) {}
+        if (!sid) return;
+        _revokeSession(sid).then(function (ok) { if (ok) { try { localStorage.removeItem(LS_REVOKE_PENDING); } catch (e) {} } });
+    }
+
+    async function _logout() {
         _removeGate('authUserMenu');
         // Sitzung serverseitig beenden — genau dafuer liegt der Refresh-Token dort und nicht
-        // im Browser. keepalive, weil location.replace() gleich darunter die Seite abraeumt.
+        // im Browser. Lokal wird in jedem Fall abgemeldet; scheitert der Server, bleibt die
+        // Sitzungs-ID als "Widerruf offen" liegen und wird beim nächsten Start nachgeholt.
         var sid = _sessionId();
         if (sid) {
-            try {
-                fetch('/api/whop-refresh', {
-                    method:  'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body:    JSON.stringify({ session_id: sid, revoke: true }),
-                    keepalive: true
-                }).catch(function () {});
-            } catch (e) {}
+            var ok = await _revokeSession(sid);
+            if (!ok) { try { localStorage.setItem(LS_REVOKE_PENDING, sid); } catch (e) {} }
         }
         localStorage.removeItem(LS_TOKEN);
         localStorage.removeItem(LS_USER);
@@ -651,6 +665,10 @@ var AuthUI = (function () {
     // ── Login-Screen ──────────────────────────────────────────
     function _showLoginScreen(errorMsg) {
         _removeGate('whopLoginOverlay');
+        var revokeOffen = false;
+        try { revokeOffen = !!localStorage.getItem(LS_REVOKE_PENDING); } catch (e) {}
+        if (revokeOffen && !errorMsg) errorMsg = 'Abgemeldet. Die Abmeldung beim Server ist noch nicht bestätigt — sie wird automatisch erneut versucht.';
+        _retryPendingRevoke();
 
         var overlay = document.createElement('div');
         overlay.id = 'whopLoginOverlay';
@@ -759,7 +777,7 @@ var AuthUI = (function () {
         var w = document.createElement('div');
         w.id = 'authWidget';
         w.style.cssText = 'display:flex;align-items:center;gap:6px;';
-        w.innerHTML = '<span id="cloudSyncDot" style="font-size:14px;color:#888;cursor:default;" title="Verbinde...">☁</span>';
+        w.innerHTML = '<span id="cloudSyncDot" style="font-size:14px;color:#888;cursor:default;" title="Verbinde..."><i class="ti ti-cloud" aria-hidden="true"></i></span>';
         ctrl.insertBefore(w, ctrl.firstChild);
     }
 
@@ -809,14 +827,14 @@ var AuthUI = (function () {
             _esc(user.email || user.username || 'Whop User') + '</div>' +
             '<div style="font-size:10px;color:var(--accent,#10b981);padding:0 12px 8px;">◆ Stackr Pro aktiv</div>' +
             '<hr style="border:none;border-top:1px solid var(--border,#2e2e42);margin:2px 0;">' +
-            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-referral">📣 Stackr empfehlen</button>' +
-            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-invite">👥 Steuerberater einladen</button>' +
-            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-clients">📂 Mandanten (als Steuerberater)</button>' +
-            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-my-code">🔑 Mein Freigabe-Code</button>' +
-            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-manage">🔒 Freigaben verwalten</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-referral">Stackr empfehlen</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-invite">Steuerberater einladen</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="stb-clients">Mandanten (als Steuerberater)</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-my-code">Mein Freigabe-Code</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-manage">Freigaben verwalten</button>' +
             '<hr style="border:none;border-top:1px solid var(--border,#2e2e42);margin:2px 0;">' +
-            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-manage-membership">🧾 Abo verwalten / kündigen</button>' +
-            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:#ef4444;cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-logout">🚪 Abmelden</button>';
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-manage-membership">Abo verwalten / kündigen</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:#ef4444;cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-logout">Abmelden</button>';
 
         document.body.appendChild(menu);
         btn.setAttribute('aria-expanded', 'true');
@@ -874,7 +892,6 @@ var AuthUI = (function () {
         overlay.innerHTML = [
             '<div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e2e42);border-radius:16px;padding:28px 26px;max-width:420px;width:100%;box-shadow:0 32px 80px rgba(0,0,0,.8);position:relative;">',
             '<button data-action="wa-close-referral" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--text-muted,#888);font-size:20px;cursor:pointer;line-height:1;">×</button>',
-            '<div style="font-size:32px;margin-bottom:10px;">📣</div>',
             '<h2 style="color:var(--text-primary,#fff);font-size:19px;margin:0 0 8px;font-weight:800;">Stackr empfehlen</h2>',
             '<p style="color:var(--text-muted,#888);font-size:13px;margin:0 0 18px;line-height:1.6;">Teile Stackr mit anderen Selbstständigen. Für jede erfolgreiche Empfehlung erhältst du eine Prämie über Whop.</p>',
 
@@ -884,7 +901,7 @@ var AuthUI = (function () {
             '</div>',
 
             '<div style="display:flex;gap:8px;margin-bottom:16px;">',
-            '<a href="' + mailHref + '" style="flex:1;text-align:center;padding:10px;background:var(--surface-2,rgba(255,255,255,.04));border:1px solid var(--border,#2e2e42);border-radius:8px;color:var(--text-primary,#fff);font-size:13px;text-decoration:none;">✉ E-Mail</a>',
+            '<a href="' + mailHref + '" style="flex:1;text-align:center;padding:10px;background:var(--surface-2,rgba(255,255,255,.04));border:1px solid var(--border,#2e2e42);border-radius:8px;color:var(--text-primary,#fff);font-size:13px;text-decoration:none;">E-Mail</a>',
             '<a href="' + waHref + '" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:10px;background:var(--surface-2,rgba(255,255,255,.04));border:1px solid var(--border,#2e2e42);border-radius:8px;color:var(--text-primary,#fff);font-size:13px;text-decoration:none;">WhatsApp</a>',
             '</div>',
 

@@ -27,6 +27,7 @@
         'js/bank-import.js',
         'js/steuerberater.js',
         'js/steuer-berechnung.js',
+        'js/kleinunternehmer.js',
         'js/euer.js',
         'js/ausgaben.js',
         'js/statistiken.js',
@@ -55,7 +56,9 @@
         'rechnungen/js/xrechnung.js',
         'rechnungen/js/erechnung-import.js',
         'rechnungen/js/rech-dashboard.js',
+        'js/fachfehler.js',
         'rechnungen/js/rechnung.js',
+        'js/storno-vorgang.js',
         'rechnungen/js/dokumente.js',
         'rechnungen/js/kunden.js',
         'rechnungen/js/produkte.js',
@@ -76,6 +79,7 @@
         'js/blob-attachments.js',
         'js/cloud-sync.js',
         'js/stb-share.js',
+        'js/domain-umzug.js',
 
         // Einstieg zuletzt: startet sofort beim Ausfuehren (DOMContentLoaded ist vorbei),
         // frueher lief der Start erst nach allen Skripten — so bleibt die Reihenfolge gleich.

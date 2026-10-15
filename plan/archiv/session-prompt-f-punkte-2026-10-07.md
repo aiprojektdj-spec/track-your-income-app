@@ -1,5 +1,9 @@
 # Session-Prompt: Offene Rechtsfragen F1–F13 zum Supabase-Umzug (2026-10-07)
 
+> **Archiviert 2026-10-08:** F1–F13 sind beantwortet (PR #22 + Abschluss-PR). Offen bleiben nur
+> 👤-Punkte im Entwurf (Supabase-TIA herunterladen, Subprocessor-Abo) und die Texte zu Ü1/Ü2/E,
+> die erst beim Umschalten eingebaut werden.
+
 **Auftrag des Users:** „Lass uns mit den F-Punkten in einer anderen Session starten.“
 
 Diese Datei ist der Einstieg. Der Entwurf mit allen Texten und Fragen liegt in

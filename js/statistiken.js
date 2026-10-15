@@ -12,7 +12,7 @@ const Statistiken = {
         const years = Array.from({length: 16}, (_, i) => 2020 + i);
         return `
             <div class="page-header">
-                <h2>Statistiken</h2>
+                <h2>Verkaufskanäle</h2>
             </div>
 
             <div class="filter-bar no-print" style="margin-bottom:20px;">
@@ -35,6 +35,8 @@ const Statistiken = {
             </div>
 
             <div id="platAnalyseSection"></div>
+
+            <div id="landAnalyseSection"></div>
 
             <div id="matStatSection"></div>
 
@@ -171,9 +173,11 @@ const Statistiken = {
     },
 
     _renderPlatformAnalyse(sales, allPurchases) {
-        const platData = {};
+        const section = document.getElementById('platAnalyseSection');
+        if (!section) return;
+        const platData = Object.create(null);
         sales.forEach(s => {
-            const p = s.verkaufsplattform || 'Unbekannt';
+            const p = (s.verkaufsplattform || '').trim();
             if (!platData[p]) platData[p] = { umsatz: 0, count: 0, gewinn: 0, ek: 0 };
             // Umsatz mit Käufer-Versand — derselbe Begriff wie in EÜR, UVA und DATEV-Stapel, und
             // seit 90d6719 auch in der Gewinnspalte daneben. Bis 2026-09-18 zählte hier nur der
@@ -202,70 +206,124 @@ const Statistiken = {
         });
 
         const entries = Object.entries(platData).sort((a, b) => b[1].umsatz - a[1].umsatz);
-        if (entries.length === 0) return;
-
-        // PStTG status
-        const jahr = parseInt(this._period) ||
-                     (this._customEnd ? parseInt(String(this._customEnd).slice(0, 4)) : new Date().getFullYear());
-        const schwelle = this._getPstTgSchwellen(jahr);
-        const pstpgRows = entries.map(([plat, v]) => {
-            const pflicht = v.count >= schwelle.verkaeufe || v.umsatz >= schwelle.verguetung;
-            const avgVK = v.count > 0 ? v.umsatz / v.count : 0;
+        const totalUmsatz = entries.reduce((sum, [, v]) => sum + v.umsatz, 0);
+        const totalGewinn = entries.reduce((sum, [, v]) => sum + v.gewinn, 0);
+        const channelCount = entries.filter(([name]) => name).length;
+        const unassigned = platData[''];
+        const channelLabel = channelCount
+            ? `${channelCount} ${channelCount === 1 ? 'Kanal' : 'Kanäle'}${unassigned ? ' · ohne Zuordnung: ' + unassigned.count : ''}`
+            : 'Noch kein Kanal zugeordnet';
+        const periodLabel = this._period === 'all' ? 'Gesamte Zeit'
+            : this._period === 'custom'
+                ? (this._customStart && this._customEnd
+                    ? `${Utils.formatDate(this._customStart)} – ${Utils.formatDate(this._customEnd)}` : 'Eigener Zeitraum')
+                : this._period;
+        // Bei negativen Umsätzen oder einer Nullsumme sind Umsatzanteile nicht sinnvoll.
+        const showShares = totalUmsatz > 0 && entries.every(([, v]) => v.umsatz >= 0);
+        const rows = entries.map(([plat, v]) => {
+            const share = showShares ? v.umsatz / totalUmsatz * 100 : 0;
+            const shareLabel = showShares ? share.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' %' : '—';
             return `<tr>
-                <td>${Utils.escapeHtml(plat)}</td>
-                <td style="text-align:right">${v.count}</td>
-                <td style="text-align:right">${Utils.formatCurrency(v.umsatz)}</td>
-                <td style="text-align:right">${Utils.formatCurrency(avgVK)}</td>
-                <td style="text-align:right;color:${v.gewinn >= 0 ? 'var(--success)' : 'var(--danger)'};">${Utils.formatCurrency(v.gewinn)}</td>
-                <td><span class="badge ${pflicht ? 'badge-danger' : 'badge-success'}">${pflicht ? '⚠️ Meldepflicht' : '✓ OK'}</span></td>
+                <th scope="row" class="sales-channels__name"><span>${Utils.escapeHtml(plat || 'Ohne Zuordnung')}</span></th>
+                <td class="sales-channels__number">${v.count.toLocaleString('de-DE')}</td>
+                <td class="sales-channels__number">${Utils.formatCurrency(v.umsatz)}</td>
+                <td class="sales-channels__share"><span>${shareLabel}</span><div class="sales-channels__track" aria-hidden="true"><i style="width:${share}%;"></i></div></td>
+                <td class="sales-channels__number">${Utils.formatCurrency(v.umsatz / v.count)}</td>
+                <td class="sales-channels__number sales-channels__profit${v.gewinn < 0 ? ' sales-channels__profit--loss' : ''}">${Utils.formatCurrency(v.gewinn)}</td>
             </tr>`;
         }).join('');
 
-        const bestPlat = entries[0];
+        // Der bestehende Schwellenvergleich gilt für die Jahresansicht. Frei gewählte
+        // oder mehrjährige Zeiträume werden nicht als Kalenderjahr bewertet.
+        const jahr = /^\d{4}$/.test(this._period) ? Number(this._period) : null;
+        const schwelle = this._getPstTgSchwellen(jahr);
+        const pstpgRows = entries.map(([plat, v]) => {
+            const pflicht = v.count >= schwelle.verkaeufe || v.umsatz >= schwelle.verguetung;
+            return `<tr>
+                <th scope="row">${Utils.escapeHtml(plat || 'Ohne Zuordnung')}</th>
+                <td class="sales-channels__number">${v.count}</td>
+                <td class="sales-channels__number">${Utils.formatCurrency(v.umsatz)}</td>
+                <td>${!plat ? 'Kanal fehlt' : !jahr ? 'Jahresansicht wählen' : !Number.isFinite(schwelle.verkaeufe) ? 'Nicht anwendbar' : `<span class="badge ${pflicht ? 'badge-warning' : ''}">${pflicht ? 'Schwelle erreicht' : 'Unter Schwelle'}</span>`}</td>
+            </tr>`;
+        }).join('');
 
-        const section = document.getElementById('platAnalyseSection');
+        section.innerHTML = `
+        <section class="card sales-channels" aria-labelledby="salesChannelsTitle">
+            <div class="sales-channels__header">
+                <div>
+                    <h3 class="sales-channels__title" id="salesChannelsTitle">Verkaufskanäle</h3>
+                    <p class="sales-channels__subtitle">Wo du verkaufst. Was dabei übrig bleibt.</p>
+                </div>
+                <span class="sales-channels__period">${Utils.escapeHtml(periodLabel)}</span>
+            </div>
+            <dl class="sales-channels__metrics">
+                <div><dt>Umsatz</dt><dd>${Utils.formatCurrency(totalUmsatz)}<small>inkl. Käufer-Versand</small></dd></div>
+                <div class="${totalGewinn < 0 ? 'sales-channels__metric--loss' : ''}"><dt>Gewinn aus Verkäufen</dt><dd>${Utils.formatCurrency(totalGewinn)}<small>nach Einkauf, Gebühren &amp; Versand</small></dd></div>
+                <div><dt>Verkäufe</dt><dd>${sales.length.toLocaleString('de-DE')}<small>im gewählten Zeitraum</small></dd></div>
+                <div><dt>Ø Umsatz je Verkauf</dt><dd>${sales.length ? Utils.formatCurrency(totalUmsatz / sales.length) : '—'}<small>inkl. Käufer-Versand</small></dd></div>
+            </dl>
+            ${entries.length ? `<div class="sales-channels__body">
+                <h4 class="sales-channels__section-title">Kanäle im Vergleich <span>${channelLabel}</span></h4>
+                <p class="sales-channels__hint">Nach Umsatz sortiert · aus deinen erfassten Verkäufen</p>
+                <div class="table-container sales-channels__table" role="region" aria-label="Verkaufskanäle im Vergleich" tabindex="0">
+                    <table>
+                        <caption class="sr-only">Umsatz und Gewinn je Verkaufskanal im gewählten Zeitraum</caption>
+                        <thead><tr><th scope="col">Kanal</th><th scope="col" class="sales-channels__number">Verkäufe</th><th scope="col" class="sales-channels__number">Umsatz</th><th scope="col">Umsatzanteil</th><th scope="col" class="sales-channels__number">Ø je Verkauf</th><th scope="col" class="sales-channels__number">Gewinn</th></tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+                ${unassigned ? `<div class="sales-channels__note"><p>${unassigned.count === 1 ? 'Bei einem Verkauf fehlt der Kanal.' : `Bei ${unassigned.count} Verkäufen fehlt der Kanal.`} Ergänze die Zuordnung in deinen Buchungen.</p><a href="app.html?page=buchungen" data-action="navigate" data-args='["buchungen"]'>Zu den Buchungen <span aria-hidden="true">↗</span></a></div>` : ''}
+                <details class="sales-channels__details">
+                    <summary>Plattform-Meldehinweise <span>PStTG</span></summary>
+                    <p>${!jahr ? 'Wähle ein Kalenderjahr, um die erfassten Verkäufe mit den jährlichen Meldeschwellen zu vergleichen.' : !Number.isFinite(schwelle.verkaeufe) ? 'Für diesen Zeitraum sind keine PStTG-Schwellen hinterlegt.' : `Orientierung anhand deiner erfassten Verkäufe: ${schwelle.verkaeufe} Verkäufe oder ${Utils.formatCurrency(schwelle.verguetung)} Umsatz je Plattform im Jahr ${jahr}. Die Prüfung berücksichtigt weder die Art des Kanals noch fehlende Verkaufsdaten.`}</p>
+                    <div class="table-container" role="region" aria-label="Plattform-Meldehinweise" tabindex="0"><table>
+                        <thead><tr><th scope="col">Kanal</th><th scope="col" class="sales-channels__number">Verkäufe</th><th scope="col" class="sales-channels__number">Umsatz</th><th scope="col">Schwellenvergleich</th></tr></thead>
+                        <tbody>${pstpgRows}</tbody>
+                    </table></div>
+                </details>
+            </div>` : `<div class="sales-channels__empty">
+                <h4>Noch keine Verkäufe in diesem Zeitraum</h4>
+                <p>Sobald du einen Verkauf erfasst, siehst du hier Umsatz, Gewinn und die Verteilung auf deine Kanäle.</p>
+                <a class="btn btn-secondary" href="app.html?page=buchungen" data-action="navigate" data-args='["buchungen"]'>Zu den Buchungen <span aria-hidden="true">↗</span></a>
+            </div>`}
+        </section>`;
+    },
+
+    // Umsatz nach Land des Käufers (sale.land, ISO-Code). Umsatzbegriff wie in der
+    // Plattform-Analyse: Artikelpreis + Käufer-Versand. Reine Auswertung — keine Steuerfolge.
+    _renderLandAnalyse(sales) {
+        const section = document.getElementById('landAnalyseSection');
         if (!section) return;
+        const byLand = {};
+        sales.forEach(s => {
+            const l = s.land || '';
+            if (!byLand[l]) byLand[l] = { umsatz: 0, count: 0 };
+            byLand[l].umsatz += (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
+            byLand[l].count++;
+        });
+        // "Ohne Angabe" immer ans Ende, sonst nach Umsatz absteigend
+        const entries = Object.entries(byLand).sort((a, b) => (!a[0]) - (!b[0]) || b[1].umsatz - a[1].umsatz);
+        if (!entries.length) { section.innerHTML = ''; return; }
+        const gesamt = entries.reduce((s, [, v]) => s + v.umsatz, 0);
+        const rows = entries.map(([l, v]) => `<tr>
+                <td>${Utils.escapeHtml(Utils.landName(l))}${l ? ` <span style="color:var(--text-muted);font-size:11px;">${l}</span>` : ''}</td>
+                <td style="text-align:right">${v.count}</td>
+                <td style="text-align:right">${Utils.formatCurrency(v.umsatz)}</td>
+                <td style="text-align:right">${gesamt ? (v.umsatz / gesamt * 100).toFixed(1).replace('.', ',') : '0,0'} %</td>
+            </tr>`).join('');
         section.innerHTML = `
         <div class="card" style="margin-bottom:16px;">
             <div class="card-header">
-                <div class="card-title">Plattform-Analyse</div>
-                <div style="font-size:12px;color:var(--text-muted);">PStTG: Meldepflicht ab 30 Verkäufe oder 2.000 € je Plattform</div>
-            </div>
-            ${bestPlat ? `<div style="margin-bottom:12px;padding:10px;background:rgba(16,185,129,0.08);border:1px solid var(--success);border-radius:6px;font-size:13px;">
-                🏆 <strong>Beste Plattform:</strong> ${Utils.escapeHtml(bestPlat[0])} — ${Utils.formatCurrency(bestPlat[1].umsatz)} Umsatz, ${bestPlat[1].count} Verkäufe
-            </div>` : ''}
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-                <div><canvas id="chartPlatPie" style="max-height:200px;"></canvas></div>
-                <div><canvas id="chartPlatGewinn" style="max-height:200px;"></canvas></div>
+                <div class="card-title">Umsatz nach Land</div>
+                <div style="font-size:12px;color:var(--text-muted);">Land des Käufers, beim Verkauf erfasst</div>
             </div>
             <div class="table-container" style="border:none;">
                 <table>
-                    <thead><tr><th>Plattform</th><th style="text-align:right">Verkäufe</th><th style="text-align:right">Umsatz</th><th style="text-align:right">Ø VK</th><th style="text-align:right">Gewinn</th><th>PStTG</th></tr></thead>
-                    <tbody>${pstpgRows}</tbody>
+                    <thead><tr><th>Land</th><th style="text-align:right">Verkäufe</th><th style="text-align:right">Umsatz</th><th style="text-align:right">Anteil</th></tr></thead>
+                    <tbody>${rows}</tbody>
                 </table>
             </div>
         </div>`;
-
-        // Pie chart: Umsatz per platform
-        const colors = ['#10b981', '#3b82f6', '#8b93f8', '#f5a623', '#ef5350', '#14b8a6', '#0891b2', '#f97316'];
-        const { textColor } = this._getThemeColors();
-        const platLabels = entries.map(([p]) => p);
-        this._createChart('chartPlatPie', {
-            type: 'doughnut',
-            data: {
-                labels: platLabels,
-                datasets: [{ data: entries.map(([, v]) => v.umsatz), backgroundColor: platLabels.map((_, i) => colors[i % colors.length]) }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: textColor, padding: 10, font: { size: 11 } } } } }
-        });
-        this._createChart('chartPlatGewinn', {
-            type: 'bar',
-            data: {
-                labels: platLabels,
-                datasets: [{ label: 'Gewinn', data: entries.map(([, v]) => v.gewinn), backgroundColor: entries.map(([, v]) => v.gewinn >= 0 ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.7)'), borderWidth: 1 }]
-            },
-            options: { ...this._defaultOptions(false), plugins: { legend: { display: false } } }
-        });
     },
 
     _renderMaterialStats(sales, unsyncedRevenue) {
@@ -290,7 +348,7 @@ const Statistiken = {
         section.innerHTML = `
             <div class="card" style="margin-bottom:16px;">
                 <div class="card-header">
-                    <div class="card-title">📦 Verpackungskosten-Analyse</div>
+                    <div class="card-title">Verpackungskosten-Analyse</div>
                     <a href="#" data-action="navigate" data-args=\'["materiallager"]\'
                         style="font-size:12px;color:var(--info);">Materiallager →</a>
                 </div>
@@ -347,29 +405,15 @@ const Statistiken = {
 
         // ── G: Leerer Zustand ────────────────────────────────────────────────
         if (sales.length === 0 && purchases.length === 0) {
-            const periodLabel = isNaN(parseInt(this._period))
-                ? (this._period === 'all' ? 'Gesamte Zeit' : 'diesen Zeitraum')
-                : `das Jahr ${this._period}`;
-            ['platAnalyseSection','matStatSection','profitabilitaetSection',
+            ['platAnalyseSection','landAnalyseSection','matStatSection','profitabilitaetSection',
              'chartBrand','chartPlatform','chartTypes','chartMonths','chartAvg','chartROI']
                 .forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
-            const first = document.getElementById('platAnalyseSection');
-            if (first) first.innerHTML = `
-                <div class="card" style="text-align:center;padding:48px 24px;margin-bottom:20px;">
-                    <div style="font-size:52px;margin-bottom:16px;">📊</div>
-                    <h3 style="margin:0 0 8px;color:var(--text-primary);">Keine Daten für ${periodLabel}</h3>
-                    <p style="color:var(--text-muted);max-width:380px;margin:0 auto 20px;">
-                        Trage Einkäufe und Verkäufe ein – danach erscheinen hier Auswertungen nach Marke,
-                        Plattform, Gewinn und mehr.
-                    </p>
-                    <button class="btn btn-primary" data-action="navigate" data-args=\'["buchungen"]\'>
-                        → Erste Buchung erfassen
-                    </button>
-                </div>`;
+            this._renderPlatformAnalyse(sales, allPurchases);
             return;
         }
 
         this._renderPlatformAnalyse(sales, allPurchases);
+        this._renderLandAnalyse(sales);
         this._renderMaterialStats(sales, unsyncedRevenue);
         this._renderProfitabilitaet(sales, allPurchases);
 
@@ -669,14 +713,13 @@ const Statistiken = {
                 const marge     = v.totalNet > 0 ? v.totalGewinn / v.totalNet * 100 : 0;
                 const avgSt     = v.stCount > 0 ? Math.round(v.stSum / v.stCount) : null;
                 const mCol = marge >= 30 ? 'var(--success)' : marge >= 10 ? 'var(--warning)' : 'var(--danger)';
-                const mBadge = marge >= 30 ? '🟢' : marge >= 10 ? '🟡' : '🔴';
                 return `<tr>
                     <td><strong>${Utils.escapeHtml(name)}</strong></td>
                     <td style="text-align:right">${v.count}</td>
                     <td style="text-align:right">${Utils.formatCurrency(avgEK)}</td>
                     <td style="text-align:right">${Utils.formatCurrency(avgVK)}</td>
                     <td style="text-align:right;color:${avgProfit >= 0 ? 'var(--success)' : 'var(--danger)'};">${Utils.formatCurrency(avgProfit)}</td>
-                    <td style="text-align:right;color:${mCol};font-weight:600">${mBadge} ${marge.toFixed(1)}%</td>
+                    <td style="text-align:right;color:${mCol};font-weight:600">${marge.toFixed(1)}%</td>
                     <td style="text-align:right;color:var(--text-muted)">${avgSt !== null ? avgSt + ' T.' : '—'}</td>
                 </tr>`;
             }).join('');
@@ -700,15 +743,15 @@ const Statistiken = {
             .sort((a, b) => (a[1].stSum / a[1].stCount) - (b[1].stSum / b[1].stCount))[0];
 
         const highlights = [
-            topBrand ? `🏆 <strong>Top Marke:</strong> ${Utils.escapeHtml(topBrand[0])} — ${Utils.formatCurrency(topBrand[1].totalGewinn)} Gewinn` : '',
-            topType  ? `📦 <strong>Top Kategorie:</strong> ${Utils.escapeHtml(topType[0])} — ${topType[1].count} Stk. verkauft` : '',
-            fastType ? `⚡ <strong>Schnellste Umschlagszeit:</strong> ${Utils.escapeHtml(fastType[0])} — Ø ${Math.round(fastType[1].stSum / fastType[1].stCount)} Tage` : ''
+            topBrand ? `<strong>Top Marke:</strong> ${Utils.escapeHtml(topBrand[0])} — ${Utils.formatCurrency(topBrand[1].totalGewinn)} Gewinn` : '',
+            topType  ? `<strong>Top Kategorie:</strong> ${Utils.escapeHtml(topType[0])} — ${topType[1].count} Stk. verkauft` : '',
+            fastType ? `<strong>Schnellste Umschlagszeit:</strong> ${Utils.escapeHtml(fastType[0])} — Ø ${Math.round(fastType[1].stSum / fastType[1].stCount)} Tage` : ''
         ].filter(Boolean);
 
         section.innerHTML = `
         <div class="card" style="margin-bottom:16px;">
             <div class="card-header">
-                <div class="card-title">📊 Profitabilitäts-Übersicht</div>
+                <div class="card-title">Profitabilitäts-Übersicht</div>
                 <div style="font-size:12px;color:var(--text-muted);">Marge = Nettogewinn ÷ Nettoumsatz · Standzeit = Ø Tage EK→VK</div>
             </div>
             ${highlights.length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">

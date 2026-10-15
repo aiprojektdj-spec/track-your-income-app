@@ -135,7 +135,7 @@ function configProblem() {
         return P.name === 'redis'
             ? 'UPSTASH_REDIS_REST_URL/TOKEN nicht gesetzt'
             : (db.isConfigured() ? 'WHOP_SESSION_KEY fehlt oder ist nicht 32 Byte Base64'
-                                 : 'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY nicht gesetzt');
+                                 : 'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY nicht gesetzt oder ungültig');
     }
     return '';
 }
@@ -165,5 +165,15 @@ module.exports = {
     del: async function (sid) {
         await P.del(sid);
         await mirror('del', function (m) { return m.del(sid); });
-    }
+    },
+
+    // Widerrufsmarke (Audit 2026-10-13, S7): liegt unter einer eigenen Sitzungs-ID, damit ein
+    // bereits laufender Refresh sie nicht überschreiben kann. Gesetzt VOR dem Löschen der
+    // Sitzung; der Refresh prüft sie nach dem Speichern und räumt dann selbst wieder ab.
+    // Gleiche Laufzeit wie eine Sitzung — länger kann keine Sitzung leben, die sie betrifft.
+    markRevoked: async function (sid) {
+        await P.put('rv' + sid, { revoked: true, at: Date.now() });
+        await mirror('markRevoked', function (m) { return m.put('rv' + sid, { revoked: true, at: Date.now() }); });
+    },
+    isRevoked: async function (sid) { return !!(await P.get('rv' + sid)); }
 };

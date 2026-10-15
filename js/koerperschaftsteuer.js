@@ -1,16 +1,37 @@
 // ============================================
 // Körperschaftsteuer (KSt) — GmbH / UG
-// §1 KStG: 15% + 5,5% SolZ = 15,825%
+// §23 KStG: Satz je Veranlagungszeitraum (_kstSatz), + 5,5% SolZ
 // ============================================
 const Koerperschaftsteuer = {
 
     _year: new Date().getFullYear(),
 
-    KST_SATZ:  0.15,
     SOLZ_SATZ: 0.055,
 
-    // KSt + SolZ Gesamtbelastung
-    get GESAMT_SATZ() { return this.KST_SATZ + (this.KST_SATZ * this.SOLZ_SATZ); }, // 15.825%
+    // §23 Abs.1 KStG i.d.F. des Gesetzes für ein steuerliches Investitionssofortprogramm (2025):
+    // 15 % bis VZ 2027, dann jährlich ein Prozentpunkt weniger bis 10 % ab VZ 2032 (T12).
+    _kstSatz(year) {
+        if (year <= 2027) return 0.15;
+        if (year >= 2032) return 0.10;
+        return (15 - (year - 2027)) / 100;
+    },
+    _gesamtSatz(year) { const k = this._kstSatz(year); return k + k * this.SOLZ_SATZ; },
+
+    // Mindestbesteuerung beim Verlustvortrag (T10). Bis zum Sockelbetrag voll abziehbar, darüber
+    // nur zu einer Quote — für KSt (§10d Abs.2 EStG i.V.m. §8 Abs.1 KStG) 70 % in den VZ
+    // 2024–2027 (Wachstumschancengesetz), sonst 60 %; für die GewSt (§10a GewStG) 60 %.
+    _mindestbesteuerung(year) {
+        return { sockel: 1000000, kstQuote: (year >= 2024 && year <= 2027) ? 0.70 : 0.60, gewstQuote: 0.60 };
+    },
+
+    // Verlustabzug mit Mindestbesteuerung. basis = Einkommen bzw. Gewerbeertrag vor Verlustabzug.
+    _verlustabzug(basis, vortrag, sockel, quote) {
+        vortrag = Math.max(0, parseFloat(vortrag) || 0);
+        if (basis <= 0) return { abzug: 0, nachAbzug: Math.max(0, basis), restVortrag: vortrag + Math.abs(Math.min(0, basis)) };
+        const max = basis <= sockel ? basis : sockel + quote * (basis - sockel);
+        const abzug = Math.min(vortrag, max);
+        return { abzug, nachAbzug: basis - abzug, restVortrag: vortrag - abzug };
+    },
 
     _getData()   { return Store.get('kst_data') || {}; },
     _saveData(d) { Store.set('kst_data', d); },
@@ -37,35 +58,38 @@ const Koerperschaftsteuer = {
     },
 
     // ── KSt berechnen ──
-    _calcKSt(gewinn, year) {
+    // KSt- und GewSt-Verlustvortrag sind getrennt festgestellte Größen (§10d EStG / §10a GewStG)
+    // und werden getrennt abgezogen — bis zum Audit 2026-10-13 (T10) zog die App einen Betrag
+    // unbegrenzt ab und nahm das Ergebnis zugleich als Gewerbeertrag. yd.verlustvortragGewSt
+    // fehlt bei Altdaten; dann gilt derselbe Wert wie für die KSt (Anzeige weist das aus).
+    // opts.gewerbeertrag: Gewerbeertrag vor Verlustabzug, wenn er vom Gewinn abweicht
+    // (Hinzurechnungen/Kürzungen bildet Stackr nicht ab — Standard ist der Gewinn).
+    _calcKSt(gewinn, year, opts) {
+        opts = opts || {};
         const data = this._getData();
         const yd   = data[year] || {};
+        const mb   = this._mindestbesteuerung(year);
 
-        // Verlustvortrag aus Vorjahr
         const verlustvortrag = parseFloat(yd.verlustvortrag) || 0;
+        const gewstVortragGesetzt = yd.verlustvortragGewSt !== undefined && yd.verlustvortragGewSt !== '';
+        const verlustvortragGewSt = gewstVortragGesetzt ? (parseFloat(yd.verlustvortragGewSt) || 0) : verlustvortrag;
 
-        // Zu versteuerndes Einkommen
-        let zvE = gewinn - verlustvortrag;
+        const k = this._verlustabzug(gewinn, verlustvortrag, mb.sockel, mb.kstQuote);
+        const zvE = k.nachAbzug;
+        const neuerVerlust = k.restVortrag;
 
-        // Neuer Verlustvortrag wenn negativ
-        let neuerVerlust = 0;
-        if (zvE < 0) {
-            neuerVerlust = Math.abs(zvE);
-            zvE = 0;
-        }
-
-        // Mindestbesteuerung §10d EStG: 60% des zvE über 1 Mio sind abzugsfähig
-        // (vereinfacht, da für kleine GmbH/UG meist irrelevant)
-
-        const kst  = zvE * this.KST_SATZ;
+        const kstSatz = this._kstSatz(year);
+        const kst  = zvE * kstSatz;
         const solz = kst * this.SOLZ_SATZ;
         const gesamt = kst + solz;
 
         // GewSt (GmbH/UG: kein Freibetrag!)
         const einst    = Store.get('gbr_einstellungen') || {};
         const hebesatz = parseFloat(einst.hebesatz) || 400;
+        const gewerbeertragVor = opts.gewerbeertrag !== undefined ? opts.gewerbeertrag : gewinn;
+        const g = this._verlustabzug(gewerbeertragVor, verlustvortragGewSt, mb.sockel, mb.gewstQuote);
         // §11 GewStG: Gewerbeertrag auf volle 100 € abrunden, dann Steuermesszahl 3,5%
-        const gewerbeertrag = Math.floor(Math.max(0, zvE) / 100) * 100;
+        const gewerbeertrag = Math.floor(Math.max(0, g.nachAbzug) / 100) * 100;
         const messbetrag = gewerbeertrag * 0.035;
         const gewSt      = messbetrag * (hebesatz / 100);
 
@@ -73,7 +97,8 @@ const Koerperschaftsteuer = {
         const steuerGesamt = gesamt + gewSt;
 
         return {
-            gewinn, verlustvortrag, zvE, neuerVerlust,
+            gewinn, verlustvortrag, verlustabzug: k.abzug, zvE, neuerVerlust, kstSatz,
+            verlustvortragGewSt, gewstVortragGesetzt, verlustabzugGewSt: g.abzug, gewerbeertrag, neuerVerlustGewSt: g.restVortrag,
             kst, solz, gesamt,
             hebesatz, messbetrag, gewSt,
             steuerGesamt,
@@ -88,7 +113,6 @@ const Koerperschaftsteuer = {
             return `
             <div class="page-header"><h2><i class="ti ti-building-bank" style="margin-right:6px;"></i> Körperschaftsteuer</h2></div>
             <div class="card" style="padding:32px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:16px;">🏢</div>
                 <h3>Nur für Kapitalgesellschaften</h3>
                 <p style="color:var(--text-muted);margin:8px 0 20px;">
                     KSt betrifft nur <strong>GmbH</strong> und <strong>UG (haftungsbeschränkt)</strong>.<br>
@@ -104,7 +128,8 @@ const Koerperschaftsteuer = {
         const data = this._getData();
         const yd   = data[year] || {};
 
-        const yearOpts = Array.from({ length: 6 }, (_, i) => 2022 + i)
+        // Jahresauswahl dynamisch bis zwei Jahre über das laufende Jahr hinaus (T12)
+        const yearOpts = Array.from({ length: Math.max(year, new Date().getFullYear()) + 2 - 2022 + 1 }, (_, i) => 2022 + i)
             .map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('');
 
         // Vorauszahlungen
@@ -129,9 +154,9 @@ const Koerperschaftsteuer = {
             </div>
         </div>
 
-        <!-- ⚠️ Pflichthinweis: Cash-EÜR-Näherung, keine bilanzielle Gewinnermittlung -->
+        <!-- Pflichthinweis: Cash-EÜR-Näherung, keine bilanzielle Gewinnermittlung -->
         <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;">
-            ⚠️ <strong>Vereinfachte Berechnung — keine bilanzielle Gewinnermittlung.</strong>
+            <strong>Vereinfachte Berechnung — keine bilanzielle Gewinnermittlung.</strong>
             ${rf} ist gem. §8 Abs. 1 KStG i.V.m. §5 Abs. 1 EStG bilanzierungspflichtig. Die Zahlen auf dieser Seite basieren auf einer
             reinen <strong>Cash-EÜR-Näherung</strong> (Einnahmen − Wareneinkauf − Ausgaben) und berücksichtigen <strong>keine</strong> Rückstellungen,
             Abgrenzungen, Forderungen/Verbindlichkeiten oder sonstigen bilanziellen Anpassungen zum Stichtag. Der tatsächliche steuerliche Gewinn
@@ -148,7 +173,7 @@ const Koerperschaftsteuer = {
             <div class="card stat-card danger">
                 <div class="card-label">KSt + SolZ</div>
                 <div class="card-value">${Utils.formatCurrency(calc.gesamt)}</div>
-                <div class="card-subtitle">15% + 5,5% SolZ = 15,825%</div>
+                <div class="card-subtitle">${(calc.kstSatz * 100).toLocaleString('de-DE')}% + 5,5% SolZ = ${(this._gesamtSatz(year) * 100).toLocaleString('de-DE', { maximumFractionDigits: 3 })}%</div>
             </div>
             <div class="card stat-card danger">
                 <div class="card-label">Gewerbesteuer</div>
@@ -170,17 +195,18 @@ const Koerperschaftsteuer = {
                     <thead><tr><th>Position</th><th>Grundlage</th><th style="text-align:right">Betrag</th></tr></thead>
                     <tbody>
                         <tr><td>Jahresgewinn (vorläufig)</td><td>EÜR / GuV</td><td style="text-align:right">${Utils.formatCurrency(fin.gewinn)}</td></tr>
-                        ${calc.verlustvortrag > 0 ? `
-                        <tr><td>− Verlustvortrag §10d EStG</td><td>Aus Vorjahr</td><td style="text-align:right;color:var(--success)">− ${Utils.formatCurrency(calc.verlustvortrag)}</td></tr>
+                        ${calc.verlustabzug > 0 ? `
+                        <tr><td>− Verlustabzug §10d EStG</td><td>${calc.verlustabzug < calc.verlustvortrag ? 'Mindestbesteuerung' : 'Aus Vorjahr'}</td><td style="text-align:right;color:var(--success)">− ${Utils.formatCurrency(calc.verlustabzug)}</td></tr>
                         ` : ''}
                         <tr style="font-weight:600;"><td>= Zu versteuerndes Einkommen</td><td></td><td style="text-align:right">${Utils.formatCurrency(calc.zvE)}</td></tr>
 
                         <tr><td colspan="3" style="padding-top:14px;font-weight:700;color:var(--text-muted);font-size:12px;">KÖRPERSCHAFTSTEUER</td></tr>
-                        <tr><td>KSt (15%)</td><td>§23 Abs. 1 KStG</td><td style="text-align:right;color:var(--danger)">${Utils.formatCurrency(calc.kst)}</td></tr>
+                        <tr><td>KSt (${(calc.kstSatz * 100).toLocaleString('de-DE')}%)</td><td>§23 Abs. 1 KStG</td><td style="text-align:right;color:var(--danger)">${Utils.formatCurrency(calc.kst)}</td></tr>
                         <tr><td>+ SolZ (5,5% auf KSt)</td><td>§4 SolZG</td><td style="text-align:right;color:var(--danger)">${Utils.formatCurrency(calc.solz)}</td></tr>
-                        <tr style="font-weight:600;"><td>= KSt + SolZ gesamt</td><td>15,825%</td><td style="text-align:right;color:var(--danger)">${Utils.formatCurrency(calc.gesamt)}</td></tr>
+                        <tr style="font-weight:600;"><td>= KSt + SolZ gesamt</td><td>${(this._gesamtSatz(year) * 100).toLocaleString('de-DE', { maximumFractionDigits: 3 })}%</td><td style="text-align:right;color:var(--danger)">${Utils.formatCurrency(calc.gesamt)}</td></tr>
 
                         <tr><td colspan="3" style="padding-top:14px;font-weight:700;color:var(--text-muted);font-size:12px;">GEWERBESTEUER</td></tr>
+                        ${calc.verlustabzugGewSt > 0 ? `<tr><td>Gewerbeertrag nach Verlustabzug §10a GewStG</td><td>${calc.gewstVortragGesetzt ? '' : 'Vortrag wie KSt angenommen'}</td><td style="text-align:right">${Utils.formatCurrency(calc.gewerbeertrag)}</td></tr>` : ''}
                         <tr><td>Steuermessbetrag (3,5%)</td><td>§11 GewStG</td><td style="text-align:right">${Utils.formatCurrency(calc.messbetrag)}</td></tr>
                         <tr><td>× Hebesatz (${calc.hebesatz}%)</td><td>Gemeinde</td><td style="text-align:right;color:var(--danger)">${Utils.formatCurrency(calc.gewSt)}</td></tr>
                         <tr><td style="font-size:11px;color:var(--text-muted);">Kein Freibetrag für Kapitalgesellschaften</td><td></td><td></td></tr>
@@ -201,7 +227,7 @@ const Koerperschaftsteuer = {
         ${isUG ? `
         <!-- UG Thesaurierung -->
         <div class="card" style="margin-bottom:16px;padding:16px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.3);">
-            <div style="font-weight:700;font-size:14px;color:var(--warning);margin-bottom:6px;">⚠️ UG-Thesaurierungspflicht (§5a GmbHG)</div>
+            <div style="font-weight:700;font-size:14px;color:var(--warning);margin-bottom:6px;">UG-Thesaurierungspflicht (§5a GmbHG)</div>
             <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;">
                 <strong>25% des Jahresüberschusses nach Steuern</strong> müssen als Rücklage einbehalten werden,
                 bis Stammkapital von <strong>25.000 €</strong> erreicht ist.<br>
@@ -218,13 +244,18 @@ const Koerperschaftsteuer = {
             </div>
             <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
                 <div class="form-group" style="flex:1;min-width:200px;">
-                    <label class="form-label">Verlustvortrag aus Vorjahr (€)</label>
+                    <label class="form-label" for="kstVerlust">KSt-Verlustvortrag aus Vorjahr (€)</label>
                     <input type="number" step="0.01" min="0" max="999999999" class="form-input" id="kstVerlust" value="${calc.verlustvortrag || ''}" placeholder="0,00">
+                </div>
+                <div class="form-group" style="flex:1;min-width:200px;">
+                    <label class="form-label" for="kstVerlustGewSt">Gewerbesteuer-Verlustvortrag (€)</label>
+                    <input type="number" step="0.01" min="0" max="999999999" class="form-input" id="kstVerlustGewSt" value="${calc.gewstVortragGesetzt ? calc.verlustvortragGewSt : ''}" placeholder="wie KSt">
                 </div>
                 <button class="btn btn-primary" id="saveVerlustBtn" style="height:38px;">Speichern</button>
             </div>
-            ${calc.neuerVerlust > 0 ? `<div style="margin-top:10px;font-size:12px;color:var(--warning);">
-                Neuer Verlustvortrag für ${year + 1}: <strong>${Utils.formatCurrency(calc.neuerVerlust)}</strong>
+            <div class="form-hint">Beide Vorträge stellt das Finanzamt getrennt fest. Über 1 Mio. € ist der Abzug begrenzt (Mindestbesteuerung: KSt ${Math.round(this._mindestbesteuerung(year).kstQuote * 100)} %, GewSt ${Math.round(this._mindestbesteuerung(year).gewstQuote * 100)} % des übersteigenden Betrags).</div>
+            ${(calc.neuerVerlust > 0 || calc.neuerVerlustGewSt > 0) ? `<div style="margin-top:10px;font-size:12px;color:var(--warning);">
+                Verbleibender Verlustvortrag für ${year + 1}: KSt <strong>${Utils.formatCurrency(calc.neuerVerlust)}</strong> · GewSt <strong>${Utils.formatCurrency(calc.neuerVerlustGewSt)}</strong>
             </div>` : ''}
         </div>
 
@@ -253,7 +284,7 @@ const Koerperschaftsteuer = {
                         <td style="padding:7px 8px;font-size:12px;">Q${v.quartal}</td>
                         <td style="padding:7px 8px;font-size:12px;color:var(--text-secondary);">${Utils.escapeHtml(v.notiz || '')}</td>
                         <td style="padding:7px 8px;font-size:12px;font-weight:700;text-align:right;">${Utils.formatCurrency(v.betrag)}</td>
-                        <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="kst-del-vz" data-args='["${v.id}"]' >🗑</button></td>
+                        <td><button style="background:none;border:none;cursor:pointer;color:var(--text-muted);" data-action="kst-del-vz" data-args='["${v.id}"]' aria-label="Löschen"><i class="ti ti-trash" aria-hidden="true"></i></button></td>
                     </tr>`).join('')}
                 </tbody>
                 ${vz.length > 0 ? `<tfoot><tr style="font-weight:700;">
@@ -269,11 +300,11 @@ const Koerperschaftsteuer = {
         <div class="card" style="margin-top:16px;padding:14px 16px;">
             <div style="font-size:12px;color:var(--text-muted);line-height:1.7;">
                 <strong>§1 KStG:</strong> Körperschaftsteuerpflicht für Kapitalgesellschaften.<br>
-                <strong>§23 KStG:</strong> Steuersatz 15%.<br>
+                <strong>§23 KStG:</strong> Steuersatz ${(this._kstSatz(year) * 100).toLocaleString('de-DE')}% für ${year} (15% bis 2027, danach jährlich −1 Punkt bis 10% ab 2032).<br>
                 <strong>§4 SolZG:</strong> Solidaritätszuschlag 5,5% auf KSt.<br>
                 <strong>GewSt:</strong> Kapitalgesellschaften haben <strong>keinen Freibetrag</strong> (§11 Abs. 1 GewStG gilt nur für Personengesellschaften).<br>
                 <strong>§5a GmbHG (UG):</strong> 25% Thesaurierungspflicht bis 25.000 € Stammkapital.<br>
-                ⚠️ Unverbindliche Berechnung — Steuerberater hinzuziehen.
+                Unverbindliche Berechnung — Steuerberater hinzuziehen.
             </div>
         </div>`;
     },
@@ -351,6 +382,13 @@ const Koerperschaftsteuer = {
         const y = this._year;
         if (!data[y]) data[y] = {};
         data[y].verlustvortrag = val;
+        const gewStRoh = (document.getElementById('kstVerlustGewSt') || {}).value;
+        if (gewStRoh === undefined || gewStRoh === '') delete data[y].verlustvortragGewSt;
+        else {
+            const g = parseFloat(gewStRoh) || 0;
+            if (g < 0) { Utils.showToast('Verlustvortrag darf nicht negativ sein', 'warning'); return; }
+            data[y].verlustvortragGewSt = g;
+        }
         this._saveData(data);
         Utils.showToast('Verlustvortrag gespeichert', 'success');
         this._refresh();
@@ -367,9 +405,10 @@ const Koerperschaftsteuer = {
             [''],
             ['Position', 'Betrag EUR'],
             ['Jahresgewinn', fin.gewinn.toFixed(2)],
-            ['Verlustvortrag', (calc.verlustvortrag || 0).toFixed(2)],
+            ['Verlustabzug KSt', (calc.verlustabzug || 0).toFixed(2)],
+            ['Verlustabzug GewSt', (calc.verlustabzugGewSt || 0).toFixed(2)],
             ['Zu versteuerndes Einkommen', calc.zvE.toFixed(2)],
-            ['KSt (15%)', calc.kst.toFixed(2)],
+            ['KSt (' + (calc.kstSatz * 100).toLocaleString('de-DE') + '%)', calc.kst.toFixed(2)],
             ['SolZ (5,5%)', calc.solz.toFixed(2)],
             ['KSt + SolZ', calc.gesamt.toFixed(2)],
             ['GewSt (Hebesatz ' + calc.hebesatz + '%)', calc.gewSt.toFixed(2)],

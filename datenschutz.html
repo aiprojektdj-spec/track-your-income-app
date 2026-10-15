@@ -125,10 +125,12 @@
         <p>
             Tritt in der App ein technischer Fehler auf, meldet dein Browser eine kurze
             Fehlerbeschreibung an unseren Server, damit wir Fehler erkennen und beheben können, bevor
-            sie viele Nutzer treffen. Übertragen werden <strong>nur</strong>: die Art des Fehlers, die
-            Fehlermeldung (gekürzt auf 300 Zeichen; E-Mail-Adressen und Zahlenfolgen ab vier Stellen
-            werden vor dem Speichern entfernt), der Name der Programmdatei samt Zeile und Spalte, die
-            App-Version und der Zeitpunkt.
+            sie viele Nutzer treffen. Übertragen werden <strong>nur</strong>: die Art des Fehlers, ein
+            fester Fehlercode (z.&nbsp;B. „TypeError:read_undefined“, ggf. mit dem betroffenen
+            Bezeichner aus unserem Programmcode), der Name der Programmdatei samt Zeile und Spalte, die
+            App-Version und der Zeitpunkt. Den Wortlaut der Fehlermeldung überträgt dein Browser
+            <strong>nicht</strong> — er bleibt im lokalen Fehlerprotokoll auf deinem Gerät (Ziffer 3).
+            Der Server entfernt zusätzlich E-Mail-Adressen und längere Zahlenfolgen.
         </p>
         <p>
             <strong>Nicht</strong> übertragen werden deine Buchhaltungsdaten, dein Name, deine
@@ -242,7 +244,8 @@
                 <strong>Wo gespeichert wird:</strong> Die verschlüsselten Daten werden bei <strong>Upstash</strong>
                 (Upstash, Inc.) in der Region <strong>Frankfurt am Main (EU, eu-central-1)</strong> abgelegt. Der
                 Transport erfolgt ausschließlich über eine von uns betriebene, abgesicherte Serverless-Funktion
-                (Vercel) auf <a href="https://track-your-income-app.vercel.app">track-your-income-app.vercel.app</a>.
+                (Vercel) auf <a href="https://getstackr.de">getstackr.de</a> bzw. der bisherigen Adresse
+                <a href="https://track-your-income-app.vercel.app">track-your-income-app.vercel.app</a>.
                 Große Anhänge (z.B. Belegfotos, Rechnungslogos) werden vor dem Hochladen ebenfalls auf deinem Gerät
                 verschlüsselt und als eigene Datei bei <strong>Vercel Blob</strong> (Vercel Inc.) in der Region
                 Frankfurt am Main (EU) abgelegt. Abrufbar
@@ -419,12 +422,13 @@
             und der Speicherung verschlüsselter Anhänge (Vercel Blob). Die Sync-Daten bei Upstash und die
             Anhänge bei Vercel Blob liegen in der EU (Frankfurt). Unabhängig vom Cloud-Sync ist Upstash
             zudem für die Login-Sitzungen und Missbrauchszähler (Ziffer 5) sowie für die Fehlerprotokolle
-            (Ziffer 2.4) als Auftragsverarbeiter tätig. Mit beiden Anbietern ist der Abschluss eines
-            Auftragsverarbeitungsvertrags (Data Processing Agreement) vorgesehen bzw. wird über die jeweiligen
-            Standard-AVV der Anbieter abgedeckt. Da beide Anbieter US-Gesellschaften
-            sind, kann ein Drittlandbezug bestehen; als Transfermechanismus dienen die EU-Standardvertragsklauseln
-            (Art. 46 DSGVO) bzw. das EU-US Data Privacy Framework. Da ausschließlich Ende-zu-Ende-verschlüsseltes,
-            für die Anbieter unlesbares Chiffrat übertragen wird, ist das Risiko entsprechend minimiert.
+            (Ziffer 2.4) als Auftragsverarbeiter tätig. Mit beiden Anbietern besteht ein
+            Auftragsverarbeitungsvertrag (Data Processing Agreement), der Bestandteil der jeweiligen
+            Vertragsbedingungen ist. Da beide Anbieter US-Gesellschaften sind, kann ein Drittlandbezug
+            bestehen; beide sind unter dem EU-US Data Privacy Framework zertifiziert (Art. 45 DSGVO),
+            hilfsweise gelten die EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO). Die Daten des
+            Cloud-Sync sind Ende-zu-Ende-verschlüsseltes, für die Anbieter unlesbares Chiffrat; das Risiko
+            ist entsprechend minimiert.
         </p>
         <p>
             Whop (Whop Inc., USA) wird nicht als Auftragsverarbeiter für uns tätig, sondern ist

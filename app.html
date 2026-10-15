@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Gate: Whop OAuth callback (?code=) oder gespeichertes Token → durch -->
     <!-- WhopAuth.boot() übernimmt Login-Logik nach Script-Load -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com https://*.public.blob.vercel-storage.com https://*.make.com; frame-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.whop.com https://*.public.blob.vercel-storage.com https://*.make.com https://usrhhjwvoefjdgrwovkg.supabase.co https://nvtjzeffngwfsqjzdrdz.supabase.co; frame-src 'none';">
 
     <!-- ── Resource Hints ──
          jsDelivr steht hier nicht mehr: seit D1 liegen alle Fremdbibliotheken lokal
@@ -22,6 +22,11 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
     <link rel="manifest" href="/manifest.json">
     <title>Stackr</title>
+
+    <!-- ── Zu alter Browser? Zuerst laden: es-probe.js nutzt ?./?? und setzt nur in einem
+         ausreichend neuen Browser eine Marke; browser-check.js (ES5) zeigt sonst einen Hinweis. ── -->
+    <script src="js/es-probe.js"></script>
+    <script src="js/browser-check.js"></script>
 
     <!-- ── Critical: i18n (sync, tiny ~8KB) ── -->
     <script src="js/actions.js"></script>
@@ -137,7 +142,7 @@
                 </div>
                 <div style="border-top:1px solid var(--border);margin:6px 12px;"></div>
                 <div class="sidebar-link" data-page="statistiken" id="euerNav_statistiken">
-                    <span class="icon"><i class="ti ti-trending-up"></i></span><span class="sidebar-link-label"> Statistiken</span>
+                    <span class="icon"><i class="ti ti-trending-up"></i></span><span class="sidebar-link-label"> Verkaufskanäle</span>
                 </div>
             </div>
 
@@ -191,7 +196,7 @@
                     <span class="icon"><i class="ti ti-wallet"></i></span><span class="sidebar-link-label"> Finanzen</span>
                 </div>
                 <div class="sidebar-link" data-page="statistiken">
-                    <span class="icon"><i class="ti ti-trending-up"></i></span><span class="sidebar-link-label"> Statistiken</span>
+                    <span class="icon"><i class="ti ti-trending-up"></i></span><span class="sidebar-link-label"> Verkaufskanäle</span>
                 </div>
                 <div style="border-top:1px solid var(--border);margin:6px 12px;"></div>
                 <div class="sidebar-link" data-page="ustvoranmeldung">
@@ -264,6 +269,8 @@
     <script defer src="js/cookie-banner.js"></script>
     <script defer src="js/error-logger.js"></script>
     <script defer src="js/companies.js"></script>
+    <script defer src="js/steuerstatus.js"></script>
+    <script defer src="js/rechnung-summen.js"></script>
     <script defer src="js/store.js"></script>
     <script defer src="js/webhooks.js"></script>
     <script defer src="js/user-plan.js?v=3"></script>

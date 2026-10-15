@@ -22,7 +22,9 @@ const Vorsteuer = {
     // ── Vorsteuer aus Einkäufen berechnen (per-item, nicht flat rate) ──
     _calcFromPurchases(startDate, endDate) {
         const purchases = (Store.getPurchases ? Store.getPurchases() : Store.get('purchases') || [])
-            .filter(p => Utils.isInPeriod(p.datum, startDate, endDate) && !p.storniert);
+            .filter(p => Utils.isInPeriod(p.datum, startDate, endDate) && !p.storniert
+                // Vorsteuer nur für Vorgänge, die zu ihrem Datum regelbesteuert waren (Audit 2026-10-13, T06)
+                && (typeof SteuerStatus === 'undefined' || SteuerStatus.istRegel(p, Store.getSettings ? Store.getSettings() : {})));
 
         let vst19 = 0, vst7 = 0, netto19 = 0, netto7 = 0;
         purchases.forEach(p => {
@@ -57,8 +59,10 @@ const Vorsteuer = {
 
     // ── Vorsteuer aus Betriebsausgaben ──
     _calcFromExpenses(startDate, endDate) {
+        // Umsatzsteuer-Zahlungen/-Erstattungen mit dem Finanzamt tragen nie Vorsteuer (Audit 2026-10-13)
         const expenses = (Store.getExpenses ? Store.getExpenses() : Store.get('ausgaben') || [])
-            .filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
+            .filter(e => Utils.isInPeriod(e.datum, startDate, endDate) && !/^Umsatzsteuer/.test(e.kategorie || '')
+                && (typeof SteuerStatus === 'undefined' || SteuerStatus.istRegel(e, Store.getSettings ? Store.getSettings() : {})));
 
         let vst19 = 0, vst7 = 0, vst0 = 0, netto19 = 0, netto7 = 0;
         let unklarCount = 0, unklarBetrag = 0;
@@ -203,7 +207,6 @@ const Vorsteuer = {
             return `
             <div class="page-header"><h2><i class="ti ti-receipt-tax" style="margin-right:6px;"></i> Vorsteuer</h2></div>
             <div class="card" style="padding:32px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:16px;">🧾</div>
                 <h3>Nur für Regelbesteuerer</h3>
                 <p style="color:var(--text-muted);margin:8px 0 20px;">
                     Als <strong>Kleinunternehmer (§19 UStG)</strong> hast du keinen Vorsteuerabzug.<br>
@@ -368,7 +371,7 @@ const Vorsteuer = {
                         <tr><td>Kz. 66</td><td>Vorsteuer 7% (Ausgaben)</td><td style="text-align:right">${Utils.formatCurrency(e.netto7)}</td><td style="text-align:right;color:var(--success)">${Utils.formatCurrency(e.vst7)}</td></tr>
                         ${e.unklarCount > 0 ? `<tr>
                             <td></td>
-                            <td style="color:var(--warning);">⚠️ ${e.unklarCount} Ausgabe(n) unklar — kein Vorsteuerabzug, bitte USt-Satz nachpflegen</td>
+                            <td style="color:var(--warning);">${e.unklarCount} Ausgabe(n) unklar — kein Vorsteuerabzug, bitte USt-Satz nachpflegen</td>
                             <td style="text-align:right;color:var(--warning);">${Utils.formatCurrency(e.unklarBetrag)}</td>
                             <td style="text-align:right;color:var(--warning);">${Utils.formatCurrency(0)}</td>
                         </tr>` : ''}
@@ -394,7 +397,7 @@ const Vorsteuer = {
         ${e.unklarCount > 0 ? `
         <div class="card" style="margin-top:16px;padding:14px 16px;border:1px solid var(--warning);">
             <div style="font-weight:700;font-size:13px;color:var(--warning);margin-bottom:4px;">
-                ⚠️ ${e.unklarCount} Betriebsausgabe(n) ohne USt-Satz — unklar, kein Vorsteuerabzug
+                ${e.unklarCount} Betriebsausgabe(n) ohne USt-Satz — unklar, kein Vorsteuerabzug
             </div>
             <div style="font-size:12px;color:var(--text-muted);">
                 Summe betroffener Brutto-Beträge: ${Utils.formatCurrency(e.unklarBetrag)}. Bitte in
@@ -411,7 +414,7 @@ const Vorsteuer = {
             return `
         <div class="card" style="margin-top:16px;padding:14px 16px;border:1px solid ${ok ? 'var(--success)' : 'var(--warning)'};">
             <div style="font-weight:700;font-size:13px;color:${ok ? 'var(--success)' : 'var(--warning)'};margin-bottom:4px;">
-                ${ok ? '✅' : '⚠️'} Beleg-Nachweis: ${bs.complete} von ${bs.total} Vorsteuer-Buchungen vollständig dokumentiert
+                Beleg-Nachweis: ${bs.complete} von ${bs.total} Vorsteuer-Buchungen vollständig dokumentiert
             </div>
             <div style="font-size:12px;color:var(--text-muted);">
                 ${incomplete > 0 ? `${incomplete} Buchung(en) ohne Aussteller-Name bzw. (bei Rechnungen &gt;250€) ohne Steuernr./USt-IdNr. — Details in „Wareneinkauf"/„Betriebsausgaben".` : 'Aussteller-Name und Steuernr./USt-IdNr. sind bei allen Vorsteuer-relevanten Buchungen hinterlegt.'}
@@ -424,7 +427,7 @@ const Vorsteuer = {
                 <strong>§15 UStG — Vorsteuerabzug:</strong> Vorsteuer darf nur abgezogen werden wenn eine ordnungsgemäße Rechnung (§14 UStG) vorliegt.<br>
                 <strong>§13b UStG — Reverse Charge:</strong> Leistungsempfänger schuldet USt (z.B. Bauleistungen, EU-Dienstleistungen). Vorsteuer gleichzeitig abziehbar.<br>
                 <strong>§1a UStG — Innergemeinschaftlicher Erwerb:</strong> Erwerb aus EU → Erwerbsteuer + gleichzeitiger Vorsteuerabzug.<br>
-                <strong>⚠️ Unverbindlich</strong> — Beleg-Nachweis oben ist eine Vollständigkeits-Prüfung der in Stackr hinterlegten Angaben, kein Ersatz für die tatsächliche Papier-/PDF-Rechnung. Steuerberater hinzuziehen.
+                <strong>Unverbindlich</strong> — Beleg-Nachweis oben ist eine Vollständigkeits-Prüfung der in Stackr hinterlegten Angaben, kein Ersatz für die tatsächliche Papier-/PDF-Rechnung. Steuerberater hinzuziehen.
             </div>
         </div>`;
     },
@@ -467,7 +470,7 @@ const Vorsteuer = {
                                 <td style="text-align:center">${rate}%</td>
                                 <td style="text-align:right">${Utils.formatCurrency(netto)}</td>
                                 <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(vst)}</td>
-                                <td style="text-align:center;" title="${beleg ? Utils.escapeHtml(beleg.missing.join(', ') || 'vollständig') : 'kein Vorsteuerabzug'}">${beleg ? (beleg.complete ? '✅' : '⚠️') : '—'}</td>
+                                <td style="text-align:center;" title="${beleg ? Utils.escapeHtml(beleg.missing.join(', ') || 'vollständig') : 'kein Vorsteuerabzug'}">${beleg ? (beleg.complete ? '<i class="ti ti-check" aria-hidden="true"></i>' : '<i class="ti ti-alert-triangle" style="color:var(--danger);" aria-hidden="true"></i>') : '—'}</td>
                             </tr>`;
                         }).join('')}
                     </tbody>
@@ -518,7 +521,7 @@ const Vorsteuer = {
                                 <td style="text-align:right">${Utils.formatCurrency(brutto)}</td>
                                 <td style="text-align:center">${rateLabel}</td>
                                 <td style="text-align:right;color:var(--success);font-weight:600;">${Utils.formatCurrency(vst)}</td>
-                                <td style="text-align:center;" title="${beleg ? Utils.escapeHtml(beleg.missing.join(', ') || 'vollständig') : (isUnklar ? 'USt-Satz unklar — kein Vorsteuerabzug, bitte nachpflegen' : 'kein Vorsteuerabzug')}">${beleg ? (beleg.complete ? '✅' : '⚠️') : (isUnklar ? '❓' : '—')}</td>
+                                <td style="text-align:center;" title="${beleg ? Utils.escapeHtml(beleg.missing.join(', ') || 'vollständig') : (isUnklar ? 'USt-Satz unklar — kein Vorsteuerabzug, bitte nachpflegen' : 'kein Vorsteuerabzug')}">${beleg ? (beleg.complete ? '<i class="ti ti-check" aria-hidden="true"></i>' : '<i class="ti ti-alert-triangle" style="color:var(--danger);" aria-hidden="true"></i>') : (isUnklar ? '?' : '—')}</td>
                             </tr>`;
                         }).join('')}
                     </tbody>

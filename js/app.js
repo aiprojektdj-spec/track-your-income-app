@@ -81,9 +81,9 @@ const App = {
         const el = document.getElementById('fsBackupStatus');
         if (!el) return;
         if (active && folderName) {
-            el.innerHTML = `<span style="color:var(--success);font-size:11px;">💾 Datei-Backup aktiv: <strong>${Utils.escapeHtml(folderName)}</strong></span>`;
+            el.innerHTML = `<span style="color:var(--success);font-size:11px;">Datei-Backup aktiv: <strong>${Utils.escapeHtml(folderName)}</strong></span>`;
         } else {
-            el.innerHTML = `<span style="color:var(--text-muted);font-size:11px;">💾 Kein Datei-Backup</span>`;
+            el.innerHTML = `<span style="color:var(--text-muted);font-size:11px;">Kein Datei-Backup</span>`;
         }
     },
 
@@ -103,6 +103,11 @@ const App = {
     },
 
     _continueInit() {
+        // Domain-Umzug (js/domain-umzug.js) kann den Start uebernehmen und setzt ihn dann fort.
+        if (!this._umzugGeprueft && window.DomainUmzug) {
+            this._umzugGeprueft = true;
+            if (DomainUmzug.vorDemStart(() => this._continueInit())) return;
+        }
         // Apply i18n translations to static DOM elements
         if (typeof I18n !== 'undefined') I18n.applyAll();
 
@@ -228,7 +233,7 @@ const App = {
             <div style="display:flex;flex-direction:column;gap:14px;">
                 <div style="background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.4);border-radius:10px;padding:14px 18px;">
                     <div style="font-weight:700;font-size:16px;color:var(--success);margin-bottom:6px;">
-                        🎉 Update erfolgreich: <strong>v${oldV}</strong> → <strong>v${newV}</strong>
+                        Update erfolgreich: <strong>v${oldV}</strong> → <strong>v${newV}</strong>
                     </div>
                     <div style="font-size:13px;color:var(--text-secondary);">
                         ${hasData
@@ -239,19 +244,19 @@ const App = {
 
                 ${hasData ? `
                 <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:13px;">
-                    <div style="font-weight:700;margin-bottom:6px;">📊 Bestehende Daten</div>
+                    <div style="font-weight:700;margin-bottom:6px;">Bestehende Daten</div>
                     <div style="color:var(--text-secondary);font-size:12px;line-height:1.5;">
                         • <strong>${Store.getPurchases(true).length}</strong> Einkäufe<br>
                         • <strong>${Store.getSales(true).length}</strong> Verkäufe<br>
                         • <strong>${Store.getExpenses ? Store.getExpenses(true).length : 0}</strong> Ausgaben<br>
                         ${Store.getFsBackupFolderName()
-                            ? `• ✅ Auto-Backup vor Update wurde erstellt (<em>${Utils.escapeHtml(Store.getFsBackupFolderName())}</em>)`
-                            : '• ⚠️ Kein Datei-Backup-Ordner — bitte einrichten!'}
+                            ? `• Auto-Backup vor Update wurde erstellt (<em>${Utils.escapeHtml(Store.getFsBackupFolderName())}</em>)`
+                            : '• Kein Datei-Backup-Ordner — bitte einrichten!'}
                     </div>
                 </div>` : ''}
 
                 <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--text-secondary);">
-                    <div style="font-weight:700;color:var(--info);margin-bottom:4px;">💡 Wichtig zu wissen</div>
+                    <div style="font-weight:700;color:var(--info);margin-bottom:4px;">Wichtig zu wissen</div>
                     <div style="line-height:1.5;">
                         Deine Daten sind im Browser-Speicher gebunden an den <strong>Pfad</strong> dieser App.
                         Solange du den <code style="background:var(--bg-card);padding:1px 5px;border-radius:3px;">Drive</code>-Ordner
@@ -267,7 +272,7 @@ const App = {
             <button class="btn btn-primary" data-action="close-modal">Verstanden</button>
         `;
 
-        this.showModal(`✨ Willkommen in v${newV}`, body, footer);
+        this.showModal(`Willkommen in v${newV}`, body, footer);
 
         const dlBtn = document.getElementById('updateBackupNow');
         if (dlBtn) dlBtn.addEventListener('click', () => {
@@ -985,7 +990,6 @@ const App = {
         declineBtn.addEventListener('click', () => {
             document.getElementById('content').innerHTML = `
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:80vh;text-align:center;padding:40px;">
-                    <div style="font-size:48px;margin-bottom:16px;">🚫</div>
                     <h2 style="color:var(--text-primary);margin-bottom:12px;">Nutzung nicht möglich</h2>
                     <p style="color:var(--text-secondary);max-width:400px;">Die Nutzung dieser Software ist nur nach Akzeptanz der AGB möglich.<br><br>Bitte lade die Seite neu, um die Hinweise erneut anzuzeigen.</p>
                     <button class="btn btn-primary" style="margin-top:24px;" data-action="reload">Seite neu laden</button>
@@ -1107,54 +1111,66 @@ const App = {
     },
 
     _checkUstThreshold() {
+        if (typeof OSS !== 'undefined') OSS.checkSchwelle(); // §3c-Schwelle, Regel- und Kleinunternehmer
         const settings = Store.getSettings();
         if ((settings.ustMode || 'klein') !== 'klein') return; // nur für Kleinunternehmer
-        const year       = new Date().getFullYear();
-        const { vj: GRENZE_VJ, lfd: GRENZE_LFD } = this._getUstGrenzen(year);
-        const umsatz     = this._calcJahresumsatz(year);
-        const hardKey    = 'ust_threshold_hard_' + year;    // 100k Sofort-Modal
-        const warnKey    = 'ust_threshold_warned_' + year;  // 25k Folgejahr-Modal
+        if (typeof Kleinunternehmer === 'undefined') return;
+        const year = new Date().getFullYear();
+        // Rechtsfolge je Jahr, Gründungsjahr und überschreitendem Umsatz: js/kleinunternehmer.js
+        // (Audit 2026-10-13, T05). Grenzwerte weiter aus der Jahresfunktion _getUstGrenzen().
+        const umsaetze = Store.getSales()
+            .filter(s => !s.storniert && s.datum && s.datum.startsWith(String(year)))
+            .map(s => ({ datum: s.datum, betrag: (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0) }));
+        const r = Kleinunternehmer.pruefe({
+            year, grenzen: this._getUstGrenzen(year), umsaetze,
+            vorjahresUmsatz: this._calcJahresumsatz(year - 1),
+            taetigkeitsbeginn: settings.taetigkeitsbeginn
+        });
+        const umsatz     = r.summe;
+        const hardKey    = 'ust_threshold_hard_' + year;    // Befreiung entfällt (sofort/Vorjahr)
+        const warnKey    = 'ust_threshold_warned_' + year;  // Folgejahr-Modal
         const preWarnKey = 'ust_prewarn_' + year;
 
-        // 1) Obere Grenze: 100.000 € im laufenden Jahr → Status entfällt SOFORT sobald der Umsatz die
-        // Grenze ÜBERSCHREITET (§19 Abs.1 UStG: "übersteigt" → strikt >, nicht >=; bei exakt 100.000,00 €
-        // bleibt der Kleinunternehmerstatus für diesen Umsatz noch bestehen).
-        // Fix: Dismiss-Flags liefen vorher über rohes, NICHT company-gescoptes localStorage — bei zwei
-        // Companies (z.B. Einzelunternehmen + GbR) konnte das Bestätigen der Warnung in einer Company
-        // die Warnung der anderen Company unterdrücken. Store.get/set scoped automatisch pro Company.
-        if (umsatz > GRENZE_LFD) {
+        // Dismiss-Flags über Store.get/set → pro Company gescopet (zwei Firmen stören sich nicht).
+        if (r.status === 'sofort' || r.status === 'vorjahr') {
             if (!Store.get(hardKey)) {
-                setTimeout(() => this._showUstThresholdModal(umsatz, year, hardKey, 'sofort'), 400);
+                this._ustWechselAb = r.ab;
+                setTimeout(() => this._showUstThresholdModal(umsatz, year, hardKey, r.status, r), 400);
             }
             return;
         }
-
-        // 2) Vorjahresgrenze im lfd. Jahr überschritten (strikt >, s.o.) → ab Folgejahr regelbesteuert
-        if (umsatz > GRENZE_VJ) {
+        if (r.status === 'folgejahr') {
             if (!Store.get(warnKey)) {
-                setTimeout(() => this._showUstThresholdModal(umsatz, year, warnKey, 'folgejahr'), 400);
+                setTimeout(() => this._showUstThresholdModal(umsatz, year, warnKey, 'folgejahr', r), 400);
             }
-        } else if (umsatz >= GRENZE_VJ * 0.9) {
-            // 90 % Vorwarnung (ab 22.500 €) — einmalige Toast-Meldung
+        } else if (umsatz >= r.grenze * 0.9) {
+            // 90 % Vorwarnung — einmalige Toast-Meldung
             if (!Store.get(preWarnKey) && !Store.get(warnKey)) {
                 Store.set(preWarnKey, '1');
                 const grenzeFmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
-                    .format(GRENZE_VJ);
+                    .format(r.grenze);
                 const rest = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
-                    .format(GRENZE_VJ - umsatz);
+                    .format(r.grenze - umsatz);
                 setTimeout(() => Utils.showToast(
-                    `⚠️ Kleinunternehmer: Noch ${rest} bis zur ${grenzeFmt}-Grenze`, 'warning'), 800);
+                    `Kleinunternehmer: Noch ${rest} bis zur ${grenzeFmt}-Grenze${r.gruendungsjahr ? ' (Gründungsjahr)' : ''}`, 'warning'), 800);
             }
         }
     },
 
-    _showUstThresholdModal(umsatz, year, warnKey, mode) {
+    _showUstThresholdModal(umsatz, year, warnKey, mode, r) {
         const fmt    = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
-        const sofort = mode === 'sofort';
-        const erklaerung = sofort
-            ? `Die obere Umsatzgrenze von <strong>100.000&nbsp;€</strong> wurde im laufenden Jahr überschritten.
-               Die Kleinunternehmerregelung (§&nbsp;19 UStG) entfällt damit <strong>sofort</strong> — ab dem Umsatz,
-               der die Grenze überschreitet, ist Umsatzsteuer auszuweisen.`
+        const fmt0   = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+        const sofort = mode === 'sofort' || mode === 'vorjahr';
+        const abText = r && r.ab ? Utils.formatDate(r.ab) : '';
+        const erklaerung = mode === 'vorjahr'
+            ? `Dein Umsatz ${year - 1} lag über <strong>${fmt0.format(r.grenze)}</strong>. Die Kleinunternehmerregelung
+               (§&nbsp;19 UStG) gilt deshalb für das <strong>ganze Jahr ${year}</strong> nicht — Umsatzsteuer ist
+               ab dem 1. Januar auszuweisen.`
+            : sofort
+            ? `Die Umsatzgrenze von <strong>${fmt0.format(r ? r.grenze : 100000)}</strong>${r && r.gruendungsjahr ? ' im Jahr der Gründung' : ''}
+               wurde im laufenden Jahr überschritten${abText ? ' (mit dem Umsatz vom ' + abText + ')' : ''}.
+               Die Kleinunternehmerregelung (§&nbsp;19 UStG) entfällt damit <strong>sofort</strong> — schon dieser
+               Umsatz und alle späteren sind steuerpflichtig.`
             : `Dein Umsatz übersteigt ${year} die Grenze von <strong>25.000&nbsp;€</strong>.
                Du bleibst <strong>dieses Jahr</strong> Kleinunternehmer, wirst aber <strong>ab ${year + 1}</strong>
                regelbesteuert (sofern der Umsatz nicht zusätzlich 100.000&nbsp;€ überschreitet — dann gilt der Wechsel sofort).`;
@@ -1181,25 +1197,27 @@ const App = {
             </ul>
             <div style="font-size:11px;color:var(--text-muted);background:var(--bg-secondary);
                         padding:8px 12px;border-radius:6px;">
-                ⚖️ Keine Steuerberatung – bitte einen Steuerberater konsultieren.
+                Keine Steuerberatung – bitte einen Steuerberater konsultieren.
             </div>
         `;
         const footer = sofort
             ? `<button class="btn btn-primary"
                     style="background:var(--warning);border-color:var(--warning);flex:1;min-width:180px;"
                     data-action="app-ust-switch-regel" data-args='["${warnKey}"]'>
-                    ✅ Jetzt auf Regelbesteuerung umstellen
+                    Jetzt auf Regelbesteuerung umstellen
                 </button>
                 <button class="btn btn-secondary" style="flex:1;min-width:160px;"
                     data-action="app-ust-dismiss" data-args='["${warnKey}"]'>
-                    📋 Ich kümmere mich selbst
+                    Ich kümmere mich selbst
                 </button>`
             : `<button class="btn btn-primary" style="flex:1;min-width:160px;"
                     data-action="app-ust-dismiss" data-args='["${warnKey}"]'>
-                    ✅ Verstanden
+                    Verstanden
                 </button>`;
-        const title = sofort
-            ? 'Kleinunternehmer-Grenze (100.000 €) überschritten'
+        const title = mode === 'vorjahr'
+            ? 'Kleinunternehmer: Vorjahresgrenze überschritten'
+            : sofort
+            ? `Kleinunternehmer-Grenze (${fmt0.format(r ? r.grenze : 100000)}) überschritten`
             : 'Kleinunternehmer: 25.000-€-Grenze überschritten';
         this.showModal(title, body, footer);
     },
@@ -1207,6 +1225,8 @@ const App = {
     _ustSwitchToRegel(warnKey) {
         const s = Store.getSettings();
         s.ustMode = 'regel';
+        // Wechsel ab dem überschreitenden Umsatz bzw. Jahresbeginn — nicht "heute" (T05/T06)
+        if (this._ustWechselAb) s._ustModeAb = this._ustWechselAb;
         Store.saveSettings(s);
         Store.set(warnKey, '1');
         this.closeModal();
@@ -1225,14 +1245,14 @@ const App = {
         const lastBackup = localStorage.getItem('last_backup_date');
         if (!lastBackup) {
             setTimeout(() => {
-                Utils.showToast('💡 Tipp: Regelmäßig Backup herunterladen — Backup & Daten im Menü', 'info');
+                Utils.showToast('Tipp: Regelmäßig Backup herunterladen — Backup & Daten im Menü', 'info');
             }, 4000);
             return;
         }
         const daysSince = Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86400000);
         if (daysSince >= 30) {
             setTimeout(() => {
-                Utils.showToast(`⚠️ Letztes Backup vor ${daysSince} Tagen — bitte herunterladen!`, 'warning');
+                Utils.showToast(`Letztes Backup vor ${daysSince} Tagen — bitte herunterladen!`, 'warning');
             }, 3000);
         }
     },
@@ -1272,7 +1292,6 @@ const App = {
         document.getElementById('onboarding').innerHTML = `
             <div class="onboarding-overlay">
                 <div class="onboarding-card" style="text-align:center;max-width:420px;">
-                    <div style="font-size:36px;color:var(--accent);margin-bottom:16px;">☁</div>
                     <h2 style="margin-bottom:8px;">Einen Moment</h2>
                     <p style="color:var(--text-muted);font-size:13px;margin:0;">Wir prüfen, ob für dein Konto schon Daten in der Cloud liegen…</p>
                 </div>
@@ -1288,10 +1307,9 @@ const App = {
         document.getElementById('onboarding').innerHTML = `
             <div class="onboarding-overlay">
                 <div class="onboarding-card" style="max-width:480px;">
-                    <div style="font-size:36px;color:var(--accent);margin-bottom:14px;text-align:center;">☁</div>
                     <h2 style="text-align:center;">Wir haben deine Daten gefunden</h2>
                     <div class="subtitle" style="text-align:center;">Für dein Konto liegen bereits verschlüsselte Cloud-Daten${info ? ' (' + Utils.escapeHtml(info) + ')' : ''}. Hol sie auf dieses Gerät, statt hier von vorn anzufangen.</div>
-                    <button class="btn btn-primary" id="obCloudRestore" style="width:100%;">📲 Daten übernehmen — Code eingeben</button>
+                    <button class="btn btn-primary" id="obCloudRestore" style="width:100%;">Daten übernehmen — Code eingeben</button>
                     <div style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.5;">Du brauchst den Wiederherstellungscode von dem Gerät, auf dem du Cloud-Sync eingerichtet hast — dort: Wolken-Symbol oben rechts → „Wiederherstellungscode anzeigen“.</div>
                     <div style="text-align:center;margin-top:10px;">
                         <button class="btn-link" id="obCloudSkip">Nein — ich fange auf diesem Gerät neu an</button>
@@ -1635,7 +1653,7 @@ const App = {
                     const switcherEl = document.getElementById('companySwitcher');
                     if (switcherEl) switcherEl.innerHTML = CompanyManager.renderSwitcherBtn();
                 } catch (err) {
-                    Utils.showToast('❌ Firma konnte nicht angelegt werden: ' + (err && err.message ? err.message : err), 'error');
+                    Utils.showToast('Firma konnte nicht angelegt werden: ' + (err && err.message ? err.message : err), 'error');
                     return false;
                 }
             } else {
@@ -1680,7 +1698,7 @@ const App = {
         // seit je richtig — hier angeglichen.
         Store.saveSettings(Object.assign({}, Store.getSettings(), d));
         document.getElementById('onboarding').innerHTML = '';
-        Utils.showToast('Einrichtung abgeschlossen! 🎉', 'success');
+        Utils.showToast('Einrichtung abgeschlossen!', 'success');
         this.navigate('dashboard');
     },
 
@@ -1759,10 +1777,22 @@ const App = {
                     </div>
                 </div>
             </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="set_taetigkeitsbeginn">Tätigkeitsbeginn</label>
+                    <input type="date" class="form-input" id="set_taetigkeitsbeginn" value="${Utils.escapeHtml(s.taetigkeitsbeginn || '')}" aria-describedby="set_taetigkeitsbeginn_hint">
+                    <div class="form-hint" id="set_taetigkeitsbeginn_hint">Erster Tag der unternehmerischen Tätigkeit. Bestimmt die Kleinunternehmer-Grenze im Gründungsjahr und die Voranmeldungsregeln für Gründer.</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="set_ustModeAb">Neuer USt-Modus gilt ab</label>
+                    <input type="date" class="form-input" id="set_ustModeAb" value="${new Date().toLocaleDateString('sv-SE')}" aria-describedby="set_ustModeAb_hint">
+                    <div class="form-hint" id="set_ustModeAb_hint">Nur bei einem Wechsel des USt-Modus: erster Tag mit dem neuen Modus. Vorgänge davor behalten ihre bisherige Behandlung.${(typeof SteuerStatus !== 'undefined' && !SteuerStatus.unbelegt(s)) ? ' Bisher: ' + SteuerStatus.historie(s).filter(e => e.ab !== '0000-01-01').map(e => Utils.escapeHtml(Utils.formatDate(e.ab)) + ' → ' + (e.mode === 'regel' ? 'Regelbesteuerung' : 'Kleinunternehmer')).join(', ') + '.' : ''}</div>
+                </div>
+            </div>
             <div class="form-group" id="set_versteuerungsart_group" style="${s.ustMode === 'regel' ? '' : 'display:none'}">
                 <label class="form-label" for="set_ustVersteuerungsart">Versteuerungsart (UVA + DATEV)</label>
                 <select class="form-select" id="set_ustVersteuerungsart">
-                    <option value="soll" ${(s.ustVersteuerungsart || 'soll') === 'soll' ? 'selected' : ''}>Soll-Versteuerung (nach Rechnungsdatum) – Regelfall</option>
+                    <option value="soll" ${(s.ustVersteuerungsart || 'soll') === 'soll' ? 'selected' : ''}>Soll-Versteuerung (nach Leistungsdatum) – Regelfall</option>
                     <option value="ist" ${s.ustVersteuerungsart === 'ist' ? 'selected' : ''}>Ist-Versteuerung (nach Zahlungseingang) – nur bis 800.000 € Vorjahresumsatz oder Freiberufler</option>
                 </select>
                 <div style="font-size:11px;color:var(--warning);margin-top:6px;"><i class="ti ti-alert-triangle"></i> Ein Wechsel wirkt nur auf zukünftige Voranmeldungen. Bereits gemeldete Zeiträume werden nicht rückwirkend neu berechnet — bei Wechsel während des Jahres bitte mit dem Steuerberater abstimmen, damit keine Umsätze doppelt oder gar nicht erfasst werden.</div>
@@ -1773,7 +1803,7 @@ const App = {
                     <option value="quartal" ${(s.ustVaPeriodenTyp || 'quartal') === 'quartal' ? 'selected' : ''}>Vierteljährlich (Regelfall)</option>
                     <option value="monat" ${s.ustVaPeriodenTyp === 'monat' ? 'selected' : ''}>Monatlich</option>
                 </select>
-                <div class="form-hint">Monatlich ist Pflicht, wenn die USt-Zahllast des Vorjahres 7.500 € überstieg, sowie im Gründungsjahr und im Folgejahr (§18 Abs. 2 UStG).</div>
+                <div class="form-hint">Wie vom Finanzamt festgelegt. Gesetzlicher Normalfall (§18 Abs. 2 UStG): monatlich, wenn die Steuer des Vorjahres mehr als ${Utils.formatCurrency(typeof UstVoranmeldung !== 'undefined' ? UstVoranmeldung._voranmeldungsRegeln(new Date().getFullYear()).monatAb : 9000)} betrug; Gründer 2021–2026 nach voraussichtlicher bzw. umgerechneter Steuer.</div>
                 <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer;">
                     <input type="checkbox" id="set_ustDauerfrist" ${s.ustDauerfristverlaengerung ? 'checked' : ''}>
                     Dauerfristverlängerung beantragt/genehmigt (verschiebt Abgabefrist um 1 Monat)
@@ -1835,7 +1865,7 @@ const App = {
             `).join('')}
             <hr style="border-color:var(--border);margin:16px 0;">
             <div class="form-group">
-                <label class="form-label">🌐 Sprache / Language</label>
+                <label class="form-label">Sprache / Language</label>
                 <div style="display:flex;gap:10px;margin-top:6px;">
                     <button class="btn${(typeof I18n !== 'undefined' && I18n.isDE()) ? ' btn-primary' : ''}" data-action="i18n-set-lang" data-args='["de"]' style="flex:1;">🇩🇪 Deutsch</button>
                     <button class="btn${(typeof I18n !== 'undefined' && I18n.isEN()) ? ' btn-primary' : ''}" data-action="i18n-set-lang" data-args='["en"]' style="flex:1;">🇬🇧 English</button>
@@ -1850,7 +1880,7 @@ const App = {
             </div>
         `;
         const footer = `
-            <button class="btn" id="dsgvoReopenBtn" style="margin-right:auto;">🔒 Datenschutzhinweis</button>
+            <button class="btn" id="dsgvoReopenBtn" style="margin-right:auto;">Datenschutzhinweis</button>
             <button class="btn" data-action="close-modal">Abbrechen</button>
             <button class="btn btn-primary" id="saveSettingsBtn">Speichern</button>
         `;
@@ -1873,6 +1903,8 @@ const App = {
                 steuernummer: document.getElementById('set_steuernummer').value.trim(),
                 ustId: document.getElementById('set_ustId').value.trim(),
                 ustMode: document.getElementById('set_ustMode').value,
+                _ustModeAb: (document.getElementById('set_ustModeAb') || {}).value || '',
+                taetigkeitsbeginn: (document.getElementById('set_taetigkeitsbeginn') || {}).value || '',
                 ustVersteuerungsart: (document.getElementById('set_ustVersteuerungsart') || {}).value || 'soll',
                 ustVaPeriodenTyp: (document.getElementById('set_ustVaPeriodenTyp') || {}).value || 'quartal',
                 ustDauerfristverlaengerung: !!(document.getElementById('set_ustDauerfrist') || {}).checked,
@@ -2194,7 +2226,7 @@ const App = {
                  kommt ohne Schluessel aus, loescht dafuer aber ALLE Firmen. -->
             <div class="section">
                 <div class="section-title">Daten loeschen</div>
-                <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;">Achtung: Alle Geschaeftsdaten dieser Firma werden geloescht! Das Aenderungsprotokoll (Audit-Log) bleibt gemaess GoBD erhalten.</p>
+                <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;">Achtung: Alle Geschäftsdaten dieser Firma werden gelöscht! Das Änderungsprotokoll (Audit-Log) bleibt gemäß GoBD erhalten.</p>
                 <button class="btn btn-danger" id="clearAllBtn">Daten dieser Firma loeschen</button>
                 <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
                     <p style="margin-bottom:10px;color:var(--text-secondary);font-size:12px;line-height:1.6;">Willst du <strong>ganz aufhoeren</strong>, reicht der Knopf oben nicht: Er loescht nur die aktive Firma, und ohne Wiederherstellungscode bleiben ausgelagerte Anhaenge (Logos, Belegfotos, PDFs) in der Cloud liegen. Der Weg hier loescht den kompletten Cloud-Bestand dieses Kontos &mdash; <strong>alle Firmen</strong> &mdash; und braucht keinen Code.</p>
@@ -2221,7 +2253,6 @@ const App = {
                 block.innerHTML = `
                     <div style="padding:12px 14px;border-radius:8px;background:rgba(34,197,94,0.1);border:1px solid var(--success);font-size:13px;margin-bottom:4px;">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                            <span style="font-size:18px;">🛡️</span>
                             <strong style="color:var(--success);">Speicher ist dauerhaft geschützt</strong>
                         </div>
                         <div style="color:var(--text-secondary);font-size:12px;line-height:1.6;">
@@ -2234,7 +2265,6 @@ const App = {
                 block.innerHTML = `
                     <div style="padding:12px 14px;border-radius:8px;background:rgba(34,197,94,0.08);border:1px solid var(--success);font-size:13px;margin-bottom:4px;">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
-                            <span style="font-size:18px;">✅</span>
                             <strong style="color:var(--success);">Daten sind durch Datei-Backup geschützt</strong>
                         </div>
                         <div style="color:var(--text-secondary);font-size:12px;line-height:1.6;">
@@ -2250,7 +2280,6 @@ const App = {
                 block.innerHTML = `
                     <div style="padding:12px 14px;border-radius:8px;background:rgba(220,38,38,0.08);border:2px solid var(--danger);font-size:13px;margin-bottom:4px;">
                         <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
-                            <span style="font-size:20px;flex-shrink:0;">⚠️</span>
                             <div>
                                 <strong style="color:var(--danger);">Speicher nicht dauerhaft geschützt</strong><br>
                                 <span style="color:var(--text-secondary);font-size:12px;">
@@ -2264,24 +2293,24 @@ const App = {
                         </div>
                         ${isFileProtocol
                             ? `<div style="background:rgba(251,191,36,0.15);border:1px solid var(--warning);border-radius:6px;padding:8px 12px;font-size:12px;color:var(--text-secondary);">
-                                ℹ️ Browser-Schutz ist auf <code>file://</code>-URLs technisch nicht möglich — das ist kein Fehler der App.
+                                Browser-Schutz ist auf <code>file://</code>-URLs technisch nicht möglich — das ist kein Fehler der App.
                                 Richte das <strong>Datei-Backup</strong> (oben) ein, um deine Daten dauerhaft zu sichern.
                                </div>`
-                            : `<button class="btn btn-primary btn-small" id="requestPersistBtn">🛡️ Browser-Schutz versuchen</button>`}
+                            : `<button class="btn btn-primary btn-small" id="requestPersistBtn">Browser-Schutz versuchen</button>`}
                     </div>`;
                 const persistBtn = document.getElementById('requestPersistBtn');
                 if (persistBtn) {
                     persistBtn.addEventListener('click', async () => {
                         persistBtn.disabled = true;
-                        persistBtn.textContent = '⏳ Anfrage läuft…';
+                        persistBtn.textContent = 'Anfrage läuft…';
                         const granted = await Store.requestPersistentStorage();
                         if (granted) {
-                            Utils.showToast('✅ Browser-Speicherschutz aktiviert!', 'success');
+                            Utils.showToast('Browser-Speicherschutz aktiviert!', 'success');
                             this.closeModal();
                             this.showBackupModal();
                         } else {
                             // persist() abgelehnt (z.B. Browser-Einschränkung)
-                            persistBtn.textContent = '❌ Nicht gewährt – Datei-Backup nutzen';
+                            persistBtn.textContent = 'Nicht gewährt – Datei-Backup nutzen';
                             // Button bleibt disabled — kein erneutes Klicken möglich
                         }
                     });
@@ -2298,7 +2327,7 @@ const App = {
 
             // Speichergröße berechnen: OPFS-Snapshots = komprimierte Dateigröße, IDB = Stringlänge × 2
             const isOpfs = snapshots.length > 0 && snapshots[0]._opfs;
-            const storageLabel = Store._opfsReady ? '⚡ OPFS + gzip' : '📦 IDB';
+            const storageLabel = Store._opfsReady ? 'OPFS + gzip' : 'IDB';
 
             if (snapshots && snapshots.length > 0) {
                 const totalBytes = isOpfs
@@ -2335,7 +2364,7 @@ const App = {
                     ? ((s.size || 0) / 1024).toFixed(1)
                     : ((s.data ? s.data.length / 1024 : 0)).toFixed(1);
                 const badge = s._opfs
-                    ? `<span style="font-size:10px;color:var(--info);margin-left:6px;" title="Komprimiert im OPFS gespeichert">⚡gz</span>`
+                    ? `<span style="font-size:10px;color:var(--info);margin-left:6px;" title="Komprimiert im OPFS gespeichert">gz</span>`
                     : '';
                 return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);">
                     <div>
@@ -2354,7 +2383,7 @@ const App = {
                     const d    = snap ? new Date(snap.ts).toLocaleString('de-DE') : '';
                     if (!confirm(`Daten vom ${d} wiederherstellen?\n\nAktuelle Daten werden überschrieben!`)) return;
                     Store.restoreFromIDBSnapshot(id).then(() => {
-                        Utils.showToast('✅ Daten wiederhergestellt', 'success');
+                        Utils.showToast('Daten wiederhergestellt', 'success');
                         this.closeModal();
                         App.navigate(App.currentPage);
                     }).catch(err => {
@@ -2375,7 +2404,7 @@ const App = {
                 }
                 if (confirm(`${deleteCount} alte Auto-Backup${deleteCount !== 1 ? 's' : ''} löschen und nur die neuesten ${keepCount} behalten?\n\nSpeicherplatz wird sofort freigegeben.`)) {
                     Store._emergencyPruneSnapshots(keepCount).then(() => {
-                        Utils.showToast(`🧹 ${deleteCount} alte Auto-Backups gelöscht — Speicher freigegeben.`, 'success');
+                        Utils.showToast(`${deleteCount} alte Auto-Backups gelöscht — Speicher freigegeben.`, 'success');
                         this.closeModal();
                         this.showBackupModal();
                     });
@@ -2408,12 +2437,12 @@ const App = {
             fsSelectBtn.addEventListener('click', async () => {
                 try {
                     fsSelectBtn.disabled = true;
-                    fsSelectBtn.textContent = '⏳ Ordner wird gewählt…';
+                    fsSelectBtn.textContent = 'Ordner wird gewählt…';
                     const handle = await Store.selectBackupFolder();
                     // Sofort ein Backup schreiben um Berechtigung zu testen
                     const filename = await Store.writeFileSystemBackup('einrichtung');
                     this._updateFsBackupStatus(handle.name, true);
-                    Utils.showToast(`✅ Backup-Ordner gesetzt: ${handle.name}${filename ? ` — ${filename} erstellt` : ''}`, 'success');
+                    Utils.showToast(`Backup-Ordner gesetzt: ${handle.name}${filename ? ` — ${filename} erstellt` : ''}`, 'success');
                     this.closeModal();
                     this.showBackupModal();
                 } catch(err) {
@@ -2422,7 +2451,7 @@ const App = {
                     }
                     if (fsSelectBtn) {
                         fsSelectBtn.disabled = false;
-                        fsSelectBtn.textContent = '📁 Backup-Ordner wählen';
+                        fsSelectBtn.textContent = 'Backup-Ordner wählen';
                     }
                 }
             });
@@ -2432,14 +2461,14 @@ const App = {
         if (fsNowBtn) {
             fsNowBtn.addEventListener('click', async () => {
                 fsNowBtn.disabled = true;
-                fsNowBtn.textContent = '⏳ Schreibe…';
+                fsNowBtn.textContent = 'Schreibe…';
                 // Berechtigung ggf. erneut anfragen (benötigt User-Geste ✓)
                 if (!Store.getFsBackupFolderName()) {
                     const granted = await Store.requestFsPermission();
                     if (!granted) {
                         Utils.showToast('Berechtigung verweigert — bitte Ordner neu wählen', 'error');
                         fsNowBtn.disabled = false;
-                        fsNowBtn.textContent = '💾 Jetzt sichern';
+                        fsNowBtn.textContent = 'Jetzt sichern';
                         return;
                     }
                 }
@@ -2447,13 +2476,13 @@ const App = {
                 const filename = await Store.writeFileSystemBackup('manuell');
                 App.hideSpinner();
                 if (filename) {
-                    Utils.showToast(`✅ Backup gespeichert: ${filename}`, 'success');
+                    Utils.showToast(`Backup gespeichert: ${filename}`, 'success');
                     this.closeModal();
                     this.showBackupModal();
                 } else {
                     Utils.showToast('Backup fehlgeschlagen — Ordner ggf. neu wählen', 'error');
                     fsNowBtn.disabled = false;
-                    fsNowBtn.textContent = '💾 Jetzt sichern';
+                    fsNowBtn.textContent = 'Jetzt sichern';
                 }
             });
         }
@@ -2462,10 +2491,10 @@ const App = {
         if (fsListBtn) {
             fsListBtn.addEventListener('click', async () => {
                 fsListBtn.disabled = true;
-                fsListBtn.textContent = '⏳ Lade Liste…';
+                fsListBtn.textContent = 'Lade Liste…';
                 const files = await Store.listFileSystemBackups();
                 fsListBtn.disabled = false;
-                fsListBtn.textContent = '📋 Vorhandene Backups';
+                fsListBtn.textContent = 'Vorhandene Backups';
                 if (files.length === 0) {
                     Utils.showToast('Keine Backup-Dateien im Ordner gefunden', 'info');
                     return;
@@ -2491,13 +2520,13 @@ const App = {
                 const totalExtra = files.length > 30 ? `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">… und ${files.length - 30} weitere</div>` : '';
                 const modalBody = `
                     <div style="margin-bottom:10px;font-size:13px;color:var(--text-secondary);">
-                        📂 Ordner: <strong>${Utils.escapeHtml(Store.getFsBackupFolderName())}</strong>
+                        Ordner: <strong>${Utils.escapeHtml(Store.getFsBackupFolderName())}</strong>
                         &nbsp;·&nbsp; ${files.length} Backup-Datei(en)
                         ${otherCount > 0 ? `<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">(${otherCount} von anderen Firmen — gedimmt)</span>` : ''}
                     </div>
                     <div style="max-height:400px;overflow-y:auto;">${listHtml}${totalExtra}</div>
                 `;
-                this.showModal('📋 Backup-Dateien im Ordner', modalBody, '');
+                this.showModal('Backup-Dateien im Ordner', modalBody, '');
 
                 // Restore aus Datei
                 document.querySelectorAll('[data-fs-restore]').forEach(btn => {
@@ -2508,12 +2537,12 @@ const App = {
                         if (!confirm(`"${name}" wiederherstellen?\n\nAlle aktuellen Daten werden überschrieben!`)) return;
                         try {
                             btn.disabled = true;
-                            btn.textContent = '⏳';
+                            btn.textContent = '…';
                             App.showSpinner('Backup wird wiederhergestellt…');
                             const jsonStr = await Store.readFileSystemBackup(entry.handle);
                             Store.importAll(jsonStr);
                             App.hideSpinner();
-                            Utils.showToast('✅ Aus Datei-Backup wiederhergestellt', 'success');
+                            Utils.showToast('Aus Datei-Backup wiederhergestellt', 'success');
                             this.closeModal();
                             this.navigate(this.currentPage);
                         } catch(err) {
@@ -2746,7 +2775,7 @@ const App = {
             }
 
             const statusEl = document.getElementById('xlsxImportStatus');
-            if (statusEl) statusEl.textContent = '⏳ Lese Datei…';
+            if (statusEl) statusEl.textContent = 'Lese Datei…';
 
             Utils.ensureXlsx().then(() => {
             const reader = new FileReader();
@@ -3036,12 +3065,12 @@ const App = {
                         const text = `Spaltenüberschriften passen nicht zur Vorlage: ${details}. `
                                    + `Lade dir die Excel-Vorlage herunter und übertrage deine Daten dort hinein.`;
                         if (statusEl) statusEl.innerHTML = `<span style="color:var(--${nichts ? 'danger' : 'warning'});">`
-                            + `${nichts ? '❌' : '⚠️'} ${Utils.escapeHtml(text)}</span>`
-                            + (nichts ? '' : `<br><span style="color:var(--success);">✅ Importiert: ${msg}${skipText}</span>`);
+                            + `${Utils.escapeHtml(text)}</span>`
+                            + (nichts ? '' : `<br><span style="color:var(--success);">Importiert: ${msg}${skipText}</span>`);
                         Utils.showToast(text, nichts ? 'error' : 'warning');
                         if (nichts) { e.target.value = ''; return; }
                     } else {
-                        if (statusEl) statusEl.innerHTML = `<span style="color:var(--success);">✅ Importiert: ${msg}${skipText}</span>`;
+                        if (statusEl) statusEl.innerHTML = `<span style="color:var(--success);">Importiert: ${msg}${skipText}</span>`;
                     }
                     Utils.showToast(`Import abgeschlossen: ${msg}`, 'success');
                     e.target.value = '';
@@ -3049,24 +3078,24 @@ const App = {
                     setTimeout(() => this.navigate(this.currentPage), 1200);
 
                 } catch(err) {
-                    if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">❌ Fehler: ${Utils.escapeHtml(err.message)}</span>`;
+                    if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">Fehler: ${Utils.escapeHtml(err.message)}</span>`;
                     Utils.showToast('Import-Fehler: ' + err.message, 'error');
                 }
             };
             reader.readAsArrayBuffer(file);
             }).catch(err => {
-                if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">❌ ${Utils.escapeHtml(err.message)}</span>`;
+                if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">${Utils.escapeHtml(err.message)}</span>`;
                 Utils.showToast(err.message, 'error');
             });
         });
 
         document.getElementById('emergencyRecoverBtn').addEventListener('click', () => {
             const btn = document.getElementById('emergencyRecoverBtn');
-            if (btn) { btn.disabled = true; btn.textContent = '⏳ Prüfe Quellen…'; }
+            if (btn) { btn.disabled = true; btn.textContent = 'Prüfe Quellen…'; }
             Store.emergencyRecover().then(results => {
                 if (!results || results.length === 0) {
                     Utils.showToast('Keine Backup-Quellen gefunden. Leider kein Recovery möglich.', 'error');
-                    if (btn) { btn.disabled = false; btn.textContent = '🔍 Verfügbare Backups prüfen & wiederherstellen'; }
+                    if (btn) { btn.disabled = false; btn.textContent = 'Verfügbare Backups prüfen & wiederherstellen'; }
                     return;
                 }
 
@@ -3075,19 +3104,19 @@ const App = {
                     <div style="border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px;cursor:pointer;transition:background .15s;"
                          class="recovery-option" data-idx="${i}"
                          class="hover-bg-main">
-                        <div style="font-weight:600;font-size:13px;">📦 ${Utils.escapeHtml(r.label)}</div>
+                        <div style="font-weight:600;font-size:13px;">${Utils.escapeHtml(r.label)}</div>
                         <div style="font-size:11px;color:var(--text-muted);">Quelle: ${Utils.escapeHtml(r.source)}</div>
                     </div>
                 `).join('');
 
                 const body = `
                     <div style="margin-bottom:12px;padding:10px;background:rgba(220,38,38,0.06);border-radius:6px;font-size:13px;">
-                        ⚠️ <strong>${results.length} Backup-Quelle(n) gefunden.</strong><br>
+                        <strong>${results.length} Backup-Quelle(n) gefunden.</strong><br>
                         Wähle einen Stand zum Wiederherstellen. <em>Aktuelle Daten werden überschrieben!</em>
                     </div>
                     ${opts}
                 `;
-                this.showModal('🚨 Notfall-Wiederherstellung', body, '');
+                this.showModal('Notfall-Wiederherstellung', body, '');
 
                 results.forEach((r, i) => {
                     const el = document.querySelector(`.recovery-option[data-idx="${i}"]`);
@@ -3096,7 +3125,7 @@ const App = {
                         if (!confirm(`"${r.label}" jetzt wiederherstellen?\n\nDies überschreibt alle aktuellen Daten!`)) return;
 
                         const doRestore = () => {
-                            Utils.showToast('Daten wiederhergestellt ✅', 'success');
+                            Utils.showToast('Daten wiederhergestellt', 'success');
                             this.closeModal();
                             this.navigate(this.currentPage);
                         };
@@ -3134,15 +3163,15 @@ const App = {
             if (typeof CloudSync === 'undefined') { Utils.showToast('Cloud-Sync ist auf dieser Seite nicht geladen.', 'warning'); return; }
             const body = `
                 <div style="margin-bottom:16px;padding:14px;background:rgba(220,38,38,0.1);border-radius:8px;border:2px solid var(--danger);">
-                    <div style="font-weight:700;color:var(--danger);font-size:16px;margin-bottom:8px;">⛔ Betrifft alle Firmen dieses Kontos</div>
+                    <div style="font-weight:700;color:var(--danger);font-size:16px;margin-bottom:8px;">Betrifft alle Firmen dieses Kontos</div>
                     <p style="color:var(--text-secondary);font-size:13px;margin:0 0 8px;">
                         Gelöscht wird der <strong>gesamte verschlüsselte Cloud-Bestand</strong> dieses Whop-Kontos — jede Firma, nicht nur die gerade aktive — samt aller ausgelagerten Anhänge (Logos, Belegfotos, PDFs). Dafür ist <strong>kein Wiederherstellungscode nötig</strong>.
                     </p>
                     <p style="color:var(--text-secondary);font-size:12px;margin:0 0 8px;">
-                        ✅ <strong>Bleibt erhalten:</strong> deine <strong>lokalen</strong> Daten auf diesem Gerät und das Änderungsprotokoll. Gelöscht wird nur, was in der Cloud liegt. Cloud-Sync wird dabei ausgeschaltet.
+                        <strong>Bleibt erhalten:</strong> deine <strong>lokalen</strong> Daten auf diesem Gerät und das Änderungsprotokoll. Gelöscht wird nur, was in der Cloud liegt. Cloud-Sync wird dabei ausgeschaltet.
                     </p>
                     <p style="color:var(--text-secondary);font-size:12px;margin:0;">
-                        ℹ️ Die Anker-Liste des Audit-Logs bleibt bestehen — sie enthält keine Geschäftsdaten, sondern nur Prüfsummen, und ist dein GoBD-Nachweis gegen nachträgliche Änderungen.
+                        Die Anker-Liste des Audit-Logs bleibt bestehen — sie enthält keine Geschäftsdaten, sondern nur Prüfsummen, und ist dein GoBD-Nachweis gegen nachträgliche Änderungen.
                     </p>
                 </div>
                 <div class="form-group">
@@ -3160,7 +3189,7 @@ const App = {
             inp.addEventListener('input', () => { go.disabled = inp.value !== 'LÖSCHEN'; });
             go.addEventListener('click', async () => {
                 if (inp.value !== 'LÖSCHEN') return;
-                go.disabled = true; go.textContent = '⏳ Lösche…';
+                go.disabled = true; go.textContent = 'Lösche…';
                 const r = await CloudSync.deleteAllRemote();
                 if (!r || !r.ok) {
                     // Kein Teil-Erfolg vortäuschen: Bei Serverfehler ist nichts gelöscht, und der
@@ -3172,8 +3201,8 @@ const App = {
                     return;
                 }
                 Utils.showToast(r.blobsOk
-                    ? '✅ Alle Cloud-Daten dieses Kontos wurden gelöscht. Deine lokalen Daten sind unberührt.'
-                    : '✅ Cloud-Daten gelöscht — die Anhänge konnten nicht alle bestätigt werden. Bitte in einigen Minuten erneut ausführen.', r.blobsOk ? 'success' : 'warning', 10000);
+                    ? 'Alle Cloud-Daten dieses Kontos wurden gelöscht. Deine lokalen Daten sind unberührt.'
+                    : 'Cloud-Daten gelöscht — die Anhänge konnten nicht alle bestätigt werden. Bitte in einigen Minuten erneut ausführen.', r.blobsOk ? 'success' : 'warning', 10000);
                 this.closeModal();
                 location.reload();
             });
@@ -3183,7 +3212,7 @@ const App = {
             // Gesichertes Löschen: Nutzer muss "LÖSCHEN" tippen
             const body = `
                 <div style="margin-bottom:16px;padding:14px;background:rgba(220,38,38,0.1);border-radius:8px;border:2px solid var(--danger);">
-                    <div style="font-weight:700;color:var(--danger);font-size:16px;margin-bottom:8px;">⛔ Warnung: Unwiderrufliche Aktion</div>
+                    <div style="font-weight:700;color:var(--danger);font-size:16px;margin-bottom:8px;">Warnung: Unwiderrufliche Aktion</div>
                     <p style="color:var(--text-secondary);font-size:13px;margin:0 0 8px;">
                         Folgende Daten werden <strong>unwiderruflich gelöscht</strong>:
                     </p>
@@ -3194,11 +3223,11 @@ const App = {
                         <li>Akademie-Fortschritt &amp; Achievements</li>
                     </ul>
                     <p style="color:var(--text-secondary);font-size:12px;margin:0 0 8px;">
-                        ✅ <strong>Erhalten bleiben:</strong> Audit-Log (GoBD), App-Einstellungen, Theme, Backup-Konfiguration, Passwort.
+                        <strong>Erhalten bleiben:</strong> Audit-Log (GoBD), App-Einstellungen, Theme, Backup-Konfiguration, Passwort.
                     </p>
                     <p style="color:var(--text-secondary);font-size:12px;margin:0;">
                         ${(typeof CloudSync !== 'undefined' && document.getElementById('cloudSyncDot') && localStorage.getItem('oyi_sync_enabled') === '1')
-                            ? '☁ Bei aktivem Cloud-Sync wird auch der verschlüsselte Cloud-Stand dieser Firma gelöscht.'
+                            ? 'Bei aktivem Cloud-Sync wird auch der verschlüsselte Cloud-Stand dieser Firma gelöscht.'
                             : ''}
                     </p>
                 </div>
@@ -3277,7 +3306,7 @@ const App = {
             <div style="display:flex;flex-direction:column;gap:14px;">
 
                 <div style="background:rgba(99,102,241,.08);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:13px;">
-                    <div style="font-weight:700;margin-bottom:6px;">📊 Aktuelle Analyse</div>
+                    <div style="font-weight:700;margin-bottom:6px;">Aktuelle Analyse</div>
                     <div style="display:grid;grid-template-columns:1fr auto;gap:4px 12px;">
                         <span>Artikel mit Foto</span><span><strong>${purchasesWithFoto.length}</strong> · ${fmt(totalPhotoBytes)}</span>
                         <span>Davon: verkaufte Artikel</span><span>${verkaufteFotos.length} · ${fmt(verkaufteBytes)}</span>
@@ -3287,7 +3316,6 @@ const App = {
                 </div>
 
                 <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text-secondary);display:flex;gap:8px;align-items:flex-start;">
-                    <span style="font-size:15px;flex-shrink:0;">✅</span>
                     <span><strong>GoBD-Hinweis:</strong> Alle Datensätze (auch verkaufte und stornierte Artikel) bleiben erhalten. Nur Fotos werden bereinigt — diese sind keine Pflicht-Belege.</span>
                 </div>
 
@@ -3304,7 +3332,7 @@ const App = {
                     <button class="btn cleanup-action" id="cleanupStorno" ${stornoMitFoto.length === 0 ? 'disabled' : ''}
                             style="text-align:left;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
                         <div>
-                            <div style="font-weight:700;margin-bottom:2px;">📁 Fotos stornierter Artikel entfernen</div>
+                            <div style="font-weight:700;margin-bottom:2px;">Fotos stornierter Artikel entfernen</div>
                             <div style="font-size:11px;color:var(--text-muted);font-weight:400;">Datensatz bleibt für GoBD-Audit erhalten</div>
                         </div>
                         <strong style="color:var(--success);white-space:nowrap;">spart ${fmt(stornoBytes)}</strong>
@@ -3313,7 +3341,7 @@ const App = {
                     <button class="btn cleanup-action" id="cleanupCompress" ${purchasesWithFoto.length === 0 ? 'disabled' : ''}
                             style="text-align:left;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
                         <div>
-                            <div style="font-weight:700;margin-bottom:2px;">📉 Alle Fotos stärker komprimieren</div>
+                            <div style="font-weight:700;margin-bottom:2px;">Alle Fotos stärker komprimieren</div>
                             <div style="font-size:11px;color:var(--text-muted);font-weight:400;">600px / JPEG 0.55 — Qualität niedriger, Größe ~50%</div>
                         </div>
                         <strong style="color:var(--success);white-space:nowrap;">spart ~${fmt(totalPhotoBytes * 0.5)}</strong>
@@ -3322,7 +3350,7 @@ const App = {
             </div>
         `;
 
-        this.showModal('🧹 Speicher aufräumen', body, '<button class="btn" data-action="close-modal">Schließen</button>');
+        this.showModal('Speicher aufräumen', body, '<button class="btn" data-action="close-modal">Schließen</button>');
 
         // Aktion: Fotos verkaufter Artikel entfernen
         const removePhotos = (filterFn, label) => {
@@ -3332,7 +3360,7 @@ const App = {
             all.forEach(p => { if (filterFn(p) && p.foto) { delete p.foto; count++; } });
             Store.setAsync('purchases', all)
                 .then(() => {
-                    Utils.showToast(`✅ ${count} Fotos entfernt`, 'success');
+                    Utils.showToast(`${count} Fotos entfernt`, 'success');
                     this.closeModal();
                     if (this.currentPage) this.navigate(this.currentPage);
                 })
@@ -3352,7 +3380,7 @@ const App = {
             const btn = document.getElementById('cleanupCompress');
             const orig = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '⏳ Komprimiere…';
+            btn.innerHTML = 'Komprimiere…';
 
             try {
                 const all = Store.getPurchases(true);
@@ -3362,12 +3390,12 @@ const App = {
                     p.foto = await this._recompressPhoto(p.foto, 600, 0.55);
                     processed++;
                     if (processed % 20 === 0) {
-                        btn.innerHTML = `⏳ Komprimiere… (${processed}/${purchasesWithFoto.length})`;
+                        btn.innerHTML = `Komprimiere… (${processed}/${purchasesWithFoto.length})`;
                         await new Promise(r => setTimeout(r, 0)); // UI atmen lassen
                     }
                 }
                 await Store.setAsync('purchases', all);
-                Utils.showToast(`✅ ${processed} Fotos komprimiert`, 'success');
+                Utils.showToast(`${processed} Fotos komprimiert`, 'success');
                 this.closeModal();
                 if (this.currentPage) this.navigate(this.currentPage);
             } catch (err) {
@@ -3430,7 +3458,7 @@ const App = {
                 </div>
             </div>
             <div style="background:rgba(251,191,36,0.1);border:1px solid var(--warning);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary);">
-                💡 <strong>Empfehlung:</strong> Richte jetzt einen Backup-Ordner ein (Backup & Daten → Ordner wählen)
+                <strong>Empfehlung:</strong> Richte jetzt einen Backup-Ordner ein (Backup & Daten → Ordner wählen)
                 damit zukünftige Backups als echte Dateien auf deinem PC gespeichert werden.
             </div>
         `;
@@ -3440,7 +3468,6 @@ const App = {
     _showDataLossModal() {
         const body = `
             <div style="text-align:center;padding:8px 0 16px;">
-                <div style="font-size:48px;margin-bottom:12px;">😔</div>
                 <h3 style="color:var(--danger);margin-bottom:8px;">Datenverlust — keine Wiederherstellung möglich</h3>
                 <p style="color:var(--text-secondary);font-size:14px;margin-bottom:16px;">
                     Das System hat beim Start erkannt, dass Daten fehlen — konnte aber keine
@@ -3457,14 +3484,14 @@ const App = {
                 </ol>
             </div>
             <div style="background:rgba(251,191,36,0.1);border:1px solid var(--warning);border-radius:8px;padding:12px;font-size:12px;color:var(--text-secondary);">
-                💡 Richte jetzt einen Backup-Ordner ein damit es nie wieder passiert.
+                Richte jetzt einen Backup-Ordner ein damit es nie wieder passiert.
             </div>
         `;
         const footer = `
             <button class="btn" data-action="close-modal">Schließen</button>
             <button class="btn btn-primary" data-action="app-close-and-backup">Backup & Daten öffnen</button>
         `;
-        this.showModal('⚠️ Datenverlust erkannt', body, footer);
+        this.showModal('Datenverlust erkannt', body, footer);
     },
 
     // SCHICHT 4 — Periodisches Backup: alle 10 Minuten wird ein Datei-Backup erzwungen,
@@ -3517,7 +3544,7 @@ function _startApp() {
                     const src = srcLabels[recovered.source] || recovered.source;
                     const ts  = recovered.ts ? ` vom ${new Date(recovered.ts).toLocaleString('de-DE')}` : '';
                     Utils.showToast(
-                        `⚠️ Datenverlust erkannt — Daten automatisch aus ${src}${ts} wiederhergestellt!`,
+                        `Datenverlust erkannt — Daten automatisch aus ${src}${ts} wiederhergestellt!`,
                         'warning'
                     );
                     // Zusätzlich prominentes Modal

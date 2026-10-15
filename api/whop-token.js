@@ -7,6 +7,7 @@
 // plan/supabase-umzug-2026-10-06.md. Die Sitzung zusaetzlich STORAGE_MIRROR.
 var store       = require('./_sync-store.js');
 var sessions    = require('./_whop-sessions.js');
+var setzeCorsOrigin = require('./_cors.js');
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps    = require('./_alert.js').alertOps;
 var _log        = require('./_log.js');
@@ -25,7 +26,7 @@ function _redirectUri(req) {
 }
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', 'https://track-your-income-app.vercel.app');
+    setzeCorsOrigin(req, res);  // getstackr.de und alte Adresse, s. api/_cors.js
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Cache-Control', 'no-store');

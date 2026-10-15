@@ -26,12 +26,18 @@ const SteuerBerechnung = {
     // `steuersatz` und fiel bei der zweiten Form auf den 19%-Default zurück: der 7%-Anteil
     // wurde mit 19% genettet, also zu wenig Gewinn und zu viel Umsatzsteuer ausgewiesen
     // (Fund D1, Steuer-Delta-Audit 2026-08-11).
+    //
+    // Marktplatz-Verkäufe außerhalb der deutschen USt (sale.land, s. js/oss.js) nettet
+    // _sondersatz() am richtigen Satz: steuerfreie Ausfuhr 0 %, OSS-Fernverkauf Ziellandsatz.
     nettoSales(sales, isRegel) {
         let brutto = 0, netto = 0;
+        const ossCache = {};
         sales.forEach(s => {
             const b = (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
             brutto += b;
             if (!isRegel) { netto += b; return; }
+            const sonder = this._sondersatz(s, ossCache);
+            if (sonder !== null) { netto += this.nettoAusBrutto(b, sonder).netto; return; }
             const groups = (typeof Store !== 'undefined' && Store.salePerRate)
                 ? Store.salePerRate(s)
                 : [{ satz: s.steuersatz, brutto: b }];
@@ -44,15 +50,41 @@ const SteuerBerechnung = {
     // stornierter, zum Nachschlagen), Fallback 19% ohne Verknüpfung.
     nettoRetouren(retouren, allSalesRaw, isRegel) {
         let brutto = 0, netto = 0;
+        const ossCache = {};
         retouren.forEach(r => {
             const b = parseFloat(r.erstattungBetrag) || 0;
             brutto += b;
             if (!isRegel) { netto += b; return; }
             const relSale = r.saleId ? (allSalesRaw || []).find(s => s.id === r.saleId) : null;
+            const sonder = relSale ? this._sondersatz(relSale, ossCache) : null;
+            if (sonder !== null) { netto += this.nettoAusBrutto(b, sonder).netto; return; }
+            // Rückzahlung auf einen Verkauf mit gemischten Sätzen (Rechnung mit 7 %/19 %): anteilig
+            // aufteilen statt alles zum 19 %-Default (Audit 2026-10-13, Storno-Rückzahlungen).
+            if (relSale && relSale.steuersaetze && Object.keys(relSale.steuersaetze).length) {
+                const gruppen = Object.keys(relSale.steuersaetze).map(k => ({ satz: parseFloat(k), brutto: parseFloat(relSale.steuersaetze[k]) || 0 }));
+                const ges = gruppen.reduce((x, g) => x + g.brutto, 0);
+                if (ges) { gruppen.forEach(g => { netto += this.nettoAusBrutto(b * g.brutto / ges, g.satz).netto; }); return; }
+            }
             const rate = (relSale && relSale.steuersatz != null && relSale.steuersatz !== '') ? relSale.steuersatz : 19;
             netto += this.nettoAusBrutto(b, rate).netto;
         });
         return { brutto, netto, ust: brutto - netto };
+    },
+
+    // Steuersatz für Marktplatz-Verkäufe, die nicht der deutschen USt unterliegen — dieselbe
+    // Abgrenzung wie in js/ustvoranmeldung.js: Drittland mit Ausfuhrnachweis → 0 % (§4 Nr. 1a
+    // UStG), EU-Privatkäufer ab Überschreiten der §3c-Schwelle → Regelsatz des Ziellandes.
+    // null = normaler Weg. Verkäufe aus Rechnungen (_invoiceId) laufen über den Rechnungspfad.
+    // ossCache: { jahr: Set } je Aufruf, damit die Schwellenprüfung nicht pro Verkauf läuft.
+    _sondersatz(s, ossCache) {
+        if (!s || s._invoiceId) return null;
+        if (s.ausfuhrnachweis && typeof Utils !== 'undefined' && Utils.istDrittland(s.land)) return 0;
+        if (typeof OSS === 'undefined' || !s.land || !s.datum) return null;
+        const y = parseInt(String(s.datum).slice(0, 4), 10);
+        if (!ossCache[y]) ossCache[y] = OSS._ueberSchwelleIds(y);
+        if (!ossCache[y].has(s.id)) return null;
+        const r = OSS.EU_VAT_RATES[s.land];
+        return r === undefined ? null : r;
     },
 
     // Rechnungspositionen sind bereits NETTO gespeichert (MwSt wird in rechnung.js separat
@@ -62,6 +94,14 @@ const SteuerBerechnung = {
         let netto = 0, ust = 0;
         (invoices || []).forEach(inv => {
             const sign = inv.typ === 'gutschrift' ? -1 : 1;
+            // Gerundet wie auf der Rechnung (js/rechnung-summen.js, Audit 2026-10-13 L5). isKlein
+            // nur, wenn die Rechnung es selbst sagt — sonst wie bisher der gespeicherte Satz.
+            if (typeof RechnungSummen !== 'undefined') {
+                const sm = RechnungSummen.berechne(inv.positionen, inv.isKlein === true);
+                netto += sign * sm.netto;
+                ust += sign * sm.steuer;
+                return;
+            }
             (inv.positionen || []).forEach(p => {
                 const posNetto = (p.menge || 0) * (p.einzelpreis || 0);
                 netto += sign * posNetto;
@@ -147,23 +187,31 @@ const SteuerBerechnung = {
     // eine Position (ref = die verknüpften Lagerartikel). Ohne ref bildet jeder Eintrag seine eigene
     // Gruppe — Verhalten dann exakt wie vorher.
     //
-    // Bewusste Grenze: findet eine Korrektur in der Periode keine passende Position (Verkauf in Q1,
-    // Retoure in Q2), läuft sie gegen 0 und bleibt wirkungslos. Die Einzeldifferenz kennt anders als
-    // die Gesamtdifferenz keinen Vortrag (§25a Abs. 4 UStG), in den ein Negativbetrag wandern könnte.
+    // Korrektur OHNE passende Position in der Periode (Verkauf in Q1, Retoure in Q2): sie ist die
+    // §17-Berichtigung derselben Lieferung im Zeitraum der Änderung und wird mit Vorzeichen gebucht —
+    // KEIN Verlust aus anderer Ware, also auch kein Fall für den Floor. Bis zum Audit 2026-10-13 (T07)
+    // lief sie gegen 0 und die in Q1 gezahlte USt blieb stehen. Der Aufrufer bemisst die Korrektur
+    // an der ursprünglich versteuerten (bereits auf ≥ 0 gekappten) Marge.
+    // Der Floor wirkt nur auf die ursprüngliche Margenbestimmung einer Position: hat eine Gruppe
+    // eine Position, ist ihr Ergebnis nie negativ (B2: Überhang greift nicht auf andere Ware).
     margeEinzeldifferenz(positionen) {
         const gruppen = new Map();
         (positionen || []).forEach((pos, i) => {
             // Ohne ref ist jeder Eintrag seine eigene Gruppe (Index als Schlüssel) — nie mit einer
             // ref-Gruppe kollidierbar, weil die Präfixe sich unterscheiden.
             const key = (pos.ref !== undefined && pos.ref !== null && pos.ref !== '') ? 'r:' + pos.ref : 'i:' + i;
-            if (!gruppen.has(key)) gruppen.set(key, { summe: 0, satz: pos.satz });
+            if (!gruppen.has(key)) gruppen.set(key, { roh: 0, korrektur: 0, hatPosition: false, satz: pos.satz });
             const g = gruppen.get(key);
-            g.summe += this._margeRoh(pos) + (parseFloat(pos.margeKorrektur) || 0);
+            const istKorrektur = pos.margeKorrektur != null && pos.verkaufspreis == null && pos.einkaufspreis == null;
+            if (!istKorrektur) { g.roh += this._margeRoh(pos); g.hatPosition = true; }
+            g.korrektur += parseFloat(pos.margeKorrektur) || 0;
             if (g.satz == null) g.satz = pos.satz;
         });
         let margeBrutto = 0, margeNetto = 0;
         gruppen.forEach(g => {
-            const marge = Math.max(0, g.summe);
+            const marge = g.hatPosition
+                ? Math.max(0, Math.max(0, g.roh) + g.korrektur)
+                : g.korrektur;
             margeBrutto += marge;
             margeNetto += this.nettoAusBrutto(marge, g.satz).netto;
         });

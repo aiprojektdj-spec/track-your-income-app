@@ -33,6 +33,7 @@ var alertOps = require('./_alert.js').alertOps;
 var _log     = require('./_log.js');
 var sessions = require('./_whop-sessions.js');
 var store    = require('./_sync-store.js');   // nur fuer den IP-Deckel (rateHit)
+var setzeCorsOrigin = require('./_cors.js');
 
 var CLIENT_ID = 'app_dc3OND8eGv2Iim';
 var RATE_MAX  = 30;   // pro Minute pro IP — Refresh laeuft oefter als ein Login (mehrere Tabs)
@@ -47,7 +48,7 @@ var LOCK_S    = 10;   // Sperre gegen gleichzeitigen Refresh aus zwei Tabs
 // Ablage, TTL (30 Tage) und Sperre: api/_whop-sessions.js.
 
 module.exports = async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', 'https://track-your-income-app.vercel.app');
+    setzeCorsOrigin(req, res);  // getstackr.de und alte Adresse, s. api/_cors.js
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Cache-Control', 'no-store');
@@ -83,8 +84,18 @@ module.exports = async function handler(req, res) {
 
     // Abmelden: Sitzung serverseitig loeschen. Genau dafuer liegt der Refresh-Token hier
     // und nicht im Browser — ein Logout beendet ihn wirklich, statt nur lokal zu vergessen.
+    // Erst die Widerrufsmarke, dann löschen (S7) — ein gleichzeitig laufender Refresh sieht die
+    // Marke nach seinem Speichern und nimmt die Sitzung wieder heraus. Scheitert das Speichern,
+    // wird das gemeldet statt `revoked: true` vorzutäuschen; der Client meldet sich lokal
+    // trotzdem ab und versucht den Widerruf später erneut.
     if (req.body.revoke === true) {
-        try { await sessions.del(sid); } catch (e) {}
+        try {
+            await sessions.markRevoked(sid);
+            await sessions.del(sid);
+        } catch (e) {
+            await alertOps('whop-refresh', 'revoke-fehlgeschlagen', e && e.message);
+            return res.status(503).json({ revoked: false, error: 'revoke_failed' });
+        }
         return res.status(200).json({ revoked: true });
     }
 
@@ -154,12 +165,18 @@ module.exports = async function handler(req, res) {
             }),
             signal: AbortSignal.timeout(10000)
         });
-        var data = await tokenRes.json();
+        var data = null;
+        try { data = await tokenRes.json(); } catch (je) { data = {}; }   // HTML-Fehlerseite o. ä.
 
         if (!tokenRes.ok || !data.access_token) {
-            // Whop lehnt den Refresh-Token ab (abgelaufen, widerrufen, schon rotiert).
-            // Sitzung ist tot — aufraeumen, damit der Client nicht in einer Schleife haengt.
-            _log.logWarn('whop-refresh', 'REFRESH_REJECTED', data && data.error);
+            // Nur eine eindeutige OAuth-Ablehnung beendet die Sitzung (RFC 6749 §5.2:
+            // invalid_grant = Refresh-Token abgelaufen, widerrufen oder schon rotiert).
+            // 429, 5xx, Wartungsseiten oder ein unerwartetes Format sind vorübergehend: Sitzung
+            // behalten, 503 melden, der Client versucht es später (Audit 2026-10-13, S6 —
+            // vorher löschte schon ein Whop-503 die gültige Sitzung).
+            var endgueltig = (tokenRes.status === 400 || tokenRes.status === 401) && data && data.error === 'invalid_grant';
+            _log.logWarn('whop-refresh', endgueltig ? 'REFRESH_REJECTED' : 'REFRESH_TEMPORARY', (data && data.error) || ('HTTP ' + tokenRes.status));
+            if (!endgueltig) return res.status(503).json({ error: 'refresh_unavailable' });
             await sessions.del(sid);
             return res.status(401).json({ error: 'session_expired' });
         }
@@ -178,6 +195,12 @@ module.exports = async function handler(req, res) {
         // fehl, einmal wiederholen; klappt es auch dann nicht, ist die Kette verloren — der
         // Kunde bekommt trotzdem den neuen Access-Token (eine Stunde Arbeit), und es wird
         // laut gemeldet statt still wie bis 2026-10-08.
+        // Während Whop antwortete, kann der Nutzer sich abgemeldet haben (S7). Dann NICHT
+        // speichern — und nach dem Speichern noch einmal prüfen, weil der Widerruf auch genau
+        // zwischen Prüfung und Speichern eintreffen kann.
+        var widerrufen = false;
+        try { widerrufen = await sessions.isRevoked(sid); } catch (e) { /* unten erneut */ }
+        if (widerrufen) return res.status(401).json({ error: 'session_expired' });
         try {
             await sessions.put(sid, neu);
         } catch (e1) {
@@ -187,6 +210,17 @@ module.exports = async function handler(req, res) {
                 await alertOps('whop-refresh', 'session-nicht-gespeichert',
                     'Rotierter Refresh-Token nicht gespeichert — Kunde fliegt nach einer Stunde raus: ' + (e2 && e2.message));
             }
+        }
+        try {
+            if (await sessions.isRevoked(sid)) {
+                await sessions.del(sid);
+                return res.status(401).json({ error: 'session_expired' });
+            }
+        } catch (e3) {
+            // Marke nicht lesbar: im Zweifel abmelden statt eine widerrufene Sitzung zu verlängern
+            try { await sessions.del(sid); } catch (e4) {}
+            await alertOps('whop-refresh', 'widerruf-nicht-pruefbar', e3 && e3.message);
+            return res.status(503).json({ error: 'refresh_unavailable' });
         }
 
         return res.status(200).json({ access_token: neu.at, expires_in: expiresIn });

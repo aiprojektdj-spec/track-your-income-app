@@ -284,7 +284,7 @@ var StbShare = (function () {
           '<div style="display:flex;flex-direction:column;gap:14px;">' +
             '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">Gib diesen <strong>Freigabe-Code</strong> deinem Mandanten. Er trägt ihn bei „Steuerberater einladen" ein und gibt dir damit <strong>Nur-Lese-Zugriff</strong> auf seine Daten.</div>' +
             '<div style="font-family:monospace;font-size:15px;word-break:break-all;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;">' + _esc(code) + '</div>' +
-            '<button class="btn btn-outline" data-action="stb-copy-code" data-args="' + _esc(JSON.stringify([code])).replace(/"/g, '&quot;') + '" style="width:100%;">📋 Code kopieren</button>' +
+            '<button class="btn btn-outline" data-action="stb-copy-code" data-args="' + _esc(JSON.stringify([code])).replace(/"/g, '&quot;') + '" style="width:100%;">Code kopieren</button>' +
             (fp ?
             '<div style="border-top:1px solid var(--border);padding-top:14px;">' +
               '<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:8px;">Dein <strong>Schlüssel-Fingerabdruck</strong>. Dein Mandant sieht denselben Wert, bevor er die Freigabe bestätigt — lies ihn ihm am Telefon vor. Weichen die Werte ab, brich die Freigabe ab.</div>' +
@@ -350,7 +350,7 @@ var StbShare = (function () {
             '<div style="font-family:monospace;font-size:20px;letter-spacing:2px;text-align:center;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:16px;">' + _esc(fp) + '</div>' +
             '<div style="font-size:12px;color:var(--text-muted);line-height:1.5;">Freigabe-Code: <span style="font-family:monospace;">' + _esc(code) + '</span></div>' +
             '<div style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:11px;font-size:12px;line-height:1.5;">' +
-              '⚠️ Stimmen die Werte <strong>nicht</strong> überein, brich hier ab. Bestätige nur, was du tatsächlich verglichen hast — mit der Freigabe gibst du deinen Schlüssel weiter.' +
+              'Stimmen die Werte <strong>nicht</strong> überein, brich hier ab. Bestätige nur, was du tatsächlich verglichen hast — mit der Freigabe gibst du deinen Schlüssel weiter.' +
             '</div>' +
             '<div style="display:flex;gap:10px;">' +
               '<button class="btn btn-outline" data-action="stb-cancel-invite" style="flex:1;">Abbrechen</button>' +
@@ -384,7 +384,7 @@ var StbShare = (function () {
             if (g.status !== 200) { _toast('Freigabe fehlgeschlagen (' + g.status + ').', 'error'); return; }
             _pending = null;
             App.closeModal();
-            _toast('✅ Steuerberater eingeladen — er sieht deine Daten jetzt read-only.', 'success', 5000);
+            _toast('Steuerberater eingeladen — er sieht deine Daten jetzt read-only.', 'success', 5000);
         } catch (e) { console.error('[StbShare] confirmInvite', e); _toast('Freigabe fehlgeschlagen.', 'error'); }
     }
 
@@ -410,7 +410,7 @@ var StbShare = (function () {
         var inClient = localStorage.getItem(LS_CLIENT);
         if (!grants.length && !inClient) { _toast('Dir wurde noch kein Mandant freigegeben. Gib deinem Mandanten deinen Freigabe-Code.', 'info', 6000); return; }
         var rows = grants.map(function (g) {
-            return '<button class="btn btn-outline" data-action="stb-enter" data-args="' + _esc(JSON.stringify([g.ownerId])).replace(/"/g, '&quot;') + '" style="width:100%;text-align:left;">📂 ' + _esc(g.ownerName || g.ownerId) + '</button>';
+            return '<button class="btn btn-outline" data-action="stb-enter" data-args="' + _esc(JSON.stringify([g.ownerId])).replace(/"/g, '&quot;') + '" style="width:100%;text-align:left;">' + _esc(g.ownerName || g.ownerId) + '</button>';
         }).join('');
         var body =
           '<div style="display:flex;flex-direction:column;gap:10px;">' +
@@ -486,7 +486,7 @@ var StbShare = (function () {
         var bar = document.createElement('div');
         bar.id = 'stbRoBanner';
         bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:#f59e0b;color:#111;font-size:13px;font-weight:600;padding:6px 14px;display:flex;align-items:center;justify-content:center;gap:14px;';
-        bar.innerHTML = '🔒 Nur-Lese-Ansicht — Mandant: ' + _esc(name) +
+        bar.innerHTML = 'Nur-Lese-Ansicht — Mandant: ' + _esc(name) +
             ' <button data-action="stb-exit" style="background:#111;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;">Zurück zu meinen Daten</button>';
         document.body.appendChild(bar);
         // Schreib-Button-Ausblendung + padding-top liegen in css/style.css

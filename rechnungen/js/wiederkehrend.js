@@ -138,7 +138,7 @@ var Wiederkehrend = (function () {
         if (!s14Check.steuernummer && !s14Check.ustId) missing14.push('Steuernummer/USt-IdNr. des Ausstellers');
         if (missing14.length) {
             if (typeof Utils !== 'undefined') {
-                Utils.showToast('⚠️ Wiederkehrende Rechnung für "' + (kdCheck ? (kdCheck.firma || kdCheck.ansprechpartner) : rule.kundeId) +
+                Utils.showToast('Wiederkehrende Rechnung für "' + (kdCheck ? (kdCheck.firma || kdCheck.ansprechpartner) : rule.kundeId) +
                     '" übersprungen — §14 UStG Pflichtangabe fehlt: ' + missing14.join(', '), 'error', 9000);
             }
             return null;

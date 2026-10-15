@@ -55,6 +55,8 @@ const sandbox = {
     },
     document: { getElementById: () => null, querySelectorAll: () => [], querySelector: () => null },
 };
+// Gemeinsamer Rechenkern der Rechnungssummen (Audit 2026-10-13, L5) — echte Abhängigkeit
+sandbox.RechnungSummen = require('../js/rechnung-summen.js');
 vm.createContext(sandbox);
 vm.runInContext(src, sandbox);
 

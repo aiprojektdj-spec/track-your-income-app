@@ -59,8 +59,8 @@ const tombstoneCompany = new Function('id',
                           .replace(/LS_CO_TOMBS/g, "'" + LS_CO_TOMBS + "'")
                           .replace(/CO_TOMB_RETENTION_MS/g, String(CO_TOMB_RETENTION_MS))
                           .replace(/_coTombs\(\)/g, 'JSON.parse(localStorage.getItem("' + LS_CO_TOMBS + '") || "[]")'));
-const _mergeRecords   = new Function('localArr', 'remoteArr', 'base', 'entityType',
-                          extract(csSrc, 'function _mergeRecords(localArr, remoteArr, base, entityType) {')
+const _mergeRecords   = new Function('localArr', 'remoteArr', 'base', 'entityType', 'tombs',
+                          extract(csSrc, 'function _mergeRecords(localArr, remoteArr, base, entityType, tombs) {')
                           .replace(/_isTombstoned\(/g, 'globalThis.__isTomb('));
 globalThis.__isTomb = _isTombstoned;
 

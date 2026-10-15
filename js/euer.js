@@ -10,6 +10,10 @@ const Euer = {
     _customEnd: '',
     _detailView: null,   // 'einnahmen' | 'ausgaben' | 'gewinn' | null
     _lastRenderData: {},
+    // Laufende ApexCharts-Instanzen (Monatsbalken, Ausgaben-Donut). Werden vor jedem Neuanlegen
+    // zerstört — sonst hingen die alten weiter an Fenster-Ereignissen (Resize), kosteten
+    // Speicher und konnten in ApexCharts werfen (Alarm vom 2026-10-09). Muster: js/dashboard.js.
+    _charts: [],
 
     // Reiter oberhalb des Contents (EÜR-Report | USt-Voranmeldung) — optisch getrennt vom
     // Zeitraum-Dropdown darunter, da Report-Typ ≠ Zeitraum (zwei verschiedene Konzepte).
@@ -20,6 +24,11 @@ const Euer = {
             <button class="btn" data-action="euer-set-view" data-args='["uva"]' style="border-radius:8px 8px 0 0;border-bottom:none;${this._view === 'uva' ? 'background:var(--bg-card);font-weight:700;box-shadow:inset 0 2px 0 var(--accent);' : 'opacity:.65;'}">USt-Voranmeldung</button>
         </div>`;
     },
+
+    // Ausgaben-Kategorien für Umsatzsteuer-Zahlungsverkehr mit dem Finanzamt (T01). Werden in
+    // js/ausgaben.js angeboten und hier als eigene EÜR-Zeilen statt als Betriebsausgabe gezählt.
+    KAT_UST_ZAHLUNG: 'Umsatzsteuer an Finanzamt',
+    KAT_UST_ERSTATTUNG: 'Umsatzsteuer-Erstattung vom Finanzamt',
 
     // ── Rechenkern der EÜR ───────────────────────────────────────────────────
     // Bewusst getrennt vom Rendern: die Methode fasst kein DOM an, setzt keinen State und
@@ -36,7 +45,6 @@ const Euer = {
     _berechne(year, month, period) {
         const settings = Store.getSettings();
         const ustMode = settings.ustMode || 'klein';
-        const isRegel = ustMode === 'regel';
 
 
         let startDate, endDate, periodLabel;
@@ -62,10 +70,26 @@ const Euer = {
             periodLabel = 'Jahr ' + year;
         }
 
-        // Stornierte Rechnungen → zugehörige Verkäufe ausschließen (Orphan-Guard)
+        // Steuerstatus je Vorgang (Audit 2026-10-13, T06): nicht der HEUTIGE Firmenmodus
+        // entscheidet, sondern der zum Vorgangsdatum geltende bzw. am Vorgang gestempelte.
+        // Ohne js/steuerstatus.js (alte Einbindung) bleibt es beim globalen Feld.
+        const _hatStatus = typeof SteuerStatus !== 'undefined';
+        const _regel = (v, feld) => _hatStatus ? SteuerStatus.istRegel(v, settings, feld) : ustMode === 'regel';
+        // isRegel = "im Zeitraum gilt (zumindest teilweise) Regelbesteuerung" — steuert nur, welche
+        // Zeilen die Anzeige zeigt. Gerechnet wird je Vorgang.
+        const isRegel = _hatStatus
+            ? (SteuerStatus.modeAm(startDate, settings) === 'regel' || SteuerStatus.modeAm(endDate, settings) === 'regel'
+               || SteuerStatus.historie(settings).some(e => e.mode === 'regel' && e.ab >= startDate && e.ab <= endDate))
+            : ustMode === 'regel';
+
+        // Stornierte Rechnungen → zugehörige Verkäufe ausschließen (Orphan-Guard) — NUR für
+        // Stornos nach altem Muster. Seit dem Audit 2026-10-13 (L1) bleibt beim Storno einer
+        // bezahlten Rechnung der Zufluss stehen (§11 EStG); eine echte Rückzahlung wird als
+        // eigene, datierte Erstattung gebucht (inv.stornoModell === 2). Würde der Guard hier
+        // auch neue Stornos treffen, wäre die Rückzahlung doppelt abgezogen.
         const storniertInvIds = new Set(
             (Store.getRechInvoices ? Store.getRechInvoices() : [])
-                .filter(inv => inv.status === 'storniert' || inv._storniert)
+                .filter(inv => (inv.status === 'storniert' || inv._storniert) && inv.stornoModell !== 2)
                 .map(inv => inv.id)
         );
         const sales = Store.getSales().filter(s =>
@@ -86,6 +110,16 @@ const Euer = {
         });
         const rechnungenNetting = SteuerBerechnung.nettoRechnungen(unsyncedInvoices);
         const rechnungsEinnahmen = rechnungenNetting.netto;
+
+        // Umsatzsteuer-Zahlungen an das bzw. Erstattungen vom Finanzamt (T01). In der EÜR sind
+        // sie eigene Ausgabe- bzw. Einnahmezeilen im Jahr der Zahlung (§11 EStG) — getrennt von
+        // den Betriebsausgaben, damit sie weder als Kosten des Geschäfts noch doppelt erscheinen.
+        const _katFA = (typeof Euer !== 'undefined' && Euer.KAT_UST_ZAHLUNG) ? Euer : {};
+        const _istUstZahlung = e => !!_katFA.KAT_UST_ZAHLUNG && e.kategorie === _katFA.KAT_UST_ZAHLUNG;
+        const _istUstErstattung = e => !!_katFA.KAT_UST_ERSTATTUNG && e.kategorie === _katFA.KAT_UST_ERSTATTUNG;
+        const ustZahlungenFA = expenses.filter(_istUstZahlung).reduce((sum, e) => sum + (parseFloat(e.betrag) || 0), 0);
+        const ustErstattungenFA = expenses.filter(_istUstErstattung).reduce((sum, e) => sum + (parseFloat(e.betrag) || 0), 0);
+        const betriebsExpenses = expenses.filter(e => !_istUstZahlung(e) && !_istUstErstattung(e));
 
         // Einnahmen: Bruttoerlöse = Verkaufspreis + Versand vom Käufer (§11 EStG Zufluss)
         const salesBrutto = sales.reduce((sum, s) => {
@@ -219,44 +253,67 @@ const Euer = {
         }, 0);
 
         // Retouren-Erstattungen mindern Einnahmen (§11 EStG – Rückfluss)
-        // Wichtig: Wenn ein Verkauf über Retoure storniert wurde (saleId gesetzt + Verkauf storniert),
-        // ist die Einnahme bereits entfernt → erstattungBetrag NICHT nochmals abziehen (Doppelabzug).
+        // Altbestand: Wurde ein Verkauf über eine Retoure storniert (Muster bis 2026-10-13), ist
+        // die Einnahme schon entfernt → Erstattung NICHT nochmals abziehen (Doppelabzug). Neue
+        // Retouren stornieren den Verkauf nicht mehr (L4) und laufen hier regulär durch.
         const stornierteSaleIds = new Set(Store.getSales(true).filter(s => s.storniert).map(s => s.id));
-        const retourenErstattungen = Store.getRetouren()
-            .filter(r => Utils.isInPeriod(r.datum, startDate, endDate) && !(r.saleId && stornierteSaleIds.has(r.saleId)))
+        const allSalesRaw = Store.getSales(true);
+        const retourenImZeitraum = Store.getRetouren()
+            .filter(r => Utils.isInPeriod(r.datum, startDate, endDate) && !(r.saleId && stornierteSaleIds.has(r.saleId)));
+        const retourenErstattungen = retourenImZeitraum
             .reduce((sum, r) => sum + (parseFloat(r.erstattungBetrag) || 0), 0);
 
         // Netto-Einnahmen nach Retouren (Anzeige: Brutto-Basis, vor USt-Extraktion)
         const nettoEinnahmen = bruttoEinnahmen - retourenErstattungen;
 
-        // ── USt-Berechnung (nur Regelbesteuerung) ──────────────────────────────
-        // Nutzer geben Brutto-Marktplatzpreise ein (eBay, Vinted etc. zeigen Brutto).
-        // Kleinunternehmer (§19 UStG): keine USt auf Einnahmen, keine Vorsteuer absetzbar.
-        // Marktplatz-Verkäufe: Brutto → Netto per TATSÄCHLICHEM Steuersatz je Verkauf
-        // (Fix: war pauschal 19% via /1.19, jetzt gewichtet wie beim Vorsteuerabzug aus Einkäufen).
-        // Rechnungspositionen (rechnungsEinnahmen) sind dagegen bereits NETTO — MwSt wird dort
-        // separat oben draufgerechnet (s. rechnung.js updateSummen()), NICHT nochmal /1.19 teilen
-        // (Fix: wurden vorher fälschlich ein zweites Mal genettet → Netto-Umsatz aus Rechnungen zu niedrig).
-        const salesNettoWeighted = isRegel ? SteuerBerechnung.nettoSales(sales, true).netto : 0;
-        // Retouren am Steuersatz des jeweils verknüpften Verkaufs netten (Fallback 19% ohne Verknüpfung)
-        const retourenNettoWeighted = isRegel ? SteuerBerechnung.nettoRetouren(
-            Store.getRetouren().filter(r => Utils.isInPeriod(r.datum, startDate, endDate) && !(r.saleId && stornierteSaleIds.has(r.saleId))),
-            Store.getSales(true), true
-        ).netto : 0;
-        // Vereinnahmte USt aus Rechnungspositionen (echter Durchlaufposten, je Position/Satz, §17-Vorzeichen bei Gutschrift)
-        const ustAusRechnungen = isRegel ? rechnungenNetting.ust : 0;
-        const ustEinnahmen = isRegel ? ((salesBrutto - retourenErstattungen) - (salesNettoWeighted - retourenNettoWeighted)) + ustAusRechnungen : 0;
-        // Für die EÜR zählt bei Regelbesteuerung der Netto-Umsatz als Betriebseinnahme;
-        // die vereinnahmte USt ist ein reiner Durchlaufposten und fließt NICHT in den Gewinn
-        // (Fix: wurde vorher rechnerisch wieder voll addiert → Gewinn war um die USt überhöht).
-        const summeEinnahmen = isRegel ? (salesNettoWeighted - retourenNettoWeighted) + rechnungsEinnahmen : nettoEinnahmen;
+        // ── Umsatzsteuer ────────────────────────────────────────────────────────
+        // EÜR (§4 Abs.3 EStG) ist eine Zahlungsrechnung: die vereinnahmte Umsatzsteuer ist im
+        // Zuflussjahr Betriebseinnahme, die gezahlte Vorsteuer Betriebsausgabe; Zahlungen an das
+        // und Erstattungen vom Finanzamt sind eigene Zeilen im Jahr der Zahlung (BFH VIII B 54/20).
+        // Bis 2026-10-13 (T01) wurde die USt hier als "Durchlaufposten" aus dem Gewinn genommen —
+        // unabhängig davon, ob sie im Jahr überhaupt abgeführt wurde. Eine im Februar des
+        // Folgejahres abgeführte Dezember-USt fehlte so im Zuflussjahr, eine manuell als Ausgabe
+        // erfasste Abführung wurde doppelt abgezogen.
+        //
+        // Netto/USt je Vorgang zum tatsächlichen Satz, und nur für Vorgänge, die zu ihrem Datum
+        // regelbesteuert waren (T06). Rechnungspositionen sind bereits netto gespeichert.
+        const salesRegel = sales.filter(s => _regel(s));
+        const salesKlein = sales.filter(s => !_regel(s));
+        const _leer = { netto: 0, ust: 0 };
+        const salesRegelNetting = salesRegel.length ? SteuerBerechnung.nettoSales(salesRegel, true) : _leer;
+        const salesNettoWeighted = salesRegelNetting.netto;
+        const _retourRegel = r => {
+            const rel = r.saleId ? allSalesRaw.find(s => s.id === r.saleId) : null;
+            return rel ? _regel(rel) : _regel(r);
+        };
+        const retourenRegel = retourenImZeitraum.filter(_retourRegel);
+        const retourenRegelNetting = retourenRegel.length ? SteuerBerechnung.nettoRetouren(retourenRegel, allSalesRaw, true) : _leer;
+        const retourenNettoWeighted = retourenRegelNetting.netto;
+        const retourenKleinBrutto = retourenImZeitraum.filter(r => !_retourRegel(r))
+            .reduce((sum, r) => sum + (parseFloat(r.erstattungBetrag) || 0), 0);
+        const salesKleinBrutto = salesKlein.reduce((sum, s) =>
+            sum + (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0), 0);
+        // Vereinnahmte USt: Marktplatz-Verkäufe minus Rückzahlungen plus Rechnungen (Gutschriften mit §17-Vorzeichen)
+        const ustAusRechnungen = rechnungenNetting.ust;
+        const ustEinnahmen = salesRegelNetting.ust - retourenRegelNetting.ust + ustAusRechnungen;
+        // Betriebseinnahmen ohne USt
+        const einnahmenNetto = salesKleinBrutto + salesNettoWeighted - retourenKleinBrutto - retourenNettoWeighted + rechnungsEinnahmen;
+        // Steuerliche Summe der Einnahmen = netto + vereinnahmte USt + Erstattungen vom Finanzamt
+        const summeEinnahmen = einnahmenNetto + ustEinnahmen + ustErstattungenFA;
 
-        // Sonstige Betriebsausgaben
-        const sonstigeAusgaben = expenses.reduce((sum, e) => sum + (parseFloat(e.betrag) || 0), 0);
+        // Regelbesteuerte Verkäufe ohne gespeicherten Steuersatz werden mit 19 % gerechnet — das
+        // darf nicht unbemerkt geschehen (T02). Sondersätze (Ausfuhr/OSS) tragen ihren Satz selbst.
+        const ohneSteuersatz = salesRegel.filter(s => !s._invoiceId
+            && (s.steuersatz == null || s.steuersatz === '' || isNaN(parseFloat(s.steuersatz)))
+            && !(s.steuersaetze && Object.keys(s.steuersaetze).length)
+            && SteuerBerechnung._sondersatz(s, {}) === null);
+
+        // Sonstige Betriebsausgaben (ohne Umsatzsteuer-Zahlungen/-Erstattungen, s.o.)
+        const sonstigeAusgaben = betriebsExpenses.reduce((sum, e) => sum + (parseFloat(e.betrag) || 0), 0);
 
         // Category breakdown for Betriebsausgaben — dynamic (all actual categories)
         const catBreakdown = {};
-        expenses.forEach(e => {
+        betriebsExpenses.forEach(e => {
             const cat = e.kategorie || 'Sonstiges';
             catBreakdown[cat] = (catBreakdown[cat] || 0) + (parseFloat(e.betrag) || 0);
         });
@@ -267,8 +324,15 @@ const Euer = {
         const eigenbelegeRaw = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; const _k = (_ebCo?_ebCo+'__':'')+'eigenbelege_belege'; return (typeof Store !== 'undefined' ? Store._syncReadRaw(_k) : JSON.parse(localStorage.getItem(_k) || '[]')) || []; } catch { return []; } })();
         const eigenbelegeInPeriod = eigenbelegeRaw
             .filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, startDate, endDate));
-        const eigenbelegeAusgaben = eigenbelegeInPeriod
-            .reduce((sum, b) => sum + (parseFloat(b.betragNetto) || parseFloat(b.betragBrutto) || 0), 0);
+        // Abgeflossen ist der Bruttobetrag (§11 Abs.2 EStG). Eine abziehbare Vorsteuer steckt darin
+        // und wird unten als eigene Zeile ausgewiesen — bis 2026-10-13 stand hier der Nettobetrag,
+        // und die Vorsteuer wurde davon noch einmal abgezogen.
+        const _ebBrutto = b => {
+            const brutto = parseFloat(b.betragBrutto);
+            if (!isNaN(brutto)) return brutto;
+            return (parseFloat(b.betragNetto) || 0) + (parseFloat(b.betragMwst) || 0);
+        };
+        const eigenbelegeAusgaben = eigenbelegeInPeriod.reduce((sum, b) => sum + _ebBrutto(b), 0);
         // Vorsteuer aus Eigenbelegen: §15 Abs.1 UStG verlangt grundsätzlich eine Rechnung
         // eines Dritten (§14/14a UStG) — ein Eigenbeleg begründet KEINEN Vorsteuerabzug,
         // außer im engen Ausnahmefall §33 UStDV (verlorener Kleinbetragsbeleg mit offenem
@@ -277,6 +341,7 @@ const Euer = {
         // s. plan/session-prompt-eigenbeleg-vorsteuer-begruendung.md
         const eigenbelegeVorsteuer = eigenbelegeInPeriod.reduce((sum, b) => {
             if (b.vstAbzugsfaehig !== true) return sum;
+            if (!_regel(b, 'belegDatum')) return sum;
             const mwst = parseFloat(b.betragMwst);
             if (!isNaN(mwst)) return sum + mwst;
             const satz = parseFloat(b.mwstSatz);
@@ -295,18 +360,20 @@ const Euer = {
         // ── Vorsteuer: tatsächlicher USt-Satz pro Einkauf (Fix: war pauschal /1.19) ──
         // Purchases können jetzt ustSatz = 19 | 7 | 0 tragen.
         // Fallback: 19% wenn kein ustSatz gespeichert (Altdaten-Kompatibilität).
-        const vorsteuer = isRegel ? (() => {
+        const vorsteuerTeile = (() => {
             // Einkäufe: nach tatsächlichem Satz gewichtet (gleiches Set wie bisher — periodPurchases
             // ist bereits ohne storniert, der zusätzliche Filter hier ist ein No-Op, aber bewusst
             // beibehalten um exakt das vorherige Verhalten zu spiegeln, s. wareneinkauf-Kommentar oben)
-            const vstPurch = SteuerBerechnung.nettoPurchases(periodPurchases.filter(p => !p.storniert)).ust;
+            const vstPurchListe = periodPurchases.filter(p => !p.storniert && !p.eigenbeleg_id && _regel(p));
+            const vstPurch = vstPurchListe.length ? SteuerBerechnung.nettoPurchases(vstPurchListe).ust : 0;
             // Sonstige Betriebsausgaben tragen jetzt ein Pflicht-ustSatz-Feld (19|7|0|'rc'|'unklar',
             // s. js/ausgaben.js). Absichtlich NICHT über SteuerBerechnung.nettoExpenses berechnet:
             // dessen genereller Fallback zieht bei nicht-numerischen Sätzen (u.a. 'unklar') noch
             // 19% — das würde exakt den Vorsteuer-Überabzug reproduzieren, den js/vorsteuer.js für
             // 'unklar' gerade ausschließt (§15 UStG: kein Abzug ohne ausgewiesenen Satz). 'rc'
             // (Reverse Charge) wird separat über §13b-Einträge verrechnet, nicht hier.
-            const vstExpenses = expenses.reduce((sum, ex) => {
+            const vstExpenses = betriebsExpenses.reduce((sum, ex) => {
+                if (!_regel(ex)) return sum;
                 const raw = (ex.ustSatz != null && ex.ustSatz !== '') ? ex.ustSatz : ex.steuersatz;
                 if (raw === undefined || raw === null || raw === '' || raw === 'unklar' || raw === 'rc') return sum;
                 const rate = parseFloat(raw);
@@ -327,12 +394,19 @@ const Euer = {
             const vstOther = 0;
             // Eigenbelege tragen betragMwst/mwstSatz pro Beleg → echte Vorsteuer statt Pauschale
             // (Fix: liefen vorher im pauschalen 19%-Block, ignorierten mwstSatz=0).
-            return vstPurch + vstExpenses + vstOther + eigenbelegeVorsteuer;
-        })() : 0;
-        // Bei Regelbesteuerung zählt nur Netto als abzugsfähige BA; USt ist Durchlaufposten
-        const summeAusgaben = isRegel ? (abzugsfaehig - vorsteuer) : abzugsfaehig;
+            return { purch: vstPurch, ausgaben: vstExpenses + vstOther + eigenbelegeVorsteuer };
+        })();
+        const vorsteuer = vorsteuerTeile.purch + vorsteuerTeile.ausgaben;
+        // Betriebsausgaben ohne abziehbare Vorsteuer
+        const ausgabenNetto = abzugsfaehig - vorsteuer;
+        // Steuerliche Summe der Ausgaben = abgeflossene Beträge (inkl. Vorsteuer) + USt an das Finanzamt
+        const summeAusgaben = abzugsfaehig + ustZahlungenFA;
 
+        // Steuerlicher EÜR-Gewinn (Anlage EÜR, Gewerbesteuer, Steuerberaterpaket)
         const gewinn = summeEinnahmen - summeAusgaben;
+        // Wirtschaftlicher Nettogewinn: Erlöse und Kosten ohne Umsatzsteuer und ohne Zahlungen mit
+        // dem Finanzamt. Für Marge/Kennzahlen — NICHT für die Steuererklärung.
+        const nettoGewinn = einnahmenNetto - ausgabenNetto;
 
         // ── Chart-Daten ────────────────────────────────────────────────────────
         // Monatliche Einnahmen/Ausgaben für das gesamte Jahr (unabhängig vom Zeitraum-Filter)
@@ -365,10 +439,57 @@ const Euer = {
             plattformgebuehren, fahrtkosten, materialEinkauf, afaAnlagen, daysInYear, periodStart,
             periodEnd, daysInPeriod, afaRatio, afaKosten, stornierteSaleIds, retourenErstattungen,
             nettoEinnahmen, salesNettoWeighted, retourenNettoWeighted, ustAusRechnungen, ustEinnahmen,
-            summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
+            einnahmenNetto, ausgabenNetto, nettoGewinn, ustZahlungenFA, ustErstattungenFA, ohneSteuersatz,
+            salesKleinBrutto, retourenKleinBrutto, vorsteuerTeile,
+            salesRegel, betriebsExpenses, summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
             eigenbelegeInPeriod, eigenbelegeAusgaben, eigenbelegeVorsteuer, abzugsfaehig, vorsteuer,
             summeAusgaben, gewinn, monthlyData, donutLabels, donutValues
         };
+    },
+
+    // Bezeichnungen der Anlage EÜR je Erklärungsjahr (T02). Bewusst ohne Zeilennummern: die
+    // ändern sich von Jahr zu Jahr, und eine falsche Zeile ist schlimmer als keine. Für ein Jahr,
+    // dessen Formular hier nicht eigens hinterlegt ist, gelten die allgemeinen Bezeichnungen —
+    // der Export sagt das dann ausdrücklich.
+    _anlageEuerFassung(year) {
+        return {
+            geprueft: false,
+            erloeseKlein:   'Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer',
+            erloese:        'Umsatzsteuerpflichtige Betriebseinnahmen (netto)',
+            ust:            'Vereinnahmte Umsatzsteuer',
+            ustErstattung:  'Vom Finanzamt erstattete Umsatzsteuer',
+            waren:          'Waren, Rohstoffe und Hilfsstoffe (netto)',
+            afa:            'AfA auf bewegliche Wirtschaftsgüter',
+            fahrt:          'Fahrtkosten (Kilometerpauschale)',
+            sonstige:       'Übrige Betriebsausgaben (netto, Sammelposten)',
+            vorsteuer:      'Gezahlte Vorsteuerbeträge',
+            ustZahlung:     'An das Finanzamt gezahlte Umsatzsteuer',
+            gewinn:         'Gewinn / Verlust'
+        };
+    },
+
+    // Zeilen des Hilfsexports — ausschließlich aus dem Ergebnis von _berechne(), damit Anzeige,
+    // Export und Steuerberaterpaket dieselben Zahlen tragen (T02: der Export rechnete vorher mit
+    // einer eigenen /1,19-Formel, auch für 7 %-Erlöse, Privatankäufe und Kilometerpauschalen).
+    _elsterZeilen(d) {
+        const f = this._anlageEuerFassung(d.year);
+        const erloeseKlein = (d.salesKleinBrutto || 0) - (d.retourenKleinBrutto || 0);
+        const zeilen = [
+            { key: 'erloeseKlein',  betrag: erloeseKlein },
+            { key: 'erloese',       betrag: d.einnahmenNetto - erloeseKlein },
+            { key: 'ust',           betrag: d.ustEinnahmen },
+            { key: 'ustErstattung', betrag: d.ustErstattungenFA },
+            { key: 'waren',         betrag: d.wareneinkauf - d.vorsteuerTeile.purch },
+            { key: 'afa',           betrag: d.afaKosten },
+            { key: 'fahrt',         betrag: d.fahrtkosten },
+            { key: 'sonstige',      betrag: d.versandkosten + d.plattformgebuehren + d.materialEinkauf
+                                            + d.sonstigeAusgaben + d.eigenbelegeAusgaben - d.vorsteuerTeile.ausgaben },
+            { key: 'vorsteuer',     betrag: d.vorsteuer },
+            { key: 'ustZahlung',    betrag: d.ustZahlungenFA },
+            { key: 'gewinn',        betrag: d.gewinn }
+        ];
+        zeilen.forEach(z => { z.bezeichnung = f[z.key]; });
+        return zeilen;
     },
 
     render() {
@@ -385,7 +506,6 @@ const Euer = {
             const istHandelsges = !istKapges && Rechtsform.getConfig().bilanzPflicht;
             return `${viewTabs}<div class="page-header"><h2><i class="ti ti-file-analytics" style="margin-right:6px;"></i> EÜR</h2></div>
             <div class="card" style="padding:40px;text-align:center;">
-                <div style="font-size:48px;margin-bottom:12px;">📊</div>
                 <div style="font-weight:700;font-size:16px;margin-bottom:8px;">EÜR nicht verfügbar</div>
                 <div style="color:var(--text-muted);margin-bottom:16px;">
                     ${istKapges
@@ -410,7 +530,8 @@ const Euer = {
             diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview, versandkosten, plattformgebuehren,
             fahrtkosten, materialEinkauf, afaAnlagen, afaKosten, retourenErstattungen, nettoEinnahmen,
             ustEinnahmen, summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
-            eigenbelegeAusgaben, vorsteuer, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues
+            eigenbelegeAusgaben, vorsteuer, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues,
+            einnahmenNetto, nettoGewinn, ustZahlungenFA, ustErstattungenFA, ohneSteuersatz
         } = _d;
 
         this._lastGewinn = gewinn; // für Gewerbesteuer-Live-Update
@@ -423,11 +544,11 @@ const Euer = {
         return `${viewTabs}
             <div class="page-header">
                 <h2>Einnahmen-Überschuss-Rechnung</h2>
-                <p class="text-muted no-print" style="margin:-8px 0 16px;font-size:13px;">Deine Steuer-Zusammenfassung für das Finanzamt — als CSV für ELSTER exportieren oder deinem Steuerberater weitergeben.</p>
+                <p class="text-muted no-print" style="margin:-8px 0 16px;font-size:13px;">Deine Steuer-Zusammenfassung — als Übertragungshilfe für die Anlage EÜR herunterladen oder deinem Steuerberater weitergeben.</p>
                 <div class="page-header-actions no-print">
                     ${unsyncedInvoices.length > 0 ? `<button class="btn btn-warning" id="euerSync" title="${unsyncedInvoices.length} bezahlte Rechnung(en) noch nicht synchronisiert"><i class="ti ti-refresh"></i> ${unsyncedInvoices.length} synchronisieren</button> ` : ''}
                     <button class="btn" id="euerSteuertermine"><i class="ti ti-calendar-event"></i> Steuertermine</button>
-                    <button class="btn" id="euerElsterExport" title="Z64 bündelt alle Ausgaben außer Wareneinkauf/AfA/Fahrtkosten (z.B. Personal, Raumkosten, Kfz) in einer Sammelzeile — bei Mitarbeitern/Büromiete bitte mit Steuerberater abstimmen"><i class="ti ti-file-spreadsheet"></i> ELSTER CSV</button>
+                    <button class="btn" id="euerElsterExport" title="CSV mit den Werten zum Übertragen in die Anlage EÜR — keine Datei, die ELSTER direkt einliest. Übrige Betriebsausgaben sind ein Sammelposten."><i class="ti ti-file-spreadsheet"></i> Übertragungshilfe (CSV)</button>
                     <button class="btn" id="euerPrint"><i class="ti ti-printer"></i> PDF / Drucken</button>
                 </div>
             </div>
@@ -566,13 +687,18 @@ const Euer = {
                                 <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(nettoEinnahmen)}</td>
                             </tr>` : ''}
                             ${isRegel ? `<tr style="opacity:0.8;">
-                                <td style="padding-left:16px;font-size:12px;">↳ davon Netto-Umsatz <span style="color:var(--text-muted);">(je Verkauf/Position zum tatsächlichen Steuersatz genettet)</span></td>
-                                <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(summeEinnahmen)}</td>
+                                <td style="padding-left:16px;font-size:12px;">↳ davon Erlöse ohne Umsatzsteuer <span style="color:var(--text-muted);">(je Verkauf/Position zum tatsächlichen Steuersatz)</span></td>
+                                <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(einnahmenNetto)}</td>
                             </tr>
                             <tr style="opacity:0.8;">
-                                <td style="padding-left:16px;font-size:12px;">↳ Umsatzsteuer vereinnahmt <span style="color:var(--text-muted);">Durchlaufposten</span></td>
+                                <td style="padding-left:16px;font-size:12px;">↳ davon vereinnahmte Umsatzsteuer <span style="color:var(--text-muted);">(Betriebseinnahme im Zuflussjahr)</span></td>
                                 <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(ustEinnahmen)}</td>
                             </tr>` : ''}
+                            ${ustErstattungenFA > 0 ? `<tr>
+                                <td>Umsatzsteuer-Erstattung vom Finanzamt</td>
+                                <td style="text-align:right">${Utils.formatCurrency(ustErstattungenFA)}</td>
+                            </tr>` : ''}
+                            ${ohneSteuersatz.length ? `<tr><td colspan="2" style="font-size:12px;color:var(--warning);"><i class="ti ti-alert-triangle"></i> ${ohneSteuersatz.length} regelbesteuerte Verkäufe ohne Steuersatz — mit 19 % gerechnet. Bitte den Satz an den Verkäufen nachtragen.</td></tr>` : ''}
                             ${diff25aUmsatz > 0 ? `<tr style="opacity:0.8;">
                                 <td style="padding-left:16px;font-size:12px;">↳ davon differenzbesteuerte Umsätze <span style="color:var(--text-muted);">(§25a UStG)</span></td>
                                 <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(diff25aUmsatz)}</td>
@@ -619,7 +745,7 @@ const Euer = {
                             <tr>
                                 <td>
                                     <strong>Betriebsausgaben gesamt</strong>
-                                    <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">(${expenses.length} Posten)</span>
+                                    <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">(${_d.betriebsExpenses.length} Posten)</span>
                                 </td>
                                 <td style="text-align:right"><strong>${Utils.formatCurrency(sonstigeAusgaben)}</strong></td>
                             </tr>
@@ -634,8 +760,12 @@ const Euer = {
                                 <td style="text-align:right">${Utils.formatCurrency(eigenbelegeAusgaben)}</td>
                             </tr>` : ''}
                             ${isRegel ? `<tr style="opacity:0.8;">
-                                <td style="padding-left:16px;font-size:12px;">↳ Vorsteuer <span style="color:var(--text-muted);">aus Brutto-Ausgaben (tatsächlicher Satz je Einkauf)</span></td>
+                                <td style="padding-left:16px;font-size:12px;">↳ davon gezahlte Vorsteuer <span style="color:var(--text-muted);">(in den Beträgen oben enthalten, tatsächlicher Satz je Beleg)</span></td>
                                 <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(vorsteuer)}</td>
+                            </tr>` : ''}
+                            ${ustZahlungenFA > 0 ? `<tr>
+                                <td>Umsatzsteuer an das Finanzamt gezahlt</td>
+                                <td style="text-align:right">${Utils.formatCurrency(ustZahlungenFA)}</td>
                             </tr>` : ''}
                             <tr class="euer-total">
                                 <td><strong>Summe Ausgaben</strong></td>
@@ -646,6 +776,10 @@ const Euer = {
                                 <td><strong><i class="ti ${gewinn >= 0 ? 'ti-trending-up' : 'ti-trending-down'}" style="color:${gewinn >= 0 ? 'var(--success)' : 'var(--danger)'}"></i> ${gewinn >= 0 ? 'Gewinn (Überschuss)' : 'Verlust (Fehlbetrag)'}</strong></td>
                                 <td style="text-align:right;font-size:1.15rem;color:${gewinn >= 0 ? 'var(--success)' : 'var(--danger)'}"><strong>${Utils.formatCurrency(gewinn)}</strong></td>
                             </tr>
+                            ${isRegel ? `<tr style="opacity:0.8;">
+                                <td style="font-size:12px;">Zum Vergleich: wirtschaftlicher Nettogewinn <span style="color:var(--text-muted);">(ohne Umsatzsteuer und ohne Zahlungen mit dem Finanzamt — nicht für die Steuererklärung)</span></td>
+                                <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(nettoGewinn)}</td>
+                            </tr>` : ''}
                         </tbody>
                     </table>
                 </div>
@@ -740,7 +874,7 @@ const Euer = {
                 </table>
             </div>
             <div style="padding:10px 16px;font-size:11px;color:var(--text-muted);">
-                ⚠️ Schätzung ohne GewSt-Hinzurechnungen/Kürzungen (§§8–9 GewStG) · Freibetrag nur für natürl. Personen/Personenges.
+                Schätzung ohne GewSt-Hinzurechnungen/Kürzungen (§§8–9 GewStG) · Freibetrag nur für natürl. Personen/Personenges.
                 ${hatFreibetrag ? `· Gewerbesteuer ist nach §35 EStG auf die ESt anrechenbar (max. 4 × Steuermessbetrag, begrenzt auf die tatsächlich anfallende ESt — seit VZ 2020, s. Gewerbesteuer-Modul für Details) ·` : ''}
                 Prüfung durch Steuerberater empfohlen.
             </div>
@@ -904,7 +1038,13 @@ const Euer = {
         return '';
     },
 
+    _destroyCharts() {
+        this._charts.forEach(c => { try { c.destroy(); } catch (e) { /* Element schon weg */ } });
+        this._charts = [];
+    },
+
     init() {
+        this._destroyCharts();
         if (this._view === 'uva') {
             if (typeof UstVoranmeldung !== 'undefined') UstVoranmeldung.init();
             return;
@@ -921,7 +1061,7 @@ const Euer = {
             const monthEl = document.getElementById('euerMonthChart');
             if (monthEl && d.monthlyData) {
                 const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
-                new ApexCharts(monthEl, {
+                const monthChart = new ApexCharts(monthEl, {
                     chart: { type: 'bar', height: 200, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: { enabled: true, speed: 500 } },
                     series: [
                         { name: 'Einnahmen', data: d.monthlyData.map(m => m.ein) },
@@ -935,7 +1075,9 @@ const Euer = {
                     grid: { borderColor, strokeDashArray: 3, padding: { left: 0, right: 0 } },
                     legend: { labels: { colors: textMuted }, fontSize: '11px', position: 'top', horizontalAlign: 'right', offsetY: -5 },
                     tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v.toLocaleString('de-DE',{style:'currency',currency:'EUR'}) } }
-                }).render();
+                });
+                this._charts.push(monthChart);
+                monthChart.render();
             }
 
             // Donut Ausgaben
@@ -943,7 +1085,7 @@ const Euer = {
             if (donutEl && d.donutLabels && d.donutValues) {
                 const total = d.donutValues.reduce((a,b) => a+b, 0);
                 if (total > 0) {
-                    new ApexCharts(donutEl, {
+                    const donutChart = new ApexCharts(donutEl, {
                         chart: { type: 'donut', height: 200, background: 'transparent', fontFamily: 'inherit', animations: { enabled: true, speed: 500 } },
                         series: d.donutValues,
                         labels: d.donutLabels,
@@ -952,7 +1094,9 @@ const Euer = {
                         plotOptions: { pie: { donut: { size: '68%', labels: { show: true, total: { show: true, label: 'Gesamt', color: textMuted, fontSize: '11px', formatter: () => total.toLocaleString('de-DE',{style:'currency',currency:'EUR'}) } } } } },
                         legend: { position: 'bottom', fontSize: '10px', labels: { colors: textMuted }, itemMargin: { horizontal: 5, vertical: 2 } },
                         tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v.toLocaleString('de-DE',{style:'currency',currency:'EUR'}) } }
-                    }).render();
+                    });
+                    this._charts.push(donutChart);
+                    donutChart.render();
                 } else {
                     donutEl.innerHTML = '<div style="height:180px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13px;">Keine Ausgaben im Zeitraum</div>';
                 }
@@ -1092,84 +1236,38 @@ const Euer = {
         const elsterBtn = document.getElementById('euerElsterExport');
         if (elsterBtn) {
             elsterBtn.addEventListener('click', () => {
-                // Build current period values for ELSTER Anlage EÜR mapping
+                // Werte kommen aus demselben Rechenkern wie die Anzeige (T02) — keine eigene Formel.
                 const y = this._selectedYear;
-                const sDate = this._period === 'monat' ? (() => { const m = this._selectedMonth; return `${y}-${String(m+1).padStart(2,'0')}-01`; })()
-                    : this._period === 'quartal' ? `${y}-${String(Math.floor(this._selectedMonth/3)*3+1).padStart(2,'0')}-01`
-                    : this._customStart || `${y}-01-01`;
-                const eDate = this._period === 'monat' ? (() => { const m = this._selectedMonth; const d = new Date(y,m+1,0); return `${y}-${String(m+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })()
-                    : this._period === 'quartal' ? (() => { const qE = new Date(y, Math.floor(this._selectedMonth/3)*3+3, 0); return `${qE.getFullYear()}-${String(qE.getMonth()+1).padStart(2,'0')}-${String(qE.getDate()).padStart(2,'0')}`; })()
-                    : this._customEnd || `${y}-12-31`;
-                const sSales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, sDate, eDate));
-                const sPurch = Store.getPurchases().filter(p => Utils.isInPeriod(p.datum, sDate, eDate));
-                const sExp = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, sDate, eDate));
-                const sFahrt = Store.getFahrten().filter(f => Utils.isInPeriod(f.datum, sDate, eDate));
-                if (!sSales.length && !sPurch.length && !sExp.length && !sFahrt.length) {
+                const d = this._berechne(y, this._selectedMonth, this._period);
+                const sDate = d.startDate, eDate = d.endDate;
+                if (!d.sales.length && !d.periodPurchases.length && !d.expenses.length && !d.fahrtkosten
+                    && !d.unsyncedInvoices.length && !d.afaKosten && !d.eigenbelegeAusgaben) {
                     Utils.showToast(`Keine Daten für ${sDate} bis ${eDate} — nichts zu exportieren`, 'warning');
                     return;
                 }
-                // Regelbesteuerer: Anlage EÜR verlangt Netto-Beträge (USt ist Durchlaufposten, kein Ertrag/Aufwand).
-                // Kleinunternehmer (§19 UStG): keine USt ausgewiesen, brutto = netto.
-                const isRegel = (Store.getSettings().ustMode || 'klein') === 'regel';
-                const _netto19 = brutto => isRegel ? brutto / 1.19 : brutto;
-                const z11brutto = sSales.reduce((s, x) => s + (parseFloat(x.verkaufspreis)||0) + (parseFloat(x.versandkostenKaeufer)||0), 0);
-                // Retouren abziehen (§11 EStG)
-                // Nur Retouren ohne verknüpften stornierten Verkauf — verhindert Doppelabzug
-                const _storniertSaleIds = new Set(Store.getSales(true).filter(s => s.storniert).map(s => s.id));
-                const sRetouren = Store.getRetouren()
-                    .filter(r => Utils.isInPeriod(r.datum, sDate, eDate) && !(r.saleId && _storniertSaleIds.has(r.saleId)))
-                    .reduce((s,r)=>s+(parseFloat(r.erstattungBetrag)||0),0);
-                const z11 = _netto19(z11brutto - sRetouren);
-                const z22brutto = sPurch.reduce((s, p) => s + (parseFloat(p.einkaufspreis)||0) * (parseInt(p.anzahl)||1), 0);
-                const z22 = _netto19(z22brutto);
-                const z50brutto = sFahrt.reduce((s, f) => s + (parseFloat(f.kosten)||0), 0);
-                const z50 = _netto19(z50brutto);
-                const sonstAusg = sExp.reduce((s, e) => s + (parseFloat(e.betrag)||0), 0);
-                const platGeb = sSales.reduce((s, x) => { const vk=parseFloat(x.verkaufspreis)||0; const vkK=parseFloat(x.versandkostenKaeufer)||0; const pct=parseFloat(x.plattformgebuehrProzent)||0; return s+(vk+vkK)*pct/100; }, 0);
-                const versand = sSales.reduce((s, x) => s + (parseFloat(x.versandkostenVerkaufer)||0), 0);
-                // Wie oben in _berechne(): der EINKAUF ist die Betriebsausgabe, nicht der
-                // Verbrauch — und Einkaeufe mit ausgabeId stecken schon in sonstAusg.
-                // Muss mit _berechne() uebereinstimmen, sonst weicht die ELSTER-Zeile von
-                // der angezeigten EUER ab (test/test-euer-material-einkauf.js sichert das).
-                const sMat = Store.getMaterialEinkauefe().filter(e => !e.ausgabeId && e.lieferant !== 'Ausgabe' && Utils.isInPeriod(e.datum, sDate, eDate)).reduce((s,e)=>s+(parseFloat(e.gesamtkosten)||0),0);
-                const sEB = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; const _k = (_ebCo?_ebCo+'__':'')+'eigenbelege_belege'; return (typeof Store !== 'undefined' ? Store._syncReadRaw(_k) : JSON.parse(localStorage.getItem(_k)||'[]')) || []; } catch{return[];} })()
-                    .filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, sDate, eDate))
-                    .reduce((s,b)=>s+(parseFloat(b.betragNetto)||parseFloat(b.betragBrutto)||0),0);
-                const z64brutto = sonstAusg + platGeb + versand + sMat + sEB;
-                const z64 = _netto19(z64brutto);
-                // Z46: AfA aus dem Anlagenverzeichnis (bereits vorsteuerfreie Netto-Abschreibung, keine Umrechnung)
-                const z46 = (() => {
-                    if (typeof Store.getAfaAnlagen !== 'function' || typeof Afa === 'undefined') return 0;
-                    return Store.getAfaAnlagen().filter(a => !a.storniert)
-                        .reduce((s, a) => s + (Afa._calcJahresAfa ? Afa._calcJahresAfa(a, y) : 0), 0);
-                })();
-                const z91 = z11 - z22 - z46 - z50 - z64;
-                const nettoHinweis = isRegel ? ' (netto, USt herausgerechnet /1,19)' : '';
+                const fassung = this._anlageEuerFassung(y);
+                const zeilen = this._elsterZeilen(d).filter(z => z.key === 'gewinn' || Math.abs(z.betrag) >= 0.005);
                 const rows = [
-                    ['ELSTER Anlage EÜR Export', '', '', ''],
-                    ['Zeitraum:', sDate + ' bis ' + eDate, '', ''],
-                    ['USt-Modus:', isRegel ? 'Regelbesteuerung' : 'Kleinunternehmer (§19 UStG)', '', ''],
-                    ['', '', '', ''],
-                    ['Zeile', 'Bezeichnung', 'Betrag (€)', 'Hinweis'],
-                    ['Z11', 'Betriebseinnahmen' + nettoHinweis, z11.toFixed(2), 'Erlöse inkl. Käufer-Versand, abzgl. Retouren' + (sRetouren > 0 ? ` (−${sRetouren.toFixed(2)} € Retouren)` : '')],
-                    ['Z22', 'Wareneinkauf' + nettoHinweis, z22.toFixed(2), 'Einkäufe im Zeitraum'],
-                    ['Z46', 'Absetzung für Abnutzung (AfA)', z46.toFixed(2), 'Aus Anlagenverzeichnis §7 EStG'],
-                    ['Z50', 'Fahrtkosten' + nettoHinweis, z50.toFixed(2), 'Fahrtenbuch-Einträge'],
-                    ['Z64', 'Sonstige Betriebsausgaben' + nettoHinweis, z64.toFixed(2), 'Plattformgeb. + Versand + Ausgaben — bündelt alle Kategorien außer Wareneinkauf/AfA/Fahrt (z.B. Personal, Raumkosten, Kfz nicht separat abgebildet)'],
-                    ['Z91', 'Gewinn (Überschuss)', z91.toFixed(2), 'Z11 - Z22 - Z46 - Z50 - Z64'],
+                    ['Übertragungshilfe Anlage EÜR (keine ELSTER-Datei)', '', ''],
+                    ['Zeitraum:', sDate + ' bis ' + eDate, ''],
+                    ['Hinweis:', 'Bezeichnungen sinngemäß — Zeile im Formular des Erklärungsjahres ' + y + ' selbst zuordnen.' + (fassung.geprueft ? '' : ' Zuordnung für dieses Jahr nicht eigens geprüft.'), ''],
+                    ...(d.ohneSteuersatz.length ? [['Achtung:', d.ohneSteuersatz.length + ' regelbesteuerte Verkäufe ohne Steuersatz — mit 19 % gerechnet, bitte prüfen.', '']] : []),
+                    ['', '', ''],
+                    ['Position', 'Betrag (€)', ''],
+                    ...zeilen.map(z => [z.bezeichnung, z.betrag.toFixed(2), ''])
                 ];
-                Utils.downloadCSV(rows, `elster_euer_${y}.csv`);
+                Utils.downloadCSV(rows, `anlage_euer_hilfe_${y}.csv`);
                 // Ein Toast beantwortete die naechste Frage nicht: ELSTER importiert keine
                 // beliebige CSV in die Anlage EUeR, die Werte muessen uebertragen werden. Ein
                 // Nicht-Steuerexperte sass hier mit einer Datei da, die er nicht einordnen kann.
                 App.showModal("Datei gespeichert — so geht's weiter", `
-                    <p style="margin:0 0 14px;line-height:1.7;">Die Datei <strong>elster_euer_${y}.csv</strong> liegt jetzt in deinem Download-Ordner.</p>
+                    <p style="margin:0 0 14px;line-height:1.7;">Die Datei <strong>anlage_euer_hilfe_${y}.csv</strong> liegt jetzt in deinem Download-Ordner. Stackr übermittelt nichts an ELSTER — die Werte trägst du selbst ein.</p>
                     <ol style="margin:0 0 14px;padding-left:20px;line-height:1.9;">
                         <li>Bei <strong>ELSTER</strong> anmelden und die <strong>Anlage EÜR ${y}</strong> öffnen.</li>
-                        <li>Die Zeilennummern der CSV (Z11, Z22, Z46, Z50, Z64, Z91) entsprechen den Zeilennummern des Formulars — Betrag für Betrag übertragen.</li>
-                        <li>Alternativ die Datei deinem Steuerberater schicken; er kann sie direkt einlesen.</li>
+                        <li>Jede Position der CSV der gleichnamigen Zeile des Formulars zuordnen und den Betrag übertragen. Die Zeilennummern ändern sich von Jahr zu Jahr und stehen deshalb nicht in der Datei.</li>
+                        <li>Alternativ die Datei deinem Steuerberater schicken.</li>
                     </ol>
-                    <p style="margin:0;font-size:12.5px;color:var(--text-muted);line-height:1.7;">Z64 ist eine Sammelzeile: sie bündelt alle Ausgabenkategorien außer Wareneinkauf, AfA und Fahrtkosten. Wenn du Personal-, Raum- oder Kfz-Kosten getrennt ausweisen musst, splitte sie im Formular auf.</p>
+                    <p style="margin:0;font-size:12.5px;color:var(--text-muted);line-height:1.7;">„Übrige Betriebsausgaben" ist ein Sammelposten aus allen Ausgabenkategorien außer Wareneinkauf, AfA und Fahrtkosten. Wenn du Personal-, Raum- oder Kfz-Kosten getrennt ausweisen musst, teile sie im Formular auf. Umsatzsteuer-Zahlungen an das Finanzamt erfasst du als Ausgabe der Kategorie „Umsatzsteuer an Finanzamt".</p>
                 `, '<button class="btn btn-primary" data-action="close-modal">Verstanden</button>');
             });
         }

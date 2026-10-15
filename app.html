@@ -23,6 +23,11 @@
     <link rel="manifest" href="/manifest.json">
     <title>Stackr</title>
 
+    <!-- ── Zu alter Browser? Zuerst laden: es-probe.js nutzt ?./?? und setzt nur in einem
+         ausreichend neuen Browser eine Marke; browser-check.js (ES5) zeigt sonst einen Hinweis. ── -->
+    <script src="js/es-probe.js"></script>
+    <script src="js/browser-check.js"></script>
+
     <!-- ── Critical: i18n (sync, tiny ~8KB) ── -->
     <script src="js/actions.js"></script>
     <script src="js/i18n.js"></script>

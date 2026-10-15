@@ -168,3 +168,11 @@ Nachgemessen: kurz nach der Rotation lieferte der alte Token noch HTTP 200, am F
 
 Ob die Produktion den neuen Token hat, zeigt der nächste Cron-Lauf um 04:00 UTC: fehlt er,
 kommt eine Mail `blob-cleanup - cleanup-failed`.
+
+**✅ Geklärt am 2026-10-13 (Postfach `aiprojektdj@gmail.com` gelesen):** Genau eine solche Mail
+kam, am **2026-09-18 um 04:23 UTC** („Vercel Blob: Access denied, please provide a valid token")
+— der erste Lauf nach der Rotation lief noch mit dem alten Token. Danach keine einzige mehr.
+Dass der Job seither durchläuft, belegen die Tageszusammenfassungen `client-error -
+daily-summary` vom 10. und 11.10.: `api/blob-cleanup.js` schickt sie erst **nach** dem
+Aufräumen, ein Fehler davor hätte stattdessen `cleanup-failed` gemeldet. Die Produktion hat den
+neuen Token.

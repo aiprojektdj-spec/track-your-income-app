@@ -10,6 +10,10 @@ const Euer = {
     _customEnd: '',
     _detailView: null,   // 'einnahmen' | 'ausgaben' | 'gewinn' | null
     _lastRenderData: {},
+    // Laufende ApexCharts-Instanzen (Monatsbalken, Ausgaben-Donut). Werden vor jedem Neuanlegen
+    // zerstört — sonst hingen die alten weiter an Fenster-Ereignissen (Resize), kosteten
+    // Speicher und konnten in ApexCharts werfen (Alarm vom 2026-10-09). Muster: js/dashboard.js.
+    _charts: [],
 
     // Reiter oberhalb des Contents (EÜR-Report | USt-Voranmeldung) — optisch getrennt vom
     // Zeitraum-Dropdown darunter, da Report-Typ ≠ Zeitraum (zwei verschiedene Konzepte).
@@ -1034,7 +1038,13 @@ const Euer = {
         return '';
     },
 
+    _destroyCharts() {
+        this._charts.forEach(c => { try { c.destroy(); } catch (e) { /* Element schon weg */ } });
+        this._charts = [];
+    },
+
     init() {
+        this._destroyCharts();
         if (this._view === 'uva') {
             if (typeof UstVoranmeldung !== 'undefined') UstVoranmeldung.init();
             return;
@@ -1051,7 +1061,7 @@ const Euer = {
             const monthEl = document.getElementById('euerMonthChart');
             if (monthEl && d.monthlyData) {
                 const months = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
-                new ApexCharts(monthEl, {
+                const monthChart = new ApexCharts(monthEl, {
                     chart: { type: 'bar', height: 200, toolbar: { show: false }, background: 'transparent', fontFamily: 'inherit', animations: { enabled: true, speed: 500 } },
                     series: [
                         { name: 'Einnahmen', data: d.monthlyData.map(m => m.ein) },
@@ -1065,7 +1075,9 @@ const Euer = {
                     grid: { borderColor, strokeDashArray: 3, padding: { left: 0, right: 0 } },
                     legend: { labels: { colors: textMuted }, fontSize: '11px', position: 'top', horizontalAlign: 'right', offsetY: -5 },
                     tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v.toLocaleString('de-DE',{style:'currency',currency:'EUR'}) } }
-                }).render();
+                });
+                this._charts.push(monthChart);
+                monthChart.render();
             }
 
             // Donut Ausgaben
@@ -1073,7 +1085,7 @@ const Euer = {
             if (donutEl && d.donutLabels && d.donutValues) {
                 const total = d.donutValues.reduce((a,b) => a+b, 0);
                 if (total > 0) {
-                    new ApexCharts(donutEl, {
+                    const donutChart = new ApexCharts(donutEl, {
                         chart: { type: 'donut', height: 200, background: 'transparent', fontFamily: 'inherit', animations: { enabled: true, speed: 500 } },
                         series: d.donutValues,
                         labels: d.donutLabels,
@@ -1082,7 +1094,9 @@ const Euer = {
                         plotOptions: { pie: { donut: { size: '68%', labels: { show: true, total: { show: true, label: 'Gesamt', color: textMuted, fontSize: '11px', formatter: () => total.toLocaleString('de-DE',{style:'currency',currency:'EUR'}) } } } } },
                         legend: { position: 'bottom', fontSize: '10px', labels: { colors: textMuted }, itemMargin: { horizontal: 5, vertical: 2 } },
                         tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => v.toLocaleString('de-DE',{style:'currency',currency:'EUR'}) } }
-                    }).render();
+                    });
+                    this._charts.push(donutChart);
+                    donutChart.render();
                 } else {
                     donutEl.innerHTML = '<div style="height:180px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:13px;">Keine Ausgaben im Zeitraum</div>';
                 }

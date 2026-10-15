@@ -114,7 +114,9 @@ async function whopHasAccess(userToken, userId) {
 
 // ── Limits ───────────────────────────────────────────────────────────────
 var MAX_CHUNK       = 4 * 1024 * 1024;    // pro Request, Sicherheitsmarge unter Vercels 4,5-MB-Hardlimit
-var MAX_TOTAL_BYTES  = 200 * 1024 * 1024; // Deckel je Anhang/Ledger-Blob (großzügig, aber nicht unbegrenzt — s. Chat)
+// Deckel je Anhang/Ledger-Blob. 50 MB = globale Upload-Grenze in Supabase Storage, solange der
+// Spend Cap an ist (User-Entscheidung 2026-10-15: Grenze senken statt Spend Cap abschalten).
+var MAX_TOTAL_BYTES  = 50 * 1024 * 1024;
 var RATE_MAX         = 120;               // Requests/Minute/Nutzer — Chunk-Uploads brauchen mehr als sync.js' 40
 // Deckel je IP VOR dem ersten Whop-Aufruf (Audit 2026-10-13, S5): 125 Müll-Tokens lösten vorher
 // 125 Whop-userinfo-Aufrufe aus. Großzügiger als RATE_MAX, damit ein Nutzer hinter einem NAT mit
@@ -123,13 +125,13 @@ var IP_RATE_MAX      = 240;
 var SCOPE_RE         = /^(__account|co_[a-z0-9_]+)$/;
 // Realistischer Deckel statt willkürlicher 4000: mehr Chunks als für MAX_TOTAL_BYTES nötig
 // sind nur für einen DoS-Versuch (viele sequentielle Fetches) gut, nicht für legitime Uploads.
-var MAX_CHUNKS_PER_COMMIT = Math.ceil(MAX_TOTAL_BYTES / MAX_CHUNK) + 8; // 200MB/4MB=50 → 58
+var MAX_CHUNKS_PER_COMMIT = Math.ceil(MAX_TOTAL_BYTES / MAX_CHUNK) + 8; // 50MB/4MB=13 → 21
 var MAX_SIGN         = 200;               // Referenzen je sign-Request (ein Scope-Pull bündelt alle)
 var GRANTEE_ID_RE    = /^[A-Za-z0-9_-]{1,128}$/;
 
 // ── Byte-Budget pro Nutzer (Fund R6, Red-Team-Audit 2026-08-10) ──────────────────────────
 // RATE_MAX=120 Requests/Minute à MAX_CHUNK=4 MB sind 480 MB/Minute ≈ 28 GB/Stunde pro
-// zahlendem Account. MAX_TOTAL_BYTES deckelt nur EINE zusammengesetzte Datei (200 MB), nicht
+// zahlendem Account. MAX_TOTAL_BYTES deckelt nur EINE zusammengesetzte Datei (50 MB), nicht
 // die Summe — und api/blob-cleanup.js räumt ausschließlich stackr/tmp/, mit action=put
 // hochgeladene Anhänge bleiben dauerhaft liegen.
 //

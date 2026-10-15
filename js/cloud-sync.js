@@ -551,7 +551,11 @@ var CloudSync = (function () {
                 var entries = [];
                 for (var j = 0; j < batch.length; j++) entries.push({ id: batch[j].id, h: await Store._auditContentHash(batch[j]) });
                 var res = await _api({ action: 'anchor', scope: scope, entries: entries });
-                if (res.status !== 200) return;   // Rate-Limit o.ä. — nächster Sync versucht es erneut
+                // 409 anchor_conflict: eine ID ist mit anderem Hash verankert — das ist genau der
+                // Manipulationsfall; nicht als verankert merken, die Prüfung zeigt die Abweichung.
+                // 507 anchor_capacity: Server nimmt keine neuen Anker mehr an (S3) — melden.
+                if (res.status === 507) console.warn('[CloudSync] Audit-Anker: Kapazität erreicht, neue Einträge werden nicht mehr extern verankert');
+                if (res.status !== 200) { _saveAnchored(scope, Array.from(already)); return; }
                 batch.forEach(function (e) { already.add(e.id); });
             }
             _saveAnchored(scope, Array.from(already));
@@ -1930,15 +1934,27 @@ var CloudSync = (function () {
         var byId = {};
         (res.json.anchors || []).forEach(function (a) { (byId[a.id] = byId[a.id] || []).push(a.h); });
         var log = (typeof Store !== 'undefined') ? Store.getAuditLog() : [];
-        var okCount = 0, notAnchored = 0, mismatches = [];
+        // Abgleich in BEIDE Richtungen (Audit 2026-10-13, S2). Vorher lief die Prüfung nur über
+        // die lokalen Einträge: ein extern verankerter, lokal entfernter Eintrag fiel nicht auf,
+        // und "alle 1 Einträge bestätigt" stand auch bei zwei Server-Ankern und einem lokalen.
+        var lokal = {};
+        log.forEach(function (e) { if (e && e.id != null) lokal[e.id] = 1; });
+        var missingLocally = Object.keys(byId).filter(function (id) { return !lokal[id]; });
+        // Lokal als verankert gemerkt, auf dem Server aber nicht (mehr) vorhanden — z. B. durch
+        // die bis 2026-10-13 übliche Kürzung der Server-Liste. Nicht rekonstruierbar, deshalb
+        // ausdrücklich als "nicht mehr extern belegt" statt als "noch nicht verankert".
+        var gemeldet = new Set(_loadAnchored(scope));
+        var okCount = 0, notAnchored = 0, verloren = [], mismatches = [];
         for (var i = 0; i < log.length; i++) {
             var e = log[i], hashes = byId[e.id];
-            if (!hashes) { notAnchored++; continue; }
+            if (!hashes) { if (gemeldet.has(e.id)) verloren.push(e.id); else notAnchored++; continue; }
             var uniq = Array.from(new Set(hashes));
             var h = await Store._auditContentHash(e);
             if (uniq.length === 1 && uniq[0] === h) okCount++; else mismatches.push(e.id);
         }
-        return { enabled: true, total: log.length, ok: okCount, notAnchored: notAnchored, mismatches: mismatches };
+        return { enabled: true, total: log.length, ok: okCount, notAnchored: notAnchored, mismatches: mismatches,
+                 missingLocally: missingLocally, nichtMehrBelegt: verloren,
+                 vollstaendig: !mismatches.length && !missingLocally.length && !verloren.length && !notAnchored };
     }
 
     // Taegliche automatische Anker-Pruefung (statt nur auf Klick im Protokoll-Modul) —
@@ -1949,6 +1965,12 @@ var CloudSync = (function () {
         try { localStorage.setItem(LS_ANCHOR_CHECK, String(Date.now())); } catch (e) {}
         try {
             var res = await verifyAuditAnchors();
+            if (res.enabled && !res.error && res.missingLocally && res.missingLocally.length && typeof Utils !== 'undefined') {
+                Utils.showToast(
+                    'Audit-Log: ' + res.missingLocally.length + ' extern verankerte(r) Eintrag/Einträge fehlen im lokalen Protokoll — Details im Modul „Protokoll“.',
+                    'error', 12000
+                );
+            }
             if (res.enabled && !res.error && res.mismatches && res.mismatches.length && typeof Utils !== 'undefined') {
                 Utils.showToast(
                     'Audit-Log: ' + res.mismatches.length + ' Eintrag/Einträge weichen vom Cloud-Anker ab (Manipulationsverdacht) — Details im Modul „Protokoll“.',

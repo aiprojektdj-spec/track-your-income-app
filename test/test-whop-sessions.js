@@ -161,7 +161,11 @@ quiet();
     const erwartet = [
         ['INCR', 'whoprefresh:rl:203.0.113.5'], ['EXPIRE', 'whoprefresh:rl:203.0.113.5', '60', 'NX'],
         ['GET', 'whoprt:' + sid], ['SET', 'whoprt:lock:' + sid, '1', 'NX', 'EX', '10'],
-        ['SET', 'whoprt:' + sid, '<json>', 'EX', '2592000'], ['DEL', 'whoprt:lock:' + sid]
+        // Widerrufsmarke vor und nach dem Speichern (Audit 2026-10-13, S7)
+        ['GET', 'whoprt:rv' + sid],
+        ['SET', 'whoprt:' + sid, '<json>', 'EX', '2592000'],
+        ['GET', 'whoprt:rv' + sid],
+        ['DEL', 'whoprt:lock:' + sid]
     ];
     const gesehen = redisLog.map((c) => c[0] === 'SET' && c[1] === 'whoprt:' + sid ? c.slice(0, 2).concat(['<json>'], c.slice(3)) : c);
     check('A4 Rotation: exakt die bisherigen Redis-Befehle in Reihenfolge', JSON.stringify(gesehen) === JSON.stringify(erwartet), JSON.stringify(gesehen));
@@ -187,8 +191,8 @@ quiet();
     r = await call(h.refresh, { session_id: sid });
     check('B4 Rotation über Supabase', r.code === 200 && r.body.access_token === 'AT1' && sbRead(sid).rt === 'RT1');
     check('B5 Whop bekam den gespeicherten Refresh-Token', whopCalls[0].refresh_token === 'RT0');
-    check('B6 rpc-Folge: rate_hit, get, lock, put, unlock',
-          rpcLog.map((x) => x.name).join(',') === 'sync_rate_hit,sync_whop_session_get,sync_whop_lock,sync_whop_session_put,sync_whop_unlock',
+    check('B6 rpc-Folge: rate_hit, get, lock, Widerrufsmarke, put, Widerrufsmarke, unlock',
+          rpcLog.map((x) => x.name).join(',') === 'sync_rate_hit,sync_whop_session_get,sync_whop_lock,sync_whop_session_get,sync_whop_session_put,sync_whop_session_get,sync_whop_unlock',
           rpcLog.map((x) => x.name).join(','));
     check('B7 Deckel-Key und Sperrdauer wie in Redis',
           rpcLog[0].args.p_key === 'whoprefresh:rl:203.0.113.5' && rpcLog[0].args.p_window === 60 && rpcLog[2].args.p_secs === 10);

@@ -397,6 +397,15 @@ const Lager = {
                 platSel.value === 'Sonstiges' ? '' : 'none';
         });
 
+        // Schnellverkauf: Cursor direkt im Preis, Enter speichert
+        const preisEl = document.getElementById('vk_preis');
+        preisEl.focus();
+        preisEl.addEventListener('keydown', e => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            document.getElementById('saveVerkauf').click();
+        });
+
         // Save
         document.getElementById('saveVerkauf').addEventListener('click', () => {
             const datum   = Utils.getDateInputValue('vk_datum');

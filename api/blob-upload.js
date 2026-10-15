@@ -116,6 +116,10 @@ async function whopHasAccess(userToken, userId) {
 var MAX_CHUNK       = 4 * 1024 * 1024;    // pro Request, Sicherheitsmarge unter Vercels 4,5-MB-Hardlimit
 var MAX_TOTAL_BYTES  = 200 * 1024 * 1024; // Deckel je Anhang/Ledger-Blob (großzügig, aber nicht unbegrenzt — s. Chat)
 var RATE_MAX         = 120;               // Requests/Minute/Nutzer — Chunk-Uploads brauchen mehr als sync.js' 40
+// Deckel je IP VOR dem ersten Whop-Aufruf (Audit 2026-10-13, S5): 125 Müll-Tokens lösten vorher
+// 125 Whop-userinfo-Aufrufe aus. Großzügiger als RATE_MAX, damit ein Nutzer hinter einem NAT mit
+// zwei Geräten beim Chunk-Upload nicht ausgebremst wird.
+var IP_RATE_MAX      = 240;
 var SCOPE_RE         = /^(__account|co_[a-z0-9_]+)$/;
 // Realistischer Deckel statt willkürlicher 4000: mehr Chunks als für MAX_TOTAL_BYTES nötig
 // sind nur für einen DoS-Versuch (viele sequentielle Fetches) gut, nicht für legitime Uploads.
@@ -212,6 +216,19 @@ module.exports = async function handler(req, res) {
     var token = auth.indexOf('Bearer ') === 0 ? auth.slice(7) : '';
     if (!token || token.length > 4096) return res.status(401).json({ error: 'no_token' });
 
+    // IP-Deckel vor Whop (S5) — gleiche Quelle der IP wie api/sync.js (x-vercel-forwarded-for
+    // ist vom Client nicht überschreibbar). Bei Speicherausfall bewusst offen (fail-open wie
+    // das übrige Rate-Limit), aber mit Alarm.
+    if (!store.configProblem()) {
+        try {
+            var ip = req.headers['x-vercel-forwarded-for'] || (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || (req.socket && req.socket.remoteAddress) || 'unknown';
+            var ipCount = await store.rateHit('blob:iprl:' + ip, 60);
+            if (ipCount > IP_RATE_MAX) return res.status(429).json({ error: 'rate_limited' });
+        } catch (e) {
+            await alertOps('blob-upload', 'ip-rate-limit-open', e && e.message);
+        }
+    }
+
     // Kein Anzeigename-Fallback: prefUsername ist ausschließlich me.preferred_username, weil der
     // Wert in die Owner-Entscheidung eingeht (s. isOwnerIdentity). Anderweitig wird er nicht
     // gebraucht — dieser Endpunkt zeigt keinen Namen an.
@@ -238,7 +255,10 @@ module.exports = async function handler(req, res) {
     var signOwner   = action === 'sign' && req.body && req.body.owner ? String(req.body.owner) : '';
     if (signOwner === userId) signOwner = '';   // eigene Anhänge: normaler Weg mit Pro-Pflicht
     var isOwner = isOwnerIdentity(userId, prefUsername);
-    if (!isOwner && !signOwner) {
+    // Eigene Anhänge löschen geht auch ohne aktives Abo (S9) — nur im eigenen Namespace,
+    // s. isOwnedBlobUrl bzw. der userId-Pfad in purge.
+    var isSelbstbedienung = action === 'delete' || action === 'purge';
+    if (!isOwner && !signOwner && !isSelbstbedienung) {
         try {
             if (!(await whopHasAccess(token, userId))) return res.status(403).json({ error: 'pro_required' });
         } catch (e) {
@@ -316,6 +336,29 @@ module.exports = async function handler(req, res) {
             for (var i0 = 0; i0 < chunkUrls.length; i0++) {
                 if (!isOwnedBlobUrl(chunkUrls[i0], userId, scope)) return res.status(403).json({ error: 'not_owner', index: i0 });
             }
+            // Nur die temporären Teile EINES Uploads, jeder genau einmal, in Reihenfolge 0..n-1
+            // (Audit 2026-10-13, S4). Vorher durfte dieselbe 3-Byte-Chunk-URL 50× in der Liste
+            // stehen (150 Bytes geschrieben, 3 gebucht), und fertige Anhänge unter attachments/
+            // ließen sich als Ersatz-Chunks wiederverwenden. Das Budget wird beim Chunk-Upload
+            // gebucht; mit dieser Prüfung ist das Endobjekt nie größer als das Gebuchte.
+            var uploadIdC = null;
+            for (var ic = 0; ic < chunkUrls.length; ic++) {
+                var ck = storage.keyOf(chunkUrls[ic]) || '';
+                var mC = ck.match(new RegExp('^stackr/tmp/' + escapeRegex(userId) + '/' + escapeRegex(scope) + '/([A-Za-z0-9_-]+)/(\\d+)(?:-[A-Za-z0-9_-]+)?$'));
+                if (!mC) return res.status(400).json({ error: 'bad_chunks', index: ic });
+                if (uploadIdC === null) uploadIdC = mC[1];
+                if (mC[1] !== uploadIdC || parseInt(mC[2], 10) !== ic) return res.status(400).json({ error: 'bad_chunks', index: ic });
+            }
+            // Ein Upload wird höchstens einmal zusammengesetzt: Wiederholung nach geglücktem
+            // Commit (z. B. wenn das Aufräumen der Teile scheiterte) erzeugt kein zweites Objekt.
+            var onceKey = 'blob:commit:' + userId + ':' + scope + ':' + uploadIdC, onceHeld = false;
+            if (!store.configProblem()) {
+                try {
+                    if (!(await store.lockTry(onceKey, BLOB_BUDGET_WINDOW))) return res.status(409).json({ error: 'already_committed' });
+                    onceHeld = true;
+                } catch (e) { _log.logWarn('blob-upload', 'COMMIT_ONCE_FAILED', e); }
+            }
+            var commitOk = false;
 
             // Concurrency-Deckel pro Nutzer: verhindert, dass ein einzelner Account viele
             // parallele 200-MB-Commits anstößt (Ressourcen-/Kosten-DoS trotz Rate-Limit).
@@ -343,11 +386,14 @@ module.exports = async function handler(req, res) {
                 }
                 var assembled = Buffer.concat(parts, total);
                 var finalRef = await storage.put(pathFor(userId, scope, 'attachments', finalName), assembled);
+                commitOk = true;
                 // Best-effort: temporäre Teile aufräumen (Fehler hier sind nicht kritisch — Cron räumt Reste)
                 try { await storage.remove(chunkUrls); } catch (e) { _log.logWarn('blob-upload', 'CHUNK_CLEANUP_FAILED', e); }
                 return res.status(200).json({ ok: true, url: finalRef, size: total });
             } finally {
                 if (lockHeld) { try { await store.lockRelease(lockKey); } catch (e) { /* TTL räumt ohnehin nach 30s auf */ } }
+                // Gescheiterter Commit darf wiederholt werden — die Einmal-Marke gilt nur für Erfolge
+                if (onceHeld && !commitOk) { try { await store.lockRelease(onceKey); } catch (e) { /* TTL */ } }
             }
         }
 

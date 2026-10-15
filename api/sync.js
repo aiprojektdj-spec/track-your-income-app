@@ -224,6 +224,14 @@ module.exports = async function handler(req, res) {
     var isGranteeRead = (action === 'register_pubkey' || action === 'list_grants' ||
                          (action === 'pull' && !!body.owner));
 
+    // Widerruf eigener Freigaben und Löschen eigener Cloud-Daten brauchen KEIN aktives Abo
+    // (Audit 2026-10-13, S9): nach Abo-Ende bekam der Eigentümer sonst 403 auf `revoke`, während
+    // der Steuerberater mit dem bestehenden Grant weiter lesen konnte. Die Identität ist oben
+    // bei Whop geprüft, jede dieser Aktionen wirkt nur auf die eigene userId — `owner` im Body
+    // ist für sie unten ausdrücklich verboten. Neue Grants, Uploads und Pulls bleiben gegated.
+    var isSelbstbedienung = !body.owner && (action === 'revoke' || action === 'list_my_grantees' ||
+                                            action === 'delete' || action === 'reset_all');
+
     // Schreiben in fremde Owner-Daten ist NIE erlaubt (StB read-only) — vor dem Pro-Gate,
     // damit die Antwort 'readonly' ist, egal ob der StB selbst ein Abo hat.
     if ((action === 'push' || action === 'delete') && body.owner)
@@ -231,7 +239,7 @@ module.exports = async function handler(req, res) {
 
     // ── 4. PRO erzwingen (server-seitig) — nur für Owner-/Schreib-Aktionen ────
     var isOwner = isOwnerIdentity(userId, prefUsername);
-    if (!isOwner && !isGranteeRead) {
+    if (!isOwner && !isGranteeRead && !isSelbstbedienung) {
         try {
             // Zugangs-Check: User-Token gegen /api/v2/me/has_access, sonst Company-Key-Fallback.
             if (!(await whopHasAccess(token, userId)))

@@ -18,6 +18,32 @@ Gehört zu Schritt 9 in [`supabase-umzug-2026-10-06.md`](supabase-umzug-2026-10-
 > Die „Alt“-Zitate unten in 1.1, 1.4, 1.6 und 1.11 sind Stand `c41a0a8`; beim Einbau vom
 > aktuellen Wortlaut der Live-Datei ausgehen. Die „Neu“-Varianten sind darauf schon abgestimmt.
 
+## Nachtrag 2026-10-15 — Audit 2026-10-13, Befund S10 (bedingt)
+
+Der Audit fand: `datenschutz.html` nennt Upstash/Vercel Blob, der Code kann Supabase als
+Primärspeicher, Spiegel und Anhangsspeicher betreiben. **Ob Supabase produktiv aktiv ist, ist aus
+dem Repo nicht belegbar** — es hängt an Vercel-Variablen, die diese Session nicht lesen kann.
+Deshalb ist S10 **nicht** erledigt; die Texte unten bleiben Entwurf.
+
+Hinweis aus dem Repo, der für Dringlichkeit spricht: Commit-Kommentar in `api/blob-upload.js`
+(2026-10-15, andere Session) nennt eine 50-MB-Grenze „in Supabase Storage, solange der Spend Cap
+an ist“ — das deutet darauf, dass `BLOB_BACKEND=supabase` gesetzt ist oder kurz bevorsteht.
+
+**Genau benötigter Nachweis (macht der User, keine Secrets in den Chat):**
+
+| Prüfpunkt | Wo | Wirkung auf den Text |
+|---|---|---|
+| `STORAGE_BACKEND`, `STORAGE_MIRROR` (Production) | Vercel → Settings → Environment Variables | Sync/Sitzungen/Zähler bei Supabase? → Ziffern 4.1, 5, 7 |
+| `BLOB_BACKEND` (Production) | dto. | Anhänge bei Supabase? → 4.1, 7, und `connect-src` (bereits erlaubt) |
+| `WHOP_SESSION_KEY` gesetzt? | dto. | Refresh-Sitzungen bei Supabase verschlüsselt → Ziffer 5 |
+| Region der Projekte `usrhhjwvoefjdgrwovkg` / `nvtjzeffngwfsqjzdrdz` | Supabase → Project Settings → General | „Frankfurt (eu-central-1)“ nur eintragen, wenn dort so angezeigt |
+| AVV/DPA mit Supabase abgeschlossen | Supabase → Organization → Legal Documents | Ziffer 7 (Auftragsverarbeiter); ohne DPA darf Supabase nicht produktiv laufen |
+| Täglicher Cron `api/blob-cleanup.js` läuft | Vercel → Cron Jobs | IP-Zähler „spätestens nach 24 Stunden“ statt „60 Sekunden“ (Ziffern 2.4, 4.3, 5) |
+
+Offene Felder im Textentwurf sind mit `⟦…⟧` markiert, sobald sie vom Nachweis abhängen. Bereits
+code-belegt und deshalb jetzt schon im Live-Text (2026-10-15): Ziffer 2.4 überträgt nur noch einen
+festen Fehlercode statt der Fehlermeldung (Befund S8, `js/error-logger.js`).
+
 ## 0. Was der Code tatsächlich tut (Grundlage der Texte)
 
 | Datum | Wo bei Supabase | Personenbezug | Dauer laut Code | Quelle |

@@ -10,7 +10,7 @@ const Dashboard = {
     /** Diagramme erst bei Bedarf laden; die Datentabellen sind davon unabhängig. */
     _ensureApexCharts() {
         this._renderChart();
-        this._renderGewinnChart();
+        if (document.getElementById('dashAnalysis')?.open) this._renderGewinnChart();
         if (typeof ApexCharts !== 'undefined' || this._apexLoading) return;
         this._apexLoading = true;
         const script = document.createElement('script');
@@ -18,7 +18,7 @@ const Dashboard = {
         script.onload = () => {
             this._apexLoading = false;
             this._renderChart();
-            this._renderGewinnChart();
+            if (document.getElementById('dashAnalysis')?.open) this._renderGewinnChart();
         };
         script.onerror = () => {
             this._apexLoading = false;
@@ -32,14 +32,45 @@ const Dashboard = {
         return {
             text: css.getPropertyValue('--text-primary').trim(),
             muted: css.getPropertyValue('--text-muted').trim(),
-            border: css.getPropertyValue('--border').trim()
+            border: css.getPropertyValue('--border').trim(),
+            secondary: css.getPropertyValue('--control').trim()
+        };
+    },
+
+    // Gleiche Achsen und feste Zeichenhöhe für alle Dashboard-Diagramme.
+    _chartOptions(type, height, labels, data) {
+        const palette = this._chartPalette();
+        const isDark = typeof Theme !== 'undefined' ? Theme.isDark() : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const values = data.flat().filter(Number.isFinite);
+        const low = Math.min(0, ...values), high = Math.max(0, ...values);
+        const roughStep = (high - low || 1) / 4;
+        const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+        const step = [1, 2, 2.5, 5, 10].find(value => value * magnitude >= roughStep) * magnitude;
+        const min = Math.floor(low / step) * step, max = high === low ? 1 : Math.ceil(high / step) * step;
+        const spacedLabel = value => labels.length > 6 && labels.indexOf(String(value)) % 2 !== 0 ? '' : value;
+        return {
+            chart: { type, height, parentHeightOffset: 0, background: 'transparent', toolbar: { show: false }, zoom: { enabled: false }, fontFamily: 'Inter, Arial, sans-serif', foreColor: palette.muted, animations: { enabled: false } },
+            theme: { mode: isDark ? 'dark' : 'light' },
+            colors: [palette.text, palette.secondary, palette.muted],
+            plotOptions: { bar: { columnWidth: '42%', borderRadius: 2, borderRadiusApplication: 'end' } },
+            fill: { opacity: 1 },
+            stroke: { width: 0 },
+            xaxis: { categories: labels, labels: { rotate: 0, trim: false, hideOverlappingLabels: true, formatter: type === 'area' ? spacedLabel : value => value, style: { colors: palette.muted, fontSize: '12px' } }, axisBorder: { show: false }, axisTicks: { show: false }, tooltip: { enabled: false } },
+            yaxis: { tickAmount: Math.round((max - min) / step), min, max, labels: { minWidth: 36, maxWidth: 80, style: { colors: palette.muted, fontSize: '12px' }, formatter: value => new Intl.NumberFormat('de-DE', { notation: Math.abs(value) >= 10000 ? 'compact' : 'standard', maximumFractionDigits: 2 }).format(value) + ' €' } },
+            grid: { borderColor: palette.border, strokeDashArray: 3, padding: { top: 4, right: 8, bottom: 0, left: 8 } },
+            tooltip: { theme: isDark ? 'dark' : 'light', shared: true, intersect: false, y: { formatter: value => Utils.formatCurrency(value) }, marker: { show: true } },
+            dataLabels: { enabled: false },
+            legend: { show: false },
+            states: { hover: { filter: { type: 'none' } }, active: { filter: { type: 'none' } } },
+            responsive: [{ breakpoint: 640, options: { plotOptions: { bar: { columnWidth: '60%' } }, xaxis: { labels: { formatter: spacedLabel, style: { fontSize: '11px' } } } } }]
         };
     },
 
     _renderChartData(id, title, labels, series) {
         const host = document.getElementById(id);
         if (!host) return;
-        host.innerHTML = `<details class="redesign-chart-data"><summary>Werte als Tabelle</summary>
+        const wasOpen = host.querySelector('details')?.open;
+        host.innerHTML = `<details class="redesign-chart-data"${wasOpen ? ' open' : ''}><summary>Monatswerte ansehen</summary>
             <div class="table-container redesign-table-scroll" role="region" aria-label="${Utils.escapeHtml(title)}" tabindex="0"><table>
                 <caption>${Utils.escapeHtml(title)}</caption>
                 <thead><tr><th scope="col">Zeitraum</th>${series.map(s => `<th scope="col" class="amount">${Utils.escapeHtml(s.name)}</th>`).join('')}</tr></thead>
@@ -223,17 +254,20 @@ const Dashboard = {
 
         let bookingsRows = '';
         if (allBookings.length === 0) {
-            bookingsRows = `<tr><td colspan="5" class="table-empty">Keine Buchungen in ${year}</td></tr>`;
+            bookingsRows = `<tr><td colspan="4" class="table-empty">Keine Buchungen in ${year}</td></tr>`;
         } else {
-            bookingsRows = allBookings.map(b => `
+            bookingsRows = allBookings.map(b => {
+                const article = [b.marke, b.artikeltyp].filter(Boolean).join(' ');
+                const title = b.beschreibung || article || b._type;
+                const subtitle = b.beschreibung ? article : '';
+                return `
                 <tr>
-                    <td>${Utils.formatDate(b.datum)}</td>
-                    <td><span class="badge ${b._type === 'Verkauf' ? 'badge-success' : b._type === 'Rechnung' ? 'badge-warning' : 'badge-info'}">${b._type}</span></td>
-                    <td>${Utils.escapeHtml(b.marke || '')} ${Utils.escapeHtml(b.artikeltyp || '')}</td>
-                    <td>${Utils.escapeHtml(b.beschreibung || '')}</td>
-                    <td style="text-align:right">${Utils.formatCurrency(b._amount)}</td>
+                    <td class="dash-booking-date">${Utils.formatDate(b.datum)}</td>
+                    <td class="dash-booking-description"><span>${Utils.escapeHtml(title)}</span>${subtitle ? `<small>${Utils.escapeHtml(subtitle)}</small>` : ''}<small class="dash-booking-mobile-meta">${Utils.formatDate(b.datum)} · ${b._type}</small></td>
+                    <td class="dash-booking-type"><span class="dash-type">${b._type}</span></td>
+                    <td class="amount dash-booking-amount">${b._amount > 0 ? '+' : ''}${Utils.formatCurrency(b._amount)}</td>
                 </tr>
-            `).join('');
+            `; }).join('');
         }
 
         // Year switcher dropdown
@@ -255,7 +289,7 @@ const Dashboard = {
         return `
             <div class="redesign-dashboard">
                 <div class="page-header redesign-page-heading">
-                    <div><p class="redesign-eyebrow">Dein Geschäft im Blick</p><h2>Übersicht</h2></div>
+                    <div><h2>Übersicht</h2><p>Dein Geschäft auf einen Blick.</p></div>
                     <div class="page-header-actions">
                         <div class="redesign-period"><label for="yearSelect">Jahr</label>${yearBtns}</div>
                         ${readonly ? '<span class="redesign-status">Lesezugang</span>' : `<button class="btn btn-primary" data-action="navigate" data-args='["buchungen"]'>Buchung erfassen</button>`}
@@ -265,27 +299,34 @@ const Dashboard = {
                 ${this._renderTrialHinweis()}
 
                 <section class="redesign-kpis" aria-label="Geschäftszahlen ${year}">
-                    <div class="redesign-kpi"><h3>Einnahmen</h3><p class="redesign-kpi-value amount">${metric(yearRevenue)}</p><p>Erfasste Einnahmen · ${year}</p></div>
-                    <div class="redesign-kpi"><h3>Ausgaben</h3><p class="redesign-kpi-value amount">${metric(yearAllExpenses)}</p><p>Einkäufe und laufende Kosten · ${year}</p></div>
-                    <div class="redesign-kpi"><h3>Gewinn</h3><p class="redesign-kpi-value amount">${metric(yearProfit)}</p><p>Einnahmen abzüglich erfasster Kosten</p></div>
+                    <div class="redesign-kpi"><h3>Einnahmen <span>${year}</span></h3><p class="redesign-kpi-value amount${hasPeriodData ? '' : ' dash-value-empty'}">${metric(yearRevenue)}</p><p>Erfasste Einnahmen</p></div>
+                    <div class="redesign-kpi"><h3>Ausgaben <span>${year}</span></h3><p class="redesign-kpi-value amount${hasPeriodData ? '' : ' dash-value-empty'}">${metric(yearAllExpenses)}</p><p>Einkäufe und laufende Kosten</p></div>
+                    <div class="redesign-kpi dash-kpi-profit"><h3>Gewinn <span>${year}</span></h3><p class="redesign-kpi-value amount${hasPeriodData ? '' : ' dash-value-empty'}">${metric(yearProfit)}</p><p>Nach erfassten Kosten</p></div>
                 </section>
-                <p class="redesign-caption">Betrieblicher Überblick, kein Kontostand. Die steuerliche Gewinnermittlung findest du unter <button class="redesign-text-link" data-action="navigate" data-args='["euer"]'>Jahresgewinn</button>.</p>
+                <p class="redesign-caption dash-basis">Betrieblicher Überblick · Steuerliche Berechnung: <button class="redesign-text-link" data-action="navigate" data-args='["euer"]'>Jahresgewinn</button></p>
 
-                ${this._renderNextTasks(offeneRechnungen, expenses)}
+                <section class="dash-panel dash-main-chart" aria-labelledby="dashChartHeading">
+                    <div class="redesign-section-heading"><div><h3 id="dashChartHeading">Einnahmen und Ausgaben</h3><p class="redesign-caption">Monatlicher Verlauf · ${year}</p></div><div class="dash-legend" aria-label="Datenreihen"><span><i class="dash-swatch" aria-hidden="true"></i>Einnahmen</span><span><i class="dash-swatch dash-swatch-secondary" aria-hidden="true"></i>Ausgaben</span></div></div>
+                    ${hasPeriodData ? '' : '<p class="dash-chart-empty">Für dieses Jahr sind noch keine Buchungen erfasst.</p>'}
+                    <div id="dashChart" class="redesign-chart" aria-hidden="true"></div>
+                    <div class="dash-chart-footer"><p class="redesign-caption">Verkäufe, Einkäufe und Kosten nach Buchungsdatum.</p><div id="dashChartData"></div></div>
+                </section>
 
-                <section class="redesign-section" aria-labelledby="dashRecentHeading">
-                    <div class="redesign-section-heading"><h3 id="dashRecentHeading">Letzte Vorgänge</h3><button class="btn btn-outline" data-action="navigate" data-args='["buchungen"]'>Alle Buchungen</button></div>
-                    ${allBookings.length ? `<div class="table-container redesign-table-scroll" role="region" aria-label="Letzte fünf Vorgänge ${year}" tabindex="0"><table>
-                        <thead><tr><th scope="col">Datum</th><th scope="col">Art</th><th scope="col">Artikel</th><th scope="col">Beschreibung</th><th scope="col" class="amount">Betrag</th></tr></thead>
+                <div class="dash-activity-grid">
+                <section class="dash-panel dash-recent" aria-labelledby="dashRecentHeading">
+                    <div class="redesign-section-heading"><div><h3 id="dashRecentHeading">Letzte Buchungen</h3><p class="redesign-caption">Die letzten fünf Vorgänge · ${year}</p></div><button class="redesign-text-link" data-action="navigate" data-args='["buchungen"]'>Alle Buchungen</button></div>
+                    ${allBookings.length ? `<div class="table-container redesign-table-scroll" role="region" aria-label="Letzte fünf Vorgänge ${year}" tabindex="0"><table class="dash-bookings-table">
+                        <thead><tr><th scope="col" class="dash-booking-date">Datum</th><th scope="col">Buchung</th><th scope="col" class="dash-booking-type">Art</th><th scope="col" class="amount">Betrag</th></tr></thead>
                         <tbody>${bookingsRows}</tbody>
                     </table></div>` : `<div class="redesign-empty redesign-empty-compact"><h4>Noch keine Vorgänge für ${year}</h4><p>Wähle ein anderes Jahr oder erfasse eine Buchung für diesen Zeitraum.</p></div>`}
                 </section>
+                ${this._renderNextTasks(offeneRechnungen, expenses)}
+                </div>
 
-                <details class="redesign-details" id="dashAnalysis"><summary>Entwicklung ansehen</summary>
-                    <div class="redesign-detail-content">
-                        <section class="redesign-section"><h3>Einnahmen und Ausgaben ${year}</h3><p class="redesign-caption">Erfasste Verkäufe, Einkäufe und Kosten nach Buchungsdatum. Einnahmen: durchgezogene Linie. Ausgaben: gestrichelt.</p><div id="dashChart" class="redesign-chart" aria-hidden="true"></div><div id="dashChartData"></div></section>
-                        <section class="redesign-section"><h3>Gewinn der letzten zwölf Monate</h3><p class="redesign-caption">Erfasste Verkäufe abzüglich Einkäufen und laufenden Kosten; Zeitraum unabhängig vom gewählten Jahr.</p><div id="dashChartGewinn" class="redesign-chart" aria-hidden="true"></div><div id="dashChartGewinnData"></div></section>
-                        <section class="redesign-section"><h3>Jahresvergleich</h3><p class="redesign-caption">Werte aus der EÜR-Berechnung. Einnahmen: durchgezogene Linie. Ausgaben: gestrichelt. Gewinn: gepunktet.</p><div id="dashChartJahres" class="redesign-chart" aria-hidden="true"></div>${this._renderJahresvergleich(year)}</section>
+                <details class="redesign-details dash-analysis" id="dashAnalysis"><summary>Gewinnentwicklung und Jahresvergleich</summary>
+                    <div class="redesign-detail-content dash-analysis-grid">
+                        <section class="dash-panel"><div class="redesign-section-heading"><div><h3>Gewinnentwicklung</h3><p class="redesign-caption">Letzte zwölf Monate · unabhängig vom gewählten Jahr</p></div></div><div id="dashChartGewinn" class="redesign-chart" aria-hidden="true"></div><p class="redesign-caption">Erfasste Verkäufe abzüglich Einkäufen und laufender Kosten.</p><div id="dashChartGewinnData"></div></section>
+                        <section class="dash-panel"><div class="redesign-section-heading"><div><h3>Jahresvergleich</h3><p class="redesign-caption">Steuerliche Werte aus der EÜR</p></div></div><div class="dash-legend"><span><i class="dash-swatch" aria-hidden="true"></i>Einnahmen</span><span><i class="dash-swatch dash-swatch-secondary" aria-hidden="true"></i>Ausgaben</span><span><i class="dash-swatch dash-swatch-profit" aria-hidden="true"></i>Gewinn</span></div><div id="dashChartJahres" class="redesign-chart" aria-hidden="true"></div><details class="redesign-chart-data"><summary>Jahreswerte ansehen</summary>${this._renderJahresvergleich(year)}</details></section>
                     </div>
                 </details>
 
@@ -312,7 +353,7 @@ const Dashboard = {
     _renderNextTasks(invoices, expenses) {
         const tasks = [];
         const overdue = invoices.filter(i => i.status === 'ueberfaellig');
-        if (overdue.length) tasks.push({ title: 'Überfällige Rechnungen prüfen', detail: overdue.length === 1 ? '1 Rechnung ist als überfällig markiert.' : `${overdue.length} Rechnungen sind als überfällig markiert.`, page: 'rechnungen', action: 'Rechnungen ansehen' });
+        if (overdue.length) tasks.push({ title: 'Überfällige Rechnungen', detail: `${overdue.length} ${overdue.length === 1 ? 'Rechnung wartet' : 'Rechnungen warten'} auf Zahlung.`, page: 'rechnungen', action: 'Rechnungen prüfen', count: overdue.length });
         const today = Utils.todayISO();
         const soon = new Date();
         soon.setDate(soon.getDate() + 14);
@@ -320,12 +361,12 @@ const Dashboard = {
         const custom = Store.getSteuertermine ? Store.getSteuertermine() : [];
         const ust = typeof Steuertermine !== 'undefined' && Steuertermine._ustTermine ? Steuertermine._ustTermine(new Date().getFullYear()) : [];
         const next = custom.concat(ust).filter(t => t.datum >= today && t.datum <= until).sort((a, b) => a.datum.localeCompare(b.datum))[0];
-        if (next) tasks.push({ title: 'Nächsten Termin vorbereiten', detail: `${Utils.formatDate(next.datum)} · ${next.beschreibung || 'Eigener Termin'}`, page: 'steuertermine', action: 'Termine ansehen' });
+        if (next) tasks.push({ title: 'Nächster Termin', detail: `${Utils.formatDate(next.datum)} · ${next.beschreibung || 'Eigener Termin'}`, page: 'steuertermine', action: 'Termin ansehen' });
         const withoutReceipt = expenses.filter(e => !e.belegFoto && !e.belegNr);
-        if (withoutReceipt.length) tasks.push({ title: 'Belegangaben prüfen', detail: `${withoutReceipt.length} Ausgaben im gewählten Jahr haben weder Belegnummer noch Belegfoto.`, page: 'ausgaben', action: 'Ausgaben ansehen' });
-        if (!tasks.length && invoices.length) tasks.push({ title: 'Offene Rechnungen im Blick behalten', detail: `${invoices.length} Rechnungen mit offenem Zahlungsstatus.`, page: 'rechnungen', action: 'Rechnungen ansehen' });
-        return `<section class="redesign-section" aria-labelledby="dashTasksHeading"><div class="redesign-section-heading"><h3 id="dashTasksHeading">Als Nächstes</h3><button class="redesign-text-link" data-action="navigate" data-args='["steuertermine"]'>Alle Termine</button></div>
-            ${tasks.length ? `<ul class="redesign-task-list">${tasks.slice(0, 3).map(t => `<li><div><h4>${Utils.escapeHtml(t.title)}</h4><p>${Utils.escapeHtml(t.detail)}</p></div><button class="btn btn-outline" data-action="navigate" data-args='["${t.page}"]'>${t.action}</button></li>`).join('')}</ul>` : '<p class="redesign-quiet-state">Aus deinen erfassten Daten ergeben sich gerade keine nächsten Aufgaben.</p>'}</section>`;
+        if (withoutReceipt.length) tasks.push({ title: 'Belegangaben prüfen', detail: `${withoutReceipt.length} ${withoutReceipt.length === 1 ? 'Ausgabe hat' : 'Ausgaben haben'} weder Belegnummer noch Belegfoto im gewählten Jahr.`, page: 'ausgaben', action: 'Ausgaben ansehen', count: withoutReceipt.length });
+        if (!tasks.length && invoices.length) tasks.push({ title: 'Offene Rechnungen', detail: `${invoices.length} ${invoices.length === 1 ? 'Rechnung mit offenem Zahlungsstatus' : 'Rechnungen mit offenem Zahlungsstatus'}.`, page: 'rechnungen', action: 'Rechnungen ansehen', count: invoices.length });
+        return `<section class="dash-panel dash-tasks" aria-labelledby="dashTasksHeading"><div class="redesign-section-heading"><h3 id="dashTasksHeading">Als Nächstes</h3><span class="dash-task-count" aria-label="${tasks.length} Aufgaben">${tasks.length}</span></div>
+            ${tasks.length ? `<ul class="redesign-task-list">${tasks.slice(0, 3).map(t => `<li><div><h4>${Utils.escapeHtml(t.title)}</h4><p>${Utils.escapeHtml(t.detail)}</p></div><button class="redesign-text-link" data-action="navigate" data-args='["${t.page}"]'>${t.action}</button></li>`).join('')}</ul>` : '<div class="redesign-quiet-state"><h4>Alles im Blick</h4><p>Aus deinen erfassten Daten ergeben sich gerade keine nächsten Aufgaben.</p></div>'}<button class="redesign-text-link dash-all-dates" data-action="navigate" data-args='["steuertermine"]'>Alle Termine ansehen</button></section>`;
     },
 
     init() {
@@ -344,13 +385,13 @@ const Dashboard = {
 
         const analysis = document.getElementById('dashAnalysis');
         if (analysis) analysis.addEventListener('toggle', () => {
-            if (analysis.open) this._ensureApexCharts();
+            if (analysis.open) this._renderGewinnChart();
         });
+        this._ensureApexCharts();
         if (!this._themeBound && typeof window !== 'undefined') {
             this._themeBound = true;
             window.addEventListener('themechange', () => {
-                const panel = document.getElementById('dashAnalysis');
-                if (panel && panel.open) this._ensureApexCharts();
+                if (document.getElementById('dashChart')) this._ensureApexCharts();
             });
         }
     },
@@ -399,7 +440,6 @@ const Dashboard = {
 
     _renderJahresvergleich(currentYear) {
         const years = [currentYear - 2, currentYear - 1, currentYear].filter(y => y >= 2020);
-        if (years.length < 2) return '';
         const L = (typeof I18n !== 'undefined') ? I18n : { t: function(k) { return k; } };
         const stats = years.map(y => ({ year: y, ...this._getYearStats(y) }));
         const rows = [
@@ -435,12 +475,7 @@ const Dashboard = {
         if (!el) return;
         if (this._chartGewinn) { this._chartGewinn.destroy(); this._chartGewinn = null; }
 
-        // Theme.isDark() statt matchMedia: matchMedia kennt nur die Systemeinstellung
-        // und liefert die falsche Palette, sobald jemand manuell umgeschaltet hat.
-        const isDark    = (typeof Theme !== 'undefined') ? Theme.isDark()
-                        : window.matchMedia('(prefers-color-scheme: dark)').matches;
         const palette = this._chartPalette();
-        const textColor = palette.muted;
         const allSales = Store.getSales(), allPurchases = Store.getPurchases(), allExpenses = Store.getExpenses();
 
         const labels = [], gewinne = [];
@@ -464,17 +499,12 @@ const Dashboard = {
         this._renderChartData('dashChartGewinnData', 'Gewinn der letzten zwölf Monate', labels, [{ name: 'Gewinn', data: gewinne }]);
         if (typeof ApexCharts === 'undefined') return;
         this._chartGewinn = new ApexCharts(el, {
-            chart: { type: 'line', height: 220, background: 'transparent', toolbar: { show: false }, fontFamily: 'inherit', animations: { enabled: false } },
-            theme: { mode: isDark ? 'dark' : 'light' },
+            ...this._chartOptions('area', 260, labels, [gewinne]),
             series: [{ name: (typeof I18n !== 'undefined' ? I18n.t('chart.profit') : 'Gewinn'), data: gewinne }],
             colors: [palette.text],
             stroke: { curve: 'straight', width: 2 },
-            markers: { size: 3, colors: [palette.text], strokeWidth: 0 },
-            xaxis: { categories: labels, labels: { style: { colors: textColor, fontSize: '14px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
-            yaxis: { labels: { style: { colors: textColor, fontSize: '14px' }, formatter: v => Utils.formatCurrency(v) } },
-            grid: { borderColor: palette.border, strokeDashArray: 4 },
-            tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => Utils.formatCurrency(v) } },
-            dataLabels: { enabled: false }, legend: { show: false }
+            fill: { type: 'solid', opacity: 0.06 },
+            markers: { size: 0, hover: { size: 4 } }
         });
         this._chartGewinn.render();
 
@@ -486,22 +516,13 @@ const Dashboard = {
             const years = [cy - 2, cy - 1, cy].filter(y => y >= 2020);
             const stats = years.map(y => this._getYearStats(y));
             this._chartJahres = new ApexCharts(elJ, {
-                chart: { type: 'line', height: 220, background: 'transparent', toolbar: { show: false }, fontFamily: 'inherit', animations: { enabled: false } },
-                theme: { mode: isDark ? 'dark' : 'light' },
+                ...this._chartOptions('bar', 260, years.map(String), stats.map(s => [s.einnahmen, s.ausgaben, s.gewinn])),
                 series: [
                     { name: (typeof I18n !== 'undefined' ? I18n.t('chart.revenue')  : 'Einnahmen'), data: stats.map(s => parseFloat(s.einnahmen.toFixed(2))) },
                     { name: (typeof I18n !== 'undefined' ? I18n.t('chart.expenses') : 'Ausgaben'),  data: stats.map(s => parseFloat(s.ausgaben.toFixed(2)))  },
                     { name: (typeof I18n !== 'undefined' ? I18n.t('chart.profit')   : 'Gewinn'),    data: stats.map(s => parseFloat(s.gewinn.toFixed(2)))    }
                 ],
-                colors: [palette.text, palette.text, palette.text],
-                stroke: { curve: 'straight', width: 2, dashArray: [0, 6, 2] },
-                markers: { size: [3, 0, 0] },
-                xaxis: { categories: years.map(String), labels: { style: { colors: textColor, fontSize: '14px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
-                yaxis: { labels: { style: { colors: textColor, fontSize: '14px' }, formatter: v => Utils.formatCurrency(v) } },
-                grid: { borderColor: palette.border, strokeDashArray: 4 },
-                legend: { labels: { colors: textColor }, fontSize: '14px' },
-                tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => Utils.formatCurrency(v) } },
-                dataLabels: { enabled: false }
+                fill: { type: ['solid', 'solid', 'pattern'], pattern: { style: 'slantedLines', width: 5, height: 5, strokeWidth: 2 } }
             });
             this._chartJahres.render();
         }
@@ -559,12 +580,6 @@ const Dashboard = {
         const sales     = Store.getSales();
         const purchases = Store.getPurchases();
         const expenses  = Store.getExpenses();
-        // Theme.isDark() statt matchMedia: matchMedia kennt nur die Systemeinstellung
-        // und liefert die falsche Palette, sobald jemand manuell umgeschaltet hat.
-        const isDark    = (typeof Theme !== 'undefined') ? Theme.isDark()
-                        : window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const palette = this._chartPalette();
-        const textColor = palette.muted;
 
         const labels = [], einnahmen = [], ausgaben = [];
         for (let m = 0; m < 12; m++) {
@@ -588,18 +603,8 @@ const Dashboard = {
         this._renderChartData('dashChartData', 'Einnahmen und Ausgaben ' + year, labels, [{ name: 'Einnahmen', data: einnahmen }, { name: 'Ausgaben', data: ausgaben }]);
         if (typeof ApexCharts === 'undefined') return;
         this._chart = new ApexCharts(el, {
-            chart: { type: 'line', height: 220, background: 'transparent', toolbar: { show: false }, fontFamily: 'inherit', animations: { enabled: false } },
-            theme: { mode: isDark ? 'dark' : 'light' },
-            series: [{ name: 'Einnahmen', data: einnahmen }, { name: 'Ausgaben', data: ausgaben }],
-            colors: [palette.text, palette.text],
-            stroke: { curve: 'straight', width: 2, dashArray: [0, 6] },
-            markers: { size: [3, 0] },
-            xaxis: { categories: labels, labels: { style: { colors: textColor, fontSize: '14px' } }, axisBorder: { show: false }, axisTicks: { show: false } },
-            yaxis: { labels: { style: { colors: textColor, fontSize: '14px' }, formatter: v => Utils.formatCurrency(v) } },
-            grid: { borderColor: palette.border, strokeDashArray: 4 },
-            legend: { labels: { colors: textColor }, fontSize: '14px' },
-            tooltip: { theme: isDark ? 'dark' : 'light', y: { formatter: v => Utils.formatCurrency(v) } },
-            dataLabels: { enabled: false }
+            ...this._chartOptions('bar', 300, labels, [einnahmen, ausgaben]),
+            series: [{ name: 'Einnahmen', data: einnahmen }, { name: 'Ausgaben', data: ausgaben }]
         });
         this._chart.render();
     },

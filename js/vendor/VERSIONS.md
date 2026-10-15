@@ -9,6 +9,21 @@ gegen eine über das Netz geladene Datei. Bei lokalen Dateien schützt es vor ni
 Datei ändern kann, ändert das Attribut mit). Die Hashes unten sind der Ersatz dafür: sie
 belegen, welches Original eingecheckt wurde.
 
+### ApexCharts: externe Styles (2026-10-07)
+
+`css/vendor/apexcharts.css` enthält unverändert die beiden CSS-Strings (Basis und Legende)
+aus ApexCharts 3.54.1. Das Stylesheet wird in `app.html` mit `id="apexcharts-css"` geladen.
+Diese ID verhindert bereits im Original die erneute Injektion der Basis-Styles.
+Ein lokaler Patch in `appendToForeignObject` überspringt zusätzlich die Legenden-Injektion,
+wenn dieses externe Stylesheet vorhanden ist. Ohne den Link bleibt das Originalverhalten
+erhalten. Die CSP bleibt unverändert; weder Nonces noch `unsafe-inline` für Style-Elemente
+werden benötigt. Bei einem Vendor-Update CSS und diesen Guard gemeinsam übernehmen.
+
+Die folgende Tabelle dokumentiert weiterhin die unveränderte Bezugsdatei. Lokale SHA-256:
+
+- `js/vendor/apexcharts.min.js`: `52ad2d064030247e3aa40af41732bf095a8276c549d278e5eb461a9be63ca041`
+- `css/vendor/apexcharts.css`: `706874a42ec1d8c90e6f8826fef9226fa343583b3f9f34be9871e47e871da454`
+
 Beide Ordner (`Web 1.7/js/vendor/` und `Local 1.7/js/vendor/`) sind **byte-identisch** zu
 halten. Nach jedem Austausch: `md5sum` beider Dateien vergleichen.
 

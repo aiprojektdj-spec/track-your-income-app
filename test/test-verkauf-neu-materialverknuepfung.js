@@ -44,6 +44,7 @@ function welt({ limitErreicht = false } = {}) {
         showToast: (msg, typ) => toasts.push({ msg, typ }),
         getDateInputValue: id => el(id).value,
         readLandField: () => ({ land: 'DE', ausfuhrnachweis: false }),
+        landFieldHtml: () => '',
         calculateNetRevenue: (vk, vkK, geb, vs) => vk + vkK - vk * geb / 100 - vs,
         todayISO: () => '2026-10-15'
     };
@@ -55,10 +56,22 @@ function welt({ limitErreicht = false } = {}) {
         getLimit: () => 0, requirePro: f => proHinweise.push(f)
     };
 
-    const ctx = ladeModule(['js/steuerstatus.js', 'js/rechnung-summen.js', 'js/store.js', 'js/buchungen.js'],
-        { localStorage, Utils, document, Webhooks, UserPlan });
+    const modals = { geschlossen: 0 };
+    const App = { showModal() {}, closeModal: () => { modals.geschlossen++; } };
+    const ctx = ladeModule(['js/steuerstatus.js', 'js/rechnung-summen.js', 'js/store.js', 'js/buchungen.js', 'js/lager.js'],
+        { localStorage, Utils, document, Webhooks, UserPlan, App });
     ctx.Store.saveSettings({ ustMode: 'klein' });
     ctx.Buchungen._renderTab = () => {};
+    ctx.Lager.render = () => ''; ctx.Lager.init = () => {};
+    ctx.modals = modals;
+    // Verkaufsdialog im Lager (js/lager.js openVerkaufModal → #saveVerkauf)
+    ctx.lagerVerkauf = ids => {
+        Object.keys(els).forEach(k => delete els[k]);
+        ctx.Lager.openVerkaufModal(ids);
+        el('vk_datum').value = '2026-10-15';
+        el('vk_preis').value = '40';
+        el('saveVerkauf').click();
+    };
 
     const mat = ctx.Store.saveMaterialBestandItem({ name: 'Karton S', einheit: 'Stück', bestand: 10, kostenProEinheit: 0.5 });
 
@@ -145,6 +158,35 @@ check('Free-Tier-Limit beim Paketverkauf: ebenso nichts gebucht', () => {
     assert.strictEqual(ctx.Store.getSales().length, 0);
     assert.strictEqual(ctx.verbrauch().length, 0);
     assert.ok(!ctx.toasts.some(t => t.typ === 'success'));
+});
+
+check('Lager-Dialog: Verkauf wird angelegt, Dialog schließt, Erfolgsmeldung', () => {
+    const ctx = welt();
+    const p = ctx.neuerEinkauf('Levis');
+    ctx.lagerVerkauf([p.id]);
+    const sales = ctx.Store.getSales();
+    assert.strictEqual(sales.length, 1);
+    assert.strictEqual(ctx.audit(sales[0].id)[0].action, 'erstellt');
+    assert.strictEqual(ctx.modals.geschlossen, 1, 'Dialog geschlossen');
+    assert.ok(ctx.toasts.some(t => t.typ === 'success'), 'Erfolgsmeldung');
+});
+
+check('Lager-Dialog beim Free-Tier-Limit: Dialog bleibt offen, keine Erfolgsmeldung (Einzel + Paket)', () => {
+    for (const anzahl of [1, 2]) {
+        const ctx = welt({ limitErreicht: true });
+        // Einkäufe am Limit vorbei direkt in den Speicher, wie Bestandsdaten aus der Pro-Zeit
+        const ids = [];
+        for (let i = 0; i < anzahl; i++) {
+            const id = 'p' + i; ids.push(id);
+            const roh = ctx.Store.getAllPurchasesRaw();
+            roh.push({ id, datum: '2026-10-01', marke: 'M' + i, artikeltyp: 'Jacke', einkaufspreis: 10, status: 'verfuegbar' });
+            ctx.Store.set('purchases', roh);
+        }
+        ctx.lagerVerkauf(ids);
+        assert.strictEqual(ctx.Store.getSales().length, 0, anzahl + ' Artikel: kein Verkauf');
+        assert.strictEqual(ctx.modals.geschlossen, 0, anzahl + ' Artikel: Dialog bleibt offen');
+        assert.ok(!ctx.toasts.some(t => t.typ === 'success'), anzahl + ' Artikel: keine Erfolgsmeldung');
+    }
 });
 
 console.log(`\n${pass}/${pass + fail} bestanden`);

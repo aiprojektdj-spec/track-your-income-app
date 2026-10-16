@@ -11,8 +11,8 @@ Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 | E1 | **E2E bleibt.** Supabase speichert nur Chiffrat. Fremddaten (Shopify, Bank) später per Sealed Box mit dem Nutzer-Pubkey |
 | E2 | **Whop bleibt** Login und Zahlung. Supabase kennt nur die Whop-`user_id` |
 | E3 | **Kein `supabase-js`**, kein `tweetnacl`. Zugriff nur aus `api/` per `fetch` auf PostgREST/Storage, Service-Key nie im Browser |
-| E5 | Eigene Projekte `stackr-prod` + `stackr-preview`, Frankfurt (eu-central-1), Pro-Plan |
-| E6 | **Supabase bleibt bis zum Launch im Free-Plan** (User, 2026-10-07). Bis dahin keine Supabase-Env-Variable in Vercel (`SUPABASE_*`, `STORAGE_MIRROR`, `STORAGE_BACKEND`, `BLOB_BACKEND`), also kein Spiegel und kein Umschalten: Der Umzug ruht nach Schritt 1. Stand 2026-10-07: zwei Projekte, `usrhhjwvoefjdgrwovkg` (alle fünf Migrationen, steht in der CSP) und `Stackr`/`nvtjzeffngwfsqjzdrdz` (leer). Prod = `usrhhjwvoefjdgrwovkg`, Preview = `nvtjzeffngwfsqjzdrdz` (Festlegung aus PR #18) |
+| E5 | Eigenes Projekt `stackr-prod`, Frankfurt (eu-central-1), Pro-Plan. Ursprünglich auch `stackr-preview` geplant; Stand 2026-10-16 gibt es **kein** Preview-Projekt mehr (`nvtjzeffngwfsqjzdrdz` gelöscht) |
+| E6 | ~~Supabase bleibt bis zum Launch im Free-Plan~~ (User, 2026-10-07) — **überholt**: Stand 2026-10-16 (per Connector geprüft) läuft die Organisation auf **Pro**. Es gibt nur noch ein Projekt: `usrhhjwvoefjdgrwovkg` = `stackr-prod` (Name im Dashboard gesetzt), Prod laut PR #18, steht in der CSP |
 
 ## Was es schon gibt — Sync (Commit `78a711e`, auf `master`, ohne Env-Variablen wirkungslos)
 
@@ -80,9 +80,9 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 
 | # | Schritt | Wer | Erledigt wenn |
 |---|---|---|---|
-| 0 | Supabase-Projekte `stackr-prod` + `stackr-preview` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 Prod = `usrhhjwvoefjdgrwovkg` (steht in der CSP), Preview = `nvtjzeffngwfsqjzdrdz` (Anzeigename noch „Stackr“, umbenennen in `stackr-preview`), beide Frankfurt. Organisation auf **Free-Plan**, bleibt so bis zum Launch (E6); erst dann Pro (Free: 50-MB-Grenze, Pause nach 7 Tagen, keine Backups). Spend Cap, AV-Vertrag offen |
-| 1 | Migrationen in **beiden** Projekten ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-08: sieben) | 👤, 🤖 liefert Anleitung | ✅ 2026-10-08, per Connector geprüft: **beide** Projekte (`usrhhjwvoefjdgrwovkg`, `nvtjzeffngwfsqjzdrdz`) haben alle sieben — 13 Tabellen mit RLS, 0 Policies, 32 `sync_*`-Funktionen nur für `service_role`, `anon`/`authenticated` ohne Tabellen-/Funktionsrechte, Bucket `attachments` privat (200 MB) |
-| 2 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in Vercel eintragen (Sensitive), getrennt für Production und Preview; dazu `WHOP_SESSION_KEY` (32 Byte Base64, für die Whop-Sitzungen in Supabase) | 👤 | 🟡 2026-10-08 **Production** gesetzt (Type Secret): `SUPABASE_URL` = `usrhhjwvoefjdgrwovkg`, `SUPABASE_SERVICE_ROLE_KEY` = Legacy-`service_role`-JWT (der Code schickt ihn auch als Bearer, deshalb kein `sb_secret_…`), `WHOP_SESSION_KEY` lokal erzeugt, nie angezeigt. Bewusst **nicht** gesetzt: `STORAGE_BACKEND`, `STORAGE_MIRROR`, `BLOB_BACKEND`. Preview-Werte offen. `WHOP_SESSION_KEY` nicht mehr ändern (sonst einmal Neu-Login für alle) |
+| 0 | Supabase-Projekt `stackr-prod` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 2026-10-16: `usrhhjwvoefjdgrwovkg` heißt `stackr-prod`, Frankfurt, Organisation auf **Pro**. Preview-Projekt gibt es nicht mehr. Spend Cap, 2FA und AV-Vertrag lassen sich per Connector nicht prüfen → im Dashboard bestätigen |
+| 1 | Migrationen in `stackr-prod` ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-16: zehn) | 👤, 🤖 liefert Anleitung | ✅ 2026-10-16 per Connector geprüft: `stackr-prod` hat alle zehn (Stichproben: `ops_alerts`, Sequenzrechte für `service_role`, `sync_append_anchors_v2`) — 13 Tabellen, alle mit RLS, 33 `sync_*`-Funktionen, alle mit festem `search_path`. Neue Migrationen weiter hier ausführen |
+| 2 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in Vercel eintragen (Sensitive), getrennt für Production und Preview; dazu `WHOP_SESSION_KEY` (32 Byte Base64, für die Whop-Sitzungen in Supabase) | 👤 | 🟡 2026-10-08 **Production** gesetzt (Type Secret): `SUPABASE_URL` = `usrhhjwvoefjdgrwovkg`, `SUPABASE_SERVICE_ROLE_KEY` = Legacy-`service_role`-JWT (der Code schickt ihn auch als Bearer, deshalb kein `sb_secret_…`), `WHOP_SESSION_KEY` lokal erzeugt, nie angezeigt. Bewusst **nicht** gesetzt: `STORAGE_BACKEND`, `STORAGE_MIRROR`, `BLOB_BACKEND`. Preview: **keine** Supabase-Werte setzen, solange es kein Preview-Projekt gibt (sonst schreibt Preview in Prod). `WHOP_SESSION_KEY` nicht mehr ändern (sonst einmal Neu-Login für alle) |
 | 3 | Code deployen | 🤖 | ✅ `78a711e`/`747dcfd` auf `master` |
 | 4 | `STORAGE_MIRROR=supabase` setzen, neu deployen → Dual-Write | 👤 | keine `mirror-failed`-Alarme |
 | 5 | Backfill `--write`, dann `--check` (lokal, mit den Prod-Env-Werten) | 👤 führt aus, 🤖 begleitet | `--check` Exit 0 |
@@ -150,5 +150,5 @@ SQL am 2026-10-08 gegen Postgres 16 gefahren (alle vier Migrationen in Reihenfol
 
 ## Offene Fragen an den User
 
-1. ~~Welches der beiden Supabase-Projekte ist Prod, welches Preview?~~ Prod = `usrhhjwvoefjdgrwovkg`, Preview = `nvtjzeffngwfsqjzdrdz` (Festlegung aus PR #18).
-2. Preview: eigenes Redis anlegen oder in Preview einfach **keinen** Spiegel setzen? (Empfehlung: keinen Spiegel, Preview testet gegen `stackr-preview` mit eigenen Testdaten.)
+1. ~~Welches der beiden Supabase-Projekte ist Prod, welches Preview?~~ Prod = `usrhhjwvoefjdgrwovkg` (`stackr-prod`, PR #18). Das Preview-Projekt ist seit spätestens 2026-10-16 gelöscht.
+2. ~~Preview: eigenes Redis oder keinen Spiegel?~~ Ohne Preview-Projekt erledigt: In Preview werden gar keine Supabase-Variablen gesetzt. Kommt wieder ein Preview-Projekt, stellt sich die Frage neu (Preview teilt Redis mit Prod).

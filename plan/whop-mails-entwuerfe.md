@@ -1,6 +1,6 @@
 # Zwei Whop-Mails — fertige Entwürfe (N4)
 
-**Stand: 2026-08-16, gegen den Code nachgezogen 2026-10-14** (Preis exklusiv USt, Backup-Knopf,
+**Stand: 2026-08-16, gegen den Code nachgezogen 2026-10-14** (Preis inkl. USt seit Whop-Umstellung 2026-10-16, Backup-Knopf,
 Cloud-Sync, §147 AO 8/10 Jahre). Aufgabe 2.2 aus [`01-AUFGABEN.md`](01-AUFGABEN.md). Reine
 Whop-Backend-Konfiguration, kein Code in diesem Repo. Einfügen musst du sie selbst — Claude
 meldet sich nicht bei Whop an.
@@ -28,7 +28,7 @@ Eine Rückbuchung kostet dich Gebühr **und** Konto-Reputation — die Mail ist 
 >
 > kurze Vorwarnung, damit auf deinem Kontoauszug keine Überraschung steht: Dein Stackr-Jahresabo
 > verlängert sich am **{{renewal_date}}** automatisch um zwölf Monate. Abgebucht werden
-> **160,65 € (135 € zzgl. 19 % USt)** über die bei Whop hinterlegte Zahlungsart.
+> **135 € (inkl. 19 % USt)** über die bei Whop hinterlegte Zahlungsart.
 >
 > Du musst nichts tun — alles läuft weiter wie bisher, deine Daten und Einstellungen bleiben
 > unverändert.

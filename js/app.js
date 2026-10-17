@@ -37,6 +37,7 @@ const App = {
         rechtsform: Rechtsform,
         lohnsteuer: Lohnsteuer,
         gewerbesteuer: Gewerbesteuer,
+        bestandscheck: Bestandscheck,
         // Eingebettete Rechnungen-Sub-App — bootet via RechApp.mount() in #content
         rechnungen: {
             render() { return '<div id="rechMount"></div>'; },

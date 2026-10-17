@@ -24,7 +24,7 @@ const context = {
     matchMedia: () => ({ matches: false }), addEventListener() {}
 };
 context.window = context;
-for (const name of ['Dashboard', 'Buchungen', 'Lager', 'Euer', 'Ausgaben', 'Statistiken', 'Protokoll', 'Retouren', 'Fahrtenbuch', 'Kassenbuch', 'Steuertermine', 'Materiallager', 'Akademie', 'GbrModul', 'Afa', 'Privatbuchungen', 'UstVoranmeldung', 'Ksk', 'BankImport', 'Steuerberater', 'Vorsteuer', 'OSS', 'Koerperschaftsteuer', 'Bilanz', 'Rechtsform', 'Lohnsteuer', 'Gewerbesteuer']) {
+for (const name of ['Dashboard', 'Buchungen', 'Lager', 'Euer', 'Ausgaben', 'Statistiken', 'Protokoll', 'Retouren', 'Fahrtenbuch', 'Kassenbuch', 'Steuertermine', 'Materiallager', 'Akademie', 'GbrModul', 'Afa', 'Privatbuchungen', 'UstVoranmeldung', 'Ksk', 'BankImport', 'Steuerberater', 'Vorsteuer', 'OSS', 'Koerperschaftsteuer', 'Bilanz', 'Rechtsform', 'Lohnsteuer', 'Gewerbesteuer', 'Bestandscheck']) {
     context[name] = { render() { return ''; }, init() {} };
 }
 context.Rechtsform.getConfig = () => ({ bilanzOptional: true, privatbuchungen: true, ksk: true, gewerbesteuer: true });

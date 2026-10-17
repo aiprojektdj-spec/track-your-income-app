@@ -32,6 +32,7 @@
                     row('Warenkategorien', 'Kategorien anlegen, umbenennen und löschen', 'href="lager/index.html?verwaltung=kategorien"') +
                     row('Artikelstatus', 'Eigene Status und vorhandene Zuordnungen verwalten', 'href="lager/index.html?verwaltung=status"')) +
                 section('Daten und Verbindungen', 'Sicherungen, Geräte und Automatisierungen.',
+                    route('Bestandscheck', 'Ältere Buchungen auf bekannte Altfehler prüfen, mit Vorschau vor jeder Korrektur', 'bestandscheck') +
                     action('Backup und Wiederherstellung', 'Export, Import, automatische Sicherung und Datenverwaltung', 'backup') +
                     action('Cloud-Sync', 'Verbindung, Wiederherstellungscode und Synchronisierungsstatus', 'sync') +
                     action('Make.com-Webhooks', 'Bestehende Ereignisse, Zieladressen und Verbindungstests', 'settings', 'set_webhook_neuer_einkauf')) +

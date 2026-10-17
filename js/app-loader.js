@@ -59,6 +59,7 @@
         'js/fachfehler.js',
         'rechnungen/js/rechnung.js',
         'js/storno-vorgang.js',
+        'js/bestandscheck.js',
         'rechnungen/js/dokumente.js',
         'rechnungen/js/kunden.js',
         'rechnungen/js/produkte.js',

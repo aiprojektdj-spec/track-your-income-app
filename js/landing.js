@@ -467,11 +467,11 @@
         if (isYearly) {
             priceEl.childNodes[0].textContent = '11,25 € ';
             periodEl.textContent = '/ Monat';
-            descEl.textContent   = 'Abgerechnet jährlich (135 €) · Du sparst 45 € · inkl. MwSt.';
+            descEl.textContent   = 'Abgerechnet jährlich (135 €) · Du sparst 45 € · keine USt (§ 19 UStG)';
         } else {
             priceEl.childNodes[0].textContent = '15,00 € ';
             periodEl.textContent = '/ Monat';
-            descEl.textContent   = 'inkl. MwSt. · Jederzeit kündbar';
+            descEl.textContent   = 'Endpreis, keine USt (§ 19 UStG) · Jederzeit kündbar';
         }
         // Bei aktiver Whop-Session zeigt der CTA "Zur App" (checkExistingSession) — nicht überschreiben
         if (!ctaBtn.dataset.session) {

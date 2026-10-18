@@ -50,8 +50,8 @@
                 ? '<strong>135 €</strong> pro Jahr'
                 : '<strong>15 €</strong> pro Monat';
             if (billingNote) billingNote.textContent = yearly
-                ? '7 Tage kostenlos, danach 135 € jährlich (11,25 € im Monat), inkl. MwSt.'
-                : '7 Tage kostenlos, danach 15 € monatlich, inkl. MwSt.';
+                ? '7 Tage kostenlos, danach 135 € jährlich (11,25 € im Monat), keine USt (§ 19 UStG)'
+                : '7 Tage kostenlos, danach 15 € monatlich, keine USt (§ 19 UStG)';
         });
     });
 })();

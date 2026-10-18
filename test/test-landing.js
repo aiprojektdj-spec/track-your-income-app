@@ -147,7 +147,7 @@ test('Ohne JavaScript bleiben Inhalt, Anmeldung und korrekt beschrifteter Monats
     assert.match(get('[data-renewal]').textContent, /15 € monatlich/);
     assert.match(get('[data-renewal]').textContent, /automatisch/);
     assert.match(get('.trial-note').textContent, /7 Tage[\s\S]*Zahlungsmittel/);
-    assert.match(get('.tax-note').textContent, /inkl\. MwSt\./);
+    assert.match(get('.tax-note').textContent, /§ 19 UStG/);
     assert.strictEqual(get('[data-login]').href, 'app.html');
     assert.strictEqual(get('[data-session-link]').href, '#preise');
     assert.strictEqual(get('[data-consent-settings]').href, 'cookies.html');

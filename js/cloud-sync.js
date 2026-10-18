@@ -551,7 +551,11 @@ var CloudSync = (function () {
                 var entries = [];
                 for (var j = 0; j < batch.length; j++) entries.push({ id: batch[j].id, h: await Store._auditContentHash(batch[j]) });
                 var res = await _api({ action: 'anchor', scope: scope, entries: entries });
-                if (res.status !== 200) return;   // Rate-Limit o.ä. — nächster Sync versucht es erneut
+                // 409 anchor_conflict: eine ID ist mit anderem Hash verankert — das ist genau der
+                // Manipulationsfall; nicht als verankert merken, die Prüfung zeigt die Abweichung.
+                // 507 anchor_capacity: Server nimmt keine neuen Anker mehr an (S3) — melden.
+                if (res.status === 507) console.warn('[CloudSync] Audit-Anker: Kapazität erreicht, neue Einträge werden nicht mehr extern verankert');
+                if (res.status !== 200) { _saveAnchored(scope, Array.from(already)); return; }
                 batch.forEach(function (e) { already.add(e.id); });
             }
             _saveAnchored(scope, Array.from(already));
@@ -620,16 +624,40 @@ var CloudSync = (function () {
         try { localStorage.setItem(LS_CO_TOMBS, JSON.stringify(list)); } catch (e) {}
     }
 
-    function _mergeRecords(localArr, remoteArr, base, entityType) {
-        var byId = {}, localDirty = false, remoteDirty = false, remoteIds = {}, conflicts = [];
-        (localArr || []).forEach(function (r) { if (r && r.id != null) byId[r.id] = r; });
+    // tombs (optional): { 'typ:id': deletedAt } — die Löschmarken DIESES Scopes, beide Seiten
+    // vereinigt (s. _merge). Ohne tombs gilt wie früher Store.isTombstoned() (aktive Firma).
+    //
+    // Regel bei gelöschten Datensätzen (Audit 2026-10-13, L6/L7): Die Löschmarke wirkt auf die
+    // GESAMTE Menge — lokale und entfernte Datensätze. Ein Gerät mit Altbestand behält den
+    // gelöschten Datensatz also nicht und lädt ihn nicht wieder hoch. Löschung gewinnt immer;
+    // wurde der Datensatz nach der Löschung noch auf einem anderen Gerät geändert, geht diese
+    // Änderung verloren und wird als loeschKonflikt gemeldet (Vergleich nur zur Meldung, die
+    // Entscheidung hängt nicht an der Systemuhr). IDs werden nie wiederverwendet; eine
+    // "Wiederherstellung" ist deshalb immer eine Neuanlage mit neuer ID.
+    function _mergeRecords(localArr, remoteArr, base, entityType, tombs) {
+        var byId = {}, localDirty = false, remoteDirty = false, remoteIds = {}, conflicts = [], loeschKonflikte = [];
+        var istTot = function (id) {
+            if (!entityType) return false;
+            if (tombs) return Object.prototype.hasOwnProperty.call(tombs, entityType + ':' + id);
+            return _isTombstoned(entityType, id);
+        };
+        var melde = function (r) {
+            var t = tombs ? tombs[entityType + ':' + r.id] : null;
+            if (t && (r.updatedAt || 0) > t) loeschKonflikte.push({ id: r.id, geaendert: r.updatedAt, geloescht: t });
+        };
+        (localArr || []).forEach(function (r) {
+            if (!r || r.id == null) return;
+            if (istTot(r.id)) { melde(r); localDirty = true; return; }   // lokaler Altbestand trotz Löschmarke
+            byId[r.id] = r;
+        });
         var localIds = Object.keys(byId);
         (remoteArr || []).forEach(function (r) {
             if (!r || r.id == null) return;
             var ex = byId[r.id];
-            if (!ex && entityType && _isTombstoned(entityType, r.id)) {
-                // Lokal bewusst gelöscht (Tombstone vorhanden) — NICHT wieder aufnehmen. remoteDirty,
-                // damit der nächste Push die veraltete Remote-Kopie ebenfalls entfernt.
+            if (istTot(r.id)) {
+                // Gelöscht — NICHT wieder aufnehmen. remoteDirty, damit der nächste Push die
+                // veraltete Remote-Kopie ebenfalls entfernt.
+                melde(r);
                 remoteDirty = true;
                 return;
             }
@@ -646,7 +674,7 @@ var CloudSync = (function () {
             }
         });
         localIds.forEach(function (id) { if (!remoteIds[id]) remoteDirty = true; });
-        return { val: Object.keys(byId).map(function (id) { return byId[id]; }), localDirty: localDirty, remoteDirty: remoteDirty, conflicts: conflicts };
+        return { val: Object.keys(byId).map(function (id) { return byId[id]; }), localDirty: localDirty, remoteDirty: remoteDirty, conflicts: conflicts, loeschKonflikte: loeschKonflikte };
     }
 
     // Audit-Log: append-only Union + deterministisches Re-Chaining (GoBD)
@@ -679,7 +707,22 @@ var CloudSync = (function () {
         if (remote) Object.keys(remote.keys).forEach(function (k) { all[k] = 1; });
         var aKey = scope + '__audit_log';
 
+        // Löschmarken ZUERST vereinigen, und zwar die dieses Scopes (L6: vorher las der Merge die
+        // der gerade aktiven Firma — die Reihenfolge der zuletzt geöffneten Firma entschied, ob
+        // eine gelöschte Ausgabe wiederkam). Danach gilt die vereinigte Menge für alle Keys.
+        var tKey = null;
+        Object.keys(all).forEach(function (k) { if (/__reselling_tombstones$/.test(k)) tKey = k; });
+        var tombs = {}, loeschKonflikte = [];
+        if (tKey) {
+            var rt = _mergeRecords(local.keys[tKey], remote ? remote.keys[tKey] : undefined, base[tKey], null);
+            mergedKeys[tKey] = rt.val; if (rt.localDirty) localDirty = true; if (rt.remoteDirty) remoteDirty = true;
+            (rt.val || []).forEach(function (t) {
+                if (t && t.entityType && t.entityId != null) tombs[t.entityType + ':' + t.entityId] = t.deletedAt || 0;
+            });
+        }
+
         Object.keys(all).forEach(function (k) {
+            if (k === tKey) return;
             var lv = local.keys[k], rv = remote ? remote.keys[k] : undefined;
             if (k === aKey) {
                 var ra = _mergeAudit(lv, rv);
@@ -691,8 +734,9 @@ var CloudSync = (function () {
                     // Ohne diesen Zweig lief die Firmenregistry ohne Grabsteinpruefung durch die
                     // Union: eine geloeschte Firma kam beim naechsten Sync als leerer Zombie zurueck.
                     : (k === 'oyi_companies') ? 'firma' : null;
-                var rr = _mergeRecords(lv, rv, base[k], entityType);
+                var rr = _mergeRecords(lv, rv, base[k], entityType, entityType && entityType !== 'firma' ? tombs : undefined);
                 mergedKeys[k] = rr.val; if (rr.localDirty) localDirty = true; if (rr.remoteDirty) remoteDirty = true;
+                if (rr.loeschKonflikte && rr.loeschKonflikte.length) rr.loeschKonflikte.forEach(function (c) { loeschKonflikte.push({ key: k, id: c.id }); });
                 if (rr.conflicts.length) rr.conflicts.forEach(function (c) { conflicts.push({ key: k, id: c.id, mine: c.mine, theirs: c.theirs }); });
             } else {
                 // Whole-Value-LWW über Key-Meta
@@ -704,7 +748,8 @@ var CloudSync = (function () {
                 else                        { mergedKeys[k] = lv; mergedMeta[k] = lu; if (JSON.stringify(lv) !== JSON.stringify(rv)) remoteDirty = true; }
             }
         });
-        return { keys: mergedKeys, meta: mergedMeta, localDirty: localDirty, remoteDirty: remoteDirty, conflicts: conflicts };
+        if (loeschKonflikte.length) console.warn('[CloudSync] Löschung gewinnt gegen spätere Änderung:', loeschKonflikte);
+        return { keys: mergedKeys, meta: mergedMeta, localDirty: localDirty, remoteDirty: remoteDirty, conflicts: conflicts, loeschKonflikte: loeschKonflikte };
     }
 
     // ── Lokalen Snapshot bauen ────────────────────────────────────────────────
@@ -1889,15 +1934,27 @@ var CloudSync = (function () {
         var byId = {};
         (res.json.anchors || []).forEach(function (a) { (byId[a.id] = byId[a.id] || []).push(a.h); });
         var log = (typeof Store !== 'undefined') ? Store.getAuditLog() : [];
-        var okCount = 0, notAnchored = 0, mismatches = [];
+        // Abgleich in BEIDE Richtungen (Audit 2026-10-13, S2). Vorher lief die Prüfung nur über
+        // die lokalen Einträge: ein extern verankerter, lokal entfernter Eintrag fiel nicht auf,
+        // und "alle 1 Einträge bestätigt" stand auch bei zwei Server-Ankern und einem lokalen.
+        var lokal = {};
+        log.forEach(function (e) { if (e && e.id != null) lokal[e.id] = 1; });
+        var missingLocally = Object.keys(byId).filter(function (id) { return !lokal[id]; });
+        // Lokal als verankert gemerkt, auf dem Server aber nicht (mehr) vorhanden — z. B. durch
+        // die bis 2026-10-13 übliche Kürzung der Server-Liste. Nicht rekonstruierbar, deshalb
+        // ausdrücklich als "nicht mehr extern belegt" statt als "noch nicht verankert".
+        var gemeldet = new Set(_loadAnchored(scope));
+        var okCount = 0, notAnchored = 0, verloren = [], mismatches = [];
         for (var i = 0; i < log.length; i++) {
             var e = log[i], hashes = byId[e.id];
-            if (!hashes) { notAnchored++; continue; }
+            if (!hashes) { if (gemeldet.has(e.id)) verloren.push(e.id); else notAnchored++; continue; }
             var uniq = Array.from(new Set(hashes));
             var h = await Store._auditContentHash(e);
             if (uniq.length === 1 && uniq[0] === h) okCount++; else mismatches.push(e.id);
         }
-        return { enabled: true, total: log.length, ok: okCount, notAnchored: notAnchored, mismatches: mismatches };
+        return { enabled: true, total: log.length, ok: okCount, notAnchored: notAnchored, mismatches: mismatches,
+                 missingLocally: missingLocally, nichtMehrBelegt: verloren,
+                 vollstaendig: !mismatches.length && !missingLocally.length && !verloren.length && !notAnchored };
     }
 
     // Taegliche automatische Anker-Pruefung (statt nur auf Klick im Protokoll-Modul) —
@@ -1908,6 +1965,12 @@ var CloudSync = (function () {
         try { localStorage.setItem(LS_ANCHOR_CHECK, String(Date.now())); } catch (e) {}
         try {
             var res = await verifyAuditAnchors();
+            if (res.enabled && !res.error && res.missingLocally && res.missingLocally.length && typeof Utils !== 'undefined') {
+                Utils.showToast(
+                    'Audit-Log: ' + res.missingLocally.length + ' extern verankerte(r) Eintrag/Einträge fehlen im lokalen Protokoll — Details im Modul „Protokoll“.',
+                    'error', 12000
+                );
+            }
             if (res.enabled && !res.error && res.mismatches && res.mismatches.length && typeof Utils !== 'undefined') {
                 Utils.showToast(
                     'Audit-Log: ' + res.mismatches.length + ' Eintrag/Einträge weichen vom Cloud-Anker ab (Manipulationsverdacht) — Details im Modul „Protokoll“.',

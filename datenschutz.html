@@ -125,10 +125,12 @@
         <p>
             Tritt in der App ein technischer Fehler auf, meldet dein Browser eine kurze
             Fehlerbeschreibung an unseren Server, damit wir Fehler erkennen und beheben können, bevor
-            sie viele Nutzer treffen. Übertragen werden <strong>nur</strong>: die Art des Fehlers, die
-            Fehlermeldung (gekürzt auf 300 Zeichen; E-Mail-Adressen und Zahlenfolgen ab vier Stellen
-            werden vor dem Speichern entfernt), der Name der Programmdatei samt Zeile und Spalte, die
-            App-Version und der Zeitpunkt.
+            sie viele Nutzer treffen. Übertragen werden <strong>nur</strong>: die Art des Fehlers, ein
+            fester Fehlercode (z.&nbsp;B. „TypeError:read_undefined“, ggf. mit dem betroffenen
+            Bezeichner aus unserem Programmcode), der Name der Programmdatei samt Zeile und Spalte, die
+            App-Version und der Zeitpunkt. Den Wortlaut der Fehlermeldung überträgt dein Browser
+            <strong>nicht</strong> — er bleibt im lokalen Fehlerprotokoll auf deinem Gerät (Ziffer 3).
+            Der Server entfernt zusätzlich E-Mail-Adressen und längere Zahlenfolgen.
         </p>
         <p>
             <strong>Nicht</strong> übertragen werden deine Buchhaltungsdaten, dein Name, deine

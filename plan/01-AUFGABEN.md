@@ -32,7 +32,13 @@ braucht dich, Abschnitt 3 wartet auf Dritte.
 
 ## 1. Code — kann jede Session machen
 
-**Stand 2026-10-07 (gegen den Code geprüft): offen sind nur noch 1.9 (zwei DATEV-Festlegungen)
+**Stand 2026-10-13 (gegen den Code geprüft): Abschnitt 1 ist leer.** 1.8: `webhooks` hat
+`test-webhooks.js` (`9272008`), `error-logger` sendet seit `0aff90d` an `/api/client-error` und
+hat `test-error-logger-beacon.js`. 1.9: Retouren (`b14ebfd`), AfA gegen Anlagekonto und Buchung
+je Position (`62aac4b`), BU-Schlüssel neu festgelegt (`da7b384`, `5352ba9`) — alles
+User-Entscheidung 2026-10-08. Die Texte unten bei 1.8/1.9 sind damit überholt.
+
+Älterer Stand 2026-10-07: offen waren nur noch 1.9 (zwei DATEV-Festlegungen)
 und in 1.8 die Entscheidung über `webhooks`/`error-logger`.** Die Kilometersätze (Regel-7-Rest
 aus 1.8) sind seit `8abd2b6` erledigt, `protokoll`, `steuerberater` und `blob-attachments` haben
 einen Harness. — Älterer Stand: **2026-09-13: zwei offene Punkte, siehe 1.8 und 1.9.** Hier stand bis heute „dieser
@@ -746,8 +752,8 @@ steht (§7 Abs. 3 UWG). Einfügen musst du sie selbst, reine Backend-Konfigurati
 
 - **3 Tage vor der Jahresverlängerung** — 135 € ohne Vorwarnung ist die Buchung, die zu
   Rückfragen und Rückbuchungen führt.
-- **7 Tage nach der Kündigung**, mit dem Hinweis dass die Daten erhalten bleiben. Der
-  Winback-Screen in der App ist gut gemacht, erreicht aber nur Rückkehrer.
+- **Sofort bei Eingang der Kündigung** (nicht erst nach Ablauf — danach sperrt das Gate auch
+  *Backup & Daten*): Daten bleiben erhalten, Backup bis Periodenende ziehen. Umgestellt 2026-10-14.
 
 ### 2.3 Live-Tests — brauchen echte Logins
 

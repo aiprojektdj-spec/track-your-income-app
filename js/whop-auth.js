@@ -625,20 +625,35 @@ var AuthUI = (function () {
     }
 
     // ── Abmelden ──────────────────────────────────────────────
-    function _logout() {
+    // Serverseitigen Widerruf versuchen; true nur bei bestätigtem Erfolg (Audit 2026-10-13, S7 —
+    // vorher galt jede Abmeldung als erfolgreich, auch wenn der Server die Sitzung behielt).
+    var LS_REVOKE_PENDING = 'whop_revoke_pending';
+    function _revokeSession(sid) {
+        return fetch('/api/whop-refresh', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ session_id: sid, revoke: true }),
+            keepalive: true,
+            signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(4000) : undefined
+        }).then(function (r) { return r.ok; }).catch(function () { return false; });
+    }
+    // Beim nächsten Login-Bildschirm einen offenen Widerruf nachholen
+    function _retryPendingRevoke() {
+        var sid = null;
+        try { sid = localStorage.getItem(LS_REVOKE_PENDING); } catch (e) {}
+        if (!sid) return;
+        _revokeSession(sid).then(function (ok) { if (ok) { try { localStorage.removeItem(LS_REVOKE_PENDING); } catch (e) {} } });
+    }
+
+    async function _logout() {
         _removeGate('authUserMenu');
         // Sitzung serverseitig beenden — genau dafuer liegt der Refresh-Token dort und nicht
-        // im Browser. keepalive, weil location.replace() gleich darunter die Seite abraeumt.
+        // im Browser. Lokal wird in jedem Fall abgemeldet; scheitert der Server, bleibt die
+        // Sitzungs-ID als "Widerruf offen" liegen und wird beim nächsten Start nachgeholt.
         var sid = _sessionId();
         if (sid) {
-            try {
-                fetch('/api/whop-refresh', {
-                    method:  'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body:    JSON.stringify({ session_id: sid, revoke: true }),
-                    keepalive: true
-                }).catch(function () {});
-            } catch (e) {}
+            var ok = await _revokeSession(sid);
+            if (!ok) { try { localStorage.setItem(LS_REVOKE_PENDING, sid); } catch (e) {} }
         }
         localStorage.removeItem(LS_TOKEN);
         localStorage.removeItem(LS_USER);
@@ -650,6 +665,10 @@ var AuthUI = (function () {
     // ── Login-Screen ──────────────────────────────────────────
     function _showLoginScreen(errorMsg) {
         _removeGate('whopLoginOverlay');
+        var revokeOffen = false;
+        try { revokeOffen = !!localStorage.getItem(LS_REVOKE_PENDING); } catch (e) {}
+        if (revokeOffen && !errorMsg) errorMsg = 'Abgemeldet. Die Abmeldung beim Server ist noch nicht bestätigt — sie wird automatisch erneut versucht.';
+        _retryPendingRevoke();
 
         var overlay = document.createElement('div');
         overlay.id = 'whopLoginOverlay';

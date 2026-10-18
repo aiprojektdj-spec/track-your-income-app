@@ -1,14 +1,8 @@
 var RechDashboard = (function() {
 
+    // Ein Rechenweg für alle Ausgaben (js/rechnung-summen.js, Audit 2026-10-13 L5)
     function calcBrutto(invoice) {
-        var isKlein = invoice.isKlein !== undefined ? invoice.isKlein : (Store.getSettings().ustMode === 'klein');
-        var sum = 0;
-        (invoice.positionen || []).forEach(function(pos) {
-            var netto = pos.menge * pos.einzelpreis;
-            var mwst = isKlein ? 0 : (netto * pos.mwstSatz / 100);
-            sum += netto + mwst;
-        });
-        return sum;
+        return RechnungSummen.fuerRechnung(invoice, Store.getSettings()).brutto;
     }
 
     // Teilzahlungen (Fund 9) mindern die Restschuld — "Offene Posten" muss den tatsächlich

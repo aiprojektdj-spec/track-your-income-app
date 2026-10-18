@@ -317,7 +317,7 @@ const Lager = {
                     <!-- Verkaufspreis (groß) -->
                     <div>
                         <label class="form-label" style="font-size:11px;">Verkaufspreis (€) *</label>
-                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="vk_preis"
+                        <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="vk_preis" autofocus
                                placeholder="0,00" style="font-size:22px;font-weight:700;padding:8px 12px;"
                                data-action-input="lg-calc-vk">
                     </div>
@@ -397,6 +397,17 @@ const Lager = {
                 platSel.value === 'Sonstiges' ? '' : 'none';
         });
 
+        // Schnellverkauf: Cursor direkt im Preis, Enter speichert. Das Modal öffnet als natives
+        // <dialog> erst einen Takt später (redesign-ui.js) und setzt dabei den Fokus neu —
+        // dort greift nur das autofocus-Attribut am Feld, focus() ist der Fallback ohne <dialog>.
+        const preisEl = document.getElementById('vk_preis');
+        preisEl.focus();
+        preisEl.addEventListener('keydown', e => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            document.getElementById('saveVerkauf').click();
+        });
+
         // Save
         document.getElementById('saveVerkauf').addEventListener('click', () => {
             const datum   = Utils.getDateInputValue('vk_datum');
@@ -429,6 +440,7 @@ const Lager = {
                 notizen:  document.getElementById('vk_notizen').value.trim()
             };
 
+            let saved;
             if (selected.length === 1) {
                 const p = selected[0];
                 saleData.purchaseId  = p.id;
@@ -436,15 +448,17 @@ const Lager = {
                 saleData.artikeltyp  = p.artikeltyp || '';
                 saleData.groesse     = p.groesse || '';
                 saleData.beschreibung = p.beschreibung || '';
-                Store.saveSale(saleData);
+                saved = Store.saveSale(saleData);
             } else {
                 const marken = [...new Set(selected.map(p => p.marke).filter(Boolean))];
                 saleData.purchaseIds = ids;
                 saleData.marke       = marken.join(', ');
                 saleData.artikeltyp  = `${selected.length} Artikel`;
                 saleData.beschreibung = `Paket: ${selected.map(p => [p.marke, p.artikeltyp, p.groesse].filter(Boolean).join(' ')).join(', ')}`;
-                Store.saveSaleMulti(saleData);
+                saved = Store.saveSaleMulti(saleData);
             }
+            // Free-Tier-Limit erreicht: kein Eintrag, keine id (requirePro zeigt den Hinweis)
+            if (!saved || !saved.id) return;
 
             App.closeModal();
             this._selected.clear();

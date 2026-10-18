@@ -57,6 +57,8 @@ function load(data) {
             return new Uint8Array(0);
         }
     };
+    // Gemeinsamer Rechenkern der Rechnungssummen (Audit 2026-10-13, L5) — echte Abhängigkeit
+    global.RechnungSummen = require('../js/rechnung-summen.js');
     const fn = new Function('Store', 'Utils', 'StackrZip', 'localStorage', 'App', 'document',
         src.replace(/^if \(typeof window[\s\S]*$/m, '') + '; return Protokoll;');
     const P = fn(Store, Utils, StackrZip, { getItem: (k) => (ls.has(k) ? ls.get(k) : null) },

@@ -86,12 +86,8 @@ const Protokoll = {
                 // in js/datev.js gebildet werden — sonst blieben die drei Betragsspalten leer,
                 // und eine Rechnungstabelle ohne Beträge nützt dem Prüfer nichts.
                 return docs.map(function (d) {
-                    var netto = 0, ust = 0;
-                    (d.positionen || []).forEach(function (p) {
-                        var zeile = (parseFloat(p.menge) || 0) * (parseFloat(p.einzelpreis) || 0);
-                        netto += zeile;
-                        if (!d.isKlein) ust += zeile * (parseInt(p.mwstSatz) || 0) / 100;
-                    });
+                    var _sum = (typeof RechnungSummen !== 'undefined') ? RechnungSummen.berechne(d.positionen, !!d.isKlein) : null;
+                    var netto = _sum ? _sum.netto : 0, ust = _sum ? _sum.steuer : 0;
                     return Object.assign({}, d, {
                         gesamtNetto:  netto,
                         gesamtUst:    ust,
@@ -564,6 +560,7 @@ const Protokoll = {
                 // Cloud-Anker: externer, vom Gerät nicht rückwirkend veränderbarer Referenzpunkt.
                 // Nur aussagekräftig, wenn Cloud-Sync aktiv ist — sonst gibt es keinen externen Zeugen.
                 let anchorMsg = ' · kein Cloud-Anker (Cloud-Sync aus)';
+                let ankerUnvollstaendig = false;
                 if (typeof CloudSync !== 'undefined') {
                     try {
                         const anchor = await CloudSync.verifyAuditAnchors();
@@ -575,9 +572,21 @@ const Protokoll = {
                                 );
                                 return;
                             }
-                            anchorMsg = anchor.notAnchored
-                                ? ` · Cloud-Anker: ${anchor.ok} bestätigt, ${anchor.notAnchored} noch nicht verankert`
-                                : ` · Cloud-Anker: alle ${anchor.ok} Einträge bestätigt`;
+                            // Extern belegt, lokal fehlend: die Gesamtprüfung ist NICHT bestanden (S2)
+                            if (anchor.missingLocally && anchor.missingLocally.length) {
+                                Utils.showToast(
+                                    `Cloud-Anker: ${anchor.missingLocally.length} extern verankerte(r) Eintrag/Einträge fehlen im lokalen Protokoll (gelöscht oder nicht übertragen) — keine vollständige Integritätsbestätigung möglich.`,
+                                    'error', 12000
+                                );
+                                return;
+                            }
+                            const teile = [`${anchor.ok} bestätigt`];
+                            if (anchor.notAnchored) teile.push(`${anchor.notAnchored} noch nicht verankert`);
+                            if (anchor.nichtMehrBelegt && anchor.nichtMehrBelegt.length) teile.push(`${anchor.nichtMehrBelegt.length} nicht mehr extern belegt (früher verankert, Server-Anker fehlt — nicht rekonstruierbar)`);
+                            ankerUnvollstaendig = !anchor.vollstaendig;
+                            anchorMsg = anchor.vollstaendig
+                                ? ` · Cloud-Anker: alle ${anchor.ok} Einträge bestätigt`
+                                : ` · Cloud-Anker: ${teile.join(', ')}`;
                         } else if (anchor.enabled && anchor.error) {
                             anchorMsg = ' · Cloud-Anker-Prüfung fehlgeschlagen (Server nicht erreichbar)';
                         }
@@ -601,9 +610,11 @@ const Protokoll = {
                     return;
                 }
 
+                // Lokale Kette intakt, externe Belege aber unvollständig: keine uneingeschränkte Bestätigung (S2)
                 Utils.showToast(
-                    `Integritätsprüfung bestanden — ${chainResult.total} Log-Einträge, Hash-Kette intakt${anchorMsg}`,
-                    'success'
+                    (ankerUnvollstaendig ? 'Hash-Kette intakt, externe Belege unvollständig — ' : 'Integritätsprüfung bestanden — ')
+                    + `${chainResult.total} Log-Einträge${anchorMsg}`,
+                    ankerUnvollstaendig ? 'warning' : 'success', ankerUnvollstaendig ? 12000 : undefined
                 );
             });
         }

@@ -28,6 +28,8 @@ html:has(.landing){scroll-behavior:smooth;scroll-padding-top:32px;color-scheme:d
 .landing .action{display:inline-flex;align-items:center;justify-content:center;background:#eee;color:#171717;border:0;border-radius:6px;min-height:48px;padding:11px 24px;font-size:15px;font-weight:500;line-height:1.6;transition:background .15s}
 .landing .action:hover{background:#fff}
 .landing .hero-action{margin-top:30px}
+.landing .hero-login{display:block;width:max-content;margin:16px auto 0;color:inherit;font-size:15px;text-decoration:underline;text-underline-offset:3px}
+.landing .hero-note{max-width:420px;margin:14px auto 0;color:var(--muted);font-size:14px;line-height:1.55}
 .landing .product-figure{max-width:790px;margin:80px auto 0}
 .landing .dashboard{padding:30px 34px 26px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
 .landing .dashboard-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:17px;margin-bottom:27px}

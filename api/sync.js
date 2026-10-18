@@ -224,6 +224,14 @@ module.exports = async function handler(req, res) {
     var isGranteeRead = (action === 'register_pubkey' || action === 'list_grants' ||
                          (action === 'pull' && !!body.owner));
 
+    // Widerruf eigener Freigaben und Löschen eigener Cloud-Daten brauchen KEIN aktives Abo
+    // (Audit 2026-10-13, S9): nach Abo-Ende bekam der Eigentümer sonst 403 auf `revoke`, während
+    // der Steuerberater mit dem bestehenden Grant weiter lesen konnte. Die Identität ist oben
+    // bei Whop geprüft, jede dieser Aktionen wirkt nur auf die eigene userId — `owner` im Body
+    // ist für sie unten ausdrücklich verboten. Neue Grants, Uploads und Pulls bleiben gegated.
+    var isSelbstbedienung = !body.owner && (action === 'revoke' || action === 'list_my_grantees' ||
+                                            action === 'delete' || action === 'reset_all');
+
     // Schreiben in fremde Owner-Daten ist NIE erlaubt (StB read-only) — vor dem Pro-Gate,
     // damit die Antwort 'readonly' ist, egal ob der StB selbst ein Abo hat.
     if ((action === 'push' || action === 'delete') && body.owner)
@@ -231,7 +239,7 @@ module.exports = async function handler(req, res) {
 
     // ── 4. PRO erzwingen (server-seitig) — nur für Owner-/Schreib-Aktionen ────
     var isOwner = isOwnerIdentity(userId, prefUsername);
-    if (!isOwner && !isGranteeRead) {
+    if (!isOwner && !isGranteeRead && !isSelbstbedienung) {
         try {
             // Zugangs-Check: User-Token gegen /api/v2/me/has_access, sonst Company-Key-Fallback.
             if (!(await whopHasAccess(token, userId)))
@@ -258,7 +266,11 @@ module.exports = async function handler(req, res) {
                           action === 'anchor' || action === 'anchor_pull');
     if (isScopeAction && !SCOPE_RE.test(String(scope || ''))) return res.status(400).json({ error: 'bad_scope' });
 
-    var ANCHOR_MAX = 20000;   // LTRIM-Deckel — Hash+ID pro Eintrag ist winzig, das deckt Jahre ab
+    // Kapazität der Audit-Anker (S3): je Scope und je Nutzer über alle Scopes. Ist sie erreicht,
+    // werden NEUE Anker abgelehnt (507) — alte werden nie verdrängt. Die Nutzergrenze gilt auch
+    // über gelöschte Scopes hinweg (deren Anker bleiben stehen, s. delete).
+    var ANCHOR_MAX      = 50000;
+    var ANCHOR_MAX_USER = 200000;
 
     try {
         if (action === 'pull') {
@@ -391,8 +403,13 @@ module.exports = async function handler(req, res) {
                     return res.status(400).json({ error: 'bad_entry' });
                 rows.push({ id: it.id, h: it.h, ts: Date.now() });
             }
-            await store.appendAnchors(userId, scope, rows, ANCHOR_MAX);
-            return res.status(200).json({ ok: true, added: rows.length });
+            var ar = await store.appendAnchors(userId, scope, rows, ANCHOR_MAX, ANCHOR_MAX_USER);
+            if (ar && ar.status === 'conflict') return res.status(409).json({ error: 'anchor_conflict', ids: ar.ids || [] });
+            if (ar && ar.status === 'capacity') {
+                await alertOps('sync', 'anchor-capacity', userId + ' ' + scope);
+                return res.status(507).json({ error: 'anchor_capacity', maxScope: ANCHOR_MAX, maxUser: ANCHOR_MAX_USER });
+            }
+            return res.status(200).json({ ok: true, added: (ar && ar.added) || 0 });
         }
 
         if (action === 'anchor_pull') {

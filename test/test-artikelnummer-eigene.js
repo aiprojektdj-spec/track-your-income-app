@@ -52,6 +52,7 @@ function mockStore(initial) {
         isArtikelNrTaken,
         _addAuditEntry(a, b, c, alt, neu) { this.audit.push({ alt: alt, neu: neu }); },
         _stampRecord(r) { return r; },
+        _ustStempel() {},
         _warnIfPeriodLocked() {},
         generateId() { return 'id_' + (this._data.length + 1); },
         set(k, v) { if (k === 'purchases') this._data = v; },

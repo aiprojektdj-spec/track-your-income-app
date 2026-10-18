@@ -9,7 +9,7 @@
         { id: 'invoices', label: 'Rechnungen', page: 'rechnungen', icon: 'ti-file-invoice' },
         { id: 'inventory', label: 'Lager', page: 'lager', icon: 'ti-package' },
         { id: 'tax', label: 'Steuern', page: 'euer', icon: 'ti-receipt-tax' },
-        { id: 'reports', label: 'Auswertungen', page: 'statistiken', icon: 'ti-chart-line' }
+        { id: 'reports', label: 'Analyse', page: 'statistiken', icon: 'ti-chart-line' }
     ];
     var ROUTES = {
         dashboard: ['overview', 'Übersicht'],
@@ -34,13 +34,14 @@
         koerperschaftsteuer: ['tax', 'Körperschaftsteuer'],
         lohnsteuer: ['tax', 'Beschäftigte und Lohnsteuer'],
         ksk: ['tax', 'Kunst und Publizistik (KSK)'],
-        statistiken: ['reports', 'Entwicklung'],
+        statistiken: ['reports', 'Verkaufskanäle'],
         bilanz: ['reports', 'Jahresabschluss'],
         steuerberater: ['reports', 'Steuerberater'],
         gbr: ['reports', 'Gesellschaft und Verteilung'],
         protokoll: ['reports', 'Änderungsprotokoll'],
         einstellungen: ['settings', 'Einstellungen'],
         rechtsform: ['settings', 'Rechtsform und Pflichten'],
+        bestandscheck: ['settings', 'Bestandscheck'],
         akademie: ['help', 'Hilfe und Akademie']
     };
     var SUBPAGES = {
@@ -296,7 +297,7 @@
             SUBPAGES[page].forEach(function (item) {
                 if (!isSettingsView(page, item[0]) && (!item[2] || !readonly())) links.push(routeLink(page, item[1], item[0]));
             });
-            if (page === 'gbr') links.push(routeLink('statistiken', 'Entwicklung'), routeLink('steuerberater', 'Steuerberater'), routeLink('protokoll', 'Änderungsprotokoll'));
+            if (page === 'gbr') links.push(routeLink('statistiken', 'Verkaufskanäle'), routeLink('steuerberater', 'Steuerberater'), routeLink('protokoll', 'Änderungsprotokoll'));
         } else if (page !== 'einstellungen' && ROUTES[page] && ROUTES[page][0] !== 'overview' && ROUTES[page][0] !== 'help') {
             var group = ROUTES[page][0];
             Object.keys(ROUTES).filter(function (key) { return ROUTES[key][0] === group; }).sort(function (a, b) {

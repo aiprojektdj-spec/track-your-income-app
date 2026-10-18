@@ -54,7 +54,11 @@ function lauf({ euer, settings }) {
             showToast: (m, t) => { out.toasts.push([m, t]); }
         }
     };
-    if (euer) ctx.Euer = { _berechne: (y, m, p) => { out.euerCalls.push([y, m, p]); return euer; } };
+    // _elsterZeilen: die Zeilen, die js/euer.js aus demselben Ergebnis bildet (Audit 2026-10-13,
+    // T02). Hier als Attrappe, damit der Test nur das Paket prüft; die echte Funktion prüft
+    // test/test-steuerberater-euer.js.
+    if (euer) ctx.Euer = { _berechne: (y, m, p) => { out.euerCalls.push([y, m, p]); return euer; },
+        _elsterZeilen: d => d.zeilen };
     vm.createContext(ctx);
     vm.runInContext(src + '; this.Steuerberater = Steuerberater;', ctx);
     ctx.Steuerberater.init();
@@ -65,18 +69,26 @@ function lauf({ euer, settings }) {
 const eur = v => v.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 
 // ── A) Werte aus Euer._berechne ──
-const euerKlein = { isRegel: false, summeEinnahmen: 1234.56, summeAusgaben: 987.65, gewinn: 246.91 };
+const euerKlein = { isRegel: false, gewinn: 246.91, nettoGewinn: 246.91, zeilen: [
+    { key: 'erloeseKlein', bezeichnung: 'Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer', betrag: 1234.56 },
+    { key: 'sonstige', bezeichnung: 'Übrige Betriebsausgaben (netto, Sammelposten)', betrag: 987.65 },
+    { key: 'gewinn', bezeichnung: 'Gewinn / Verlust', betrag: 246.91 }] };
 const a = lauf({ euer: euerKlein, settings: { ustMode: 'klein' } });
 check('A1 Euer._berechne mit (2026, 0, "jahr") aufgerufen',
     () => a.euerCalls.length === 1 && a.euerCalls[0].join('|') === '2026|0|jahr');
-check('A2 Einnahmen aus summeEinnahmen', () => a.html.includes(eur(1234.56)));
-check('A3 Ausgaben aus summeAusgaben',   () => a.html.includes(eur(987.65)));
+check('A2 Einnahmen aus den EÜR-Zeilen', () => a.html.includes(eur(1234.56)));
+check('A3 Ausgaben aus den EÜR-Zeilen',   () => a.html.includes(eur(987.65)));
 check('A4 Gewinn aus gewinn',            () => a.html.includes(eur(246.91)));
 check('A5 Kleinunternehmer: kein "(netto)"', () => !a.html.includes('(netto)'));
 
-const r = lauf({ euer: { isRegel: true, summeEinnahmen: 100, summeAusgaben: 40, gewinn: 60 },
+const r = lauf({ euer: { isRegel: true, gewinn: 79, nettoGewinn: 60, zeilen: [
+        { key: 'erloese', bezeichnung: 'Umsatzsteuerpflichtige Betriebseinnahmen (netto)', betrag: 100 },
+        { key: 'ust', bezeichnung: 'Vereinnahmte Umsatzsteuer', betrag: 19 },
+        { key: 'sonstige', bezeichnung: 'Übrige Betriebsausgaben (netto, Sammelposten)', betrag: 40 },
+        { key: 'gewinn', bezeichnung: 'Gewinn / Verlust', betrag: 79 }] },
                  settings: { ustMode: 'regel' } });
-check('A6 Regelbesteuerung: Zeilen als netto beschriftet', () => r.html.includes('Betriebseinnahmen (netto)'));
+check('A6 Regelbesteuerung: netto-Erlöse und vereinnahmte USt als eigene Zeilen',
+    () => r.html.includes('Betriebseinnahmen (netto)') && r.html.includes('Vereinnahmte Umsatzsteuer'));
 
 // ── B) Rohdaten wirken nicht mehr am EÜR vorbei ──
 check('B1 alte Formel (1.000 − 300 − 200 = 500) taucht nicht auf', () => !a.html.includes(eur(500)));

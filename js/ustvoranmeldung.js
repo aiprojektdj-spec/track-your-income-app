@@ -11,24 +11,73 @@ const UstVoranmeldung = {
         return (Store.getSettings().ustMode || 'klein') === 'regel';
     },
 
-    // Soll-Versteuerung (§13 UStG, Regelfall) = Rechnungsdatum zählt, egal ob bezahlt.
+    // Soll-Versteuerung (§13 UStG, Regelfall) = Leistungszeitpunkt zählt, egal ob bezahlt
+    // (s. _steuerentstehung; Anzahlungen vor der Leistung zum Zahlungszeitpunkt).
     // Ist-Versteuerung (§20 UStG, nur bis 800k€ Vorjahresumsatz/Freiberufler) = Zahlungsdatum zählt.
     _isSoll() {
         return (Store.getSettings().ustVersteuerungsart || 'soll') !== 'ist';
     },
 
-    // monatlich oder vierteljährlich — Pflicht monatlich bei Vorjahres-Zahllast > 7.500€ (§18 Abs. 2 UStG)
-    // oder im Gründungsjahr/Folgejahr; das muss der Nutzer selbst in den Einstellungen umstellen.
+    // monatlich oder vierteljährlich — wie das Finanzamt es festgelegt hat. Die gesetzlichen
+    // Regeln dazu stehen in _voranmeldungsRegeln()/_monatspflicht(); die Einstellung bleibt maßgeblich.
     _typ() {
         return (Store.getSettings().ustVaPeriodenTyp || 'quartal') === 'monat' ? 'monat' : 'quartal';
+    },
+
+    // §18 Abs.2 UStG je Besteuerungszeitraum (Audit 2026-10-13, T09):
+    //  - monatlich, wenn die Steuer des Vorjahres MEHR als die Grenze beträgt:
+    //    7.500 € (2009–2024), 9.000 € ab 2025
+    //  - Befreiung möglich bis 1.000 € (2009–2024) bzw. 2.000 € ab 2025
+    //  - Gründer: im Jahr der Aufnahme und im Folgejahr monatlich (Satz 4) — ausgesetzt für die
+    //    Besteuerungszeiträume 2021 bis 2026 (Satz 6): dann gelten die normalen Grenzen mit der
+    //    voraussichtlichen (Gründungsjahr) bzw. auf ein Jahr umgerechneten (Folgejahr) Steuer.
+    _voranmeldungsRegeln(year) {
+        return {
+            monatAb: year >= 2025 ? 9000 : 7500,
+            befreiungBis: year >= 2025 ? 2000 : 1000,
+            gruenderMonatlich: !(year >= 2021 && year <= 2026)
+        };
+    },
+
+    // Gesetzlicher Normalfall für `year`. pflicht: true/false, oder null, wenn er von der
+    // voraussichtlichen Steuer des Gründungsjahres abhängt, die Stackr nicht kennt.
+    _monatspflicht(year, vjZahllast, taetigkeitsbeginn) {
+        const r = this._voranmeldungsRegeln(year);
+        const tb = /^\d{4}-\d{2}-\d{2}$/.test(String(taetigkeitsbeginn || '')) ? taetigkeitsbeginn : '';
+        const tbJahr = tb ? parseInt(tb.slice(0, 4), 10) : null;
+        if (tbJahr === year || tbJahr === year - 1) {
+            if (r.gruenderMonatlich) return { pflicht: true, grund: 'gruender', grenze: r.monatAb };
+            if (tbJahr === year) return { pflicht: null, grund: 'schaetzung', grenze: r.monatAb };
+            const monate = 12 - parseInt(tb.slice(5, 7), 10) + 1;
+            const hochgerechnet = (parseFloat(vjZahllast) || 0) * 12 / monate;
+            return { pflicht: hochgerechnet > r.monatAb, grund: 'hochrechnung', grenze: r.monatAb, wert: hochgerechnet };
+        }
+        return { pflicht: (parseFloat(vjZahllast) || 0) > r.monatAb, grund: 'vorjahr', grenze: r.monatAb, wert: parseFloat(vjZahllast) || 0 };
     },
 
     _idx() {
         return this._typ() === 'monat' ? this._monat : this._quartal;
     },
 
+    // Tag, an dem die Steuer bei Sollbesteuerung entsteht (§13 Abs.1 Nr.1a S.1 UStG): mit Ablauf
+    // des Voranmeldungszeitraums, in dem die Leistung ausgeführt wurde — nicht der, in dem die
+    // Rechnung geschrieben wurde (Audit 2026-10-13, T04). Maßgeblich ist das auf der Rechnung
+    // gewählte Datumsfeld; ohne Liefer-/Leistungsangabe gilt laut Rechnung "Leistungsdatum
+    // entspricht Rechnungsdatum". Bei einem Leistungszeitraum ist die Leistung mit dessen Ende
+    // ausgeführt.
+    _steuerentstehung(inv) {
+        if (!inv) return '';
+        if (inv.datumsOption === 'lieferdatum' && inv.lieferdatum) return inv.lieferdatum;
+        if (inv.datumsOption === 'lieferzeitraum' && inv.lieferBis) return inv.lieferBis;
+        return inv.datum;
+    },
+
     // Berechnet Kennzahlen für einen Zeitraum
     _calcPeriode(startDate, endDate) {
+        // Steuerstatus je Vorgang (T06): Vorgänge aus einer Kleinunternehmer-Zeit gehören nie in
+        // die Voranmeldung, auch wenn die Firma heute regelbesteuert ist.
+        const _settingsUva = Store.getSettings();
+        const _regelUva = v => typeof SteuerStatus === 'undefined' || SteuerStatus.istRegel(v, _settingsUva);
         const purchases = Store.getPurchases().filter(p => Utils.isInPeriod(p.datum, startDate, endDate));
         const expenses  = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
         const retouren  = Store.getRetouren().filter(r => Utils.isInPeriod(r.datum, startDate, endDate));
@@ -135,10 +184,45 @@ const UstVoranmeldung = {
             // Soll: alle ausgestellten Rechnungen zum Rechnungsdatum, unabhängig vom Zahlungseingang.
             // Gutschriften (Kreditnoten) laufen mit umgekehrtem Vorzeichen mit — sie mindern die
             // Bemessungsgrundlage zum Gutschriftsdatum (§17 UStG Änderung der Bemessungsgrundlage).
-            Store.getRechInvoices()
-                .filter(i => (i.typ === 'rechnung' || i.typ === 'gutschrift') && (i.status === 'versendet' || i.status === 'bezahlt') && Utils.isInPeriod(i.datum, startDate, endDate))
+            // Storno nach Modell 2 (js/storno-vorgang.js, Audit 2026-10-13 L1): die ursprünglich
+            // ausgestellte Rechnung bleibt in ihrem Leistungszeitraum, die Stornorechnung mindert im
+            // Zeitraum ihres Datums (§17 UStG). Ältere Stornos (ohne Modell) verschwinden wie bisher.
+            const _warAusgestellt = st => st === 'versendet' || st === 'bezahlt';
+            const sollInvoices = Store.getRechInvoices()
+                .filter(i => ((i.typ === 'rechnung' || i.typ === 'gutschrift')
+                        && (_warAusgestellt(i.status) || (i.status === 'storniert' && i.stornoModell === 2 && _warAusgestellt(i.statusVorStorno))))
+                    || (i.typ === 'stornorechnung' && i.stornoModell === 2 && _warAusgestellt(i.originalStatus)));
+            const sollInvById = {};
+            sollInvoices.forEach(i => { sollInvById[i.id] = i; });
+            // Anzahlungen (§13 Abs.1 Nr.1a S.4 UStG): wird vor Ausführung der Leistung gezahlt,
+            // entsteht die Steuer für diesen Teil schon mit Ablauf des Zahlungszeitraums. Sie
+            // stehen als Teilzahlungs-Verkäufe (_teilzahlung) zur Rechnung im Bestand.
+            const _anzahlungen = invId => Store.getSales().filter(s => s._invoiceId === invId && s._teilzahlung);
+            sollInvoices.forEach(i => {
+                const sd = this._steuerentstehung(i);
+                _anzahlungen(i.id).forEach(a => {
+                    // In diesem Zeitraum gezahlt, Leistung erst später → hier versteuern
+                    if (Utils.isInPeriod(a.datum, startDate, endDate) && sd > endDate) {
+                        _perRateGroups(a).forEach(g => {
+                            if (g.satz === 7) bruttoUmsatz7 += g.brutto;
+                            else if (g.satz !== 0) bruttoUmsatz19 += g.brutto;
+                        });
+                    }
+                });
+            });
+            sollInvoices
+                .filter(i => Utils.isInPeriod(this._steuerentstehung(i), startDate, endDate))
                 .forEach(i => {
                     const sign = i.typ === 'gutschrift' ? -1 : 1;
+                    // Stornorechnung: Positionen sind schon negativ gespeichert; für §25a zählt sie wie eine Gutschrift
+                    const istStornoDoc = i.typ === 'stornorechnung';
+                    // Im Leistungszeitraum: schon vorher als Anzahlung versteuerte Beträge abziehen
+                    _anzahlungen(i.id).filter(a => a.datum < startDate).forEach(a => {
+                        _perRateGroups(a).forEach(g => {
+                            if (g.satz === 7) bruttoUmsatz7 -= g.brutto;
+                            else if (g.satz !== 0) bruttoUmsatz19 -= g.brutto;
+                        });
+                    });
                     const kunde = customers.find(c => c.id === i.kundeId);
                     const kundeLand = kunde && kunde.land;
                     // ig. Lieferung/sonstige Leistung (§4 Nr.1b+§6a bzw. §3a Abs.2 UStG): B2B-Kunde
@@ -161,10 +245,10 @@ const UstVoranmeldung = {
                             // nicht-numerischer Einzelpreis NaN, die §25a-Marge wird NaN und
                             // landet so in Kz. 81 der Voranmeldung. Dasselbe Muster stand an
                             // mehreren Stellen im Projekt, s. test/test-parsefloat-klammer.js.
-                            const vk = (parseFloat(pos.menge) || 0) * (parseFloat(pos.einzelpreis) || 0);
+                            const vk = (parseFloat(pos.menge) || 0) * Math.abs(parseFloat(pos.einzelpreis) || 0);
                             const ek = linkedPurch ? (parseFloat(linkedPurch.einkaufspreis) || 0) : (parseFloat(pos.einkaufspreis) || 0);
                             const istPauschal = _istPauschal25a(linkedPurch);
-                            if (sign === -1) {
+                            if (sign === -1 || istStornoDoc) {
                                 // Gutschrift auf einen §25a-Artikel (§17 UStG Korrektur): die URSPRÜNGLICH
                                 // versteuerte Marge (max(0,vk-ek)) zurücknehmen. NICHT die negierten vk/ek
                                 // erneut auf 0 klemmen lassen — sonst verschwindet die Korrektur bei
@@ -197,7 +281,7 @@ const UstVoranmeldung = {
                     });
                 });
             // Direktverkäufe ohne zugehörige Rechnung (Marktplatz) weiterhin über Verkaufsdatum
-            Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate))
+            Store.getSales().filter(s => !s._invoiceId && Utils.isInPeriod(s.datum, startDate, endDate) && _regelUva(s))
                 .forEach(s => {
                     if (_sonderfallSale(s)) return;
                     if (_istDiff25aSale(s)) {
@@ -213,7 +297,7 @@ const UstVoranmeldung = {
             // Ist: alle Verkäufe (Direktverkäufe + aus bezahlten Rechnungen synchronisiert) zum
             // Zahlungsdatum in Store.getSales() gebucht — anders als bei Soll gibt es hier keinen
             // separaten Rechnungs-Pfad, der Rechnungs-Umsätze schon zählt, also KEIN _invoiceId-Ausschluss.
-            const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate))
+            const sales = Store.getSales().filter(s => Utils.isInPeriod(s.datum, startDate, endDate) && _regelUva(s))
                 .filter(s => !_sonderfallSale(s));
             sales.filter(_istDiff25aSale).forEach(s => {
                 diff25aPositionenRoh.push({ verkaufspreis: _brutto(s), einkaufspreis: _sumEk25a(s), ref: _refSale25a(s), pauschalmarge: _saleIstPauschal25a(s), jahr: this._year });
@@ -264,6 +348,8 @@ const UstVoranmeldung = {
         retouren.forEach(r => {
             const linked = r.saleId ? salesById[r.saleId] : null;
             if (linked && linked.storniert) return;
+            // Rückzahlung auf einen Kleinunternehmer-Verkauf: nie USt-wirksam (T06)
+            if (!_regelUva(linked || r)) return;
             // Verkauf war nicht in der deutschen USt (OSS/Ausfuhr) → Retoure auch nicht abziehen
             if (linked && _nichtInDeUSt(linked)) return;
             if (linked && _istDiff25aSale(linked)) {
@@ -282,10 +368,15 @@ const UstVoranmeldung = {
                 diff25aPositionenRoh.push({ margeKorrektur: -(originalMarge * anteil), satz: 19, ref: _refSale25a(linked) });
                 return;
             }
-            const rate = _rate(linked || r);
             const betrag = parseFloat(r.erstattungBetrag) || 0;
-            if (rate === 7) retour7 += betrag;
-            else if (rate !== 0) retour19 += betrag;
+            // Gemischte Sätze anteilig (Rückzahlung zu einer 7 %/19 %-Rechnung)
+            const gruppen = linked ? _perRateGroups(linked) : [{ satz: _rate(r), brutto: 1 }];
+            const ges = gruppen.reduce((x, g) => x + (parseFloat(g.brutto) || 0), 0);
+            gruppen.forEach(g => {
+                const teil = ges ? betrag * (parseFloat(g.brutto) || 0) / ges : (gruppen.length === 1 ? betrag : 0);
+                if (g.satz === 7) retour7 += teil;
+                else if (g.satz !== 0) retour19 += teil;
+            });
         });
         const bruttoUmsatz7adj  = bruttoUmsatz7  - retour7;
         let bruttoUmsatz19adj = bruttoUmsatz19 - retour19;
@@ -490,17 +581,24 @@ const UstVoranmeldung = {
 
         const jahresZahllast = jahresUebersicht.reduce((s, r) => s + r.c.zahllast, 0);
 
-        // Monatlich-Pflicht-Hinweis: Vorjahres-Zahllast > 7.500€ und aktuell nur quartalsweise gemeldet (§18 Abs. 2 UStG)
+        // Monatlich-Pflicht-Hinweis bei quartalsweiser Einstellung (§18 Abs. 2 UStG, T09)
         let monatspflichtHinweis = '';
         if (typ === 'quartal') {
             const vjZahllast = [0, 1, 2, 3]
                 .map(qi => this._calcPeriode(this._qStart(year - 1, qi), this._qEnd(year - 1, qi)))
                 .reduce((s, c) => s + c.zahllast, 0);
-            if (vjZahllast > 7500) {
+            const mp = this._monatspflicht(year, vjZahllast, Store.getSettings().taetigkeitsbeginn);
+            const grenzeFmt = Utils.formatCurrency(mp.grenze);
+            const text = mp.grund === 'gruender'
+                ? `Im Jahr der Gründung und im Folgejahr ist die monatliche Voranmeldung für ${year} gesetzlich vorgesehen (§18 Abs. 2 Satz 4 UStG).`
+                : mp.grund === 'hochrechnung'
+                ? `Die auf ein volles Jahr umgerechnete Steuer des Gründungsjahres ${year - 1} beträgt ${Utils.formatCurrency(mp.wert)} und liegt damit über ${grenzeFmt} (§18 Abs. 2 Sätze 2 und 6 UStG).`
+                : `Die Zahllast ${year - 1} lag bei ${Utils.formatCurrency(mp.wert)} und damit über ${grenzeFmt} (§18 Abs. 2 Satz 2 UStG).`;
+            if (mp.pflicht) {
                 monatspflichtHinweis = `
                 <div class="card" style="margin-bottom:16px;border-left:3px solid var(--warning);">
                     <div style="padding:12px 16px;font-size:13px;">
-                        <strong>Monatliche Voranmeldung vermutlich Pflicht:</strong> Die Zahllast ${year - 1} lag bei ${Utils.formatCurrency(vjZahllast)} und damit über der 7.500 €-Grenze (§18 Abs. 2 Satz 2 UStG). Bitte in den <strong>Einstellungen</strong> auf "Monatlich" umstellen und mit dem Finanzamt/Steuerberater abstimmen.
+                        <strong>Monatliche Voranmeldung vermutlich Pflicht:</strong> ${text} Maßgeblich ist, was das Finanzamt festgesetzt hat — bitte abstimmen und ggf. in den <strong>Einstellungen</strong> auf "Monatlich" umstellen.
                     </div>
                 </div>`;
             }
@@ -665,7 +763,7 @@ const UstVoranmeldung = {
                 ${calc.rcNettoAbs1 > 0 || calc.rcNettoOther > 0 ? `<strong>Kz. 46 / §13b:</strong> Reverse-Charge-Leistungen (§13b UStG) – du schuldest hier die Steuer als Leistungsempfänger, gleichzeitig als Vorsteuer bei Kz. 67 abziehbar. Bei "Weitere §13b-Fälle" bitte die passende Zeile im ELSTER-Formular je nach Kategorie (Bauleistung/Gebäudereinigung/Mobilfunk) selbst nachsehen – dafür gibt es jeweils eigene Kennzahlen.<br>` : ''}
                 <strong>Kz. 66:</strong> Abzugsfähige Vorsteuer aus Eingangsrechnungen (§15 UStG) – <u>nur</u> Einkäufe/Ausgaben, NICHT §13b oder IG-Erwerb (die haben eigene Kennzahlen, s.o.).<br>
                 <strong>Wichtig:</strong> Die "USt darauf"-Zeilen bei Kz. 81/86 sind reine Kontrollwerte für dich, <u>keine eigenen ELSTER-Kennzahlen</u> – insbesondere Kz. 35/36 im echten Formular meint etwas anderes (Umsätze zu "anderen Steuersätzen", z.B. 16%/5%). Trage dort nichts ein, wenn du normale 19%/7%-Umsätze hast.<br>
-                <strong>Voranmeldungszeitraum:</strong> Aktuell <u>${typ === 'monat' ? 'monatlich' : 'vierteljährlich'}</u> eingestellt (Einstellungen → USt-Modus). Monatlich ist Pflicht bei Vorjahres-Zahllast > 7.500€ sowie im Gründungsjahr und Folgejahr.<br>
+                <strong>Voranmeldungszeitraum:</strong> Aktuell <u>${typ === 'monat' ? 'monatlich' : 'vierteljährlich'}</u> eingestellt (Einstellungen → USt-Modus). Monatlich ist der gesetzliche Normalfall bei einer Vorjahressteuer über ${Utils.formatCurrency(this._voranmeldungsRegeln(this._year).monatAb)}${this._voranmeldungsRegeln(this._year).gruenderMonatlich ? ' sowie im Gründungsjahr und Folgejahr' : ' (Gründer 2021–2026: voraussichtliche bzw. umgerechnete Steuer)'}; maßgeblich ist die Festsetzung des Finanzamts.<br>
                 <strong>Abgabefrist:</strong> 10. des auf den Voranmeldungszeitraum folgenden Monats (§18 Abs. 1 UStG)${Store.getSettings().ustDauerfristverlaengerung ? ', durch Dauerfristverlängerung um 1 Monat verschoben' : ''} — für die aktuell gewählte Periode: <strong>${this._formatFrist(fristDatum)}</strong>.<br>
                 <strong>Unverbindlich</strong> – Abgabe über ELSTER (elster.de) oder Steuerberater erforderlich.
             </div>

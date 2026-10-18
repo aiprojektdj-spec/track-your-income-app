@@ -54,6 +54,8 @@ const calculateNetRevenue = new Function(
     extractMethod(utilsSrc,
         'calculateNetRevenue(verkaufspreis, versandkostenKaeufer, plattformgebuehrProzent, versandkostenVerkaufer) {',
         /\n    \},/));
+const escapeHtml = new Function('str', extractMethod(utilsSrc,
+    'escapeHtml(str) {', /\n    \},/));
 
 // ── Modul laden ────────────────────────────────────────────────────────────
 // Kein Modulsystem: Store, Utils und ein Mini-DOM kommen als Parameter herein. Die
@@ -76,7 +78,7 @@ function lade(o) {
     };
     const Utils = {
         isInPeriod: (dat, s, e) => !!dat && dat >= s && dat <= e,
-        escapeHtml: (s) => String(s == null ? '' : s),
+        escapeHtml: escapeHtml,
         // Eindeutig wiederfindbar statt huebsch: so laesst sich jeder Betrag aus dem
         // erzeugten HTML exakt zurueckparsen, ohne an einer Formatierung zu haengen.
         formatCurrency: (n) => '[[' + (Math.round((parseFloat(n) || 0) * 100) / 100).toFixed(2) + ']]',
@@ -105,7 +107,8 @@ function betraege(html) {
     return (html.match(/\[\[-?\d+\.\d\d\]\]/g) || []).map(s => parseFloat(s.slice(2, -2)));
 }
 function zeile(html, name) {
-    const zeilen = html.split('<tr>').filter(z => z.includes('>' + name + '<'));
+    const zeilen = (html.match(/<tr(?:\s[^>]*)?>[\s\S]*?<\/tr>/g) || [])
+        .filter(z => z.includes('>' + name + '<'));
     return zeilen.length ? zeilen[0] : '';
 }
 
@@ -193,18 +196,18 @@ function plattform(anzahlVerkaeufe, preisJeVerkauf, jahr) {
     return abschnitte['platAnalyseSection'].innerHTML;
 }
 
-check('B1 29 Verkaeufe unter 2.000 € gelten als nicht meldepflichtig',
-    plattform(29, 50).includes('✓ OK'));
-check('B2 Der 30. Verkauf loest die Meldepflicht aus, auch bei kleinen Betraegen',
-    plattform(30, 1).includes('is-alert">Meldepflicht'));
+check('B1 29 Verkaeufe unter 2.000 € bleiben unter der Schwelle',
+    plattform(29, 50).includes('Unter Schwelle'));
+check('B2 Der 30. Verkauf erreicht die Schwelle, auch bei kleinen Betraegen',
+    plattform(30, 1).includes('Schwelle erreicht'));
 check('B3 1.999 € aus wenigen Verkaeufen bleiben unter der Schwelle',
-    plattform(2, 999.5).includes('✓ OK'));
-check('B4 2.000 € loesen die Meldepflicht aus, auch bei einem einzigen Verkauf',
-    plattform(1, 2000).includes('is-alert">Meldepflicht'));
-check('B5 Vor Inkrafttreten des PStTG (2022) gibt es keine Meldepflicht',
-    plattform(50, 500, 2022).includes('✓ OK'));
-check('B6 Im ersten Geltungsjahr 2023 greift sie',
-    plattform(50, 500, 2023).includes('is-alert">Meldepflicht'));
+    plattform(2, 999.5).includes('Unter Schwelle'));
+check('B4 2.000 € erreichen die hinterlegte Schwelle auch bei einem einzigen Verkauf',
+    plattform(1, 2000).includes('Schwelle erreicht'));
+check('B5 Vor Inkrafttreten des PStTG (2022) sind die Schwellen nicht anwendbar',
+    plattform(50, 500, 2022).includes('Nicht anwendbar'));
+check('B6 Im ersten Geltungsjahr 2023 greift der Schwellenvergleich',
+    plattform(50, 500, 2023).includes('Schwelle erreicht'));
 
 // Der Fall, der bis 2026-09-18 falsch lief: die Plattform meldet die Verguetung MIT dem vom
 // Kaeufer bezahlten Versand. 1.950 € Artikel + 80 € Versand = 2.030 € — gemeldet. Stackr zaehlte
@@ -215,8 +218,8 @@ block(() => {
     S._period = '2026';
     S._renderPlatformAnalyse(s, []);
     const html = abschnitte['platAnalyseSection'].innerHTML;
-    check('B7 Kaeufer-Versand zaehlt zur PStTG-Schwelle (1.950 + 80 = 2.030 → Meldepflicht)',
-        html.includes('is-alert">Meldepflicht'));
+    check('B7 Kaeufer-Versand zaehlt zur PStTG-Schwelle (1.950 + 80 = 2.030 → Schwelle erreicht)',
+        html.includes('Schwelle erreicht'));
     check('B8 Die Umsatzspalte weist dieselben 2.030 € aus', betraege(zeile(html, 'Vinted'))[0] === 2030);
 });
 
@@ -259,8 +262,8 @@ block(() => {
     const ohnePlattform = Object.assign({}, VERKAUF, { verkaufsplattform: '' });
     const { S: S5, abschnitte: a5 } = lade({ sales: [ohnePlattform] });
     S5._renderPlatformAnalyse([ohnePlattform], []);
-    check('C6 Verkauf ohne Plattform landet unter "Unbekannt", nicht im Nichts',
-        a5['platAnalyseSection'].innerHTML.includes('Unbekannt'));
+    check('C6 Verkauf ohne Plattform behaelt Umsatz und Gewinn unter "Ohne Zuordnung"',
+        betraege(zeile(a5['platAnalyseSection'].innerHTML, 'Ohne Zuordnung')).join() === '100,100,100');
 
     const mitGebuehr = Object.assign({}, VERKAUF, {
         verkaufspreis: 100, versandkostenKaeufer: 10, plattformgebuehrProzent: 10, versandkostenVerkaufer: 5,
@@ -317,6 +320,66 @@ block(() => {
         S._getPstTgSchwellen(2022).verkaeufe === Infinity);
     check('E6 Im Vergleich stehen keine nackten Gesetzeszahlen mehr',
         !/count\s*>=\s*30\b/.test(statSrc) && !/umsatz\s*>=\s*2000\b/.test(statSrc));
+});
+
+block(() => {
+    const { S, abschnitte } = lade({ sales: [VERKAUF] });
+    S._renderPlatformAnalyse([VERKAUF], []);
+    check('E7 Der befuellte Zustand enthaelt den erfassten Kanal mit Umsatz',
+        betraege(zeile(abschnitte['platAnalyseSection'].innerHTML, 'Vinted'))[0] === 100);
+    S._renderPlatformAnalyse([], []);
+    const html = abschnitte['platAnalyseSection'].innerHTML;
+    check('E8 Ein anschliessend leerer Zeitraum entfernt alte Kanaele und Betraege',
+        !html.includes('Vinted') && !betraege(html).includes(100)
+        && html.includes('Noch keine Verkäufe in diesem Zeitraum'));
+});
+
+block(() => {
+    const sales = [Object.assign({}, VERKAUF, { verkaufspreis: 3000 })];
+    const { S, abschnitte } = lade({ sales });
+    ['all', 'custom'].forEach(period => {
+        S._period = period;
+        S._customStart = '2025-01-01';
+        S._customEnd = '2026-12-31';
+        S._renderPlatformAnalyse(sales, []);
+        const html = abschnitte['platAnalyseSection'].innerHTML;
+        check('E9 ' + period + ': Umsatz bleibt sichtbar, aber kein jaehrliches Schwellenurteil',
+            betraege(zeile(html, 'Vinted'))[0] === 3000
+            && html.includes('Jahresansicht wählen')
+            && !html.includes('Schwelle erreicht') && !html.includes('Unter Schwelle'));
+    });
+});
+
+block(() => {
+    const sales = [Object.assign({}, VERKAUF, { verkaufspreis: 0 })];
+    const { S, abschnitte } = lade({ sales });
+    S._renderPlatformAnalyse(sales, []);
+    const html = abschnitte['platAnalyseSection'].innerHTML;
+    check('E10 Nullumsatz behaelt den Verkauf ohne NaN oder Infinity in Anteilen und Betraegen',
+        betraege(zeile(html, 'Vinted')).join() === '0,0,0'
+        && !/NaN|Infinity/.test(html));
+});
+
+block(() => {
+    const sales = [Object.assign({}, VERKAUF, { verkaufsplattform: '__proto__' })];
+    const { S, abschnitte } = lade({ sales });
+    S._renderPlatformAnalyse(sales, []);
+    check('E11 Ein frei eingegebener Kanal namens __proto__ behaelt seine eigenen Summen',
+        betraege(zeile(abschnitte['platAnalyseSection'].innerHTML, '__proto__')).join() === '100,100,100'
+        && !Object.prototype.hasOwnProperty.call(Object.prototype, 'umsatz'));
+});
+
+block(() => {
+    const name = '<img src=x onerror="alert(1)"> & \'Kanal\'';
+    const sales = [Object.assign({}, VERKAUF, { verkaufsplattform: name })];
+    const { S, abschnitte } = lade({ sales });
+    S._period = '2026';
+    S._renderPlatformAnalyse(sales, []);
+    const html = abschnitte['platAnalyseSection'].innerHTML;
+    const escaped = '&lt;img src=x onerror=&quot;alert(1)&quot;&gt; &amp; &#39;Kanal&#39;';
+    check('E12 Frei eingegebene Kanalnamen bleiben Text im Vergleich und in den Meldehinweisen',
+        !html.includes('<img') && html.split(escaped).length - 1 === 2
+        && betraege(zeile(html, escaped))[0] === 100);
 });
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');

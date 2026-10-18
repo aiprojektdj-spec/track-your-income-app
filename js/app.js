@@ -37,6 +37,7 @@ const App = {
         rechtsform: Rechtsform,
         lohnsteuer: Lohnsteuer,
         gewerbesteuer: Gewerbesteuer,
+        bestandscheck: Bestandscheck,
         // Eingebettete Rechnungen-Sub-App — bootet via RechApp.mount() in #content
         rechnungen: {
             render() { return '<div id="rechMount"></div>'; },
@@ -1114,52 +1115,63 @@ const App = {
         if (typeof OSS !== 'undefined') OSS.checkSchwelle(); // §3c-Schwelle, Regel- und Kleinunternehmer
         const settings = Store.getSettings();
         if ((settings.ustMode || 'klein') !== 'klein') return; // nur für Kleinunternehmer
-        const year       = new Date().getFullYear();
-        const { vj: GRENZE_VJ, lfd: GRENZE_LFD } = this._getUstGrenzen(year);
-        const umsatz     = this._calcJahresumsatz(year);
-        const hardKey    = 'ust_threshold_hard_' + year;    // 100k Sofort-Modal
-        const warnKey    = 'ust_threshold_warned_' + year;  // 25k Folgejahr-Modal
+        if (typeof Kleinunternehmer === 'undefined') return;
+        const year = new Date().getFullYear();
+        // Rechtsfolge je Jahr, Gründungsjahr und überschreitendem Umsatz: js/kleinunternehmer.js
+        // (Audit 2026-10-13, T05). Grenzwerte weiter aus der Jahresfunktion _getUstGrenzen().
+        const umsaetze = Store.getSales()
+            .filter(s => !s.storniert && s.datum && s.datum.startsWith(String(year)))
+            .map(s => ({ datum: s.datum, betrag: (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0) }));
+        const r = Kleinunternehmer.pruefe({
+            year, grenzen: this._getUstGrenzen(year), umsaetze,
+            vorjahresUmsatz: this._calcJahresumsatz(year - 1),
+            taetigkeitsbeginn: settings.taetigkeitsbeginn
+        });
+        const umsatz     = r.summe;
+        const hardKey    = 'ust_threshold_hard_' + year;    // Befreiung entfällt (sofort/Vorjahr)
+        const warnKey    = 'ust_threshold_warned_' + year;  // Folgejahr-Modal
         const preWarnKey = 'ust_prewarn_' + year;
 
-        // 1) Obere Grenze: 100.000 € im laufenden Jahr → Status entfällt SOFORT sobald der Umsatz die
-        // Grenze ÜBERSCHREITET (§19 Abs.1 UStG: "übersteigt" → strikt >, nicht >=; bei exakt 100.000,00 €
-        // bleibt der Kleinunternehmerstatus für diesen Umsatz noch bestehen).
-        // Fix: Dismiss-Flags liefen vorher über rohes, NICHT company-gescoptes localStorage — bei zwei
-        // Companies (z.B. Einzelunternehmen + GbR) konnte das Bestätigen der Warnung in einer Company
-        // die Warnung der anderen Company unterdrücken. Store.get/set scoped automatisch pro Company.
-        if (umsatz > GRENZE_LFD) {
+        // Dismiss-Flags über Store.get/set → pro Company gescopet (zwei Firmen stören sich nicht).
+        if (r.status === 'sofort' || r.status === 'vorjahr') {
             if (!Store.get(hardKey)) {
-                setTimeout(() => this._showUstThresholdModal(umsatz, year, hardKey, 'sofort'), 400);
+                this._ustWechselAb = r.ab;
+                setTimeout(() => this._showUstThresholdModal(umsatz, year, hardKey, r.status, r), 400);
             }
             return;
         }
-
-        // 2) Vorjahresgrenze im lfd. Jahr überschritten (strikt >, s.o.) → ab Folgejahr regelbesteuert
-        if (umsatz > GRENZE_VJ) {
+        if (r.status === 'folgejahr') {
             if (!Store.get(warnKey)) {
-                setTimeout(() => this._showUstThresholdModal(umsatz, year, warnKey, 'folgejahr'), 400);
+                setTimeout(() => this._showUstThresholdModal(umsatz, year, warnKey, 'folgejahr', r), 400);
             }
-        } else if (umsatz >= GRENZE_VJ * 0.9) {
-            // 90 % Vorwarnung (ab 22.500 €) — einmalige Toast-Meldung
+        } else if (umsatz >= r.grenze * 0.9) {
+            // 90 % Vorwarnung — einmalige Toast-Meldung
             if (!Store.get(preWarnKey) && !Store.get(warnKey)) {
                 Store.set(preWarnKey, '1');
                 const grenzeFmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
-                    .format(GRENZE_VJ);
+                    .format(r.grenze);
                 const rest = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
-                    .format(GRENZE_VJ - umsatz);
+                    .format(r.grenze - umsatz);
                 setTimeout(() => Utils.showToast(
-                    `Kleinunternehmer: Noch ${rest} bis zur ${grenzeFmt}-Grenze`, 'warning'), 800);
+                    `Kleinunternehmer: Noch ${rest} bis zur ${grenzeFmt}-Grenze${r.gruendungsjahr ? ' (Gründungsjahr)' : ''}`, 'warning'), 800);
             }
         }
     },
 
-    _showUstThresholdModal(umsatz, year, warnKey, mode) {
+    _showUstThresholdModal(umsatz, year, warnKey, mode, r) {
         const fmt    = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
-        const sofort = mode === 'sofort';
-        const erklaerung = sofort
-            ? `Die obere Umsatzgrenze von <strong>100.000&nbsp;€</strong> wurde im laufenden Jahr überschritten.
-               Die Kleinunternehmerregelung (§&nbsp;19 UStG) entfällt damit <strong>sofort</strong> — ab dem Umsatz,
-               der die Grenze überschreitet, ist Umsatzsteuer auszuweisen.`
+        const fmt0   = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+        const sofort = mode === 'sofort' || mode === 'vorjahr';
+        const abText = r && r.ab ? Utils.formatDate(r.ab) : '';
+        const erklaerung = mode === 'vorjahr'
+            ? `Dein Umsatz ${year - 1} lag über <strong>${fmt0.format(r.grenze)}</strong>. Die Kleinunternehmerregelung
+               (§&nbsp;19 UStG) gilt deshalb für das <strong>ganze Jahr ${year}</strong> nicht — Umsatzsteuer ist
+               ab dem 1. Januar auszuweisen.`
+            : sofort
+            ? `Die Umsatzgrenze von <strong>${fmt0.format(r ? r.grenze : 100000)}</strong>${r && r.gruendungsjahr ? ' im Jahr der Gründung' : ''}
+               wurde im laufenden Jahr überschritten${abText ? ' (mit dem Umsatz vom ' + abText + ')' : ''}.
+               Die Kleinunternehmerregelung (§&nbsp;19 UStG) entfällt damit <strong>sofort</strong> — schon dieser
+               Umsatz und alle späteren sind steuerpflichtig.`
             : `Dein Umsatz übersteigt ${year} die Grenze von <strong>25.000&nbsp;€</strong>.
                Du bleibst <strong>dieses Jahr</strong> Kleinunternehmer, wirst aber <strong>ab ${year + 1}</strong>
                regelbesteuert (sofern der Umsatz nicht zusätzlich 100.000&nbsp;€ überschreitet — dann gilt der Wechsel sofort).`;
@@ -1203,8 +1215,10 @@ const App = {
                     data-action="app-ust-dismiss" data-args='["${warnKey}"]'>
                     Verstanden
                 </button>`;
-        const title = sofort
-            ? 'Kleinunternehmer-Grenze (100.000 €) überschritten'
+        const title = mode === 'vorjahr'
+            ? 'Kleinunternehmer: Vorjahresgrenze überschritten'
+            : sofort
+            ? `Kleinunternehmer-Grenze (${fmt0.format(r ? r.grenze : 100000)}) überschritten`
             : 'Kleinunternehmer: 25.000-€-Grenze überschritten';
         this.showModal(title, body, footer);
     },
@@ -1212,6 +1226,8 @@ const App = {
     _ustSwitchToRegel(warnKey) {
         const s = Store.getSettings();
         s.ustMode = 'regel';
+        // Wechsel ab dem überschreitenden Umsatz bzw. Jahresbeginn — nicht "heute" (T05/T06)
+        if (this._ustWechselAb) s._ustModeAb = this._ustWechselAb;
         Store.saveSettings(s);
         Store.set(warnKey, '1');
         this.closeModal();
@@ -1762,10 +1778,22 @@ const App = {
                     </div>
                 </div>
             </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="set_taetigkeitsbeginn">Tätigkeitsbeginn</label>
+                    <input type="date" class="form-input" id="set_taetigkeitsbeginn" value="${Utils.escapeHtml(s.taetigkeitsbeginn || '')}" aria-describedby="set_taetigkeitsbeginn_hint">
+                    <div class="form-hint" id="set_taetigkeitsbeginn_hint">Erster Tag der unternehmerischen Tätigkeit. Bestimmt die Kleinunternehmer-Grenze im Gründungsjahr und die Voranmeldungsregeln für Gründer.</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="set_ustModeAb">Neuer USt-Modus gilt ab</label>
+                    <input type="date" class="form-input" id="set_ustModeAb" value="${new Date().toLocaleDateString('sv-SE')}" aria-describedby="set_ustModeAb_hint">
+                    <div class="form-hint" id="set_ustModeAb_hint">Nur bei einem Wechsel des USt-Modus: erster Tag mit dem neuen Modus. Vorgänge davor behalten ihre bisherige Behandlung.${(typeof SteuerStatus !== 'undefined' && !SteuerStatus.unbelegt(s)) ? ' Bisher: ' + SteuerStatus.historie(s).filter(e => e.ab !== '0000-01-01').map(e => Utils.escapeHtml(Utils.formatDate(e.ab)) + ' → ' + (e.mode === 'regel' ? 'Regelbesteuerung' : 'Kleinunternehmer')).join(', ') + '.' : ''}</div>
+                </div>
+            </div>
             <div class="form-group" id="set_versteuerungsart_group" style="${s.ustMode === 'regel' ? '' : 'display:none'}">
                 <label class="form-label" for="set_ustVersteuerungsart">Versteuerungsart (UVA + DATEV)</label>
                 <select class="form-select" id="set_ustVersteuerungsart">
-                    <option value="soll" ${(s.ustVersteuerungsart || 'soll') === 'soll' ? 'selected' : ''}>Soll-Versteuerung (nach Rechnungsdatum) – Regelfall</option>
+                    <option value="soll" ${(s.ustVersteuerungsart || 'soll') === 'soll' ? 'selected' : ''}>Soll-Versteuerung (nach Leistungsdatum) – Regelfall</option>
                     <option value="ist" ${s.ustVersteuerungsart === 'ist' ? 'selected' : ''}>Ist-Versteuerung (nach Zahlungseingang) – nur bis 800.000 € Vorjahresumsatz oder Freiberufler</option>
                 </select>
                 <div style="font-size:11px;color:var(--warning);margin-top:6px;"><i class="ti ti-alert-triangle"></i> Ein Wechsel wirkt nur auf zukünftige Voranmeldungen. Bereits gemeldete Zeiträume werden nicht rückwirkend neu berechnet — bei Wechsel während des Jahres bitte mit dem Steuerberater abstimmen, damit keine Umsätze doppelt oder gar nicht erfasst werden.</div>
@@ -1776,7 +1804,7 @@ const App = {
                     <option value="quartal" ${(s.ustVaPeriodenTyp || 'quartal') === 'quartal' ? 'selected' : ''}>Vierteljährlich (Regelfall)</option>
                     <option value="monat" ${s.ustVaPeriodenTyp === 'monat' ? 'selected' : ''}>Monatlich</option>
                 </select>
-                <div class="form-hint">Monatlich ist Pflicht, wenn die USt-Zahllast des Vorjahres 7.500 € überstieg, sowie im Gründungsjahr und im Folgejahr (§18 Abs. 2 UStG).</div>
+                <div class="form-hint">Wie vom Finanzamt festgelegt. Gesetzlicher Normalfall (§18 Abs. 2 UStG): monatlich, wenn die Steuer des Vorjahres mehr als ${Utils.formatCurrency(typeof UstVoranmeldung !== 'undefined' ? UstVoranmeldung._voranmeldungsRegeln(new Date().getFullYear()).monatAb : 9000)} betrug; Gründer 2021–2026 nach voraussichtlicher bzw. umgerechneter Steuer.</div>
                 <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer;">
                     <input type="checkbox" id="set_ustDauerfrist" ${s.ustDauerfristverlaengerung ? 'checked' : ''}>
                     Dauerfristverlängerung beantragt/genehmigt (verschiebt Abgabefrist um 1 Monat)
@@ -1876,6 +1904,8 @@ const App = {
                 steuernummer: document.getElementById('set_steuernummer').value.trim(),
                 ustId: document.getElementById('set_ustId').value.trim(),
                 ustMode: document.getElementById('set_ustMode').value,
+                _ustModeAb: (document.getElementById('set_ustModeAb') || {}).value || '',
+                taetigkeitsbeginn: (document.getElementById('set_taetigkeitsbeginn') || {}).value || '',
                 ustVersteuerungsart: (document.getElementById('set_ustVersteuerungsart') || {}).value || 'soll',
                 ustVaPeriodenTyp: (document.getElementById('set_ustVaPeriodenTyp') || {}).value || 'quartal',
                 ustDauerfristverlaengerung: !!(document.getElementById('set_ustDauerfrist') || {}).checked,

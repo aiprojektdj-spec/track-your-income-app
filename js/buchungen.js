@@ -14,7 +14,7 @@ const Buchungen = {
     // Verkauf: selected purchase IDs
     _selectedPurchaseIds: [],
     _verkaufManual: false,
-    _verkaufFilters: { marke: '', status: 'verfuegbar' },
+    _verkaufFilters: { marke: '', status: 'verfuegbar', search: '' },
 
     render() {
         return `
@@ -53,6 +53,9 @@ const Buchungen = {
         } else if (this._activeTab === 'verkauf') {
             container.innerHTML = this._renderVerkaufForm();
             this._bindVerkaufForm();
+            // Frisch gerenderte Felder sind leer → Auswahl neu übernehmen
+            this._verkaufAutoFill = null;
+            this._prefillManualFields();
         } else {
             container.innerHTML = this._renderAlleTable();
             this._bindAlleTable();
@@ -440,6 +443,15 @@ const Buchungen = {
         let filtered = allPurchases;
         if (vf.marke) filtered = filtered.filter(p => p.marke === vf.marke);
         if (vf.status) filtered = filtered.filter(p => p.status === vf.status);
+        if (vf.search && vf.search.trim()) {
+            // Gleiche Felder wie die Lager-Suche (js/lager.js)
+            const term = vf.search.trim().toLowerCase();
+            filtered = filtered.filter(p =>
+                [p.marke, p.artikeltyp, p.beschreibung, p.artikelNr, p.groesse, p.einkaufsquelle,
+                 ...(p.tags || [])]
+                    .some(v => v && String(v).toLowerCase().includes(term))
+            );
+        }
 
         const selectedIds = this._selectedPurchaseIds;
         const selectedEK = allPurchases
@@ -452,7 +464,7 @@ const Buchungen = {
 
         let invRows = '';
         if (filtered.length === 0) {
-            invRows = '<tr><td colspan="8" class="table-empty">Keine Artikel im Lager</td></tr>';
+            invRows = `<tr><td colspan="8" class="table-empty">${allPurchases.length ? 'Keine passenden Artikel' : 'Keine Artikel im Lager'}</td></tr>`;
         } else {
             invRows = filtered.map(p => {
                 const isChecked = selectedIds.includes(p.id);
@@ -512,6 +524,12 @@ const Buchungen = {
                     </div>
                 </div>
                 <div class="filter-bar no-print" style="margin-bottom:12px;">
+                    <div class="filter-group" style="flex:1;min-width:200px;">
+                        <label for="vkSearch">Suche</label>
+                        <input type="text" class="form-input" id="vkSearch"
+                               placeholder="Art.-Nr. + Enter wählt aus, Enter im leeren Feld → Preis"
+                               value="${Utils.escapeHtml(vf.search || '')}">
+                    </div>
                     <div class="filter-group">
                         <label>Marke</label>
                         <select class="form-select" id="vkFilterMarke">
@@ -552,13 +570,18 @@ const Buchungen = {
                 </div>
             </div>
 
+            <div id="vkJumpBar" class="no-print" ${selectedIds.length ? '' : 'hidden'} style="position:sticky;bottom:12px;z-index:100;background:var(--bg-elevated);border:1px solid var(--border-strong);padding:10px 16px;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;box-shadow:var(--shadow-lg);">
+                <span id="vkJumpInfo" style="font-weight:600;flex:1;">${selectedIds.length} Artikel · EK ${Utils.formatCurrency(selectedEK)}</span>
+                <button type="button" class="btn btn-primary btn-small" id="vkJumpBtn">Zum Verkauf ↓</button>
+            </div>
+
             <div class="card" style="margin-bottom:16px;${selectedIds.length === 0 && !isManual ? 'opacity:0.6;' : ''}">
                 <div class="card-header">
                     <div class="card-title">Ausgewählte Artikel: ${selectedIds.length} (EK gesamt: ${Utils.formatCurrency(selectedEK)})</div>
                 </div>
             </div>
 
-            <div class="card" style="margin-bottom:16px;">
+            <div class="card" id="vkDetailsCard" style="margin-bottom:16px;">
                 <div class="card-header">
                     <div class="card-title">Verkaufsdetails</div>
                 </div>
@@ -674,6 +697,50 @@ const Buchungen = {
             this._verkaufFilters.status = vkFilterStatus.value;
             this._selectedPurchaseIds = [];  // reset on filter change
             this._renderTab();
+        });
+
+        // Suche: Enter sucht, Escape leert — wie im Lager. Auswahl bleibt erhalten,
+        // damit man nacheinander mehrere Artikel per Suche zusammenstellen kann.
+        // Schnellbuchung per Tastatur: exakte Art.-Nr. + Enter nimmt den Artikel in die
+        // Auswahl (mehrere nacheinander = Paket), Enter im leeren Feld springt zum Preis.
+        const vkSearch = document.getElementById('vkSearch');
+        if (vkSearch) vkSearch.addEventListener('keydown', e => {
+            if (e.key !== 'Enter' && e.key !== 'Escape') return;
+            e.preventDefault();
+            const term = vkSearch.value.trim();
+            if (e.key === 'Enter' && !term && this._selectedPurchaseIds.length) {
+                this._jumpToVerkauf();
+                return;
+            }
+            const treffer = e.key === 'Enter' && term
+                ? Store.getPurchases().find(p => p.artikelNr && p.artikelNr.toLowerCase() === term.toLowerCase())
+                : null;
+            if (treffer) {
+                if (treffer.status === 'verkauft') {
+                    Utils.showToast(`${treffer.artikelNr} ist bereits verkauft`, 'warning');
+                    return;
+                }
+                if (!this._selectedPurchaseIds.includes(treffer.id)) this._selectedPurchaseIds.push(treffer.id);
+                this._verkaufFilters.search = '';
+                Utils.showToast(`${treffer.artikelNr} ausgewählt (${this._selectedPurchaseIds.length} insgesamt)`, 'success');
+            } else {
+                this._verkaufFilters.search = e.key === 'Enter' ? vkSearch.value : '';
+            }
+            this._renderTab();
+            const el = document.getElementById('vkSearch');
+            if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+        });
+
+        const vkJumpBtn = document.getElementById('vkJumpBtn');
+        if (vkJumpBtn) vkJumpBtn.addEventListener('click', () => this._jumpToVerkauf());
+
+        // Enter im Preisfeld speichert — zusammen mit der Art.-Nr.-Suche eine Buchung ohne Maus
+        const vkPreisEl = document.getElementById('vk_preis');
+        if (vkPreisEl) vkPreisEl.addEventListener('keydown', e => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const btn = document.getElementById('saveVerkaufBtn');
+            if (btn) btn.click();
         });
 
         // Select all / clear selection (visible filtered items only)
@@ -802,9 +869,6 @@ const Buchungen = {
                     Store.addPlatform(plattform);
                 }
 
-                // Pre-generate ID so we can link material usage
-                const saleId = Store.generateId();
-
                 const vkPreisVal = parseFloat(document.getElementById('vk_preis').value) || 0;
                 const vkVersandKVal = parseFloat(document.getElementById('vk_versandKaeufer').value) || 0;
                 const vkGebuehrVal = parseFloat(document.getElementById('vk_gebuehr').value) || 0;
@@ -814,8 +878,10 @@ const Buchungen = {
                     return;
                 }
 
+                // Keine ID vorab setzen: saveSale() behandelt einen Datensatz mit id als Bearbeitung
+                // (ohne Limitprüfung, USt-Stempel, Audit 'erstellt', Webhook), und saveSaleMulti()
+                // vergibt ohnehin eine eigene. Der Materialverbrauch hängt an der zurückgegebenen id.
                 const saleData = {
-                    id: saleId,
                     datum: Utils.getDateInputValue('vk_datum'),
                     verkaufsplattform: plattform,
                     ...Utils.readLandField('vk'),
@@ -827,7 +893,20 @@ const Buchungen = {
                     notizen: document.getElementById('vk_notizen').value.trim()
                 };
 
-                if (isManual) {
+                // Im manuellen Modus übersteuern die (vorbefüllten, änderbaren) Felder die Lagerdaten.
+                // Eine Lagerauswahl wird trotzdem verknüpft, sonst bliebe der Artikel "Verfügbar"
+                // und sein EK fehlte im Gewinn.
+                const manuelleFelder = () => {
+                    if (!isManual) return;
+                    const val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+                    saleData.marke = val('vk_marke');
+                    saleData.artikeltyp = val('vk_artikeltyp');
+                    saleData.groesse = val('vk_groesse');
+                    saleData.beschreibung = val('vk_beschreibung');
+                };
+
+                let saved;
+                if (isManual && this._selectedPurchaseIds.length === 0) {
                     // Manual sale - no linked purchases
                     const markeEl = document.getElementById('vk_marke');
                     const typEl = document.getElementById('vk_artikeltyp');
@@ -837,7 +916,7 @@ const Buchungen = {
                     saleData.artikeltyp = typEl ? typEl.value.trim() : '';
                     saleData.groesse = grEl ? grEl.value.trim() : '';
                     saleData.beschreibung = beschEl ? beschEl.value.trim() : '';
-                    Store.saveSale(saleData);
+                    saved = Store.saveSale(saleData);
                 } else if (this._selectedPurchaseIds.length === 1) {
                     // Single item - use legacy purchaseId for compatibility
                     const pid = this._selectedPurchaseIds[0];
@@ -847,7 +926,8 @@ const Buchungen = {
                     saleData.artikeltyp = p ? p.artikeltyp : '';
                     saleData.groesse = p ? p.groesse : '';
                     saleData.beschreibung = p ? p.beschreibung : '';
-                    Store.saveSale(saleData);
+                    manuelleFelder();
+                    saved = Store.saveSale(saleData);
                 } else {
                     // Multi item - use purchaseIds array
                     const purchases = Store.getPurchases().filter(p => this._selectedPurchaseIds.includes(p.id));
@@ -856,8 +936,11 @@ const Buchungen = {
                     saleData.marke = marken.join(', ');
                     saleData.artikeltyp = `${purchases.length} Artikel`;
                     saleData.beschreibung = `Paket: ${purchases.map(p => [p.marke, p.artikeltyp, p.groesse].filter(Boolean).join(' ')).join(', ')}`;
-                    Store.saveSaleMulti(saleData);
+                    manuelleFelder();
+                    saved = Store.saveSaleMulti(saleData);
                 }
+                // Free-Tier-Limit erreicht: kein Eintrag, keine id (requirePro zeigt den Hinweis)
+                if (!saved || !saved.id) return;
 
                 // Book material usage if any quantities entered
                 const matItems = [];
@@ -866,18 +949,61 @@ const Buchungen = {
                     if (menge > 0) matItems.push({ materialId: inp.dataset.matId, menge });
                 });
                 if (matItems.length > 0) {
-                    Store.bookMaterialVerbrauch(matItems, saleData.datum, 'verkauf', saleId,
+                    Store.bookMaterialVerbrauch(matItems, saleData.datum, 'verkauf', saved.id,
                         (saleData.marke || '') + ' ' + (saleData.artikeltyp || ''));
                 }
 
                 Utils.showToast('Verkauf gespeichert', 'success');
                 this._selectedPurchaseIds = [];
                 this._renderTab();
+                // Zurück zur Suche für den nächsten Verkauf
+                const next = document.getElementById('vkSearch');
+                if (next) { next.scrollIntoView({ block: 'center' }); next.focus(); }
             });
         }
 
         // Verkäufe-Liste: Bearbeiten / Stornieren / Löschen
         this._bindBuchungActions();
+    },
+
+    _jumpToVerkauf() {
+        const card = document.getElementById('vkDetailsCard');
+        if (card) {
+            // Topnav und Modul-Subnav kleben oben und verdecken sonst die Überschrift
+            const kopf = Math.max(0, ...[...document.querySelectorAll('.topnav, .module-subnav')]
+                .map(e => e.getBoundingClientRect().bottom));
+            window.scrollTo({ top: window.scrollY + card.getBoundingClientRect().top - kopf - 12, behavior: 'smooth' });
+        }
+        const preis = document.getElementById('vk_preis');
+        if (preis) preis.focus({ preventScroll: true });
+    },
+
+    // Manueller Modus: Lagerdaten der Auswahl in Marke/Typ/Größe/Beschreibung übernehmen.
+    // Überschrieben wird nur, was leer ist oder noch dem letzten automatischen Wert entspricht —
+    // eigene Änderungen bleiben stehen.
+    _prefillManualFields() {
+        if (!this._verkaufManual) return;
+        const purchases = Store.getPurchases().filter(p => this._selectedPurchaseIds.includes(p.id));
+        let werte;
+        if (purchases.length === 0) werte = { marke: '', artikeltyp: '', groesse: '', beschreibung: '' };
+        else if (purchases.length === 1) {
+            const p = purchases[0];
+            werte = { marke: p.marke || '', artikeltyp: p.artikeltyp || '', groesse: p.groesse || '', beschreibung: p.beschreibung || '' };
+        } else {
+            // Gleiche Ableitung wie beim Speichern eines Pakets
+            werte = {
+                marke: [...new Set(purchases.map(p => p.marke).filter(Boolean))].join(', '),
+                artikeltyp: `${purchases.length} Artikel`,
+                groesse: '',
+                beschreibung: `Paket: ${purchases.map(p => [p.marke, p.artikeltyp, p.groesse].filter(Boolean).join(' ')).join(', ')}`
+            };
+        }
+        const alt = this._verkaufAutoFill || {};
+        Object.keys(werte).forEach(k => {
+            const el = document.getElementById('vk_' + k);
+            if (el && (el.value === '' || el.value === (alt[k] || ''))) el.value = werte[k];
+        });
+        this._verkaufAutoFill = werte;
     },
 
     _refreshVerkaufSummary() {
@@ -904,6 +1030,14 @@ const Buchungen = {
             const nettoVal = parseFloat(nettoStr) || 0;
             gewinnEl.textContent = Utils.formatCurrency(nettoVal - selectedEK);
         }
+
+        const bar = document.getElementById('vkJumpBar');
+        if (bar) {
+            bar.hidden = this._selectedPurchaseIds.length === 0;
+            const info = document.getElementById('vkJumpInfo');
+            if (info) info.textContent = `${this._selectedPurchaseIds.length} Artikel · EK ${Utils.formatCurrency(selectedEK)}`;
+        }
+        this._prefillManualFields();
 
         // Update summary card opacity
         const summaryCard = document.querySelectorAll('.card')[1];

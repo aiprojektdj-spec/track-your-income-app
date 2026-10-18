@@ -283,11 +283,13 @@ block('render()', () => {
     });
     st = st || {};
 
-    check('dashboard._getYearStats(): Gewinn = EUER-Gewinn', Math.abs(st.gewinn - d.gewinn) < 0.01);
-    check('dashboard._getYearStats(): Einnahmen = summeEinnahmen',
-        Math.abs(st.einnahmen - d.summeEinnahmen) < 0.01);
-    check('dashboard._getYearStats(): Ausgaben = summeAusgaben',
-        Math.abs(st.ausgaben - d.summeAusgaben) < 0.01);
+    // Seit Audit 2026-10-13 (T01) zeigt das Dashboard den wirtschaftlichen Nettogewinn aus
+    // derselben Rechnung — der steuerliche EÜR-Gewinn steht daneben als d.gewinn.
+    check('dashboard._getYearStats(): Gewinn = EUER-Nettogewinn', Math.abs(st.gewinn - d.nettoGewinn) < 0.01);
+    check('dashboard._getYearStats(): Einnahmen = einnahmenNetto',
+        Math.abs(st.einnahmen - d.einnahmenNetto) < 0.01);
+    check('dashboard._getYearStats(): Ausgaben = ausgabenNetto',
+        Math.abs(st.ausgaben - d.ausgabenNetto) < 0.01);
     // A3: der vom Kaeufer gezahlte Versand zaehlte frueher nicht als Einnahme, seine
     // Plattformgebuehr aber sehr wohl als Kosten. Jetzt ist er drin (1000 + 50 - 100 Retoure).
     check('dashboard: Kaeufer-Versand zaehlt als Einnahme (A3 behoben)',

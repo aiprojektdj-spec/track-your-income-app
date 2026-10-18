@@ -48,6 +48,9 @@ assert.equal(records.find(row => row.key === 'private:p1').amount, 200);
 assert.equal(records.find(row => row.key === 'private:p2').amount, -50);
 assert.equal(records.find(row => row.key === 'private:p3').amount, null);
 assert.equal(records.find(row => row.key === 'purchase:same').state, 'Festgeschrieben');
+// Audit 2026-10-13, D5: nicht "Offen" — das las sich bei einer bezahlten Rechnungszahlung wie "unbezahlt"
+assert.equal(records.find(row => row.key === 'sale:same').state, 'Nicht festgeschrieben');
+assert.ok(!records.some(row => row.state === 'Offen'));
 assert.equal(records.find(row => row.key === 'sale:cancelled').state, 'Storniert');
 assert.equal(JSON.stringify(data), snapshot);
 console.log('OK alle vier Quellen, keine Rechnungs-Doppelzählung, stabile IDs, Vorzeichen und unveränderte Originaldaten');

@@ -40,7 +40,8 @@ var XRechnung = (function () {
         return map[einheit] || 'C62';
     }
 
-    function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+    // Betragssymmetrisch wie js/rechnung-summen.js — eine Stornorechnung ergibt so das Spiegelbild (L5)
+    function round2(n) { return (typeof RechnungSummen !== 'undefined') ? RechnungSummen.r2(n) : Math.round((n + Number.EPSILON) * 100) / 100; }
 
     // EU-Mitgliedstaaten (ohne DE) — für ig. Lieferung/Leistung vs. Ausfuhr (Drittland) nötig.
     var EU_LAENDER = ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'GR', 'HU', 'IE', 'IT',
@@ -104,6 +105,7 @@ var XRechnung = (function () {
         var nettoGesamt = 0;
         var mwstMap = {};   // rate -> gerundete USt-Summe (nur rate>0)
         var catMap  = {};   // Kategorie-Code (K/AE/G/E) -> { basis, reasonCode, reason } (nur rate===0)
+        var basisMap = {};  // rate -> Bemessungsgrundlage (nur rate>0)
 
         (positionen || []).forEach(function (pos, idx) {
             // Menge explizit auf undefined/null/'' prüfen statt `|| 1` — eine bewusste Menge 0
@@ -121,11 +123,13 @@ var XRechnung = (function () {
             // ungerundete Summe separat runden (sonst Differenz zwischen Kopf- und Zeilensumme).
             var line    = round2(menge * preis);
             var rate    = isKlein ? 0 : (parseInt(pos.mwstSatz) || 0);
-            var lineMwst = round2(line * rate / 100);
             nettoGesamt += line;
             var cat = taxCategoryFor(rate, isKlein, pos, inv || {}, kunde);
             if (rate > 0) {
-                mwstMap[rate] = round2((mwstMap[rate] || 0) + lineMwst);
+                // Erst die Bemessungsgrundlage je Satz sammeln, die Steuer unten EINMAL runden
+                // (BR-CO-17). Vorher wurde je Zeile gerundet und summiert: 10 × 0,03 € zu 19 %
+                // ergab 0,10 € Steuer statt 0,06 € — XML 0,40 € gegen PDF/Buchung 0,36 € (L5).
+                basisMap[rate] = round2((basisMap[rate] || 0) + line);
             } else {
                 // Mehrere Gruende koennen auf DIESELBE Kategorie fallen — seit §25a real: zwei
                 // Warenarten auf einer Rechnung ergeben beide Kategorie E mit verschiedenem
@@ -155,6 +159,7 @@ var XRechnung = (function () {
             });
         });
 
+        Object.keys(basisMap).forEach(function (k) { mwstMap[k] = round2(basisMap[k] * parseFloat(k) / 100); });
         var totalMwst = round2(Object.keys(mwstMap).reduce(function (s, k) { return s + mwstMap[k]; }, 0));
         nettoGesamt = round2(nettoGesamt);
         return {

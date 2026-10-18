@@ -221,8 +221,11 @@ const Bestandscheck = {
             eintraege: [{
                 id: 'historie-unbelegt', datum: '', betrag: null,
                 text: 'Heutiger Status: ' + modus + ' — gilt damit auch für alle früheren Jahre',
-                hinweis: 'War die Firma früher anders besteuert, in den Einstellungen unter „Umsatzsteuer und Besteuerung“ den Wechsel mit dem Datum „gilt ab“ eintragen. Erst danach schlägt der Bestandscheck vor, den Status an die Vorgänge zu schreiben.',
-                korrektur: null
+                hinweis: 'Nur bestätigen, wenn der Status seit Gründung nie gewechselt hat. War die Firma früher anders besteuert, stattdessen in den Einstellungen unter „Umsatzsteuer und Besteuerung“ den Wechsel mit dem Datum „gilt ab“ eintragen. Erst danach schlägt der Bestandscheck vor, den Status an die Vorgänge zu schreiben.',
+                // Die Aussage "nie gewechselt" kann nur der Nutzer treffen — deshalb ein
+                // ausdrücklich bestätigter Vorschlag, kein stiller Standard.
+                korrektur: { aktion: 'historie-bestaetigen', modus: ctx.settings.ustMode === 'regel' ? 'regel' : 'klein',
+                    text: 'Bestätigen: „' + modus + '“ gilt seit Beginn unverändert' }
             }]
         };
     },
@@ -383,6 +386,7 @@ const Bestandscheck = {
             case 'ust-kategorie':      return this._ustKategorie(k);
             case 'protokoll-nachtrag': return this._protokollNachtrag(k);
             case 'material-verknuepfen': return this._materialVerknuepfen(k);
+            case 'historie-bestaetigen': return this._historieBestaetigen(k);
         }
         return { ok: false, fehler: 'Unbekannte Korrektur' };
     },
@@ -447,6 +451,20 @@ const Bestandscheck = {
         const e = Store._addAuditEntry('nachgetragen', 'verkauf', s.id, null, s,
             'Nachtrag (Bestandscheck): Erstellung dieses Verkaufs war nicht protokolliert (Fehler im Verkaufsformular bis 15.10.2026). Datum und Inhalt unverändert.');
         return e ? { ok: true, text: 'Protokolleintrag nachgetragen' } : { ok: false, fehler: 'Nicht protokolliert' };
+    },
+
+    // Hält den heutigen Modus als unbefristeten Anfangszustand fest (wie SteuerStatus.wechsel()
+    // es beim ersten Wechsel tut). Ändert keinen Vorgang; danach ist die Historie belegt.
+    _historieBestaetigen(k) {
+        const alt = Store.getSettings();
+        if (!SteuerStatus.unbelegt(alt)) return { ok: false, fehler: 'Historie ist bereits festgehalten' };
+        if ((alt.ustMode === 'regel' ? 'regel' : 'klein') !== k.modus) return { ok: false, fehler: 'Status hat sich geändert — bitte neu prüfen.' };
+        const neu = Object.assign({}, alt, { ustModeHistorie: [{ ab: '0000-01-01', mode: k.modus, erfasst: new Date().toISOString(), quelle: 'bestandscheck' }] });
+        Store.saveSettings(neu);
+        if (SteuerStatus.unbelegt(Store.getSettings())) return { ok: false, fehler: 'Nicht gespeichert' };
+        Store._addAuditEntry('bearbeitet', 'system', 'ust_historie', { ustModeHistorie: alt.ustModeHistorie || null }, { ustModeHistorie: neu.ustModeHistorie },
+            'Bestandscheck: Umsatzsteuer-Status „' + k.modus + '“ als seit Beginn unverändert bestätigt');
+        return { ok: true, text: 'Statushistorie festgehalten' };
     },
 
     _materialVerknuepfen(k) {

@@ -195,6 +195,24 @@ check('Unbelegte Historie: Klärungsfall, und kein Stempel-Vorschlag', () => {
     assert.ok(ctx.fund('ohne-steuerstatus').eintraege.every(e => !e.korrektur));
 });
 
+check('Unbelegte Historie bestätigen: Anfangszustand festgehalten, protokolliert, danach Stempel-Vorschläge', () => {
+    const ctx = welt({ ustMode: 'klein', taetigkeitsbeginn: '2024-01-01' });
+    ctx.alt('sales', { id: 's1', datum: '2024-06-01', verkaufspreis: 30, createdAt: 'x' });
+    const e = ctx.fund('historie-unbelegt').eintraege[0];
+    assert.strictEqual(e.korrektur.modus, 'klein');
+    const vorherSale = JSON.stringify(ctx.Store.getAllSalesRaw());
+    assert.ok(ctx.Bestandscheck.anwenden(e.id).ok);
+    const s = ctx.Store.getSettings();
+    deq(s.ustModeHistorie.map(h => [h.ab, h.mode]), [['0000-01-01', 'klein']]);
+    assert.strictEqual(s.ustMode, 'klein');
+    assert.strictEqual(s.taetigkeitsbeginn, '2024-01-01', 'übrige Einstellungen bleiben');
+    assert.strictEqual(JSON.stringify(ctx.Store.getAllSalesRaw()), vorherSale, 'kein Vorgang geändert');
+    assert.ok(ctx.audit('ust_historie').some(a => /seit Beginn/.test(a.details)));
+    assert.ok(!ctx.fund('historie-unbelegt'));
+    assert.strictEqual(ctx.fund('ohne-steuerstatus').eintraege[0].korrektur.modus, 'klein');
+    assert.ok(!ctx.Bestandscheck.anwenden(e.id).ok, 'zweites Bestätigen ändert nichts');
+});
+
 check('Regelbesteuerter Verkauf ohne Steuersatz → Hinweis; KU-Verkauf und Rechnungsverkauf nicht', () => {
     const ctx = welt();
     ctx.alt('sales', { id: 's1', datum: '2026-03-01', verkaufspreis: 119, ustBehandlung: 'regel', createdAt: 'x' });

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Gate: Whop OAuth callback (?code=) oder gespeichertes Token → durch -->
+    <!-- WhopAuth.boot() übernimmt Login-Logik nach Script-Load -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'none'; frame-src 'none';">
+
+    <!-- ── Resource Hints ──
+         jsDelivr steht hier nicht mehr: seit D1 liegen alle Fremdbibliotheken lokal
+         (js/vendor/, css/vendor/). api.whop.com bleibt — der Zugangs-Check geht dorthin. -->
+    
+    <!-- Fund F4: eigene kritische Kette. Wirkung ist klein — der Preload-Scanner findet
+         beide Dateien ohnehin, style.css steht in diesem head und app.js weiter unten im
+         selben 22-KB-Dokument. Die Hints heben nur ihre Prioritaet an, damit sie nicht
+         hinter den CDN-Stylesheets einsortiert werden; die blockierenden Skripte in
+         Zeile 19/20 sind der groessere Posten (eigener Fund, s. Uebergabe).
+         Der Preload fuer js/app.js ist weg: die Datei laedt js/app-loader.js erst nach. -->
+    <link rel="preload" as="style"  href="css/style.css">
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='85' fill='%2310b981'>◆</text></svg>">
+    <link rel="manifest" href="/manifest.json">
+    <title>stackr · Demo</title>
+    <meta name="robots" content="noindex">
+
+    <!-- ── Zu alter Browser? Zuerst laden: es-probe.js nutzt ?./?? und setzt nur in einem
+         ausreichend neuen Browser eine Marke; browser-check.js (ES5) zeigt sonst einen Hinweis. ── -->
+    <script src="js/demo-speicher.js"></script>
+    <script src="js/es-probe.js"></script>
+    <script src="js/browser-check.js"></script>
+
+    <!-- ── Critical: i18n (sync, tiny ~8KB) ── -->
+    <script src="js/actions.js"></script>
+    <script src="js/i18n.js"></script>
+
+    <!-- ── Fonts: self-hosted (DSGVO) — preload verhindert FOUT. Nur Inter: Fraunces steht
+         erst in den Seitenkoepfen nach dem Login, der Login-Screen braucht sie nicht. ── -->
+    <link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+
+    <!-- Theme (System/Hell/Dunkel) — synchron und VOR den Stylesheets:
+         setzt data-theme auf <html>, sonst blitzt die dunkle Palette auf. -->
+    <script src="js/theme.js"></script>
+
+    <!-- ── CSS only in head — non-blocking ── -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/vendor/tabler-icons.min.css">
+    <link rel="stylesheet" href="css/vendor/notyf.min.css">
+    <link rel="stylesheet" href="css/vendor/flatpickr-dark.css">
+    <!-- Externe Diagramm-Styles; die CSP erlaubt keine injizierten style-Elemente. -->
+    <link id="apexcharts-css" rel="stylesheet" href="css/vendor/apexcharts.css">
+    <!-- JS moved to body bottom with defer — no render blocking -->
+    <!-- Vercel Web Analytics wird NICHT statisch geladen: js/cookie-banner.js zieht das
+         Skript erst nach, wenn die Einwilligung 'all' vorliegt (§25 Abs. 1 TDDDG). -->
+    <link rel="stylesheet" href="css/redesign.css">
+    <link rel="stylesheet" href="css/demo.css">
+</head>
+<body>
+
+    <a href="#mainContent" class="skip-link">Zum Inhalt springen</a>
+
+    <!-- ══════════════════════════════════════════════
+         TOPNAV — persistent top bar
+         ══════════════════════════════════════════════ -->
+    <nav class="topnav" aria-label="Anwendungen">
+        <!-- Brand -->
+        <div class="topnav-brand">
+            <svg width="16" height="26" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6 48 32 32 58 16 32Z" fill="currentColor"/></svg>
+            <div>stackr</div>
+        </div>
+
+        <!-- Cross-app navigation (zentral aus js/topnav.js, verhindert Nav-Drift) -->
+        <div class="topnav-apps" id="topnavApps" data-active="dashboard"></div>
+        <script src="js/topnav.js"></script>
+
+        <!-- Right controls -->
+        <div class="topnav-controls">
+            <div id="companySwitcher"></div>
+            <button class="theme-toggle" id="themeToggle" type="button"></button>
+            <a href="#" id="settingsLink" title="Einstellungen" aria-label="Einstellungen" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-settings" aria-hidden="true"></i></a>
+            <a href="#" id="backupLink" title="Backup & Daten" aria-label="Backup & Daten" style="font-size:18px;color:var(--text-secondary);line-height:1;"><i class="ti ti-device-floppy" aria-hidden="true"></i></a>
+            <div id="fsBackupStatus" style="display:none;"></div>
+        </div>
+    </nav>
+
+    <!-- ══════════════════════════════════════════════
+         MODULE SUB-NAV — persistent bar below topnav.
+         Befüllt von App._renderModuleSubnav() je Seitengruppe.
+         Liegt AUSSERHALB von #content → überlebt _refresh().
+         Kollabiert per :empty wenn nicht aktiv.
+         ══════════════════════════════════════════════ -->
+    <div class="module-subnav" id="moduleSubnav"></div>
+    <!-- 2. Ebene: interne Nav eingebetteter Sub-Apps (Rechnungen/Eigenbelege) -->
+    <div class="module-subnav module-subnav--sub" id="rechSubnav"></div>
+
+    <!-- ══════════════════════════════════════════════
+         SIDEBAR — fixed, hidden by default
+         Opens via toggle button
+         ══════════════════════════════════════════════ -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>Stackr</h1>
+            <div class="subtitle">Your Financial Overview</div>
+        </div>
+        <nav class="sidebar-nav" aria-label="Module">
+
+            <!-- ── GbR-Sektion (nur sichtbar wenn GbR aktiv) ── -->
+            <div class="sidebar-section" id="gbrSidebarSection" style="display:none;">GbR-Verwaltung</div>
+            <div class="sidebar-section-items" id="gbrSidebarItems" style="display:none;">
+                <div class="sidebar-link" data-page="gbr" data-gbr-tab="uebersicht">
+                    <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> Übersicht</span>
+                </div>
+                <div class="sidebar-link" data-page="gbr" data-gbr-tab="verrechnung">
+                    <span class="icon"><i class="ti ti-credit-card"></i></span><span class="sidebar-link-label"> Verrechnungskonten</span>
+                </div>
+                <div class="sidebar-link" data-page="gbr" data-gbr-tab="gewerbesteuer">
+                    <span class="icon"><i class="ti ti-building-bank"></i></span><span class="sidebar-link-label"> Gewerbesteuer</span>
+                </div>
+                <div class="sidebar-link" data-page="gbr" data-gbr-tab="feststellung">
+                    <span class="icon"><i class="ti ti-file"></i></span><span class="sidebar-link-label"> Feststellung</span>
+                </div>
+                <div class="sidebar-link" data-page="gbr" data-gbr-tab="stammdaten">
+                    <span class="icon"><i class="ti ti-settings"></i></span><span class="sidebar-link-label"> Stammdaten</span>
+                </div>
+            </div>
+
+            <!-- ── EÜR-Sektion (nur sichtbar wenn EÜR aktiv) ── -->
+            <div class="sidebar-section" id="euerSidebarSection" style="display:none;">Steuer & EÜR – Auswertung</div>
+            <div class="sidebar-section-items" id="euerSidebarItems" style="display:none;">
+                <div class="sidebar-link" id="euerNav_jahr" data-euer-period="jahr">
+                    <span class="icon"><i class="ti ti-clipboard-list"></i></span><span class="sidebar-link-label"> Jahres-EÜR</span>
+                </div>
+                <div class="sidebar-link" id="euerNav_monat" data-euer-period="monat">
+                    <span class="icon"><i class="ti ti-calendar"></i></span><span class="sidebar-link-label"> Monatliche EÜR</span>
+                </div>
+                <div class="sidebar-link" id="euerNav_quartal" data-euer-period="quartal">
+                    <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> Quartals-EÜR</span>
+                </div>
+                <div class="sidebar-link" id="euerNav_uva" data-euer-view="uva">
+                    <span class="icon"><i class="ti ti-receipt"></i></span><span class="sidebar-link-label"> USt-Voranmeldung</span>
+                </div>
+                <div class="sidebar-link" data-page="steuertermine" id="euerNav_steuer">
+                    <span class="icon"><i class="ti ti-calendar-event"></i></span><span class="sidebar-link-label"> Steuertermine</span>
+                </div>
+                <div style="border-top:1px solid var(--border);margin:6px 12px;"></div>
+                <div class="sidebar-link" data-page="statistiken" id="euerNav_statistiken">
+                    <span class="icon"><i class="ti ti-trending-up"></i></span><span class="sidebar-link-label"> Verkaufskanäle</span>
+                </div>
+            </div>
+
+            <!-- ── Steuer & Soziales ── -->
+            <div class="sidebar-section" id="steuerSidebarSection" style="display:none;">Steuer &amp; Soziales</div>
+            <div class="sidebar-section-items" id="steuerSidebarItems" style="display:none;">
+                <div class="sidebar-link" data-page="privatbuchungen" id="privatbuchungenSidebarLink">
+                    <span class="icon"><i class="ti ti-briefcase"></i></span><span class="sidebar-link-label"> Privatentnahmen/-einlagen</span>
+                </div>
+                <div class="sidebar-link" data-page="ksk" id="kskSidebarLink">
+                    <span class="icon"><i class="ti ti-palette"></i></span><span class="sidebar-link-label"> KSK (Künstlersozialks.)</span>
+                </div>
+                <div class="sidebar-link" data-page="steuerberater">
+                    <span class="icon"><i class="ti ti-user-check"></i></span><span class="sidebar-link-label"> Steuerberater-Export</span>
+                </div>
+                <div class="sidebar-link" data-page="vorsteuer">
+                    <span class="icon"><i class="ti ti-receipt-tax"></i></span><span class="sidebar-link-label"> Vorsteuer</span>
+                </div>
+                <div class="sidebar-link" data-page="oss">
+                    <span class="icon"><i class="ti ti-world"></i></span><span class="sidebar-link-label"> OSS (EU-Fernverkauf)</span>
+                </div>
+                <div class="sidebar-link" data-page="koerperschaftsteuer" id="kstSidebarLink" style="display:none;">
+                    <span class="icon"><i class="ti ti-building-bank"></i></span><span class="sidebar-link-label"> Körperschaftsteuer</span>
+                </div>
+                <div class="sidebar-link" data-page="bilanz" id="bilanzSidebarLink" style="display:none;">
+                    <span class="icon"><i class="ti ti-report-analytics"></i></span><span class="sidebar-link-label"> Bilanz / GuV</span>
+                </div>
+                <div class="sidebar-link" data-page="gewerbesteuer" id="gewstSidebarLink" style="display:none;">
+                    <span class="icon"><i class="ti ti-building-store"></i></span><span class="sidebar-link-label"> Gewerbesteuer</span>
+                </div>
+                <div class="sidebar-link" data-page="lohnsteuer" id="lohnsteuerSidebarLink" style="display:none;">
+                    <span class="icon"><i class="ti ti-users"></i></span><span class="sidebar-link-label"> Lohnsteuer</span>
+                </div>
+                <div class="sidebar-link" data-page="rechtsform">
+                    <span class="icon"><i class="ti ti-building"></i></span><span class="sidebar-link-label"> Rechtsform</span>
+                </div>
+            </div>
+
+            <!-- ── GoBD Protokoll — immer sichtbar ── -->
+            <div class="sidebar-link" id="protokollFixedLink" data-page="protokoll" style="margin:4px 8px;border-radius:8px;border:1px solid rgba(139,147,248,0.25);background:rgba(139,147,248,0.06);">
+                <span class="icon"><i class="ti ti-notebook"></i></span><span class="sidebar-link-label"> GoBD Protokoll</span>
+            </div>
+
+            <!-- ── Hauptmenü ── -->
+            <div class="sidebar-section" data-section="hauptmenu" id="mainSidebarSection">Hauptmenü<i class="section-toggle-icon">▾</i></div>
+            <div class="sidebar-section-items" id="section-hauptmenu">
+                <div class="sidebar-link active" data-page="dashboard">
+                    <span class="icon"><i class="ti ti-chart-bar"></i></span><span class="sidebar-link-label"> Dashboard</span>
+                </div>
+                <div class="sidebar-link" data-page="buchungen">
+                    <span class="icon"><i class="ti ti-wallet"></i></span><span class="sidebar-link-label"> Finanzen</span>
+                </div>
+                <div class="sidebar-link" data-page="statistiken">
+                    <span class="icon"><i class="ti ti-trending-up"></i></span><span class="sidebar-link-label"> Verkaufskanäle</span>
+                </div>
+                <div style="border-top:1px solid var(--border);margin:6px 12px;"></div>
+                <div class="sidebar-link" data-page="ustvoranmeldung">
+                    <span class="icon"><i class="ti ti-receipt"></i></span><span class="sidebar-link-label"> Steuer &amp; Soziales</span>
+                </div>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <span class="version-badge">Stackr v1.7</span>
+            <div style="margin-top:6px;font-size:11px;text-align:center;">
+                <a href="impressum.html" style="color:var(--text-muted,#888);text-decoration:none;" target="_blank">Impressum</a>
+                &nbsp;·&nbsp;
+                <a href="datenschutz.html" style="color:var(--text-muted,#888);text-decoration:none;" target="_blank">Datenschutz</a>
+                &nbsp;·&nbsp;
+                <a href="agb.html" style="color:var(--text-muted,#888);text-decoration:none;" target="_blank">AGB</a>
+            </div>
+        </div>
+        <!-- Kept for JS compatibility (app.js may reference this ID) -->
+        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" style="display:none;">‹</button>
+    </aside>
+
+    <!-- ══════════════════════════════════════════════
+         FLOATING SIDEBAR TOGGLE BUTTON
+         ══════════════════════════════════════════════ -->
+    <button class="sidebar-toggle-btn" id="sidebarToggleBtn" title="Navigation öffnen" aria-label="Navigation öffnen" aria-expanded="false" aria-controls="sidebar">›</button>
+
+    <!-- ══════════════════════════════════════════════
+         MAIN APP CONTAINER
+         ══════════════════════════════════════════════ -->
+    <div class="app-container">
+        <div class="mobile-overlay" id="mobileOverlay"></div>
+        <main class="main-content" id="mainContent" tabindex="-1">
+            <button class="btn btn-icon mobile-menu-btn" id="mobileMenuBtn" style="display:none;">☰</button>
+            <!-- Loading skeleton — visible until app.js replaces it -->
+            <div id="content">
+                <div id="appLoadingSkeleton" style="padding:24px;">
+                    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">
+                        <div style="height:90px;flex:1;min-width:140px;background:var(--surface,#101312);border-radius:12px;animation:skeletonPulse 1.4s ease-in-out infinite;"></div>
+                        <div style="height:90px;flex:1;min-width:140px;background:var(--surface,#101312);border-radius:12px;animation:skeletonPulse 1.4s ease-in-out infinite .1s;"></div>
+                        <div style="height:90px;flex:1;min-width:140px;background:var(--surface,#101312);border-radius:12px;animation:skeletonPulse 1.4s ease-in-out infinite .2s;"></div>
+                        <div style="height:90px;flex:1;min-width:140px;background:var(--surface,#101312);border-radius:12px;animation:skeletonPulse 1.4s ease-in-out infinite .3s;"></div>
+                    </div>
+                    <div style="height:240px;background:var(--surface,#101312);border-radius:12px;animation:skeletonPulse 1.4s ease-in-out infinite .4s;"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <dialog class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div>
+    </dialog>
+    <div id="onboarding"></div>
+
+    <!-- ══════════════════════════════════════════════
+         Scripts — defer: parallel download, in-order
+         execution after HTML parsed, zero render blocking
+         ══════════════════════════════════════════════ -->
+
+    <!-- ── Vendor: lokal aus js/vendor/ (seit D1 kein CDN mehr) ── -->
+    <!-- chart.min.js (200 KB) wird NICHT mehr eager geladen: js/statistiken.js ist der einzige
+         Nutzer im Projekt und holt es ueber _ensureChartJs() beim ersten Zeichnen. -->
+    <!-- xlsx.full.min.js (929 KB, groesste Datei des Projekts) wird NICHT mehr eager geladen:
+         Utils.ensureXlsx() in js/utils.js holt sie beim ersten Excel-Im-/Export nach. -->
+    <!-- gsap und flatpickr brauchen erst die Module: js/app-loader.js laedt sie mit ihnen nach. -->
+    <script defer src="js/vendor/notyf.min.js"></script>
+    <!-- ApexCharts (~600KB): lazy-loaded by dashboard.js only when chart tab opens -->
+
+    <!-- ── App core ── -->
+    <script defer src="js/companies.js"></script>
+    <script defer src="js/steuerstatus.js"></script>
+    <script defer src="js/rechnung-summen.js"></script>
+    <script defer src="js/store.js"></script>
+    <script defer src="js/webhooks.js"></script>
+    <script defer src="js/user-plan.js?v=3"></script>
+    <script defer src="js/utils.js"></script>
+    <script defer src="js/backup-crypto.js"></script>
+
+    <script defer src="js/demo-modus.js"></script>
+    <script defer src="js/app-loader.js"></script>
+
+    <!-- ── Feature modules, Sub-Apps und js/app.js: laedt js/app-loader.js nach, sobald eine
+         Sitzung da ist. Ohne Sitzung erscheint der Login sofort, ohne ~50 Skripte (2,5 MB). ── -->
+
+    <script src="js/page-shell.js"></script>
+
+</body>
+</html>

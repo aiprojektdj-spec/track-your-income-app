@@ -103,20 +103,31 @@ späteres Security-Audit als Fund (dann in `plan/02-ENTSCHEIDUNGEN.md` eintragen
 - Browser: frischer Port, Handy (375/360) und Desktop (1366×768), CSP prüfen (Konsole: keine
   blockierten Anfragen außer gewollten).
 
-## 6. Offene Fragen an den User (vor dem Bau klären, Regel 9)
+## 6. Entscheidungen des Users (2026-10-19)
 
-1. **Einbindung:** Demo direkt im Hero eingebettet (`iframe`, sofort sichtbar) oder Button
-   „Demo ausprobieren“, der `demo.html` als eigene Seite öffnet?
-2. **Umfang:** Stimmt die Tabelle in 2.3? Insbesondere: Rechnung erstellen ja, PDF-Export nein?
-3. **Obergrenze:** 50 Buchungen pro Sitzung okay, oder gar keine Grenze?
-4. **Musterfirma:** Branche für die Beispieldaten (z. B. Reseller/Vinted wie die eigene
-   Zielgruppe, oder neutraler Freelancer)?
+1. **Einbindung:** direkt interaktiv auf der Landing (`<iframe src="demo.html">` im Hero).
+2. **Umfang:** Übersicht (Dashboard), Rechnungen erstellen, Lager. Alles andere ist gesperrt.
+3. **Grenze:** 25 neue Einträge pro Besuch (Einkäufe, Verkäufe, Ausgaben und Rechnungen zusammen).
+4. **Musterfirma:** Reseller („Vintage Kiste (Muster)“, Kleinunternehmer §19).
 
-## 7. Reihenfolge
+## 7. Umgesetzt (2026-10-19)
 
-1. Fragen aus 6 klären.
-2. `Store`-Adapter-Hook (kleinster Eingriff in `store.js`) + Test.
-3. `demo.html` + `js/demo-modus.js` + CSP-Route.
-4. Musterdaten.
-5. Sperren für Export und Server-Funktionen.
-6. Landing-Einbindung, Browser-Test, Commit pfad-gescoped.
+| Datei | Rolle |
+|---|---|
+| `demo.html` | Kopie von `app.html`: ohne `whop-auth.js`, `cookie-banner.js` und `error-logger.js`, mit `connect-src 'none'` |
+| `js/demo-speicher.js` | erstes Skript; ersetzt `localStorage`/`sessionStorage` durch Arbeitsspeicher, blendet IndexedDB aus und bricht hart ab, wenn das nicht geht |
+| `js/demo-modus.js` | Musterdaten, Sperre auf 3 Bereiche (auch über `?page=`), Grenze 25, keine Downloads, kein Druck, kein `window.open` |
+| `css/demo.css` | Demo-Leiste, blendet gesperrte Navigation aus |
+| `vercel.json` | Route `/demo.html` (`frame-ancestors 'self'`), Landing `frame-src 'self'` |
+| `test/test-demo-modus.js` | echter Speicher bleibt unberührt, Musterdaten, Grenze, Bearbeiten erlaubt |
+
+**Kein Eingriff** in `app.html`, `whop-auth.js`, `store.js` oder ein Fachmodul. Die Demo nutzt den
+unveränderten App-Code.
+
+**Bekannt, nicht demo-spezifisch:** Die Rechnungsvorschau („PDF / Drucken“ in der Dokumentliste)
+ist auch in der echten App ungestylt. `Rechnung.generatePreviewHtml` liefert ein `<style>`-Element,
+und die CSP (`style-src-elem 'self'`) blockiert es.
+
+**Offen:** Die Demo lädt beim Seitenaufruf die vollen App-Module (rund 2,5 MB) im iframe nach.
+Auf dem Handy dauert das ein paar Sekunden. Später lässt sich messen, ob das die Landing-Kennzahlen
+(LCP/INP) spürbar verschlechtert.

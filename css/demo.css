@@ -1,0 +1,14 @@
+/* Demo-Modus (nur demo.html): Hinweisleiste und ausgeblendete Bereiche. */
+.demo-leiste{position:sticky;top:0;z-index:1000;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:8px 16px;background:var(--surface,#171717);border-bottom:1px solid var(--border,#333);color:var(--text-secondary,#adadad);font-size:13px;line-height:1.4}
+.demo-leiste strong{color:var(--text-primary,#eee);font-weight:600}
+.demo-zaehler{white-space:nowrap}
+.demo-cta{display:inline-flex;align-items:center;min-height:32px;padding:4px 12px;border-radius:6px;background:var(--text-primary,#eee);color:var(--bg,#111);font-weight:600;text-decoration:none;white-space:nowrap}
+/* Nur Uebersicht, Rechnungen und Lager — alles andere fuehrt in der Demo nirgendwohin. */
+.ist-demo .sr-nav-link[data-sr-page]:not([data-sr-page="dashboard"]):not([data-sr-page="rechnungen"]):not([data-sr-page="lager"]),
+.ist-demo .sr-context-link[data-sr-page]:not([data-sr-page="dashboard"]):not([data-sr-page="rechnungen"]):not([data-sr-page="lager"]),
+.ist-demo [data-action="navigate"]:not([data-args*='"dashboard"']):not([data-args*='"rechnungen"']):not([data-args*='"lager"']),
+.ist-demo a[href^="lager/index.html"],
+.ist-demo #settingsLink,
+.ist-demo #backupLink,
+.ist-demo #fsBackupStatus{display:none!important}
+.ist-eingebettet .demo-cta{display:none}

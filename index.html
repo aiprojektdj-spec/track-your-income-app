@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'none';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'self'; script-src-elem 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self';">
   <title>stackr · Deine Buchhaltung. Ein klarer Überblick.</title>
   <meta name="description" content="Rechnungen, Belege und Zahlen. An einem Ort. Buchhaltung für Selbstständige, Freelancer, Kleinunternehmer, Reseller und GbRs. Entdecke stackr.">
   <link rel="canonical" href="https://getstackr.de/">
@@ -43,24 +43,8 @@
         <h1 id="hero-title">Deine Buchhaltung.<br>Ein klarer Überblick.</h1>
         <a class="action hero-action" href="#preise" data-session-link>7 Tage kostenlos testen</a>
       </div>
-      <figure class="product-figure">
-        <div class="dashboard" role="img" aria-label="Vereinfachte stackr-Übersicht mit Beispieldaten für Oktober 2026: 8.450 Euro Einnahmen minus 2.180 Euro Ausgaben ergeben 6.270 Euro Gewinn. Der monatliche Gewinn von Mai bis Oktober beträgt 1.200, 2.400, 1.800, 4.200, 3.600 und 6.270 Euro.">
-          <div aria-hidden="true">
-            <div class="dashboard-heading"><span>Übersicht</span><span>Oktober 2026 · Beispieldaten</span></div>
-            <div class="metrics">
-              <div><span>Einnahmen</span><strong>8.450,00 <small>€</small></strong></div>
-              <div><span>Ausgaben</span><strong>2.180,00 <small>€</small></strong></div>
-              <div><span>Gewinn</span><strong>6.270,00 <small>€</small></strong></div>
-            </div>
-            <div class="chart-title"><span>Gewinn im Monatsverlauf</span><span>Mai – Oktober</span></div>
-            <div class="chart-area">
-              <div class="chart-scale"><span>8.000 €</span><span>4.000 €</span><span>0 €</span></div>
-              <svg viewBox="0 0 600 160" preserveAspectRatio="none" focusable="false"><path class="chart-grid" d="M0 0H600M0 80H600M0 160H600"/><path class="chart-line" d="M0 136L120 112L240 124L360 76L480 88L600 34.6"/></svg>
-            </div>
-            <div class="chart-months"><span>Mai</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Okt</span></div>
-          </div>
-        </div>
-
+      <figure class="product-figure demo-figure">
+        <iframe class="demo-frame" src="demo.html" title="Interaktive stackr-Demo mit Beispieldaten"></iframe>
       </figure>
     </section>
     <section class="features wrap" id="funktionen" aria-label="Funktionen">

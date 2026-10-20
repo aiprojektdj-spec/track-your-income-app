@@ -1204,59 +1204,16 @@ var Rechnung = (function() {
 
         var wm = watermarkText || (inv.status === 'storniert' ? 'STORNIERT' : '');
 
-        // Embedded styles \u2014 self-contained for both in-app preview and print
-        var css = '<style>'
-            + '.inv-wrap{background:#fff;color:#1e293b;max-width:794px;margin:0 auto;font-size:13px;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Arial,sans-serif;position:relative;}'
-            + '.inv-accent{height:5px;width:100%;display:block;}'
-            + '.inv-header{display:flex;justify-content:space-between;align-items:flex-start;padding:28px 36px 22px;gap:20px;}'
-            + '.inv-logo{max-height:55px;max-width:140px;object-fit:contain;display:block;margin-bottom:10px;}'
-            + '.inv-co-name{font-size:18px;font-weight:700;color:#0f172a;letter-spacing:-.3px;margin-bottom:3px;}'
-            + '.inv-co-addr{font-size:11.5px;color:#64748b;line-height:1.65;}'
-            + '.inv-doc{text-align:right;flex-shrink:0;}'
-            + '.inv-doc-type{font-size:21px;font-weight:800;letter-spacing:1.5px;margin-bottom:12px;}'
-            + '.inv-meta{font-size:12px;}'
-            + '.inv-meta-row{display:flex;justify-content:flex-end;gap:14px;padding:2.5px 0;}'
-            + '.inv-meta-lbl{color:#94a3b8;}'
-            + '.inv-meta-val{color:#1e293b;font-weight:500;min-width:80px;text-align:right;}'
-            + 'hr.inv-sep{border:none;border-top:2px solid #e2e8f0;margin:0 36px;}'
-            + '.inv-body{padding:26px 36px 36px;}'
-            + '.inv-sender{font-size:9px;color:#94a3b8;border-bottom:1px solid #f1f5f9;padding-bottom:5px;margin-bottom:10px;letter-spacing:.3px;}'
-            + '.inv-rcpt{font-size:13px;line-height:1.65;color:#1e293b;margin-bottom:28px;}'
-            + '.inv-rcpt strong{font-size:14px;font-weight:700;}'
-            + '.inv-storno-box{margin-bottom:16px;padding:10px 14px;background:rgba(220,38,38,.06);border-left:3px solid #dc2626;border-radius:0 4px 4px 0;font-size:12px;color:#b91c1c;}'
-            + '.inv-tax{font-size:11.5px;color:#64748b;margin-bottom:20px;}'
-            + '.inv-tax strong{color:#334155;}'
-            + '.inv-tbl{width:100%;border-collapse:collapse;margin-bottom:8px;font-size:12.5px;}'
-            + '.inv-tbl thead tr{border-bottom:2px solid #e2e8f0;}'
-            + '.inv-tbl th{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.7px;color:#64748b;padding:8px 10px;text-align:left;background:#f8fafc;}'
-            + '.inv-tbl th.r,.inv-tbl td.r{text-align:right;}'
-            + '.inv-tbl td{padding:9px 10px;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:top;}'
-            + '.inv-tbl tbody tr:last-child td{border-bottom:2px solid #e2e8f0;}'
-            + '.inv-tbl .pos{width:34px;color:#94a3b8;font-size:11.5px;}'
-            // Fund 25 (Vollaudit 2026-07-23): Kopfzeile wiederholt sich auf Folgeseiten,
-            // Zeilen/Summenblock werden nicht mitten durch einen Seitenumbruch zerschnitten.
-            + '.inv-tbl thead{display:table-header-group;}'
-            + '.inv-tbl tr{page-break-inside:avoid;break-inside:avoid;}'
-            + '.inv-totals,.inv-bank,.inv-footer{page-break-inside:avoid;break-inside:avoid;}'
-            + '.inv-totals{margin-left:auto;width:255px;padding-top:6px;margin-bottom:24px;}'
-            + '.inv-tr{display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px;color:#334155;}'
-            + '.inv-tr.grand{border-top:2px solid #1e293b;margin-top:8px;padding-top:10px;font-size:15px;font-weight:700;color:#0f172a;}'
-            + '.inv-klein{font-size:11.5px;color:#64748b;padding:9px 13px;background:#f8fafc;border-radius:4px;margin-bottom:18px;}'
-            + '.inv-note{margin-bottom:14px;font-size:12.5px;color:#334155;}'
-            + '.inv-bank{margin-top:22px;padding:14px 18px;background:#f8fafc;border-radius:6px;border:1px solid #e2e8f0;}'
-            + '.inv-bank-hd{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#64748b;margin-bottom:8px;}'
-            + '.inv-bank-row{display:flex;flex-wrap:wrap;gap:20px;font-size:12.5px;color:#334155;margin-bottom:4px;}'
-            + '.inv-bank-row em{font-style:normal;color:#94a3b8;font-size:10.5px;margin-right:3px;}'
-            + '.inv-bank-ref{font-size:11px;color:#64748b;margin-top:5px;}'
-            + '.inv-footer{margin-top:30px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8;text-align:center;line-height:1.9;}'
-            + '</style>';
-
-        var html = css;
-        html += '<div class="inv-wrap">';
+        // Styles: css/rechnung-dokument.css (App-Seiten binden sie ein, printInvoiceWindow verlinkt
+        // sie im Druck-iframe). Ein <style>-Block hier wuerde von der CSP blockiert.
+        var html = '';
+        // Akzentfarbe als CSS-Variable: redesign.css ueberschreibt in Modals jedes style="color:#..." /
+        // "background:#..." per !important mit App-Farben - eine Variable trifft keine dieser Regeln.
+        html += '<div class="inv-wrap" style="--inv-akzent:' + accentColor + '">';
         if (wm) {
-            html += '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:72px;font-weight:900;color:rgba(220,38,38,.10);pointer-events:none;white-space:nowrap;z-index:0;letter-spacing:4px;">' + wm + '</div>';
+            html += '<div class="inv-wasserzeichen">' + wm + '</div>';
         }
-        html += '<div class="inv-accent" style="background:' + accentColor + '"></div>';
+        html += '<div class="inv-accent"></div>';
 
         // Header: company left, doc info right
         html += '<div class="inv-header">';
@@ -1273,7 +1230,7 @@ var Rechnung = (function() {
         html += '</div>';
         html += '</div>';
         html += '<div class="inv-doc">';
-        html += '<div class="inv-doc-type" style="color:' + accentColor + '">' + typLabel + '</div>';
+        html += '<div class="inv-doc-type">' + typLabel + '</div>';
         html += '<div class="inv-meta">';
         html += '<div class="inv-meta-row"><span class="inv-meta-lbl">Nummer</span><span class="inv-meta-val">' + Utils.escapeHtml(inv.nummer || '') + '</span></div>';
         html += '<div class="inv-meta-row"><span class="inv-meta-lbl">Datum</span><span class="inv-meta-val">' + Utils.formatDate(inv.datum) + '</span></div>';
@@ -1366,12 +1323,12 @@ var Rechnung = (function() {
         html += '<div class="inv-totals">';
         html += '<div class="inv-tr"><span>Nettobetrag</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
         if (isKlein) {
-            html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
+            html += '<div class="inv-tr grand"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(netto) + '</span></div>';
         } else {
             Object.keys(summen.gruppen).map(Number).filter(function(s) { return s > 0; }).sort(function(a, b) { return a - b; }).forEach(function(satz) {
                 html += '<div class="inv-tr"><span>MwSt. ' + satz + '%</span><span>' + Utils.formatCurrency(summen.gruppen[satz].steuer) + '</span></div>';
             });
-            html += '<div class="inv-tr grand" style="color:' + accentColor + '"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(summen.brutto) + '</span></div>';
+            html += '<div class="inv-tr grand"><span>GESAMTBETRAG</span><span>' + Utils.formatCurrency(summen.brutto) + '</span></div>';
         }
         html += '</div>';
 
@@ -1435,7 +1392,7 @@ var Rechnung = (function() {
             // signiert. https-Pruefung hier ein zweites Mal, weil dieses Dokument weitergegeben
             // wird und ein Alt-Datensatz von vor der Feldvalidierung stammen kann.
             if (settings.zahlungslink && settings.zahlungslink.toLowerCase().indexOf('https://') === 0) {
-                html += '<div class="inv-bank-ref">Online bezahlen: <a href="' + Utils.escapeHtml(settings.zahlungslink) + '" style="color:inherit;">' + Utils.escapeHtml(settings.zahlungslink) + '</a></div>';
+                html += '<div class="inv-bank-ref">Online bezahlen: <a href="' + Utils.escapeHtml(settings.zahlungslink) + '" class="inv-link">' + Utils.escapeHtml(settings.zahlungslink) + '</a></div>';
             }
             html += '</div>';
         }
@@ -1443,7 +1400,7 @@ var Rechnung = (function() {
             // Ohne Bankverbindung trotzdem eine Zahlungsmoeglichkeit nennen
             html += '<div class="inv-bank">';
             html += '<div class="inv-bank-hd">Zahlung</div>';
-            html += '<div class="inv-bank-ref">Online bezahlen: <a href="' + Utils.escapeHtml(settings.zahlungslink) + '" style="color:inherit;">' + Utils.escapeHtml(settings.zahlungslink) + '</a></div>';
+            html += '<div class="inv-bank-ref">Online bezahlen: <a href="' + Utils.escapeHtml(settings.zahlungslink) + '" class="inv-link">' + Utils.escapeHtml(settings.zahlungslink) + '</a></div>';
             html += '<div class="inv-bank-ref">Verwendungszweck: ' + Utils.escapeHtml(inv.nummer || '') + '</div>';
             html += '</div>';
         }
@@ -1488,13 +1445,12 @@ var Rechnung = (function() {
 
     function printInvoiceWindow(invoiceHtml, asPdf, watermarkText) {
         // watermarkText is embedded in invoiceHtml already via generatePreviewHtml
-        var invoiceCss = `
-            * { box-sizing: border-box; }
-            body { background: white; margin: 0; padding: 0; }
-            @page { size: A4; margin: 8mm; }
-            @media print { .inv-wrap { max-width: 100% !important; } }
-        `;
-        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rechnung</title><style>' + invoiceCss + '</style></head><body>' + invoiceHtml + '</body></html>';
+        // Das about:blank-iframe erbt die CSP der App: eingebettete Style-Bloecke werden geblockt, Links auf die eigene
+        // Domain nicht. Absoluter Pfad, weil die Seite auch unter /rechnungen/ laufen kann.
+        var cssLinks = ['/css/rechnung-dokument.css', '/css/rechnung-druck.css'].map(function(pfad) {
+            return '<link rel="stylesheet" href="' + location.origin + pfad + '">';
+        }).join('');
+        var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rechnung</title>' + cssLinks + '</head><body>' + invoiceHtml + '</body></html>';
 
         var iframe = document.createElement('iframe');
         iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:210mm;height:297mm;border:0;';
@@ -1502,7 +1458,16 @@ var Rechnung = (function() {
         var idoc = iframe.contentDocument || iframe.contentWindow.document;
         idoc.write(fullHtml);
         idoc.close();
-        setTimeout(function() {
+        var links = Array.prototype.slice.call(idoc.querySelectorAll('link[rel=stylesheet]'));
+        var geladen = Promise.all(links.map(function(l) {
+            return new Promise(function(fertig) {
+                if (l.sheet) return fertig();
+                l.addEventListener('load', fertig);
+                l.addEventListener('error', fertig);
+            });
+        }));
+        // Hoechstens 3 s warten: lieber eine schlichte Seite drucken als gar keine.
+        Promise.race([geladen, new Promise(function(r) { setTimeout(r, 3000); })]).then(function() { setTimeout(function() {
             try {
                 iframe.contentWindow.focus();
                 iframe.contentWindow.print();
@@ -1512,7 +1477,7 @@ var Rechnung = (function() {
             };
             iframe.contentWindow.addEventListener('afterprint', cleanup);
             setTimeout(cleanup, 30000);
-        }, 500);
+        }, 100); });
     }
 
     function showInvoicePreview(inv) {

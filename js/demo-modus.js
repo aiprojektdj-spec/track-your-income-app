@@ -157,6 +157,15 @@
         var a = e.target.closest && e.target.closest('a[download]');
         if (a) { e.preventDefault(); e.stopPropagation(); nurVollversion('Exporte und Downloads'); }
     }, true);
+    // Rechnungen druckt die App ueber ein eigenes iframe (Rechnung.printInvoiceWindow) - dessen
+    // print() geht an window.print vorbei. Jedes neu eingehaengte iframe bekommt die Sperre mit.
+    new MutationObserver(function (eintraege) {
+        eintraege.forEach(function (e) {
+            Array.prototype.forEach.call(e.addedNodes, function (n) {
+                if (n.tagName === 'IFRAME' && n.contentWindow) n.contentWindow.print = function () { nurVollversion('Drucken und PDF'); };
+            });
+        });
+    }).observe(document.documentElement, { childList: true, subtree: true });
     // Neue Fenster (PDF-Vorschau per window.open) nur ohne Inhalt der App.
     window.open = function () { nurVollversion('Diese Ansicht'); return null; };
 

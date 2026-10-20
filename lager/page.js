@@ -1737,17 +1737,22 @@ const ExcelImport = {
     _autoDetect(columns) {
         const lc = c => (c || '').toString().trim().toLowerCase().replace(/\?/g, '');
         const find = (...names) => columns.find(c => names.includes(lc(c))) || '';
+        // Zweite Stufe nur fuer die Beschreibung: Kopfzeilen wie "Artikel und Beschreibung"
+        // (Kundentabelle 2026-10-20) trafen keinen exakten Namen, die Spalte blieb
+        // unzugeordnet und jede Zeile kam ohne Beschreibung an.
+        const findTeil = (...teile) => columns.find(c => teile.some(t => lc(c).includes(t))) || '';
         return {
             datum:        find('kaufdatum', 'datum', 'date', 'einkaufsdatum', 'kauf'),
-            artikelNr:    find('artikelnummer', 'artikelnr', 'artikel-nr', 'artikel-nr.', 'art.-nr.', 'art-nr', 'artnr', 'sku', 'item number', 'item no', 'nummer'),
+            artikelNr:    find('artikelnummer', 'artikelnr', 'artikel-nr', 'artikel-nr.', 'art.-nr.', 'art-nr', 'artnr', 'sku', 'item number', 'item no', 'nummer', 'produktnr', 'produktnr.', 'produktnummer'),
             marke:        find('marke', 'brand', 'hersteller'),
             artikeltyp:   find('typ', 'artikeltyp', 'kategorie', 'type', 'category'),
             groesse:      find('größe', 'groesse', 'size', 'gr', 'gr.', 'gröse'),
-            beschreibung: find('beschreibung', 'description', 'modell', 'name', 'titel', 'title', 'was', 'artikel', 'item', 'produkt', 'bezeichnung'),
-            einkaufspreis:find('ek', 'ek-preis', 'einkauf', 'einkaufspreis', 'preis', 'price', 'cost', 'kaufpreis'),
+            beschreibung: find('beschreibung', 'description', 'modell', 'name', 'titel', 'title', 'was', 'artikel', 'item', 'produkt', 'bezeichnung')
+                          || findTeil('beschreibung', 'bezeichnung'),
+            einkaufspreis:find('ek', 'ek-preis', 'einkauf', 'einkaufspreis', 'einkaufskosten', 'preis', 'price', 'cost', 'kaufpreis'),
             quelle:       find('wo', 'quelle', 'source', 'einkaufsquelle', 'händler', 'haendler', 'shop', 'laden'),
             anzahl:       find('anzahl', 'menge', 'quantity', 'qty', 'stück', 'stueck'),
-            verkaufspreis:find('verkauf', 'verkaufspreis', 'vk', 'vk-preis', 'sale', 'sold', 'erlös', 'erloes'),
+            verkaufspreis:find('verkauf', 'verkaufspreis', 'vk', 'vk-preis', 'sale', 'sold', 'erlös', 'erloes', 'umsatz'),
             verkaufsdatum:find('verkaufsdatum', 'verkaufdatum', 'vk-datum', 'sale date', 'saledate', 'sold date'),
             verkaufswo:   find('wo2', 'wohin', 'käufer', 'kaeufer', 'buyer', 'sold to'),
             // Optionale Ausgaben-/Einnahmen-Posten für die EÜR (€ bzw. %) — nur bei passender Spalte
@@ -1785,6 +1790,14 @@ const ExcelImport = {
         if (v instanceof Date) return isNaN(v.getTime()) ? null : fmt(v);
         const s = String(v).trim();
         if (!s) return null;
+        // Excel-Seriennummer (Tage seit 30.12.1899). Kommt, wenn SheetJS das Zellformat nicht
+        // umsetzen kann — Google Sheets exportiert Datumszellen als "dd.MM.yyyy" (grosses MM),
+        // daraus wurde "46164" und ueber new Date() unten das Jahr 46164 (Kundentabelle
+        // 2026-10-20). Fuenf Stellen = 1927 bis 2173; eine vierstellige Jahreszahl faellt nicht hinein.
+        if (/^\d{5}(\.\d+)?$/.test(s)) {
+            const d = new Date(Math.round((parseFloat(s) - 25569) * 86400000));
+            return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+        }
         if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
         const m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/);
         if (m) {

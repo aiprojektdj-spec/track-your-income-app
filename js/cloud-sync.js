@@ -731,6 +731,9 @@ var CloudSync = (function () {
                 var entityType = /__reselling_purchases$/.test(k) ? 'einkauf'
                     : /__reselling_sales$/.test(k) ? 'verkauf'
                     : /__reselling_expenses$/.test(k) ? 'ausgabe'
+                    // Retouren/Materialeinkäufe haben seit dem Steuer-Audit 2026-10-18 (F2) Grabsteine
+                    : /__reselling_retouren$/.test(k) ? 'retoure'
+                    : /__reselling_materiallager_einkauefe$/.test(k) ? 'materialeinkauf'
                     // Ohne diesen Zweig lief die Firmenregistry ohne Grabsteinpruefung durch die
                     // Union: eine geloeschte Firma kam beim naechsten Sync als leerer Zombie zurueck.
                     : (k === 'oyi_companies') ? 'firma' : null;

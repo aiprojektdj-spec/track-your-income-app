@@ -81,7 +81,7 @@ const Retouren = {
             }
         } catch (err) {
             // Kompensation: kein halbfertiger Vorgang — Retoure wieder entfernen
-            Store.deleteRetoure(gespeichert.id);
+            Store.deleteRetoure(gespeichert.id, { kompensation: true });
             return { ok: false, fehler: 'Lagerbuchung fehlgeschlagen — Retoure nicht gespeichert' };
         }
         return { ok: true, retoure: gespeichert };
@@ -91,6 +91,8 @@ const Retouren = {
     loesche(id) {
         const r = Store.getRetouren().find(x => x.id === id);
         if (!r) return;
+        // Festgeschriebene Retoure: Store meldet die Sperre; Lagerstatus nicht vorher anfassen (F2)
+        if (Store.isLocked(r)) { Store.deleteRetoure(id); return false; }
         if (r.modell === 2 && (r.artikelIds || []).length) {
             const erwartet = r.ware === 'zurueck' ? 'verfuegbar' : 'beschadigt';
             const purchases = Store.getAllPurchasesRaw();
@@ -98,6 +100,7 @@ const Retouren = {
             if (zurueck.length) this._setzeArtikelStatus(zurueck, 'verkauft', 'Retoure ' + (r.nummer || '') + ' gelöscht');
         }
         Store.deleteRetoure(id);
+        return true;
     },
 
     render() {
@@ -367,7 +370,7 @@ const Retouren = {
         document.querySelectorAll('[data-delete-retoure]').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (!confirm('Retoure wirklich löschen?')) return;
-                this.loesche(btn.dataset.deleteRetoure);
+                if (this.loesche(btn.dataset.deleteRetoure) === false) return;
                 Utils.showToast('Retoure gelöscht', 'success');
                 this._refresh();
             });

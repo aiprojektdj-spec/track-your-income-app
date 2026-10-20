@@ -2439,9 +2439,16 @@ const Store = {
             const counter = this.getRechInvoiceCounter();
             const year = new Date().getFullYear();
             this._resetCounterIfNewYear(counter, year);
-            counter['SR'] = (counter['SR'] || 0) + 1;
+            // Wie nextRechInvoiceNumber: vorhandene Nummern überspringen, sonst vergibt ein
+            // zurückgesetzter Zähler SR-…-0001 ein zweites Mal (Steuer-Audit 2026-10-18, B7).
+            const vorhanden = new Set((this._rechGet('dokumente') || []).map(i => i.nummer || ''));
+            let nr;
+            do {
+                counter['SR'] = (counter['SR'] || 0) + 1;
+                nr = `SR-${year}-${String(counter['SR']).padStart(4, '0')}`;
+            } while (vorhanden.has(nr));
             this._rechSet('invoice_counter', counter);
-            return `SR-${year}-${String(counter['SR']).padStart(4, '0')}`;
+            return nr;
         });
     },
 
@@ -2857,6 +2864,20 @@ const Store = {
         const curRPfx = this._rechPrefix;
         const curAKey = this._auditKey;
 
+        // GoBD-Zustand VOR dem Restore festhalten (Steuer-Audit 2026-10-18, F1): ein älteres Backup
+        // ersetzte bisher Protokoll, Jahresabschlüsse, eingereichte UVA-Perioden und Nummernkreise
+        // durch seinen eigenen, älteren Stand — Protokolleinträge verschwanden bei "gültiger" Kette,
+        // ein abgeschlossenes Jahr war wieder offen und RE-Nummern wurden doppelt vergeben.
+        // Jetzt: Protokoll bleibt (append-only), Abschlüsse und Perioden werden vereinigt,
+        // Zähler laufen nie rückwärts.
+        const vorher = {
+            audit:      this.getAuditLog(),
+            closed:     this.getClosedYears(),
+            perioden:   this.getUstPerioden(),
+            counter:    this.get('invoice_counter'),
+            rechCounter: this._rechGet('invoice_counter')
+        };
+
         // ── Schritt 1: Alte Daten der aktiven Firma aus Cache + IDB löschen ─
         // Verhindert "Datenmix" zwischen altem Stand und Backup-Stand.
         // Audit-Log wird NICHT gelöscht (GoBD).
@@ -2897,11 +2918,34 @@ const Store = {
                     targetKey = curAKey;
                 }
             }
+            // Vorhandenes Protokoll nie durch das Backup ersetzen (s. `vorher` oben)
+            if (targetKey === curAKey && vorher.audit.length) targetKey = null;
             if (targetKey) {
                 this._cache[targetKey] = value; // sofort in Memory
                 entries.push({ k: targetKey, v: value });
             }
         }
+
+        // ── Schritt 2b: GoBD-Zustand zusammenführen (F1) ─────────────────────
+        const setze = (key, val) => {
+            const str = JSON.stringify(val);
+            this._cache[key] = str;
+            const i = entries.findIndex(e => e.k === key);
+            if (i >= 0) entries[i].v = str; else entries.push({ k: key, v: str });
+        };
+        const closed = Array.from(new Set(vorher.closed.concat(this.getClosedYears()))).sort();
+        if (closed.length) setze(curPfx + 'closed_years', closed);
+        const periodeKey = p => [p.year, p.quartal, p.monat || ''].join('|');
+        const perioden = this.getUstPerioden();
+        vorher.perioden.forEach(p => {
+            const i = perioden.findIndex(x => periodeKey(x) === periodeKey(p));
+            if (i >= 0) perioden[i] = p; else perioden.push(p);   // lokaler (neuerer) Stand gewinnt
+        });
+        if (perioden.length) setze(curPfx + 'ust_perioden', perioden);
+        const zaehler = this._mergeZaehler(vorher.counter, this.get('invoice_counter'));
+        if (zaehler) setze(curPfx + 'invoice_counter', zaehler);
+        const rechZaehler = this._mergeZaehler(vorher.rechCounter, this._rechGet('invoice_counter'));
+        if (rechZaehler) setze(curRPfx + 'invoice_counter', rechZaehler);
 
         // ── Schritt 3: Atomare Bulk-Transaktion — alles oder nichts ──────────
         this._idbPutBatch(entries);
@@ -2944,6 +2988,18 @@ const Store = {
                 }
             } catch(e) {}
         }
+    },
+
+    // Zwei Nummernkreis-Zähler zusammenführen, ohne dass einer rückwärts läuft: gleiches Jahr →
+    // je Präfix das Maximum, verschiedene Jahre → der des späteren Jahres (Steuer-Audit 2026-10-18,
+    // F1/B7 — Restore und Sync-Merge dürfen eine schon vergebene Rechnungsnummer nicht freigeben).
+    _mergeZaehler(a, b) {
+        if (!a) return b || null;
+        if (!b) return a;
+        if ((a._year || 0) !== (b._year || 0)) return (a._year || 0) > (b._year || 0) ? a : b;
+        const m = Object.assign({}, a);
+        Object.keys(b).forEach(k => { if (k !== '_year') m[k] = Math.max(parseInt(a[k], 10) || 0, parseInt(b[k], 10) || 0); });
+        return m;
     },
 
     // ── Atomare Bulk-Transaktion: schreibt alle Einträge in einer IDB-Transaktion ──
@@ -3004,11 +3060,28 @@ const Store = {
         return `RT-${year}-${String(n).padStart(3, '0')}`;
     },
 
+    // Retouren und Materialeinkäufe sind Buchungen mit EÜR-/UVA-Wirkung — sie bekommen dieselbe
+    // Periodensperre und dasselbe Änderungsprotokoll wie Verkäufe und Einkäufe. Vorher wurden sie
+    // ohne Protokoll angelegt und physisch gelöscht, auch im abgeschlossenen Jahr (Steuer-Audit
+    // 2026-10-18, F2: EÜR-Gewinn 2025 sprang nach dem Löschen einer Retoure von 11,90 € auf 119 €).
+    _sperreGespeichert(alt, typ) {
+        if (!alt || !this.isLocked(alt)) return false;
+        if (typeof Utils !== 'undefined' && Utils.showToast) {
+            Utils.showToast(typ + ' ist festgeschrieben (' + this.lockReason(alt) + ') und kann nicht mehr geändert oder gelöscht werden.', 'error');
+        }
+        return true;
+    },
+
     saveRetoure(r) {
         if (this._isReadonlyCompany()) { this._refuseReadonly('saveRetoure'); return null; }
         const all = this.getRetouren();
+        const neu = !r.id;
         if (!r.id) { r.id = this.generateId(); r.createdAt = new Date().toISOString(); r.nummer = this.nextRetourenNumber(); }
         const idx = all.findIndex(x => x.id === r.id);
+        const alt = idx >= 0 ? Object.assign({}, all[idx]) : null;
+        if (this._sperreGespeichert(alt, 'Retoure')) return null;
+        if (neu) this._warnIfPeriodLocked(r.datum);
+        this._addAuditEntry(alt ? 'aenderung' : 'erstellt', 'retoure', r.id, alt, r, alt ? 'Retoure geändert' : 'Retoure erstellt');
         if (idx >= 0) all[idx] = r; else all.push(r);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'retouren'] = str;
@@ -3017,8 +3090,16 @@ const Store = {
         return r;
     },
 
-    deleteRetoure(id) {
+    // opts.kompensation: Rücknahme eines eben gescheiterten Anlegevorgangs (js/retouren.js) — die
+    // Retoure hat dann wirtschaftlich nie bestanden und darf auch in gesperrter Periode weg.
+    deleteRetoure(id, opts) {
         if (this._isReadonlyCompany()) { this._refuseReadonly('deleteRetoure'); return null; }
+        const alt = this.getRetouren().find(r => r.id === id);
+        if (!alt) return { ok: false };
+        if (!(opts && opts.kompensation) && this._sperreGespeichert(alt, 'Retoure')) return { blocked: true, reason: 'locked' };
+        this._addAuditEntry('loeschung', 'retoure', id, alt, null,
+            opts && opts.kompensation ? 'Retoure zurückgenommen (Anlegen fehlgeschlagen)' : 'Retoure gelöscht (offene Periode)');
+        this._addTombstone('retoure', id);
         const all = this.getRetouren().filter(r => r.id !== id);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'retouren'] = str;
@@ -3228,8 +3309,13 @@ const Store = {
     saveMaterialEinkauf(e) {
         if (this._isReadonlyCompany()) { this._refuseReadonly('saveMaterialEinkauf'); return null; }
         const all = this.getMaterialEinkauefe();
+        const neu = !e.id;
         if (!e.id) { e.id = this.generateId(); e.erstelltAm = new Date().toISOString(); }
         const idx = all.findIndex(x => x.id === e.id);
+        const alt = idx >= 0 ? Object.assign({}, all[idx]) : null;
+        if (this._sperreGespeichert(alt, 'Materialeinkauf')) return null;   // s. _sperreGespeichert (F2)
+        if (neu) this._warnIfPeriodLocked(e.datum);
+        this._addAuditEntry(alt ? 'aenderung' : 'erstellt', 'materialeinkauf', e.id, alt, e, alt ? 'Materialeinkauf geändert' : 'Materialeinkauf erstellt');
         if (idx >= 0) all[idx] = e; else all.push(e);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'materiallager_einkauefe'] = str;
@@ -3240,6 +3326,11 @@ const Store = {
 
     deleteMaterialEinkauf(id) {
         if (this._isReadonlyCompany()) { this._refuseReadonly('deleteMaterialEinkauf'); return null; }
+        const alt = this.getMaterialEinkauefe().find(x => x.id === id);
+        if (!alt) return { ok: false };
+        if (this._sperreGespeichert(alt, 'Materialeinkauf')) return { blocked: true, reason: 'locked' };
+        this._addAuditEntry('loeschung', 'materialeinkauf', id, alt, null, 'Materialeinkauf gelöscht (offene Periode)');
+        this._addTombstone('materialeinkauf', id);
         const all = this.getMaterialEinkauefe().filter(x => x.id !== id);
         const str = JSON.stringify(all);
         this._cache[this._prefix + 'materiallager_einkauefe'] = str;

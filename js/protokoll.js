@@ -42,10 +42,14 @@ const Protokoll = {
             get: () => Store.getAllSalesRaw(),
             cols: [
                 ['id', 'Datensatz-ID', 'a'], ['datum', 'Belegdatum', 'd'], ['beschreibung', 'Bezeichnung', 'a'],
-                ['verkaufspreis', 'Verkaufspreis (EUR)', 'n'], ['versandKaeufer', 'Versand Käufer (EUR)', 'n'],
+                // Feldnamen wie in js/buchungen.js geschrieben (versandkostenKaeufer/-Verkaufer) —
+                // versandKaeufer/versandVerkaeufer gab es nie, die Spalten blieben leer und die
+                // Z3-Summe lag unter der EÜR (Steuer-Audit 2026-10-18, F3).
+                ['verkaufspreis', 'Verkaufspreis (EUR)', 'n'], ['versandkostenKaeufer', 'Versand Käufer (EUR)', 'n'],
+                ['steuersatz', 'USt-Satz (%)', 'n'], ['steuersaetze', 'Brutto je USt-Satz (gemischt)', 'a'],
                 // Feld heisst am Datensatz plattformgebuehrProzent — 'plattformgebuehr' allein
                 // schreibt die App nie, die Spalte blieb also leer (nachgemessen 2026-09-17).
-                ['plattformgebuehrProzent', 'Plattformgebühr (%)', 'n'], ['versandVerkaeufer', 'Versandkosten (EUR)', 'n'],
+                ['plattformgebuehrProzent', 'Plattformgebühr (%)', 'n'], ['versandkostenVerkaufer', 'Versandkosten (EUR)', 'n'],
                 ['verkaufsplattform', 'Verkaufsplattform', 'a'], ['kaeufer', 'Käufer', 'a'],
                 ['belegNr', 'Belegnummer', 'a'], ['storniert', 'Storniert', 'a'], ['notizen', 'Bemerkung', 'a']
             ]
@@ -62,13 +66,27 @@ const Protokoll = {
         },
         {
             file: 'kassenbuch.csv', name: 'Kassenbuch', desc: 'Kassenbuch (Bareinnahmen/-ausgaben)',
-            get: () => (Store.getKassenbuch ? Store.getKassenbuch() : []),
+            // js/kassenbuch.js speichert { datum, typ, betrag (immer positiv), beschreibung, beleg } —
+            // keinen Bestand. Bis zum Steuer-Audit 2026-10-18 (F3) las Z3 art/belegNr/bestand: der
+            // Prüfer konnte Einnahmen nicht von Ausgaben unterscheiden. Der Bestand wird hier als
+            // laufender Saldo ab dem Anfangsbestand gebildet (chronologisch, Stornos ohne Wirkung).
+            get: () => {
+                var eintraege = (Store.getKassenbuch ? Store.getKassenbuch() : []).slice()
+                    .sort(function (a, b) { return String(a.datum || '').localeCompare(String(b.datum || '')); });
+                var bestand = parseFloat((Store.getSettings ? Store.getSettings() : {}).kassenbuchAnfangsbestand) || 0;
+                return eintraege.map(function (e) {
+                    var b = parseFloat(e.betrag) || 0;
+                    var ein = e.typ === 'Einnahme' || e.typ === 'Privateinlage';
+                    if (!e.storniert) bestand += ein ? b : -b;
+                    return Object.assign({}, e, { betragVorzeichen: ein ? b : -b, bestandNach: Math.round(bestand * 100) / 100 });
+                });
+            },
             cols: [
-                ['id', 'Datensatz-ID', 'a'], ['datum', 'Belegdatum', 'd'], ['art', 'Art', 'a'],
+                ['id', 'Datensatz-ID', 'a'], ['datum', 'Belegdatum', 'd'], ['typ', 'Art', 'a'],
                 ['beschreibung', 'Bezeichnung', 'a'], ['betrag', 'Betrag (EUR)', 'n'],
-                // Feld heisst am Eintrag 'bestand' (js/kassenbuch.js); 'bestandNach' gibt es nicht.
-                ['bestand', 'Kassenbestand nach Buchung (EUR)', 'n'],
-                ['belegNr', 'Belegnummer', 'a'], ['storniert', 'Storniert', 'a']
+                ['betragVorzeichen', 'Betrag mit Vorzeichen (EUR)', 'n'],
+                ['bestandNach', 'Kassenbestand nach Buchung (EUR)', 'n'],
+                ['beleg', 'Belegnummer', 'a'], ['storniert', 'Storniert', 'a']
             ]
         },
         {
@@ -104,6 +122,61 @@ const Protokoll = {
                 ['gesamtNetto', 'Netto (EUR)', 'n'], ['gesamtUst', 'Umsatzsteuer (EUR)', 'n'],
                 ['gesamtBrutto', 'Brutto (EUR)', 'n'], ['status', 'Status', 'a'],
                 ['leitwegId', 'Leitweg-ID', 'a'], ['storniert', 'Storniert', 'a']
+            ]
+        },
+        // Weitere Grundaufzeichnungen mit EÜR-Wirkung — fehlten bis zum Steuer-Audit 2026-10-18 (F3).
+        {
+            file: 'retouren.csv', name: 'Retouren', desc: 'Retouren und Erstattungen an Kunden',
+            get: () => (Store.getRetouren ? Store.getRetouren() : []),
+            cols: [
+                ['id', 'Datensatz-ID', 'a'], ['nummer', 'Retourennummer', 'a'], ['datum', 'Datum', 'd'],
+                ['saleId', 'Verkauf-ID', 'a'], ['vkPreis', 'Verkaufspreis (EUR)', 'n'],
+                ['erstattungBetrag', 'Erstattung (EUR)', 'n'], ['ware', 'Ware', 'a'], ['notizen', 'Bemerkung', 'a']
+            ]
+        },
+        {
+            file: 'eigenbelege.csv', name: 'Eigenbelege', desc: 'Eigenbelege (Ersatzbelege)', datumFeld: 'belegDatum',
+            get: () => {
+                try {
+                    var co = localStorage.getItem('oyi_active_company') || '';
+                    var k = (co ? co + '__' : '') + 'eigenbelege_belege';
+                    return (Store._syncReadRaw ? Store._syncReadRaw(k) : JSON.parse(localStorage.getItem(k) || '[]')) || [];
+                } catch (e) { return []; }
+            },
+            cols: [
+                ['id', 'Belegnummer', 'a'], ['belegDatum', 'Belegdatum', 'd'], ['empfaenger', 'Empfänger/Verkäufer', 'a'],
+                ['zweck', 'Zweck', 'a'], ['kategorie', 'Kategorie', 'a'], ['zahlungsweg', 'Zahlungsweg', 'a'],
+                ['betragBrutto', 'Brutto (EUR)', 'n'], ['mwstSatz', 'USt-Satz (%)', 'n'], ['betragMwst', 'USt (EUR)', 'n'],
+                ['vstAbzugsfaehig', 'Vorsteuerabzug', 'a'], ['begruendung', 'Begründung', 'a'], ['storniert', 'Storniert', 'a']
+            ]
+        },
+        {
+            file: 'fahrtenbuch.csv', name: 'Fahrtenbuch', desc: 'Fahrtenbuch (betriebliche Fahrten)',
+            get: () => (Store.getFahrten ? Store.getFahrten() : []),
+            cols: [
+                ['id', 'Datensatz-ID', 'a'], ['nummer', 'Fahrtnummer', 'a'], ['datum', 'Datum', 'd'],
+                ['von', 'Von', 'a'], ['nach', 'Nach', 'a'], ['gesamtKm', 'Kilometer', 'n'],
+                ['kmstandAbfahrt', 'km-Stand Abfahrt', 'n'], ['kmstandAnkunft', 'km-Stand Ankunft', 'n'],
+                ['fahrzeug', 'Fahrzeug', 'a'], ['zweck', 'Zweck', 'a'], ['berechnungsart', 'Berechnungsart', 'a'],
+                ['kosten', 'Betrag (EUR)', 'n'], ['storniert', 'Storniert', 'a']
+            ]
+        },
+        {
+            // Anlagen bleiben über die ganze Nutzungsdauer prüfungsrelevant, nicht nur im Anschaffungsjahr
+            file: 'anlagen.csv', name: 'Anlagenverzeichnis', desc: 'Anlagenverzeichnis (AfA)', datumFeld: null,
+            get: () => (Store.getAfaAnlagen ? Store.getAfaAnlagen() : []),
+            cols: [
+                ['id', 'Datensatz-ID', 'a'], ['bezeichnung', 'Bezeichnung', 'a'], ['anschaffungsdatum', 'Anschaffungsdatum', 'd'],
+                ['anschaffungskosten', 'Anschaffungskosten (EUR)', 'n'], ['nutzungsdauer', 'Nutzungsdauer (Jahre)', 'n'],
+                ['methode', 'AfA-Methode', 'a'], ['storniert', 'Storniert', 'a']
+            ]
+        },
+        {
+            file: 'privatbuchungen.csv', name: 'Privatbuchungen', desc: 'Privatentnahmen und -einlagen',
+            get: () => (Store.getPrivatbuchungen ? Store.getPrivatbuchungen() : []),
+            cols: [
+                ['id', 'Datensatz-ID', 'a'], ['datum', 'Datum', 'd'], ['typ', 'Art', 'a'],
+                ['betrag', 'Betrag (EUR)', 'n'], ['beschreibung', 'Bezeichnung', 'a'], ['storniert', 'Storniert', 'a']
             ]
         },
         {
@@ -194,15 +267,16 @@ const Protokoll = {
     // niemand ihm mehr Daten geben sollte, als er verlangt hat (Datenminimierung).
     exportZ3(vonJahr, bisJahr) {
         var von = String(vonJahr), bis = String(bisJahr || vonJahr);
-        var imZeitraum = function (rec) {
-            var j = String((rec && (rec.datum || rec.timestamp)) || '').slice(0, 4);
+        var imZeitraum = function (rec, feld) {
+            if (feld === null) return true;   // z. B. Anlagen: über die Nutzungsdauer hinweg relevant
+            var j = String((rec && (feld ? rec[feld] : (rec.datum || rec.timestamp))) || '').slice(0, 4);
             return !j || (j >= von && j <= bis);   // Datensätze ohne Datum bleiben drin
         };
         var geliefert = [], leer = [], dateien = [];
         this._Z3_TABLES.forEach(function (t) {
             var recs;
             try { recs = t.get() || []; } catch (e) { recs = []; }
-            recs = recs.filter(imZeitraum);
+            recs = recs.filter(function (r) { return imZeitraum(r, t.datumFeld); });
             if (!recs.length) { leer.push(t.name); return; }
             var rows = [t.cols.map(function (c) { return c[1]; })];
             var self = Protokoll;

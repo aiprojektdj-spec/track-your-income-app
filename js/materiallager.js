@@ -664,7 +664,8 @@ const Materiallager = {
         document.querySelectorAll('[data-ml-del-einkauf]').forEach(btn => {
             btn.addEventListener('click', () => {
                 if (!confirm('Einkauf-Eintrag löschen? Der Bestand wird NICHT rückgängig gemacht.')) return;
-                Store.deleteMaterialEinkauf(btn.dataset.mlDelEinkauf);
+                const r = Store.deleteMaterialEinkauf(btn.dataset.mlDelEinkauf);
+                if (r && r.blocked) return;   // Store hat die Festschreibung gemeldet (F2)
                 Utils.showToast('Einkauf gelöscht', 'success');
                 this._refresh();
             });

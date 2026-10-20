@@ -45,9 +45,19 @@ const Ausgaben = {
         return { satz, bagatelle, satzText: (satz * 100).toLocaleString('de-DE', { minimumFractionDigits: 1 }) + '%' };
     },
 
+    // Bemessungsgrundlage der KSA ist das Entgelt OHNE gesondert ausgewiesene Umsatzsteuer
+    // (§25 Abs. 2 KSVG). Bis zum Steuer-Audit 2026-10-18 (E-03) wurde der Bruttobetrag summiert:
+    // 1.190 € brutto (1.000 € netto) rissen die 1.000-€-Freigrenze und lösten 58,31 € KSA aus.
+    // Ohne ausgewiesenen Satz (Kleinunternehmer-Künstler, Reverse Charge, unklar) zählt der Betrag.
+    _ksaNetto(betrag, ustSatz) {
+        const b = parseFloat(betrag) || 0;
+        const r = this._normUstSatz(ustSatz);
+        return (typeof r === 'number' && r > 0) ? b / (1 + r / 100) : b;
+    },
+
     _ksaJahressumme(year) {
         return Store.getExpenses().filter(e => e.kategorie === this._KSA_KATEGORIE && (e.datum || '').startsWith(String(year)))
-            .reduce((s, e) => s + (parseFloat(e.betrag) || 0), 0);
+            .reduce((s, e) => s + this._ksaNetto(e.betrag, e.ustSatz !== undefined ? e.ustSatz : e.steuersatz), 0);
     },
 
     // USt-Satz einer Ausgabe: 19 | 7 | 0 | 'rc' (Reverse Charge) | 'unklar' (nicht klassifiziert).
@@ -516,7 +526,7 @@ const Ausgaben = {
             ksaHint.style.display = isKsa ? '' : 'none';
             if (!isKsa) return;
             const year = (Utils.getDateInputValue('exp_datum') || Utils.todayISO()).slice(0, 4);
-            const neuerBetrag = parseFloat(document.getElementById('exp_betrag')?.value) || 0;
+            const neuerBetrag = this._ksaNetto(document.getElementById('exp_betrag')?.value, document.getElementById('exp_ustSatz')?.value);
             const jahressumme = this._ksaJahressumme(year) + neuerBetrag;
             const kw = this._getKsaWerte(year);
             const ueberGrenze = jahressumme > kw.bagatelle;
@@ -524,8 +534,8 @@ const Ausgaben = {
             ksaHint.style.border = `1px solid var(${ueberGrenze ? '--danger' : '--info'})`;
             ksaHint.style.color = `var(${ueberGrenze ? '--danger' : '--info'})`;
             ksaHint.innerHTML = ueberGrenze
-                ? `Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> — übersteigt die ${Utils.formatCurrency(kw.bagatelle)}-Freigrenze (§24 Abs.2 Satz 2 KSVG). Dann ist die <strong>gesamte</strong> Jahressumme künstlersozialabgabepflichtig, nicht nur der übersteigende Teil. Voraussichtliche KSA: <strong>${Utils.formatCurrency(jahressumme * kw.satz)}</strong> (${kw.satzText} für ${year}), zusätzlich zum Honorar an die Künstlersozialkasse zu melden und zu zahlen.`
-                : `Jahressumme ${year} inkl. dieser Ausgabe: <strong>${Utils.formatCurrency(jahressumme)}</strong> von ${Utils.formatCurrency(kw.bagatelle)} Freigrenze (§24 Abs.2 Satz 2 KSVG). Bemessungsgrundlage ist der Nettobetrag ohne USt. Betrifft nur Leistungen mit gestalterischem/kreativem Charakter (§25 KSVG), z.B. Grafik, Foto, Text — reine technische Ausführung ohne kreativen Spielraum fällt idR nicht darunter. <strong>Ausnahme:</strong> Als „typischer Verwerter" nach §24 Abs.1 KSVG (Verlag, Werbeagentur, Theater, Galerie u.ä.) gilt die Freigrenze für dich <strong>nicht</strong> — dann besteht die Abgabepflicht ab dem ersten Euro.`;
+                ? `Jahressumme ${year} inkl. dieser Ausgabe (netto): <strong>${Utils.formatCurrency(jahressumme)}</strong> — übersteigt die ${Utils.formatCurrency(kw.bagatelle)}-Freigrenze (§24 Abs.2 Satz 2 KSVG). Dann ist die <strong>gesamte</strong> Jahressumme künstlersozialabgabepflichtig, nicht nur der übersteigende Teil. Voraussichtliche KSA: <strong>${Utils.formatCurrency(jahressumme * kw.satz)}</strong> (${kw.satzText} für ${year}), zusätzlich zum Honorar an die Künstlersozialkasse zu melden und zu zahlen.`
+                : `Jahressumme ${year} inkl. dieser Ausgabe (netto): <strong>${Utils.formatCurrency(jahressumme)}</strong> von ${Utils.formatCurrency(kw.bagatelle)} Freigrenze (§24 Abs.2 Satz 2 KSVG). Bemessungsgrundlage ist der Nettobetrag ohne USt. Betrifft nur Leistungen mit gestalterischem/kreativem Charakter (§25 KSVG), z.B. Grafik, Foto, Text — reine technische Ausführung ohne kreativen Spielraum fällt idR nicht darunter. <strong>Ausnahme:</strong> Als „typischer Verwerter" nach §24 Abs.1 KSVG (Verlag, Werbeagentur, Theater, Galerie u.ä.) gilt die Freigrenze für dich <strong>nicht</strong> — dann besteht die Abgabepflicht ab dem ersten Euro.`;
         };
         if (katSel) katSel.addEventListener('change', updateKsaHint);
         const betragInput = document.getElementById('exp_betrag');

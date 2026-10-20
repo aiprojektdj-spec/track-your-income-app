@@ -255,8 +255,9 @@ const Rechtsform = {
 
     ueberschreitetAO141Schwelle(year) {
         if (typeof GbrModul === 'undefined' || !GbrModul._calcJahresgewinn) return false;
-        const { einnahmen, gewinn } = GbrModul._calcJahresgewinn(year);
-        return einnahmen > this.AO141_UMSATZ_GRENZE || gewinn > this.AO141_GEWINN_GRENZE;
+        const { einnahmen, umsatzNetto, gewinn } = GbrModul._calcJahresgewinn(year);
+        const umsatz = (typeof umsatzNetto === 'number') ? umsatzNetto : einnahmen;   // netto, s. E-05b
+        return umsatz > this.AO141_UMSATZ_GRENZE || gewinn > this.AO141_GEWINN_GRENZE;
     },
 
     // §141 Abs. 2 AO: Die Buchführungspflicht beginnt erst mit dem Wirtschaftsjahr, das auf die

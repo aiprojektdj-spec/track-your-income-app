@@ -282,7 +282,7 @@ const Afa = {
             <div style="padding:12px 16px;font-size:13px;color:var(--text-muted);line-height:1.7;">
                 <strong>GWG-Grenze:</strong> Wirtschaftsgüter bis 800 € netto können sofort abgeschrieben werden (§6 Abs. 2 EStG).<br>
                 <strong>Lineare AfA:</strong> Gleichmäßige Verteilung der AK über die Nutzungsdauer.<br>
-                <strong>Degressive AfA:</strong> 2,5-facher Linearsatz, max. 25 % p.a.; gilt für Anschaffungen bis 31.12.2007 sowie wieder ab 1.1.2023.<br>
+                <strong>Degressive AfA:</strong> nur für Anschaffungen in den gesetzlichen Zeitfenstern (§7 Abs. 2 EStG): 2020–2022 und 01.04.–31.12.2024 (2- bzw. 2,5-facher Linearsatz, max. 20/25 %), 01.07.2025–31.12.2027 (3-fach, max. 30 %).<br>
                 <strong>Anteilige AfA:</strong> Im Anschaffungsjahr nur für verbleibende volle Monate (Monatsregel).<br>
                 <strong>Unverbindlich</strong> – Prüfung durch Steuerberater empfohlen.
             </div>
@@ -321,13 +321,19 @@ const Afa = {
                 <div class="form-group">
                     <label class="form-label">Anschaffungskosten (€) *</label>
                     <input type="number" class="form-input" id="afa_ak" step="0.01" min="0" max="99999999" value="${existing.anschaffungskosten || ''}" placeholder="0,00">
+                    <div class="form-hint">Mit Vorsteuerabzug netto, ohne (Kleinunternehmer) brutto (§9b EStG).</div>
+                </div>
+                <div class="form-group" id="afa_ustGroup">
+                    <label class="form-label">Darin enthaltene USt (€)</label>
+                    <input type="number" class="form-input" id="afa_ust" step="0.01" min="0" max="99999999" value="${existing.ustEnthalten || ''}" placeholder="0,00">
+                    <div class="form-hint">Nur ohne Vorsteuerabzug: für die 800-€-GWG-Grenze zählt der Nettobetrag (§6 Abs. 2 EStG).</div>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Nutzungsdauer (Jahre) *</label>
                     <input type="number" class="form-input" id="afa_nd" min="1" max="50" value="${existing.nutzungsdauer || 3}" placeholder="3">
-                    <div class="form-hint">Richtwerte: PC/Laptop 3 J. · PKW 6 J. · Möbel 13 J.</div>
+                    <div class="form-hint">Richtwerte: PC/Laptop/Software 1 J. (BMF 22.02.2022) · PKW 6 J. · Möbel 13 J.</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Abschreibungsmethode</label>
@@ -371,9 +377,12 @@ const Afa = {
         // Vorschlag: bei AK≤800€ auf Sofort umschalten, solange der Nutzer die Methode nicht manuell geändert hat
         let methodeManuellGesetzt = isEdit;
         methodeSel.addEventListener('change', () => { methodeManuellGesetzt = true; });
+        const ustInput = document.getElementById('afa_ust');
+        const akNettoForm = () => (parseFloat(akInput.value) || 0) - (parseFloat(ustInput && ustInput.value) || 0);
+        if (ustInput) ustInput.addEventListener('input', () => akInput.dispatchEvent(new Event('input')));
         akInput.addEventListener('input', () => {
             if (methodeManuellGesetzt) return;
-            const ak = parseFloat(akInput.value) || 0;
+            const ak = akNettoForm();
             methodeSel.value = (ak > 0 && ak <= 800) ? 'sofort' : 'linear';
             updateSofortState();
         });
@@ -382,6 +391,11 @@ const Afa = {
 
     _editAnlage(id) { this._openForm(id); },
 
+    // Netto-AK für die GWG-Grenze (E-02)
+    _gwgNetto(ak, ustEnthalten) {
+        return (parseFloat(ak) || 0) - Math.max(0, parseFloat(ustEnthalten) || 0);
+    },
+
     _saveForm(existingId) {
         const bez = document.getElementById('afa_bez')?.value?.trim();
         const datum = document.getElementById('afa_datum')?.value;
@@ -389,12 +403,17 @@ const Afa = {
         let nd = parseInt(document.getElementById('afa_nd')?.value) || 0;
         const methode = document.getElementById('afa_methode')?.value || 'linear';
         const notiz = document.getElementById('afa_notiz')?.value?.trim();
+        // Kleinunternehmer erfassen die AK brutto (§9b EStG), die GWG-Grenze misst aber netto
+        // (§6 Abs.2 S.1 EStG: "vermindert um einen darin enthaltenen Vorsteuerbetrag") —
+        // Steuer-Audit 2026-10-18, E-02: 940 € brutto / 789,92 € netto wurden abgelehnt.
+        const ustEnthalten = Math.max(0, parseFloat(document.getElementById('afa_ust')?.value) || 0);
 
         if (!bez) { Utils.showToast('Bezeichnung fehlt', 'error'); return; }
         if (!datum) { Utils.showToast('Datum fehlt', 'error'); return; }
         if (!Number.isFinite(ak) || ak <= 0 || ak > 99999999) { Utils.showToast('Anschaffungskosten ungültig', 'error'); return; }
         // §6 Abs.2 EStG: Sofortabschreibung nur für GWG bis 800€ netto — sonst Bußgeldrisiko bei Betriebsprüfung
-        if (methode === 'sofort' && ak > 800) { Utils.showToast('Sofortabschreibung (GWG) nur bis 800€ netto AK zulässig (§6 Abs.2 EStG)', 'error'); return; }
+        if (ustEnthalten >= ak && ustEnthalten > 0) { Utils.showToast('Die enthaltene USt muss kleiner als die Anschaffungskosten sein', 'error'); return; }
+        if (methode === 'sofort' && this._gwgNetto(ak, ustEnthalten) > 800) { Utils.showToast('Sofortabschreibung (GWG) nur bis 800€ netto AK zulässig (§6 Abs.2 EStG)', 'error'); return; }
         if (methode === 'sofort') nd = 1; // Nutzungsdauer irrelevant bei Sofortabschreibung
         // §7 Abs.2 EStG: degressiv nur bei Anschaffung in einem begünstigten Zeitfenster (T08)
         if (methode === 'degressiv' && !this._degressivRegel(datum)) {
@@ -412,6 +431,7 @@ const Afa = {
             methode,
             // DATEV-Anlagekonto (js/datev.js, ANLAGEN). Fehlt es — Anlagen vor 2026-10-08 —, gilt 'bga'.
             anlagenart: document.getElementById('afa_art')?.value || 'bga',
+            ustEnthalten: ustEnthalten || undefined,
             notiz: notiz || ''
         };
 

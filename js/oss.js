@@ -20,9 +20,11 @@ const OSS = {
 
     // Referenz-Regelsätze – bei ermäßigt besteuerten Waren/Leistungen im Zielland manuell prüfen
     RATES_STAND: '2026-01-01',
+    // EE 24 % seit 01.07.2025 (Steuerverwaltung emta.ee), RO 21 % seit 01.08.2025 (Legea 141/2025)
+    // — standen bis zum Steuer-Audit 2026-10-18 (U09) trotz RATES_STAND 2026 noch auf 22/19 %.
     EU_VAT_RATES: {
-        AT: 20, BE: 21, BG: 20, HR: 25, CY: 19, CZ: 21, DK: 25, EE: 22, FI: 25.5, FR: 20, GR: 24,
-        HU: 27, IE: 23, IT: 22, LV: 21, LT: 21, LU: 17, MT: 18, NL: 21, PL: 23, PT: 23, RO: 19,
+        AT: 20, BE: 21, BG: 20, HR: 25, CY: 19, CZ: 21, DK: 25, EE: 24, FI: 25.5, FR: 20, GR: 24,
+        HU: 27, IE: 23, IT: 22, LV: 21, LT: 21, LU: 17, MT: 18, NL: 21, PL: 23, PT: 23, RO: 21,
         SK: 23, SI: 22, ES: 21, SE: 25
     },
 

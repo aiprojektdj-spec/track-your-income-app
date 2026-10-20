@@ -118,7 +118,10 @@ var RechDashboard = (function() {
             html += '<div style="font-weight:700;font-size:13px;color:var(--warning,#fbbf24);">E-Rechnung ab 2025 Pflicht (B2B)</div>';
             html += '<div style="font-size:12px;color:var(--text-muted);margin-top:2px;line-height:1.5;">';
             html += 'Für Rechnungen zwischen Unternehmen (B2B) ist ab dem 1.&nbsp;Januar&nbsp;2025 die Empfangspflicht für strukturierte E-Rechnungen (XRechnung / ZUGFeRD) in Kraft. ';
-            html += 'Ab&nbsp;2027 auch Ausstellungspflicht für Umsätze >&nbsp;0&nbsp;€. ';
+            // §27 Abs. 38 UStG (Steuer-Audit 2026-10-18, B10): bis Ende 2026 sind Papier/PDF weiter
+            // zulässig, 2027 nur bei Vorjahresumsatz bis 800.000 €, ab 2028 Pflicht für alle;
+            // Kleinbetragsrechnungen (§33 UStDV) und Kleinunternehmer (§34a UStDV) ausgenommen.
+            html += 'Ausstellen dürfen Unternehmen bis Ende&nbsp;2026 weiter Papier- oder PDF-Rechnungen, 2027 nur noch bei einem Vorjahresumsatz bis 800.000&nbsp;€; ab&nbsp;2028 ist die E-Rechnung für alle B2B-Rechnungen Pflicht. Ausgenommen sind Kleinbetragsrechnungen bis 250&nbsp;€ und Kleinunternehmer. ';
             html += '<a href="https://www.bundesfinanzministerium.de/Content/DE/FAQ/2024-03-22-steuerforum-e-rechnung.html" target="_blank" rel="noopener" style="color:var(--warning,#fbbf24);">Mehr Info →</a>';
             html += '</div></div></div>';
         }

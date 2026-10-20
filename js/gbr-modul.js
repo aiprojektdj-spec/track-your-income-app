@@ -48,6 +48,9 @@ const GbrModul = {
         const d = Euer._berechne(year, 0, 'jahr');
         return {
             einnahmen:    d.summeEinnahmen,
+            // §141 Abs.1 Nr.1 AO misst Umsätze, also Entgelte ohne Umsatzsteuer — summeEinnahmen
+            // enthält bei Regelbesteuerung die vereinnahmte USt (Steuer-Audit 2026-10-18, E-05b)
+            umsatzNetto:  d.einnahmenNetto,
             wareneinkauf: d.wareneinkauf,
             // Alles außer Wareneinkauf. Bei Regelbesteuerung ist die Vorsteuer darin bereits
             // gegengerechnet (s. summeAusgaben in js/euer.js); die Identität

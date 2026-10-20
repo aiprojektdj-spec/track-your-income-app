@@ -446,8 +446,11 @@ const UstVoranmeldung = {
             // manuelle "Sonstige Vorsteuer"-Einträge gehören ebenfalls in Kz. 66
             vorsteuerEinkaufAusgaben = vstCalc.purch.vst19 + vstCalc.purch.vst7 + vstCalc.exp.vst19 + vstCalc.exp.vst7
                 + (vstCalc.manual && vstCalc.manual.sonstige || 0);
-            vorsteuerRc = vstCalc.manual.reverseCharge;
+            vorsteuerRc = vstCalc.manual.reverseCharge + vstCalc.rcAus.vorsteuer;
             vorsteuerIgErwerb = vstCalc.manual.igErwerb;
+            // RC-Ausgaben = §13b Abs. 1 (s. Vorsteuer._calcRcAusgaben), Steuerschuld auch beim KU
+            rcNettoAbs1 += vstCalc.rcAus.netto;
+            rcSteuerAbs1 += vstCalc.rcAus.steuer;
 
             // §13b-Steuerschuld + Erwerbsteuer aus den Einträgen selbst ermitteln (für Kz. 46/89/93 etc.)
             Vorsteuer._getEntries().filter(e => Utils.isInPeriod(e.datum, startDate, endDate)).forEach(e => {
@@ -541,14 +544,69 @@ const UstVoranmeldung = {
         const end = new Date(this._pEnd(year, typ, idx));
         let monate = 1;
         if (Store.getSettings().ustDauerfristverlaengerung) monate = 2;
-        return new Date(end.getFullYear(), end.getMonth() + monate, 10);
+        const d = new Date(end.getFullYear(), end.getMonth() + monate, 10);
+        // §108 Abs. 3 AO: Wochenende/Feiertag → nächster Werktag, gleiche Regel wie der
+        // Fristenkalender (Steuer-Audit 2026-10-18, U07: 10.01.2027 ist ein Sonntag).
+        if (typeof Steuertermine === 'undefined' || !Steuertermine._naechsterWerktag) return d;
+        const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-10`;
+        const [y, m, t] = Steuertermine._naechsterWerktag(iso).split('-').map(Number);
+        return new Date(y, m - 1, t);
     },
     _formatFrist(d) {
         return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
     },
 
+    // Kleinunternehmer mit §13b-Eingangsleistung: Steuer geschuldet, Voranmeldung nur für diese
+    // Umsätze (§18 Abs. 4a UStG), kein Vorsteuerabzug (Steuer-Audit 2026-10-18, U04).
+    _renderKu13b() {
+        const typ = this._typ(), year = this._year, idx = this._idx();
+        const perioden = Array.from({ length: typ === 'monat' ? 12 : 4 }, (_, i) => i).map(i => {
+            const c = this._calcPeriode(this._pStart(year, typ, i), this._pEnd(year, typ, i));
+            return { i, c, rc: c.rcNettoAbs1 + c.rcNettoOther };
+        });
+        if (!perioden.some(p => p.rc > 0)) return null;
+        const calc = perioden[idx].c;
+        const yearOptions = Array.from({ length: 8 }, (_, i) => 2020 + i)
+            .map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('');
+        const periodOptions = perioden.map(p => `<option value="${p.i}" ${p.i === idx ? 'selected' : ''}>${this._periodeLabel(year, typ, p.i)}${p.rc > 0 ? ' · §13b' : ''}</option>`).join('');
+        const zeile = (kz, text, v) => v > 0 ? `<tr><td><strong>${kz}</strong></td><td>${text}</td><td style="text-align:right">${Utils.formatCurrency(v)}</td></tr>` : '';
+        return `
+        <div class="page-header">
+            <h2>USt-Voranmeldung</h2>
+            <div class="page-header-actions no-print">
+                <select class="form-select" id="uvYear" style="width:90px;">${yearOptions}</select>
+                <select class="form-select" id="uvPeriode">${periodOptions}</select>
+                <button class="btn btn-primary" data-action="uva-copy">Werte kopieren</button>
+                <button class="btn" data-action="uva-export">ELSTER CSV</button>
+            </div>
+        </div>
+        <div class="card" style="margin-bottom:16px;border-left:3px solid var(--warning);">
+            <div style="padding:12px 16px;font-size:13px;line-height:1.6;">
+                <strong>Kleinunternehmer mit Reverse-Charge-Einkauf:</strong> Für Leistungen nach §13b UStG (z. B. Werbung oder Software von EU-Anbietern) schuldest du die Umsatzsteuer selbst, auch als Kleinunternehmer. Dafür ist eine Voranmeldung nur für diese Umsätze abzugeben (§18 Abs. 4a UStG). Ein Vorsteuerabzug steht dir nicht zu (§19 Abs. 1 UStG), die Steuer ist also zu zahlen.
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><div class="card-title">Kennzahlen ${this._periodeLabel(year, typ, idx)}</div></div>
+            <div class="table-container" style="border:none;">
+                <table class="euer-table">
+                    <thead><tr><th style="width:20%">Kz.</th><th>Bezeichnung</th><th style="text-align:right;width:25%">Betrag</th></tr></thead>
+                    <tbody>
+                        ${zeile('Kz. 46', '§13b Abs. 1 – Leistungen eines EU-Unternehmers (Bemessungsgrundlage)', calc.rcNettoAbs1)}
+                        ${zeile('Kz. 47', '§13b Abs. 1 – Steuer', calc.rcSteuerAbs1)}
+                        ${zeile('Kz. 84', 'Andere §13b-Leistungen (Bemessungsgrundlage)', calc.rcNettoOther)}
+                        ${zeile('Kz. 85', 'Andere §13b-Leistungen – Steuer', calc.rcSteuerOther)}
+                        <tr class="euer-result"><td></td><td><strong>Zahllast</strong></td><td style="text-align:right"><strong>${Utils.formatCurrency(calc.zahllast)}</strong></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div style="padding:12px 16px;font-size:12px;color:var(--text-muted);">Abgabefrist: <strong>${this._formatFrist(this._fristDatum(year, typ, idx))}</strong>. Unverbindlich – Abgabe über ELSTER oder Steuerberater.</div>
+        </div>`;
+    },
+
     render() {
         if (!this._isRegel()) {
+            const ku13b = this._renderKu13b();
+            if (ku13b) return ku13b;
             return `
             <div class="page-header"><h2>USt-Voranmeldung</h2></div>
             <div class="card">
@@ -700,8 +758,10 @@ const UstVoranmeldung = {
                         ${calc.nettoAusfuhr > 0 ? `<tr><td><strong>Kz. 43</strong></td><td>Ausfuhrlieferungen Drittland (§4 Nr.1a UStG) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoAusfuhr)}</td></tr>` : ''}
                         ${calc.erwerbNetto19 > 0 ? `<tr><td><strong>Kz. 89</strong></td><td>Innergem. Erwerbe (19%) – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.erwerbNetto19)}</td></tr>` : ''}
                         ${calc.erwerbNetto7 > 0 ? `<tr><td><strong>Kz. 93</strong></td><td>Innergem. Erwerbe (7%) – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.erwerbNetto7)}</td></tr>` : ''}
-                        ${calc.rcNettoAbs1 > 0 ? `<tr><td><strong>Kz. 46</strong></td><td>§13b Abs.1 EU-Dienstleistungen – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.rcNettoAbs1)}</td></tr>` : ''}
-                        ${calc.rcNettoOther > 0 ? `<tr><td><strong>§13b (sonst.)</strong></td><td>Weitere §13b-Fälle (Bau/Gebäudereinigung/Mobilfunk) <span style="color:var(--warning);font-size:11px;">genaue Zeile im Formular prüfen</span></td><td style="text-align:right">${Utils.formatCurrency(calc.rcNettoOther)}</td></tr>` : ''}
+                        ${calc.rcNettoAbs1 > 0 ? `<tr><td><strong>Kz. 46</strong></td><td>§13b Abs.1 EU-Dienstleistungen – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.rcNettoAbs1)}</td></tr>
+                        <tr><td><strong>Kz. 47</strong></td><td>§13b Abs.1 – Steuer (selbst eintragen)</td><td style="text-align:right">${Utils.formatCurrency(calc.rcSteuerAbs1)}</td></tr>` : ''}
+                        ${calc.rcNettoOther > 0 ? `<tr><td><strong>Kz. 84</strong></td><td>Andere §13b-Leistungen (Abs. 2, z. B. Drittland, Bau, Gebäudereinigung, Mobilfunk) – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.rcNettoOther)}</td></tr>
+                        <tr><td><strong>Kz. 85</strong></td><td>Andere §13b-Leistungen – Steuer (selbst eintragen)</td><td style="text-align:right">${Utils.formatCurrency(calc.rcSteuerOther)}</td></tr>` : ''}
                         <tr><td><strong>Kz. 66</strong></td><td>Vorsteuerbeträge aus Rechnungen (§15 UStG)</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(calc.vorsteuerEinkaufAusgaben)}</td></tr>
                         ${calc.vorsteuerIgErwerb > 0 ? `<tr><td><strong>Kz. 61</strong></td><td>Vorsteuer aus innergem. Erwerben</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(calc.vorsteuerIgErwerb)}</td></tr>` : ''}
                         ${calc.vorsteuerRc > 0 ? `<tr><td><strong>Kz. 67</strong></td><td>Vorsteuer aus §13b-Leistungen</td><td style="text-align:right;color:var(--success)">−${Utils.formatCurrency(calc.vorsteuerRc)}</td></tr>` : ''}
@@ -760,7 +820,7 @@ const UstVoranmeldung = {
                 ${calc.nettoIgLeistung > 0 ? `<strong>Kz. 21:</strong> Innergemeinschaftliche sonstige Leistungen (Dienstleistungen) an Unternehmen mit gültiger USt-IdNr in der EU (§3a Abs. 2 UStG, Reverse Charge beim Empfänger) – nicht steuerbar in Deutschland. In der ZM in die Spalte „Sonstige Leistungen" eintragen (nicht „Lieferungen"). Zuordnung erfolgt über die Auswahl "Art des Umsatzes" bei der jeweiligen Position (eine Rechnung kann Ware und Leistung an denselben Kunden mischen).<br>` : ''}
                 ${calc.nettoAusfuhr > 0 ? `<strong>Kz. 43:</strong> Ausfuhrlieferungen in Drittländer außerhalb der EU (§4 Nr.1a, §6 UStG) – steuerfrei, Ausfuhrnachweis (z.B. Zollbeleg) muss vorliegen.<br>` : ''}
                 ${calc.erwerbNetto19 > 0 || calc.erwerbNetto7 > 0 ? `<strong>Kz. 89/93:</strong> Innergemeinschaftliche Erwerbe (§1a UStG) – Bemessungsgrundlage eintragen, gleichzeitig als Vorsteuer bei Kz. 61 abziehbar.<br>` : ''}
-                ${calc.rcNettoAbs1 > 0 || calc.rcNettoOther > 0 ? `<strong>Kz. 46 / §13b:</strong> Reverse-Charge-Leistungen (§13b UStG) – du schuldest hier die Steuer als Leistungsempfänger, gleichzeitig als Vorsteuer bei Kz. 67 abziehbar. Bei "Weitere §13b-Fälle" bitte die passende Zeile im ELSTER-Formular je nach Kategorie (Bauleistung/Gebäudereinigung/Mobilfunk) selbst nachsehen – dafür gibt es jeweils eigene Kennzahlen.<br>` : ''}
+                ${calc.rcNettoAbs1 > 0 || calc.rcNettoOther > 0 ? `<strong>Kz. 46/47 und 84/85 (§13b):</strong> Reverse-Charge-Leistungen (§13b UStG) – du schuldest hier die Steuer als Leistungsempfänger und trägst Bemessungsgrundlage <u>und</u> Steuer selbst ein; gleichzeitig ist sie als Vorsteuer bei Kz. 67 abziehbar. Ausgaben mit USt-Satz „Reverse Charge“ zählen automatisch als §13b Abs. 1 zu 19 % – andere Fälle bitte als §13b-Eintrag im Vorsteuer-Modul erfassen, nicht zusätzlich.<br>` : ''}
                 <strong>Kz. 66:</strong> Abzugsfähige Vorsteuer aus Eingangsrechnungen (§15 UStG) – <u>nur</u> Einkäufe/Ausgaben, NICHT §13b oder IG-Erwerb (die haben eigene Kennzahlen, s.o.).<br>
                 <strong>Wichtig:</strong> Die "USt darauf"-Zeilen bei Kz. 81/86 sind reine Kontrollwerte für dich, <u>keine eigenen ELSTER-Kennzahlen</u> – insbesondere Kz. 35/36 im echten Formular meint etwas anderes (Umsätze zu "anderen Steuersätzen", z.B. 16%/5%). Trage dort nichts ein, wenn du normale 19%/7%-Umsätze hast.<br>
                 <strong>Voranmeldungszeitraum:</strong> Aktuell <u>${typ === 'monat' ? 'monatlich' : 'vierteljährlich'}</u> eingestellt (Einstellungen → USt-Modus). Monatlich ist der gesetzliche Normalfall bei einer Vorjahressteuer über ${Utils.formatCurrency(this._voranmeldungsRegeln(this._year).monatAb)}${this._voranmeldungsRegeln(this._year).gruenderMonatlich ? ' sowie im Gründungsjahr und Folgejahr' : ' (Gründer 2021–2026: voraussichtliche bzw. umgerechnete Steuer)'}; maßgeblich ist die Festsetzung des Finanzamts.<br>
@@ -833,12 +893,20 @@ const UstVoranmeldung = {
         if (c.nettoAusfuhr     > 0) rows.push(['Kz. 43', 'Ausfuhrlieferungen Drittland (Netto) - in ELSTER eintragen', c.nettoAusfuhr.toFixed(2)]);
         if (c.erwerbNetto19 > 0) rows.push(['Kz. 89', 'Innergem. Erwerbe 19% (Bemessungsgrundlage) - in ELSTER eintragen', c.erwerbNetto19.toFixed(2)]);
         if (c.erwerbNetto7  > 0) rows.push(['Kz. 93', 'Innergem. Erwerbe 7% (Bemessungsgrundlage) - in ELSTER eintragen', c.erwerbNetto7.toFixed(2)]);
-        if (c.rcNettoAbs1   > 0) rows.push(['Kz. 46', '§13b Abs.1 EU-Dienstleistungen (Bemessungsgrundlage) - in ELSTER eintragen', c.rcNettoAbs1.toFixed(2)]);
-        if (c.rcNettoOther  > 0) rows.push(['§13b (sonst.)', 'Weitere §13b-Fälle - passende Zeile im Formular prüfen (Bau/Gebäudereinigung/Mobilfunk)', c.rcNettoOther.toFixed(2)]);
+        if (c.rcNettoAbs1   > 0) {
+            rows.push(['Kz. 46', '§13b Abs.1 EU-Dienstleistungen (Bemessungsgrundlage) - in ELSTER eintragen', c.rcNettoAbs1.toFixed(2)]);
+            rows.push(['Kz. 47', '§13b Abs.1 Steuer - in ELSTER eintragen', c.rcSteuerAbs1.toFixed(2)]);
+        }
+        if (c.rcNettoOther  > 0) {
+            rows.push(['Kz. 84', 'Andere §13b-Leistungen (Bemessungsgrundlage) - in ELSTER eintragen', c.rcNettoOther.toFixed(2)]);
+            rows.push(['Kz. 85', 'Andere §13b-Leistungen Steuer - in ELSTER eintragen', c.rcSteuerOther.toFixed(2)]);
+        }
         rows.push(['Kz. 66', 'Vorsteuer aus Rechnungen (Einkäufe/Ausgaben) - in ELSTER eintragen', c.vorsteuerEinkaufAusgaben.toFixed(2)]);
         if (c.vorsteuerIgErwerb > 0) rows.push(['Kz. 61', 'Vorsteuer aus innergem. Erwerben - in ELSTER eintragen', c.vorsteuerIgErwerb.toFixed(2)]);
         if (c.vorsteuerRc       > 0) rows.push(['Kz. 67', 'Vorsteuer aus §13b-Leistungen - in ELSTER eintragen', c.vorsteuerRc.toFixed(2)]);
         rows.push(['', c.zahllast >= 0 ? 'Verbleibende Zahllast (zur Kontrolle)' : 'Erstattung (zur Kontrolle)', Math.abs(c.zahllast).toFixed(2)]);
+        // Kleinunternehmer melden nur die §13b-Umsätze (§18 Abs. 4a UStG, s. _renderKu13b)
+        if (!this._isRegel()) return rows.filter(r => ['Kz. 46', 'Kz. 47', 'Kz. 84', 'Kz. 85', ''].indexOf(r[0]) !== -1);
         return rows;
     },
 

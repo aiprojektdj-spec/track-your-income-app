@@ -153,9 +153,15 @@ const Vorsteuer = {
 
         let reverseCharge = 0, igErwerb = 0, sonstige = 0;
         let rcCount = 0, igCount = 0;
+        const settings = Store.getSettings ? Store.getSettings() : {};
 
         entries.forEach(e => {
-            const betrag = parseFloat(e.vorsteuerBetrag) || 0;
+            // Vorsteuerabzug nur, wenn der Eintrag zu seinem Datum regelbesteuert war — ein
+            // Kleinunternehmer darf nach §19 Abs. 1 UStG keine Vorsteuer abziehen, auch nicht die
+            // §13b-Steuer, die er trotzdem schuldet (Steuer-Audit 2026-10-18, U04/U05). Die
+            // Steuerschuld selbst rechnet UstVoranmeldung aus den Einträgen, unabhängig davon.
+            const regel = typeof SteuerStatus === 'undefined' || SteuerStatus.istRegel(e, settings);
+            const betrag = regel ? (parseFloat(e.vorsteuerBetrag) || 0) : 0;
             switch (e.typ) {
                 case 'reverse_charge':
                     reverseCharge += betrag;
@@ -172,17 +178,40 @@ const Vorsteuer = {
         return { reverseCharge, igErwerb, sonstige, rcCount, igCount, entries };
     },
 
+    // ── Ausgaben mit USt-Satz "Reverse Charge" (§13b) ──
+    // Eine RC-Rechnung weist keine Steuer aus: der Betrag ist das Netto-Entgelt, die Steuer
+    // schuldet der Empfänger (§13b Abs. 5 UStG) — auch als Kleinunternehmer (Abs. 8). Bis zum
+    // Steuer-Audit 2026-10-18 (U04) entstand aus einer solchen Ausgabe gar keine Steuer, solange
+    // nicht zusätzlich ein manueller §13b-Eintrag angelegt war.
+    // Annahme: Abs. 1 (Leistung eines EU-Unternehmers, der Regelfall Werbung/Software) zu 19 %;
+    // andere Absätze oder 7 % über einen manuellen §13b-Eintrag statt über die Ausgabe erfassen.
+    RC_AUSGABE_SATZ: 19,
+    _calcRcAusgaben(startDate, endDate) {
+        const settings = Store.getSettings ? Store.getSettings() : {};
+        const expenses = (Store.getExpenses ? Store.getExpenses() : Store.get('ausgaben') || [])
+            .filter(e => Utils.isInPeriod(e.datum, startDate, endDate) && this._expenseUstRaw(e) === 'rc');
+        let netto = 0, steuer = 0, vorsteuer = 0;
+        expenses.forEach(e => {
+            const n = parseFloat(e.betrag) || 0;
+            const s = n * this.RC_AUSGABE_SATZ / 100;
+            netto += n; steuer += s;
+            if (typeof SteuerStatus === 'undefined' || SteuerStatus.istRegel(e, settings)) vorsteuer += s;
+        });
+        return { netto, steuer, vorsteuer, count: expenses.length };
+    },
+
     // ── Gesamtberechnung ──
     _calcTotal(startDate, endDate) {
         const purch  = this._calcFromPurchases(startDate, endDate);
         const exp    = this._calcFromExpenses(startDate, endDate);
         const manual = this._calcManualEntries(startDate, endDate);
+        const rcAus  = this._calcRcAusgaben(startDate, endDate);
 
         const totalVorsteuer = purch.vst19 + purch.vst7
             + exp.vst19 + exp.vst7
-            + manual.reverseCharge + manual.igErwerb + manual.sonstige;
+            + manual.reverseCharge + manual.igErwerb + manual.sonstige + rcAus.vorsteuer;
 
-        return { purch, exp, manual, totalVorsteuer };
+        return { purch, exp, manual, rcAus, totalVorsteuer };
     },
 
     // Zeitraum-Helfer
@@ -542,7 +571,9 @@ const Vorsteuer = {
                 Bei Reverse-Charge-Leistungen schuldet der <strong>Leistungsempfänger</strong> die USt.<br>
                 Gleichzeitig kann Vorsteuer in gleicher Höhe abgezogen werden (Kz. 67).<br>
                 <strong>Typische Fälle:</strong> Bauleistungen §13b Abs. 2 Nr. 4, EU-Dienstleistungen §13b Abs. 1,
-                Gebäudereinigung §13b Abs. 2 Nr. 8, Lieferung von Mobilfunkgeräten/Tablets §13b Abs. 2 Nr. 10.
+                Gebäudereinigung §13b Abs. 2 Nr. 8, Lieferung von Mobilfunkgeräten/Tablets §13b Abs. 2 Nr. 10.<br>
+                <strong>Ausgaben mit USt-Satz „Reverse Charge“</strong> werden automatisch als §13b Abs. 1 zu 19 % gerechnet —
+                dieselbe Rechnung hier nicht zusätzlich erfassen. Kleinunternehmer schulden die Steuer ebenfalls, ohne Vorsteuerabzug.
             </div>
             <button class="btn btn-primary btn-small" id="addRcBtn">+ §13b Eintrag erfassen</button>
         </div>

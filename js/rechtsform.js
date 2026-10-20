@@ -259,11 +259,36 @@ const Rechtsform = {
         return einnahmen > this.AO141_UMSATZ_GRENZE || gewinn > this.AO141_GEWINN_GRENZE;
     },
 
+    // §141 Abs. 2 AO: Die Buchführungspflicht beginnt erst mit dem Wirtschaftsjahr, das auf die
+    // Bekanntgabe der Mitteilung des Finanzamts folgt — nicht mit dem Überschreiten der Grenze.
+    // Bis zum Steuer-Audit 2026-10-18 (E-05a) sperrte die App die EÜR schon im Jahr der
+    // Überschreitung, also genau in dem Jahr, das noch per EÜR zu erklären ist.
+    // Gespeichert wird das erste bilanzpflichtige Wirtschaftsjahr laut Mitteilung.
+    bilanzPflichtAb() {
+        const einst = Store.get('gbr_einstellungen') || {};
+        return parseInt(einst.bilanzPflichtAb, 10) || null;
+    },
+    setBilanzPflichtAb(year) {
+        const einst = Object.assign({}, Store.get('gbr_einstellungen') || {});
+        const y = parseInt(year, 10);
+        if (y) einst.bilanzPflichtAb = y; else delete einst.bilanzPflichtAb;
+        Store.set('gbr_einstellungen', einst);
+    },
+    // Grenze überschritten, aber (noch) keine Mitteilung für dieses Jahr → Hinweis statt Sperre
+    ao141Hinweis(year) {
+        year = year || new Date().getFullYear();
+        if (this.isKapitalgesellschaft() || this.getConfig().bilanzPflicht || !this.istGewerblich()) return false;
+        const ab = this.bilanzPflichtAb();
+        if (ab && year >= ab) return false;
+        return this.ueberschreitetAO141Schwelle(year);
+    },
+
     // Zentrale Weiche für EÜR-Tab & Co.: braucht diese Firma jetzt eine Bilanz statt EÜR?
     brauchtBilanzStattEuer(year) {
         if (this.isKapitalgesellschaft()) return true;
         if (this.getConfig().bilanzPflicht) return true; // OHG/KG/GmbH & Co. KG: Kaufmannseigenschaft kraft HGB
-        return this.istGewerblich() && this.ueberschreitetAO141Schwelle(year || new Date().getFullYear());
+        const ab = this.bilanzPflichtAb();
+        return this.istGewerblich() && !!ab && (year || new Date().getFullYear()) >= ab;
     },
 
     brauchtBilanz(form) {

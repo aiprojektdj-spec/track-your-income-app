@@ -27,7 +27,7 @@ function setze(firmenform, taetigkeitsart) {
     const einst = {};
     if (firmenform)     einst.firmenform = firmenform;
     if (taetigkeitsart) einst.taetigkeitsart = taetigkeitsart;
-    global.Store = { get: () => einst, set: () => {} };
+    global.Store = { get: () => einst, set: (k, v) => { Object.keys(einst).forEach(x => delete einst[x]); Object.assign(einst, v); } };
 }
 
 const R = ladeRechtsform();
@@ -127,8 +127,14 @@ const R = ladeRechtsform();
     global.GbrModul = { _calcJahresgewinn: () => ({ einnahmen: 300000, gewinn: 65000 }) };
     check('§141: unter beiden Grenzen -> EUER bleibt', R.brauchtBilanzStattEuer(2026) === false);
 
+    // §141 Abs. 2 AO: Ueberschreiten allein macht noch nicht bilanzpflichtig — erst das
+    // Wirtschaftsjahr nach der FA-Mitteilung (Steuer-Audit 2026-10-18, E-05a). Hier stand bis
+    // dahin "Gewinn ueber 80.000 -> Bilanz" und sicherte damit den Fehler ab.
     global.GbrModul = { _calcJahresgewinn: () => ({ einnahmen: 300000, gewinn: 85000 }) };
-    check('§141: Gewinn ueber 80.000 -> Bilanz', R.brauchtBilanzStattEuer(2026) === true);
+    check('§141: Gewinn ueber 80.000 ohne Mitteilung -> EUER bleibt, Hinweis', R.brauchtBilanzStattEuer(2026) === false && R.ao141Hinweis(2026) === true);
+    R.setBilanzPflichtAb(2028);
+    check('§141: Mitteilung ab 2028 -> 2027 EUER, 2028 Bilanz',
+        R.brauchtBilanzStattEuer(2027) === false && R.brauchtBilanzStattEuer(2028) === true && R.ao141Hinweis(2028) === false);
 
     // Ein freiberuflicher Betrieb faellt nicht unter §141 AO, egal wie hoch der Gewinn ist.
     setze('Einzelunternehmen', 'freiberuflich');

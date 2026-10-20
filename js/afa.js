@@ -5,9 +5,51 @@
 const Afa = {
     _selectedYear: new Date().getFullYear(),
 
-    // Berechnet AfA für eine Anlage in einem bestimmten Jahr
+    // Abgang (Verkauf, Entnahme, Verschrottung) — bis zum Steuer-Audit 2026-10-18 (E-01) ließ sich
+    // ein ausgeschiedenes Wirtschaftsgut nur "stornieren", was die AfA ALLER Jahre rückwirkend
+    // löschte, auch in festgeschriebenen Jahren. Jetzt: AfA bis einschließlich Abgangsmonat
+    // (§7 Abs.1 S.4 EStG, R 7.4 Abs.8 EStR), danach nichts mehr; der Restbuchwert ist im
+    // Abgangsjahr Betriebsausgabe (§4 Abs.3 S.4 EStG). Der Verkaufserlös ist eine normale
+    // Einnahme und wird als Verkauf gebucht.
+    _abgang(asset) {
+        const d = String((asset && asset.abgangsdatum) || '');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null;
+        return { jahr: parseInt(d.slice(0, 4), 10), monat: parseInt(d.slice(5, 7), 10) - 1 };
+    },
+
+    // AfA für eine Anlage in einem bestimmten Jahr, unter Berücksichtigung eines Abgangs
     _calcJahresAfa(asset, year) {
         if (asset.storniert) return 0;
+        const ab = this._abgang(asset);
+        const voll = this._planJahresAfa(asset, year);
+        if (!ab || year < ab.jahr) return voll;
+        if (year > ab.jahr) return 0;
+        if (asset.methode === 'sofort') return voll;   // GWG: voll im Anschaffungsjahr, kein Restwert
+        const kauf = new Date(asset.anschaffungsdatum);
+        const kaufJahr = kauf.getFullYear(), kaufMonat = kauf.getMonth();
+        const nd = parseInt(asset.nutzungsdauer) || 1;
+        // Monate, die der Plan diesem Jahr zuordnet, und davon die Monate bis einschließlich Abgang
+        const start = year === kaufJahr ? kaufMonat : 0;
+        const ende = (year === kaufJahr + nd && kaufMonat > 0) ? kaufMonat - 1 : 11;
+        const planMonate = ende - start + 1;
+        const bisAbgang = Math.min(ab.monat, ende) - start + 1;
+        if (planMonate <= 0 || bisAbgang <= 0) return 0;
+        return voll * Math.min(1, bisAbgang / planMonate);
+    },
+
+    // Restbuchwert, der im Abgangsjahr als Betriebsausgabe anfällt (0 in allen anderen Jahren)
+    _restbuchwertAbgang(asset, year) {
+        const ab = this._abgang(asset);
+        if (!ab || ab.jahr !== year || asset.storniert) return 0;
+        const ak = parseFloat(asset.anschaffungskosten) || 0;
+        const kaufJahr = new Date(asset.anschaffungsdatum).getFullYear();
+        let bw = ak;
+        for (let y = kaufJahr; y <= year; y++) bw -= this._calcJahresAfa(asset, y);
+        return bw > 0.005 ? Math.round(bw * 100) / 100 : 0;
+    },
+
+    // Plan-AfA ohne Abgang
+    _planJahresAfa(asset, year) {
         const ak = parseFloat(asset.anschaffungskosten) || 0;
         const nd = parseInt(asset.nutzungsdauer) || 1;
         const kaufDatum = new Date(asset.anschaffungsdatum);
@@ -95,8 +137,10 @@ const Afa = {
         return plan;
     },
 
-    // Buchwert zum 31.12. des Jahres
+    // Buchwert zum 31.12. des Jahres (nach einem Abgang: 0, der Rest ist als Restbuchwert abgegangen)
     _buchwertEnde(asset, year) {
+        const ab = this._abgang(asset);
+        if (ab && year >= ab.jahr) return 0;
         const ak = parseFloat(asset.anschaffungskosten) || 0;
         let bw = ak;
         const kaufJahr = new Date(asset.anschaffungsdatum).getFullYear();
@@ -131,8 +175,9 @@ const Afa = {
             const fertigJahr = kaufJahr + nd - 1;
             const abbPct = ak > 0 ? Math.min(100, ((ak - bwEnde) / ak * 100)).toFixed(0) : 0;
 
+            const abg = this._abgang(a);
             return `<tr>
-                <td>${Utils.escapeHtml(a.bezeichnung)}</td>
+                <td>${Utils.escapeHtml(a.bezeichnung)}${abg ? `<div style="font-size:11px;color:var(--text-muted);">Abgang ${Utils.formatDate(a.abgangsdatum)}${this._restbuchwertAbgang(a, year) > 0 ? ' · Restbuchwert ' + Utils.formatCurrency(this._restbuchwertAbgang(a, year)) : ''}</div>` : ''}</td>
                 <td>${Utils.formatDate(a.anschaffungsdatum)}</td>
                 <td style="text-align:right">${Utils.formatCurrency(ak)}</td>
                 <td style="text-align:center">${nd} J.</td>
@@ -147,9 +192,11 @@ const Afa = {
                 <td style="text-align:center;font-size:11px;color:var(--text-muted)">${fertigJahr}</td>
                 <td>
                     ${!Store.canEdit(a)
-                        ? `<span title="Jahr festgeschrieben — nur Storno möglich" style="font-size:11px;opacity:.7;"><i class="ti ti-lock"></i></span>
+                        ? `<span title="Jahr festgeschrieben — Ausscheiden über „Abgang“" style="font-size:11px;opacity:.7;"><i class="ti ti-lock"></i></span>
+                           ${abg ? '' : `<button class="btn btn-sm" data-action="afa-abgang" data-args='["${a.id}"]' title="Abgang (Verkauf/Ausscheiden)" aria-label="Abgang für ${Utils.escapeHtml(a.bezeichnung || '')} erfassen"><i class="ti ti-package-export"></i></button>`}
                            <button class="btn btn-sm btn-danger" data-action="afa-storno" data-args='["${a.id}"]'  title="Stornieren" aria-label="Anlage ${Utils.escapeHtml(a.bezeichnung || '')} stornieren"><i class="ti ti-trash"></i></button>`
                         : `<button class="btn btn-sm" data-action="afa-edit" data-args='["${a.id}"]'  title="Bearbeiten" aria-label="Anlage ${Utils.escapeHtml(a.bezeichnung || '')} bearbeiten"><i class="ti ti-pencil"></i></button>
+                           ${abg ? '' : `<button class="btn btn-sm" data-action="afa-abgang" data-args='["${a.id}"]' title="Abgang (Verkauf/Ausscheiden)" aria-label="Abgang für ${Utils.escapeHtml(a.bezeichnung || '')} erfassen"><i class="ti ti-package-export"></i></button>`}
                            <button class="btn btn-sm btn-danger" data-action="afa-storno" data-args='["${a.id}"]'  title="Stornieren" aria-label="Anlage ${Utils.escapeHtml(a.bezeichnung || '')} stornieren"><i class="ti ti-trash"></i></button>`}
                 </td>
             </tr>`;
@@ -374,9 +421,25 @@ const Afa = {
         this._refresh();
     },
 
+    _abgangAnlage(id) {
+        const anlage = Store.getAfaAnlagen().find(a => a.id === id);
+        if (!anlage) return;
+        const datum = prompt(`Abgang von "${anlage.bezeichnung}" (Verkauf, Entnahme, Verschrottung)\nDatum (JJJJ-MM-TT):`, new Date().toLocaleDateString('sv-SE'));
+        if (datum === null) return;
+        const r = Store.abgangAfaAnlage(id, datum.trim());
+        if (!r.ok) { Utils.showToast(r.fehler, 'error'); return; }
+        Utils.showToast('Abgang erfasst — AfA bis ' + Utils.formatDate(datum.trim()) + ', Restbuchwert wird im Abgangsjahr als Betriebsausgabe angesetzt. Einen Verkaufserlös bitte als Verkauf buchen.', 'success', 8000);
+        this._refresh();
+    },
+
     _stornoAnlage(id) {
         const anlage = Store.getAfaAnlagen().find(a => a.id === id);
         if (!anlage) return;
+        // Storno löscht die AfA aller Jahre — im festgeschriebenen Anschaffungsjahr nicht zulässig (E-01)
+        if (Store.isPeriodLocked(anlage.anschaffungsdatum)) {
+            Utils.showToast('Das Anschaffungsjahr ist festgeschrieben. Ein verkauftes oder ausgeschiedenes Wirtschaftsgut bitte über „Abgang“ erfassen.', 'warning', 8000);
+            return;
+        }
         const grund = prompt(`Anlage "${anlage.bezeichnung}" stornieren?\nGrund (optional):`);
         if (grund === null) return; // abgebrochen
         Store.stornoAfaAnlage(id, grund || 'Storniert');
@@ -409,6 +472,7 @@ const Afa = {
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
 if (typeof window !== 'undefined' && window.Actions) Actions.register({
     'afa-storno': function (id) { Afa._stornoAnlage(id); },
+    'afa-abgang': function (id) { Afa._abgangAnlage(id); },
     'afa-edit':   function (id) { Afa._editAnlage(id); },
     'afa-export': function () { Afa._exportCSV(); },
     'afa-form':   function () { Afa._openForm(); },

@@ -131,10 +131,10 @@ const GbrModul = {
 
         // §141-AO-Hinweis: gewerbliche GbR/eGbR über der Schwelle — Zahlen unten bleiben als
         // Orientierung, tatsächliche Gewinnermittlung läuft dann über Bilanz/GuV, nicht EÜR.
-        const ao141Hinweis = (typeof Rechtsform !== 'undefined' && Rechtsform.istGewerblich() && Rechtsform.ueberschreitetAO141Schwelle(year))
+        const ao141Hinweis = (typeof Rechtsform !== 'undefined' && (Rechtsform.ao141Hinweis ? Rechtsform.ao141Hinweis(year) : (Rechtsform.istGewerblich() && Rechtsform.ueberschreitetAO141Schwelle(year))))
             ? `<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;">
-                §141-AO-Schwelle überschritten (Umsatz > 800.000 € oder Gewinn > 80.000 €) — voraussichtlich ab dem übernächsten Jahr bilanzierungspflichtig.
-                Bilanzierung ist in Stackr in Planung, die Zahlen unten dienen bis dahin nur der Orientierung. Sprich mit deinem Steuerberater.
+                §141-AO-Schwelle überschritten (Umsatz > 800.000 € oder Gewinn > 80.000 €). Buchführungspflichtig wird ihr erst ab dem Wirtschaftsjahr nach der Mitteilung des Finanzamts (§141 Abs. 2 AO) — bis dahin gilt die EÜR.
+                Bilanzierung ist in Stackr in Planung. Sprich frühzeitig mit eurem Steuerberater.
                </div>`
             : '';
 

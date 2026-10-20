@@ -260,7 +260,8 @@ block('Freibetrag-Fall', () => {
     check('render(): setzt _lastGewinn auf den Wert aus _berechne()',
         Math.abs(self._lastGewinn - d.gewinn) < 0.01);
     check('render(): fuellt _lastRenderData (von _renderDetailSection gebraucht)',
-        Object.keys(self._lastRenderData).length === 25);
+        // 26 seit dem Steuer-Audit 2026-10-18 (E-01): anlagenRestbuchwert
+        Object.keys(self._lastRenderData).length === 26);
 });
 
 // ── 7) dashboard.js zieht dieselbe Zahl ──────────────────────────────────────

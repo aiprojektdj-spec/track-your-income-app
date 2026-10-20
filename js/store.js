@@ -1871,10 +1871,30 @@ const Store = {
         this.set('afa_anlagen', list);
         return item;
     },
+    // Abgang eines Anlageguts (Steuer-Audit 2026-10-18, E-01). Ändert nur das Abgangsjahr, darf
+    // deshalb auch an Anlagen aus festgeschriebenen Jahren gesetzt werden — nicht aber in ein
+    // festgeschriebenes Abgangsjahr hinein.
+    abgangAfaAnlage(id, datum) {
+        if (this._isReadonlyCompany()) { this._refuseReadonly('abgangAfaAnlage'); return { ok: false, fehler: 'Nur Lesezugriff' }; }
+        const list = this.getAfaAnlagen();
+        const item = list.find(x => x.id === id);
+        if (!item || item.storniert) return { ok: false, fehler: 'Anlage nicht gefunden oder storniert' };
+        if (item.abgangsdatum) return { ok: false, fehler: 'Für diese Anlage ist bereits ein Abgang erfasst' };
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(datum || ''))) return { ok: false, fehler: 'Bitte ein Datum im Format JJJJ-MM-TT angeben' };
+        if (datum < String(item.anschaffungsdatum || '')) return { ok: false, fehler: 'Der Abgang kann nicht vor der Anschaffung liegen' };
+        if (this.isPeriodLocked(datum)) return { ok: false, fehler: 'Das Abgangsdatum liegt in einer festgeschriebenen Periode' };
+        const old = Object.assign({}, item);
+        item.abgangsdatum = datum;
+        this._stampRecord(item); this.set('afa_anlagen', list);
+        this._addAuditEntry('abgang', 'afa', id, old, item, 'Abgang der Anlage zum ' + datum);
+        return { ok: true };
+    },
+
     stornoAfaAnlage(id, grund) {
         const list = this.getAfaAnlagen();
         const item = list.find(x => x.id === id);
         if (!item || item.storniert) return;
+        if (this.isPeriodLocked(item.anschaffungsdatum)) return;   // s. Afa._stornoAnlage (E-01)
         const old = Object.assign({}, item);
         item.storniert = true; item.storniertAm = new Date().toISOString(); item.stornoGrund = grund || 'Storniert';
         this._stampRecord(item); this.set('afa_anlagen', list);

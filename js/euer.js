@@ -251,6 +251,13 @@ const Euer = {
             }
             return sum;
         }, 0);
+        // Restbuchwert ausgeschiedener Anlagegüter (§4 Abs.3 S.4 EStG) — fällt im Zeitraum des
+        // Abgangs voll an, nicht zeitanteilig (Steuer-Audit 2026-10-18, E-01)
+        const anlagenRestbuchwert = afaAnlagen.reduce((sum, a) => {
+            if (typeof Afa === 'undefined' || !Afa._restbuchwertAbgang) return sum;
+            if (!a.abgangsdatum || !Utils.isInPeriod(a.abgangsdatum, startDate, endDate)) return sum;
+            return sum + Afa._restbuchwertAbgang(a, year);
+        }, 0);
 
         // Retouren-Erstattungen mindern Einnahmen (§11 EStG – Rückfluss)
         // Altbestand: Wurde ein Verkauf über eine Retoure storniert (Muster bis 2026-10-13), ist
@@ -355,7 +362,7 @@ const Euer = {
         // Ausgaben gesamt
         // Kleinunternehmer: Brutto-Ausgaben (USt ist echter Kostenfaktor, kein Vorsteuerabzug)
         // Regelbesteuerung: Netto-Ausgaben (USt wird als Vorsteuer abgezogen = Durchlaufposten)
-        const abzugsfaehig = wareneinkauf + versandkosten + plattformgebuehren + fahrtkosten + materialEinkauf + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten;
+        const abzugsfaehig = wareneinkauf + versandkosten + plattformgebuehren + fahrtkosten + materialEinkauf + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten + anlagenRestbuchwert;
 
         // ── Vorsteuer: tatsächlicher USt-Satz pro Einkauf (Fix: war pauschal /1.19) ──
         // Purchases können jetzt ustSatz = 19 | 7 | 0 tragen.
@@ -437,7 +444,7 @@ const Euer = {
             diff25aRetourenBySaleId, diff25aSalesPositionen, diff25aInvoicePositionen,
             diff25aPositionen, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview, versandkosten,
             plattformgebuehren, fahrtkosten, materialEinkauf, afaAnlagen, daysInYear, periodStart,
-            periodEnd, daysInPeriod, afaRatio, afaKosten, stornierteSaleIds, retourenErstattungen,
+            periodEnd, daysInPeriod, afaRatio, afaKosten, anlagenRestbuchwert, stornierteSaleIds, retourenErstattungen,
             nettoEinnahmen, salesNettoWeighted, retourenNettoWeighted, ustAusRechnungen, ustEinnahmen,
             einnahmenNetto, ausgabenNetto, nettoGewinn, ustZahlungenFA, ustErstattungenFA, ohneSteuersatz,
             salesKleinBrutto, retourenKleinBrutto, vorsteuerTeile,
@@ -460,6 +467,7 @@ const Euer = {
             ustErstattung:  'Vom Finanzamt erstattete Umsatzsteuer',
             waren:          'Waren, Rohstoffe und Hilfsstoffe (netto)',
             afa:            'AfA auf bewegliche Wirtschaftsgüter',
+            restbuchwert:   'Restbuchwert der ausgeschiedenen Anlagegüter',
             fahrt:          'Fahrtkosten (Kilometerpauschale)',
             sonstige:       'Übrige Betriebsausgaben (netto, Sammelposten)',
             vorsteuer:      'Gezahlte Vorsteuerbeträge',
@@ -481,6 +489,7 @@ const Euer = {
             { key: 'ustErstattung', betrag: d.ustErstattungenFA },
             { key: 'waren',         betrag: d.wareneinkauf - d.vorsteuerTeile.purch },
             { key: 'afa',           betrag: d.afaKosten },
+            { key: 'restbuchwert',  betrag: d.anlagenRestbuchwert || 0 },
             { key: 'fahrt',         betrag: d.fahrtkosten },
             { key: 'sonstige',      betrag: d.versandkosten + d.plattformgebuehren + d.materialEinkauf
                                             + d.sonstigeAusgaben + d.eigenbelegeAusgaben - d.vorsteuerTeile.ausgaben },
@@ -512,7 +521,7 @@ const Euer = {
                         ? `Als ${Rechtsform.get()} bist du bilanzpflichtig.<br>Nutze stattdessen die Bilanz / GuV.`
                         : istHandelsges
                         ? `Als ${Rechtsform.get()} bist du kraft HGB Kaufmann und damit bilanzpflichtig — unabhängig von Umsatz oder Gewinn.<br><span style="font-size:12px;">Bilanzierung ist in Stackr in Planung — sprich in der Zwischenzeit mit deinem Steuerberater.</span>`
-                        : `Dein Umsatz oder Gewinn hat die §141-AO-Schwelle (800.000 € Umsatz bzw. 80.000 € Gewinn) überschritten.<br>Du bist voraussichtlich ab dem übernächsten Jahr bilanzierungspflichtig.<br><span style="font-size:12px;">Bilanzierung ist in Stackr in Planung — sprich in der Zwischenzeit mit deinem Steuerberater.</span>`
+                        : `Laut Mitteilung des Finanzamts bist du ab dem Wirtschaftsjahr ${Rechtsform.bilanzPflichtAb()} buchführungspflichtig (§141 AO).<br><span style="font-size:12px;">Bilanzierung ist in Stackr in Planung — sprich in der Zwischenzeit mit deinem Steuerberater. <a href="#" data-action="euer-ao141-mitteilung">Angabe ändern</a></span>`
                     }
                 </div>
                 <button class="btn btn-primary" data-action="navigate" data-args=\'["bilanz"]\'>→ Bilanz / GuV öffnen</button>
@@ -528,20 +537,29 @@ const Euer = {
             ustMode, isRegel, year, month, startDate, endDate, periodLabel, sales, periodPurchases,
             expenses, unsyncedInvoices, rechnungsEinnahmen, bruttoEinnahmen, wareneinkauf,
             diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview, versandkosten, plattformgebuehren,
-            fahrtkosten, materialEinkauf, afaAnlagen, afaKosten, retourenErstattungen, nettoEinnahmen,
+            fahrtkosten, materialEinkauf, afaAnlagen, afaKosten, anlagenRestbuchwert, retourenErstattungen, nettoEinnahmen,
             ustEinnahmen, summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
             eigenbelegeAusgaben, vorsteuer, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues,
             einnahmenNetto, nettoGewinn, ustZahlungenFA, ustErstattungenFA, ohneSteuersatz
         } = _d;
 
         this._lastGewinn = gewinn; // für Gewerbesteuer-Live-Update
-        this._lastRenderData = { sales, periodPurchases, expenses, eigenbelegeRaw, startDate, endDate, periodLabel, summeEinnahmen, summeAusgaben, gewinn, wareneinkauf, versandkosten, plattformgebuehren, fahrtkosten, materialEinkauf, sonstigeAusgaben, eigenbelegeAusgaben, afaKosten, monthlyData, donutLabels, donutValues, chartYear: year, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview };
+        this._lastRenderData = { sales, periodPurchases, expenses, eigenbelegeRaw, startDate, endDate, periodLabel, summeEinnahmen, summeAusgaben, gewinn, wareneinkauf, versandkosten, plattformgebuehren, fahrtkosten, materialEinkauf, sonstigeAusgaben, eigenbelegeAusgaben, afaKosten, anlagenRestbuchwert, monthlyData, donutLabels, donutValues, chartYear: year, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview };
 
 
         // GbR-Gewinnverteilung Block
         const gbrBlock = (typeof GbR !== 'undefined') ? GbR.renderEuerBlock(gewinn, year) : '';
 
-        return `${viewTabs}
+        // §141 AO überschritten: Hinweis, keine Sperre — Pflicht erst nach FA-Mitteilung (E-05a)
+        const ao141Banner = (typeof Rechtsform !== 'undefined' && Rechtsform.ao141Hinweis && Rechtsform.ao141Hinweis(year)) ? `
+            <div class="card no-print" style="margin-bottom:16px;border-left:3px solid var(--warning);">
+                <div style="padding:12px 16px;font-size:13px;line-height:1.6;">
+                    <strong>§141-AO-Grenze überschritten</strong> (800.000 € Umsatz oder 80.000 € Gewinn). Buchführungspflichtig wirst du erst ab dem Wirtschaftsjahr, das auf die <strong>Mitteilung des Finanzamts</strong> folgt (§141 Abs. 2 AO) — bis dahin bleibt die EÜR richtig. Sprich frühzeitig mit deinem Steuerberater.
+                    <a href="#" data-action="euer-ao141-mitteilung" style="margin-left:6px;">Mitteilung erhalten?</a>
+                </div>
+            </div>` : '';
+
+        return `${viewTabs}${ao141Banner}
             <div class="page-header">
                 <h2>Einnahmen-Überschuss-Rechnung</h2>
                 <p class="text-muted no-print" style="margin:-8px 0 16px;font-size:13px;">Deine Steuer-Zusammenfassung — als Übertragungshilfe für die Anlage EÜR herunterladen oder deinem Steuerberater weitergeben.</p>
@@ -741,6 +759,10 @@ const Euer = {
                             </tr>` : afaAnlagen.length > 0 ? `<tr style="opacity:0.6;">
                                 <td>Abschreibungen AfA <span style="font-size:11px;color:var(--text-muted);">(keine AfA in diesem Zeitraum)</span></td>
                                 <td style="text-align:right">–</td>
+                            </tr>` : ''}
+                            ${anlagenRestbuchwert > 0 ? `<tr>
+                                <td>Restbuchwert ausgeschiedener Anlagegüter <span style="font-size:11px;color:var(--text-muted);">(§4 Abs.3 S.4 EStG – Abgang im Anlagenverzeichnis)</span></td>
+                                <td style="text-align:right">${Utils.formatCurrency(anlagenRestbuchwert)}</td>
                             </tr>` : ''}
                             <tr>
                                 <td>
@@ -1013,6 +1035,7 @@ const Euer = {
                 d.fahrtkosten > 0   ? ['− Fahrtkosten', -d.fahrtkosten, 'var(--danger)'] : null,
                 d.materialEinkauf > 0? ['− Verpackungsmaterial', -d.materialEinkauf, 'var(--danger)'] : null,
                 d.afaKosten > 0     ? ['− AfA / Abschreibungen', -d.afaKosten, 'var(--danger)'] : null,
+                d.anlagenRestbuchwert > 0 ? ['− Restbuchwert ausgeschiedener Anlagen', -d.anlagenRestbuchwert, 'var(--danger)'] : null,
                 d.sonstigeAusgaben > 0 ? ['− Betriebsausgaben', -d.sonstigeAusgaben, 'var(--danger)'] : null,
                 d.eigenbelegeAusgaben > 0 ? ['− Eigenbelege', -d.eigenbelegeAusgaben, 'var(--danger)'] : null,
             ].filter(Boolean);
@@ -1301,5 +1324,14 @@ const Euer = {
 // ── data-action-Registrierung (CSP: keine Inline-Handler) ──
 if (window.Actions) Actions.register({
     'euer-hebesatz':  function (e, el) { Euer._updateHebesatz(el.value); },
-    'euer-set-view':  function (view) { Euer._view = view; Euer._refresh(); }
+    'euer-set-view':  function (view) { Euer._view = view; Euer._refresh(); },
+    'euer-ao141-mitteilung': function () {
+        const alt = Rechtsform.bilanzPflichtAb();
+        const v = prompt('Ab welchem Wirtschaftsjahr bist du laut Mitteilung des Finanzamts buchführungspflichtig (§141 AO)?\nLeer lassen, wenn noch keine Mitteilung vorliegt.', alt || '');
+        if (v === null) return;
+        const y = parseInt(v, 10);
+        if (v.trim() && (!y || y < 2000 || y > 2100)) { Utils.showToast('Bitte ein Jahr wie 2028 eingeben', 'warning'); return; }
+        Rechtsform.setBilanzPflichtAb(v.trim() ? y : null);
+        Euer._refresh();
+    }
 });

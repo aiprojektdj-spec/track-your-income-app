@@ -240,10 +240,11 @@ var XRechnung = (function () {
                  + '        <ram:ApplicableTradeTax>\n'
                  + '          <ram:TypeCode>VAT</ram:TypeCode>\n';
             if (li.exemptionReason) {
-                xml += '          <ram:ExemptionReason>' + esc(li.exemptionReason) + '</ram:ExemptionReason>\n'
-                     + (li.exemptionReasonCode ? '          <ram:ExemptionReasonCode>' + li.exemptionReasonCode + '</ram:ExemptionReasonCode>\n' : '');
+                xml += '          <ram:ExemptionReason>' + esc(li.exemptionReason) + '</ram:ExemptionReason>\n';
             }
+            // Schema-Reihenfolge: ExemptionReason … CategoryCode, ExemptionReasonCode, RateApplicablePercent (B5)
             xml += '          <ram:CategoryCode>' + li.catCode + '</ram:CategoryCode>\n'
+                 + (li.exemptionReason && li.exemptionReasonCode ? '          <ram:ExemptionReasonCode>' + li.exemptionReasonCode + '</ram:ExemptionReasonCode>\n' : '')
                  + '          <ram:RateApplicablePercent>' + li.mwstRate.toFixed(2) + '</ram:RateApplicablePercent>\n'
                  + '        </ram:ApplicableTradeTax>\n'
                  + '        <ram:SpecifiedTradeSettlementLineMonetarySummation>\n'
@@ -255,6 +256,12 @@ var XRechnung = (function () {
 
         // ── ApplicableHeaderTradeAgreement ────────────────────────────────
         xml += '    <ram:ApplicableHeaderTradeAgreement>\n';
+        // BuyerReference steht im CII-Schema als ERSTES Kind von HeaderTradeAgreement, vor
+        // SellerTradeParty — nach BuyerTradeParty war die Datei schemaungültig (Steuer-Audit
+        // 2026-10-18, B5).
+        if (inv.leitwegId) {
+            xml += '      <ram:BuyerReference>' + esc(inv.leitwegId) + '</ram:BuyerReference>\n';
+        }
 
         // Seller
         xml += '      <ram:SellerTradeParty>\n'
@@ -321,16 +328,15 @@ var XRechnung = (function () {
         // mit genau dieser Regelnummer zurückweist. validatePflichtfelder() blockiert den Export
         // jetzt, wenn sie fehlt; die Bedingung bleibt trotzdem stehen, weil der Generator auch
         // aus anderen Pfaden (Wiederkehrende) aufgerufen wird und dann kein leeres Tag schreiben soll.
-        if (inv.leitwegId) {
-            xml += '      <ram:BuyerReference>' + esc(inv.leitwegId) + '</ram:BuyerReference>\n';
-        }
-
         xml += '    </ram:ApplicableHeaderTradeAgreement>\n';
 
         // ── ApplicableHeaderTradeDelivery ────────────────────────────────
         xml += '    <ram:ApplicableHeaderTradeDelivery>\n';
-        if (inv.lieferdatum || inv.lieferVon) {
-            var delivDate = inv.lieferdatum || inv.lieferVon;
+        // §14 Abs.4 Nr.6 UStG: ohne eigenes Lieferdatum gilt das Rechnungsdatum als Leistungsdatum —
+        // das PDF druckt dann "Leistungsdatum entspricht Rechnungsdatum", die XML braucht denselben
+        // Wert (Steuer-Audit 2026-10-18, B1; vorher fehlte BT-72 bei der Standard-Datumsoption).
+        var delivDate = inv.lieferdatum || inv.lieferVon || (inv.typ !== 'angebot' ? inv.datum : '');
+        if (delivDate) {
             xml += '      <ram:ActualDeliverySupplyChainEvent>\n'
                  + '        <ram:OccurrenceDateTime>\n'
                  + '          <udt:DateTimeString format="102">' + isoDate(delivDate) + '</udt:DateTimeString>\n'
@@ -386,11 +392,11 @@ var XRechnung = (function () {
                  + '        <ram:CalculatedAmount>0.00</ram:CalculatedAmount>\n'
                  + '        <ram:TypeCode>VAT</ram:TypeCode>\n';
             if (cm.reason) {
-                xml += '        <ram:ExemptionReason>' + esc(cm.reason) + '</ram:ExemptionReason>\n'
-                     + (cm.reasonCode ? '        <ram:ExemptionReasonCode>' + cm.reasonCode + '</ram:ExemptionReasonCode>\n' : '');
+                xml += '        <ram:ExemptionReason>' + esc(cm.reason) + '</ram:ExemptionReason>\n';
             }
             xml += '        <ram:BasisAmount>' + amt(cm.basis) + '</ram:BasisAmount>\n'
                  + '        <ram:CategoryCode>' + code + '</ram:CategoryCode>\n'
+                 + (cm.reason && cm.reasonCode ? '        <ram:ExemptionReasonCode>' + cm.reasonCode + '</ram:ExemptionReasonCode>\n' : '')
                  + '        <ram:RateApplicablePercent>0.00</ram:RateApplicablePercent>\n'
                  + '      </ram:ApplicableTradeTax>\n';
         });
@@ -449,6 +455,12 @@ var XRechnung = (function () {
     // Pflichtfeld-Check vor dem Export (§14 Abs.4/§14a UStG) — der XML-Generator selbst würde
     // fehlende Felder klaglos als leere Tags ausgeben statt zu warnen. Prüft nur, was für die
     // Rechtsgültigkeit zwingend ist; ersetzt keine vollständige KoSIT-/Schematron-Validierung.
+    function istEuB2B(inv, settings, kunde) {
+        var eu = ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE'];
+        var klein = inv && inv.isKlein !== undefined ? inv.isKlein : (settings && settings.ustMode === 'klein');
+        return !klein && !!(kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && eu.indexOf(kunde.land) !== -1);
+    }
+
     function validatePflichtfelder(inv, settings, kunde) {
         var missing = [];
         if (!inv.nummer) missing.push('Rechnungsnummer');
@@ -456,6 +468,9 @@ var XRechnung = (function () {
         if (!(settings.firmenname || settings.name)) missing.push('Ausstellername');
         if (!settings.adresse) missing.push('Ausstelleradresse');
         if (!settings.steuernummer && !settings.ustId) missing.push('Steuernummer oder USt-IdNr. des Ausstellers');
+        // §14a Abs. 1 und 3 UStG: Reverse Charge / ig. Lieferung an EU-Unternehmer verlangen die
+        // USt-IdNr. BEIDER Seiten, die Steuernummer genügt nicht (Steuer-Audit 2026-10-18, B2).
+        if (istEuB2B(inv, settings, kunde) && !settings.ustId) missing.push('USt-IdNr. des Ausstellers (§14a UStG, EU-Unternehmenskunde)');
         if (!kunde) missing.push('Empfänger (Kunde)');
         else {
             if (!(kunde.firma || kunde.ansprechpartner)) missing.push('Empfängername');

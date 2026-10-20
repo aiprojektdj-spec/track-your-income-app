@@ -74,6 +74,7 @@
       </ram:SpecifiedLineTradeSettlement>
     </ram:IncludedSupplyChainTradeLineItem>
     <ram:ApplicableHeaderTradeAgreement>
+      <ram:BuyerReference>04011000-1234512345-06</ram:BuyerReference>
       <ram:SellerTradeParty>
         <ram:Name>Muster Handel GmbH</ram:Name>
         <ram:DefinedTradeContact>
@@ -104,7 +105,6 @@
           <ram:URIID schemeID="EM">einkauf@example.org</ram:URIID>
         </ram:URIUniversalCommunication>
       </ram:BuyerTradeParty>
-      <ram:BuyerReference>04011000-1234512345-06</ram:BuyerReference>
     </ram:ApplicableHeaderTradeAgreement>
     <ram:ApplicableHeaderTradeDelivery>
       <ram:ActualDeliverySupplyChainEvent>

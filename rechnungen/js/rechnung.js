@@ -1059,6 +1059,11 @@ var Rechnung = (function() {
             });
             return fachFehler(ig.length ? ig : [{ text: 'Bitte bei jeder 0%-Position „Art des Umsatzes" (Ware/Leistung) wählen — entscheidet Kz. 41 vs. Kz. 21.' }]);
         }
+        // §14a Abs. 1 und 3 UStG: an EU-Unternehmer gehört die eigene USt-IdNr. auf die Rechnung,
+        // die Steuernummer genügt nicht (Steuer-Audit 2026-10-18, B2).
+        if (isEuB2B13b && (typ === 'rechnung' || typ === 'gutschrift') && !settings13b.ustId) {
+            return fachFehler([{ text: 'Rechnung an ein Unternehmen im EU-Ausland: Deine USt-IdNr. ist Pflichtangabe (§14a UStG), die Steuernummer reicht nicht. Bitte in den Unternehmensdaten ergänzen.' }]);
+        }
         // §13b UStG — bei Reverse Charge darf KEINE deutsche USt ausgewiesen werden (sonst §14c Abs.1
         // UStG: unrichtiger Steuerausweis, Steuerschuld trotzdem). Guard deckte bisher nur die 0%-igArt-
         // Pflicht ab, nicht den Fall, dass eine Position noch einen Steuersatz &gt;0% trägt (z.B. nach
@@ -1281,6 +1286,9 @@ var Rechnung = (function() {
             var dOpt = inv.datumsOption || 'faelligkeit';
             if (dOpt === 'faelligkeit') {
                 html += '<div class="inv-meta-row"><span class="inv-meta-lbl">F\u00E4llig am</span><span class="inv-meta-val">' + Utils.formatDate(inv.faelligkeit) + '</span></div>';
+                // \u00A714 Abs.4 Nr.6 UStG: auch die Standard-Option braucht einen Leistungszeitpunkt
+                // (Steuer-Audit 2026-10-18, B1 \u2014 vorher stand hier nur die F\u00E4lligkeit).
+                html += '<div class="inv-meta-row"><span class="inv-meta-lbl">Leistungsdatum</span><span class="inv-meta-val">entspricht Rechnungsdatum</span></div>';
             } else if (dOpt === 'lieferdatum' && inv.lieferdatum) {
                 html += '<div class="inv-meta-row"><span class="inv-meta-lbl">Lieferdatum</span><span class="inv-meta-val">' + Utils.formatDate(inv.lieferdatum) + '</span></div>';
             } else if (dOpt === 'lieferzeitraum' && (inv.lieferVon || inv.lieferBis)) {

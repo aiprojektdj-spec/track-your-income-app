@@ -49,6 +49,7 @@
       </ram:SpecifiedLineTradeSettlement>
     </ram:IncludedSupplyChainTradeLineItem>
     <ram:ApplicableHeaderTradeAgreement>
+      <ram:BuyerReference>KDNR-4711</ram:BuyerReference>
       <ram:SellerTradeParty>
         <ram:Name>Musterbetrieb Stackr</ram:Name>
         <ram:PostalTradeAddress>
@@ -70,7 +71,6 @@
           <ram:CountryID>DE</ram:CountryID>
         </ram:PostalTradeAddress>
       </ram:BuyerTradeParty>
-      <ram:BuyerReference>KDNR-4711</ram:BuyerReference>
     </ram:ApplicableHeaderTradeAgreement>
     <ram:ApplicableHeaderTradeDelivery>
     </ram:ApplicableHeaderTradeDelivery>

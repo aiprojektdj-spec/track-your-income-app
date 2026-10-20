@@ -1653,7 +1653,7 @@ const App = {
                     const switcherEl = document.getElementById('companySwitcher');
                     if (switcherEl) switcherEl.innerHTML = CompanyManager.renderSwitcherBtn();
                 } catch (err) {
-                    Utils.showToast('Firma konnte nicht angelegt werden: ' + (err && err.message ? err.message : err), 'error');
+                    Utils.showToast('Firma konnte nicht angelegt werden: ' + Utils.errorText(err, 'Bitte erneut versuchen.'), 'error');
                     return false;
                 }
             } else {
@@ -1944,7 +1944,7 @@ const App = {
                     return;
                 }
                 Utils.sanitizeImageFile(file).then(saveAndClose).catch((e) => {
-                    Utils.showToast(e && e.message || 'Ungültige Bilddatei', 'error');
+                    Utils.showToast(Utils.errorText(e, 'Ungültige Bilddatei'), 'error');
                 });
                 return;
             }
@@ -2447,7 +2447,7 @@ const App = {
                     this.showBackupModal();
                 } catch(err) {
                     if (err.name !== 'AbortError') {
-                        Utils.showToast('Fehler: ' + err.message, 'error');
+                        Utils.showToast('Backup-Ordner konnte nicht gesetzt werden: ' + Utils.errorText(err, 'Bitte erneut versuchen.'), 'error');
                     }
                     if (fsSelectBtn) {
                         fsSelectBtn.disabled = false;
@@ -2547,7 +2547,7 @@ const App = {
                             this.navigate(this.currentPage);
                         } catch(err) {
                             App.hideSpinner();
-                            Utils.showToast('Fehler: ' + err.message, 'error');
+                            Utils.showToast('Wiederherstellen fehlgeschlagen: ' + Utils.errorText(err, 'Bitte erneut versuchen.'), 'error');
                             btn.disabled = false;
                             btn.textContent = 'Wiederherstellen';
                         }
@@ -2596,7 +2596,7 @@ const App = {
                 Utils.downloadFile(JSON.stringify(enc), filename, 'application/json');
                 localStorage.setItem('last_backup_date', new Date().toISOString());
                 Utils.showToast('Verschlüsseltes Backup heruntergeladen', 'success');
-            }).catch(err => Utils.showToast('Fehler: ' + err.message, 'error'));
+            }).catch(err => Utils.showToast('Verschlüsseltes Backup fehlgeschlagen: ' + Utils.errorText(err, 'Bitte erneut versuchen.'), 'error'));
         });
 
         document.getElementById('importBackupFile').addEventListener('change', (e) => {
@@ -2660,7 +2660,7 @@ const App = {
                     this.navigate(this.currentPage);
                 } catch (err) {
                     App.hideSpinner();
-                    Utils.showToast('Fehler beim Import: ' + err.message, 'error');
+                    Utils.showToast('Fehler beim Import: ' + Utils.errorText(err, 'Bitte erneut versuchen.'), 'error');
                 }
             };
             reader.readAsText(file);
@@ -2720,7 +2720,7 @@ const App = {
         document.getElementById('xlsxTemplateBtn').addEventListener('click', () => {
             // Bibliothek wird nicht mehr eager geladen (s. Utils.ensureXlsx), sondern hier.
             Utils.ensureXlsx().then(() => this._buildXlsxTemplate())
-                .catch(err => Utils.showToast(err.message, 'error'));
+                .catch(err => Utils.showToast(Utils.errorText(err, 'Die Excel-Vorlage konnte nicht erstellt werden. Bitte erneut versuchen.'), 'error'));
         });
 
         this._buildXlsxTemplate = () => {
@@ -3078,14 +3078,14 @@ const App = {
                     setTimeout(() => this.navigate(this.currentPage), 1200);
 
                 } catch(err) {
-                    if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">Fehler: ${Utils.escapeHtml(err.message)}</span>`;
-                    Utils.showToast('Import-Fehler: ' + err.message, 'error');
+                    if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">Fehler: ${Utils.escapeHtml(Utils.errorText(err, 'Bitte erneut versuchen.'))}</span>`;
+                    Utils.showToast('Import-Fehler: ' + Utils.errorText(err, 'Bitte erneut versuchen.'), 'error');
                 }
             };
             reader.readAsArrayBuffer(file);
             }).catch(err => {
-                if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">${Utils.escapeHtml(err.message)}</span>`;
-                Utils.showToast(err.message, 'error');
+                if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">${Utils.escapeHtml(Utils.errorText(err, 'Import fehlgeschlagen. Bitte erneut versuchen.'))}</span>`;
+                Utils.showToast(Utils.errorText(err, 'Import fehlgeschlagen. Bitte erneut versuchen.'), 'error');
             });
         });
 
@@ -3145,7 +3145,7 @@ const App = {
                                 Store.importAll(r.data);
                                 doRestore();
                             } catch(e) {
-                                Utils.showToast('Fehler beim Restore: ' + e.message, 'error');
+                                Utils.showToast('Wiederherstellen fehlgeschlagen: ' + Utils.errorText(e, 'Bitte erneut versuchen.'), 'error');
                             }
                         }
                     });
@@ -3364,7 +3364,7 @@ const App = {
                     this.closeModal();
                     if (this.currentPage) this.navigate(this.currentPage);
                 })
-                .catch(err => Utils.showToast('Fehler: ' + err.message, 'error'));
+                .catch(err => Utils.showToast('Fotos konnten nicht entfernt werden: ' + Utils.errorText(err, 'Bitte erneut versuchen.'), 'error'));
         };
 
         document.getElementById('cleanupSold')?.addEventListener('click', () =>
@@ -3400,7 +3400,7 @@ const App = {
                 if (this.currentPage) this.navigate(this.currentPage);
             } catch (err) {
                 console.error('[Cleanup] Komprimieren fehlgeschlagen:', err);
-                Utils.showToast('Fehler: ' + err.message, 'error');
+                Utils.showToast('Komprimieren fehlgeschlagen: ' + Utils.errorText(err, 'Bitte erneut versuchen.'), 'error');
                 btn.disabled = false;
                 btn.innerHTML = orig;
             }

@@ -205,7 +205,7 @@ const Store = {
         } catch(e) {
             console.error('[Store] _idbPut Exception:', key, e);
             if (typeof Utils !== 'undefined' && Utils.showToast) {
-                Utils.showToast(`Speicher-Fehler: ${e.message || e.name}`, 'error');
+                Utils.showToast('Speichern fehlgeschlagen: ' + Utils.errorText(e, 'Bitte erneut versuchen.'), 'error');
             }
         }
     },
@@ -674,7 +674,7 @@ const Store = {
                 }
             } else {
                 if (typeof Utils !== 'undefined' && Utils.showToast) {
-                    Utils.showToast('Datei-Backup fehlgeschlagen: ' + (err.name || err.message), 'warning');
+                    Utils.showToast('Datei-Backup fehlgeschlagen: ' + Utils.errorText(err, 'Bitte erneut versuchen.'), 'warning');
                 }
             }
             console.warn('[Store] Datei-Backup Fehler:', err.message);

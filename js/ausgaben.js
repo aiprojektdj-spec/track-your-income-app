@@ -549,7 +549,7 @@ const Ausgaben = {
             let belegFoto;
             if (belegFotoFile) {
                 try { belegFoto = await Utils.sanitizeImageFile(belegFotoFile); }
-                catch (err) { Utils.showToast(err.message || 'Beleg-Foto konnte nicht gelesen werden', 'error'); return; }
+                catch (err) { Utils.showToast(Utils.errorText(err, 'Beleg-Foto konnte nicht gelesen werden'), 'error'); return; }
             }
             // Rueckgabewert festhalten: traegt die vergebene id und verknuepft unten den
             // Materialeinkauf mit GENAU dieser Ausgabe. Ohne die Verknuepfung stuende der
@@ -686,7 +686,7 @@ const Ausgaben = {
                     let belegFoto = exp.belegFoto;
                     if (newFotoFile) {
                         try { belegFoto = await Utils.sanitizeImageFile(newFotoFile); }
-                        catch (err) { Utils.showToast(err.message || 'Beleg-Foto konnte nicht gelesen werden', 'error'); return; }
+                        catch (err) { Utils.showToast(Utils.errorText(err, 'Beleg-Foto konnte nicht gelesen werden'), 'error'); return; }
                     }
                     const eeBetragVal = parseFloat(document.getElementById('ee_betrag').value) || 0;
                     if (eeBetragVal < 0) {

@@ -1494,7 +1494,7 @@ const Buchungen = {
                 let belegFoto = p.belegFoto;
                 if (newFotoFile) {
                     try { belegFoto = await Utils.sanitizeImageFile(newFotoFile); }
-                    catch (err) { Utils.showToast(err.message || 'Beleg-Foto konnte nicht gelesen werden', 'error'); return; }
+                    catch (err) { Utils.showToast(Utils.errorText(err, 'Beleg-Foto konnte nicht gelesen werden'), 'error'); return; }
                 }
 
                 const epPreisVal = parseFloat(document.getElementById('ep_preis').value) || 0;
@@ -1775,7 +1775,7 @@ const Buchungen = {
                 // Frueher stand hier "isExcel && typeof XLSX !== 'undefined'": fehlte die
                 // Bibliothek, landete die Excel-Datei still im CSV-Zweig und wurde als Muell
                 // geparst. Mit dem Lazy-Load waere genau das der Normalfall geworden.
-                Utils.ensureXlsx().catch(err => { Utils.showToast(err.message, 'error'); return Promise.reject(err); }).then(() => {
+                Utils.ensureXlsx().catch(err => { Utils.showToast(Utils.errorText(err, 'Die Excel-Bibliothek konnte nicht geladen werden. Bitte erneut versuchen.'), 'error'); return Promise.reject(err); }).then(() => {
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     try {
@@ -1787,7 +1787,7 @@ const Buchungen = {
                         parsedRows = raw.map(row => row.map(cell => String(cell == null ? '' : cell)));
                         processCSVRows();
                     } catch (err) {
-                        Utils.showToast('Fehler beim Lesen der Excel-Datei: ' + err.message, 'error');
+                        Utils.showToast('Fehler beim Lesen der Excel-Datei: ' + Utils.errorText(err, 'Bitte prüfen, ob es eine gültige .xlsx-Datei ist.'), 'error');
                     }
                 };
                 reader.readAsArrayBuffer(file);

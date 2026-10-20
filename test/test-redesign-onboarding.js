@@ -13,6 +13,9 @@ const end = appSource.indexOf('    // ---- Settings Modal ----', start);
 assert(start >= 0 && end > start, 'Originale Onboarding-Methoden müssen auffindbar bleiben');
 const originalMethods = appSource.slice(start, end);
 const adapter = fs.readFileSync(path.join(root, 'js/redesign-onboarding.js'), 'utf8');
+// echter Utils.errorText (js/utils.js), damit der Fehlerpfad den Produktionstext prüft
+const errorText = new Function('return { ' + fs.readFileSync(path.join(root, 'js/utils.js'), 'utf8')
+    .match(/errorText\(err, fallback\) \{[\s\S]*?\n    \},/)[0] + ' };')().errorText;
 
 function harness(config = {}) {
     const state = { writes: 0, created: 0, company: null, saved: null, sync: 0, navigation: [], toasts: [], failCreate: false, failRename: false, failSave: false };
@@ -72,6 +75,7 @@ function harness(config = {}) {
         localStorage: { setItem() {} },
         Utils: {
             escapeHtml: value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;'),
+            errorText,
             showToast: (message, type) => state.toasts.push({ message, type })
         },
         Store: {

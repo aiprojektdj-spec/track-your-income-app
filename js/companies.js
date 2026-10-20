@@ -559,7 +559,7 @@ const CompanyManager = {
             // Direkt zur neuen Firma wechseln
             setTimeout(() => this.switchTo(co.id), 600);
         } catch(err) {
-            Utils.showToast(err.message, 'error');
+            Utils.showToast(Utils.errorText(err, 'Das hat nicht geklappt. Bitte erneut versuchen.'), 'error');
         }
     },
 
@@ -648,7 +648,7 @@ const CompanyManager = {
             App.closeModal();
             Utils.showToast('Firma gelöscht', 'success');
         } catch(err) {
-            Utils.showToast(err.message, 'error');
+            Utils.showToast(Utils.errorText(err, 'Das hat nicht geklappt. Bitte erneut versuchen.'), 'error');
         }
     },
 

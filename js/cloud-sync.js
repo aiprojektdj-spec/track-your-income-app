@@ -1412,7 +1412,7 @@ var CloudSync = (function () {
             // der geprüften IndexedDB-Ablage landet (und nicht nur im localStorage-Rückfall).
             try { await _storeKey(_userId(), bytes); }
             catch (se) {
-                Utils.showToast('Der Schlüssel konnte auf diesem Gerät nicht gespeichert werden (' + (se && se.message || 'Fehler') +
+                Utils.showToast('Der Schlüssel konnte auf diesem Gerät nicht gespeichert werden (' + Utils.errorText(se, 'unbekannter Grund') +
                                 '). Ohne gespeicherten Schlüssel wäre der Sync beim nächsten Start wieder offen — bitte erneut versuchen.', 'error', 12000);
                 throw 0;
             }

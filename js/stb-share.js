@@ -434,7 +434,7 @@ var StbShare = (function () {
             localStorage.setItem(LS_CLIENT, ownerId);
             localStorage.setItem('oyi_active_company', cos[0].id);
             location.reload();
-        } catch (e) { console.error('[StbShare] enterClient', e); _toast('Mandantenansicht fehlgeschlagen: ' + (e && e.message || e), 'error', 6000); }
+        } catch (e) { console.error('[StbShare] enterClient', e); _toast('Mandantenansicht fehlgeschlagen: ' + (typeof Utils !== 'undefined' ? Utils.errorText(e, 'Bitte erneut versuchen.') : 'Bitte erneut versuchen.'), 'error', 6000); }
     }
     function exitClient() {
         try { if (typeof CloudSync !== 'undefined' && CloudSync.foreignUnload) CloudSync.foreignUnload(); } catch (e) {}

@@ -304,7 +304,7 @@ var Unternehmensdaten = (function() {
                 }
                 if (placeholder) placeholder.style.display = 'none';
             }).catch(function(e) {
-                Utils.showToast(e && e.message || 'Ungültige Bilddatei', 'error');
+                Utils.showToast(Utils.errorText(e, 'Ungültige Bilddatei'), 'error');
                 inputEl.value = '';
             });
         });

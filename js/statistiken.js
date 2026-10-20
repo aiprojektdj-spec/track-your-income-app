@@ -395,7 +395,7 @@ const Statistiken = {
 
     _renderCharts() {
         this._ensureChartJs().then(() => this._renderChartsNow())
-            .catch(err => Utils.showToast(err.message, 'error'));
+            .catch(err => Utils.showToast(Utils.errorText(err, 'Die Diagramme konnten nicht geladen werden. Bitte Internetverbindung prüfen.'), 'error'));
     },
 
     _renderChartsNow() {

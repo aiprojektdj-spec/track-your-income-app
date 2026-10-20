@@ -1303,7 +1303,7 @@ const Lager = {
         // Bibliothek wird nicht mehr eager geladen (s. Utils.ensureXlsx) — hier nachziehen
         // statt abzubrechen; der alte Zweig meldete nur "XLSX-Library nicht geladen".
         Utils.ensureXlsx().then(() => this._exportXLSX())
-            .catch(err => Utils.showToast(err.message, 'error'));
+            .catch(err => Utils.showToast(Utils.errorText(err, 'Der Excel-Export ist fehlgeschlagen. Bitte erneut versuchen.'), 'error'));
     },
 
     _exportXLSX() {

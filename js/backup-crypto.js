@@ -423,7 +423,7 @@ var BackupCrypto = (function () {
             _toast('Wechsel-Datei gespeichert (' + deCount + ' Firma' + (deCount === 1 ? '' : 'en') + '): ' + name, 'success', 5000);
         } catch (e) {
             console.error('[Backup] exportPlain', e);
-            _toast('Export fehlgeschlagen: ' + (e && e.message || e), 'error');
+            _toast('Export fehlgeschlagen: ' + (typeof Utils !== 'undefined' ? Utils.errorText(e, 'Bitte erneut versuchen.') : 'Bitte erneut versuchen.'), 'error');
         }
     }
 
@@ -444,7 +444,7 @@ var BackupCrypto = (function () {
             _toast('Verschlüsseltes Backup gespeichert: ' + name, 'success', 5000);
         } catch (e) {
             console.error('[Backup] export', e);
-            _toast('Export fehlgeschlagen: ' + (e && e.message || e), 'error');
+            _toast('Export fehlgeschlagen: ' + (typeof Utils !== 'undefined' ? Utils.errorText(e, 'Bitte erneut versuchen.') : 'Bitte erneut versuchen.'), 'error');
         }
     }
 
@@ -482,7 +482,7 @@ var BackupCrypto = (function () {
                 setTimeout(function () { location.reload(); }, 1300);
             } catch (e) {
                 console.warn('[Backup] import', e && e.message);
-                _toast(e && e.message || 'Import fehlgeschlagen.', 'error', 6000);
+                _toast((typeof Utils !== 'undefined' ? Utils.errorText(e, 'Import fehlgeschlagen.') : 'Import fehlgeschlagen.'), 'error', 6000);
             }
         };
         reader.onerror = function () { _toast('Datei konnte nicht gelesen werden.', 'error'); };

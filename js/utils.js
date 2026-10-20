@@ -509,6 +509,31 @@ const Utils = {
         this._ariaLive = el;
     },
 
+    // Fehler → Satz für den Nutzer. Eigene `throw new Error('…')` sind deutsch und bleiben;
+    // Browser-Fehler (DOMException, JSON-Parse, Netzwerk) bringen englischen Technik-Text mit
+    // und werden übersetzt. Programmierfehler (TypeError u. ä.) zeigen nur den Ersatztext.
+    errorText(err, fallback) {
+        if (!err) return fallback;
+        if (typeof err === 'string') return err;
+        if (err.userMessage) return err.userMessage;
+        const browser = {
+            AbortError:         'Der Vorgang wurde abgebrochen.',
+            NotAllowedError:    'Der Browser hat den Zugriff nicht erlaubt. Bitte die Berechtigung erteilen und erneut versuchen.',
+            SecurityError:      'Der Browser hat den Zugriff aus Sicherheitsgründen blockiert. Bitte in einem normalen (nicht privaten) Fenster erneut versuchen.',
+            QuotaExceededError: 'Der Speicher im Browser ist voll. Bitte ein Backup exportieren und unter Einstellungen alte Fotos entfernen.',
+            NotFoundError:      'Die Datei oder der Ordner wurde nicht gefunden. Bitte erneut auswählen.',
+            NotReadableError:   'Die Datei konnte nicht gelesen werden. Bitte erneut auswählen.',
+            OperationError:     'Entschlüsseln fehlgeschlagen: Passwort falsch oder Datei beschädigt.',
+            SyntaxError:        'Die Datei hat kein gültiges Format. Bitte eine von Stackr erstellte Datei wählen.'
+        };
+        if (browser[err.name]) return browser[err.name];
+        if (err.name === 'TypeError' && /fetch|network|load failed/i.test(err.message || '')) {
+            return 'Keine Verbindung zum Server. Bitte die Internetverbindung prüfen und erneut versuchen.';
+        }
+        if (err.name === 'Error' && err.message) return err.message;
+        return fallback;
+    },
+
     showToast(message, type = 'success') {
         // Emoji-Präfixe/-Suffixe strippen — der Toast-Typ (Farbe) trägt die Semantik bereits
         message = String(message)

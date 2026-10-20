@@ -835,18 +835,18 @@ const Euer = {
     // Personen/Personengesellschaften (gewStFreibetrag>0 in rechtsform.js), NICHT für
     // Kapitalgesellschaften (GmbH/UG: gewStFreibetrag=0).
     _renderGewerbesteuerBlock(gewinn) {
-        const cfg = (typeof Rechtsform !== 'undefined') ? Rechtsform.getConfig() : { gewerbesteuer: true, gewStFreibetrag: 24500 };
-        if (cfg.gewerbesteuer !== true) return '';
-        const hatFreibetrag = (parseFloat(cfg.gewStFreibetrag) || 0) > 0;
-        const freibetrag = hatFreibetrag ? 24500 : 0;
-        const gewerbeertrag = Math.max(0, gewinn - freibetrag);
-        const messzahl = 0.035; // §11 Abs. 2 GewStG
-        const steuermessbetrag = gewerbeertrag * messzahl;
-        // Hebesatz aus Settings (Standard 400%)
-        const settings = Store.getSettings();
-        const hebesatz = parseInt(settings.gewerbesteuerHebesatz) || 400;
-        const gewerbesteuer = steuermessbetrag * (hebesatz / 100);
-        const istGewPflichtig = gewinn > freibetrag;
+        // Rechenweg und Hebesatz aus js/gewerbesteuer.js (Steuer-Audit 2026-10-18, E-04/E-05c):
+        // vorher eigene Formel ohne Abrundung, eigener Hebesatz-Speicher, und Freiberufler bekamen
+        // hier eine Gewerbesteuer angezeigt.
+        if (typeof Gewerbesteuer === 'undefined' || !Gewerbesteuer._isGewStPflichtig()) return '';
+        const hatFreibetrag = Gewerbesteuer._hatFreibetrag();
+        const k = Gewerbesteuer.berechne(gewinn + Gewerbesteuer._sonderSaldo(this._selectedYear), { freibetrag: hatFreibetrag });
+        const freibetrag = k.freibetrag;
+        const gewerbeertrag = k.gewerbeertrag;
+        const steuermessbetrag = k.messbetrag;
+        const hebesatz = k.hebesatz;
+        const gewerbesteuer = k.gewSt;
+        const istGewPflichtig = gewerbesteuer > 0;
         const rechtsformLabel = typeof Rechtsform !== 'undefined' ? Rechtsform.get() : 'Einzelunternehmen';
         // Nur-Lese-Ansicht des Steuerberaters: das Feld haengt an data-action-input, und der
         // zentrale Chokepoint (js/actions.js) prueft StbShare.blocks() NUR fuer data-action und
@@ -905,18 +905,13 @@ const Euer = {
 
     _updateHebesatz(val) {
         const hs = parseInt(val) || 400;
-        const settings = Store.getSettings();
-        settings.gewerbesteuerHebesatz = hs;
-        Store.saveSettings(settings);
+        if (typeof Gewerbesteuer === 'undefined') return;
+        Gewerbesteuer._setHebesatz(hs);   // ein Speicher für alle Seiten (E-04)
         // Neuberechnung ohne Full-Refresh (nur Betrag aktualisieren)
         const gewinn = this._lastGewinn || 0;
-        const cfg = (typeof Rechtsform !== 'undefined') ? Rechtsform.getConfig() : { gewStFreibetrag: 24500 };
-        const freibetrag = (parseFloat(cfg.gewStFreibetrag) || 0) > 0 ? 24500 : 0;
-        const gewerbeertrag = Math.max(0, gewinn - freibetrag);
-        const steuermessbetrag = gewerbeertrag * 0.035;
-        const gewerbesteuer = steuermessbetrag * (hs / 100);
+        const k = Gewerbesteuer.berechne(gewinn + Gewerbesteuer._sonderSaldo(this._selectedYear), { freibetrag: Gewerbesteuer._hatFreibetrag(), hebesatz: hs });
         const el = document.getElementById('gewstBetrag');
-        if (el) el.textContent = Utils.formatCurrency(gewerbesteuer);
+        if (el) el.textContent = Utils.formatCurrency(k.gewSt);
     },
 
     _renderDetailSection(type) {

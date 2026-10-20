@@ -103,13 +103,19 @@ const GbR = {
     // ── Berechnungen ───────────────────────────────────────────────────────
 
     // Gewerbesteuer für die GbR gesamt
-    berechneGewSt(gewinn) {
+    // year: dann zählen die Sonderbetriebseinnahmen/-ausgaben des Jahres zum Gewerbeertrag;
+    // Rechenweg aus js/gewerbesteuer.js (Steuer-Audit 2026-10-18, E-04 — vorher ohne Abrundung
+    // und ohne Sonderbetriebsergebnis).
+    berechneGewSt(gewinn, year) {
         if (typeof Rechtsform !== 'undefined' && !Rechtsform.brauchtGewSt()) return 0;
+        const sonder = (year && typeof Gewerbesteuer !== 'undefined') ? Gewerbesteuer._sonderSaldo(year) : 0;
+        if (typeof Gewerbesteuer !== 'undefined' && Gewerbesteuer.berechne) {
+            return Gewerbesteuer.berechne(gewinn + sonder, { freibetrag: true, hebesatz: parseFloat(this.getEinstellungen().hebesatz) || this.DEFAULT_HEBESATZ }).gewSt;
+        }
         const einst     = this.getEinstellungen();
         const hebesatz  = parseFloat(einst.hebesatz) || this.DEFAULT_HEBESATZ;
-        const gewerbeertrag = Math.max(0, gewinn - this.FREIBETRAG_GBR);
-        const messbetrag    = gewerbeertrag * this.MESSZAHL;
-        return messbetrag * (hebesatz / 100);
+        const gewerbeertrag = Math.max(0, Math.floor((gewinn + sonder) / 100) * 100 - this.FREIBETRAG_GBR);
+        return Math.round(gewerbeertrag * this.MESSZAHL * hebesatz) / 100;
     },
 
     // Gewinnverteilung auf alle Gesellschafter
@@ -187,7 +193,7 @@ const GbR = {
         const einst       = this.getEinstellungen();
         const gesellsch   = this.getGesellschafter();
         const hebesatz    = parseFloat(einst.hebesatz) || this.DEFAULT_HEBESATZ;
-        const gewSt       = this.berechneGewSt(gewinn);
+        const gewSt       = this.berechneGewSt(gewinn, year);
         const verteilung  = this.berechneVerteilungMitSonder(gewinn, year);
         const sumPct      = this.sumAnteile();
         const pctWarning  = Math.abs(sumPct - 100) > 0.01;

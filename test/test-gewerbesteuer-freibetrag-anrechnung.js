@@ -26,6 +26,9 @@ const _hatFreibetrag = new Function(hatFreibetragBody);
 // _calc(year) Body (nutzt this.FREIBETRAG_PERSONEN, this.MESSZAHL, this._getHebesatz(), this._calcGewinn(), this._hatFreibetrag())
 const calcBody = extractMethod(src, '_calc(year) {', /\n    \},/);
 const _calc = new Function('year', calcBody);
+// Gemeinsamer Rechenkern seit dem Steuer-Audit 2026-10-18 (E-04)
+const berechneBody = extractMethod(src, 'berechne(gewerbeertragRoh, opts) {', /\n    \},/);
+const berechne = new Function('gewerbeertragRoh', 'opts', berechneBody);
 
 let pass = 0, total = 0;
 function check(name, cond) {
@@ -55,6 +58,7 @@ function check(name, cond) {
         _getHebesatz: () => 400,
         _calcGewinn: () => 40000,
         _hatFreibetrag,
+        berechne, _sonderSaldo: () => 0,
     };
     const c = _calc.call(mockThis, 2026);
     check('Gewerbeertrag = 15.500€ (40.000 - 24.500 Freibetrag)', Math.abs(c.gewerbeertrag - 15500) < 0.01);
@@ -69,7 +73,7 @@ function check(name, cond) {
     global.Rechtsform = { getConfig: () => ({ gewStFreibetrag: 24500 }) };
     const mockThis = {
         FREIBETRAG_PERSONEN: 24500, MESSZAHL: 0.035,
-        _getHebesatz: () => 400, _calcGewinn: () => 40000, _hatFreibetrag,
+        _getHebesatz: () => 400, _calcGewinn: () => 40000, _hatFreibetrag, berechne, _sonderSaldo: () => 0,
     };
     const c = _calc.call(mockThis, 2026);
     // Messbetrag 542,50€ * 4,0 = 2.170€ (== gewSt bei Hebesatz 400% -> Deckelung greift genau am Rand)
@@ -84,7 +88,7 @@ function check(name, cond) {
     global.Rechtsform = { getConfig: () => ({ gewStFreibetrag: 24500 }) };
     const mockThisNiedrig = {
         FREIBETRAG_PERSONEN: 24500, MESSZAHL: 0.035,
-        _getHebesatz: () => 200, _calcGewinn: () => 40000, _hatFreibetrag,
+        _getHebesatz: () => 200, _calcGewinn: () => 40000, _hatFreibetrag, berechne, _sonderSaldo: () => 0,
     };
     const cNiedrig = _calc.call(mockThisNiedrig, 2026);
     // Messbetrag 542,50 * 4 = 2.170; GewSt bei 200% = 542,50*2 = 1.085 -> Deckel auf tatsächliche GewSt (1.085)
@@ -95,8 +99,14 @@ function check(name, cond) {
 // ── 5) js/euer.js: Gewerbesteuer-Block nur für gewerbesteuerpflichtige Rechtsformen ──
 {
     const euerSrc = fs.readFileSync(__dirname + '/../js/euer.js', 'utf8');
-    check('euer.js: _renderGewerbesteuerBlock prüft cfg.gewerbesteuer !== true (Freiberufler-Guard)',
-        /_renderGewerbesteuerBlock\(gewinn\)\s*\{[\s\S]{0,300}gewerbesteuer !== true/.test(euerSrc));
+    // Seit dem Steuer-Audit 2026-10-18 (E-05c) über Gewerbesteuer._isGewStPflichtig(), das auch
+    // die Tätigkeitsart "freiberuflich" kennt (Rechtsform.brauchtGewSt) — cfg.gewerbesteuer allein
+    // ließ freiberufliche Einzelunternehmer durch.
+    check('euer.js: _renderGewerbesteuerBlock prüft die GewSt-Pflicht (Freiberufler-Guard)',
+        /_renderGewerbesteuerBlock\(gewinn\)\s*\{[\s\S]{0,600}!Gewerbesteuer\._isGewStPflichtig\(\)\) return ''/.test(euerSrc));
+    const gewSrc = fs.readFileSync(__dirname + '/../js/gewerbesteuer.js', 'utf8');
+    check('gewerbesteuer.js: _isGewStPflichtig nutzt Rechtsform.brauchtGewSt',
+        /_isGewStPflichtig\(\)\s*\{[\s\S]{0,200}Rechtsform\.brauchtGewSt\(\)/.test(gewSrc));
 }
 
 console.log('\n' + pass + '/' + total + ' Tests bestanden ' + (pass === total ? '✅' : '❌'));

@@ -533,7 +533,7 @@ const App = {
             show('kstSidebarLink', cfg.koerperschaftsteuer);
             show('bilanzSidebarLink', cfg.bilanzPflicht || cfg.bilanzOptional);
             show('lohnsteuerSidebarLink', cfg.lohnsteuer);
-            show('gewstSidebarLink', cfg.gewerbesteuer);
+            show('gewstSidebarLink', cfg.gewerbesteuer && Rechtsform.brauchtGewSt());   // Freiberufler: nein (E-05c)
             show('privatbuchungenSidebarLink', cfg.privatbuchungen);
             show('kskSidebarLink', cfg.ksk);
         }
@@ -566,7 +566,7 @@ const App = {
             if (page === 'lohnsteuer' && !cfg.lohnsteuer) { this.navigate('dashboard'); return; }
             if (page === 'privatbuchungen' && !cfg.privatbuchungen) { this.navigate('dashboard'); return; }
             if (page === 'ksk' && !cfg.ksk) { this.navigate('dashboard'); return; }
-            if (page === 'gewerbesteuer' && !cfg.gewerbesteuer) { this.navigate('dashboard'); return; }
+            if (page === 'gewerbesteuer' && !(cfg.gewerbesteuer && Rechtsform.brauchtGewSt())) { this.navigate('dashboard'); return; }
         }
 
         // ── H: Unsaved-Changes-Warnung ───────────────────────────────────────

@@ -126,7 +126,7 @@ const GbrModul = {
     // ── Übersicht ─────────────────────────────────────────────────
     _renderUebersicht(gs, { einnahmen, wareneinkauf, betriebsausgaben, gewinn, diff25aUmsatz, diff25aWareneinkauf, diff25aMargePreview }, year) {
         const verteilung = GbR.berechneVerteilungMitSonder(gewinn, year);
-        const gewSt      = GbR.berechneGewSt(gewinn);
+        const gewSt      = GbR.berechneGewSt(gewinn, year);
         const nettoGewinn = gewinn - gewSt;
 
         // §141-AO-Hinweis: gewerbliche GbR/eGbR über der Schwelle — Zahlen unten bleiben als
@@ -360,13 +360,14 @@ const GbrModul = {
                 <div style="font-size:13px;color:var(--text-secondary);">Keine Gewerbesteuer — als freiberufliche Tätigkeit (§18 EStG) eingestuft, unabhängig von der Rechtsform.</div>
             </div>`;
         }
-        const einst       = this._getEinst();
-        const hebesatz    = parseFloat(einst.hebesatz) || 400;
-        const freibetrag  = 24500;
-        const messzahl    = 0.035;
-        const stpfl       = Math.max(0, gewinn - freibetrag);
-        const messbetrag  = stpfl * messzahl;
-        const gewSt       = messbetrag * (hebesatz / 100);
+        // Kern aus js/gewerbesteuer.js inkl. Sonderbetriebsergebnis und Abrundung (E-04)
+        const sonder      = typeof Gewerbesteuer !== 'undefined' ? Gewerbesteuer._sonderSaldo(year) : 0;
+        const k           = Gewerbesteuer.berechne(gewinn + sonder, { freibetrag: true, hebesatz: parseFloat(this._getEinst().hebesatz) || 400 });
+        const hebesatz    = k.hebesatz;
+        const freibetrag  = k.freibetrag;
+        const stpfl       = k.gewerbeertrag;
+        const messbetrag  = k.messbetrag;
+        const gewSt       = k.gewSt;
 
         const data      = this._getGewSt();
         const yearData  = data[year] || { vorauszahlungen: [] };
@@ -375,10 +376,12 @@ const GbrModul = {
 
         const now  = new Date();
         const qDue = [
-            { q:1, datum:`${year}-03-10`, label:`Q1 · bis 10.03.${year}` },
-            { q:2, datum:`${year}-06-10`, label:`Q2 · bis 10.06.${year}` },
-            { q:3, datum:`${year}-09-10`, label:`Q3 · bis 10.09.${year}` },
-            { q:4, datum:`${year}-12-10`, label:`Q4 · bis 10.12.${year}` },
+            // §19 Abs. 1 GewStG: 15.02./15.05./15.08./15.11. — hier standen bis zum Steuer-Audit
+            // 2026-10-18 (E-06) die ESt-Termine.
+            { q:1, datum:`${year}-02-15`, label:`Q1 · bis 15.02.${year}` },
+            { q:2, datum:`${year}-05-15`, label:`Q2 · bis 15.05.${year}` },
+            { q:3, datum:`${year}-08-15`, label:`Q3 · bis 15.08.${year}` },
+            { q:4, datum:`${year}-11-15`, label:`Q4 · bis 15.11.${year}` },
         ];
 
         return `
@@ -511,7 +514,7 @@ const GbrModul = {
     _renderFeststellung(gs, gewinn, year) {
         const einst      = this._getEinst();
         const verteilung = GbR.berechneVerteilungMitSonder(gewinn, year);
-        const gewSt      = GbR.berechneGewSt(gewinn);
+        const gewSt      = GbR.berechneGewSt(gewinn, year);
         const anteilSum  = gs.reduce((s,g)=>s+(parseFloat(g.anteil)||0),0);
 
         const checks = [
@@ -633,7 +636,7 @@ const GbrModul = {
         const gs         = GbR.getGesellschafter();
         const { gewinn } = this._calcJahresgewinn(year);
         const verteilung = GbR.berechneVerteilungMitSonder(gewinn, year);
-        const gewSt      = GbR.berechneGewSt(gewinn);
+        const gewSt      = GbR.berechneGewSt(gewinn, year);
         const rows = [
             ['Feststellungserklärung Export',`Stand: ${new Date().toLocaleDateString('de-DE')}`],
             ['Gesellschaftsname', einst.gbr_name||''],

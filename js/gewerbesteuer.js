@@ -9,14 +9,45 @@ const Gewerbesteuer = {
     MESSZAHL: 0.035, // 3,5% Steuermesszahl
     FREIBETRAG_PERSONEN: 24500, // §11 Abs. 1 GewStG — nur Personengesellschaften/EU
 
+    // EIN Hebesatz-Speicher: gbr_einstellungen.hebesatz. Die EÜR schrieb bis zum Steuer-Audit
+    // 2026-10-18 (E-04) in settings.gewerbesteuerHebesatz — derselbe Betrieb hatte dadurch zwei
+    // Hebesätze und zwei Gewerbesteuern. Der alte Wert gilt nur noch als Rückfall.
     _getHebesatz() {
         const einst = Store.get('gbr_einstellungen') || {};
-        return parseFloat(einst.hebesatz) || 400;
+        const alt = (Store.getSettings ? Store.getSettings() : {}).gewerbesteuerHebesatz;
+        return parseFloat(einst.hebesatz) || parseFloat(alt) || 400;
+    },
+    _setHebesatz(val) {
+        const einst = Object.assign({}, Store.get('gbr_einstellungen') || {});
+        einst.hebesatz = parseFloat(val) || 400;
+        Store.set('gbr_einstellungen', einst);
     },
 
+    // Freiberufler zahlen keine Gewerbesteuer — auch nicht als Einzelunternehmen oder GbR mit
+    // Tätigkeitsart "freiberuflich" (E-05c); Rechtsform.brauchtGewSt() kennt beides.
     _isGewStPflichtig() {
         if (typeof Rechtsform === 'undefined') return false;
-        return Rechtsform.getConfig().gewerbesteuer === true;
+        return Rechtsform.brauchtGewSt ? Rechtsform.brauchtGewSt() : Rechtsform.getConfig().gewerbesteuer === true;
+    },
+
+    // Saldo der Sonderbetriebseinnahmen/-ausgaben einer Personengesellschaft: gehört zum
+    // Gewerbeertrag der Mitunternehmerschaft (§7 GewStG i. V. m. §15 Abs.1 S.1 Nr.2 EStG).
+    _sonderSaldo(year) {
+        if (typeof GbR === 'undefined' || !GbR.getSbeSbaData || (GbR.isGbR && !GbR.isGbR())) return 0;
+        const yd = GbR.getSbeSbaData()[year] || {};
+        return Object.keys(yd).reduce((s, k) => s + (parseFloat(yd[k].sbe) || 0) - (parseFloat(yd[k].sba) || 0), 0);
+    },
+
+    // Der eine Rechenkern (E-04): Gewerbeertrag auf volle 100 € abrunden, Freibetrag kürzen
+    // (§11 Abs.1 S.3 GewStG), Messzahl 3,5 %, Hebesatz.
+    berechne(gewerbeertragRoh, opts) {
+        opts = opts || {};
+        const freibetrag = opts.freibetrag === false ? 0 : this.FREIBETRAG_PERSONEN;
+        const hebesatz = opts.hebesatz || this._getHebesatz();
+        const gerundet = Math.floor(Math.max(0, gewerbeertragRoh) / 100) * 100;
+        const gewerbeertrag = Math.max(0, gerundet - freibetrag);
+        const messbetrag = gewerbeertrag * this.MESSZAHL;
+        return { gewerbeertrag, freibetrag, messbetrag, hebesatz, gewSt: Math.round(messbetrag * hebesatz) / 100 };
     },
 
     _hatFreibetrag() {
@@ -53,15 +84,10 @@ const Gewerbesteuer = {
     },
 
     _calc(year) {
-        const gewinn = this._calcGewinn(year);
-        const hebesatz = this._getHebesatz();
+        const gewinn = this._calcGewinn(year) + this._sonderSaldo(year);
         const hatFreibetrag = this._hatFreibetrag();
-        const freibetrag = hatFreibetrag ? this.FREIBETRAG_PERSONEN : 0;
-
-        // Gewerbeertrag nach Freibetrag, §11 Abs. 1 GewStG: auf volle 100 € abrunden
-        const gewerbeertrag = Math.floor(Math.max(0, gewinn - freibetrag) / 100) * 100;
-        const messbetrag = gewerbeertrag * this.MESSZAHL;
-        const gewSt = messbetrag * (hebesatz / 100);
+        const k = this.berechne(gewinn, { freibetrag: hatFreibetrag });
+        const { gewerbeertrag, freibetrag, messbetrag, hebesatz, gewSt } = k;
 
         // §35 EStG Anrechnung (nur Personengesellschaften/EU natürliche Personen).
         // Faktor seit VZ 2020 (2. Corona-Steuerhilfegesetz) 4,0 — vorher fälschlich 3,8 (Stand

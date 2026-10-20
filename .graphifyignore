@@ -1,0 +1,8 @@
+# Rauschen fuer den graphify-Graphen, das nicht schon in .gitignore steht.
+# Worktrees unter .claude/ und node_modules/ schliesst graphify selbst aus.
+output/
+.playwright-cli/
+..wt-*/
+js/vendor/
+assets/stackr-concepts/vendor/
+plan/archiv/

@@ -111,3 +111,20 @@ console.log('\n' + n + '/5 Pflichtangaben-Tests bestanden');
     assert.ok(/<ram:ShipToTradeParty>[\s\S]*<ram:CountryID>FR<\/ram:CountryID>/.test(xml), 'Lieferland bei ig. Lieferung fehlt');
     console.log('✓ B6: XRechnung mit Verkäuferkontakt (Telefon/E-Mail), Lieferland bei ig. Lieferung, Pflichtprüfung');
 }
+
+// B8 / B9 — Storno mit Leistungsdatum des Originals, kein Storno für Angebote; Einzelpreis mit 4 Stellen
+(async () => {
+    const c = welt(SELLER);
+    c.Store.saveRechCustomer(kunde('k1'));
+    c.Store.saveRechInvoice(rechnung({ id: 'o1', status: 'versendet', datumsOption: 'lieferdatum', lieferdatum: '2026-03-05' }));
+    const sr = await c.Store.createStornoRechnung('o1', 'Fehler');
+    assert.ok(sr && sr.lieferdatum === '2026-03-05', 'Storno ohne Lieferdatum des Originals');
+    assert.ok(/Lieferdatum/.test(c.Rechnung.generatePreviewHtml(sr)) && !/entspricht Rechnungsdatum/.test(c.Rechnung.generatePreviewHtml(sr)), 'Storno-PDF zeigt Stornodatum als Leistungsdatum');
+    c.Store.saveRechInvoice(rechnung({ id: 'a1', typ: 'angebot', nummer: 'AN-2026-001' }));
+    assert.strictEqual(await c.Store.createStornoRechnung('a1', 'x'), null, 'Angebot bekam eine Stornorechnung');
+    console.log('✓ B8: Stornorechnung mit Lieferdatum 05.03.2026 des Originals; Angebote ohne Stornorechnung');
+    const xml = c.XRechnung.generate(rechnung({ positionen: [{ beschreibung: 'Schraube', menge: 3, einzelpreis: 0.335, mwstSatz: 7 }] }), SELLER, kunde('k1'));
+    assert.ok(/<ram:ChargeAmount>0\.335<\/ram:ChargeAmount>/.test(xml), 'BT-146 gerundet');
+    assert.ok(/0,335/.test(c.Rechnung.generatePreviewHtml(rechnung({ positionen: [{ beschreibung: 'Schraube', menge: 3, einzelpreis: 0.335, mwstSatz: 7 }] }))), 'PDF-Einzelpreis gerundet');
+    console.log('✓ B9: Einzelpreis 0,335 € in PDF und XRechnung (BT-146) ungerundet');
+})().catch(e => { console.error(e); process.exit(1); });

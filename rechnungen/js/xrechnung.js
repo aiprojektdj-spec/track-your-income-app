@@ -33,6 +33,9 @@ var XRechnung = (function () {
     // amt() bekommt an Zeile 224 mit li.einzelpreis ein ROHES Feld, nicht nur gerechnete
     // Summen; der Fix an der Zeilensumme allein reichte deshalb nicht.
     function amt(n) { return (parseFloat(n) || 0).toFixed(2); }
+    // BT-146 (Nettopreis) darf mehr als zwei Nachkommastellen haben — gerundet auf 2 Stellen war
+    // 3 × 0,34 € ≠ 1,01 € nicht nachvollziehbar (Steuer-Audit 2026-10-18, B9). Bis 4 Stellen.
+    function preis(n) { var v = (parseFloat(n) || 0).toFixed(4).replace(/0{1,2}$/, ''); return v; }
 
     // UN/ECE unit code mapping
     function unitCode(einheit) {
@@ -234,7 +237,7 @@ var XRechnung = (function () {
                  + '      </ram:SpecifiedTradeProduct>\n'
                  + '      <ram:SpecifiedLineTradeAgreement>\n'
                  + '        <ram:NetPriceProductTradePrice>\n'
-                 + '          <ram:ChargeAmount>' + amt(li.einzelpreis) + '</ram:ChargeAmount>\n'
+                 + '          <ram:ChargeAmount>' + preis(li.einzelpreis) + '</ram:ChargeAmount>\n'
                  + '        </ram:NetPriceProductTradePrice>\n'
                  + '      </ram:SpecifiedLineTradeAgreement>\n'
                  + '      <ram:SpecifiedLineTradeDelivery>\n'

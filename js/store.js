@@ -2579,7 +2579,9 @@ const Store = {
         opts = opts || {};
         const invoices = this._rechGet('dokumente') || [];
         const orig = invoices.find(x => x.id === originalId);
-        if (!orig || orig.typ === 'stornorechnung') return null;
+        // Ein Angebot ist keine Rechnung — es bekommt keine Stornorechnung und verbraucht keine
+        // SR-Nummer (Steuer-Audit 2026-10-18, B8); zurückgezogen wird es über stornoRechInvoice.
+        if (!orig || orig.typ === 'stornorechnung' || orig.typ === 'angebot') return null;
         const old = Object.assign({}, orig);
         const stornoNum = await this.nextStornoNumber();
         // Negative Positionen
@@ -2604,7 +2606,13 @@ const Store = {
             verkaufsplattform: orig.verkaufsplattform || '',
             status: 'storniert',
             faelligkeit: '',
-            datumsOption: 'nur_datum',
+            // Leistungszeitpunkt der stornierten Rechnung, nicht das Stornodatum (§14 Abs.4 Nr.6,
+            // B8: vorher druckte die Stornorechnung "Leistungsdatum entspricht Rechnungsdatum").
+            // Für die Steuer zählt trotzdem das Stornodatum (UstVoranmeldung._steuerentstehung).
+            datumsOption: orig.datumsOption === 'lieferzeitraum' ? 'lieferzeitraum' : 'lieferdatum',
+            lieferdatum: orig.datumsOption === 'lieferdatum' && orig.lieferdatum ? orig.lieferdatum : (orig.datumsOption === 'lieferzeitraum' ? '' : orig.datum),
+            lieferVon: orig.datumsOption === 'lieferzeitraum' ? (orig.lieferVon || '') : '',
+            lieferBis: orig.datumsOption === 'lieferzeitraum' ? (orig.lieferBis || '') : '',
             versendet: false,
             versandDatum: null,
             createdAt: new Date().toISOString()

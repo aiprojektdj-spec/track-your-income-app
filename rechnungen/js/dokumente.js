@@ -804,8 +804,14 @@ var Dokumente = (function() {
                 if (inv.typ === 'rechnung') {
                     showBezahltModal(inv);
                 } else {
+                    // Gutschrift: das Auszahlungsdatum bestimmt bei Ist-Versteuerung den Zeitraum
+                    // der Korrektur — abfragen statt "heute" (Steuer-Audit 2026-10-18, U12)
+                    var d = prompt('Datum der Auszahlung (JJJJ-MM-TT):', Utils.todayISO());
+                    if (d === null) return;
+                    d = String(d).trim();
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { Utils.showToast('Bitte ein Datum im Format JJJJ-MM-TT eingeben', 'warning'); return; }
                     inv.status = 'bezahlt';
-                    inv.bezahltAm = Utils.todayISO();
+                    inv.bezahltAm = d;
                     Store.saveRechInvoice(inv);
                     Utils.showToast('Als bezahlt markiert', 'success');
                     RechApp.navigate('dokumente');
@@ -827,7 +833,17 @@ var Dokumente = (function() {
 
         document.querySelectorAll('.doc-cancel').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                showStornoModal(this.getAttribute('data-id'));
+                var id = this.getAttribute('data-id');
+                var doc = Store.getRechInvoices().find(function (i) { return i.id === id; });
+                // Angebot: zurückziehen ohne Stornorechnung und ohne SR-Nummer (B8)
+                if (doc && doc.typ === 'angebot') {
+                    if (!confirm('Angebot ' + (doc.nummer || '') + ' zurückziehen?')) return;
+                    Store.stornoRechInvoice(id, 'Angebot zurückgezogen');
+                    Utils.showToast('Angebot zurückgezogen', 'success');
+                    RechApp.navigate('dokumente');
+                    return;
+                }
+                showStornoModal(id);
             });
         });
 

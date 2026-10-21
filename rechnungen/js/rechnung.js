@@ -1390,7 +1390,11 @@ var Rechnung = (function() {
             html += '<td>' + Utils.escapeHtml(pos.beschreibung || '') + '</td>';
             html += '<td class="r">' + Utils.formatNumber(pos.menge) + '</td>';
             html += '<td>' + Utils.escapeHtml(pos.einheit || '') + '</td>';
-            html += '<td class="r">' + Utils.formatCurrency(pos.einzelpreis) + '</td>';
+            // Einzelpreis mit allen eingegebenen Stellen (bis 4) — sonst passt Menge × Preis nicht zur Zeile (B9)
+            var _ep = parseFloat(pos.einzelpreis) || 0;
+            var _epText = Math.round(_ep * 100) === _ep * 100 ? Utils.formatCurrency(_ep)
+                : _ep.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + ' \u20AC';
+            html += '<td class="r">' + _epText + '</td>';
             if (!isKlein) html += '<td class="r">' + (pos.differenzbesteuert ? 'Diff. §25a' : (pos.mwstSatz + '%')) + '</td>';
             html += '<td class="r">' + Utils.formatCurrency(lineNetto) + '</td>';
             html += '</tr>';

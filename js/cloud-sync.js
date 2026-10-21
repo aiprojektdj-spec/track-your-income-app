@@ -634,6 +634,14 @@ var CloudSync = (function () {
     // Änderung verloren und wird als loeschKonflikt gemeldet (Vergleich nur zur Meldung, die
     // Entscheidung hängt nicht an der Systemuhr). IDs werden nie wiederverwendet; eine
     // "Wiederherstellung" ist deshalb immer eine Neuanlage mit neuer ID.
+    // true, wenn `ex` lokal festgeschrieben ist und `r` mehr ändert als die Storno-Felder
+    var _STORNO_FELDER = ['storniert', 'storniertAm', 'stornoGrund', 'gegengebucht', 'updatedAt', '_dev', 'status'];
+    function _festgeschriebenAenderung(ex, r) {
+        if (typeof Store === 'undefined' || !Store.isLocked || !ex || !Store.isLocked(ex)) return false;
+        var ohne = function (o) { var c = Object.assign({}, o); _STORNO_FELDER.forEach(function (f) { delete c[f]; }); return JSON.stringify(c, Object.keys(c).sort()); };
+        return ohne(ex) !== ohne(r);
+    }
+
     function _mergeRecords(localArr, remoteArr, base, entityType, tombs) {
         var byId = {}, localDirty = false, remoteDirty = false, remoteIds = {}, conflicts = [], loeschKonflikte = [];
         var istTot = function (id) {
@@ -669,7 +677,13 @@ var CloudSync = (function () {
                     var b = base[r.id];
                     if (b != null && ru > b && lu > b) conflicts.push({ id: r.id, mine: ex, theirs: r });   // beide seit Base bewegt → echte Kollision, beide Fassungen behalten
                 }
-                if (ru > lu) { byId[r.id] = r; localDirty = true; }
+                if (ru > lu && _festgeschriebenAenderung(ex, r)) {
+                    // Festgeschriebener Datensatz (F7): eine fremde inhaltliche Änderung überschreibt ihn
+                    // nicht still — lokal bleibt, Konflikt wird gemeldet, Remote wird korrigiert
+                    conflicts.push({ id: r.id, mine: ex, theirs: r, festgeschrieben: true });
+                    remoteDirty = true;
+                }
+                else if (ru > lu) { byId[r.id] = r; localDirty = true; }
                 else if (lu > ru) { remoteDirty = true; }
             }
         });
@@ -680,6 +694,11 @@ var CloudSync = (function () {
     // Audit-Log: append-only Union + deterministisches Re-Chaining (GoBD)
     function _mergeAudit(localLog, remoteLog) {
         var byId = {};
+        // Gebrochene Einträge vor dem Re-Chaining markieren, sonst würde der Merge sie heilen (F7)
+        if (Store._markiereKettenbrueche) {
+            localLog = Store._markiereKettenbrueche(JSON.parse(JSON.stringify(localLog || [])));
+            remoteLog = Store._markiereKettenbrueche(JSON.parse(JSON.stringify(remoteLog || [])));
+        }
         (localLog || []).concat(remoteLog || []).forEach(function (e) { if (e && e.id != null && !byId[e.id]) byId[e.id] = e; });
         var list = Object.keys(byId).map(function (id) { return byId[id]; });
         list.sort(function (a, b) {
@@ -741,6 +760,13 @@ var CloudSync = (function () {
                 mergedKeys[k] = rr.val; if (rr.localDirty) localDirty = true; if (rr.remoteDirty) remoteDirty = true;
                 if (rr.loeschKonflikte && rr.loeschKonflikte.length) rr.loeschKonflikte.forEach(function (c) { loeschKonflikte.push({ key: k, id: c.id }); });
                 if (rr.conflicts.length) rr.conflicts.forEach(function (c) { conflicts.push({ key: k, id: c.id, mine: c.mine, theirs: c.theirs }); });
+            } else if (Store._mergeGobdWert && Store._mergeGobdWert(k, lv, rv) !== undefined) {
+                // Jahresabschlüsse, eingereichte UVA-Perioden, Nummernzähler: vereinigen statt LWW (F7/B7b)
+                var gv = Store._mergeGobdWert(k, lv, rv);
+                var gser = JSON.stringify(gv);
+                mergedKeys[k] = gv; mergedMeta[k] = Math.max(local.meta[k] || 0, (remote && remote.meta[k]) || 0);
+                if (gser !== JSON.stringify(lv)) localDirty = true;
+                if (gser !== JSON.stringify(rv)) remoteDirty = true;
             } else {
                 // Whole-Value-LWW über Key-Meta
                 var lu = (local.meta[k] != null) ? local.meta[k] : (lv != null ? 0 : -1);

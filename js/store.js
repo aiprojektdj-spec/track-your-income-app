@@ -1218,6 +1218,8 @@ const Store = {
         for (let i = 0; i < log.length; i++) {
             const entry = log[i];
             if (entry && entry._clockBack) clockBack++;
+            // Beim Merge erkannter, dann neu verketteter Bruch (F7) bleibt ein Bruch
+            if (entry && entry._kettenbruch) { broken++; continue; }
             // Recompute entry checksum (excluding checksum field itself)
             const copy = Object.assign({}, entry, { checksum: '' });
             const expected = this._calcChecksum(JSON.stringify(copy));
@@ -3072,6 +3074,41 @@ const Store = {
         const m = Object.assign({}, a);
         Object.keys(b).forEach(k => { if (k !== '_year') m[k] = Math.max(parseInt(a[k], 10) || 0, parseInt(b[k], 10) || 0); });
         return m;
+    },
+
+    // Whole-Value-Keys mit GoBD-Bedeutung beim Zusammenführen zweier Stände (Cloud-Sync, Backup-
+    // Merge). Steuer-Audit 2026-10-18, F7/B7b: Last-Write-Wins ließ einen Jahresabschluss
+    // verschwinden ([2025] lokal + [2024] remote → [2024]) und einen Nummernzähler zurücklaufen.
+    // Liefert den zusammengeführten Wert oder undefined, wenn der Key nicht dazugehört.
+    _mergeGobdWert(key, lv, rv) {
+        if (/__reselling_closed_years$/.test(key)) {
+            return Array.from(new Set([].concat(lv || [], rv || []).map(y => parseInt(y, 10)).filter(Boolean))).sort();
+        }
+        if (/__(reselling|rechnungsbuch)_invoice_counter$/.test(key)) return this._mergeZaehler(lv, rv);
+        if (/__reselling_ust_perioden$/.test(key)) {
+            const k = p => [p.year, p.quartal, p.monat || ''].join('|');
+            const out = [];
+            [].concat(lv || [], rv || []).forEach(p => {
+                const i = out.findIndex(x => k(x) === k(p));
+                if (i < 0) out.push(p);
+                else if (!out[i].eingereichtAm && p.eingereichtAm) out[i] = p;   // eingereicht gewinnt
+            });
+            return out;
+        }
+        return undefined;
+    },
+
+    // Kettenprüfung VOR einem Merge: das Re-Chaining beim Zusammenführen würde einen manipulierten
+    // Eintrag sonst mit frischer Prüfsumme "heilen" (F7). Gebrochene Einträge bekommen eine
+    // bleibende Markierung, die verifyAuditChain() als Bruch zählt.
+    _markiereKettenbrueche(log) {
+        (log || []).forEach((e, i) => {
+            if (!e || e._kettenbruch) return;
+            const soll = this._calcChecksum(JSON.stringify(Object.assign({}, e, { checksum: '' })));
+            const prevSoll = i === 0 ? 'GENESIS' : (log[i - 1].checksum || '');
+            if (e.checksum !== soll || e.prevHash !== prevSoll) e._kettenbruch = new Date().toISOString();
+        });
+        return log;
     },
 
     // ── Atomare Bulk-Transaktion: schreibt alle Einträge in einer IDB-Transaktion ──

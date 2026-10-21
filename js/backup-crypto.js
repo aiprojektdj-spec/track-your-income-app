@@ -186,6 +186,10 @@ var BackupCrypto = (function () {
     // Feld-erhaltend → bleibt verify-kompatibel in beiden Varianten (Local ohne _dev, Web mit _dev).
     function _mergeAudit(localLog, remoteLog) {
         var byId = {};
+        if (Store._markiereKettenbrueche) {   // s. js/cloud-sync.js (F7)
+            localLog = Store._markiereKettenbrueche(JSON.parse(JSON.stringify(localLog || [])));
+            remoteLog = Store._markiereKettenbrueche(JSON.parse(JSON.stringify(remoteLog || [])));
+        }
         (localLog || []).concat(remoteLog || []).forEach(function (e) { if (e && e.id != null && !byId[e.id]) byId[e.id] = e; });
         var list = Object.keys(byId).map(function (id) { return byId[id]; });
         list.sort(function (a, b) {
@@ -204,6 +208,8 @@ var BackupCrypto = (function () {
     }
     function _mergeKey(fullKey, lv, rv) {
         if (/__audit_log$/.test(fullKey)) return _mergeAudit(lv, rv);
+        var gobd = Store._mergeGobdWert ? Store._mergeGobdWert(fullKey, lv, rv) : undefined;
+        if (gobd !== undefined) return gobd;   // Abschlüsse/Perioden/Zähler vereinigen (F7/B7b)
         if (_isRecArr(lv, rv)) return _mergeRecords(lv, rv);
         return (lv !== undefined) ? lv : rv;   // Whole-Value: lokal gewinnt, sonst Backup
     }

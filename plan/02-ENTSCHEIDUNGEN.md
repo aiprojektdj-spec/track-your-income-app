@@ -19,6 +19,19 @@ werden. Alles hier ist **geprüft und bewusst so entschieden**. Wer einen dieser
 
 ---
 
+> **LOCAL-FIRST AUFGEGEBEN — entschieden vom User am 2026-10-21.**
+>
+> Stackr wird serverführend mit **lesbaren** Daten (Supabase), wie sevDesk oder lexoffice.
+> Gründe des Users: Integrationen (Shopify, Bank, ELSTER), mehrere Geräte ohne Schlüssel-Ärger,
+> Handy-Widget, Steuerberater-Zugang. Die Alternative „Server führt, weiter E2E“ wurde abgewogen
+> und verworfen, weil sie keinen der vier Gründe vollständig erfüllt. Shopify kommt direkt als
+> OAuth-App (Weg b); der Weg über vom Kunden angelegte Zugangsdaten (Weg a) entfällt.
+>
+> Jeder Abschnitt unten, der mit Local-First oder E2E begründet ist, steht damit unter Vorbehalt
+> und wird beim Umbau einzeln umgeschrieben, nicht pauschal gestrichen. Reihenfolge und Folgen
+> (AVV Supabase, Datenschutzerklärung, Verfahrensdokumentation, Art. 32 DSGVO, Migration mit
+> Einwilligung, Landing-Aussagen zu „Daten bei dir“/E2E) werden im Umbauplan festgelegt.
+
 ## Architektur
 
 ### Das Whop-Gate ist per Browser-Konsole umgehbar — und das bleibt so

@@ -1,4 +1,4 @@
-// Shopify-Import (js/shopify-import.js) über den ECHTEN Store, Retouren, EÜR und UVA.
+// Shopify-Import (Kern js/shopify-buchung.js + Adapter js/shopify-import.js) über den ECHTEN Store, Retouren, EÜR und UVA.
 // Beispiel-Payloads im Format der Shopify-Webhooks orders/paid / orders/updated, anonymisiert:
 // keine echten Shops, Kunden oder Adressen — nur Ländercodes.
 //
@@ -27,7 +27,7 @@ function welt(settings) {
         showToast() {}
     };
     const ctx = ladeModule(['js/steuerstatus.js', 'js/rechnung-summen.js', 'js/store.js', 'js/steuer-berechnung.js', 'js/euer.js',
-        'js/ustvoranmeldung.js', 'js/retouren.js', 'js/shopify-import.js'],
+        'js/ustvoranmeldung.js', 'js/retouren.js', 'js/shopify-buchung.js', 'js/shopify-import.js'],
         { localStorage, Utils, document: { getElementById: () => null, querySelectorAll: () => [] }, navigator: {} });
     // Wechsel auf Regelbesteuerung vor alle Testdaten legen (sonst gilt er erst ab heute)
     ctx.Store.saveSettings(settings || { ustMode: 'regel', _ustModeAb: '2020-01-01' });
@@ -387,7 +387,7 @@ function gqlBestellung(id, o) {
 }
 check('GraphQL → Webhook-Format: IDs ohne gid, Beträge, Status, Land, Gebühr', () => {
     const ctx = welt();
-    const { order, gebuehr } = ctx.ShopifyImport.ausGraphQL(gqlBestellung(777));
+    const { order, gebuehr } = ctx.ShopifyBuchung.ausGraphQL(gqlBestellung(777));
     assert.strictEqual(order.id, '777');
     assert.strictEqual(order.financial_status, 'paid');
     assert.strictEqual(order.line_items[0].id, '71');

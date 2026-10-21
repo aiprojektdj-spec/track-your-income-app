@@ -9,6 +9,23 @@ const Kassenbuch = {
     // Jahreswechsel-Schritt (leicht vergessbar/driftanfällig) durch eine aus den echten Buchungen
     // abgeleitete, immer konsistente Fortschreibung — entspricht dem Vorjahresendbestand, sofern
     // keine Buchungen fehlen.
+    // Erster Tag, an dem der Bestand (inkl. der geplanten Buchung) unter 0 fällt — oder null
+    _ersterNegativerTag(neu) {
+        const ein = t => t === 'Einnahme' || t === 'Privateinlage';
+        const liste = Store.getKassenbuch().filter(e => !e.storniert).concat([neu])
+            .slice().sort((a, b) => String(a.datum || '').localeCompare(String(b.datum || '')));
+        let bestand = parseFloat(Store.getSettings().kassenbuchAnfangsbestand) || 0;
+        // Tagesweise: erst alle Buchungen eines Tages, dann prüfen (Einnahme und Ausgabe am selben Tag)
+        for (let i = 0; i < liste.length; i++) {
+            const e = liste[i];
+            const b = parseFloat(e.betrag) || 0;
+            bestand += ein(e.typ) ? b : -b;
+            const tagEnde = i === liste.length - 1 || liste[i + 1].datum !== e.datum;
+            if (tagEnde && bestand < -0.005) return { datum: e.datum, bestand: Math.round(bestand * 100) / 100 };
+        }
+        return null;
+    },
+
     _anfangsbestandFuerJahr(year, eintraege, basisAnfangsbestand) {
         if (year === 'all') return basisAnfangsbestand;
         const grenze = year + '-01-01';
@@ -198,23 +215,21 @@ const Kassenbuch = {
             if (!beschreibung) { Utils.showToast('Bitte Beschreibung eingeben', 'warning'); return; }
             if (betrag <= 0) { Utils.showToast('Betrag muss größer als 0 sein', 'warning'); return; }
 
-            const isEin = typ === 'Einnahme' || typ === 'Privateinlage';
-            const anfangsbestand = parseFloat(Store.getSettings().kassenbuchAnfangsbestand) || 0;
-            const saldo = Store.getKassenbuch().reduce((s, e) => {
-                if (e.storniert) return s;
-                const b = parseFloat(e.betrag) || 0;
-                return s + ((e.typ === 'Einnahme' || e.typ === 'Privateinlage') ? b : -b);
-            }, anfangsbestand) + (isEin ? betrag : -betrag);
-            // ponytail: globaler Saldo, nicht datumsgenau — reicht für Betriebsprüfungs-Warnhinweis
-            if (saldo < 0) Utils.showToast(`Warnung: Kassenbestand würde negativ (${Utils.formatCurrency(saldo)})`, 'warning');
+            const datum = Utils.getDateInputValue('kb_datum');
+            // Ein Kassenbestand kann nie negativ sein (§146 Abs. 1 S. 2 AO, Kassensturzfähigkeit).
+            // Geprüft wird der Bestand an JEDEM Tag ab dieser Buchung, nicht nur am Ende — vorher
+            // fiel eine Ausgabe vor der zugehörigen Einnahme nicht auf (Steuer-Audit 2026-10-18, F5).
+            const minus = this._ersterNegativerTag({ datum, typ, betrag });
+            if (minus && !confirm(`Der Kassenbestand wäre am ${Utils.formatDate(minus.datum)} negativ (${Utils.formatCurrency(minus.bestand)}). Ein negativer Kassenbestand ist nicht möglich — meist fehlt eine Einnahme oder das Datum stimmt nicht.\n\nTrotzdem speichern?`)) return;
 
-            Store.saveKassenEintrag({
-                datum: Utils.getDateInputValue('kb_datum'),
+            const gespeichert = Store.saveKassenEintrag({
+                datum,
                 typ,
                 betrag,
                 beschreibung,
                 beleg: document.getElementById('kb_beleg').value.trim()
             });
+            if (!gespeichert) return;   // Store hat abgelehnt und den Grund gemeldet
             Utils.showToast('Eintrag gespeichert', 'success');
             this._refresh();
         });
@@ -252,8 +267,17 @@ const Kassenbuch = {
                     Utils.showToast('Ungültiger Anfangsbestand — bitte eine gültige, nicht-negative Zahl eingeben', 'warning');
                     return;
                 }
+                // Der Basis-Anfangsbestand verschiebt den Bestand ALLER Jahre — nicht mehr, sobald
+                // ein Jahr abgeschlossen ist, und nie ohne Protokoll (Steuer-Audit 2026-10-18, F5)
+                if (Store.getClosedYears().length) {
+                    Utils.showToast('Ein Jahr ist bereits abgeschlossen — der Anfangsbestand kann nicht mehr geändert werden. Eine Differenz bitte als Kasseneinlage/-entnahme buchen.', 'error', 8000);
+                    return;
+                }
+                const alt = parseFloat(s.kassenbuchAnfangsbestand) || 0;
                 s.kassenbuchAnfangsbestand = n;
                 Store.saveSettings(s);
+                Store._addAuditEntry('bearbeitet', 'kassenbuch', 'anfangsbestand', { kassenbuchAnfangsbestand: alt }, { kassenbuchAnfangsbestand: n },
+                    'Kassen-Anfangsbestand von ' + alt + ' auf ' + n + ' geändert');
                 this._refresh();
             });
         }

@@ -60,6 +60,9 @@ function mockStore(initialEintraege) {
         getKassenbuch() { return JSON.parse(this._cache['test__kassenbuch'] || '[]'); },
         generateId() { return 'kb_' + Math.random().toString(36).slice(2); },
         isLocked() { return false; },
+        // Seit dem Steuer-Audit 2026-10-18 (F5): Jahresabschluss und Periodenhinweis
+        getClosedYears() { return []; },
+        _warnIfPeriodLocked() {},
         _idbPut() {},
         _triggerAutoBackup() {},
         // Seit 2026-09-09 fragen die Kassenbuch-Methoden die Nur-Lese-Sperre ab

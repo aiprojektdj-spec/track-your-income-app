@@ -3232,6 +3232,14 @@ const Store = {
         if (isNew) { e.id = this.generateId(); e.createdAt = new Date().toISOString(); }
         const idx = all.findIndex(x => x.id === e.id);
         if (idx >= 0 && this.isLocked(all[idx])) return e; // GoBD: festgeschriebener/stornierter Kasseneintrag nicht bearbeitbar
+        // Nachtrag im abgeschlossenen Jahr: der Kassenbestand eines festgeschriebenen Jahres darf
+        // sich nicht mehr ändern (Steuer-Audit 2026-10-18, F5); eingereichte UVA-Periode: Hinweis.
+        const jahr = parseInt(String(e.datum || '').slice(0, 4), 10);
+        if (isNew && jahr && this.getClosedYears().includes(jahr)) {
+            if (typeof Utils !== 'undefined' && Utils.showToast) Utils.showToast('Das Jahr ' + jahr + ' ist abgeschlossen — Kasseneinträge können dort nicht mehr nachgetragen werden.', 'error', 8000);
+            return null;
+        }
+        if (isNew) this._warnIfPeriodLocked(e.datum);
         const old = idx >= 0 ? Object.assign({}, all[idx]) : null;
         if (idx >= 0) all[idx] = e; else all.push(e);
         const str = JSON.stringify(all);

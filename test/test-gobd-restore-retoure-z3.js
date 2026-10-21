@@ -17,7 +17,7 @@ function welt() {
         oyi_active_company: 'co_a', oyi_device_id: 'dev_test' });
     const toasts = [], zips = [];
     const c = ladeModule(['js/utils.js', 'js/steuerstatus.js', 'js/rechnung-summen.js', 'js/store.js',
-        'js/steuer-berechnung.js', 'js/afa.js', 'js/vorsteuer.js', 'js/oss.js', 'js/euer.js', 'js/protokoll.js'], {
+        'js/steuer-berechnung.js', 'js/afa.js', 'js/vorsteuer.js', 'js/oss.js', 'js/euer.js', 'js/protokoll.js', 'js/kassenbuch.js'], {
         localStorage: ls, sessionStorage: makeLS(), setTimeout: () => 0, clearTimeout: () => {},
         confirm: () => true, prompt: () => null, navigator: {}, TextEncoder, crypto: require('crypto').webcrypto,
         StackrZip: { build: d => { zips.push(d); return new Uint8Array(0); } }
@@ -134,5 +134,17 @@ let n = 0; const ok = t => { n++; console.log('✓ ' + t); };
         assert.ok(S.getAuditLog().some(e => /Gegenbuchung/.test(e.details || '')), 'Gegenbuchung nicht protokolliert');
         ok('F6: Storno im abgeschlossenen Jahr lässt 2025 unverändert und bucht −119/+50 zum Stornodatum');
     }
-    console.log('\n' + n + '/10 GoBD-Restore/Retoure/Z3-Tests bestanden');
+    // F5 — Kassenbuch: negativer Tagesbestand, Nachtrag im abgeschlossenen Jahr
+    {
+        const c = welt(), S = c.Store;
+        S.saveKassenEintrag({ datum: '2026-03-10', typ: 'Einnahme', betrag: 100, beschreibung: 'Barverkauf' });
+        // Ausgabe 80 € am 05.03. — vor der Einnahme: Bestand am 05.03. −80 €, Ende 20 €
+        assert.deepStrictEqual(JSON.parse(JSON.stringify(c.Kassenbuch._ersterNegativerTag({ datum: '2026-03-05', typ: 'Ausgabe', betrag: 80 }))), { datum: '2026-03-05', bestand: -80 });
+        assert.strictEqual(c.Kassenbuch._ersterNegativerTag({ datum: '2026-03-10', typ: 'Ausgabe', betrag: 80 }), null, 'gleicher Tag: erst Tagesende prüfen');
+        S.saveKassenEintrag({ datum: '2025-12-01', typ: 'Einnahme', betrag: 10, beschreibung: 'alt' });
+        S.closeYear(2025);
+        assert.strictEqual(S.saveKassenEintrag({ datum: '2025-12-15', typ: 'Einnahme', betrag: 5, beschreibung: 'Nachtrag' }), null, 'Nachtrag im abgeschlossenen Jahr');
+        ok('F5: negativer Tagesbestand erkannt (05.03. −80 €), Nachtrag im abgeschlossenen Jahr abgelehnt');
+    }
+    console.log('\n' + n + '/11 GoBD-Restore/Retoure/Z3-Tests bestanden');
 })().catch(e => { console.error(e); process.exit(1); });

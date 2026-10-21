@@ -1429,12 +1429,51 @@ const Store = {
             if (settings.ustMode && neu !== alt) {
                 const basis = Object.assign({}, settings, { ustMode: alt,
                     ustModeHistorie: vorher.ustModeHistorie || settings.ustModeHistorie });
-                const mitHistorie = SteuerStatus.wechsel(basis, neu, ab || new Date().toLocaleDateString('sv-SE'));
+                const abDatum = ab || new Date().toLocaleDateString('sv-SE');
+                const mitHistorie = SteuerStatus.wechsel(basis, neu, abDatum);
                 settings.ustModeHistorie = mitHistorie.ustModeHistorie;
                 settings.ustMode = mitHistorie.ustMode;
+                this.set('settings', settings);
+                this._restempelAb(abDatum);
+                return;
             }
         }
         this.set('settings', settings);
+    },
+
+    // Nach einem Moduswechsel ab Datum X: automatisch abgeleitete Stempel von Vorgängen ab X an
+    // die neue Historie anpassen (Steuer-Audit 2026-10-14/18, R-TAX-01). Vorher überlebte der
+    // beim Speichern gesetzte `ustBehandlung: 'klein'` des Grenzumsatzes die rückwirkende
+    // Umstellung, und die Ist-UVA zeigte für den überschreitenden Umsatz 0 statt 19 €.
+    // Nicht angefasst werden: Verkäufe aus Rechnungen (folgen der Rechnung — die muss selbst
+    // berichtigt werden), Vorgänge in festgeschriebenen Perioden und stornierte Vorgänge.
+    // Annahme: Alle Vorgänge AM Wechseltag gelten als nach dem Wechsel — die Reihenfolge
+    // mehrerer Umsätze an einem Tag ist nicht gespeichert.
+    _restempelAb(ab) {
+        const settings = this.getSettings();
+        let geaendert = 0, rechnungen = 0;
+        [['sales', 'verkauf'], ['purchases', 'einkauf'], ['expenses', 'ausgabe']].forEach(([key, typ]) => {
+            const list = this.get(key) || [];
+            let dirty = false;
+            list.forEach(r => {
+                if (!r || !r.datum || String(r.datum) < ab || r.storniert) return;
+                const soll = SteuerStatus.modeAm(r.datum, settings);
+                if (r.ustBehandlung === soll) return;
+                if (r._invoiceId) { rechnungen++; return; }
+                if (this.isPeriodLocked(r.datum)) return;
+                const old = Object.assign({}, r);
+                r.ustBehandlung = soll;
+                this._stampRecord(r);
+                this._addAuditEntry('bearbeitet', typ, r.id, old, r, 'USt-Behandlung nach Moduswechsel ab ' + ab + ' auf "' + soll + '" angepasst');
+                dirty = true; geaendert++;
+            });
+            if (dirty) this.set(key, list);
+        });
+        if ((geaendert || rechnungen) && typeof Utils !== 'undefined' && Utils.showToast) {
+            Utils.showToast(geaendert + ' Vorgang/Vorgänge ab ' + ab + ' auf die neue USt-Behandlung umgestellt.'
+                + (rechnungen ? ' ' + rechnungen + ' Zahlung(en) zu Rechnungen nicht — diese Rechnungen bitte berichtigen (Steuer offen ausweisen).' : ''), 'warning', 10000);
+        }
+        return { geaendert, rechnungen };
     },
 
     // Steuerbehandlung am Vorgang festhalten (T06): beim Anlegen nach der Historie zum

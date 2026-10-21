@@ -378,6 +378,11 @@ const Ausgaben = {
                         <div class="form-group">
                             <label class="form-label">Kategorie</label>
                             <select class="form-select" id="exp_kategorie">${katOptions}</select>
+                            <div id="exp_ustZeitraumWrap" style="display:none;margin-top:6px;">
+                                <label class="form-label" for="exp_ustZeitraum">Für Voranmeldungszeitraum</label>
+                                <input type="text" class="form-input" id="exp_ustZeitraum" maxlength="7" placeholder="z. B. 2025-12 oder 2025-Q4">
+                                <div class="form-hint">Wichtig für die Zehn-Tage-Regel (§11 Abs. 2 EStG): Die Zahlung für Dezember/Q4 bis zum 10.01. zählt ins Vorjahr.</div>
+                            </div>
                             <div id="exp_fahrtHint" style="display:none;margin-top:6px;padding:7px 10px;background:var(--warning-bg);border:1px solid var(--warning);border-radius:var(--radius-sm);font-size:12px;color:var(--warning);">
                                 Fahrtkosten werden bereits automatisch aus dem <strong>Fahrtenbuch</strong> in die EÜR übernommen. Nur eintragen, wenn der Betrag <em>nicht</em> im Fahrtenbuch erfasst ist (z.B. Taxibelege).
                             </div>
@@ -504,6 +509,12 @@ const Ausgaben = {
         const matToggle = document.getElementById('exp_matToggle');
         const matDetail = document.getElementById('expMatDetail');
 
+        // Zeitraumfeld nur bei USt-Zahlungen an das Finanzamt (R-TAX-08)
+        const ustZrWrap = document.getElementById('exp_ustZeitraumWrap');
+        const updateUstZeitraum = () => { if (ustZrWrap) ustZrWrap.style.display = katSel && katSel.value === 'Umsatzsteuer an Finanzamt' ? '' : 'none'; };
+        if (katSel) katSel.addEventListener('change', updateUstZeitraum);
+        updateUstZeitraum();
+
         const updateMatSection = () => {
             if (!matSection) return;
             const isVerpackung = katSel && (katSel.value === 'Verpackung' || katSel.value === 'Verpackung / Versandmaterial');
@@ -574,6 +585,12 @@ const Ausgaben = {
                 belegNr: document.getElementById('exp_belegNr').value.trim(),
                 lieferant: document.getElementById('exp_lieferant').value.trim(),
                 lieferantSteuerId: document.getElementById('exp_lieferantSteuerId').value.trim(),
+                // Zehn-Tage-Regel (R-TAX-08): Zeitraum und Dauerfristverlängerung zum Erfassungszeitpunkt
+                ustZeitraum: (document.getElementById('exp_kategorie').value === 'Umsatzsteuer an Finanzamt'
+                    && /^\d{4}-(0[1-9]|1[0-2]|Q[1-4])$/.test((document.getElementById('exp_ustZeitraum')?.value || '').trim()))
+                    ? document.getElementById('exp_ustZeitraum').value.trim() : undefined,
+                ustDauerfrist: document.getElementById('exp_kategorie').value === 'Umsatzsteuer an Finanzamt'
+                    ? !!Store.getSettings().ustDauerfristverlaengerung : undefined,
                 belegFoto
             });
 

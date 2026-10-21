@@ -28,6 +28,19 @@ const Euer = {
     // Ausgaben-Kategorien für Umsatzsteuer-Zahlungsverkehr mit dem Finanzamt (T01). Werden in
     // js/ausgaben.js angeboten und hier als eigene EÜR-Zeilen statt als Betriebsausgabe gezählt.
     KAT_UST_ZAHLUNG: 'Umsatzsteuer an Finanzamt',
+
+    // Zuordnungsdatum einer Ausgabe für die EÜR: das Zahlungsdatum, außer bei der USt-Voraus-
+    // zahlung für Dezember/Q4, die innerhalb der Zehn-Tage-Frist gezahlt wurde (s. _berechne).
+    // e.ustZeitraum: 'JJJJ-MM' oder 'JJJJ-Qn' (Ausgabenformular), e.ustDauerfrist: DFV beim Erfassen.
+    _euerDatum(e) {
+        if (!e || e.kategorie !== 'Umsatzsteuer an Finanzamt' || !e.ustZeitraum || e.ustDauerfrist) return e && e.datum;
+        const m = /^(\d{4})-(12|Q4)$/.exec(String(e.ustZeitraum));
+        const d = String(e.datum || '');
+        if (!m) return d;
+        const vj = parseInt(m[1], 10);
+        if (d.slice(0, 4) === String(vj + 1) && d.slice(5, 7) === '01' && parseInt(d.slice(8, 10), 10) <= 10) return vj + '-12-31';
+        return d;
+    },
     KAT_UST_ERSTATTUNG: 'Umsatzsteuer-Erstattung vom Finanzamt',
 
     // ── Rechenkern der EÜR ───────────────────────────────────────────────────
@@ -97,7 +110,11 @@ const Euer = {
             !(s._invoiceId && storniertInvIds.has(s._invoiceId))
         );
         const periodPurchases = Store.getPurchases().filter(p => Utils.isInPeriod(p.datum, startDate, endDate));
-        const expenses = Store.getExpenses().filter(e => Utils.isInPeriod(e.datum, startDate, endDate));
+        // §11 Abs. 2 S. 2 EStG (R-TAX-08): eine USt-Vorauszahlung für Dezember/Q4 ist eine
+        // regelmäßig wiederkehrende Ausgabe — gezahlt UND fällig (10.01.) innerhalb der ersten
+        // zehn Januartage gehört sie ins Vorjahr (BFH 13.12.2022, VIII R 1/20). Fälligkeit nur
+        // ohne Dauerfristverlängerung im Fenster; Verschiebung nach §108 Abs. 3 AO ist unbeachtlich.
+        const expenses = Store.getExpenses().filter(e => Utils.isInPeriod((typeof Euer !== 'undefined' && Euer._euerDatum) ? Euer._euerDatum(e) : e.datum, startDate, endDate));
 
         // Bezahlte Rechnungen die noch nicht als Verkauf gesynct sind
         const syncedInvoiceIds = new Set(Store.getSales(true).filter(s => s._invoiceId).map(s => s._invoiceId));

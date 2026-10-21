@@ -173,3 +173,17 @@ console.log('\n' + n + '/6 §13b-/KU-Tests bestanden');
     nah(e.gewinn, 50, 'R-TAX-04 Gewinn');
     console.log('✓ R-TAX-04: §25a 150 VK / 100 EK → USt 7,98 €, Erlöse netto 142,02 €, Gewinn 50 €');
 }
+
+// R-TAX-08 — Zehn-Tage-Regel: USt-Vorauszahlung Q4/2024, fällig 10.01.2025, gezahlt 08.01.2025 → EÜR 2024
+{
+    const fa = extra => Object.assign({ id: 'fa', datum: '2025-01-08', betrag: 100, ustSatz: 0, kategorie: 'Umsatzsteuer an Finanzamt', ustZeitraum: '2024-Q4' }, extra || {});
+    let c = welt({ settings: { ustMode: 'regel', ustVersteuerungsart: 'ist' }, expenses: [fa()] });
+    nah(c.Euer._berechne(2024, 0, 'jahr').gewinn, -100, 'R-TAX-08 2024'); nah(c.Euer._berechne(2025, 0, 'jahr').gewinn, 0, 'R-TAX-08 2025');
+    c = welt({ settings: { ustMode: 'regel', ustVersteuerungsart: 'ist' }, expenses: [fa({ ustDauerfrist: true })] });
+    nah(c.Euer._berechne(2025, 0, 'jahr').gewinn, -100, 'mit Dauerfristverlängerung fällig 10.02. → 2025');
+    c = welt({ settings: { ustMode: 'regel', ustVersteuerungsart: 'ist' }, expenses: [fa({ datum: '2025-01-11' })] });
+    nah(c.Euer._berechne(2025, 0, 'jahr').gewinn, -100, 'nach dem 10.01. gezahlt → 2025');
+    c = welt({ settings: { ustMode: 'regel', ustVersteuerungsart: 'ist' }, expenses: [fa({ ustZeitraum: '2024-11' })] });
+    nah(c.Euer._berechne(2025, 0, 'jahr').gewinn, -100, 'November-Zahlung (fällig 10.12.) → 2025');
+    console.log('✓ R-TAX-08: Q4-Vorauszahlung vom 08.01. ins Vorjahr; DFV, 11.01. und November bleiben im Zahlungsjahr');
+}

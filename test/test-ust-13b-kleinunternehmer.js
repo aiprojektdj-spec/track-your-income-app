@@ -160,3 +160,16 @@ console.log('\n' + n + '/6 §13b-/KU-Tests bestanden');
     nah(q2(c).ust19, -50 * 19 / 119, 'R-TAX-03 volle Retoure');
     console.log('✓ R-TAX-02/03: KU-Rechnung ohne USt; §25a-Nachlass −4,79 €, volle Retoure −7,98 €');
 }
+
+// R-TAX-04 — EÜR/Übertragungshilfe: bei §25a enthält nur die Marge Umsatzsteuer
+{
+    const c = welt({ settings: { ustMode: 'regel', ustVersteuerungsart: 'ist' },
+        sales: [{ id: 's', datum: '2026-02-01', verkaufspreis: 150, steuersatz: 19, purchaseId: 'p' }],
+        purchases: [{ id: 'p', datum: '2026-01-01', einkaufspreis: 100, ustSatz: 0, differenzbesteuert: true }] });
+    const e = c.Euer._berechne(2026, 0, 'jahr');
+    const z = Object.fromEntries(c.Euer._elsterZeilen(e).map(x => [x.key, x.betrag]));
+    nah(z.ust, 50 * 19 / 119, 'R-TAX-04 USt');
+    nah(z.erloese, 150 - 50 * 19 / 119, 'R-TAX-04 Erlöse netto');
+    nah(e.gewinn, 50, 'R-TAX-04 Gewinn');
+    console.log('✓ R-TAX-04: §25a 150 VK / 100 EK → USt 7,98 €, Erlöse netto 142,02 €, Gewinn 50 €');
+}

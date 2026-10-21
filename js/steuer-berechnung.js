@@ -29,6 +29,26 @@ const SteuerBerechnung = {
     //
     // Marktplatz-Verkäufe außerhalb der deutschen USt (sale.land, s. js/oss.js) nettet
     // _sondersatz() am richtigen Satz: steuerfreie Ausfuhr 0 %, OSS-Fernverkauf Ziellandsatz.
+    //
+    // §25a-Verkäufe (verknüpfter Einkauf als differenzbesteuert markiert): Umsatzsteuer steckt nur
+    // in der Marge (§25a Abs. 3 und 5 UStG). Bis zum Steuer-Audit (R-TAX-04) wurde der ganze
+    // Verkauf durch 1,19 geteilt: 150 € VK / 100 € EK ergaben 23,95 € statt 7,98 € USt.
+    _diff25a(s) {
+        if (typeof Store === 'undefined' || !Store.getPurchases) return null;
+        const ids = (s.purchaseIds && s.purchaseIds.length) ? s.purchaseIds : (s.purchaseId ? [s.purchaseId] : []);
+        if (!ids.length) return null;
+        const alle = Store.getPurchases(true);
+        const ps = ids.map(id => alle.find(p => p.id === id)).filter(Boolean);
+        if (!ps.some(p => p.differenzbesteuert)) return null;
+        const ek = ps.reduce((a, p) => a + (parseFloat(p.einkaufspreis) || 0), 0);
+        const pauschal = ps.length === 1 && !!(ps[0].pauschalmarge && ps[0].warenart === 'kunst');
+        return { ek, pauschal, jahr: parseInt(String(s.datum || '').slice(0, 4), 10) };
+    },
+    _margeUst(vk, d) {
+        const marge = d.pauschal ? Math.max(0, vk * this.pauschalmargeSatz(d.jahr)) : Math.max(0, vk - d.ek);
+        return marge * 19 / 119;   // §25a Abs. 5 S. 1 UStG: immer allgemeiner Steuersatz
+    },
+
     nettoSales(sales, isRegel) {
         let brutto = 0, netto = 0;
         const ossCache = {};
@@ -36,6 +56,8 @@ const SteuerBerechnung = {
             const b = (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0);
             brutto += b;
             if (!isRegel) { netto += b; return; }
+            const d25a = this._diff25a(s);
+            if (d25a) { netto += b - this._margeUst(b, d25a); return; }
             const sonder = this._sondersatz(s, ossCache);
             if (sonder !== null) { netto += this.nettoAusBrutto(b, sonder).netto; return; }
             const groups = (typeof Store !== 'undefined' && Store.salePerRate)
@@ -56,6 +78,17 @@ const SteuerBerechnung = {
             brutto += b;
             if (!isRegel) { netto += b; return; }
             const relSale = r.saleId ? (allSalesRaw || []).find(s => s.id === r.saleId) : null;
+            // §25a: zurückgenommen wird nur die Umsatzsteuer der Margenminderung (wie die UVA, R-TAX-04)
+            const d25a = relSale ? this._diff25a(relSale) : null;
+            if (d25a) {
+                const vk = (parseFloat(relSale.verkaufspreis) || 0) + (parseFloat(relSale.versandkostenKaeufer) || 0);
+                const zurueck = (r.ware && r.ware !== 'keine') ? (r.artikelIds || []) : [];
+                const ekRest = Object.assign({}, d25a, { ek: d25a.ek - zurueck.reduce((a, id) => {
+                    const p = Store.getPurchases(true).find(x => x.id === id); return a + ((p && parseFloat(p.einkaufspreis)) || 0); }, 0) });
+                const ustKorrektur = this._margeUst(vk, d25a) - this._margeUst(vk - b, ekRest);
+                netto += b - ustKorrektur;
+                return;
+            }
             const sonder = relSale ? this._sondersatz(relSale, ossCache) : null;
             if (sonder !== null) { netto += this.nettoAusBrutto(b, sonder).netto; return; }
             // Rückzahlung auf einen Verkauf mit gemischten Sätzen (Rechnung mit 7 %/19 %): anteilig

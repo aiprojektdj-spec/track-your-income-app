@@ -18,6 +18,43 @@
 // (Gründer-Sonderfall nur ab 2025).
 // ============================================
 const Kleinunternehmer = {
+    // Gesamtumsatz i. S. d. §19 Abs. 2 UStG n. F.: "nach vereinnahmten Entgelten berechnete Summe"
+    // — Entgelt heißt OHNE Umsatzsteuer, und Rückzahlungen mindern das Vereinnahmte. Bis zum
+    // Steuer-Audit 2026-10-18 (U06) summierte js/app.js Brutto-Verkaufspreise: ein im Vorjahr
+    // regelbesteuertes Unternehmen mit 24.000 € netto (28.560 € brutto) bekam "Vorjahresgrenze
+    // überschritten", und eine Erstattung von 1.000 € zählte nicht.
+    // Liefert [{datum, betrag}] für die Prüfung unten; Erstattungen als negative Beträge.
+    entgelte(year) {
+        const y = String(year);
+        const settings = Store.getSettings ? Store.getSettings() : {};
+        const istRegel = v => typeof SteuerStatus !== 'undefined' && SteuerStatus.istRegel(v, settings);
+        const netto = s => {
+            const gruppen = Store.salePerRate(s);
+            const brutto = gruppen.reduce((a, g) => a + (parseFloat(g.brutto) || 0), 0);
+            const n = istRegel(s) ? gruppen.reduce((a, g) => a + (parseFloat(g.brutto) || 0) / (1 + (parseFloat(g.satz) || 0) / 100), 0) : brutto;
+            return { brutto, netto: n };
+        };
+        const alle = Store.getAllSalesRaw ? Store.getAllSalesRaw() : Store.getSales(true);
+        const out = [];
+        alle.filter(s => !s.storniert && s.datum && String(s.datum).startsWith(y))
+            .forEach(s => out.push({ datum: s.datum, betrag: netto(s).netto }));
+        // Erstattungen aus Retouren mindern das Vereinnahmte, anteilig netto wie der Verkauf.
+        // Altbestand: Retoure hat den Verkauf storniert → der Verkauf zählt schon nicht, kein Doppelabzug.
+        (Store.getRetouren ? Store.getRetouren() : []).forEach(r => {
+            const b = parseFloat(r.erstattungBetrag) || 0;
+            if (!b || !r.datum || !String(r.datum).startsWith(y)) return;
+            const sale = alle.find(s => s.id === r.saleId);
+            if (sale && sale.storniert) return;
+            const n = sale ? netto(sale) : null;
+            const faktor = n && n.brutto ? n.netto / n.brutto : 1;
+            out.push({ datum: r.datum, betrag: -b * faktor });
+        });
+        return out;
+    },
+    summe(year) {
+        return this.entgelte(year).reduce((s, u) => s + u.betrag, 0);
+    },
+
     // eingabe: { year, grenzen: {vj, lfd}, umsaetze: [{datum, betrag}], vorjahresUmsatz,
     //            taetigkeitsbeginn: 'YYYY-MM-DD'|'' }
     // Rückgabe: { status, grenze, summe, ab, gruendungsjahr }

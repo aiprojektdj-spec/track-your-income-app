@@ -1091,11 +1091,9 @@ const App = {
     // Gesamtumsatz i.S.d. §19 Abs. 3 UStG umfasst auch vom Käufer erstattete Versandkosten
     // (Teil des Entgelts) — muss konsistent mit euer.js' bruttoEinnahmen-Definition sein,
     // sonst wird die 25k/100k-Grenze real überschritten, während die Warnung noch stumm bleibt.
+    // Seit dem Steuer-Audit 2026-10-18 (U06) netto und nach Erstattungen, s. Kleinunternehmer.entgelte()
     _calcJahresumsatz(year) {
-        const y = String(year || new Date().getFullYear());
-        return Store.getSales()
-            .filter(s => !s.storniert && s.datum && s.datum.startsWith(y))
-            .reduce((sum, s) => sum + (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0), 0);
+        return Kleinunternehmer.summe(year || new Date().getFullYear());
     },
 
     // §19 UStG Schwellenwerte waren historisch nicht immer 25.000 €/100.000 € — die Grenzen wurden
@@ -1118,9 +1116,7 @@ const App = {
         const year = new Date().getFullYear();
         // Rechtsfolge je Jahr, Gründungsjahr und überschreitendem Umsatz: js/kleinunternehmer.js
         // (Audit 2026-10-13, T05). Grenzwerte weiter aus der Jahresfunktion _getUstGrenzen().
-        const umsaetze = Store.getSales()
-            .filter(s => !s.storniert && s.datum && s.datum.startsWith(String(year)))
-            .map(s => ({ datum: s.datum, betrag: (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0) }));
+        const umsaetze = Kleinunternehmer.entgelte(year);
         const r = Kleinunternehmer.pruefe({
             year, grenzen: this._getUstGrenzen(year), umsaetze,
             vorjahresUmsatz: this._calcJahresumsatz(year - 1),

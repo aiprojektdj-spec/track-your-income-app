@@ -120,3 +120,22 @@ console.log('\n' + n + '/6 §13b-/KU-Tests bestanden');
     assert.strictEqual(z['Kz. 45'], '1500.00');
     console.log('✓ U02/U03: Drittland-Leistung 1.000 + OSS-Fernverkauf 500 in Kz 45, Ware 300 in Kz 43');
 }
+
+// R-TAX-06/07/09 — Soll-UVA: Gutschrift-Periode, volle Vorauszahlung, Cent-Rundung (Steuer-Audit 2026-10-14/18)
+{
+    const q2 = c => c.UstVoranmeldung._calcPeriode('2026-04-01', '2026-06-30');
+    const rech = (id, datum, extra) => Object.assign({ id, datum, typ: 'rechnung', status: 'versendet', isKlein: false,
+        positionen: [{ menge: 1, einzelpreis: 100, mwstSatz: 19 }] }, extra || {});
+    // §17 Abs.1 UStG: Gutschrift vom 05.04. mit Lieferdatum 15.03. korrigiert Q2, nicht Q1
+    let c = welt({ invoices: [rech('i', '2026-03-15', { datumsOption: 'lieferdatum', lieferdatum: '2026-03-15' }),
+        rech('g', '2026-04-05', { typ: 'gutschrift', datumsOption: 'lieferdatum', lieferdatum: '2026-03-15' })] });
+    nah(q1(c).ust19, 19, 'R-TAX-06 Q1'); nah(q2(c).ust19, -19, 'R-TAX-06 Q2');
+    // §13 Abs.1 Nr.1a S.4 UStG: volle Vorauszahlung 01.03., Lieferung 15.04. → Q1 19, Q2 0
+    c = welt({ invoices: [rech('i', '2026-02-01', { status: 'bezahlt', bezahltAm: '2026-03-01', datumsOption: 'lieferdatum', lieferdatum: '2026-04-15' })],
+        sales: [{ id: 's', datum: '2026-03-01', verkaufspreis: 119, steuersatz: 19, _invoiceId: 'i' }] });
+    nah(q1(c).ust19, 19, 'R-TAX-07 Q1'); nah(q2(c).ust19, 0, 'R-TAX-07 Q2');
+    // 20 × (0,5 × 0,03 €) = 20 × 0,02 € (Rechnungskern rundet je Position) = 0,40 € → USt 0,076 €
+    c = welt({ invoices: [rech('i', '2026-02-01', { positionen: Array.from({ length: 20 }, () => ({ menge: 0.5, einzelpreis: 0.03, mwstSatz: 19 })) })] });
+    nah(q1(c).nettoUmsatz19, 0.40, 'R-TAX-09 Kz 81');
+    console.log('✓ R-TAX-06/07/09: Gutschrift in Q2, Vorauszahlung in Q1, Positionsnetto auf Cent');
+}

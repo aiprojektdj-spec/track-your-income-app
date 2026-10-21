@@ -67,6 +67,11 @@ const UstVoranmeldung = {
     // ausgeführt.
     _steuerentstehung(inv) {
         if (!inv) return '';
+        // Gutschrift/Stornorechnung berichtigen die Bemessungsgrundlage im Zeitraum der
+        // Berichtigung (§17 Abs. 1 UStG) — das ursprüngliche Lieferdatum darf auf dem Dokument
+        // stehen, verschiebt die Korrektur aber nicht in die bereits gemeldete Periode
+        // (Steuer-Audit 2026-10-14/18, R-TAX-06: Q1/Q2 0/0 statt 19/−19 €).
+        if (inv.typ === 'gutschrift' || inv.typ === 'stornorechnung') return inv.datum;
         if (inv.datumsOption === 'lieferdatum' && inv.lieferdatum) return inv.lieferdatum;
         if (inv.datumsOption === 'lieferzeitraum' && inv.lieferBis) return inv.lieferBis;
         return inv.datum;
@@ -199,9 +204,11 @@ const UstVoranmeldung = {
             const sollInvById = {};
             sollInvoices.forEach(i => { sollInvById[i.id] = i; });
             // Anzahlungen (§13 Abs.1 Nr.1a S.4 UStG): wird vor Ausführung der Leistung gezahlt,
-            // entsteht die Steuer für diesen Teil schon mit Ablauf des Zahlungszeitraums. Sie
-            // stehen als Teilzahlungs-Verkäufe (_teilzahlung) zur Rechnung im Bestand.
-            const _anzahlungen = invId => Store.getSales().filter(s => s._invoiceId === invId && s._teilzahlung);
+            // entsteht die Steuer für diesen Teil schon mit Ablauf des Zahlungszeitraums. Das gilt
+            // für JEDE Zahlung zur Rechnung, auch die volle Vorauszahlung — bis zum Steuer-Audit
+            // (R-TAX-07) zählten nur Teilzahlungen (_teilzahlung). Ob sie vor der Leistung lag,
+            // entscheiden die Datumsvergleiche unten.
+            const _anzahlungen = invId => Store.getSales().filter(s => s._invoiceId === invId);
             sollInvoices.forEach(i => {
                 const sd = this._steuerentstehung(i);
                 _anzahlungen(i.id).forEach(a => {
@@ -278,7 +285,10 @@ const UstVoranmeldung = {
                             return;
                         }
                         // menge wie auf der Rechnung selbst: leer/0 = 0 (kein ||1-Phantomumsatz)
-                        const netto = sign * (parseFloat(pos.menge) || 0) * (parseFloat(pos.einzelpreis) || 0);
+                        // Positionsnetto auf Cent wie im Rechnungskern (js/rechnung-summen.js) —
+                        // sonst weicht die UVA von der gestellten Rechnung ab (R-TAX-09)
+                        const _roh = (parseFloat(pos.menge) || 0) * (parseFloat(pos.einzelpreis) || 0);
+                        const netto = sign * (typeof RechnungSummen !== 'undefined' && RechnungSummen.r2 ? RechnungSummen.r2(_roh) : _roh);
                         const rate  = parseInt(pos.mwstSatz);
                         if (rate === 7) bruttoUmsatz7 += netto * 1.07;
                         else if (rate === 19 || isNaN(rate)) bruttoUmsatz19 += netto * 1.19;

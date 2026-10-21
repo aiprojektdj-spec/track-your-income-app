@@ -72,6 +72,7 @@ var Rechnung = (function() {
         var zahlungsbedingungen = editingInvoice ? editingInvoice.zahlungsbedingungen : 'Zahlbar innerhalb von 14 Tagen nach Rechnungserhalt.';
         var notizen = editingInvoice ? editingInvoice.notizen : '';
         var leitwegId = editingInvoice ? (editingInvoice.leitwegId || '') : '';
+        var steuerbefreiung = editingInvoice ? (editingInvoice.steuerbefreiung || '') : '';
         var status = editingInvoice ? editingInvoice.status : 'offen';
         var positionen = editingInvoice ? editingInvoice.positionen : [];
         var datumsOption = editingInvoice ? (editingInvoice.datumsOption || 'faelligkeit') : 'faelligkeit';
@@ -221,6 +222,11 @@ var Rechnung = (function() {
         html += '<div class="form-group"><label class="form-label" for="invZahlung">Zahlungsbedingungen</label>';
         html += '<textarea class="form-textarea" id="invZahlung" maxlength="1000" rows="2" placeholder="z.B. Zahlbar innerhalb 14 Tagen. 2% Skonto bei Zahlung innerhalb 7 Tagen.">' + Utils.escapeHtml(zahlungsbedingungen) + '</textarea>';
         html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Vereinbarte Skontobedingungen hier angeben (§14 Abs. 4 Nr. 7 UStG) – nur wenn beim Vertragsschluss vereinbart, nicht als nachträgliche Zahlungserinnerung.</div></div>';
+        // §14 Abs. 4 Nr. 8 UStG: Hinweis auf die Steuerbefreiung — Pflicht bei 0-%-Positionen an
+        // Inlandskunden, für die Stackr den Grund nicht selbst kennt (Steuer-Audit 2026-10-18, B3a)
+        html += '<div class="form-group"><label class="form-label" for="invSteuerbefreiung">Grund für 0 % USt (nur Inland)</label>';
+        html += '<input type="text" class="form-input" id="invSteuerbefreiung" maxlength="300" placeholder="z. B. Steuerfrei nach § 4 Nr. 14 UStG (Heilbehandlung)" value="' + Utils.escapeHtml(steuerbefreiung) + '">';
+        html += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Wird auf die Rechnung gedruckt (§14 Abs. 4 Nr. 8 UStG). Nicht nötig für Kleinunternehmer, EU-Unternehmenskunden, Drittland und §25a.</div></div>';
         html += '<div class="form-group"><label class="form-label" for="invNotizen">Notizen</label>';
         html += '<textarea class="form-textarea" id="invNotizen" rows="2" maxlength="1000">' + Utils.escapeHtml(notizen) + '</textarea></div>';
         // Leitweg-ID (Fund T6, Steuer-Vergleich 2026-08-10): rechnungen/js/xrechnung.js schreibt
@@ -970,6 +976,8 @@ var Rechnung = (function() {
         var kundeId = document.getElementById('invKunde').value;
         var zahlungsbedingungen = document.getElementById('invZahlung').value.trim();
         var notizen = document.getElementById('invNotizen').value.trim();
+        var steuerbefreiungEl = document.getElementById('invSteuerbefreiung');
+        var steuerbefreiung = steuerbefreiungEl ? steuerbefreiungEl.value.trim() : '';
         var leitwegIdEl = document.getElementById('invLeitwegId');
         var leitwegId = leitwegIdEl ? leitwegIdEl.value.trim() : '';
         var verkaufsplattform = document.getElementById('invPlattform') ? document.getElementById('invPlattform').value : '';
@@ -1025,6 +1033,10 @@ var Rechnung = (function() {
             if (!s14.steuernummer && !s14.ustId) {
                 return fachFehler([{ text: 'Keine Steuernummer / USt-IdNr. hinterlegt \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Unternehmensdaten erg\u00E4nzen.' }]);
             }
+            // \u00A714 Abs. 4 Nr. 1 UStG: vollst\u00E4ndige Anschrift auch des leistenden Unternehmers (B4)
+            if (!s14.adresse || !s14.plz || !s14.ort) {
+                return fachFehler([{ text: 'Deine Anschrift ist unvollst\u00E4ndig (Stra\u00DFe, PLZ, Ort) \u2014 \u00A714 UStG Pflichtangabe. Bitte in den Unternehmensdaten erg\u00E4nzen.' }]);
+            }
         }
 
         // Wurde die Nummer nur automatisch vorgeschlagen (nicht vom Nutzer editiert)? Dann ist es bis
@@ -1036,6 +1048,10 @@ var Rechnung = (function() {
         var wasAutoPreview = !editingInvoice && numFieldEl && !numFieldEl.dataset.userEdited;
 
         var positionen = collectPositionen();
+        // \u00A714 Abs. 4 Nr. 5 UStG: Art der Leistung — eine Position mit Preis braucht eine Beschreibung (B4)
+        if ((typ === 'rechnung' || typ === 'gutschrift') && positionen.some(function (p) { return !String(p.beschreibung || '').trim() && (p.einzelpreis || 0) > 0; })) {
+            return fachFehler([{ text: 'Jede Position mit Preis braucht eine Beschreibung der Leistung (\u00A714 UStG Pflichtangabe).', feld: document.querySelector('.position-row .pos-beschreibung'), ort: 'Zur Position' }]);
+        }
         if (positionen.length === 0) {
             return fachFehler([{ text: 'Mindestens eine Position erforderlich.', feld: document.querySelector('.position-row .pos-beschreibung'), ort: 'Zur Position' }]);
         }
@@ -1061,6 +1077,13 @@ var Rechnung = (function() {
                 return { text: 'Position ' + t.nr + ': „Art des Umsatzes" (Ware/Leistung) wählen — entscheidet Kz. 41 vs. Kz. 21.', feld: t.row.querySelector('.pos-igart') || t.row.querySelector('.pos-mwst'), ort: 'Zu Position ' + t.nr };
             });
             return fachFehler(ig.length ? ig : [{ text: 'Bitte bei jeder 0%-Position „Art des Umsatzes" (Ware/Leistung) wählen — entscheidet Kz. 41 vs. Kz. 21.' }]);
+        }
+        // §14 Abs. 4 Nr. 8 UStG: 0-%-Position ohne bekannten Grund (kein KU, kein EU-B2B, kein
+        // Drittland, kein §25a) braucht einen Befreiungshinweis (Steuer-Audit 2026-10-18, B3a)
+        var istDrittland13b = !isKlein13b && kd13b && kd13b.land && kd13b.land !== 'DE' && rcEuLaender().indexOf(kd13b.land) === -1;
+        if ((typ === 'rechnung' || typ === 'gutschrift') && !isKlein13b && !isEuB2B13b && !istDrittland13b && !steuerbefreiung
+            && positionen.some(function (p) { return !p.differenzbesteuert && p.mwstSatz === 0 && (p.einzelpreis || 0) > 0; })) {
+            return fachFehler([{ text: 'Position mit 0 % USt: Bitte den Grund der Steuerbefreiung angeben (z. B. „Steuerfrei nach § 4 Nr. 14 UStG“) — Pflichtangabe nach §14 Abs. 4 Nr. 8 UStG.', feld: document.getElementById('invSteuerbefreiung'), ort: 'Zum Feld' }]);
         }
         // §14a Abs. 1 und 3 UStG: an EU-Unternehmer gehört die eigene USt-IdNr. auf die Rechnung,
         // die Steuernummer genügt nicht (Steuer-Audit 2026-10-18, B2).
@@ -1118,6 +1141,7 @@ var Rechnung = (function() {
             positionen: positionen,
             zahlungsbedingungen: zahlungsbedingungen,
             notizen: notizen,
+            steuerbefreiung: steuerbefreiung || undefined,
             leitwegId: leitwegId,
             verkaufsplattform: verkaufsplattform,
             status: editingInvoice ? editingInvoice.status : 'offen',
@@ -1406,6 +1430,20 @@ var Rechnung = (function() {
             if (_hatLeistung) {
                 html += '<div class="inv-klein">Steuerschuldnerschaft des Leistungsempf\u00E4ngers gem\u00E4\u00DF \u00A713b UStG (Reverse Charge). USt-IdNr. Leistungsempf\u00E4nger: ' + Utils.escapeHtml(kunde.ustIdNr) + '</div>';
             }
+        }
+
+        // \u00A714 Abs. 4 Nr. 8 UStG \u2014 Befreiungshinweis f\u00FCr Drittland und Inland (Steuer-Audit 2026-10-18, B3a)
+        var _istDrittlandKunde = !isKlein && kunde && kunde.land && kunde.land !== 'DE' && _rcEuLaender.indexOf(kunde.land) === -1;
+        var _nullPos = (inv.positionen || []).filter(function (p) { return !p.differenzbesteuert && parseInt(p.mwstSatz) === 0; });
+        if (_istDrittlandKunde && _nullPos.length) {
+            if (_nullPos.some(function (p) { return (p.igArt || inv.igArt || 'ware') === 'ware'; })) {
+                html += '<div class="inv-klein">Steuerfreie Ausfuhrlieferung gem\u00E4\u00DF \u00A74 Nr. 1a i.V.m. \u00A76 UStG.</div>';
+            }
+            if (_nullPos.some(function (p) { return (p.igArt || inv.igArt) === 'leistung'; })) {
+                html += '<div class="inv-klein">Nicht im Inland steuerbare Leistung (Leistungsort im Drittland, \u00A73a Abs. 2 UStG).</div>';
+            }
+        } else if (!isKlein && !_istIgKunde && _nullPos.length && inv.steuerbefreiung) {
+            html += '<div class="inv-klein">' + Utils.escapeHtml(inv.steuerbefreiung) + '</div>';
         }
 
         // \u00A725a UStG Differenzbesteuerung \u2014 Pflichthinweis, sobald mind. eine Position betroffen ist.

@@ -87,3 +87,27 @@ console.log('\n' + n + '/5 Pflichtangaben-Tests bestanden');
     assert.ok(/<ram:CategoryCode>G<\/ram:CategoryCode>/.test(xml), 'Ware an Drittland bleibt Ausfuhr G');
     console.log('✓ B3b: Drittland-Dienstleistung als nicht steuerbar (§3a Abs. 2), Ware als Ausfuhr');
 }
+
+// B3a / B4 / B6 — Befreiungshinweis, Pflichtfelder, XRechnung-Kontakt und Lieferland
+{
+    const c = welt(SELLER);
+    const kUS = kunde('kus', { land: 'US', ort: 'New York', plz: '10001' });
+    c.Store.saveRechCustomer(kUS);
+    const html = c.Rechnung.generatePreviewHtml(rechnung({ kundeId: 'kus', positionen: [{ beschreibung: 'Ware', menge: 1, einzelpreis: 300, mwstSatz: 0, igArt: 'ware' }] }));
+    assert.ok(/Steuerfreie Ausfuhrlieferung/.test(html), 'PDF ohne Ausfuhr-Hinweis');
+    c.Store.saveRechCustomer(kunde('k1'));
+    const html2 = c.Rechnung.generatePreviewHtml(rechnung({ steuerbefreiung: 'Steuerfrei nach § 4 Nr. 14 UStG', positionen: [{ beschreibung: 'Behandlung', menge: 1, einzelpreis: 80, mwstSatz: 0 }] }));
+    assert.ok(/Steuerfrei nach § 4 Nr\. 14 UStG/.test(html2), 'PDF ohne Befreiungsgrund');
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../rechnungen/js/rechnung.js'), 'utf8');
+    assert.ok(/Grund der Steuerbefreiung angeben/.test(src) && /Deine Anschrift ist unvollst/.test(src) && /braucht eine Beschreibung der Leistung/.test(src), 'Speicher-Prüfungen fehlen');
+    console.log('✓ B3a/B4: Befreiungshinweise im PDF, Speichern prüft Grund, Anschrift und Beschreibung');
+
+    const fehlt = c.XRechnung.validatePflichtfelder(rechnung({ positionen: [{ beschreibung: '', menge: 1, einzelpreis: 10, mwstSatz: 19 }] }),
+        Object.assign({}, SELLER, { telefon: '', iban: '' }), kunde('k1'));
+    ['BT-153', 'BR-DE-6', 'BR-DE-1'].forEach(r => assert.ok(fehlt.some(m => m.indexOf(r) !== -1), r + ' nicht geprüft'));
+    const kFR = kunde('kfr', { land: 'FR', ustIdNr: 'FR12345678901', ort: 'Paris', plz: '75001' });
+    const xml = c.XRechnung.generate(rechnung({ kundeId: 'kfr', positionen: [{ beschreibung: 'Ware', menge: 1, einzelpreis: 50, mwstSatz: 0, igArt: 'ware' }] }), SELLER, kFR);
+    assert.ok(/<ram:DefinedTradeContact>[\s\S]*<ram:CompleteNumber>\+49301234<\/ram:CompleteNumber>[\s\S]*<ram:EmailURIUniversalCommunication>/.test(xml), 'Verkäuferkontakt unvollständig');
+    assert.ok(/<ram:ShipToTradeParty>[\s\S]*<ram:CountryID>FR<\/ram:CountryID>/.test(xml), 'Lieferland bei ig. Lieferung fehlt');
+    console.log('✓ B6: XRechnung mit Verkäuferkontakt (Telefon/E-Mail), Lieferland bei ig. Lieferung, Pflichtprüfung');
+}

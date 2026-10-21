@@ -97,7 +97,7 @@ var XRechnung = (function () {
         // als Begruendung darf hier aber nicht „Steuerfreier Umsatz" stehen, sondern der
         // §14a-Abs.-6-Pflichttext, der sonst nur im PDF steht und der XML ganz fehlte.
         if (istDiff25a) return { code: 'E', reasonCode: null, reason: diff25aReason(pos) };
-        return { code: 'E', reasonCode: null, reason: 'Steuerfreier Umsatz' };
+        return { code: 'E', reasonCode: null, reason: (inv && inv.steuerbefreiung) || 'Steuerfreier Umsatz' };
     }
 
     /**
@@ -270,11 +270,18 @@ var XRechnung = (function () {
         // Seller
         xml += '      <ram:SellerTradeParty>\n'
              + '        <ram:Name>' + esc(settings.firmenname || settings.name || '') + '</ram:Name>\n';
-        if (settings.name && settings.firmenname && settings.name !== settings.firmenname) {
-            xml += '        <ram:DefinedTradeContact>\n'
-                 + '          <ram:PersonName>' + esc(settings.name) + '</ram:PersonName>\n'
-                 + '        </ram:DefinedTradeContact>\n';
-        }
+        // BG-6 SELLER CONTACT ist in der XRechnung Pflicht, mit Name, Telefon und E-Mail
+        // (BR-DE-2, -5, -6, -7) — bis zum Steuer-Audit 2026-10-18 (B6) fehlte er, wenn Inhaber-
+        // und Firmenname gleich waren, und trug nie Telefon oder E-Mail.
+        xml += '        <ram:DefinedTradeContact>\n'
+             + '          <ram:PersonName>' + esc(settings.name || settings.firmenname || '') + '</ram:PersonName>\n'
+             + (settings.telefon ? '          <ram:TelephoneUniversalCommunication>\n'
+                + '            <ram:CompleteNumber>' + esc(settings.telefon) + '</ram:CompleteNumber>\n'
+                + '          </ram:TelephoneUniversalCommunication>\n' : '')
+             + (settings.email ? '          <ram:EmailURIUniversalCommunication>\n'
+                + '            <ram:URIID>' + esc(settings.email) + '</ram:URIID>\n'
+                + '          </ram:EmailURIUniversalCommunication>\n' : '')
+             + '        </ram:DefinedTradeContact>\n';
         xml += '        <ram:PostalTradeAddress>\n'
              + '          <ram:PostcodeCode>' + esc(settings.plz || '') + '</ram:PostcodeCode>\n'
              + '          <ram:LineOne>' + esc(settings.adresse || '') + '</ram:LineOne>\n'
@@ -336,6 +343,14 @@ var XRechnung = (function () {
 
         // ── ApplicableHeaderTradeDelivery ────────────────────────────────
         xml += '    <ram:ApplicableHeaderTradeDelivery>\n';
+        // BR-IC-12: bei steuerfreier ig. Lieferung (Kategorie K) ist das Lieferland Pflicht (B6)
+        if (t.catMap && t.catMap.K && kunde && kunde.land) {
+            xml += '      <ram:ShipToTradeParty>\n'
+                 + '        <ram:PostalTradeAddress>\n'
+                 + '          <ram:CountryID>' + esc(kunde.land) + '</ram:CountryID>\n'
+                 + '        </ram:PostalTradeAddress>\n'
+                 + '      </ram:ShipToTradeParty>\n';
+        }
         // §14 Abs.4 Nr.6 UStG: ohne eigenes Lieferdatum gilt das Rechnungsdatum als Leistungsdatum —
         // das PDF druckt dann "Leistungsdatum entspricht Rechnungsdatum", die XML braucht denselben
         // Wert (Steuer-Audit 2026-10-18, B1; vorher fehlte BT-72 bei der Standard-Datumsoption).
@@ -481,6 +496,11 @@ var XRechnung = (function () {
             if (!kunde.strasse && !kunde.plz) missing.push('Empfängeradresse');
         }
         if (!(inv.positionen && inv.positionen.length)) missing.push('mindestens eine Rechnungsposition');
+        // XRechnung-Pflichtangaben (Steuer-Audit 2026-10-18, B4/B6)
+        if ((inv.positionen || []).some(function (p) { return !String(p.beschreibung || '').trim(); })) missing.push('Beschreibung jeder Position (BT-153)');
+        if (!settings.telefon) missing.push('Telefonnummer des Ausstellers (BR-DE-6)');
+        if (!settings.email) missing.push('E-Mail-Adresse des Ausstellers (BR-DE-7)');
+        if (!settings.iban) missing.push('IBAN für die Zahlungsanweisung (BR-DE-1)');
         // BR-DE-15: BT-10 (Käuferreferenz) hat in der XRechnung die Kardinalität 1..1 — sie ist in
         // JEDER XRechnung Pflicht, nicht nur bei Rechnungen an Behörden. Fehlt sie, weist das
         // Empfangssystem die Rechnung mit genau dieser Regelnummer zurück. Im B2G-Fall ist der

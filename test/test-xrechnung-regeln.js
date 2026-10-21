@@ -31,7 +31,8 @@ function check(name, cond) {
 const SETTINGS = {
     firmenname: 'Test GmbH', adresse: 'Weg 1, 10115 Berlin', strasse: 'Weg 1', plz: '10115',
     ort: 'Berlin', land: 'DE', ustId: 'DE123456789', ustIdNr: 'DE123456789',
-    iban: 'DE02120300000000202051', email: 'a@b.de', ustMode: 'regel'
+    iban: 'DE02120300000000202051', email: 'a@b.de', ustMode: 'regel',
+    telefon: '+49 30 123456'   // BR-DE-6 (Steuer-Audit 2026-10-18, B6)
 };
 const KUNDE = { firma: 'Kunde GmbH', name: 'Kunde GmbH', strasse: 'Str 2', plz: '20095', ort: 'Hamburg', land: 'DE' };
 const POS = [{ beschreibung: 'Ware', menge: 2, einheit: 'Stück', einzelpreis: 50, mwstSatz: 19 }];

@@ -27,7 +27,9 @@ function check(name, cond) {
     else console.error('✗ FAIL ' + name);
 }
 
-const settingsBase = { firmenname: 'Test GmbH', adresse: 'Musterstr. 1', plz: '10115', ort: 'Berlin', land: 'DE', ustId: 'DE123456789' };
+// Telefon/E-Mail/IBAN sind XRechnung-Pflicht (BR-DE-1/6/7, Steuer-Audit 2026-10-18 B6)
+const settingsBase = { firmenname: 'Test GmbH', adresse: 'Musterstr. 1', plz: '10115', ort: 'Berlin', land: 'DE', ustId: 'DE123456789',
+    telefon: '+49 30 123456', email: 'info@test.de', iban: 'DE02120300000000202051' };
 
 // ── 1) Rundung: Summe der GERUNDETEN Zeilen == Kopf-Summenfeld (BR-CO-10) ────
 {
@@ -114,7 +116,7 @@ const settingsBase = { firmenname: 'Test GmbH', adresse: 'Musterstr. 1', plz: '1
     // beschriebene Rechnung hätte das Empfangssystem zurückgewiesen. Korrigiert wurde die
     // Erwartung, nicht die Regel.
     var vollstaendig = XRechnung.validatePflichtfelder(
-        { nummer: 'RE-8', datum: '2026-03-01', leitwegId: 'KDN-8', positionen: [{ menge: 1, einzelpreis: 10, mwstSatz: 19 }] },
+        { nummer: 'RE-8', datum: '2026-03-01', leitwegId: 'KDN-8', positionen: [{ beschreibung: 'Beratung', menge: 1, einzelpreis: 10, mwstSatz: 19 }] },   // BT-153 Pflicht (B4)
         settingsBase, { firma: 'K', strasse: 'S', plz: '1', ort: 'O' }
     );
     check('Vollständige Rechnung -> keine fehlenden Pflichtfelder', vollstaendig.length === 0);

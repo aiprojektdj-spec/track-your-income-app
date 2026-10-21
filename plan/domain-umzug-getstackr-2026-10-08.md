@@ -72,10 +72,13 @@ umziehen, auf getstackr.de identisch. Der Login-Teil macht der User.
 
 ## Phase 3 - Uebergangszeit (4 Wochen)
 
-- [ ] Phase 2 live, Banner aktiv. Startdatum hier eintragen: ____
+- [x] Phase 2 live, Banner aktiv. Startdatum: **2026-10-21** (Phase 4 also ab 2026-11-18).
+- [x] Neue Geraete ohne Daten gehen auf der alten Adresse sofort nach getstackr.de, noch vor
+      dem Login (`js/domain-weiterleitung.js`, 2026-10-21). "Ohne Daten" = keine Firma, kein
+      Cloud-Sync (User-Entscheidung). Bestandskunden sehen weiter den Banner.
 - [ ] Kundennachricht (Text von Claude, Versand User). Inhalt: neue Adresse, ein Klick
       "Jetzt umziehen", Sync-Nutzer brauchen ihren Wiederherstellungscode, alte Adresse bleibt
-      erreichbar, nichts geht verloren.
+      erreichbar, nichts geht verloren. Text steht in der Session vom 2026-10-21.
 - [ ] Nach 2 Wochen: Erinnerung an alle, die noch nicht umgezogen sind (nur ueber App-Banner
       messbar; Server sieht nichts davon).
 

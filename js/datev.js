@@ -39,6 +39,7 @@ var DatevExport = (function () {
         afa_kfz:        '4832',  // Abschreibungen auf Kfz
         afa_immat:      '4822',  // Abschreibungen auf immaterielle Vermögensgegenstände
         afa_gwg:        '4855',  // Sofortabschreibung geringwertiger Wirtschaftsgüter
+        anlagenabgang:  '2310',  // Anlagenabgänge Sachanlagen (Restbuchwert bei Buchverlust)
         // Bank / Kasse / Privat
         bank:           '1200',  // Bank
         ust_vz:         '1780',  // Umsatzsteuer-Vorauszahlungen (Zahlung an / Erstattung vom Finanzamt)
@@ -77,6 +78,7 @@ var DatevExport = (function () {
         afa_kfz:        '6222',  // Abschreibungen auf Kfz
         afa_immat:      '6200',  // Abschreibungen auf immaterielle Vermögensgegenstände
         afa_gwg:        '6260',  // Sofortabschreibungen geringwertiger Wirtschaftsgüter
+        anlagenabgang:  '6895',  // Anlagenabgänge Sachanlagen (Restbuchwert bei Buchverlust)
         bank:           '1800',  // Bank
         ust_vz:         '3820',  // Umsatzsteuer-Vorauszahlungen (Zahlung an / Erstattung vom Finanzamt)
         kasse:          '1600',  // Kasse
@@ -173,13 +175,19 @@ var DatevExport = (function () {
         // Buchungsdatum: bei Soll-Versteuerung Rechnungsdatum (unabhängig von Zahlung),
         // bei Ist-Versteuerung Zahlungsdatum (nur bezahlte Rechnungen) — muss zu UVA passen
         var invKeyDate = function (i) { return isSoll ? i.datum : (i.bezahltAm || i.datum); };
-        var invoices = (Store.getRechInvoices ? Store.getRechInvoices() : [])
+        var alleRechnungen = (Store.getRechInvoices ? Store.getRechInvoices() : []);
+        // Ist: gebucht wird jede Zahlung zu ihrem Datum (Teilzahlungen, Zahlungen über den
+        // Jahreswechsel, Zahlung trotz späterem Storno) — dieselben Zuflüsse wie die EÜR.
+        // Vorher nur voll bezahlte Rechnungen mit dem vollen Betrag zum bezahltAm-Datum
+        // (Steuer-Audit 2026-10-18, F4: Teilzahlung 50 € 2025 / 69 € 2026 stand als 0 / 119).
+        var invoices = isSoll ? alleRechnungen
             .filter(function (i) {
                 if (i.typ !== 'rechnung' && i.typ !== 'gutschrift') return false;
-                if (isSoll ? (i.status !== 'versendet' && i.status !== 'bezahlt') : i.status !== 'bezahlt') return false;
+                if (i.status !== 'versendet' && i.status !== 'bezahlt') return false;
                 var d = invKeyDate(i);
                 return (d || '') >= vonDate && (d || '') <= bisDate;
-            });
+            }) : [];
+        var rechnungsZahlungen = isSoll ? [] : sales.filter(function (s) { return !!s._invoiceId; });
 
         // ── Buchungszeilen ───────────────────────────────────────────────
         var rows = [];
@@ -249,7 +257,7 @@ var DatevExport = (function () {
 
         // Verkäufe (Einnahmen) aus Rechnungen
         var customers = Store.getRechCustomers ? Store.getRechCustomers() : [];
-        invoices.forEach(function (inv) {
+        var bucheRechnung = function (inv, datum, faktor) {
             var invKlein = inv.isKlein !== undefined ? inv.isKlein : isKlein;
             var kunde = customers.find(function (c) { return c.id === inv.kundeId; });
             var kundeName = kunde ? (kunde.firma || kunde.ansprechpartner || '') : '';
@@ -287,14 +295,32 @@ var DatevExport = (function () {
             // Gutschrift (Kreditnote) mindert den Umsatz (§17 UStG) → Buchung gegenläufig zur
             // normalen Rechnung (Soll statt Haben auf dem Erlöskonto), Betrag bleibt absolut.
             var isGutschrift = inv.typ === 'gutschrift';
-            konten.zeilen({
+            var zeilen = konten.zeilen({
                 sh:           isGutschrift ? 'S' : 'H',
                 gegenkonto:   accounts.bank,
-                datum:        invKeyDate(inv),
+                datum:        datum,
                 belegfeld1:   inv.nummer || '',
                 buchungstext: ((isGutschrift ? 'Gutschrift ' : 'Rechnung ') + (inv.nummer || '') + (kundeName ? ' ' + kundeName : '')).slice(0, 60),
                 buSchluessel: '',
-            }).forEach(function (z) { rows.push(z); });
+            });
+            // faktor als Funktion: bekommt den Rechnungsbetrag laut diesen Zeilen (Ist-Zahlung anteilig)
+            var summe = zeilen.reduce(function (a, z) { return a + z.umsatz; }, 0);
+            var f = typeof faktor === 'function' ? faktor(summe) : faktor;
+            zeilen.forEach(function (z) { z.umsatz = z.umsatz * f; rows.push(z); });
+        };
+        invoices.forEach(function (inv) { bucheRechnung(inv, invKeyDate(inv), 1); });
+        // Ist: je Zahlung anteilig nach den Konten der Rechnung (Faktor = Zahlung / Rechnungsbrutto)
+        rechnungsZahlungen.forEach(function (z) {
+            var inv = alleRechnungen.find(function (i) { return i.id === z._invoiceId; });
+            var zahlung = verkaufBrutto(z);
+            if (!inv) {   // Rechnung nicht mehr vorhanden: wie ein Direktverkauf nach Satz
+                var k0 = sammler();
+                verkaufSaetze(z).forEach(function (g) { k0.add(kontoFuerSatz(g[0]), g[1]); });
+                k0.zeilen({ sh: 'H', gegenkonto: accounts.bank, datum: z.datum, belegfeld1: String(z.id || '').slice(0, 12),
+                    buchungstext: 'Zahlung Rechnung', buSchluessel: '' }).forEach(function (r) { rows.push(r); });
+                return;
+            }
+            bucheRechnung(inv, z.datum, function (summe) { return summe ? Math.abs(zahlung / summe) : 0; });
         });
 
         // Direktverkäufe (Marktplatz) — immer exportieren, aber Sales aus bezahlten Rechnungen
@@ -364,6 +390,8 @@ var DatevExport = (function () {
 
         // Wareneinkäufe
         purchases.forEach(function (p) {
+            // Eigenbeleg-Einkäufe bucht der Eigenbeleg selbst (wie js/euer.js) — sonst doppelt (F4)
+            if (p.eigenbeleg_id) return;
             // Menge mitrechnen — wie ueberall sonst im Haus: js/euer.js:104, js/statistiken.js
             // und js/lager.js bilden durchgehend einkaufspreis * (anzahl || 1). Ohne den Faktor
             // meldet der Stapel bei einem Sammel-Einkauf von 10 Stueck ein Zehntel der Ausgabe,
@@ -489,9 +517,15 @@ var DatevExport = (function () {
                 return !b.storniert && b.belegDatum && b.belegDatum >= vonDate && b.belegDatum <= bisDate;
             })
             .forEach(function (b) {
-                // Betragswahl wie in der EUeR: netto, sonst brutto.
-                var betrag = parseFloat(b.betragNetto) || parseFloat(b.betragBrutto) || 0;
+                // Abgeflossen ist der Bruttobetrag wie in js/euer.js (seit 2026-10-13); vorher
+                // buchte der Stapel netto und der Steuerberater sah 19 € zu wenig (F4).
+                var betrag = parseFloat(b.betragBrutto);
+                if (isNaN(betrag)) betrag = (parseFloat(b.betragNetto) || 0) + (parseFloat(b.betragMwst) || 0);
                 if (betrag <= 0) return;
+                // Nur der ausdrücklich bestätigte Ausnahmefall (verlorener Kleinbetragsbeleg)
+                // trägt Vorsteuer — dann BU 9/8 wie bei Betriebsausgaben.
+                var ebSatz = parseFloat(b.mwstSatz);
+                var ebBu = (b.vstAbzugsfaehig === true && !isKlein) ? (ebSatz === 19 ? '9' : ebSatz === 7 ? '8' : '') : '';
                 rows.push({
                     umsatz:       betrag,
                     sh:           'S',
@@ -501,8 +535,9 @@ var DatevExport = (function () {
                     belegfeld1:   b.belegNr || String(b.id || '').slice(0, 12),
                     buchungstext: ('Eigenbeleg ' + (b.bezeichnung || b.kategorie || '')).slice(0, 60),
                     // Ein Eigenbeleg begruendet grundsaetzlich KEINEN Vorsteuerabzug
-                    // (§15 Abs. 1 UStG verlangt eine Rechnung eines Dritten) — kein BU-Schluessel.
-                    buSchluessel: '',
+                    // (§15 Abs. 1 UStG verlangt eine Rechnung eines Dritten) — BU nur im
+                    // bestaetigten Ausnahmefall, s. oben.
+                    buSchluessel: ebBu,
                 });
             });
 
@@ -532,6 +567,15 @@ var DatevExport = (function () {
                         umsatz: afa, sh: 'S', konto: k.afa, gegenkonto: k.anlage,
                         datum: bisDate, belegfeld1: beleg,
                         buchungstext: ('AfA ' + bez).slice(0, 60), buSchluessel: '',
+                    });
+                }
+                // Abgang (Steuer-Audit 2026-10-18, E-01): Restbuchwert an das Anlagekonto
+                var rbw = (typeof Afa !== 'undefined' && Afa._restbuchwertAbgang) ? Afa._restbuchwertAbgang(a, parseInt(year, 10)) : 0;
+                if (rbw > 0) {
+                    rows.push({
+                        umsatz: rbw, sh: 'S', konto: accounts.anlagenabgang, gegenkonto: k.anlage,
+                        datum: a.abgangsdatum, belegfeld1: beleg,
+                        buchungstext: ('Abgang Restbuchwert ' + bez).slice(0, 60), buSchluessel: '',
                     });
                 }
             });

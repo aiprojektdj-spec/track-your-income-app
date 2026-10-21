@@ -208,9 +208,19 @@ block(() => {
     const bezahlt = buchungen({
         settings: { ustMode: 'regel', ustVersteuerungsart: 'ist' },
         invoices: [Object.assign({}, RECHNUNG, { status: 'bezahlt', bezahltAm: '2026-07-20' })],
+        // Seit dem Steuer-Audit 2026-10-18 (F4) bucht Ist aus dem Zahlungseingang (Verkauf mit
+        // _invoiceId), den die App beim Bezahlen anlegt — wie die EÜR
+        sales: [{ id: 'z1', datum: '2026-07-20', verkaufspreis: 238, steuersatz: 19, _invoiceId: 'i1' }],
     });
     check('D3 Ist-Versteuerung bucht zum Zahlungsdatum, nicht zum Rechnungsdatum',
         bezahlt.length === 1 && bezahlt[0][9] === '2007');
+    const teil = buchungen({
+        settings: { ustMode: 'regel', ustVersteuerungsart: 'ist' },
+        invoices: [Object.assign({}, RECHNUNG, { status: 'teilbezahlt' })],
+        sales: [{ id: 'z1', datum: '2026-07-20', verkaufspreis: 119, steuersatz: 19, _invoiceId: 'i1', _teilzahlung: true }],
+    });
+    check('D3b Ist-Versteuerung bucht eine Teilzahlung anteilig (119,00 von 238,00)',
+        teil.length === 1 && teil[0][0] === '119,00' && teil[0][9] === '2007');
 
     const entwurf = buchungen({ invoices: [Object.assign({}, RECHNUNG, { status: 'entwurf' })] });
     check('D4 Entwuerfe und Angebote werden nie gebucht',
@@ -681,6 +691,22 @@ block(() => {
         check('O6 Retoure eines OSS-Verkaufs -> 8200', ret && ret[6] === '8200');
         check('O7 Kleinunternehmer bleibt 8195', buchungen({ sales: [v('oss1', 'FR')], settings: { ustMode: 'klein' } })[0][6] === '8195');
     } finally { delete global.OSS; }
+});
+
+console.log('\n── Steuer-Audit 2026-10-18, F4/F6/E-01 ───────────────────────');
+
+block(() => {
+    // Eigenbeleg 119 € brutto mit Übernahme ins Lager: einmal Aufwand 119, kein zweiter Wareneingang
+    const eb = buchungen({ eigenbelege: [{ id: 'eb1', belegDatum: '2026-03-01', betragBrutto: 119, betragNetto: 100, betragMwst: 19, mwstSatz: 19, kategorie: 'Wareneinkauf' }],
+        purchases: [{ id: 'p9', datum: '2026-03-01', einkaufspreis: 119, eigenbeleg_id: 'eb1' }] });
+    check('F4a Eigenbeleg brutto 119,00 und keine Doppelbuchung über den Lager-Einkauf', eb.length === 1 && eb[0][0] === '119,00' && eb[0][8] === '');
+    // Storno-Gegenbuchung (negativer Betrag) dreht Soll/Haben statt einen zweiten Erlös zu buchen
+    const gb = buchungen({ sales: [{ id: 'g1', datum: '2026-04-01', verkaufspreis: -119, steuersatz: 19, _gegenbuchungZu: 's0' }] });
+    check('F6 Gegenbuchung −119 erscheint als 119,00 im Soll', gb.length === 1 && gb[0][0] === '119,00' && gb[0][1] === 'S');
+    // Anlagenabgang: Restbuchwert an das Anlagekonto
+    const ab = buchungen({ afaAnlagen: [{ id: 'L', bezeichnung: 'Laptop', anschaffungsdatum: '2026-12-01', anschaffungskosten: 3000, nutzungsdauer: 3, methode: 'linear', abgangsdatum: '2027-03-15' }] }, '2027')
+        .find(r => r[13].indexOf('Abgang Restbuchwert') === 0);
+    check('E-01 Abgang: Restbuchwert 2.666,67 auf 2310', ab && ab[0] === '2666,67' && ab[6] === '2310');
 });
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');

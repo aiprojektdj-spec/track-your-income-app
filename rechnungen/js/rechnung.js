@@ -331,11 +331,12 @@ var Rechnung = (function() {
         // Pro Position statt pro Rechnung, weil eine Rechnung Ware UND Leistung an denselben EU-Kunden
         // mischen kann (Kz. 41 vs. Kz. 21 sind pro Position zu ermitteln).
         html += '<div class="form-group pos-igart-wrap" style="flex: 1.3;display:none;">';
-        if (idx === 0) html += '<label class="form-label">Art (EU)</label>';
-        html += '<select class="form-select pos-igart" data-idx="' + idx + '" aria-label="Art (EU)">';
+        if (idx === 0) html += '<label class="form-label">Art des Umsatzes</label>';
+        html += '<select class="form-select pos-igart" data-idx="' + idx + '" aria-label="Art des Umsatzes">';
         html += '<option value=""' + (pos.igArt ? '' : ' selected') + ' disabled>-- wählen --</option>';
-        html += '<option value="ware"' + (pos.igArt === 'ware' ? ' selected' : '') + '>Ware (Kz.41)</option>';
-        html += '<option value="leistung"' + (pos.igArt === 'leistung' ? ' selected' : '') + '>Leistung (Kz.21)</option>';
+        // Auch für Drittlandskunden: Ware = Ausfuhr (Kz. 43), Dienstleistung = nicht steuerbar (Kz. 45)
+        html += '<option value="ware"' + (pos.igArt === 'ware' ? ' selected' : '') + '>Ware</option>';
+        html += '<option value="leistung"' + (pos.igArt === 'leistung' ? ' selected' : '') + '>Dienstleistung</option>';
         html += '</select></div>';
 
         html += '<div class="form-group" style="flex: 1;">';
@@ -695,7 +696,9 @@ var Rechnung = (function() {
             var isKlein = editingInvoice && editingInvoice.isKlein !== undefined ? editingInvoice.isKlein : (settings.ustMode === 'klein');
             var isEuB2B = !isKlein && kunde && kunde.ustIdNr && kunde.land && kunde.land !== 'DE' && euLaender.indexOf(kunde.land) !== -1;
             if (hint) hint.style.display = isEuB2B ? 'block' : 'none';
-            document.querySelectorAll('.pos-igart-wrap').forEach(function(w) { w.style.display = isEuB2B ? '' : 'none'; });
+            // Drittland (U02/B3b): Art des Umsatzes ebenfalls abfragen, sonst landet jede 0-%-Leistung als Ausfuhr in Kz. 43
+            var isDrittland = !isKlein && kunde && kunde.land && kunde.land !== 'DE' && euLaender.indexOf(kunde.land) === -1;
+            document.querySelectorAll('.pos-igart-wrap').forEach(function(w) { w.style.display = (isEuB2B || isDrittland) ? '' : 'none'; });
             if (isEuB2B && forceApply) {
                 document.querySelectorAll('.pos-mwst').forEach(function(sel) {
                     sel.value = '0';

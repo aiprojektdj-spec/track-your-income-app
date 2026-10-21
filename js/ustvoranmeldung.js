@@ -145,6 +145,10 @@ const UstVoranmeldung = {
 
         let bruttoUmsatz19 = 0, bruttoUmsatz7 = 0;
         let nettoIgLieferung = 0, nettoIgLeistung = 0, nettoAusfuhr = 0;
+        // Kz. 45 — nicht steuerbare Umsätze (Leistungsort im Ausland): B2B-Dienstleistungen an
+        // Drittlandsunternehmer (§3a Abs. 2 UStG) und OSS-Fernverkäufe (§3c UStG). Fehlte bis zum
+        // Steuer-Audit 2026-10-18 (U02/U03); die Drittland-Leistung stand fälschlich in Kz. 43.
+        let nettoNichtSteuerbar = 0;
 
         // Marktplatz-Verkäufe mit erfasstem Land (sale.land), die NICHT in die deutsche
         // Umsatzsteuer gehören:
@@ -235,7 +239,15 @@ const UstVoranmeldung = {
 
                     if (ossUeberInvoiceIds && ossUeberInvoiceIds.has(i.id)) {
                         const isEuB2C = kundeLand && kundeLand !== 'DE' && euLaender.indexOf(kundeLand) !== -1 && !kunde.ustIdNr;
-                        if (isEuB2C) return; // OSS-pflichtig ab Schwellen-Überschreitung — läuft über das BZSt-Portal, nicht über diese UVA
+                        if (isEuB2C) {
+                            // OSS-pflichtig ab Schwellen-Überschreitung — Steuer über das BZSt-Portal,
+                            // die Bemessungsgrundlage gehört aber als nicht steuerbar in Kz. 45 (U03)
+                            (i.positionen || []).forEach(pos => {
+                                if (pos.differenzbesteuert) return;
+                                nettoNichtSteuerbar += sign * (parseFloat(pos.menge) || 0) * (parseFloat(pos.einzelpreis) || 0);
+                            });
+                            return;
+                        }
                     }
                     (i.positionen || []).forEach(pos => {
                         // §25a: kein normaler Steuersatz — Marge wird separat unten in Kz. 81 eingerechnet.
@@ -276,7 +288,11 @@ const UstVoranmeldung = {
                             if (istIgLieferung) {
                                 if ((pos.igArt || i.igArt || 'ware') === 'leistung') nettoIgLeistung += netto;
                                 else nettoIgLieferung += netto;
-                            } else if (istAusfuhr) nettoAusfuhr += netto;
+                            } else if (istAusfuhr) {
+                                // Drittland: Ware = Ausfuhr (Kz. 43), Dienstleistung an Unternehmer = nicht steuerbar (Kz. 45)
+                                if ((pos.igArt || i.igArt || 'ware') === 'leistung') nettoNichtSteuerbar += netto;
+                                else nettoAusfuhr += netto;
+                            }
                         }
                     });
                 });
@@ -495,7 +511,7 @@ const UstVoranmeldung = {
             vorsteuerEinkaufAusgaben, vorsteuerRc, vorsteuerIgErwerb, rcSteuerGesamt, erwerbSteuerGesamt,
             rcNettoAbs1, rcSteuerAbs1, rcNettoOther, rcSteuerOther,
             erwerbNetto19, erwerbSteuer19, erwerbNetto7, erwerbSteuer7,
-            nettoIgLieferung, nettoIgLeistung, nettoAusfuhr,
+            nettoIgLieferung, nettoIgLeistung, nettoAusfuhr, nettoNichtSteuerbar,
             istEuHinweisAnzahl, istEuHinweisBetrag,
             diff25a
         };
@@ -756,6 +772,7 @@ const UstVoranmeldung = {
                         ${calc.nettoIgLieferung > 0 ? `<tr><td><strong>Kz. 41</strong></td><td>Innergem. Lieferungen (§4 Nr.1b UStG) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoIgLieferung)}</td></tr>` : ''}
                         ${calc.nettoIgLeistung > 0 ? `<tr><td><strong>Kz. 21</strong></td><td>Innergem. sonstige Leistungen (§3a Abs.2 UStG) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoIgLeistung)}</td></tr>` : ''}
                         ${calc.nettoAusfuhr > 0 ? `<tr><td><strong>Kz. 43</strong></td><td>Ausfuhrlieferungen Drittland (§4 Nr.1a UStG) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoAusfuhr)}</td></tr>` : ''}
+                        ${calc.nettoNichtSteuerbar > 0 ? `<tr><td><strong>Kz. 45</strong></td><td>Nicht steuerbare Umsätze (Leistungsort im Ausland, z. B. §3a Abs. 2 UStG, OSS-Fernverkäufe) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoNichtSteuerbar)}</td></tr>` : ''}
                         ${calc.erwerbNetto19 > 0 ? `<tr><td><strong>Kz. 89</strong></td><td>Innergem. Erwerbe (19%) – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.erwerbNetto19)}</td></tr>` : ''}
                         ${calc.erwerbNetto7 > 0 ? `<tr><td><strong>Kz. 93</strong></td><td>Innergem. Erwerbe (7%) – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.erwerbNetto7)}</td></tr>` : ''}
                         ${calc.rcNettoAbs1 > 0 ? `<tr><td><strong>Kz. 46</strong></td><td>§13b Abs.1 EU-Dienstleistungen – Bemessungsgrundlage</td><td style="text-align:right">${Utils.formatCurrency(calc.rcNettoAbs1)}</td></tr>
@@ -891,6 +908,7 @@ const UstVoranmeldung = {
         if (c.nettoIgLieferung > 0) rows.push(['Kz. 41', 'Innergem. Lieferungen (Netto) - in ELSTER eintragen', c.nettoIgLieferung.toFixed(2)]);
         if (c.nettoIgLeistung  > 0) rows.push(['Kz. 21', 'Innergem. sonstige Leistungen (Netto) - in ELSTER eintragen', c.nettoIgLeistung.toFixed(2)]);
         if (c.nettoAusfuhr     > 0) rows.push(['Kz. 43', 'Ausfuhrlieferungen Drittland (Netto) - in ELSTER eintragen', c.nettoAusfuhr.toFixed(2)]);
+        if (c.nettoNichtSteuerbar > 0) rows.push(['Kz. 45', 'Nicht steuerbare Umsätze (Leistungsort im Ausland) - in ELSTER eintragen', c.nettoNichtSteuerbar.toFixed(2)]);
         if (c.erwerbNetto19 > 0) rows.push(['Kz. 89', 'Innergem. Erwerbe 19% (Bemessungsgrundlage) - in ELSTER eintragen', c.erwerbNetto19.toFixed(2)]);
         if (c.erwerbNetto7  > 0) rows.push(['Kz. 93', 'Innergem. Erwerbe 7% (Bemessungsgrundlage) - in ELSTER eintragen', c.erwerbNetto7.toFixed(2)]);
         if (c.rcNettoAbs1   > 0) {

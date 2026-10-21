@@ -106,3 +106,17 @@ let n = 0; const ok = t => { n++; console.log('✓ ' + t); };
 }
 
 console.log('\n' + n + '/6 §13b-/KU-Tests bestanden');
+
+// U02/U03 — Kz. 45: Drittland-Dienstleistung und OSS-Fernverkauf (Steuer-Audit 2026-10-18)
+{
+    const c = welt({ customers: [{ id: 'us', land: 'US', firma: 'Acme Inc.' }, { id: 'fr', land: 'FR' }],
+        invoices: [
+            { id: 'i1', datum: '2026-02-10', kundeId: 'us', typ: 'rechnung', status: 'versendet', isKlein: false,
+              positionen: [{ menge: 1, einzelpreis: 1000, mwstSatz: 0, igArt: 'leistung' }, { menge: 1, einzelpreis: 300, mwstSatz: 0, igArt: 'ware' }] },
+            { id: 'v', datum: '2025-06-01', kundeId: 'fr', typ: 'rechnung', status: 'versendet', isKlein: false, positionen: [{ menge: 1, einzelpreis: 10500, mwstSatz: 19 }] },
+            { id: 'i2', datum: '2026-02-11', kundeId: 'fr', typ: 'rechnung', status: 'versendet', isKlein: false, positionen: [{ menge: 1, einzelpreis: 500, mwstSatz: 19 }] }] });
+    const z = zeilen(c, q1(c));
+    assert.strictEqual(z['Kz. 43'], '300.00');
+    assert.strictEqual(z['Kz. 45'], '1500.00');
+    console.log('✓ U02/U03: Drittland-Leistung 1.000 + OSS-Fernverkauf 500 in Kz 45, Ware 300 in Kz 43');
+}

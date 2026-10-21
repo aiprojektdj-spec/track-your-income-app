@@ -75,3 +75,15 @@ let n = 0; const ok = t => { n++; console.log('✓ ' + t); };
 }
 
 console.log('\n' + n + '/5 Pflichtangaben-Tests bestanden');
+
+// B3b — Dienstleistung an US-Unternehmen ist keine Ausfuhrlieferung (Kategorie G)
+{
+    const c = welt(SELLER);
+    const kUS = kunde('kus', { land: 'US', ort: 'New York', plz: '10001' });
+    const xml = c.XRechnung.generate(rechnung({ kundeId: 'kus', positionen: [
+        { beschreibung: 'Beratung', menge: 1, einzelpreis: 1000, mwstSatz: 0, igArt: 'leistung' },
+        { beschreibung: 'Ware', menge: 1, einzelpreis: 300, mwstSatz: 0, igArt: 'ware' }] }), SELLER, kUS);
+    assert.ok(/§3a Abs\. 2 UStG/.test(xml), 'Leistung ohne Hinweis auf §3a Abs. 2');
+    assert.ok(/<ram:CategoryCode>G<\/ram:CategoryCode>/.test(xml), 'Ware an Drittland bleibt Ausfuhr G');
+    console.log('✓ B3b: Drittland-Dienstleistung als nicht steuerbar (§3a Abs. 2), Ware als Ausfuhr');
+}

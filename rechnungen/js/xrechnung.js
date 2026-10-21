@@ -87,6 +87,10 @@ var XRechnung = (function () {
         var istDrittland = !!(kundeLand && kundeLand !== 'DE' && !istEU);
         // Die Ausfuhrbefreiung bleibt nach §25a Abs. 5 Satz 2 UStG unberührt — anders als die
         // ig. Lieferung oben. Ausfuhr geht deshalb auch bei Differenzbesteuerung vor.
+        // Dienstleistung an einen Drittlandsunternehmer ist keine Ausfuhr, sondern nicht im Inland
+        // steuerbar (§3a Abs. 2 UStG) — Steuer-Audit 2026-10-18, B3b. Kategorie E statt O, weil
+        // EN 16931 BR-O-2 bei O jede USt-IdNr. auf der Rechnung verbietet; der Text nennt den Grund.
+        if (istDrittland && (pos.igArt || inv.igArt) === 'leistung') return { code: 'E', reasonCode: null, reason: 'Nicht im Inland steuerbare Leistung (Leistungsort im Drittland, §3a Abs. 2 UStG)' };
         if (istDrittland) return { code: 'G', reasonCode: 'VATEX-EU-G', reason: 'Steuerfreie Ausfuhrlieferung gemäß §4 Nr. 1a i.V.m. §6 UStG' };
         // §25a: kein offener USt-Ausweis, aber der Umsatz ist NICHT steuerfrei — er ist auf die
         // Marge besteuert. Kategorie E ist dafuer die uebliche EN-16931-Zuordnung (BR-E-1..10);

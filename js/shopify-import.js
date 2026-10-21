@@ -335,6 +335,106 @@ const ShopifyImport = {
         return gesperrt.length ? { ok: false, fehler: 'Verkauf festgeschrieben', gesperrt } : { ok: true };
     },
 
+    // ── Abruf per GraphQL Admin API (Pull-Weg a; Weg b liefert dasselbe Format per Webhook) ──
+    // Die Abfrage holt nur, was die Buchung braucht: keine Namen, E-Mails oder Anschriften,
+    // vom Lieferland abgesehen. Gebühr je Bestellung aus OrderTransaction.fees.
+    // Versionsstand vor dem ersten Live-Test gegen einen Dev-Store prüfen.
+    API_VERSION: '2026-10',
+    BESTELL_QUERY: `query Bestellungen($first: Int!, $after: String, $query: String) {
+  orders(first: $first, after: $after, query: $query, sortKey: PROCESSED_AT) {
+    pageInfo { hasNextPage endCursor }
+    nodes {
+      id name processedAt createdAt displayFinancialStatus currencyCode taxesIncluded
+      paymentGatewayNames
+      totalTipReceivedSet { shopMoney { amount } }
+      shippingAddress { countryCodeV2 }
+      billingAddress { countryCodeV2 }
+      lineItems(first: 100) { nodes {
+        id sku title quantity isGiftCard
+        originalUnitPriceSet { shopMoney { amount } }
+        discountAllocations { allocatedAmountSet { shopMoney { amount } } }
+        taxLines { rate priceSet { shopMoney { amount } } }
+      } }
+      shippingLines(first: 10) { nodes {
+        originalPriceSet { shopMoney { amount } }
+        discountedPriceSet { shopMoney { amount } }
+        taxLines { rate priceSet { shopMoney { amount } } }
+      } }
+      transactions(first: 20) { kind status fees { amount { amount currencyCode } } }
+      refunds(first: 20) {
+        id createdAt
+        refundLineItems(first: 100) { nodes {
+          lineItem { id } quantity restockType
+          subtotalSet { shopMoney { amount } }
+          totalTaxSet { shopMoney { amount } }
+        } }
+        transactions(first: 10) { nodes { kind status amountSet { shopMoney { amount } } } }
+      }
+    }
+  }
+}`,
+
+    // gid://shopify/Order/123 → "123" (dieselbe ID wie im Webhook, damit der Doppelimport-
+    // Schutz über beide Wege greift)
+    _gid(g) { const m = /\/(\d+)$/.exec(String(g || '')); return m ? m[1] : String(g || ''); },
+    _geld(set) { return set && set.shopMoney ? set.shopMoney.amount : '0'; },
+    _nodes(c) { return Array.isArray(c) ? c : (c && Array.isArray(c.nodes) ? c.nodes : []); },
+
+    // GraphQL-Bestellung → Webhook-Format (das, was plane()/importiere() lesen).
+    // Rückgabe: { order, gebuehr } — gebuehr = Summe der Shopify-Payments-Gebühren in EUR
+    // (andere Währung der Gebühr: nicht addiert, plane() meldet die Bestellwährung ohnehin).
+    ausGraphQL(n) {
+        const steuer = tl => (tl || []).map(t => ({ rate: t.rate, price: this._geld(t.priceSet) }));
+        const lower = s => String(s || '').toLowerCase();
+        const order = {
+            id: this._gid(n.id), name: n.name, processed_at: n.processedAt, created_at: n.createdAt,
+            financial_status: lower(n.displayFinancialStatus), currency: n.currencyCode,
+            taxes_included: n.taxesIncluded !== false,
+            total_tip_received: this._geld(n.totalTipReceivedSet),
+            payment_gateway_names: n.paymentGatewayNames || [],
+            shipping_address: n.shippingAddress ? { country_code: n.shippingAddress.countryCodeV2 } : null,
+            billing_address: n.billingAddress ? { country_code: n.billingAddress.countryCodeV2 } : null,
+            line_items: this._nodes(n.lineItems).map(li => ({
+                id: this._gid(li.id), sku: li.sku || '', title: li.title, quantity: li.quantity,
+                gift_card: !!li.isGiftCard, price: this._geld(li.originalUnitPriceSet),
+                discount_allocations: (li.discountAllocations || []).map(d => ({ amount: this._geld(d.allocatedAmountSet) })),
+                tax_lines: steuer(li.taxLines)
+            })),
+            shipping_lines: this._nodes(n.shippingLines).map(sl => ({
+                price: this._geld(sl.originalPriceSet), discounted_price: this._geld(sl.discountedPriceSet),
+                tax_lines: steuer(sl.taxLines)
+            })),
+            refunds: (n.refunds || []).map(rf => ({
+                id: this._gid(rf.id), created_at: rf.createdAt, processed_at: rf.createdAt,
+                refund_line_items: this._nodes(rf.refundLineItems).map(z => ({
+                    line_item_id: this._gid(z.lineItem && z.lineItem.id), quantity: z.quantity,
+                    restock_type: lower(z.restockType), subtotal: this._geld(z.subtotalSet), total_tax: this._geld(z.totalTaxSet)
+                })),
+                transactions: this._nodes(rf.transactions).map(t => ({ kind: lower(t.kind), status: lower(t.status), amount: this._geld(t.amountSet) }))
+            }))
+        };
+        const gebuehr = this._r2((n.transactions || [])
+            .filter(t => lower(t.kind) === 'sale' || lower(t.kind) === 'capture')
+            .reduce((s, t) => s + (t.fees || []).reduce((x, f) => x + (f.amount && f.amount.currencyCode === 'EUR' ? this._num(f.amount.amount) : 0), 0), 0));
+        return { order, gebuehr };
+    },
+
+    // Seite einer GraphQL-Antwort importieren. Gibt je Bestellung das Ergebnis von importiere()
+    // zurück, plus den Cursor für die nächste Seite.
+    importiereSeite(shop, antwort) {
+        const conn = antwort && antwort.data && antwort.data.orders;
+        if (!conn) return { ergebnisse: [], weiter: null, fehler: 'Unerwartete Antwort' };
+        const ergebnisse = this._nodes(conn).map(n => {
+            const { order, gebuehr } = this.ausGraphQL(n);
+            const r = this.importiere(order, { shop, gebuehr });
+            // Gebühr kann bei früherem Abruf noch gefehlt haben
+            if (r.status === 'schon_importiert' && gebuehr > 0) this.gebuehrNachtragen(shop, order.id, gebuehr);
+            return Object.assign({ orderId: order.id, name: order.name }, r);
+        });
+        const pi = conn.pageInfo || {};
+        return { ergebnisse, weiter: pi.hasNextPage ? pi.endCursor : null };
+    },
+
     // Auszahlungsabgleich (Regel 1: nur Abgleich, keine Buchung).
     // auszahlung: { betrag, transaktionen: [{ typ: 'charge'|'refund'|…, orderId, betrag, gebuehr, netto }] }
     // Beträge wie von Shopify: Erstattungen negativ.

@@ -370,5 +370,57 @@ check('Auszahlungsabgleich: passt / fehlende Bestellung / Betragsabweichung / So
     near(schlecht.differenz, 100 - 63.05, 'Differenz Auszahlung');
 });
 
+// ── Abruf per GraphQL (Weg a) ──
+function gqlBestellung(id, o) {
+    const geld = a => ({ shopMoney: { amount: a } });
+    return Object.assign({
+        id: 'gid://shopify/Order/' + id, name: '#2001', processedAt: '2026-05-02T10:00:00+02:00', createdAt: '2026-05-02T09:59:00+02:00',
+        displayFinancialStatus: 'PAID', currencyCode: 'EUR', taxesIncluded: true, paymentGatewayNames: ['shopify_payments'],
+        totalTipReceivedSet: geld('0.0'), shippingAddress: { countryCodeV2: 'AT' }, billingAddress: { countryCodeV2: 'AT' },
+        lineItems: { nodes: [{ id: 'gid://shopify/LineItem/71', sku: 'G-1', title: 'Hemd', quantity: 1, isGiftCard: false,
+            originalUnitPriceSet: geld('40.0'), discountAllocations: [{ allocatedAmountSet: geld('5.0') }],
+            taxLines: [{ rate: 0.19, priceSet: geld('5.59') }] }] },
+        shippingLines: { nodes: [{ originalPriceSet: geld('4.9'), discountedPriceSet: geld('4.9'), taxLines: [{ rate: 0.19, priceSet: geld('0.78') }] }] },
+        transactions: [{ kind: 'SALE', status: 'SUCCESS', fees: [{ amount: { amount: '1.20', currencyCode: 'EUR' } }] }],
+        refunds: []
+    }, o);
+}
+check('GraphQL → Webhook-Format: IDs ohne gid, Beträge, Status, Land, Gebühr', () => {
+    const ctx = welt();
+    const { order, gebuehr } = ctx.ShopifyImport.ausGraphQL(gqlBestellung(777));
+    assert.strictEqual(order.id, '777');
+    assert.strictEqual(order.financial_status, 'paid');
+    assert.strictEqual(order.line_items[0].id, '71');
+    assert.strictEqual(order.shipping_address.country_code, 'AT');
+    near(gebuehr, 1.2, 'Gebühr');
+    const r = ctx.ShopifyImport.importiere(order, { shop: SHOP, gebuehr });
+    assert.strictEqual(r.status, 'gebucht', r.gruende.join('; '));
+    near(sales(ctx)[0].verkaufspreis, 35, 'Ware nach Rabatt');
+    assert.ok(!/email|firstName|address1/i.test(JSON.stringify(order)), 'keine Personendaten');
+});
+check('Doppelimport über beide Wege: erst Webhook (Weg b), dann Abruf (Weg a) → ein Verkauf', () => {
+    const ctx = welt();
+    ctx.ShopifyImport.importiere(bestellung({ id: 778 }), { shop: SHOP });
+    const seite = ctx.ShopifyImport.importiereSeite(SHOP, { data: { orders: { nodes: [gqlBestellung(778)], pageInfo: { hasNextPage: false } } } });
+    assert.strictEqual(seite.ergebnisse[0].status, 'schon_importiert');
+    assert.strictEqual(sales(ctx).length, 1);
+    assert.strictEqual(seite.weiter, null);
+});
+check('Abruf-Seite: Erstattung aus GraphQL gebucht, Cursor weitergereicht, Gebühr nachgetragen', () => {
+    const ctx = welt();
+    const geld = a => ({ shopMoney: { amount: a } });
+    ctx.ShopifyImport.importiereSeite(SHOP, { data: { orders: { nodes: [gqlBestellung(779, { transactions: [] })], pageInfo: { hasNextPage: true, endCursor: 'c1' } } } });
+    near(sales(ctx)[0].plattformgebuehrProzent, 0, 'erst ohne Gebühr');
+    const n = gqlBestellung(779, { displayFinancialStatus: 'PARTIALLY_REFUNDED', refunds: [{ id: 'gid://shopify/Refund/9', createdAt: '2026-05-09T08:00:00+02:00',
+        refundLineItems: { nodes: [] }, transactions: { nodes: [{ kind: 'REFUND', status: 'SUCCESS', amountSet: geld('10.0') }] } }] });
+    const seite = ctx.ShopifyImport.importiereSeite(SHOP, { data: { orders: { nodes: [n], pageInfo: { hasNextPage: true, endCursor: 'c2' } } } });
+    assert.strictEqual(seite.weiter, 'c2');
+    assert.strictEqual(ctx.Store.getRetouren().length, 1);
+    assert.strictEqual(ctx.Store.getRetouren()[0].datum, '2026-05-09');
+    const s = sales(ctx)[0];
+    near((s.verkaufspreis + s.versandkostenKaeufer) * s.plattformgebuehrProzent / 100, 1.2, 'Gebühr nachgetragen');
+    assert.strictEqual(ctx.ShopifyImport.importiereSeite(SHOP, { errors: [{}] }).fehler, 'Unerwartete Antwort');
+});
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

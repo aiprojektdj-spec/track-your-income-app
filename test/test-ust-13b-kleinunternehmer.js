@@ -46,8 +46,8 @@ let n = 0; const ok = t => { n++; console.log('✓ ' + t); };
         { typ: 'reverse_charge', datum: '2026-02-01', paragraph: 'Abs. 1', nettoBetrag: 100, ustSatz: 19, vorsteuerBetrag: 19 },
         { typ: 'reverse_charge', datum: '2026-02-02', paragraph: 'Sonstige', nettoBetrag: 200, ustSatz: 19, vorsteuerBetrag: 38 }] });
     const z = zeilen(c, q1(c));
-    assert.strictEqual(z['Kz. 46'], '100.00'); assert.strictEqual(z['Kz. 47'], '19.00');
-    assert.strictEqual(z['Kz. 84'], '200.00'); assert.strictEqual(z['Kz. 85'], '38.00');
+    assert.strictEqual(z['Kz. 46'], '100'); assert.strictEqual(z['Kz. 47'], '19.00');
+    assert.strictEqual(z['Kz. 84'], '200'); assert.strictEqual(z['Kz. 85'], '38.00');
     assert.strictEqual(z['Kz. 67'], '57.00');
     ok('U01: Export enthält Kz 46/47, 84/85 und 67');
 }
@@ -116,8 +116,8 @@ console.log('\n' + n + '/6 §13b-/KU-Tests bestanden');
             { id: 'v', datum: '2025-06-01', kundeId: 'fr', typ: 'rechnung', status: 'versendet', isKlein: false, positionen: [{ menge: 1, einzelpreis: 10500, mwstSatz: 19 }] },
             { id: 'i2', datum: '2026-02-11', kundeId: 'fr', typ: 'rechnung', status: 'versendet', isKlein: false, positionen: [{ menge: 1, einzelpreis: 500, mwstSatz: 19 }] }] });
     const z = zeilen(c, q1(c));
-    assert.strictEqual(z['Kz. 43'], '300.00');
-    assert.strictEqual(z['Kz. 45'], '1500.00');
+    assert.strictEqual(z['Kz. 43'], '300');
+    assert.strictEqual(z['Kz. 45'], '1500');
     console.log('✓ U02/U03: Drittland-Leistung 1.000 + OSS-Fernverkauf 500 in Kz 45, Ware 300 in Kz 43');
 }
 
@@ -186,4 +186,19 @@ console.log('\n' + n + '/6 §13b-/KU-Tests bestanden');
     c = welt({ settings: { ustMode: 'regel', ustVersteuerungsart: 'ist' }, expenses: [fa({ ustZeitraum: '2024-11' })] });
     nah(c.Euer._berechne(2025, 0, 'jahr').gewinn, -100, 'November-Zahlung (fällig 10.12.) → 2025');
     console.log('✓ R-TAX-08: Q4-Vorauszahlung vom 08.01. ins Vorjahr; DFV, 11.01. und November bleiben im Zahlungsjahr');
+}
+
+// U10/U11/U12 — volle Euro, Fristen nach Historie, kein §25a-Kz-500-Hinweis
+{
+    let c = welt({ invoices: [{ id: 'i', datum: '2026-02-10', typ: 'rechnung', status: 'versendet', isKlein: false, positionen: [{ menge: 1, einzelpreis: 100.42, mwstSatz: 19 }] }] });
+    const z = zeilen(c, q1(c));
+    assert.strictEqual(z['Kz. 81'], '100', 'U10 Kz 81 ohne Cent');
+    c = welt({ settings: { ustMode: 'regel', ustVersteuerungsart: 'soll', ustModeHistorie: [{ ab: '0000-01-01', mode: 'klein' }, { ab: '2026-07-01', mode: 'regel' }] } });
+    const t = c.Steuertermine._ustTermine(2026).map(x => x.beschreibung);
+    assert.ok(!t.some(b => /Q4 2025|Q1 2026|Q2 2026/.test(b)) && t.some(b => /Q3 2026/.test(b)), 'U11 Termine: ' + t.join(', '));
+    c = welt({ sales: [{ id: 's', datum: '2026-02-01', verkaufspreis: 150, steuersatz: 19, purchaseId: 'p' }],
+        purchases: [{ id: 'p', datum: '2026-01-01', einkaufspreis: 100, ustSatz: 0, differenzbesteuert: true }] });
+    c.UstVoranmeldung._quartal = 0;
+    assert.ok(!/Kennziffer 500/.test(c.UstVoranmeldung.render()), 'U12 Kz-500-Hinweis');
+    console.log('✓ U10/U11/U12: Kz 81 = 100 (ohne Cent), keine Termine für KU-Quartale, kein Kz-500-Hinweis');
 }

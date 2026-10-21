@@ -714,12 +714,10 @@ const UstVoranmeldung = {
             </div>
         </div>` : '';
 
-        const kz500Hinweis = calc.diff25a.margeBrutto > 0 ? `
-        <div class="card" style="margin-bottom:16px;border-left:3px solid var(--warning);">
-            <div style="padding:12px 16px;font-size:13px;">
-                <strong>Kennziffer 500 (neu ab Besteuerungszeitraum 2026):</strong> Diese Voranmeldung enthält Umsätze mit abweichender Bemessungsgrundlage (§25a UStG Differenzbesteuerung). Ist Kz. 500 in ELSTER aktiv, nimmt das automatisierte Prüfverfahren die UVA aus der Vorabprüfung heraus — ein Sachbearbeiter prüft dann manuell. Das kann die Bearbeitung verzögern, ist aber kein Fehler.
-            </div>
-        </div>` : '';
+        // Kz. 500 ("Ergänzende Angaben", Zeile 55, ab 2026 Auswahl 1–4) hat mit §25a nichts zu tun —
+        // der frühere Hinweis legte das nahe und lud zu einer Eintragung ein, die die UVA aus der
+        // automatischen Bearbeitung nimmt (Steuer-Audit 2026-10-18, U12). Kein Hinweis mehr.
+        const kz500Hinweis = '';
 
         const yearOptions = Array.from({ length: 8 }, (_, i) => 2020 + i)
             .map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('');
@@ -920,27 +918,31 @@ const UstVoranmeldung = {
     },
 
     // Baut die vollständige, ELSTER-Reihenfolge-treue Zeilenliste (für CSV + Copy gemeinsam genutzt)
+    // Bemessungsgrundlagen trägt man in ELSTER ohne Cent ein (Anleitung USt 1 E); Steuerbeträge mit
+    // Cent (Steuer-Audit 2026-10-18, U10). Gekürzt, nicht gerundet.
+    _euro(v) { return String(Math.trunc((v || 0) + (v < 0 ? -1e-9 : 1e-9))); },
+
     _buildRows(c) {
         const rows = [
-            ['Kz. 81', 'Steuerpflichtige Umsätze 19% (Netto) - in ELSTER eintragen', c.nettoUmsatz19.toFixed(2)],
+            ['Kz. 81', 'Steuerpflichtige Umsätze 19% (Netto) - in ELSTER eintragen', this._euro(c.nettoUmsatz19)],
             ['(Info)', 'USt 19% - NICHT eintragen, ELSTER berechnet automatisch', c.ust19.toFixed(2)],
         ];
         if (c.nettoUmsatz7 > 0) {
-            rows.push(['Kz. 86', 'Steuerpflichtige Umsätze 7% (Netto) - in ELSTER eintragen', c.nettoUmsatz7.toFixed(2)]);
+            rows.push(['Kz. 86', 'Steuerpflichtige Umsätze 7% (Netto) - in ELSTER eintragen', this._euro(c.nettoUmsatz7)]);
             rows.push(['(Info)', 'USt 7% - NICHT eintragen, ELSTER berechnet automatisch', c.ust7.toFixed(2)]);
         }
-        if (c.nettoIgLieferung > 0) rows.push(['Kz. 41', 'Innergem. Lieferungen (Netto) - in ELSTER eintragen', c.nettoIgLieferung.toFixed(2)]);
-        if (c.nettoIgLeistung  > 0) rows.push(['Kz. 21', 'Innergem. sonstige Leistungen (Netto) - in ELSTER eintragen', c.nettoIgLeistung.toFixed(2)]);
-        if (c.nettoAusfuhr     > 0) rows.push(['Kz. 43', 'Ausfuhrlieferungen Drittland (Netto) - in ELSTER eintragen', c.nettoAusfuhr.toFixed(2)]);
-        if (c.nettoNichtSteuerbar > 0) rows.push(['Kz. 45', 'Nicht steuerbare Umsätze (Leistungsort im Ausland) - in ELSTER eintragen', c.nettoNichtSteuerbar.toFixed(2)]);
-        if (c.erwerbNetto19 > 0) rows.push(['Kz. 89', 'Innergem. Erwerbe 19% (Bemessungsgrundlage) - in ELSTER eintragen', c.erwerbNetto19.toFixed(2)]);
-        if (c.erwerbNetto7  > 0) rows.push(['Kz. 93', 'Innergem. Erwerbe 7% (Bemessungsgrundlage) - in ELSTER eintragen', c.erwerbNetto7.toFixed(2)]);
+        if (c.nettoIgLieferung > 0) rows.push(['Kz. 41', 'Innergem. Lieferungen (Netto) - in ELSTER eintragen', this._euro(c.nettoIgLieferung)]);
+        if (c.nettoIgLeistung  > 0) rows.push(['Kz. 21', 'Innergem. sonstige Leistungen (Netto) - in ELSTER eintragen', this._euro(c.nettoIgLeistung)]);
+        if (c.nettoAusfuhr     > 0) rows.push(['Kz. 43', 'Ausfuhrlieferungen Drittland (Netto) - in ELSTER eintragen', this._euro(c.nettoAusfuhr)]);
+        if (c.nettoNichtSteuerbar > 0) rows.push(['Kz. 45', 'Nicht steuerbare Umsätze (Leistungsort im Ausland) - in ELSTER eintragen', this._euro(c.nettoNichtSteuerbar)]);
+        if (c.erwerbNetto19 > 0) rows.push(['Kz. 89', 'Innergem. Erwerbe 19% (Bemessungsgrundlage) - in ELSTER eintragen', this._euro(c.erwerbNetto19)]);
+        if (c.erwerbNetto7  > 0) rows.push(['Kz. 93', 'Innergem. Erwerbe 7% (Bemessungsgrundlage) - in ELSTER eintragen', this._euro(c.erwerbNetto7)]);
         if (c.rcNettoAbs1   > 0) {
-            rows.push(['Kz. 46', '§13b Abs.1 EU-Dienstleistungen (Bemessungsgrundlage) - in ELSTER eintragen', c.rcNettoAbs1.toFixed(2)]);
+            rows.push(['Kz. 46', '§13b Abs.1 EU-Dienstleistungen (Bemessungsgrundlage) - in ELSTER eintragen', this._euro(c.rcNettoAbs1)]);
             rows.push(['Kz. 47', '§13b Abs.1 Steuer - in ELSTER eintragen', c.rcSteuerAbs1.toFixed(2)]);
         }
         if (c.rcNettoOther  > 0) {
-            rows.push(['Kz. 84', 'Andere §13b-Leistungen (Bemessungsgrundlage) - in ELSTER eintragen', c.rcNettoOther.toFixed(2)]);
+            rows.push(['Kz. 84', 'Andere §13b-Leistungen (Bemessungsgrundlage) - in ELSTER eintragen', this._euro(c.rcNettoOther)]);
             rows.push(['Kz. 85', 'Andere §13b-Leistungen Steuer - in ELSTER eintragen', c.rcSteuerOther.toFixed(2)]);
         }
         rows.push(['Kz. 66', 'Vorsteuer aus Rechnungen (Einkäufe/Ausgaben) - in ELSTER eintragen', c.vorsteuerEinkaufAusgaben.toFixed(2)]);

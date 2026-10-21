@@ -66,7 +66,10 @@ const Steuertermine = {
     _ustTermine(year) {
         const s = (typeof Store !== 'undefined' && Store.getSettings) ? Store.getSettings() : {};
         // Kleinunternehmer nach §19 UStG geben keine Voranmeldung ab — Termine wären falsch.
-        if ((s.ustMode || 'klein') !== 'regel') return [];
+        // Je Zeitraum nach der Historie (Steuer-Audit 2026-10-18, U11): nach einem Wechsel zum
+        // 01.07. gab es sonst Termine für die alten Kleinunternehmer-Quartale.
+        const regelAm = d => (typeof SteuerStatus !== 'undefined') ? SteuerStatus.modeAm(d, s) === 'regel' : (s.ustMode || 'klein') === 'regel';
+        if ((s.ustMode || 'klein') !== 'regel' && !(s.ustModeHistorie || []).some(e => e.mode === 'regel')) return [];
 
         const monatlich = (s.ustVaPeriodenTyp || 'quartal') === 'monat';
         const dauerfrist = !!s.ustDauerfristverlaengerung;
@@ -77,6 +80,8 @@ const Steuertermine = {
         // Abgabetermin = 10. des Monats (Periodenende + versatz). Läuft über den Jahreswechsel
         // korrekt, weil Date die Monatsüberläufe selbst auflöst.
         const termin = (endJahr, endMonatIdx, label, id) => {
+            const ende = new Date(Date.UTC(endJahr, endMonatIdx + 1, 0)).toISOString().slice(0, 10);
+            if (!regelAm(ende)) return;   // Zeitraum endete in der Kleinunternehmer-Zeit
             const d = new Date(Date.UTC(endJahr, endMonatIdx + versatz, 10));
             const roh = d.toISOString().slice(0, 10);
             out.push({

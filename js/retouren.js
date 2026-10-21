@@ -72,6 +72,8 @@ const Retouren = {
             erstattungBetrag: Math.round(erstattung * 100) / 100,
             notizen: e.notizen || '', saleId: sale ? sale.id : null, modell: 2
         };
+        // Herkunft eines Imports (z. B. Shopify-Erstattungs-ID) — Doppelimport-Schutz in js/shopify-import.js
+        if (e.quelle) r.quelle = e.quelle;
         const gespeichert = Store.saveRetoure(r);
         if (!gespeichert) return { ok: false, fehler: 'Retoure nicht gespeichert' };
         try {

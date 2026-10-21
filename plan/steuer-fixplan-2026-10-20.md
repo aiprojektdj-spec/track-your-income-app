@@ -32,25 +32,25 @@ Legende: ☐ offen · ☑ erledigt (Commit) · ⏸ wartet auf Entscheidung
 | ☑ `5bf8220` | U02/B3b | B2B-Dienstleistung Drittland → nicht steuerbar (Kz 45 / Kategorie O) | ustvoranmeldung.js, xrechnung.js |
 | ☑ `19dd9f8` | U06 | KU-Gesamtumsatz netto, Rückzahlungen abziehen, Anlagenverkäufe außer Ansatz | app.js (Block in kleinunternehmer.js ziehen) |
 | ☑ `c7f1188` | U09 | OSS-Sätze EE 24 %, RO 21 % (RO vorher amtlich bestätigen) | oss.js |
-| ☐ | B3a | 0 %-Position Inland: Befreiungshinweis Pflicht | rechnungen/js/rechnung.js |
-| ☐ | B4 | Positionsbeschreibung + eigene Anschrift beim Speichern prüfen | rechnungen/js/rechnung.js |
+| ☑ `c53dad0` | B3a | 0 %-Position Inland: Befreiungshinweis Pflicht | rechnungen/js/rechnung.js |
+| ☑ `c53dad0` | B4 | Positionsbeschreibung + eigene Anschrift beim Speichern prüfen | rechnungen/js/rechnung.js |
 | ☑ `71c2ecf` | B5 | CII-Elementreihenfolge (BuyerReference, ExemptionReasonCode); kosit-proben neu erzeugen | xrechnung.js, kosit-proben/ |
-| ☐ | B6 | Verkäuferkontakt, Zahlungsanweisung, Lieferland ig. Lieferung im XML | xrechnung.js |
-| ◐ `74f3ed7` | B7 | Storno-Nummer gegen vorhandene prüfen ☑; Merge: Zähler = max ☐ | store.js, cloud-sync.js |
+| ☑ `c53dad0` | B6 | Verkäuferkontakt, Zahlungsanweisung, Lieferland ig. Lieferung im XML | xrechnung.js |
+| ☑ `74f3ed7` `ba6c858` | B7 | Storno-Nummer gegen vorhandene prüfen; Merge: Zähler = max | store.js, cloud-sync.js |
 | ☑ `c7f1188` | B10 | E-Rechnungs-Hinweis jahres-/umsatzabhängig, KU/Kleinbetrag ausgenommen | rechnungen/js/rech-dashboard.js |
-| ☐ | F4/F9 | DATEV: Eigenbeleg brutto, keine Doppelbuchung (Eigenbeleg→Lager über `savePurchase`), Teilzahlung nach Zufluss, Storno+Rückzahlung | datev.js, eigenbelege/ |
-| ☐ | F5 | Kassenbuch: Tagesbestand ≥ 0 prüfen, Jahressperre, Anfangsbestand protokolliert | kassenbuch.js |
-| ⏸ | F6 | Storno im abgeschlossenen Jahr — Entscheidung nötig | store.js |
-| ☐ | F7 | Merge: `closed_years` vereinigen, Kette nach Merge neu prüfen, festgeschriebene Datensätze → Konflikt | cloud-sync.js, backup-crypto.js |
-| ⏸ | F8 | Löschen/Nummernkreis — Entscheidung nötig | store.js, companies.js |
+| ☑ `5665799` | F4/F9 | DATEV: Eigenbeleg brutto, keine Doppelbuchung (Eigenbeleg→Lager über `savePurchase`), Teilzahlung nach Zufluss, Storno+Rückzahlung | datev.js, eigenbelege/ |
+| ☑ `4965e20` | F5 | Kassenbuch: Tagesbestand ≥ 0 prüfen, Jahressperre, Anfangsbestand protokolliert | kassenbuch.js |
+| ☑ `ddd83c8` | F6 | Storno im abgeschlossenen Jahr als Gegenbuchung im laufenden Jahr | store.js |
+| ☑ `ba6c858` | F7 | Merge: `closed_years` vereinigen, Kette nach Merge neu prüfen, festgeschriebene Datensätze → Konflikt | cloud-sync.js, backup-crypto.js |
+| ☑ `e932d57` | F8 | Löschen mit Warnung, Nummernkreis bleibt | store.js, companies.js |
 | ☑ `c7f1188` | E-02 | GWG-Grenze netto auch bei KU | afa.js |
 | ☑ `c7f1188` | E-03 | KSA auf Entgelt ohne USt | ausgaben.js |
 | ☑ `9554745` | E-04 | Ein GewSt-Rechenkern (Abrundung 100 €, ein Hebesatz, SBE) für alle vier Wege | gewerbesteuer.js, euer.js, gbr.js, gbr-modul.js |
 | ☑ `c7f1188` | E-05b | §141-Umsatz netto | gbr-modul.js |
 | ☑ `9554745` | E-05c | GewSt-Anzeige nur bei `brauchtGewSt()` | app.js, gewerbesteuer.js, euer.js |
 | ☑ `9554745` | E-06 | GewSt-VZ-Termine 15.02./05./08./11. | gbr-modul.js |
-| ☐ | E-07 | Kategorien Bewirtung 70 %, Geschenke (50-€-Grenze), GewSt nicht abziehbar | ausgaben.js, euer.js |
-| ☐ | E-08 | Fahrtenbuch „tatsächliche Kosten“: Doppelabzug verhindern / Hinweis korrigieren | fahrtenbuch.js |
+| ⏸ | E-07 | Kategorien Bewirtung 70 %, Geschenke (50-€-Grenze), GewSt nicht abziehbar | ausgaben.js, euer.js |
+| ⏸ | E-08 | Fahrtenbuch „tatsächliche Kosten“: Doppelabzug verhindern / Hinweis korrigieren | fahrtenbuch.js |
 | ☑ `5ad92e0` | E-09 | Manuelle Vorsteuer in EÜR als BA | euer.js |
 | ☑ `5ad92e0` | E-10/R-TAX-05 | KSt-Gewinn aus dem gemeinsamen Rechenkern | koerperschaftsteuer.js |
 
@@ -58,22 +58,29 @@ Legende: ☐ offen · ☑ erledigt (Commit) · ⏸ wartet auf Entscheidung
 
 | ☐ | ID | Fix |
 |---|---|---|
-| ☐ | R-TAX-01 | Automatischer KU-Stempel vs. bewusste Ausnahme trennen; Wechsel korrigiert ab Grenzumsatz |
-| ☐ | R-TAX-02 | Soll-UVA: KU-Rechnung vor §25a-Zweig ausschließen |
-| ☐ | R-TAX-03 | §25a-Preisnachlass über Margenrekonstruktion |
-| ☐ | R-TAX-04 | `nettoSales` mit §25a-Marge |
-| ☐ | R-TAX-06 | Gutschrift: Berichtigungszeitpunkt statt Lieferdatum |
-| ☐ | R-TAX-07 | Alle Vorauszahlungen (nicht nur `_teilzahlung`) |
-| ☐ | R-TAX-08 | Zehn-Tage-Regel für USt-Vorauszahlungen (Zeitraumfeld) |
-| ☐ | R-TAX-09 | Soll-UVA aus `rechnung-summen.js` |
+| ☑ `ffaa13b` | R-TAX-01 | Automatischer KU-Stempel vs. bewusste Ausnahme trennen; Wechsel korrigiert ab Grenzumsatz |
+| ☑ `d0ea4c2` | R-TAX-02 | Soll-UVA: KU-Rechnung vor §25a-Zweig ausschließen |
+| ☑ `d0ea4c2` | R-TAX-03 | §25a-Preisnachlass über Margenrekonstruktion |
+| ☑ `a0ccb94` | R-TAX-04 | `nettoSales` mit §25a-Marge |
+| ☑ `adeefeb` | R-TAX-06 | Gutschrift: Berichtigungszeitpunkt statt Lieferdatum |
+| ☑ `adeefeb` | R-TAX-07 | Alle Vorauszahlungen (nicht nur `_teilzahlung`) |
+| ☑ `5d7cf4e` | R-TAX-08 | Zehn-Tage-Regel für USt-Vorauszahlungen (Zeitraumfeld) |
+| ☑ `adeefeb` | R-TAX-09 | Soll-UVA aus `rechnung-summen.js` |
 
 ## Batch 4 — P3
 
-~~U03~~ (☑ `5bf8220`) · ~~U07~~ (☑ `23fdcf2`) · U08 · U10 · U11 · U12 · B8 · B9 · B11 · E-11 · ~~E-12~~ (☑ `c7f1188`) · E-13 · F9-Rest — Details im Auditbericht §3 „P3“.
+~~U03~~ (☑ `5bf8220`) · ~~U07~~ (☑ `23fdcf2`) · ~~U08~~ (☑ dieser Commit) · ~~U10/U11/U12~~ (☑ `066bd19`; Kz 70 offen) · ~~B8/B9/B11~~ (☑ `f7a99b8`; datenschutz.html offen) · ~~E-11/E-13/F9-Rest~~ (☑ `aad6dc9`) · ~~E-12~~ (☑ `c7f1188`) — Details im Auditbericht §3 „P3“.
 
 ## Folgepunkte aus den Fixes
 
-- DATEV bucht den Restbuchwert eines Anlagenabgangs (E-01) noch nicht — beim F4-Fix mitnehmen.
+- ~~DATEV bucht den Restbuchwert eines Anlagenabgangs (E-01) noch nicht~~ — erledigt in `5665799`
+  (Konto 2310 SKR03 / 6895 SKR04; Kontonummern noch gegen den amtlichen DATEV-Kontenrahmen prüfen).
+- **Offen, Entscheidung User:** E-07 (Bewirtung 70 %, Geschenke > 50 €, GewSt nicht abziehbar) und
+  E-08 (Fahrtenbuch „tatsächliche Kosten“ + Tankbeleg = Doppelabzug).
+- **Offen:** Kz 70 (Datum Wechsel KU→Regel) in der UVA; `kosit-proben/` mit dem neuen Code neu
+  erzeugen und beim KoSIT-Validator hochladen (User); `datenschutz.html:454` Fristbeginn
+  Jahresende statt „letzte Eintragung“ (Rechtstext → User/Anwalt).
+- **Prüfen:** Logikreview-Hinweis „doppelte Soll-USt-Korrektur durch Stornodokument + Rückzahlung“.
 - U06: Umsätze mit Anlagevermögen (§19 Abs. 2 S. 2 UStG) lassen sich noch nicht kennzeichnen und zählen mit.
 - Restore (F1) setzt Datensätze weiter auf den Backup-Stand zurück; nachvollziehbar über das Protokoll.
 

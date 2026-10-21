@@ -644,6 +644,9 @@ const UstVoranmeldung = {
     },
 
     render() {
+        // Bezahlte, noch nicht als Verkauf angelegte Rechnungen nachholen — wie die EÜR. Sonst
+        // zählt die EÜR sie zum Zahlungsdatum, die Ist-UVA aber nicht (Steuer-Audit 2026-10-18, U08).
+        if (Store.autoSyncInvoices) Store.autoSyncInvoices();
         if (!this._isRegel()) {
             const ku13b = this._renderKu13b();
             if (ku13b) return ku13b;

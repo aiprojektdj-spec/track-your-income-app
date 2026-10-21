@@ -202,3 +202,18 @@ console.log('\n' + n + '/6 §13b-/KU-Tests bestanden');
     assert.ok(!/Kennziffer 500/.test(c.UstVoranmeldung.render()), 'U12 Kz-500-Hinweis');
     console.log('✓ U10/U11/U12: Kz 81 = 100 (ohne Cent), keine Termine für KU-Quartale, kein Kz-500-Hinweis');
 }
+// U08 — bezahlte, nicht angelegte Rechnung: die UVA holt den Verkauf vor der Berechnung nach (wie
+// die EÜR). Vorher: EÜR-USt 19 €, Ist-UVA 0 €.
+{
+    const c = welt({ settings: { ustMode: 'regel', ustVersteuerungsart: 'ist' } });
+    let syncs = 0;
+    c.Store.autoSyncInvoices = () => {
+        syncs++;
+        c.Store.getSales(true).push({ id: 's1', _invoiceId: 'r1', datum: '2026-02-01', verkaufspreis: 119, steuersatz: 19 });
+    };
+    c.UstVoranmeldung._quartal = 0;
+    c.UstVoranmeldung.render();
+    assert.strictEqual(syncs, 1, 'U08: render() ruft autoSyncInvoices');
+    nah(q1(c).ust19, 19, 'U08: USt 19 % nach Sync');
+    console.log('✓ U08: UVA synchronisiert bezahlte Rechnungen vor der Berechnung (119 € brutto → 19 € USt)');
+}

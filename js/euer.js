@@ -362,7 +362,14 @@ const Euer = {
         // Ausgaben gesamt
         // Kleinunternehmer: Brutto-Ausgaben (USt ist echter Kostenfaktor, kein Vorsteuerabzug)
         // Regelbesteuerung: Netto-Ausgaben (USt wird als Vorsteuer abgezogen = Durchlaufposten)
-        const abzugsfaehig = wareneinkauf + versandkosten + plattformgebuehren + fahrtkosten + materialEinkauf + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten + anlagenRestbuchwert;
+        // Manuell erfasste "sonstige" Vorsteuer (z. B. auf eine Anlage, die kein eigenes
+        // Vorsteuerfeld hat) ist im Abflussjahr Betriebsausgabe — die UVA zog sie ab, die EÜR
+        // nicht (Steuer-Audit 2026-10-18, E-09). Sie steckt in keiner anderen Ausgabe, zählt also
+        // als abgeflossener Betrag UND als Vorsteuer. §13b/ig. Erwerb bleiben draußen: Steuer und
+        // Vorsteuer heben sich auf, maßgeblich ist die gebuchte Zahlung an das Finanzamt.
+        const vorsteuerManuell = (typeof Vorsteuer !== 'undefined' && Vorsteuer._calcManualEntries)
+            ? (Vorsteuer._calcManualEntries(startDate, endDate).sonstige || 0) : 0;
+        const abzugsfaehig = wareneinkauf + versandkosten + plattformgebuehren + fahrtkosten + materialEinkauf + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten + anlagenRestbuchwert + vorsteuerManuell;
 
         // ── Vorsteuer: tatsächlicher USt-Satz pro Einkauf (Fix: war pauschal /1.19) ──
         // Purchases können jetzt ustSatz = 19 | 7 | 0 tragen.
@@ -403,7 +410,7 @@ const Euer = {
             // (Fix: liefen vorher im pauschalen 19%-Block, ignorierten mwstSatz=0).
             return { purch: vstPurch, ausgaben: vstExpenses + vstOther + eigenbelegeVorsteuer };
         })();
-        const vorsteuer = vorsteuerTeile.purch + vorsteuerTeile.ausgaben;
+        const vorsteuer = vorsteuerTeile.purch + vorsteuerTeile.ausgaben + vorsteuerManuell;
         // Betriebsausgaben ohne abziehbare Vorsteuer
         const ausgabenNetto = abzugsfaehig - vorsteuer;
         // Steuerliche Summe der Ausgaben = abgeflossene Beträge (inkl. Vorsteuer) + USt an das Finanzamt

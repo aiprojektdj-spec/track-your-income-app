@@ -80,7 +80,11 @@ const Gewerbesteuer = {
             console.error('[Gewerbesteuer] js/euer.js nicht geladen — Gewinn nicht ermittelbar');
             return 0;
         }
-        return Euer._berechne(year, 0, 'jahr').gewinn;
+        const d = Euer._berechne(year, 0, 'jahr');
+        // Kapitalgesellschaften bilanzieren: Umsatzsteuer ist dort kein Ertrag/Aufwand — gleiche
+        // Größe wie Koerperschaftsteuer._calcGewinn (Steuer-Audit 2026-10-18, E-10)
+        const kapges = typeof Rechtsform !== 'undefined' && Rechtsform.isKapitalgesellschaft && Rechtsform.isKapitalgesellschaft();
+        return kapges ? d.nettoGewinn : d.gewinn;
     },
 
     _calc(year) {

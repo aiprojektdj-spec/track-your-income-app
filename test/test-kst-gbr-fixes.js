@@ -80,6 +80,9 @@ const kstContext = vm.createContext({
     },
     // GmbH/UG-Zweig erzwingen
     Rechtsform: { get() { return 'UG'; } },
+    // Seit dem Steuer-Audit 2026-10-18 (E-10) kommt der Gewinn aus dem EÜR-Rechenkern; der
+    // Stub liefert den Nettogewinn, der zum Verkauf unten passt (50.000 €, keine Ausgaben).
+    Euer: { _berechne: () => ({ einnahmenNetto: 50000, wareneinkauf: 0, vorsteuerTeile: { purch: 0 }, nettoGewinn: 50000 }) },
 });
 vm.runInContext(kstSrc, kstContext, { filename: 'koerperschaftsteuer.js' });
 const Koerperschaftsteuer = vm.runInContext('Koerperschaftsteuer', kstContext);

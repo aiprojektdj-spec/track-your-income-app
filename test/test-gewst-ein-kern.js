@@ -27,7 +27,7 @@ function welt(kv, verkauf, ausgabe) {
         escapeHtml: s => String(s == null ? '' : s), istDrittland: () => false, EU_LAENDER: [], showToast() {} };
     const document = { getElementById: () => null, querySelectorAll: () => [], querySelector: () => null };
     const c = ladeModule(['js/steuerstatus.js', 'js/rechnung-summen.js', 'js/steuer-berechnung.js', 'js/afa.js',
-        'js/vorsteuer.js', 'js/euer.js', 'js/rechtsform.js', 'js/gbr.js', 'js/gbr-modul.js', 'js/gewerbesteuer.js'],
+        'js/vorsteuer.js', 'js/euer.js', 'js/rechtsform.js', 'js/gbr.js', 'js/gbr-modul.js', 'js/gewerbesteuer.js', 'js/koerperschaftsteuer.js'],
         { Store, Utils, document, App: { showModal() {}, closeModal() {} } });
     return { c, d };
 }
@@ -79,4 +79,27 @@ let n = 0; const ok = t => { n++; console.log('✓ ' + t); };
     assert.ok(html.indexOf('10.03.2026') === -1, 'ESt-Termin statt GewSt-Termin');
     ok('E-06: GewSt-Vorauszahlungen 15.02./15.05./15.08./15.11.');
 }
-console.log('\n' + n + '/5 Gewerbesteuer-Kern-Tests bestanden');
+// E-10 / R-TAX-05 — GmbH: KSt-Seite und GewSt-Seite aus demselben (Netto-)Gewinn
+{
+    const { c, d } = welt({ gbr_einstellungen: { firmenform: 'GmbH', hebesatz: 400 } }, 119000);
+    d.settings = { ustMode: 'regel', ustVersteuerungsart: 'ist' };
+    d.sales[0].steuersatz = 19;
+    assert.strictEqual(r2(c.Koerperschaftsteuer._calcGewinn(2026).gewinn), 100000);
+    assert.strictEqual(r2(c.Gewerbesteuer._calcGewinn(2026)), 100000);
+    d.expenses.push({ id: 'fa', datum: '2026-07-01', kategorie: 'Umsatzsteuer-Erstattung vom Finanzamt', betrag: 50, ustSatz: 0 });
+    assert.strictEqual(r2(c.Koerperschaftsteuer._calcGewinn(2026).gewinn), 100000, 'USt-Erstattung ist bei der GmbH kein Ertrag/Aufwand');
+    ok('E-10/R-TAX-05: GmbH — KSt- und GewSt-Gewinn 100.000 € netto, FA-Erstattung ohne Wirkung');
+}
+// E-09 — manuelle "sonstige" Vorsteuer ist Betriebsausgabe
+{
+    const { c, d } = welt({ vorsteuer_entries: [{ typ: 'sonstige', datum: '2026-01-10', nettoBetrag: 1000, vorsteuerBetrag: 190 }],
+        gbr_einstellungen: { firmenform: 'Einzelunternehmen', taetigkeitsart: 'gewerblich' } });
+    d.settings = { ustMode: 'regel', ustVersteuerungsart: 'ist' };
+    const e = c.Euer._berechne(2026, 0, 'jahr');
+    assert.strictEqual(r2(e.vorsteuer), 190);
+    assert.strictEqual(r2(e.gewinn), -190);
+    assert.strictEqual(r2(e.nettoGewinn), 0);
+    assert.strictEqual(r2(c.Euer._elsterZeilen(e).find(x => x.key === 'vorsteuer').betrag), 190);
+    ok('E-09: manuelle Vorsteuer 190 € mindert den EÜR-Gewinn und steht in der Zeile Vorsteuer');
+}
+console.log('\n' + n + '/7 Gewerbesteuer-Kern-Tests bestanden');

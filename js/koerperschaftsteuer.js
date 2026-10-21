@@ -43,18 +43,24 @@ const Koerperschaftsteuer = {
     // Forderungen/Verbindlichkeiten zum Bilanzstichtag statt reiner Zahlungsströme). Eine
     // vollständige Bilanzierung ist in Stackr nicht abgebildet — die Zahlen hier dienen nur der
     // Orientierung. Siehe UI-Hinweis in render() und §141-AO-Hinweis-Vorlage in js/gbr-modul.js.
+    //
+    // Seit dem Steuer-Audit 2026-10-18 (E-10, R-TAX-05) aus dem EÜR-Rechenkern statt einer eigenen
+    // Brutto-Formel ohne AfA, Gebühren und Retouren: dieselbe GmbH zeigte auf der KSt-Seite
+    // 16.660 € und auf der Gewerbesteuer-Seite 14.420 € Gewerbesteuer, und eine Umsatzsteuer-
+    // Erstattung des Finanzamts minderte hier den Gewinn. Verwendet wird der Nettogewinn (ohne
+    // Umsatzsteuer und Zahlungen mit dem Finanzamt) — bei einer bilanzierenden Gesellschaft ist die
+    // Umsatzsteuer kein Ertrag oder Aufwand. js/gewerbesteuer.js nimmt für Kapitalgesellschaften
+    // dieselbe Größe.
     _calcGewinn(year) {
-        const y = String(year);
-        const sales     = (Store.getSales ? Store.getSales() : Store.get('sales') || []).filter(s => (s.datum || '').startsWith(y));
-        const purchases = (Store.getPurchases ? Store.getPurchases() : Store.get('purchases') || []).filter(p => (p.datum || '').startsWith(y) && !p.storniert);
-        const ausgaben  = (Store.getExpenses ? Store.getExpenses() : Store.get('ausgaben') || []).filter(a => (a.datum || '').startsWith(y));
-
-        const einnahmen = sales.reduce((s, v) => s + (parseFloat(v.verkaufspreis) || 0) + (parseFloat(v.versandkostenKaeufer) || 0), 0);
-        const wareneinkauf = purchases.reduce((s, p) => s + (parseFloat(p.einkaufspreis) || 0) * (parseInt(p.anzahl) || 1), 0);
-        const betriebsausgaben = ausgaben.reduce((s, a) => s + (parseFloat(a.betrag) || 0), 0);
-        const gewinn = einnahmen - wareneinkauf - betriebsausgaben;
-
-        return { einnahmen, wareneinkauf, betriebsausgaben, gewinn };
+        if (typeof Euer === 'undefined' || typeof Euer._berechne !== 'function') {
+            console.error('[KSt] js/euer.js nicht geladen — Gewinn nicht ermittelbar');
+            return { einnahmen: 0, wareneinkauf: 0, betriebsausgaben: 0, gewinn: 0 };
+        }
+        const d = Euer._berechne(year, 0, 'jahr');
+        const einnahmen = d.einnahmenNetto;
+        const wareneinkauf = d.wareneinkauf - (d.vorsteuerTeile ? d.vorsteuerTeile.purch : 0);
+        const gewinn = d.nettoGewinn;
+        return { einnahmen, wareneinkauf, betriebsausgaben: einnahmen - wareneinkauf - gewinn, gewinn };
     },
 
     // ── KSt berechnen ──

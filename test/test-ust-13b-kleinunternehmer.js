@@ -139,3 +139,24 @@ console.log('\n' + n + '/6 §13b-/KU-Tests bestanden');
     nah(q1(c).nettoUmsatz19, 0.40, 'R-TAX-09 Kz 81');
     console.log('✓ R-TAX-06/07/09: Gutschrift in Q2, Vorauszahlung in Q1, Positionsnetto auf Cent');
 }
+
+// R-TAX-02/03 — KU-Rechnung mit §25a-Artikel; §25a-Preisnachlass über Margenrekonstruktion
+{
+    const q2 = c => c.UstVoranmeldung._calcPeriode('2026-04-01', '2026-06-30');
+    let c = welt({ settings: { ustMode: 'regel', ustVersteuerungsart: 'soll', ustModeHistorie: [{ ab: '0000-01-01', mode: 'klein' }, { ab: '2026-04-01', mode: 'regel' }] },
+        purchases: [{ id: 'p', datum: '2026-01-01', einkaufspreis: 100, ustSatz: 0, differenzbesteuert: true }],
+        invoices: [{ id: 'ku', datum: '2026-02-01', typ: 'rechnung', status: 'versendet', isKlein: true,
+            positionen: [{ menge: 1, einzelpreis: 150, mwstSatz: 0, lagerArtikelId: 'p', differenzbesteuert: true }] }] });
+    nah(q1(c).ust19, 0, 'R-TAX-02 KU-Rechnung');
+    // 150 VK / 100 EK, Preisnachlass 30 € in Q2 auf den behaltenen Artikel: Marge 50 → 20, USt −30 × 19/119
+    c = welt({ sales: [{ id: 's', datum: '2026-02-01', verkaufspreis: 150, steuersatz: 19, purchaseId: 'p' }],
+        purchases: [{ id: 'p', datum: '2026-01-01', einkaufspreis: 100, ustSatz: 0, differenzbesteuert: true }],
+        retouren: [{ id: 'r1', datum: '2026-04-01', saleId: 's', erstattungBetrag: 30, ware: 'keine' }] });
+    nah(q2(c).ust19, -30 * 19 / 119, 'R-TAX-03 Preisnachlass');
+    // Volle Rücknahme des Artikels: ganze Marge (50 × 19/119) zurück
+    c = welt({ sales: [{ id: 's', datum: '2026-02-01', verkaufspreis: 150, steuersatz: 19, purchaseId: 'p' }],
+        purchases: [{ id: 'p', datum: '2026-01-01', einkaufspreis: 100, ustSatz: 0, differenzbesteuert: true }],
+        retouren: [{ id: 'r1', datum: '2026-04-01', saleId: 's', erstattungBetrag: 150, ware: 'zurueck', artikelIds: ['p'] }] });
+    nah(q2(c).ust19, -50 * 19 / 119, 'R-TAX-03 volle Retoure');
+    console.log('✓ R-TAX-02/03: KU-Rechnung ohne USt; §25a-Nachlass −4,79 €, volle Retoure −7,98 €');
+}

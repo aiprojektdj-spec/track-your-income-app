@@ -122,7 +122,8 @@ check('H1 UVA: alle Verkaufs-Push-Stellen geben pauschalmarge mit (' + pushMitVk
 check('H2 UVA: Gutschrift nimmt die Pauschale zurueck, nicht vk-ek',
       /urspruenglich\s*=\s*istPauschal[\s\S]{0,120}pauschalmargeSatz/.test(uva));
 check('H3 UVA: Retoure nimmt die Pauschale zurueck, nicht vk-ek',
-      /_saleIstPauschal25a\(linked\)[\s\S]{0,120}pauschalmargeSatz/.test(uva));
+      // seit R-TAX-03 (2026-10-21) ueber margeNach() — Pauschale bleibt Grundlage der Rekonstruktion
+      /_saleIstPauschal25a\(linked\)[\s\S]{0,500}pauschalmargeSatz/.test(uva));
 
 // Nur Kunstgegenstaende (Anlage 2 Nr. 53) - Sammlerstuecke duerfen die Pauschale nie ausloesen.
 check('H4 UVA prueft die Warenart mit',

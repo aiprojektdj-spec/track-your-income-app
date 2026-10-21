@@ -224,6 +224,10 @@ const UstVoranmeldung = {
             sollInvoices
                 .filter(i => Utils.isInPeriod(this._steuerentstehung(i), startDate, endDate))
                 .forEach(i => {
+                    // Kleinunternehmer-Rechnung (isKlein, sonst Status zum Leistungsdatum): nie
+                    // USt-wirksam — auch nicht über einen als §25a markierten Lagerartikel
+                    // (R-TAX-02: Q1 7,98 € statt 0 € nach späterem Wechsel zur Regelbesteuerung)
+                    if (i.isKlein === true || (i.isKlein === undefined && !_regelUva({ datum: this._steuerentstehung(i) }))) return;
                     const sign = i.typ === 'gutschrift' ? -1 : 1;
                     // Stornorechnung: Positionen sind schon negativ gespeichert; für §25a zählt sie wie eine Gutschrift
                     const istStornoDoc = i.typ === 'stornorechnung';
@@ -384,14 +388,24 @@ const UstVoranmeldung = {
                 // mindern. Anteilig zur ursprünglichen Marge zurücknehmen (§17 UStG).
                 const originalVk = parseFloat(linked.verkaufspreis) || 0;
                 const originalEk = _sumEk25a(linked);
-                // Bei Pauschalmarge war die urspruenglich versteuerte Marge 30 % des Verkaufspreises
-                // und nicht vk-ek — sonst naehme die Retoure einen Betrag zurueck, den es nie gab.
-                const originalMarge = _saleIstPauschal25a(linked)
-                    ? Math.max(0, originalVk * SteuerBerechnung.pauschalmargeSatz(this._year))
-                    : Math.max(0, originalVk - originalEk);
+                // Marge NACH den Erstattungen neu bilden statt die ursprüngliche anteilig zu kürzen
+                // (§25a Abs.3 i. V. m. §17 UStG; R-TAX-03): Preisnachlass 30 € auf 150 € VK / 100 € EK
+                // senkt die Marge von 50 € auf 20 €, also um 30 € — nicht um 30/150 × 50 = 10 €.
+                // Zurückgenommene Artikel verlassen dabei auch den Einkaufspreis. Mehrere Retouren
+                // zum selben Verkauf: jede korrigiert nur ihren eigenen Schritt.
+                const pauschal = _saleIstPauschal25a(linked);
+                const ekVon = ids => (ids || []).reduce((sum, id) => sum + ((purchasesById25a[id] && parseFloat(purchasesById25a[id].einkaufspreis)) || 0), 0);
+                const margeNach = (erstattet, zurueckIds) => pauschal
+                    ? Math.max(0, (originalVk - erstattet) * SteuerBerechnung.pauschalmargeSatz(this._year))
+                    : Math.max(0, (originalVk - erstattet) - (originalEk - ekVon(zurueckIds)));
+                const _vorher = x => x !== r && x.saleId === r.saleId && (x.datum < r.datum || (x.datum === r.datum && String(x.id || '') < String(r.id || '')));
+                const frueher = Store.getRetouren().filter(_vorher);
+                const zurueck = x => (x.ware && x.ware !== 'keine') ? (x.artikelIds || []) : [];
+                const erstVorher = frueher.reduce((sum, x) => sum + (parseFloat(x.erstattungBetrag) || 0), 0);
+                const idsVorher = [].concat(...frueher.map(zurueck));
                 const erstattung = parseFloat(r.erstattungBetrag) || 0;
-                const anteil = originalVk !== 0 ? Math.min(1, erstattung / Math.abs(originalVk)) : 0;
-                diff25aPositionenRoh.push({ margeKorrektur: -(originalMarge * anteil), satz: 19, ref: _refSale25a(linked) });
+                const korrektur = margeNach(erstVorher + erstattung, idsVorher.concat(zurueck(r))) - margeNach(erstVorher, idsVorher);
+                diff25aPositionenRoh.push({ margeKorrektur: korrektur, satz: 19, ref: _refSale25a(linked) });
                 return;
             }
             const betrag = parseFloat(r.erstattungBetrag) || 0;

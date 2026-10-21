@@ -1318,6 +1318,7 @@ const Store = {
     isLocked(record) {
         if (!record) return false;
         if (record.storniert) return true;
+        if (record.gegengebucht || record._gegenbuchungZu) return true;   // F6: Storno per Gegenbuchung
         if (record.gesperrt) return true;
         if (this.isPeriodLocked(record.datum || record.anschaffungsdatum)) return true;
         return false;
@@ -1561,10 +1562,50 @@ const Store = {
         return purchase;
     },
 
+    // Storno eines Vorgangs aus einer festgeschriebenen Periode (abgeschlossenes Jahr oder
+    // eingereichte UVA): Entscheidung des Users vom 2026-10-20 (Steuer-Audit 2026-10-18, F6) —
+    // die festgeschriebene Periode bleibt unverändert, der Storno wirkt als Gegenbuchung zum
+    // Stornodatum. Vorher setzte der Storno nur `storniert`, und weil jede Auswertung stornierte
+    // Vorgänge auslässt, fiel der Vorgang rückwirkend aus dem abgeschlossenen Jahr (EÜR 2025
+    // 119 € → 0 €) und tauchte in keiner späteren UVA als Korrektur auf.
+    _gegenbuchen(listKey, entityType, rec, betragsfelder, grund, extra) {
+        const list = this.get(listKey) || [];
+        const orig = list.find(x => x.id === rec.id);
+        if (!orig) return null;
+        const old = Object.assign({}, orig);
+        const heute = new Date().toLocaleDateString('sv-SE');
+        const gegen = JSON.parse(JSON.stringify(orig));
+        gegen.id = this.generateId();
+        gegen.createdAt = new Date().toISOString();
+        gegen.datum = heute;
+        gegen._gegenbuchungZu = orig.id;
+        gegen.beschreibung = 'Storno: ' + (orig.beschreibung || orig.marke || '') + (grund ? ' (' + grund + ')' : '');
+        ['storniert', 'storniertAm', 'stornoGrund', 'gegengebucht', 'belegId', 'beleg', 'fotos'].forEach(k => { delete gegen[k]; });
+        betragsfelder.forEach(f => { if (gegen[f] != null && gegen[f] !== '') gegen[f] = -(parseFloat(gegen[f]) || 0); });
+        if (gegen.steuersaetze) Object.keys(gegen.steuersaetze).forEach(k => { gegen.steuersaetze[k] = -(parseFloat(gegen.steuersaetze[k]) || 0); });
+        if (extra) extra(gegen);
+        orig.gegengebucht = gegen.id;
+        orig.storniertAm = new Date().toISOString();
+        orig.stornoGrund = grund || 'Storniert';
+        this._stampRecord(orig);
+        this._stampRecord(gegen);
+        list.push(gegen);
+        this.set(listKey, list);
+        this._addAuditEntry('storniert', entityType, orig.id, old, orig,
+            (grund || 'Storniert') + ' — Periode festgeschrieben, Gegenbuchung ' + gegen.id + ' zum ' + heute);
+        this._addAuditEntry('erstellt', entityType, gegen.id, null, gegen, 'Gegenbuchung zum Storno von ' + orig.id);
+        this._warnIfPeriodLocked(heute);
+        return gegen;
+    },
+
     stornoPurchase(id, grund) {
         const purchases = this.getAllPurchasesRaw();
         const p = purchases.find(x => x.id === id);
-        if (!p || p.storniert) return;
+        if (!p || p.storniert || p.gegengebucht) return;
+        if (this.isPeriodLocked(p.datum)) {
+            this._gegenbuchen('purchases', 'einkauf', p, ['einkaufspreis'], grund, g => { g.status = 'gegenbuchung'; });
+            return;
+        }
         const old = Object.assign({}, p);
         p.storniert = true;
         p.storniertAm = new Date().toISOString();
@@ -1587,7 +1628,7 @@ const Store = {
             (s.purchaseId === id || (Array.isArray(s.purchaseIds) && s.purchaseIds.includes(id))));
         if (linkedSale) return { blocked: true, reason: 'sale' };
         if (this.isLocked(p)) {
-            if (!p.storniert) this.stornoPurchase(id, 'Storno statt Löschung — Periode abgeschlossen');
+            if (!p.storniert && !p.gegengebucht) this.stornoPurchase(id, 'Storno statt Löschung — Periode abgeschlossen');
             return { storno: true };
         }
         this._addAuditEntry('loeschung', 'einkauf', id, p, null, 'Einkauf gelöscht (offene Periode)');
@@ -1707,8 +1748,14 @@ const Store = {
     stornoSale(id, grund, _allowInvoiceLinked) {
         const sales = this.getAllSalesRaw();
         const s = sales.find(x => x.id === id);
-        if (!s || s.storniert) return { ok: false };
+        if (!s || s.storniert || s.gegengebucht) return { ok: false };
         if (s._invoiceId && !_allowInvoiceLinked) return { blocked: true, reason: 'invoice' };
+        if (this.isPeriodLocked(s.datum)) {
+            // F6: Gegenbuchung statt rückwirkendem Storno (s. _gegenbuchen). Die Ware geht wie
+            // bisher ins Lager zurück; die Gegenbuchung selbst verknüpft keine Einkäufe.
+            this._gegenbuchen('sales', 'verkauf', s, ['verkaufspreis', 'versandkostenKaeufer', 'versandkostenVerkaufer', 'plattformgebuehr'], grund,
+                g => { delete g.purchaseId; delete g.purchaseIds; delete g._invoiceId; });
+        } else {
         const old = Object.assign({}, s);
         s.storniert = true;
         s.storniertAm = new Date().toISOString();
@@ -1716,6 +1763,7 @@ const Store = {
         this._stampRecord(s);
         this.set('sales', sales);
         this._addAuditEntry('storniert', 'verkauf', id, old, s, grund || 'Verkauf storniert');
+        }
         // Einkauf(e) wieder freigeben - unterstützt einzelne (purchaseId) und mehrere (purchaseIds).
         // Gesperrte (festgeschriebene) Einkäufe bleiben unangetastet — sonst GoBD-Unveränderbarkeit umgangen.
         const purchases = this.getAllPurchasesRaw();
@@ -1744,7 +1792,7 @@ const Store = {
         if (!s) return { ok: false };
         if (s._invoiceId) return { blocked: true, reason: 'invoice' }; // stammt aus Rechnung → über die Rechnung stornieren
         if (this.isLocked(s)) {
-            if (!s.storniert) this.stornoSale(id, 'Storno statt Löschung — Periode abgeschlossen');
+            if (!s.storniert && !s.gegengebucht) this.stornoSale(id, 'Storno statt Löschung — Periode abgeschlossen');
             return { storno: true };
         }
         this._addAuditEntry('loeschung', 'verkauf', id, s, null, 'Verkauf gelöscht (offene Periode)');
@@ -1820,7 +1868,11 @@ const Store = {
     stornoExpense(id, grund) {
         const expenses = this.getAllExpensesRaw();
         const e = expenses.find(x => x.id === id);
-        if (!e || e.storniert) return;
+        if (!e || e.storniert || e.gegengebucht) return;
+        if (this.isPeriodLocked(e.datum)) {
+            this._gegenbuchen('expenses', 'ausgabe', e, ['betrag'], grund);
+            return;
+        }
         const old = Object.assign({}, e);
         e.storniert = true;
         e.storniertAm = new Date().toISOString();

@@ -116,5 +116,23 @@ let n = 0; const ok = t => { n++; console.log('✓ ' + t); };
         assert.strictEqual(tab('retouren.csv')[0]['Erstattung (EUR)'], '20');
         ok('F3: Retouren-Tabelle enthalten');
     }
-    console.log('\n' + n + '/9 GoBD-Restore/Retoure/Z3-Tests bestanden');
+    // F6 — Storno im abgeschlossenen Jahr als Gegenbuchung zum Stornodatum
+    {
+        const c = welt(), S = c.Store;
+        S.saveSale({ datum: '2025-06-01', verkaufspreis: 119, steuersatz: 19 });
+        S.saveExpense({ datum: '2025-06-02', betrag: 50, ustSatz: 0, kategorie: 'Büro', beschreibung: 'Papier' });
+        S.closeYear(2025);
+        const vorher = c.Euer._berechne(2025, 0, 'jahr').gewinn;
+        S.stornoSale(S.getSales()[0].id, 'Falsch erfasst');
+        S.stornoExpense(S.getExpenses()[0].id, 'Doppelt');
+        const jahr = parseInt(new Date().toLocaleDateString('sv-SE').slice(0, 4), 10);
+        assert.strictEqual(c.Euer._berechne(2025, 0, 'jahr').gewinn, vorher, 'abgeschlossenes Jahr hat sich verändert');
+        assert.strictEqual(Math.round(c.Euer._berechne(jahr, 0, 'jahr').gewinn * 100) / 100, -69, 'Gegenbuchung fehlt im Stornojahr');
+        const orig = S.getAllSalesRaw().find(x => x.datum === '2025-06-01');
+        assert.ok(orig.gegengebucht && !orig.storniert && S.isLocked(orig), 'Original nicht als gegengebucht markiert');
+        assert.strictEqual(S.stornoSale(orig.id).ok, false, 'zweiter Storno möglich');
+        assert.ok(S.getAuditLog().some(e => /Gegenbuchung/.test(e.details || '')), 'Gegenbuchung nicht protokolliert');
+        ok('F6: Storno im abgeschlossenen Jahr lässt 2025 unverändert und bucht −119/+50 zum Stornodatum');
+    }
+    console.log('\n' + n + '/10 GoBD-Restore/Retoure/Z3-Tests bestanden');
 })().catch(e => { console.error(e); process.exit(1); });

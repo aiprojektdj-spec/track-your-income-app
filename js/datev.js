@@ -756,7 +756,11 @@ var DatevExport = (function () {
           .map(function (r) {
             var cols = SPALTEN.map(function (_, i) { return istText[i] ? '""' : ''; });
             cols[0]  = amtDe(Math.abs(parseFloat(r.umsatz) || 0));      //  1 Umsatz, immer positiv
-            cols[1]  = txt(r.sh);                                        //  2 Soll/Haben
+            // Negativer Betrag (z. B. Storno-Gegenbuchung, Steuer-Audit 2026-10-18 F6): Betrag
+            // positiv, Soll/Haben getauscht — sonst würde aus einer Korrektur ein zweiter Erlös
+            var sh = r.sh;
+            if ((parseFloat(r.umsatz) || 0) < 0) sh = sh === 'S' ? 'H' : 'S';
+            cols[1]  = txt(sh);                                          //  2 Soll/Haben
             cols[2]  = txt('EUR');                                       //  3 WKZ Umsatz
             cols[6]  = r.konto;                                          //  7 Konto
             cols[7]  = r.gegenkonto;                                     //  8 Gegenkonto

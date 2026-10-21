@@ -629,7 +629,7 @@ const CompanyManager = {
                     </div>
                 </div>
                 <div style="font-size:13px;color:var(--text-muted);">
-                    Stelle sicher, dass du vorher ein Backup erstellt hast.
+                    Stelle sicher, dass du vorher ein Backup erstellt hast. Aufbewahrungspflicht: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege und Rechnungen 8 Jahre (§147 Abs. 3 AO, §14b UStG), jeweils ab Ende des Kalenderjahres. Exportiere die Daten vorher (Backup, Steuerberater-Export oder Z3-Datenträger), wenn noch Fristen laufen.
                 </div>
                 <div style="display:flex;gap:10px;">
                     <button class="btn btn-outline" data-action="close-modal" style="flex:1;">Abbrechen</button>

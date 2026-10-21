@@ -3219,7 +3219,10 @@ const App = {
                         <li>Akademie-Fortschritt &amp; Achievements</li>
                     </ul>
                     <p style="color:var(--text-secondary);font-size:12px;margin:0 0 8px;">
-                        <strong>Erhalten bleiben:</strong> Audit-Log (GoBD), App-Einstellungen, Theme, Backup-Konfiguration, Passwort.
+                        <strong>Erhalten bleiben:</strong> Audit-Log (GoBD), Rechnungs- und Belegnummernkreise (keine Nummer wird doppelt vergeben), App-Einstellungen, Theme, Backup-Konfiguration, Passwort.
+                    </p>
+                    <p style="color:var(--text-secondary);font-size:12px;margin:0 0 8px;">
+                        <strong>Aufbewahrungspflicht: Bücher und Aufzeichnungen 10 Jahre, Buchungsbelege und Rechnungen 8 Jahre (§147 Abs. 3 AO, §14b UStG), jeweils ab Ende des Kalenderjahres. Exportiere die Daten vorher (Backup, Steuerberater-Export oder Z3-Datenträger), wenn noch Fristen laufen.</strong>
                     </p>
                     <p style="color:var(--text-secondary);font-size:12px;margin:0;">
                         ${(typeof CloudSync !== 'undefined' && document.getElementById('cloudSyncDot') && localStorage.getItem('oyi_sync_enabled') === '1')

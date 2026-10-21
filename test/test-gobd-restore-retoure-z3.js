@@ -146,5 +146,15 @@ let n = 0; const ok = t => { n++; console.log('✓ ' + t); };
         assert.strictEqual(S.saveKassenEintrag({ datum: '2025-12-15', typ: 'Einnahme', betrag: 5, beschreibung: 'Nachtrag' }), null, 'Nachtrag im abgeschlossenen Jahr');
         ok('F5: negativer Tagesbestand erkannt (05.03. −80 €), Nachtrag im abgeschlossenen Jahr abgelehnt');
     }
-    console.log('\n' + n + '/11 GoBD-Restore/Retoure/Z3-Tests bestanden');
+    // F8 — "Alle Daten löschen" setzt den Rechnungsnummernkreis nicht zurück
+    {
+        const c = welt(), S = c.Store;
+        const nr1 = await S.nextRechInvoiceNumber('rechnung');
+        S.saveRechInvoice({ id: 'x1', nummer: nr1, typ: 'rechnung', status: 'versendet', datum: '2026-10-01', positionen: [] });
+        S.clearAll();
+        assert.strictEqual(S.getRechInvoices().length, 0, 'Rechnungen nicht gelöscht');
+        assert.notStrictEqual(await S.nextRechInvoiceNumber('rechnung'), nr1, 'Nummer nach Löschen erneut vergeben');
+        ok('F8: nach „Alle Daten löschen“ läuft der Nummernkreis weiter');
+    }
+    console.log('\n' + n + '/12 GoBD-Restore/Retoure/Z3-Tests bestanden');
 })().catch(e => { console.error(e); process.exit(1); });

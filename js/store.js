@@ -3488,8 +3488,13 @@ const Store = {
         // 1. Haupt-Daten der AKTIVEN FIRMA aus Cache + IDB löschen (andere Firmen unangetastet)
         const pfx  = this._prefix;
         const rPfx = this._rechPrefix;
+        // Nummernkreise laufen weiter: eine schon vergebene Rechnungs-/Storno-/Eigenbelegnummer
+        // darf nach dem Löschen nicht erneut vergeben werden (§14 Abs. 4 Nr. 4 UStG). Vorher hieß
+        // die nächste Rechnung wieder RE-…-001 (Steuer-Audit 2026-10-18, F8; Entscheidung des
+        // Users vom 2026-10-20: Löschen bleibt möglich, mit Warnung, Zähler bleibt).
+        const behalten = [pfx + 'invoice_counter', rPfx + 'invoice_counter'];
         const keysToDelete = Object.keys(this._cache).filter(k =>
-            k.startsWith(pfx) || k.startsWith(rPfx)
+            (k.startsWith(pfx) || k.startsWith(rPfx)) && behalten.indexOf(k) === -1
         );
         keysToDelete.forEach(k => {
             delete this._cache[k];
@@ -3498,7 +3503,7 @@ const Store = {
 
         // 2. Eigenbelege-Daten der AKTIVEN FIRMA (IDB-Cache + evtl. localStorage-Altlast)
         const ebPfx = this._ebKeyPrefix;
-        this._EIGENBELEG_KEYS.forEach(k => {
+        this._EIGENBELEG_KEYS.filter(k => k !== 'eigenbelege_naechste_nummer').forEach(k => {
             const fk = ebPfx + k;
             delete this._cache[fk];
             this._idbDelete(fk);

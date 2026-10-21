@@ -156,5 +156,15 @@ let n = 0; const ok = t => { n++; console.log('✓ ' + t); };
         assert.notStrictEqual(await S.nextRechInvoiceNumber('rechnung'), nr1, 'Nummer nach Löschen erneut vergeben');
         ok('F8: nach „Alle Daten löschen“ läuft der Nummernkreis weiter');
     }
-    console.log('\n' + n + '/12 GoBD-Restore/Retoure/Z3-Tests bestanden');
+    // F9 — "UVA eingereicht" sperrt die Periode und steht im Protokoll
+    {
+        const c = welt(), S = c.Store;
+        S.saveUstPeriode({ year: 2026, quartal: 1, eingereichtAm: '2026-07-08', snapshot: { zahllast: 19 } });
+        const e = S.getAuditLog().find(x => /Q2\/2026 als eingereicht markiert/.test(x.details || ''));
+        assert.ok(e, 'Einreichen nicht protokolliert');
+        assert.ok(!(e.newValues && e.newValues.snapshot), 'Snapshot gehört nicht ins Protokoll');
+        assert.ok(S.isPeriodLocked('2026-05-01'), 'Periode nicht gesperrt');
+        ok('F9: eingereichte UVA Q2/2026 protokolliert und gesperrt');
+    }
+    console.log('\n' + n + '/13 GoBD-Restore/Retoure/Z3-Tests bestanden');
 })().catch(e => { console.error(e); process.exit(1); });

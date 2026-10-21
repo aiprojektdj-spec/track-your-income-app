@@ -69,4 +69,18 @@ const r2 = v => Math.round(v * 100) / 100;
     assert.ok(!/wieder ab 1\.1\.2023/.test(src));
     ok('E-12: Hinweise Nutzungsdauer Computer 1 J. und degressive Zeitfenster aktuell');
 }
-console.log('\n' + n + '/6 P2-Werte-Tests bestanden');
+// E-11 / E-13 — Grundfreibetrag je Jahr, GbR-Anteile auf Cent ohne Rundungsverlust
+{
+    const c = ladeModule(['js/lohnsteuer.js'], { Store: { get: () => null }, Utils: {} });
+    assert.strictEqual(c.Lohnsteuer._grundfreibetrag(2025), 12096);
+    assert.strictEqual(c.Lohnsteuer._grundfreibetrag(2026), 12348);
+    c.Lohnsteuer._year = 2026;
+    assert.strictEqual(c.Lohnsteuer._calcMonat(1100, 1).lohnsteuer, 0, '1.100 €/Monat: 13.200 − 1.266 € Pauschbeträge < 12.348 €');
+    const g = ladeModule(['js/gbr.js'], { Store: { get: () => null, set() {} }, Utils: {} });
+    const t = g.GbR._aufCent(1000.01, [0.5, 0.5]);
+    assert.strictEqual(Math.round((t[0] + t[1]) * 100), 100001);
+    const d = g.GbR._aufCent(100, [1 / 3, 1 / 3, 1 / 3]);
+    assert.strictEqual(Math.round(d.reduce((a, b) => a + b, 0) * 100), 10000);
+    ok('E-11/E-13: Grundfreibetrag je Jahr, 1.100 €/Monat ohne Lohnsteuer; GbR-Anteile summieren sich exakt');
+}
+console.log('\n' + n + '/7 P2-Werte-Tests bestanden');

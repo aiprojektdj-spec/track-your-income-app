@@ -2032,8 +2032,15 @@ const Store = {
     saveUstPeriode(p) {
         const list = this.getUstPerioden();
         const idx = list.findIndex(x => x.year === p.year && x.quartal === p.quartal && x.monat === p.monat);
+        const alt = idx >= 0 ? list[idx] : null;
         if (idx >= 0) list[idx] = p; else list.push(p);
         this.set('ust_perioden', list);
+        // Das Einreichen sperrt die Periode (isPeriodLocked) — eine Festschreibung gehört ins
+        // Protokoll (Steuer-Audit 2026-10-18, F9). Snapshot nicht ins Protokoll kopieren.
+        const ohneSnapshot = x => x ? Object.assign({}, x, { snapshot: undefined }) : null;
+        this._addAuditEntry('status_geaendert', 'system', 'ust_' + p.year + '_' + (p.monat ? 'm' + p.monat : 'q' + ((p.quartal || 0) + 1)),
+            ohneSnapshot(alt), ohneSnapshot(p),
+            'USt-Voranmeldung ' + (p.monat ? p.monat + '/' : 'Q' + ((p.quartal || 0) + 1) + '/') + p.year + (p.eingereichtAm ? ' als eingereicht markiert (festgeschrieben)' : ' geändert'));
     },
 
     // ============================================

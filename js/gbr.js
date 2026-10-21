@@ -119,18 +119,33 @@ const GbR = {
     },
 
     // Gewinnverteilung auf alle Gesellschafter
+    // Anteile auf Cent so verteilt, dass ihre Summe genau den Gewinn ergibt (Methode des größten
+    // Rests) — vorher wurden 1.000,01 € als zwei Anteile mit 1.000,00 € Summe exportiert
+    // (Steuer-Audit 2026-10-18, E-13).
+    _aufCent(gesamt, faktoren) {
+        const cent = Math.round((gesamt || 0) * 100);
+        const roh = faktoren.map(f => cent * f);
+        const basis = roh.map(v => Math.floor(v));
+        let rest = cent - basis.reduce((a, b) => a + b, 0);
+        roh.map((v, i) => ({ i, r: v - basis[i] })).sort((a, b) => b.r - a.r)
+            .forEach(x => { if (rest > 0) { basis[x.i]++; rest--; } });
+        return basis.map(c => c / 100);
+    },
+
     berechneVerteilung(gewinn) {
         const list    = this.getGesellschafter();
         const gewSt   = this.berechneGewSt(gewinn);
         const sumPct  = this.sumAnteile();
-        return list.map(g => {
+        const faktoren = list.map(g => sumPct > 0 ? (parseFloat(g.anteil) || 0) / sumPct : 0);
+        const anteile  = this._aufCent(gewinn, faktoren);
+        return list.map((g, i) => {
             const pct      = parseFloat(g.anteil) || 0;
             const faktor   = sumPct > 0 ? pct / sumPct : 0;
             return {
                 id:           g.id,
                 name:         g.name,
                 anteil:       pct,
-                gewinnanteil: gewinn * faktor,
+                gewinnanteil: sumPct > 0 ? anteile[i] : 0,
                 gewStAnteil:  gewSt  * faktor,
             };
         });

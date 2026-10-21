@@ -37,6 +37,17 @@ const Lohnsteuer = {
     _saveEmployees(d) { Store.set('lohnsteuer_employees', d); },
 
     // ── Brutto → Netto (vereinfacht) ──
+    // Grundfreibetrag nach §32a Abs. 1 EStG je Jahr (CLAUDE.md Regel 7) — hier stand fest 11.604 €,
+    // weder der Wert für 2025 noch für 2026 (Steuer-Audit 2026-10-18, E-11). Unbekanntes Folgejahr:
+    // letzter bekannter Wert.
+    _grundfreibetrag(year) {
+        const werte = { 2024: 11784, 2025: 12096, 2026: 12348 };
+        const y = parseInt(year, 10) || new Date().getFullYear();
+        if (werte[y]) return werte[y];
+        const jahre = Object.keys(werte).map(Number).sort((a, b) => a - b);
+        return y < jahre[0] ? werte[jahre[0]] : werte[jahre[jahre.length - 1]];
+    },
+
     _calcMonat(brutto, steuerklasse) {
         brutto = parseFloat(brutto) || 0;
         steuerklasse = parseInt(steuerklasse) || 1;
@@ -45,7 +56,10 @@ const Lohnsteuer = {
         // Exakte Berechnung erfordert BMF-Algorithmus — hier Näherung
         const jahresBrutto = brutto * 12;
         let lstSatz = 0;
-        if (jahresBrutto <= 11604)      lstSatz = 0;        // Grundfreibetrag 2025
+        // Arbeitnehmer-Pauschbetrag 1.230 € (§9a S.1 Nr.1a EStG) und Sonderausgaben-Pauschbetrag 36 €
+        // (§10c EStG) mindern vor dem Vergleich mit dem Grundfreibetrag — sonst 154 € Lohnsteuer auf
+        // 1.100 €/Monat, wo keine anfällt (E-11). Die übrige Näherung bleibt unverändert.
+        if (jahresBrutto - 1230 - 36 <= this._grundfreibetrag(this._year)) lstSatz = 0;
         else if (jahresBrutto <= 17005) lstSatz = 0.14;
         else if (jahresBrutto <= 66760) lstSatz = 0.24;
         else if (jahresBrutto <= 277825) lstSatz = 0.35;

@@ -602,9 +602,15 @@ const Dashboard = {
 
         this._renderChartData('dashChartData', 'Einnahmen und Ausgaben ' + year, labels, [{ name: 'Einnahmen', data: einnahmen }, { name: 'Ausgaben', data: ausgaben }]);
         if (typeof ApexCharts === 'undefined') return;
+        // Wellendiagramm: geglättete Flächen statt Balken, Monatsnamen bleiben alle sichtbar.
+        const base = this._chartOptions('area', 300, labels, [einnahmen, ausgaben]);
         this._chart = new ApexCharts(el, {
-            ...this._chartOptions('bar', 300, labels, [einnahmen, ausgaben]),
-            series: [{ name: 'Einnahmen', data: einnahmen }, { name: 'Ausgaben', data: ausgaben }]
+            ...base,
+            series: [{ name: 'Einnahmen', data: einnahmen }, { name: 'Ausgaben', data: ausgaben }],
+            stroke: { curve: 'smooth', width: 2 },
+            fill: { type: 'gradient', gradient: { shadeIntensity: 0, opacityFrom: 0.35, opacityTo: 0.02, stops: [0, 95] } },
+            markers: { size: 0, hover: { size: 4 } },
+            xaxis: { ...base.xaxis, labels: { ...base.xaxis.labels, formatter: value => value } }
         });
         this._chart.render();
     },

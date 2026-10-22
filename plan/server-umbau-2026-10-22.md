@@ -265,7 +265,7 @@ dauerhafter Local-only-Modus (doppelte Pflege).
 ```text
 R0  Fragen geklärt (F2–F5 User, F1/F6 Annahme) — erledigt 2026-10-22   ─┐
 R1  Recht anstoßen: Supabase-DPA, Vercel-DPA prüfen, Anwalt-Termin      │ parallel
-R2  Migration Phase 1 (companies, members, records, settings,          ─┘
+R2  Migration Phase 1 — gebaut, Preview offen (companies, members, records, settings, ─┘
     nummernkreise, perioden, audit_log, anhaenge, auth_cache, RLS,
     Shopify-FK) → stackr-preview (User führt aus), RLS-Testfälle
 R3  api/_auth.js + api/data.js (pull/push/changes/migrate) + Tests      ← R2

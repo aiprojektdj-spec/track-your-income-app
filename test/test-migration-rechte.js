@@ -13,6 +13,11 @@
 //               (ausdrücklich oder über die sync_%-Schleife in derselben Datei),
 //               nie SECURITY DEFINER,
 //               und ab 20261009000001_search_path.sql eine eigene `set search_path`.
+//   Ausnahme RLS-Weg E-A (ab 20261022000002_server_datenmodell.sql): eine Funktion, die in
+//   derselben Datei per `alter function … owner to stackr_app` an stackr_app geht, darf
+//   SECURITY DEFINER sein und braucht kein sync_-Präfix; ihr grant darf an stackr_app statt
+//   an service_role gehen. Die Einzelheiten (set_config, search_path, wer was ausführen darf)
+//   prüft test/test-server-datenmodell.js.
 // Ein `create or replace` einer schon früher angelegten Funktion (gleiche Signatur) behält
 // ihre Rechte in Postgres und braucht kein erneutes revoke.
 // =============================================================================
@@ -51,6 +56,10 @@ function pruefe(files) {
         }
         const fnGrant = new Set([...sql.matchAll(/grant\s+execute\s+on\s+function\s+(.+?)\s+to\s+service_role/gi)]
             .map(m => sigNorm(m[1])));
+        const fnGrantApp = new Set([...sql.matchAll(/grant\s+execute\s+on\s+function\s+(.+?)\s+to\s+stackr_app/gi)]
+            .map(m => sigNorm(m[1])));
+        const appEigen = new Set([...sql.matchAll(/alter\s+function\s+(\w+\s*\([^)]*\))\s+owner\s+to\s+stackr_app/gi)]
+            .map(m => sigNorm(m[1])));
 
         for (const m of sql.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?(\w+)\s*\(([\s\S]*?)\n\);/gi)) {
             const t = m[1].toLowerCase();
@@ -67,14 +76,16 @@ function pruefe(files) {
 
         for (const m of sql.matchAll(/create\s+(?:or\s+replace\s+)?function\s+(\w+)\s*\(([^)]*)\)([\s\S]*?)\bas\s+\$/gi)) {
             const name = m[1].toLowerCase(), sig = name + '(' + argTypen(m[2]) + ')', kopf = m[3];
-            if (/security\s+definer/i.test(kopf)) fehler.push(f.name + ': ' + sig + ' ist SECURITY DEFINER');
+            const app = appEigen.has(sig);
+            if (/security\s+definer/i.test(kopf) && !app) fehler.push(f.name + ': ' + sig + ' ist SECURITY DEFINER');
             if (f.name >= SEARCH_PATH_AB && !/set\s+search_path/i.test(kopf))
                 fehler.push(f.name + ': ' + sig + ' ohne feste search_path');
             if (bekannt.has(sig)) continue;   // create or replace behält die Rechte
             bekannt.add(sig);
-            if (name.indexOf('sync_') !== 0) { fehler.push(f.name + ': ' + sig + ' ohne sync_-Präfix'); continue; }
+            if (name.indexOf('sync_') !== 0 && !app) { fehler.push(f.name + ': ' + sig + ' ohne sync_-Präfix'); continue; }
             if (!hatSchleife && !fnRevoke.has(sig)) fehler.push(f.name + ': ' + sig + ' ohne revoke');
-            if (!hatSchleife && !fnGrant.has(sig))  fehler.push(f.name + ': ' + sig + ' ohne grant an service_role');
+            if (!hatSchleife && !fnGrant.has(sig) && !(app && fnGrantApp.has(sig)))
+                fehler.push(f.name + ': ' + sig + ' ohne grant an service_role');
         }
     }
     return fehler;

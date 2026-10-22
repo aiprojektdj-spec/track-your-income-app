@@ -37,7 +37,10 @@ pass++; console.log('✓ ' + calls.length + ' rpc-Aufrufe passen zur Migration')
 
 // Jede Funktion bekommt ihre Rechte nur über den Schleifenblock am Ende — der greift per
 // Namensmuster. Eine Funktion ohne sync_-Präfix wäre für anon aufrufbar.
-for (const name of Object.keys(fns)) assert.ok(/^sync_/.test(name), 'Funktion ohne sync_-Präfix: ' + name);
+// Ausnahme: Funktionen des RLS-Wegs E-A (Eigentümer stackr_app) bringen ihr revoke einzeln
+// mit; das prüfen test/test-migration-rechte.js und test/test-server-datenmodell.js.
+const stackrApp = new Set([...sql.matchAll(/alter function (\w+)\([^)]*\)\s+owner to stackr_app/g)].map(m => m[1]));
+for (const name of Object.keys(fns)) assert.ok(/^sync_/.test(name) || stackrApp.has(name), 'Funktion ohne sync_-Präfix: ' + name);
 assert.ok(/revoke all on function %s from public, anon, authenticated/.test(sql));
 pass++; console.log('✓ alle Funktionen fallen unter den Rechte-Entzug');
 

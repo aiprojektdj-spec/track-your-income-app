@@ -221,5 +221,27 @@ const quiet = (fn) => async (...a) => { const e = console.error, w = console.war
     await assert.rejects(() => BA.get('sb:x'), /^Error: blob_get_/, 'Fehler bleiben blob_get_* (Netz statt falscher Schlüssel)');
     ok('Browser: ein sign-Request je Scope, owner wird durchgereicht');
 
+    // ── 6. Hydrierte Anhänge werden beim Push nicht erneut hochgeladen ────────
+    // Kundenfall 2026-10-22: Budget (1 GB/30 Tage) leer, weil jeder Push alle Anhänge
+    // neu hochlud. hydrateFields vermerkt die vorhandene Referenz im Cache.
+    const big = 'x'.repeat(30000), puts = [];
+    global.fetch = async (url, opts) => {
+        if (url === '/api/blob-upload?action=sign') {
+            const b = JSON.parse(opts.body);
+            return { ok: true, status: 200, json: async () => ({ urls: b.urls.map(u => 'https://signed/' + u) }) };
+        }
+        if (url.startsWith('https://signed/')) return { ok: true, arrayBuffer: async () => new TextEncoder().encode(big).buffer };
+        if (url.indexOf('action=put') !== -1) { puts.push(url); return { ok: true, status: 200, json: async () => ({ url: 'sb:neu' }) }; }
+        return { ok: false, status: 404, json: async () => ({}) };
+    };
+    const ref = { __blobref__: 1, url: 'sb:alt', iv: 'i', mime: 'image/jpeg' };
+    const pulled = { k: [{ foto: ref }] }, cache = {};
+    await BA.hydrateFields(pulled, async (ct) => ct, null, cache);
+    assert.ok(pulled.k[0].foto.indexOf('data:image/jpeg;base64,') === 0);
+    await BA.offloadLargeFields('co_a', pulled, async (b) => ({ ct: Buffer.from(b).toString('base64'), iv: 'i' }), cache);
+    assert.strictEqual(puts.length, 0, 'kein erneuter Upload');
+    assert.strictEqual(pulled.k[0].foto, ref, 'vorhandene Referenz wiederverwendet');
+    ok('Browser: hydrierter Anhang wird beim Push nicht neu hochgeladen');
+
     console.log('\n' + pass + '/' + pass + ' Blob-Storage-Tests bestanden ✅');
 })().catch(e => { console.error(e); process.exit(1); });

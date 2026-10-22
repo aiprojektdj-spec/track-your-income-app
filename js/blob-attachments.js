@@ -250,7 +250,10 @@ var BlobAttachments = (function () {
     // decryptBytes: async(Uint8Array ct, base64 iv) => Uint8Array plaintext
     // owner: siehe get(). Alle Referenzen eines Scopes werden gebündelt signiert —
     // ein sign-Request je Anhang würde das Rate-Limit von api/blob-upload.js reißen.
-    async function hydrateFields(keys, decryptBytes, owner) {
+    // cache (optional): derselbe Cache wie bei offloadLargeFields. Jeder hydrierte Anhang
+    // wird dort mit seiner vorhandenen Referenz vermerkt — sonst lädt der nächste Push ihn
+    // erneut hoch (zweites Gerät, verlorener localStorage-Cache) und frisst das Byte-Budget.
+    async function hydrateFields(keys, decryptBytes, owner, cache) {
         var found = [];
         function visit(obj) {
             if (!obj || typeof obj !== 'object') return;
@@ -269,6 +272,7 @@ var BlobAttachments = (function () {
             var ctBytes = await _download(urls[i]);
             var plain   = await decryptBytes(ctBytes, x.ref.iv);
             x.o[x.f] = _bytesToDataUrl(plain, x.ref.mime || 'application/octet-stream');
+            if (cache) cache[_fnv1a(x.o[x.f])] = x.ref;
         }));
         return keys;
     }

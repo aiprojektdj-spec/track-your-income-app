@@ -522,8 +522,18 @@ var CloudSync = (function () {
     // ── Konflikt-Basis: updatedAt je Record zum Zeitpunkt des letzten Syncs ────
     function _getBase(scope) { try { return JSON.parse(localStorage.getItem(LS_BASE(scope)) || '{}'); } catch (e) { return {}; } }
     function _saveBase(scope, b) { try { localStorage.setItem(LS_BASE(scope), JSON.stringify(b)); } catch (e) {} }
-    function _getBlobCache(scope) { try { return JSON.parse(localStorage.getItem(LS_BLOBCACHE(scope)) || '{}'); } catch (e) { return {}; } }
-    function _saveBlobCache(scope, c) { try { localStorage.setItem(LS_BLOBCACHE(scope), JSON.stringify(c)); } catch (e) {} }
+    // Zusätzlich im Speicher: scheitert das Schreiben in localStorage (Quota voll), lud
+    // sonst jeder Push alle Anhänge neu hoch, bis das Byte-Budget (1 GB/30 Tage) leer war.
+    var _blobCacheMem = {};
+    function _getBlobCache(scope) {
+        var ls = {};
+        try { ls = JSON.parse(localStorage.getItem(LS_BLOBCACHE(scope)) || '{}'); } catch (e) {}
+        return Object.assign({}, _blobCacheMem[scope], ls);
+    }
+    function _saveBlobCache(scope, c) {
+        _blobCacheMem[scope] = c;
+        try { localStorage.setItem(LS_BLOBCACHE(scope), JSON.stringify(c)); } catch (e) {}
+    }
     // ── Offene Konflikte persistieren (überleben Reload, dedupe scope+key+id) ──
     function _loadConflicts() { try { return JSON.parse(localStorage.getItem(LS_CONFLICTS) || '[]'); } catch (e) { return []; } }
     function _clearConflicts() { try { localStorage.removeItem(LS_CONFLICTS); } catch (e) {} }
@@ -830,7 +840,13 @@ var CloudSync = (function () {
             }
             // Ausgelagerte große Felder (Logo/Foto/PDF) wieder zu voller "data:"-URL machen,
             // BEVOR gemerged wird — der Merge kennt nur echte Werte, keine Blob-Referenzen.
-            if (remote) await BlobAttachments.hydrateFields(remote.keys, function (ct, iv) { return _decryptBytes(ct, iv, scope); });
+            // Die vorhandenen Referenzen landen dabei im Blob-Cache, damit der Push unten
+            // unveränderte Anhänge nicht erneut hochlädt.
+            if (remote) {
+                var hydCache = _getBlobCache(scope);
+                await BlobAttachments.hydrateFields(remote.keys, function (ct, iv) { return _decryptBytes(ct, iv, scope); }, null, hydCache);
+                _saveBlobCache(scope, hydCache);
+            }
         }
         var local  = _buildLocal(scope);
         var merged = _merge(scope, local, remote);

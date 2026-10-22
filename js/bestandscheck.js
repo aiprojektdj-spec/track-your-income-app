@@ -62,9 +62,13 @@ const Bestandscheck = {
     //    Gleich aussehende Zeilen aus EINEM Importlauf sind zwei echte Zahlungen (so wertet es
     //    auch der neue Import). Kommen sie aus verschiedenen Läufen, ist die wahre Anzahl die des
     //    größten Laufs (ein überlappender Auszug enthält alle) — der Rest ist doppelt.
+    // Stornierte Vorgänge und beide Seiten einer Gegenbuchung (F6) zählen nicht mehr mit.
+    _aktiv(r) {
+        return !!r && !r.storniert && !r.gegengebucht && !r._gegenbuchungZu;
+    },
     _bankDubletten(ctx) {
         const gruppen = {};
-        ctx.expenses.filter(e => e && e._bankImport && !e._bankTx && !e.storniert).forEach(e => {
+        ctx.expenses.filter(e => e && e._bankImport && !e._bankTx && this._aktiv(e)).forEach(e => {
             const k = [e.datum, this._cent(e.betrag), this._norm(e.beschreibung)].join('|');
             (gruppen[k] = gruppen[k] || []).push(e);
         });
@@ -212,7 +216,7 @@ const Bestandscheck = {
     // 3a. Firma ohne belegte USt-Historie: alles ohne Stempel läuft mit dem heutigen Modus.
     _historieUnbelegt(ctx) {
         if (!this._hatStatus() || !SteuerStatus.unbelegt(ctx.settings)) return null;
-        const ohne = [ctx.sales, ctx.purchases, ctx.expenses].reduce((n, l) => n + l.filter(r => r && !r.storniert && !r.ustBehandlung).length, 0);
+        const ohne = [ctx.sales, ctx.purchases, ctx.expenses].reduce((n, l) => n + l.filter(r => this._aktiv(r) && !r.ustBehandlung).length, 0);
         if (!ohne) return null;
         const modus = ctx.settings.ustMode === 'regel' ? 'Regelbesteuerung' : 'Kleinunternehmerregelung';
         return {
@@ -240,7 +244,7 @@ const Bestandscheck = {
         const eintraege = [];
         const arten = [['verkauf', ctx.sales, 'Verkauf'], ['einkauf', ctx.purchases, 'Einkauf'], ['ausgabe', ctx.expenses, 'Ausgabe']];
         arten.forEach(([typ, liste, label]) => {
-            liste.filter(r => r && !r.storniert && r.ustBehandlung !== 'klein' && r.ustBehandlung !== 'regel' && r.datum).forEach(r => {
+            liste.filter(r => this._aktiv(r) && r.ustBehandlung !== 'klein' && r.ustBehandlung !== 'regel' && r.datum).forEach(r => {
                 const modus = SteuerStatus.modeAm(r.datum, ctx.settings);
                 const name = modus === 'regel' ? 'Regelbesteuerung' : 'Kleinunternehmer';
                 const fest = this._gesperrt(r);
@@ -265,7 +269,7 @@ const Bestandscheck = {
     //    richtig ist, weiß nur der Nutzer: kein Vorschlag. Kriterium wie Euer.ohneSteuersatz.
     _ohneSteuersatz(ctx) {
         if (!this._hatStatus()) return null;
-        const eintraege = ctx.sales.filter(s => s && !s.storniert && !s._invoiceId
+        const eintraege = ctx.sales.filter(s => this._aktiv(s) && !s._invoiceId
             && SteuerStatus.istRegel(s, ctx.settings)
             && (s.steuersatz == null || s.steuersatz === '' || isNaN(parseFloat(s.steuersatz)))
             && !(s.steuersaetze && Object.keys(s.steuersaetze).length)
@@ -295,7 +299,7 @@ const Bestandscheck = {
         return this._UST_TEXT.test(t) || (this._UST_FA.test(t) && this._UST_WORT.test(t));
     },
     _ustZahlungKategorie(ctx) {
-        const eintraege = ctx.expenses.filter(e => e && !e.storniert && !/^Umsatzsteuer/.test(e.kategorie || '') && this._istUstZahlungText(e))
+        const eintraege = ctx.expenses.filter(e => this._aktiv(e) && !/^Umsatzsteuer/.test(e.kategorie || '') && this._istUstZahlungText(e))
             .map(e => {
                 const fest = this._gesperrt(e);
                 return {

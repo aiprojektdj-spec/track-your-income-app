@@ -117,7 +117,7 @@ check('Bank: Dublette im festgeschriebenen Jahr wird storniert, nicht gelöscht'
     assert.ok(/stornieren/.test(f.eintraege[0].korrektur.text));
     assert.ok(ctx.Bestandscheck.anwenden(f.eintraege[0].id).ok);
     const e2 = ctx.Store.getAllExpensesRaw().find(e => e.id === 'e2');
-    assert.ok(e2 && e2.storniert, 'storniert, noch vorhanden');
+    assert.ok(e2 && (e2.storniert || e2.gegengebucht), 'storniert, noch vorhanden');
     assert.ok(ctx.audit('e2').some(a => a.action === 'storniert'));
 });
 
@@ -249,8 +249,8 @@ check('USt-Zahlung im festgeschriebenen Zeitraum → Storno + Neubuchung, Origin
     assert.ok(ctx.Bestandscheck.anwenden(e.id).ok);
     const alle = ctx.Store.getAllExpensesRaw();
     const orig = alle.find(x => x.id === 'x1');
-    assert.ok(orig.storniert && orig.kategorie === 'Sonstiges', 'Original storniert, Inhalt unverändert');
-    const neu = alle.filter(x => !x.storniert);
+    assert.ok((orig.storniert || orig.gegengebucht) && orig.kategorie === 'Sonstiges', 'Original storniert, Inhalt unverändert');
+    const neu = alle.filter(x => !x.storniert && !x.gegengebucht && !x._gegenbuchungZu);
     assert.strictEqual(neu.length, 1);
     assert.strictEqual(neu[0].kategorie, 'Umsatzsteuer an Finanzamt');
     assert.strictEqual(neu[0].betrag, 300);

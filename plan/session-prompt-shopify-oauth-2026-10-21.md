@@ -3,6 +3,40 @@
 > Copy-Paste-Prompt für eine **neue** Session. Vor dem Greifen gegen den Code prüfen (Regel 3
 > der CLAUDE.md) — diese Datei veraltet, sobald der Server-Umbau Tabellen anlegt.
 
+## Stand 2026-10-22 — Stufe 1 gebaut (gegen den Code prüfen, nicht dieser Liste glauben)
+
+- **Gebaut + getestet:** `supabase/migrations/20261022000001_shopify.sql` (`integrations`,
+  `shopify_eingang`, 8 `sync_shopify_*`-Funktionen), `api/shopify-install.js`,
+  `api/shopify-callback.js`, `api/shopify-webhook.js`, Erweiterung `api/_shopify.js`
+  (state trägt Nutzer+Firma signiert, GraphQL, Webhook-Abos, Bestellungen laden),
+  `test/test-shopify-endpunkte.js`.
+- **Migration noch in KEINEM Projekt ausgeführt** (auch Syntax nicht gegen echtes Postgres
+  geprüft) — erst stackr-preview, dann stackr-prod.
+- **Abweichung vom Plan:** Webhook speichert nicht den Inhalt (Namen/E-Mail/Anschriften),
+  sondern meldet nur die Bestell-ID und lädt die Bestellung per GraphQL in den Buchungsfeldern
+  (inkl. Gebühren, die im Webhook fehlen). Scheitert das Laden, bleibt die Zeile `neu`.
+- **Erstimport:** im Callback nur ~4 s; Rest als `import_cursor` (`'*'` = von vorn, `null` =
+  fertig). Fortsetzung macht Stufe 2.
+- **Stufe 2 entschieden (User 2026-10-22): B2 Server-Adapter**, wartet auf die
+  Buchungstabellen des Server-Umbaus. Kein B1-GET-Endpunkt.
+- **Annahme:** `company_id` aus dem Browser wird nur auf Format (`co_…`) geprüft — der Server
+  kennt die Firmen noch nicht. Mit dem Server-Umbau gegen die Firmentabelle prüfen.
+
+### Nur mit Partner-Account / Dev-Store prüfbar (aktualisiert 2026-10-22)
+
+1. Env `SHOPIFY_CLIENT_ID`, `SHOPIFY_CLIENT_SECRET`, `SHOPIFY_TOKEN_KEY` in Vercel (User).
+2. Erlaubte Redirect-URLs: `https://getstackr.de/api/shopify-callback` **und**
+   `https://track-your-income-app.vercel.app/api/shopify-callback` (Cookie hängt am Host).
+3. Pflicht-Webhooks (`customers/data_request`, `customers/redact`, `shop/redact`) in der
+   App-Konfiguration auf `https://getstackr.de/api/shopify-webhook`.
+4. `webhookSubscriptionCreate` mit Feld `uri` (statt abgekündigtem `callbackUrl`) in
+   `API_VERSION` 2026-10 — Feldname bestätigen; Antwort bei Doppel-Abo ("already been taken").
+5. Rohbody im Vercel-Webhook: kommt der Stream ungelesen an? (sonst 401 bei jedem Webhook).
+6. `orders(query: "id:…")` liefert genau die Bestellung; `OrderTransaction.fees`, `refunds`.
+7. Scopes live, `read_all_orders` + Protected Customer Data (Lieferland) beantragen.
+8. Echter HMAC-Rundweg Install → Callback; Testbestellungen inkl. Erstattung, §25a, EU-Ausland.
+9. `customers/data_request` meldet per `alertOps` (Make-Alarm) — Auskunft gibt der Händler.
+
 ---
 
 ## Prompt

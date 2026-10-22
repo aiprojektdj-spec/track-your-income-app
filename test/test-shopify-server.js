@@ -51,6 +51,12 @@ check('state: gültig nur mit passendem Cookie, Shop und innerhalb 10 Minuten', 
     assert.ok(!S.pruefeState(state, nonce, SHOP, SECRET, t + 11 * 60000), 'abgelaufen');
     assert.ok(!S.pruefeState(state, nonce, SHOP, 'anderes', t + 1000), 'falsches Secret');
     assert.ok(!S.pruefeState('kaputt', nonce, SHOP, SECRET, t), 'Format');
+    // Nutzer und Firma reisen signiert mit und lassen sich nicht austauschen
+    const mit = S.erzeugeState(SECRET, SHOP, t, { u: 'user_1', c: 'co_a' });
+    assert.deepStrictEqual(S.pruefeState(mit.state, mit.nonce, SHOP, SECRET, t), { u: 'user_1', c: 'co_a' });
+    const teile = mit.state.split('.');
+    teile[2] = Buffer.from(JSON.stringify({ u: 'user_2', c: 'co_a' })).toString('base64url');
+    assert.ok(!S.pruefeState(teile.join('.'), mit.nonce, SHOP, SECRET, t), 'Nutzer getauscht');
 });
 check('Install-URL: Offline-Token, kleinste Scopes, alles kodiert; fremde Domain wirft', () => {
     const u = new URL(S.installUrl({ shop: SHOP, clientId: 'cid', redirectUri: 'https://getstackr.de/api/shopify-callback', state: 'a.b.c' }));
@@ -78,8 +84,8 @@ check('Token-Verschlüsselung: Rundweg; anderer Shop, anderer Schlüssel, Manipu
     assert.throws(() => S.entschluesseleToken(t.join('.'), KEY, SHOP));
     assert.throws(() => S.verschluesseleToken('x', 'zukurz', SHOP));
 });
-check('Webhooks: Bestellungen versiegeln, Pflicht-Datenschutz-Themen zugeordnet', () => {
-    assert.deepStrictEqual(S.webhookAktion('orders/paid', { id: 1 }, SHOP), { aktion: 'versiegeln', shop: SHOP, orderId: '1' });
+check('Webhooks: Bestellungen speichern, Pflicht-Datenschutz-Themen zugeordnet', () => {
+    assert.deepStrictEqual(S.webhookAktion('orders/paid', { id: 1 }, SHOP), { aktion: 'speichern', shop: SHOP, orderId: '1' });
     assert.strictEqual(S.webhookAktion('refunds/create', { order_id: 7 }, SHOP).orderId, '7');
     assert.strictEqual(S.webhookAktion('orders/paid', {}, SHOP).aktion, 'ablehnen');
     assert.strictEqual(S.webhookAktion('app/uninstalled', {}, SHOP).aktion, 'integration_beenden');

@@ -90,8 +90,8 @@ Schlüssel übersehen (Module mit eigenen Schlüsseln: `svs_vorauszahlungen`, Fa
 
 ### RLS je Whop-User und Firma
 
-Whop ist kein Supabase-Auth-Anbieter; es gibt keinen Supabase-JWT des Nutzers. Empfehlung
-(**E-A**, siehe Fragen): E2/E3 bleiben — der Browser spricht nur mit `api/`. RLS wird trotzdem
+Whop ist kein Supabase-Auth-Anbieter; es gibt keinen Supabase-JWT des Nutzers.
+**Annahme (E-A, nicht vom User entschieden, als technische Empfehlung übernommen):** E2/E3 bleiben — der Browser spricht nur mit `api/`. RLS wird trotzdem
 echt wirksam:
 
 1. Eigene Rolle `stackr_app` (NOLOGIN, **ohne** BYPASSRLS), Eigentümer aller Datenfunktionen;
@@ -161,7 +161,7 @@ sich. Dadurch müssen die ~40 Module, die `Store.getX()` synchron aufrufen, nich
 | **P3 Regeln auf den Server**, je Modul | Nummernkreise (Rechnung, Eigenbeleg, Retoure) → Server vergibt. Festschreibung/`isLocked` → Server lehnt ab. Audit-Log → Server schreibt im selben Statement. Readonly-Firma → Rolle. Reihenfolge: Rechnungen → Eigenbelege → Verkäufe/Einkäufe/Lager → Retouren → Ausgaben/AfA/Privat → Rest. Browser-Prüfungen bleiben als UI-Vorwarnung. | Server (Regeln) | je Modul eigener Test, Browser-Test auf frischem Port |
 | **P4 Aufräumen** | Cloud-Sync, Tombstones, `_scopeKeys`, Merge-Code, Auto-Backup in OPFS/FS-Ordner entfernen bzw. auf Export reduzieren. | — | Grep, Testlauf |
 
-**Offline** (Frage F2): Empfehlung *Lesen offline ja, Schreiben nur online*. Die Outbox
+**Offline — entschieden (User, 2026-10-22): offline nur lesen.** Die Outbox
 überbrückt kurze Aussetzer (Minuten), aber keine Offline-Arbeit über Stunden — sonst
 kollidieren server-vergebene Nummern und Festschreibung. Bei Netzverlust Banner „nur lesen“.
 
@@ -185,10 +185,10 @@ kollidieren server-vergebene Nummern und Festschreibung. Bei Netzverlust Banner 
 4. Nach Erfolg: lokale Daten bleiben als Offline-Kopie; Cloud-Sync-Chiffrat des Nutzers wird
    nach 30 Tagen gelöscht (mit Hinweis).
 
-**Kunden, die sich nie wieder einloggen** (Frage F3): Der Server hat nur Chiffrat und kann
-nichts umziehen. Empfehlung: Stichtag 6 Monate nach Livegang; bis dahin bleibt der alte
+**Kunden, die sich nie wieder einloggen — entschieden (User, 2026-10-22):** Der Server hat nur
+Chiffrat und kann nichts umziehen. Stichtag 6 Monate nach Livegang; bis dahin bleibt der alte
 Cloud-Sync **nur lesend** (Pull für den Umzug). Ankündigung per E-Mail (Whop-Kundenliste) bei
-Livegang und 4 Wochen vor Stichtag. Danach Chiffrat löschen; Daten im Browser des Kunden
+Livegang und 4 Wochen vor Stichtag (Vorwarnung). Danach altes Chiffrat löschen; Daten im Browser des Kunden
 bleiben, die App bietet für nicht umgezogene Firmen nur noch Export + Umzug an. Kein
 dauerhafter Local-only-Modus (doppelte Pflege).
 
@@ -208,11 +208,16 @@ dauerhafter Local-only-Modus (doppelte Pflege).
   getrennte, nur anhängbare Tabelle; optional später extern (z. B. Mail an Ops-Alarm).
 - **Aufbewahrung:** Belege 8 Jahre (seit BEG IV, ab 2025), Bücher/Abschlüsse 10 Jahre
   (§147 AO, §257 HGB). Pflicht trifft den Kunden; Stackr muss Export in maschinell
-  auswertbarer Form liefern (Datenzugriff Z3). Nach Kündigung: Frage F4.
-- **Datensicherung:** Supabase Pro tägliche Backups (7 Tage). PITR ist Zusatzoption —
-  Frage F5. Löschanfragen (Art. 17) wirken auf Backups erst nach deren Ablauf; dokumentieren.
+  auswertbarer Form liefern (Datenzugriff Z3). **Nach Kündigung — entschieden (User,
+  2026-10-22):** 90 Tage Lesen + Export, dann Löschung mit Vorwarnung (E-Mail vor Ablauf).
+  In AGB §7 und Verfahrensdokumentation aufnehmen; der Kunde bleibt für die Aufbewahrung
+  selbst verantwortlich.
+- **Datensicherung — entschieden (User, 2026-10-22): kein PITR**, die täglichen Pro-Backups
+  (7 Tage) reichen. Bewusst in Kauf genommen: im Ernstfall bis zu **einem Tag Datenverlust**.
+  Das gehört ausdrücklich in die Verfahrensdokumentation (Abschnitt Datensicherung). Löschanfragen (Art. 17) wirken auf Backups erst nach deren Ablauf; dokumentieren.
 - **Verfahrensdokumentation:** `compliance/gobd-verfahrensdokumentation.md` umschreiben
-  (Speicherort, Rollen, Festschreibung, Protokoll, Datensicherung, Zugriff durch Stackr).
+  (Speicherort, Rollen, Festschreibung, Protokoll, Datensicherung inkl. „bis zu 1 Tag
+  Datenverlust, kein PITR“, 90-Tage-Frist nach Kündigung, Zugriff durch Stackr).
 
 ## 5. Recht (Anwalt-Freigabe vor Livegang)
 
@@ -258,7 +263,7 @@ dauerhafter Local-only-Modus (doppelte Pflege).
 ## 7. Reihenfolge und Abhängigkeiten
 
 ```text
-R0  Fragen F1–F6 klären (User)                                         ─┐
+R0  Fragen geklärt (F2–F5 User, F1/F6 Annahme) — erledigt 2026-10-22   ─┐
 R1  Recht anstoßen: Supabase-DPA, Vercel-DPA prüfen, Anwalt-Termin      │ parallel
 R2  Migration Phase 1 (companies, members, records, settings,          ─┘
     nummernkreise, perioden, audit_log, anhaenge, auth_cache, RLS,
@@ -280,19 +285,20 @@ R11 P4 Aufräumen nach Stichtag                                          ← R9 
 Jeder neue Endpunkt (`api/data.js`) und jede CSP-Zeile in `vercel.json` (pro Route) vorher
 mit dem User abstimmen. Prod-Migrationen führt der User aus, nie eine Session.
 
-## 8. Offene Fragen an den User
+## 8. Entscheidungen (Stand 2026-10-22)
 
-- **F1 RLS-Weg:** E-A (eigene Rolle + `set_config`, Browser weiter nur über `api/`) oder
-  E-B (selbst signierter Supabase-JWT)? *Empfehlung E-A.*
-- **F2 Offline:** nur lesen (Empfehlung) oder auch offline buchen?
-- **F3 Stichtag** für nicht umgezogene Kunden: 6 Monate (Empfehlung)? Danach Chiffrat löschen?
-- **F4 Nach Kündigung:** 90 Tage Lesen + Export, dann Löschung mit Vorwarnung (Empfehlung) —
-  oder ein (bezahlter) Archivzugang über die Aufbewahrungsfrist?
-- **F5 PITR** (Point-in-Time-Recovery, Supabase-Zusatzkosten) buchen? Empfehlung: ja ab
-  Livegang, für GoBD-Datensicherung.
-- **F6 Datenmodell:** jsonb-Datensatztabelle wie oben (Empfehlung) statt Fachtabellen?
+| Nr. | Thema | Stand |
+|---|---|---|
+| F1 | RLS-Weg | **Annahme E-A** (eigene Rolle + `set_config`, Browser nur über `api/`) — nicht vom User gefragt, technische Empfehlung übernommen |
+| F2 | Offline | **User:** nur lesen |
+| F3 | Nicht umgezogene Kunden | **User:** Stichtag 6 Monate, danach altes Chiffrat löschen, mit Vorwarnung |
+| F4 | Nach Kündigung | **User:** 90 Tage Lesen + Export, dann Löschung mit Vorwarnung |
+| F5 | PITR | **User:** nein; tägliche Pro-Backups, bis zu 1 Tag Datenverlust bewusst akzeptiert (→ Verfahrensdokumentation) |
+| F6 | Datenmodell | **Annahme:** jsonb-Datensatztabelle `records` statt Fachtabellen — nicht vom User gefragt, technische Empfehlung übernommen |
 
 ## Annahmen
+
+- F1 (RLS-Weg E-A) und F6 (jsonb-Datensatztabelle) — siehe Abschnitt 8.
 
 - Die Browser-Firmen-ID (`co_…`) wird Primärschlüssel in `companies` (kein Umschlüsseln,
   Shopify-`integrations.company_id` passt dadurch ohne Änderung).

@@ -69,7 +69,7 @@ Legende: ☐ offen · ☑ erledigt (Commit) · ⏸ wartet auf Entscheidung
 
 ## Batch 4 — P3
 
-~~U03~~ (☑ `5bf8220`) · ~~U07~~ (☑ `23fdcf2`) · ~~U08~~ (☑ dieser Commit) · ~~U10/U11/U12~~ (☑ `066bd19`; Kz 70 offen) · ~~B8/B9/B11~~ (☑ `f7a99b8`; datenschutz.html offen) · ~~E-11/E-13/F9-Rest~~ (☑ `aad6dc9`) · ~~E-12~~ (☑ `c7f1188`) — Details im Auditbericht §3 „P3“.
+~~U03~~ (☑ `5bf8220`) · ~~U07~~ (☑ `23fdcf2`) · ~~U08~~ (☑ dieser Commit) · ~~U10/U11/U12~~ (☑ `066bd19`; Kz 70 ☑ Kz70/R-L1a-Commit) · ~~B8/B9/B11~~ (☑ `f7a99b8`; datenschutz.html offen) · ~~E-11/E-13/F9-Rest~~ (☑ `aad6dc9`) · ~~E-12~~ (☑ `c7f1188`) — Details im Auditbericht §3 „P3“.
 
 ## Folgepunkte aus den Fixes
 
@@ -79,10 +79,11 @@ Legende: ☐ offen · ☑ erledigt (Commit) · ⏸ wartet auf Entscheidung
   Fahrt mit „tatsächlichen Kosten“ bucht 0 €. Offen dazu: DATEV-Konten für Bewirtung/Geschenke/GewSt
   (fallen auf „sonstige“; Sollwerte nur aus dem DATEV-Kontenrahmen), Nutzungsentnahme Kfz/Telefon,
   eigene Zeilen „nicht abziehbar“ im Anlage-EÜR-Export.
-- **Offen:** Kz 70 (Datum Wechsel KU→Regel) in der UVA; `kosit-proben/` mit dem neuen Code neu
+- **Offen:** `kosit-proben/` mit dem neuen Code neu
   erzeugen und beim KoSIT-Validator hochladen (User); `datenschutz.html:454` Fristbeginn
   Jahresende statt „letzte Eintragung“ (Rechtstext → User/Anwalt).
-- **Prüfen:** Logikreview-Hinweis „doppelte Soll-USt-Korrektur durch Stornodokument + Rückzahlung“.
+- ~~Logikreview R-L1a „doppelte Soll-USt-Korrektur durch Stornodokument + Rückzahlung“~~ — bestätigt
+  (Soll Q1/2026 −38 statt −19 €) und behoben im Kz70/R-L1a-Commit.
 - U06: Umsätze mit Anlagevermögen (§19 Abs. 2 S. 2 UStG) lassen sich noch nicht kennzeichnen und zählen mit.
 - Restore (F1) setzt Datensätze weiter auf den Backup-Stand zurück; nachvollziehbar über das Protokoll.
 

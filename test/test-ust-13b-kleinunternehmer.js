@@ -217,3 +217,36 @@ console.log('\n' + n + '/6 §13b-/KU-Tests bestanden');
     nah(q1(c).ust19, 19, 'U08: USt 19 % nach Sync');
     console.log('✓ U08: UVA synchronisiert bezahlte Rechnungen vor der Berechnung (119 € brutto → 19 € USt)');
 }
+// U10 / Kz. 70 — Zeile 12 USt 1 A 2026 (Anleitung USt 1 E 2026): Datum des Wechsels §19 → Regel
+{
+    const hist = ab => ({ ustMode: 'regel', ustVersteuerungsart: 'soll', ustModeHistorie: [{ ab: '0000-01-01', mode: 'klein' }, { ab, mode: 'regel' }] });
+    const kz70 = (c, s, e) => (c.UstVoranmeldung._buildRows(q1(c), s, e).find(r => r[0] === 'Kz. 70') || [])[2];
+    let c = welt({ settings: hist('2026-02-05') });
+    assert.strictEqual(kz70(c, '2026-01-01', '2026-03-31'), '05.02.2026', 'unterjährig: Datum des Grenzumsatzes');
+    assert.strictEqual(kz70(c, '2026-04-01', '2026-06-30'), undefined, 'nur im Zeitraum des Wechsels');
+    c = welt({ settings: hist('2026-01-01') });
+    c.Kleinunternehmer = { summe: () => 30000 };
+    assert.strictEqual(kz70(c, '2026-01-01', '2026-03-31'), undefined, 'Vorjahr > 25.000 €: kein Datum');
+    c.Kleinunternehmer = { summe: () => 10000 };
+    assert.strictEqual(kz70(c, '2026-01-01', '2026-03-31'), '01.01.2026', 'Verzicht ab 01.01.');
+    console.log('✓ Kz. 70: 05.02.2026 im Wechselquartal, kein Datum bei Vorjahresgrenze, 01.01.2026 bei Verzicht');
+}
+// R-L1a (Logikreview 2026-10-14) — Storno nach Modell 2 mit Rückzahlung: über alle Zeiträume genau
+// eine Korrektur. 100 € + 19 € bezahlt 2025, Storno + Rückzahlung 119 € 2026 → Soll und Ist: Summe 0.
+{
+    const pos = p => [{ menge: 1, einzelpreis: p, ustSatz: 19 }];
+    ['soll', 'ist'].forEach(art => {
+        const c = welt({ settings: { ustMode: 'regel', ustVersteuerungsart: art },
+            invoices: [
+                { id: 'r1', typ: 'rechnung', datum: '2025-11-01', status: 'storniert', stornoModell: 2, stornoRechnungId: 'sr1', statusVorStorno: 'bezahlt', bezahltAm: '2025-11-05', positionen: pos(100) },
+                { id: 'sr1', typ: 'stornorechnung', datum: '2026-02-01', originalRechnungId: 'r1', stornoModell: 2, originalStatus: 'bezahlt', status: 'storniert', positionen: pos(-100) }],
+            sales: [{ id: 's1', _invoiceId: 'r1', datum: '2025-11-05', verkaufspreis: 119, steuersatz: 19 }],
+            retouren: [{ id: 't1', datum: '2026-02-10', saleId: 's1', rechnungId: 'r1', modell: 2, erstattungBetrag: 119, ware: 'keine' }] });
+        const U = c.UstVoranmeldung;
+        U._year = 2025; const a = U._calcPeriode('2025-10-01', '2025-12-31').ust19;
+        U._year = 2026; const b = U._calcPeriode('2026-01-01', '2026-03-31').ust19;
+        nah(a, 19, 'R-L1a ' + art + ' Q4/2025');
+        nah(b, -19, 'R-L1a ' + art + ' Q1/2026');
+    });
+    console.log('✓ R-L1a: Storno + Rückzahlung korrigiert die USt genau einmal (Soll und Ist: +19 / −19)');
+}

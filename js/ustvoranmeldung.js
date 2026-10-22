@@ -375,9 +375,15 @@ const UstVoranmeldung = {
         const salesById = {};
         Store.getSales(true).forEach(s => { salesById[s.id] = s; });
         let retour7 = 0, retour19 = 0;
+        // Soll: Ist die Rechnung per Stornorechnung (Modell 2) storniert, berichtigt das Dokument die
+        // Steuer zu seinem Datum — die Rückzahlung dazu ist nur noch Geldfluss (EÜR, Ist-UVA). Vorher
+        // zog die Soll-UVA beides ab: −38 € statt −19 € (Logikreview 2026-10-14, R-L1a).
+        const _stornoDocInvIds = new Set(this._isSoll() ? Store.getRechInvoices()
+            .filter(i => i.stornoModell === 2 && i.stornoRechnungId && i.status === 'storniert').map(i => i.id) : []);
         retouren.forEach(r => {
             const linked = r.saleId ? salesById[r.saleId] : null;
             if (linked && linked.storniert) return;
+            if (_stornoDocInvIds.has(r.rechnungId || (linked && linked._invoiceId))) return;
             // Rückzahlung auf einen Kleinunternehmer-Verkauf: nie USt-wirksam (T06)
             if (!_regelUva(linked || r)) return;
             // Verkauf war nicht in der deutschen USt (OSS/Ausfuhr) → Retoure auch nicht abziehen
@@ -783,6 +789,7 @@ const UstVoranmeldung = {
                 <table class="euer-table">
                     <thead><tr><th style="width:20%">Kz.</th><th>Bezeichnung</th><th style="text-align:right;width:25%">Betrag</th></tr></thead>
                     <tbody>
+                        ${(() => { const k = this._kz70(start, end); return k ? `<tr><td><strong>Kz. 70</strong></td><td>Datum des Wechsels zur Regelbesteuerung${k.verzicht ? ' <span style="font-size:12px;color:var(--text-muted);">– nur eintragen, wenn Sie nach §19 Abs. 3 UStG verzichtet haben</span>' : ''}</td><td style="text-align:right">${k.datum}</td></tr>` : ''; })()}
                         <tr><td><strong>Kz. 81</strong></td><td>Steuerpflichtige Umsätze (19%) – Netto</td><td style="text-align:right">${Utils.formatCurrency(calc.nettoUmsatz19)}</td></tr>
                         <tr style="opacity:0.75;"><td></td><td style="font-size:12px;">↳ USt darauf (19%) <span style="color:var(--text-muted);">– nur Info, ELSTER berechnet automatisch</span></td><td style="text-align:right;font-size:12px;">${Utils.formatCurrency(calc.ust19)}</td></tr>
                         ${calc.diff25a.margeBrutto > 0 ? `
@@ -925,11 +932,38 @@ const UstVoranmeldung = {
     // Cent (Steuer-Audit 2026-10-18, U10). Gekürzt, nicht gerundet.
     _euro(v) { return String(Math.trunc((v || 0) + (v < 0 ? -1e-9 : 1e-9))); },
 
-    _buildRows(c) {
-        const rows = [
+    // Zeile 12 / Kz. 70 (USt 1 A ab 2026): Datum des Wechsels von §19 UStG zur Regelbesteuerung,
+    // nur im Zeitraum des Wechsels (Steuer-Audit 2026-10-18, U10). Laut Anleitung USt 1 E 2026:
+    // unterjährig das Datum des Umsatzes, der die Grenze überschreitet (= Historien-Eintrag);
+    // Verzicht nach §19 Abs. 3 ab 01.01. → 01.01.; Pflicht wegen Vorjahresumsatz → KEIN Datum.
+    // Die Historie unterscheidet Verzicht und Vorjahresgrenze nicht — abgeleitet aus dem
+    // Vorjahresumsatz (über der Grenze → Pflicht, sonst Verzicht).
+    _kz70(start, end) {
+        if (!start || !end || typeof SteuerStatus === 'undefined') return null;
+        const settings = Store.getSettings();
+        const w = SteuerStatus.historie(settings).filter(e => e.mode === 'regel' && e.ab >= start && e.ab <= end).pop();
+        if (!w) return null;
+        const [y, m, d] = w.ab.split('-');
+        const vortag = new Date(Date.UTC(+y, +m - 1, +d - 1)).toISOString().slice(0, 10);
+        if (SteuerStatus.modeAm(vortag, settings) !== 'klein') return null;
+        const datum = d + '.' + m + '.' + y;
+        if (m === '01' && d === '01') {
+            const grenze = (typeof App !== 'undefined' && App._getUstGrenzen) ? App._getUstGrenzen(+y).vj : 25000;
+            const vj = (typeof Kleinunternehmer !== 'undefined' && Kleinunternehmer.summe) ? Kleinunternehmer.summe(+y - 1) : 0;
+            if (vj > grenze) return null;
+            return { datum, verzicht: true };
+        }
+        return { datum, verzicht: false };
+    },
+
+    _buildRows(c, start, end) {
+        const kz70 = this._kz70(start, end);
+        const rows = kz70 ? [['Kz. 70', 'Datum des Wechsels von der Kleinunternehmer-Regelung zur Regelbesteuerung'
+            + (kz70.verzicht ? ' (nur bei Verzicht nach §19 Abs. 3 UStG)' : '') + ' - in ELSTER eintragen', kz70.datum]] : [];
+        rows.push(
             ['Kz. 81', 'Steuerpflichtige Umsätze 19% (Netto) - in ELSTER eintragen', this._euro(c.nettoUmsatz19)],
-            ['(Info)', 'USt 19% - NICHT eintragen, ELSTER berechnet automatisch', c.ust19.toFixed(2)],
-        ];
+            ['(Info)', 'USt 19% - NICHT eintragen, ELSTER berechnet automatisch', c.ust19.toFixed(2)]
+        );
         if (c.nettoUmsatz7 > 0) {
             rows.push(['Kz. 86', 'Steuerpflichtige Umsätze 7% (Netto) - in ELSTER eintragen', this._euro(c.nettoUmsatz7)]);
             rows.push(['(Info)', 'USt 7% - NICHT eintragen, ELSTER berechnet automatisch', c.ust7.toFixed(2)]);
@@ -970,7 +1004,7 @@ const UstVoranmeldung = {
             [`Zeitraum: ${label}`, start + ' bis ' + end, ''],
             ['', '', ''],
             ['Kennzahl', 'Bezeichnung', 'Betrag EUR'],
-            ...this._buildRows(c),
+            ...this._buildRows(c, start, end),
         ];
         const dateiSuffix = typ === 'monat' ? `M${idx + 1}` : `Q${idx + 1}`;
         Utils.downloadCSV(rows, `uvr_${dateiSuffix}_${year}.csv`);
@@ -986,7 +1020,7 @@ const UstVoranmeldung = {
         const end   = this._pEnd(year, typ, idx);
         const { calc: c } = this._calcPeriodeLocked(year, typ, idx, start, end);
         const label = this._periodeLabel(year, typ, idx);
-        const rows  = this._buildRows(c).filter(r => r[0] && r[0] !== '(Info)');
+        const rows  = this._buildRows(c, start, end).filter(r => r[0] && r[0] !== '(Info)');
         const text  = `USt-Voranmeldung ${label} (${start} bis ${end})\n` +
             rows.map(r => `${r[0]}: ${r[2]} € — ${r[1]}`).join('\n');
 

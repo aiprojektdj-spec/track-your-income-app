@@ -898,7 +898,7 @@ const GbR = {
         // `!f.storniert`: getFahrten() filtert Stornos nicht selbst — siehe js/euer.js _berechne.
         const fahrtkosten = Store.getFahrten()
             .filter(f => !f.storniert && Utils.isInPeriod(f.datum, startDate, endDate))
-            .reduce((sum, f) => sum + (parseFloat(f.kosten) || 0), 0);
+            .reduce((sum, f) => sum + (f.berechnungsart === 'tatsaechlich' ? 0 : (parseFloat(f.kosten) || 0)), 0);   // E-08 wie euer.js
         // Verpackungsmaterial: der EINKAUF ist die Betriebsausgabe, nicht der Verbrauch
         // (§11 Abs. 2 EStG, Abflussprinzip) — und Einkaeufe mit ausgabeId stecken bereits in
         // sonstigeAusgaben, sonst waere derselbe Euro zweimal abgezogen. Ausfuehrliche
@@ -909,12 +909,15 @@ const GbR = {
         const pauschalAusgabenBrutto = versandkosten + plattformgebuehren + fahrtkosten + materialEinkauf;
         const pauschalAusgabenNetto = isRegel ? (pauschalAusgabenBrutto / 1.19) : pauschalAusgabenBrutto;
         // Sonstige Ausgaben netto zum tatsächlichen Satz je Ausgabe
+        // Nicht abziehbarer Teil (Bewirtung, Geschenke, GewSt) wie in euer.js abziehen (E-07)
+        const _nA = e => (typeof Ausgaben !== 'undefined' && Ausgaben._nichtAbziehbar) ? Ausgaben._nichtAbziehbar(e) : 0;
         const sonstigeAusgaben = expenses.reduce((sum, e) => {
             const brutto = parseFloat(e.betrag) || 0;
-            if (!isRegel) return sum + brutto;
+            if (!isRegel) return sum + brutto - _nA(e);
+            if (typeof Ausgaben !== 'undefined' && Ausgaben._vorsteuerGesperrt && Ausgaben._vorsteuerGesperrt(e)) return sum;
             const rateRaw = (e.ustSatz != null && e.ustSatz !== '') ? parseFloat(e.ustSatz) : ((e.steuersatz != null && e.steuersatz !== '') ? parseFloat(e.steuersatz) : 19);
             const rate = isNaN(rateRaw) ? 19 : rateRaw;
-            return rate > 0 ? sum + brutto / (1 + rate / 100) : sum + brutto;
+            return (rate > 0 ? sum + brutto / (1 + rate / 100) : sum + brutto) - _nA(e);
         }, 0);
 
         const summeAusgaben = wareneinkauf + pauschalAusgabenNetto + sonstigeAusgaben;
@@ -947,7 +950,7 @@ const GbR = {
                 }, 0),
                 fahrtkosten:        Store.getFahrten()
                     .filter(f => !f.storniert && Utils.isInPeriod(f.datum, startDate, endDate))
-                    .reduce((s, f) => s + (parseFloat(f.kosten) || 0), 0),
+                    .reduce((s, f) => s + (f.berechnungsart === 'tatsaechlich' ? 0 : (parseFloat(f.kosten) || 0)), 0),
                 // Gleiche Quelle wie in der Gewinnformel oben — diese Aufstellung ist der
                 // Beleg zur Zahl, sie darf nicht aus einem anderen Topf schoepfen.
                 material:           Store.getMaterialEinkauefe()

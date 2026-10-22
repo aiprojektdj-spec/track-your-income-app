@@ -59,6 +59,12 @@ const Fahrtenbuch = {
         return art.label + ' (' + satz.toFixed(2).replace('.', ',') + (art.id === 'fahrrad' ? ' €)' : ' €/km)');
     },
 
+    /** Betriebsausgabe einer Fahrt. Bei "tatsächliche Kosten" 0 €: die Kosten stecken in den
+     *  Belegen (Tankquittung usw.), die als Ausgabe erfasst werden — vorher zählten sie doppelt
+     *  (Steuer-Audit 2026-10-18, E-08). Der eingegebene Betrag bleibt als Nachweis stehen.
+     *  Dieselbe Bedingung steht in euer.js, gbr.js und datev.js. */
+    _betriebsausgabe(f) { return f.berechnungsart === 'tatsaechlich' ? 0 : (parseFloat(f.kosten) || 0); },
+
     /** Kosten einer Fahrt. `datum` (YYYY-MM-DD) bestimmt das Jahr und damit den Satz; ohne
      *  Datum gilt das laufende Jahr. */
     calcKosten(gesamtKm, berechnungsart, tatsKosten, datum) {
@@ -88,7 +94,7 @@ const Fahrtenbuch = {
         // GoBD: stornierte Einträge anzeigen aber nicht in Summen zählen
         const aktivFiltered = filtered.filter(f => !f.storniert);
         const totalKm = aktivFiltered.reduce((s, f) => s + (parseFloat(f.gesamtKm || f.km) || 0), 0);
-        const totalKosten = aktivFiltered.reduce((s, f) => s + (parseFloat(f.kosten) || 0), 0);
+        const totalKosten = aktivFiltered.reduce((s, f) => s + this._betriebsausgabe(f), 0);
         const totalFahrten = aktivFiltered.length;
 
         const years = Array.from(new Set(fahrten.map(f => (f.datum || '').substring(0, 4)).filter(Boolean))).sort().reverse();
@@ -285,7 +291,7 @@ const Fahrtenbuch = {
                         </div>
                     </div>
                     ${berechnungsartDef === 'tatsaechlich' ? `<div class="form-hint" style="margin-top:-8px;margin-bottom:8px;font-size:12px;color:var(--text-muted);">
-                        Bitte separate Belege (Tankquittung etc.) als Ausgabe erfassen und dort verknüpfen.
+                        Die Kosten zählen nur über die Belege (Tankquittung usw.), die du als Ausgabe erfasst — diese Fahrt selbst bucht 0 €, sonst wäre der Betrag doppelt abgezogen.
                     </div>` : ''}
 
                     <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 8px;">Zweck &amp; Notizen</div>
@@ -339,7 +345,7 @@ const Fahrtenbuch = {
                     <td style="text-align:right">${gesamtKm.toFixed(1)} km</td>
                     <td style="font-size:12px;max-width:160px;">${Utils.escapeHtml(zweckLabel)}</td>
                     <td style="font-size:12px;color:var(--text-muted);">${Utils.escapeHtml(f.fahrzeug || 'PKW')}</td>
-                    <td style="text-align:right;font-weight:600;color:var(--success);">${isSt ? '–' : Utils.formatCurrency(f.kosten)}</td>
+                    <td style="text-align:right;font-weight:600;color:var(--success);">${isSt ? '–' : (f.berechnungsart === 'tatsaechlich' ? '<span style="font-weight:400;color:var(--text-muted);" title="Kosten über die Belege erfasst">Beleg</span>' : Utils.formatCurrency(f.kosten))}</td>
                     <td class="table-actions">
                         ${isSt ? '' : (!Store.canEdit(f)
                             ? `<span title="Periode festgeschrieben — nur Storno möglich" style="font-size:11px;opacity:.7;"><i class="ti ti-lock"></i></span>
@@ -353,7 +359,7 @@ const Fahrtenbuch = {
 
         const aktivFiltered = filtered.filter(f => !f.storniert);
         const totalKm = aktivFiltered.reduce((s, f) => s + (parseFloat(f.gesamtKm || f.km) || 0), 0);
-        const totalKosten = aktivFiltered.reduce((s, f) => s + (parseFloat(f.kosten) || 0), 0);
+        const totalKosten = aktivFiltered.reduce((s, f) => s + this._betriebsausgabe(f), 0);
 
         return `
             <div class="table-container">
@@ -396,7 +402,7 @@ const Fahrtenbuch = {
             if (!monate[key]) monate[key] = { fahrten: [], km: 0, kosten: 0 };
             monate[key].fahrten.push(f);
             monate[key].km += parseFloat(f.gesamtKm || f.km) || 0;
-            monate[key].kosten += parseFloat(f.kosten) || 0;
+            monate[key].kosten += this._betriebsausgabe(f);
         });
 
         if (!Object.keys(monate).length) {
@@ -464,7 +470,7 @@ const Fahrtenbuch = {
                 f.km || 0, f.gesamtKm || f.km || 0,
                 f.kmstandAbfahrt || '', f.kmstandAnkunft || '',
                 f.fahrzeug || 'PKW', f.berechnungsart || '',
-                (parseFloat(f.kosten) || 0).toFixed(2),
+                this._betriebsausgabe(f).toFixed(2),
                 this.ZWECKE.find(z => z.id === f.zweck)?.label || f.zweck || '',
                 f.notizen || ''
             ]));
@@ -627,7 +633,7 @@ const Fahrtenbuch = {
         // als die App.
         const aktiv = fahrten.filter(f => !f.storniert);
         const totalKm = aktiv.reduce((s, f) => s + (parseFloat(f.gesamtKm || f.km) || 0), 0);
-        const totalKosten = aktiv.reduce((s, f) => s + (parseFloat(f.kosten) || 0), 0);
+        const totalKosten = aktiv.reduce((s, f) => s + this._betriebsausgabe(f), 0);
         const label = this._filterYear === 'all' ? 'Gesamt' : this._filterYear;
 
         const pw = window.open('', '_blank');
@@ -667,7 +673,7 @@ const Fahrtenbuch = {
                 <td>${Utils.escapeHtml(this.ZWECKE.find(z => z.id === f.zweck)?.label.split('(')[0].trim() || f.zweck || '')}</td>
                 <td>${Utils.escapeHtml(f.fahrzeug || 'PKW')}</td>
                 <td style="font-size:10px;">${this.BERECHNUNGSARTEN.find(a => a.id === f.berechnungsart)?.label.split('(')[0].trim() || ''}</td>
-                <td style="text-align:right">${(parseFloat(f.kosten) || 0).toFixed(2).replace('.', ',')} €</td>
+                <td style="text-align:right">${this._betriebsausgabe(f).toFixed(2).replace('.', ',')} €</td>
             </tr>`).join('')}
             </tbody>
             <tfoot><tr>

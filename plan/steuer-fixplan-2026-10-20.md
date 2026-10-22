@@ -49,8 +49,8 @@ Legende: ☐ offen · ☑ erledigt (Commit) · ⏸ wartet auf Entscheidung
 | ☑ `c7f1188` | E-05b | §141-Umsatz netto | gbr-modul.js |
 | ☑ `9554745` | E-05c | GewSt-Anzeige nur bei `brauchtGewSt()` | app.js, gewerbesteuer.js, euer.js |
 | ☑ `9554745` | E-06 | GewSt-VZ-Termine 15.02./05./08./11. | gbr-modul.js |
-| ⏸ | E-07 | Kategorien Bewirtung 70 %, Geschenke (50-€-Grenze), GewSt nicht abziehbar | ausgaben.js, euer.js |
-| ⏸ | E-08 | Fahrtenbuch „tatsächliche Kosten“: Doppelabzug verhindern / Hinweis korrigieren | fahrtenbuch.js |
+| ☑ (E-07/08-Commit) | E-07 | Kategorien Bewirtung 70 %, Geschenke (50-€-Grenze), GewSt nicht abziehbar | ausgaben.js, euer.js |
+| ☑ (E-07/08-Commit) | E-08 | Fahrtenbuch „tatsächliche Kosten“: Doppelabzug verhindern / Hinweis korrigieren | fahrtenbuch.js |
 | ☑ `5ad92e0` | E-09 | Manuelle Vorsteuer in EÜR als BA | euer.js |
 | ☑ `5ad92e0` | E-10/R-TAX-05 | KSt-Gewinn aus dem gemeinsamen Rechenkern | koerperschaftsteuer.js |
 
@@ -75,8 +75,10 @@ Legende: ☐ offen · ☑ erledigt (Commit) · ⏸ wartet auf Entscheidung
 
 - ~~DATEV bucht den Restbuchwert eines Anlagenabgangs (E-01) noch nicht~~ — erledigt in `5665799`
   (Konto 2310 SKR03 / 6895 SKR04; Kontonummern noch gegen den amtlichen DATEV-Kontenrahmen prüfen).
-- **Offen, Entscheidung User:** E-07 (Bewirtung 70 %, Geschenke > 50 €, GewSt nicht abziehbar) und
-  E-08 (Fahrtenbuch „tatsächliche Kosten“ + Tankbeleg = Doppelabzug).
+- **E-07/E-08 entschieden (User, 2026-10-22):** eigene Kategorien Bewirtung/Geschenke/Gewerbesteuer;
+  Fahrt mit „tatsächlichen Kosten“ bucht 0 €. Offen dazu: DATEV-Konten für Bewirtung/Geschenke/GewSt
+  (fallen auf „sonstige“; Sollwerte nur aus dem DATEV-Kontenrahmen), Nutzungsentnahme Kfz/Telefon,
+  eigene Zeilen „nicht abziehbar“ im Anlage-EÜR-Export.
 - **Offen:** Kz 70 (Datum Wechsel KU→Regel) in der UVA; `kosit-proben/` mit dem neuen Code neu
   erzeugen und beim KoSIT-Validator hochladen (User); `datenschutz.html:454` Fristbeginn
   Jahresende statt „letzte Eintragung“ (Rechtstext → User/Anwalt).

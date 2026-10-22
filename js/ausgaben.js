@@ -10,7 +10,62 @@ const Ausgaben = {
     // weist sie als "an das Finanzamt gezahlte" bzw. "vom Finanzamt erstattete Umsatzsteuer"
     // aus (js/euer.js KAT_UST_*, Audit 2026-10-13 T01). Die Erstattung wird hier als positiver
     // Betrag erfasst und dort als Einnahme gezählt. Namen nur gemeinsam mit euer.js ändern.
-    _kategorien: ['Versand', 'Verpackung', 'Plattformgebühren', 'Fahrtkosten', 'Büro', 'Equipment', 'Software/Abos', 'Honorare an Künstler/Publizisten', 'Sonstiges', 'Umsatzsteuer an Finanzamt', 'Umsatzsteuer-Erstattung vom Finanzamt'],
+    _kategorien: ['Versand', 'Verpackung', 'Plattformgebühren', 'Fahrtkosten', 'Büro', 'Equipment', 'Software/Abos', 'Honorare an Künstler/Publizisten', 'Bewirtung', 'Geschenke an Geschäftsfreunde', 'Gewerbesteuer', 'Sonstiges', 'Umsatzsteuer an Finanzamt', 'Umsatzsteuer-Erstattung vom Finanzamt'],
+
+    // ── Nicht (voll) abziehbare Betriebsausgaben (Steuer-Audit 2026-10-18, E-07) ──────────────
+    // Vorher zog die EÜR jede Ausgabe voll ab. Die EÜR liest _nichtAbziehbar() und nimmt den
+    // Betrag aus dem Gewinn heraus; vorsteuer.js/euer.js lesen _vorsteuerGesperrt().
+    //  - Bewirtung: 30 % nicht abziehbar (§4 Abs. 5 S. 1 Nr. 2 EStG), Vorsteuer voll (§15 Abs. 1a S. 2 UStG)
+    //  - Geschenke: über der Grenze je Empfänger und Wirtschaftsjahr ganz nicht abziehbar (§4 Abs. 5
+    //    S. 1 Nr. 1 EStG), dann auch keine Vorsteuer (§15 Abs. 1a S. 1 UStG). Gemessen netto, wenn
+    //    Vorsteuerabzug besteht, sonst brutto (R 4.10 Abs. 3 EStR).
+    //  - Gewerbesteuer: keine Betriebsausgabe (§4 Abs. 5b EStG)
+    KAT_BEWIRTUNG: 'Bewirtung',
+    KAT_GESCHENKE: 'Geschenke an Geschäftsfreunde',
+    KAT_GEWST: 'Gewerbesteuer',
+
+    // Jahresfunktionen (CLAUDE.md Regel 7): Geschenkgrenze 35 € bis 2023, 50 € ab 2024
+    // (Wachstumschancengesetz); Bewirtung 70 % abziehbar seit 2004.
+    _geschenkGrenze(year) { return (parseInt(year, 10) || 0) >= 2024 ? 50 : 35; },
+    _bewirtungAbziehbar(year) { return 0.7; },
+
+    _hatVstAbzug(e) {
+        const r = parseFloat(this._normUstSatz(e.ustSatz != null && e.ustSatz !== '' ? e.ustSatz : e.steuersatz));
+        if (isNaN(r) || r <= 0) return false;
+        if (typeof SteuerStatus === 'undefined') return (Store.getSettings ? Store.getSettings() : {}).ustMode === 'regel';
+        return SteuerStatus.istRegel(e, Store.getSettings ? Store.getSettings() : {});
+    },
+    _bemessung(e) {
+        const b = parseFloat(e.betrag) || 0;
+        if (!this._hatVstAbzug(e)) return b;
+        const r = parseFloat(this._normUstSatz(e.ustSatz != null && e.ustSatz !== '' ? e.ustSatz : e.steuersatz));
+        return b / (1 + r / 100);
+    },
+    // Ohne Empfänger zählt das Geschenk für sich allein (Altdaten; das Formular verlangt ihn).
+    _geschenkKey(e) {
+        const n = String(e.empfaenger || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        return n ? 'n:' + n : 'id:' + e.id;
+    },
+    _geschenkUeberGrenze(e, alle) {
+        if (!e || e.kategorie !== this.KAT_GESCHENKE) return false;
+        const jahr = String(e.datum || '').slice(0, 4);
+        const key = this._geschenkKey(e);
+        const liste = alle || (Store.getExpenses ? Store.getExpenses() : []);
+        const summe = liste.filter(x => x.kategorie === this.KAT_GESCHENKE && !x.storniert
+                && String(x.datum || '').slice(0, 4) === jahr && this._geschenkKey(x) === key)
+            .reduce((s, x) => s + this._bemessung(x), 0);
+        return summe > this._geschenkGrenze(jahr) + 1e-9;
+    },
+    _vorsteuerGesperrt(e, alle) { return this._geschenkUeberGrenze(e, alle); },
+    // Nicht abziehbarer Teil des abgeflossenen Betrags (inkl. einer nicht abziehbaren Vorsteuer).
+    _nichtAbziehbar(e, alle) {
+        if (!e) return 0;
+        const b = parseFloat(e.betrag) || 0;
+        if (e.kategorie === this.KAT_GEWST) return b;
+        if (e.kategorie === this.KAT_BEWIRTUNG) return this._bemessung(e) * (1 - this._bewirtungAbziehbar(String(e.datum || '').slice(0, 4)));
+        if (this._geschenkUeberGrenze(e, alle)) return b;
+        return 0;
+    },
 
     // Künstlersozialabgabe (§24-§28 KSVG): Unternehmer, die nicht nur gelegentlich Aufträge an
     // freie Künstler/Publizisten vergeben (Grafik/Foto/Text für eigene Werbung, §24 Abs.2 KSVG),
@@ -383,8 +438,13 @@ const Ausgaben = {
                                 <input type="text" class="form-input" id="exp_ustZeitraum" maxlength="7" placeholder="z. B. 2025-12 oder 2025-Q4">
                                 <div class="form-hint">Wichtig für die Zehn-Tage-Regel (§11 Abs. 2 EStG): Die Zahlung für Dezember/Q4 bis zum 10.01. zählt ins Vorjahr.</div>
                             </div>
+                            <div id="exp_empfaengerWrap" style="display:none;margin-top:6px;">
+                                <label class="form-label" for="exp_empfaenger">Empfänger des Geschenks *</label>
+                                <input type="text" class="form-input" id="exp_empfaenger" maxlength="200" placeholder="Name des Beschenkten">
+                                <div class="form-hint">Pflicht nach §4 Abs. 7 EStG. Über 50 € je Empfänger und Jahr ist das Geschenk nicht abziehbar (auch keine Vorsteuer).</div>
+                            </div>
                             <div id="exp_fahrtHint" style="display:none;margin-top:6px;padding:7px 10px;background:var(--warning-bg);border:1px solid var(--warning);border-radius:var(--radius-sm);font-size:12px;color:var(--warning);">
-                                Fahrtkosten werden bereits automatisch aus dem <strong>Fahrtenbuch</strong> in die EÜR übernommen. Nur eintragen, wenn der Betrag <em>nicht</em> im Fahrtenbuch erfasst ist (z.B. Taxibelege).
+                                Fahrten mit <strong>Kilometerpauschale</strong> übernimmt das Fahrtenbuch automatisch in die EÜR — dafür hier nichts eintragen. Belege hier erfassen, wenn die Fahrt im Fahrtenbuch mit „tatsächlichen Kosten“ steht oder gar nicht dort erfasst ist (z. B. Tankquittung, Taxi).
                             </div>
                         </div>
                         <div class="form-group">
@@ -511,7 +571,11 @@ const Ausgaben = {
 
         // Zeitraumfeld nur bei USt-Zahlungen an das Finanzamt (R-TAX-08)
         const ustZrWrap = document.getElementById('exp_ustZeitraumWrap');
-        const updateUstZeitraum = () => { if (ustZrWrap) ustZrWrap.style.display = katSel && katSel.value === 'Umsatzsteuer an Finanzamt' ? '' : 'none'; };
+        const empfWrap = document.getElementById('exp_empfaengerWrap');
+        const updateUstZeitraum = () => {
+            if (ustZrWrap) ustZrWrap.style.display = katSel && katSel.value === 'Umsatzsteuer an Finanzamt' ? '' : 'none';
+            if (empfWrap) empfWrap.style.display = katSel && katSel.value === this.KAT_GESCHENKE ? '' : 'none';
+        };
         if (katSel) katSel.addEventListener('change', updateUstZeitraum);
         updateUstZeitraum();
 
@@ -566,6 +630,11 @@ const Ausgaben = {
                 Utils.showToast('Betrag ungültig', 'error');
                 return;
             }
+            if (document.getElementById('exp_kategorie').value === this.KAT_GESCHENKE
+                && !(document.getElementById('exp_empfaenger')?.value || '').trim()) {
+                Utils.showToast('Bitte den Empfänger des Geschenks angeben (§4 Abs. 7 EStG)', 'warning');
+                return;
+            }
             const belegFotoFile = document.getElementById('exp_belegFoto')?.files?.[0];
             let belegFoto;
             if (belegFotoFile) {
@@ -591,6 +660,8 @@ const Ausgaben = {
                     ? document.getElementById('exp_ustZeitraum').value.trim() : undefined,
                 ustDauerfrist: document.getElementById('exp_kategorie').value === 'Umsatzsteuer an Finanzamt'
                     ? !!Store.getSettings().ustDauerfristverlaengerung : undefined,
+                empfaenger: document.getElementById('exp_kategorie').value === this.KAT_GESCHENKE
+                    ? (document.getElementById('exp_empfaenger')?.value || '').trim() : undefined,
                 belegFoto
             });
 
@@ -661,6 +732,10 @@ const Ausgaben = {
                             <select class="form-select" id="ee_kategorie">${katOpts}</select>
                         </div>
                     </div>
+                    <div class="form-group" id="ee_empfaengerWrap" style="${exp.kategorie === this.KAT_GESCHENKE ? '' : 'display:none;'}">
+                        <label class="form-label" for="ee_empfaenger">Empfänger des Geschenks *</label>
+                        <input type="text" class="form-input" id="ee_empfaenger" maxlength="200" value="${Utils.escapeHtml(exp.empfaenger || '')}">
+                    </div>
                     <div class="form-group">
                         <label class="form-label">Beschreibung</label>
                         <input type="text" class="form-input" id="ee_beschreibung" maxlength="300" value="${Utils.escapeHtml(exp.beschreibung || '')}">
@@ -703,6 +778,11 @@ const Ausgaben = {
                     <button class="btn btn-primary" id="saveExpenseEdit">Speichern</button>
                 `;
                 App.showModal('Ausgabe bearbeiten', body, footer);
+                const eeKatSel = document.getElementById('ee_kategorie');
+                if (eeKatSel) eeKatSel.addEventListener('change', () => {
+                    const w = document.getElementById('ee_empfaengerWrap');
+                    if (w) w.style.display = eeKatSel.value === this.KAT_GESCHENKE ? '' : 'none';
+                });
                 const belegFotoViewLink = document.getElementById('ee_belegFotoView');
                 if (belegFotoViewLink) belegFotoViewLink.addEventListener('click', (ev) => {
                     ev.preventDefault();
@@ -720,6 +800,12 @@ const Ausgaben = {
                         Utils.showToast('Betrag darf nicht negativ sein', 'warning');
                         return;
                     }
+                    const eeKat = document.getElementById('ee_kategorie').value;
+                    const eeEmpf = (document.getElementById('ee_empfaenger')?.value || '').trim();
+                    if (eeKat === this.KAT_GESCHENKE && !eeEmpf) {
+                        Utils.showToast('Bitte den Empfänger des Geschenks angeben (§4 Abs. 7 EStG)', 'warning');
+                        return;
+                    }
                     Store.saveExpense({
                         id: exp.id,
                         datum: Utils.getDateInputValue('ee_datum'),
@@ -730,6 +816,11 @@ const Ausgaben = {
                         belegNr: document.getElementById('ee_belegNr').value.trim(),
                         lieferant: document.getElementById('ee_lieferant').value.trim(),
                         lieferantSteuerId: document.getElementById('ee_lieferantSteuerId').value.trim(),
+                        // saveExpense ersetzt den Datensatz — Felder ohne Eingabe im Dialog mitnehmen
+                        // (sonst ging die Zuordnung der Zehn-Tage-Regel beim Bearbeiten verloren)
+                        ustZeitraum: eeKat === 'Umsatzsteuer an Finanzamt' ? exp.ustZeitraum : undefined,
+                        ustDauerfrist: eeKat === 'Umsatzsteuer an Finanzamt' ? exp.ustDauerfrist : undefined,
+                        empfaenger: eeKat === this.KAT_GESCHENKE ? eeEmpf : undefined,
                         belegFoto,
                         createdAt: exp.createdAt
                     });

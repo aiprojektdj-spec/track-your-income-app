@@ -224,8 +224,9 @@ const Euer = {
         // durchgestrichen zeigen. Bis 2026-09-16 fehlte die Pruefung hier, und eine stornierte
         // Fahrt zaehlte voll als Betriebsausgabe (Gewinn zu niedrig -> Unterzahlung).
         // Dieselbe Luecke stand in js/gbr.js und in der Drucksumme js/fahrtenbuch.js _print().
+        // "Tatsächliche Kosten": die Kosten stehen in den Belegen, die Fahrt bucht 0 € (E-08)
         const fahrtkosten = Store.getFahrten().filter(f => !f.storniert && Utils.isInPeriod(f.datum, startDate, endDate))
-            .reduce((sum, f) => sum + (parseFloat(f.kosten) || 0), 0);
+            .reduce((sum, f) => sum + (f.berechnungsart === 'tatsaechlich' ? 0 : (parseFloat(f.kosten) || 0)), 0);
 
         // Verpackungsmaterial (Materiallager) — abgezogen wird der EINKAUF, nicht der Verbrauch.
         //
@@ -334,6 +335,13 @@ const Euer = {
 
         // Sonstige Betriebsausgaben (ohne Umsatzsteuer-Zahlungen/-Erstattungen, s.o.)
         const sonstigeAusgaben = betriebsExpenses.reduce((sum, e) => sum + (parseFloat(e.betrag) || 0), 0);
+        // Nicht abziehbarer Teil (Bewirtung 30 %, Geschenke über der Grenze, Gewerbesteuer —
+        // Steuer-Audit 2026-10-18, E-07). Abgeflossen ist er trotzdem; er mindert nur den Gewinn
+        // nicht. Die Geschenkgrenze gilt je Empfänger und Wirtschaftsjahr, deshalb alle Ausgaben.
+        const _ausgabenAlle = Store.getExpenses();
+        const _hatAusgabenModul = typeof Ausgaben !== 'undefined' && !!Ausgaben._nichtAbziehbar;
+        const nichtAbziehbar = _hatAusgabenModul
+            ? betriebsExpenses.reduce((sum, e) => sum + Ausgaben._nichtAbziehbar(e, _ausgabenAlle), 0) : 0;
 
         // Category breakdown for Betriebsausgaben — dynamic (all actual categories)
         const catBreakdown = {};
@@ -386,7 +394,7 @@ const Euer = {
         // Vorsteuer heben sich auf, maßgeblich ist die gebuchte Zahlung an das Finanzamt.
         const vorsteuerManuell = (typeof Vorsteuer !== 'undefined' && Vorsteuer._calcManualEntries)
             ? (Vorsteuer._calcManualEntries(startDate, endDate).sonstige || 0) : 0;
-        const abzugsfaehig = wareneinkauf + versandkosten + plattformgebuehren + fahrtkosten + materialEinkauf + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten + anlagenRestbuchwert + vorsteuerManuell;
+        const abzugsfaehig = wareneinkauf + versandkosten + plattformgebuehren + fahrtkosten + materialEinkauf + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten + anlagenRestbuchwert + vorsteuerManuell - nichtAbziehbar;
 
         // ── Vorsteuer: tatsächlicher USt-Satz pro Einkauf (Fix: war pauschal /1.19) ──
         // Purchases können jetzt ustSatz = 19 | 7 | 0 tragen.
@@ -405,6 +413,7 @@ const Euer = {
             // (Reverse Charge) wird separat über §13b-Einträge verrechnet, nicht hier.
             const vstExpenses = betriebsExpenses.reduce((sum, ex) => {
                 if (!_regel(ex)) return sum;
+                if (_hatAusgabenModul && Ausgaben._vorsteuerGesperrt(ex, _ausgabenAlle)) return sum;   // §15 Abs. 1a UStG
                 const raw = (ex.ustSatz != null && ex.ustSatz !== '') ? ex.ustSatz : ex.steuersatz;
                 if (raw === undefined || raw === null || raw === '' || raw === 'unklar' || raw === 'rc') return sum;
                 const rate = parseFloat(raw);
@@ -474,7 +483,7 @@ const Euer = {
             salesKleinBrutto, retourenKleinBrutto, vorsteuerTeile,
             salesRegel, betriebsExpenses, summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
             eigenbelegeInPeriod, eigenbelegeAusgaben, eigenbelegeVorsteuer, abzugsfaehig, vorsteuer,
-            summeAusgaben, gewinn, monthlyData, donutLabels, donutValues
+            nichtAbziehbar, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues
         };
     },
 
@@ -516,7 +525,8 @@ const Euer = {
             { key: 'restbuchwert',  betrag: d.anlagenRestbuchwert || 0 },
             { key: 'fahrt',         betrag: d.fahrtkosten },
             { key: 'sonstige',      betrag: d.versandkosten + d.plattformgebuehren + d.materialEinkauf
-                                            + d.sonstigeAusgaben + d.eigenbelegeAusgaben - d.vorsteuerTeile.ausgaben },
+                                            + d.sonstigeAusgaben + d.eigenbelegeAusgaben - d.vorsteuerTeile.ausgaben
+                                            - (d.nichtAbziehbar || 0) },
             { key: 'vorsteuer',     betrag: d.vorsteuer },
             { key: 'ustZahlung',    betrag: d.ustZahlungenFA },
             { key: 'gewinn',        betrag: d.gewinn }
@@ -564,7 +574,7 @@ const Euer = {
             fahrtkosten, materialEinkauf, afaAnlagen, afaKosten, anlagenRestbuchwert, retourenErstattungen, nettoEinnahmen,
             ustEinnahmen, summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
             eigenbelegeAusgaben, vorsteuer, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues,
-            einnahmenNetto, nettoGewinn, ustZahlungenFA, ustErstattungenFA, ohneSteuersatz
+            einnahmenNetto, nettoGewinn, ustZahlungenFA, ustErstattungenFA, ohneSteuersatz, nichtAbziehbar
         } = _d;
 
         this._lastGewinn = gewinn; // für Gewerbesteuer-Live-Update
@@ -801,6 +811,10 @@ const Euer = {
                                 <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(catBreakdown[k])}</td>
                             </tr>
                             `).join('')}
+                            ${nichtAbziehbar > 0 ? `<tr style="opacity:0.8;">
+                                <td style="padding-left:16px;font-size:12px;">↳ davon nicht abziehbar <span style="color:var(--text-muted);">(Bewirtung 30 %, Geschenke über 50 €, Gewerbesteuer – §4 Abs. 5/5b EStG; mindert den Gewinn nicht)</span></td>
+                                <td style="text-align:right;font-size:12px;">−${Utils.formatCurrency(nichtAbziehbar)}</td>
+                            </tr>` : ''}
                             ${eigenbelegeAusgaben > 0 ? `<tr>
                                 <td>Eigenbelege (Ersatzbelege) <span style="font-size:11px;color:var(--text-muted);">(${eigenbelegeRaw.filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, startDate, endDate)).length} Belege)</span></td>
                                 <td style="text-align:right">${Utils.formatCurrency(eigenbelegeAusgaben)}</td>

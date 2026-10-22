@@ -62,7 +62,9 @@ const Vorsteuer = {
         // Umsatzsteuer-Zahlungen/-Erstattungen mit dem Finanzamt tragen nie Vorsteuer (Audit 2026-10-13)
         const expenses = (Store.getExpenses ? Store.getExpenses() : Store.get('ausgaben') || [])
             .filter(e => Utils.isInPeriod(e.datum, startDate, endDate) && !/^Umsatzsteuer/.test(e.kategorie || '')
-                && (typeof SteuerStatus === 'undefined' || SteuerStatus.istRegel(e, Store.getSettings ? Store.getSettings() : {})));
+                && (typeof SteuerStatus === 'undefined' || SteuerStatus.istRegel(e, Store.getSettings ? Store.getSettings() : {}))
+                // Geschenke über der Grenze: keine Vorsteuer (§15 Abs. 1a UStG, Steuer-Audit E-07)
+                && !(typeof Ausgaben !== 'undefined' && Ausgaben._vorsteuerGesperrt && Ausgaben._vorsteuerGesperrt(e)));
 
         let vst19 = 0, vst7 = 0, vst0 = 0, netto19 = 0, netto7 = 0;
         let unklarCount = 0, unklarBetrag = 0;

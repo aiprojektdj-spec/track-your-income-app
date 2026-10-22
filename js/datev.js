@@ -462,7 +462,8 @@ var DatevExport = (function () {
         (Store.getFahrten ? Store.getFahrten() : [])
             .filter(function (f) { return !f.storniert && f.datum >= vonDate && f.datum <= bisDate; })
             .forEach(function (f) {
-                var betrag = parseFloat(f.kosten) || 0;
+                // "Tatsächliche Kosten": gebucht werden die Belege, nicht die Fahrt (E-08, wie euer.js)
+                var betrag = f.berechnungsart === 'tatsaechlich' ? 0 : (parseFloat(f.kosten) || 0);
                 if (betrag <= 0) return;                      // Fahrrad/zu Fuss: 0 EUR, keine Buchung
                 rows.push({
                     umsatz:       betrag,

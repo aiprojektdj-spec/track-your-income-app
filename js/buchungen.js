@@ -968,7 +968,12 @@ const Buchungen = {
 
     _jumpToVerkauf() {
         const card = document.getElementById('vkDetailsCard');
-        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (card) {
+            // Topnav und Modul-Subnav kleben oben und verdecken sonst die Überschrift
+            const kopf = Math.max(0, ...[...document.querySelectorAll('.topnav, .module-subnav')]
+                .map(e => e.getBoundingClientRect().bottom));
+            window.scrollTo({ top: window.scrollY + card.getBoundingClientRect().top - kopf - 12, behavior: 'smooth' });
+        }
         const preis = document.getElementById('vk_preis');
         if (preis) preis.focus({ preventScroll: true });
     },

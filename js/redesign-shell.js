@@ -41,6 +41,7 @@
         protokoll: ['reports', 'Änderungsprotokoll'],
         einstellungen: ['settings', 'Einstellungen'],
         rechtsform: ['settings', 'Rechtsform und Pflichten'],
+        bestandscheck: ['settings', 'Bestandscheck'],
         akademie: ['help', 'Hilfe und Akademie']
     };
     var SUBPAGES = {

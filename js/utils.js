@@ -21,7 +21,7 @@ let _xlsxPromise = null;
 //
 // AGB_STAND muss zum "Stand:"-Datum in agb.html passen. **Bei jeder Textaenderung dort auch hier
 // hochsetzen** — sonst bleibt die neue Fassung wieder unbemerkt. Genau das ist der Fund.
-const AGB_STAND = '2026-06';
+const AGB_STAND = '2026-10';
 
 const Utils = {
     AGB_STAND: AGB_STAND,

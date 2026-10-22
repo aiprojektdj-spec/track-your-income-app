@@ -1,0 +1,5 @@
+/* Nur im Druck-iframe von Rechnung.printInvoiceWindow (rechnungen/js/rechnung.js). */
+* { box-sizing: border-box; }
+body { background: white; margin: 0; padding: 0; }
+@page { size: A4; margin: 8mm; }
+@media print { .inv-wrap { max-width: 100% !important; } }

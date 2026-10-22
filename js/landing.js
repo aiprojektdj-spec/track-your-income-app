@@ -1,552 +1,97 @@
-// Landing-Page-Logik (ehem. Inline-Scripts in index.html — CSP script-src-elem 'self')
+// Öffentliche Landingpage: Navigation, Abrechnung und bestehender App-Einstieg.
+// Die Produktbeispiele sind statisches HTML; App-Speicher werden nicht geladen.
 (function () {
     'use strict';
-
-    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    // ── Zahlformat (de-DE) ────────────────────
-    function fmtEur(n) {
-        return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-    }
-    function fmtInt(n) {
-        return Math.round(n).toLocaleString('de-DE');
-    }
-
-    // ── Scroll-Reveal ─────────────────────────
-    var revealEls = document.querySelectorAll('[data-reveal]');
-    if ('IntersectionObserver' in window && !reduceMotion) {
-        var ro = new IntersectionObserver(function (entries) {
-            entries.forEach(function (en) {
-                if (en.isIntersecting) {
-                    en.target.classList.add('vis');
-                    ro.unobserve(en.target);
-                }
-            });
-        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-        revealEls.forEach(function (el) { ro.observe(el); });
-    } else {
-        revealEls.forEach(function (el) { el.classList.add('vis'); });
-    }
-
-    // ── Hero-Counter ──────────────────────────
-    // setTimeout-Fallback garantiert den Endwert auch in Hintergrund-Tabs,
-    // wo requestAnimationFrame pausiert.
-    function countUp(el) {
-        var target = parseFloat(el.getAttribute('data-cnt'));
-        if (!isFinite(target)) { el.textContent = '0'; return; }
-        if (reduceMotion || document.hidden) { el.textContent = fmtInt(target); return; }
-        var start = null, dur = 1100, done = false;
-        function finish() { if (!done) { done = true; el.textContent = fmtInt(target); } }
-        function step(ts) {
-            if (done) return;
-            if (!start) start = ts;
-            var p = Math.min((ts - start) / dur, 1);
-            var eased = 1 - Math.pow(1 - p, 3);
-            if (p < 1) { el.textContent = fmtInt(target * eased); requestAnimationFrame(step); }
-            else finish();
-        }
-        requestAnimationFrame(step);
-        setTimeout(finish, dur + 200);
-    }
-    document.querySelectorAll('[data-cnt]').forEach(countUp);
-
-    // ── Hero-Glow Parallax (dezent) ───────────
-    var glow = document.getElementById('heroGlow');
-    if (glow && !reduceMotion) {
-        var ticking = false;
-        window.addEventListener('scroll', function () {
-            if (ticking) return;
-            ticking = true;
-            requestAnimationFrame(function () {
-                glow.style.transform = 'translateX(-50%) translateY(' + (window.scrollY * 0.18) + 'px)';
-                ticking = false;
-            });
-        }, { passive: true });
-    }
-
-    // ── Nav-Schatten beim Scrollen ────────────
-    var nav = document.getElementById('topnav');
-    window.addEventListener('scroll', function () {
-        nav.classList.toggle('scrolled', window.scrollY > 8);
-    }, { passive: true });
-
-    // ── Sticky Mobile CTA (nach dem Hero) ─────
-    var stickyCta = document.getElementById('stickyCta');
-    var heroEl = document.querySelector('.hero');
-    if (stickyCta && heroEl && 'IntersectionObserver' in window) {
-        var so = new IntersectionObserver(function (entries) {
-            stickyCta.classList.toggle('show', !entries[0].isIntersecting);
-            stickyCta.setAttribute('aria-hidden', String(entries[0].isIntersecting));
-        }, { threshold: 0 });
-        so.observe(heroEl);
-    }
-
-    /* ════════════════════════════════════════
-       LIVE-DEMO
-       ════════════════════════════════════════ */
-    var demo = {
-        nextId: 90,
-        // Basiswerte 2026 (vor den sichtbaren Buchungen unten)
-        baseIn: 11731.00,
-        baseWare: 3106.00,
-        baseKost: 1077.50,
-        bookings: [
-            { d: '03.06.', label: 'Nike Air Max 90 · Vinted',        amt: 89.00,  type: 'in',  cat: 'Verkauf' },
-            { d: '02.06.', label: 'Versandmaterial DHL',             amt: 12.50,  type: 'out', cat: 'Porto' },
-            { d: '01.06.', label: 'Logo-Design · RE-2026-041',       amt: 450.00, type: 'in',  cat: 'Dienstleistung' },
-            { d: '31.05.', label: 'Einkauf Secondhand-Laden',        amt: 34.00,  type: 'out', cat: 'Wareneinkauf' },
-            { d: '30.05.', label: 'Jordan 1 Mid · eBay',             amt: 210.00, type: 'in',  cat: 'Verkauf' }
-        ],
-        log: [
-            { t: '03.06. 14:22', text: 'Buchung B-2026-089 erstellt', op: 'create' },
-            { t: '02.06. 09:05', text: 'Rechnung RE-2026-041 als bezahlt markiert', op: 'update' },
-            { t: '31.05. 18:40', text: 'Buchung B-2026-087 storniert (Storno statt Löschen)', op: 'storno' }
-        ],
-        months: { lbls: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun'], vals: [1800, 2100, 1950, 2400, 2150, 2080] },
-        // Lagerbestand. ek/vk sind Bruttopreise — bei Gebrauchtware von privat gibt es
-        // keine Vorsteuer, deshalb ist die Marge (vk-ek) die Bemessungsgrundlage nach
-        // §25a UStG. Der Satz steht hier bewusst am Artikel und nicht als Konstante:
-        // seit 2025 kann fuer Anlage-2-Ware (Kunst, Sammlungsstuecke) 7 % gelten.
-        lager: [
-            { id: 'L1', name: 'Nike Air Jordan 1 · Gr. 43', ek: 120.00, vk: 210.00, satz: 19, sold: false },
-            { id: 'L2', name: 'Levis 501 Vintage · W32',    ek:  18.00, vk:  65.00, satz: 19, sold: false },
-            { id: 'L3', name: 'Omega Seamaster · 1968',     ek: 640.00, vk: 890.00, satz: 19, sold: false }
-        ]
+    var root = document.querySelector('body.landing');
+    if (!root) return;
+    var appUrl = 'app.html';
+    var header = root.querySelector('.header');
+    var menu = root.querySelector('.menu-toggle');
+    var navigation = root.querySelector('#navigation');
+    var billing = root.querySelector('.billing-toggle');
+    var checkout = root.querySelector('[data-checkout]');
+    var sessionLinks = root.querySelectorAll('[data-session-link]');
+    var selectedPeriod = 'month';
+    var hasSession = false;
+    var plans = {
+        month: { price: '15', note: '15 € monatlich abgerechnet', renewal: 'Ohne Kündigung vor Ende der Testphase folgen 15 € monatlich (Endpreis, keine USt nach § 19 UStG). Das Abo verlängert sich automatisch um einen Monat.', url: 'https://whop.com/checkout/plan_iR6YIKLcychSZ' },
+        year: { price: '11,25', note: '135 € jährlich abgerechnet', renewal: 'Ohne Kündigung vor Ende der Testphase folgen 135 € jährlich (Endpreis, keine USt nach § 19 UStG). Das Abo verlängert sich automatisch um ein Jahr.', url: 'https://whop.com/checkout/plan_b5IBQ1lecggOT' }
     };
 
-    function demoTotals() {
-        var ein = demo.baseIn, ware = demo.baseWare, kost = demo.baseKost;
-        demo.bookings.forEach(function (b) {
-            if (b.type === 'in') ein += b.amt;
-            else if (b.cat === 'Wareneinkauf') ware += b.amt;
-            else kost += b.amt;
-        });
-        return { ein: ein, ware: ware, kost: kost, aus: ware + kost, win: ein - ware - kost };
+    function setMenu(open) {
+        menu.setAttribute('aria-expanded', String(open));
+        menu.setAttribute('aria-label', open ? 'Navigation schließen' : 'Navigation öffnen');
+        navigation.classList.toggle('is-open', open);
     }
-
-    function animateVal(el, from, to, fmt) {
-        if (reduceMotion || document.hidden || Math.abs(to - from) < 0.005) { el.textContent = fmt(to); return; }
-        var start = null, dur = 550, done = false;
-        function finish() { if (!done) { done = true; el.textContent = fmt(to); } }
-        function step(ts) {
-            if (done) return;
-            if (!start) start = ts;
-            var p = Math.min((ts - start) / dur, 1);
-            var eased = 1 - Math.pow(1 - p, 3);
-            if (p < 1) { el.textContent = fmt(from + (to - from) * eased); requestAnimationFrame(step); }
-            else finish();
+    header.classList.add('js-menu');
+    menu.hidden = false;
+    menu.addEventListener('click', function () { setMenu(menu.getAttribute('aria-expanded') !== 'true'); });
+    navigation.addEventListener('click', function (event) {
+        if (!event.target.closest('a')) return;
+        // Der Fokus darf nach Schließen nicht in einer unsichtbaren Navigation bleiben.
+        var href = event.target.closest('a').getAttribute('href');
+        if (href.charAt(0) === '#') {
+            var target = root.querySelector(href);
+            if (target) { target.setAttribute('tabindex', '-1'); target.focus({ preventScroll: true }); }
         }
-        requestAnimationFrame(step);
-        setTimeout(finish, dur + 150);
-    }
-
-    var demoPrev = { ein: 0, aus: 0, win: 0, ware: 0, kost: 0 };
-
-    function renderDemoStats(animate) {
-        var t = demoTotals();
-        var map = [
-            ['dsIn',   t.ein,  demoPrev.ein],
-            ['dsOut',  t.aus,  demoPrev.aus],
-            ['dsWin',  t.win,  demoPrev.win],
-            ['euIn',   t.ein,  demoPrev.ein],
-            ['euWare', t.ware, demoPrev.ware],
-            ['euKost', t.kost, demoPrev.kost],
-            ['euWin',  t.win,  demoPrev.win]
-        ];
-        map.forEach(function (m) {
-            var el = document.getElementById(m[0]);
-            if (!el) return;
-            var fmt = fmtEur;
-            if (m[0] === 'euWare' || m[0] === 'euKost') fmt = function (n) { return '− ' + fmtEur(n); };
-            if (animate) animateVal(el, m[2], m[1], fmt); else el.textContent = fmt(m[1]);
-        });
-        var marge = document.getElementById('dsMarge');
-        if (marge) marge.textContent = Math.round(t.win / t.ein * 100) + ' % Marge';
-        demoPrev = { ein: t.ein, aus: t.aus, win: t.win, ware: t.ware, kost: t.kost };
-    }
-
-    function renderDemoChart() {
-        var wrap = document.getElementById('demoChart');
-        if (!wrap) return;
-        wrap.innerHTML = '';
-        var max = Math.max.apply(null, demo.months.vals);
-        demo.months.lbls.forEach(function (lbl, i) {
-            var col = document.createElement('div');
-            col.className = 'demo-bar-col';
-            var bar = document.createElement('div');
-            bar.className = 'demo-bar';
-            bar.style.height = Math.max(8, Math.round(demo.months.vals[i] / max * 82)) + '%';
-            var l = document.createElement('div');
-            l.className = 'demo-bar-lbl';
-            l.textContent = lbl;
-            col.appendChild(bar);
-            col.appendChild(l);
-            wrap.appendChild(col);
-        });
-    }
-
-    function bookingRow(b, isNew) {
-        var row = document.createElement('div');
-        row.className = 'demo-row' + (isNew ? ' new' : '');
-        var date = document.createElement('span');
-        date.className = 'dr-date';
-        date.textContent = b.d;
-        var label = document.createElement('span');
-        label.className = 'dr-label';
-        label.textContent = b.label;
-        var amt = document.createElement('span');
-        amt.className = 'dr-amt ' + b.type;
-        amt.textContent = (b.type === 'in' ? '+ ' : '− ') + fmtEur(b.amt);
-        row.appendChild(date);
-        row.appendChild(label);
-        row.appendChild(amt);
-        return row;
-    }
-
-    function renderDemoList() {
-        var list = document.getElementById('demoList');
-        if (!list) return;
-        list.innerHTML = '';
-        demo.bookings.slice(0, 8).forEach(function (b) { list.appendChild(bookingRow(b, false)); });
-    }
-
-    function logRow(e, isNew) {
-        var row = document.createElement('div');
-        row.className = 'demo-log-row' + (isNew ? ' new' : '');
-        var t = document.createElement('span');
-        t.className = 'demo-log-time';
-        t.textContent = e.t;
-        var txt = document.createElement('span');
-        txt.className = 'demo-log-text';
-        txt.textContent = e.text;
-        var op = document.createElement('span');
-        op.className = 'demo-log-op ' + e.op;
-        op.textContent = e.op.toUpperCase();
-        row.appendChild(t);
-        row.appendChild(txt);
-        row.appendChild(op);
-        return row;
-    }
-
-    function renderDemoLog() {
-        var list = document.getElementById('demoLog');
-        if (!list) return;
-        list.innerHTML = '';
-        demo.log.slice(0, 7).forEach(function (e) { list.appendChild(logRow(e, false)); });
-    }
-
-    /* ── Lager-Reiter ──────────────────────────────────────────────────────────
-       Der Grund, warum ein Reseller Stackr nimmt, kam in der Demo bisher nicht vor.
-       Gezeigt wird die ganze Kette: Artikel mit Einkaufspreis -> Verkauf -> Einnahme
-       im Dashboard, Wareneinsatz in der EUER, Eintrag im GoBD-Protokoll, und die
-       Marge nach §25a. Die Betraege sind Brutto; ust = marge * satz/(100+satz). */
-    function lagerMarge(a) {
-        var marge = Math.max(0, a.vk - a.ek);
-        return { marge: marge, ust: marge * a.satz / (100 + a.satz) };
-    }
-
-    function lagerRow(a) {
-        var m = lagerMarge(a);
-        var row = document.createElement('div');
-        row.className = 'demo-row';
-        var links = document.createElement('span');
-        links.className = 'dr-label';
-        // textContent statt innerHTML: die Namen sind zwar eigene Konstanten, aber die
-        // Demo bekommt anderswo schon Nutzereingaben — kein zweites Muster einfuehren.
-        links.textContent = a.name;
-        var sub = document.createElement('span');
-        sub.style.cssText = 'display:block;font-size:11px;color:var(--subtle);';
-        sub.textContent = 'EK ' + fmtEur(a.ek) + ' · VK ' + fmtEur(a.vk) +
-            ' · Marge ' + fmtEur(m.marge) + ' (davon ' + fmtEur(m.ust) + ' USt nach §25a)';
-        links.appendChild(sub);
-        var rechts = document.createElement('span');
-        rechts.className = 'dr-amt';
-        if (a.sold) {
-            rechts.className = 'dr-amt in';
-            rechts.textContent = 'verkauft ✓';
-        } else {
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'demo-inline-cta-btn';
-            btn.style.padding = '5px 12px';
-            btn.style.fontSize = '12px';
-            btn.textContent = 'verkaufen';
-            btn.addEventListener('click', function () { window.demoVerkaufen(a.id); });
-            rechts.appendChild(btn);
+        setMenu(false);
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && menu.getAttribute('aria-expanded') === 'true') {
+            setMenu(false);
+            menu.focus();
         }
-        row.appendChild(links);
-        row.appendChild(rechts);
-        return row;
-    }
+    });
+    header.addEventListener('focusout', function (event) {
+        if (event.relatedTarget && !header.contains(event.relatedTarget)) setMenu(false);
+    });
+    document.addEventListener('click', function (event) {
+        if (!header.contains(event.target)) setMenu(false);
+    });
+    var mobile = window.matchMedia('(max-width: 540px)');
+    mobile.addEventListener('change', function () { setMenu(false); });
 
-    function renderDemoLager() {
-        var list = document.getElementById('demoLagerList');
-        if (!list) return;
-        list.innerHTML = '';
-        demo.lager.forEach(function (a) { list.appendChild(lagerRow(a)); });
-    }
-
-    window.demoVerkaufen = function (id) {
-        var a = null;
-        demo.lager.forEach(function (x) { if (x.id === id) a = x; });
-        if (!a || a.sold) return;
-        a.sold = true;
-        renderDemoLager();
-        // Loest dieselbe Kette aus wie jede andere Buchung — inklusive GoBD-Eintrag,
-        // Chart, EUER und dem Verweis in den Checkout ab der zweiten eigenen Buchung.
-        window.demoAdd(a.name + ' · verkauft', a.vk, 'in', 'Verkauf');
-        var m = lagerMarge(a);
-        demoToast('<span class="ok">✓</span> Verkauft — Marge ' + fmtEur(m.marge) +
-                  ', davon ' + fmtEur(m.ust) + ' USt nach §25a');
-    };
-
-    var toastTimer = null;
-    function demoToast(html) {
-        var t = document.getElementById('demoToast');
-        if (!t) return;
-        t.innerHTML = html;
-        t.classList.add('show');
-        if (toastTimer) clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2000);
-    }
-
-    function pad2(n) { return n < 10 ? '0' + n : '' + n; }
-
-    window.demoAdd = function (label, amt, type, cat) {
-        var now = new Date();
-        var b = {
-            d: pad2(now.getDate()) + '.' + pad2(now.getMonth() + 1) + '.',
-            label: label, amt: amt, type: type, cat: cat
-        };
-        demo.bookings.unshift(b);
-
-        // Chart: letzter Monat wächst bei Einnahmen
-        if (type === 'in') demo.months.vals[demo.months.vals.length - 1] += amt;
-
-        // GoBD-Log
-        var id = 'B-2026-' + pad2(demo.nextId++);
-        demo.log.unshift({
-            t: pad2(now.getDate()) + '.' + pad2(now.getMonth() + 1) + '. ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()),
-            text: 'Buchung ' + id + ' erstellt (' + cat + ')',
-            op: 'create'
+    function renderBilling() {
+        var plan = plans[selectedPeriod];
+        billing.querySelectorAll('button').forEach(function (button) {
+            button.setAttribute('aria-pressed', String(button.dataset.period === selectedPeriod));
         });
-
-        renderDemoStats(true);
-        renderDemoChart();
-
-        var list = document.getElementById('demoList');
-        if (list) {
-            list.insertBefore(bookingRow(b, true), list.firstChild);
-            while (list.children.length > 8) list.removeChild(list.lastChild);
-        }
-        var logList = document.getElementById('demoLog');
-        if (logList) {
-            logList.insertBefore(logRow(demo.log[0], true), logList.firstChild);
-            while (logList.children.length > 7) logList.removeChild(logList.lastChild);
-        }
-
-        demoToast('<span class="ok">✓</span> ' + id + ' erfasst — GoBD-protokolliert');
-
-        // Erst ab der ZWEITEN selbst ausgeloesten Buchung: nach der ersten weiss der
-        // Besucher noch nicht, was passiert ist, danach schon — dann ist der Verweis
-        // eine Antwort und keine Unterbrechung. Die fuenf vorbelegten Buchungen aus
-        // demo.bookings zaehlen nicht mit, sie hat niemand gemacht.
-        eigeneBuchungen++;
-        if (eigeneBuchungen >= 2) {
-            ['demoCtaDash', 'demoCtaEuer'].forEach(function (cid) {
-                var el = document.getElementById(cid);
-                if (el) el.hidden = false;
-            });
-        }
-    };
-
-    var eigeneBuchungen = 0;
-
-    // Kategorien je Buchungstyp. 'Wareneinkauf' muss WORTGLEICH zu der Pruefung in
-    // demoTotals() bleiben — nur dieser eine Wert landet in der EUER im Wareneinsatz
-    // statt in den Betriebsausgaben, und genau diese Trennung soll die Demo zeigen.
-    var DEMO_KATEGORIEN = {
-        in:  ['Verkauf', 'Dienstleistung'],
-        out: ['Wareneinkauf', 'Porto', 'Bürobedarf']
-    };
-
-    function fuelleKategorien() {
-        var typeSel = document.getElementById('demoType');
-        var catSel  = document.getElementById('demoCat');
-        if (!typeSel || !catSel) return;
-        var liste = DEMO_KATEGORIEN[typeSel.value === 'out' ? 'out' : 'in'];
-        catSel.textContent = '';
-        liste.forEach(function (k) {
-            var o = document.createElement('option');
-            o.value = k; o.textContent = k;
-            catSel.appendChild(o);
-        });
+        root.querySelector('[data-price]').textContent = plan.price;
+        root.querySelector('[data-billing-note]').textContent = plan.note;
+        root.querySelector('[data-renewal]').textContent = plan.renewal;
+        checkout.href = hasSession ? appUrl : plan.url;
+        checkout.textContent = hasSession ? 'Zur App' : '7 Tage kostenlos testen';
     }
-
-    window.demoAddCustom = function () {
-        var amtInp  = document.getElementById('demoAmt');
-        var typeSel = document.getElementById('demoType');
-        var catSel  = document.getElementById('demoCat');
-        var lblInp  = document.getElementById('demoLabel');
-        var amt = parseFloat((amtInp.value || '').replace(',', '.'));
-        if (!isFinite(amt) || amt <= 0) {
-            amtInp.focus();
-            demoToast('Bitte gib einen Betrag größer 0 ein.');
-            return;
-        }
-        amt = Math.round(amt * 100) / 100;
-        var type = typeSel.value === 'out' ? 'out' : 'in';
-        // Freitext ist unbedenklich: bookingRow() setzt textContent, kein innerHTML.
-        var label = (lblInp && lblInp.value || '').trim().slice(0, 40)
-                 || (type === 'in' ? 'Eigene Einnahme' : 'Eigene Ausgabe');
-        var cat = (catSel && catSel.value) || (type === 'in' ? 'Verkauf' : 'Betriebsausgabe');
-        window.demoAdd(label, amt, type, cat);
-        amtInp.value = '';
-        if (lblInp) lblInp.value = '';
-    };
-
-    (function initKategorien() {
-        var typeSel = document.getElementById('demoType');
-        if (!typeSel) return;
-        typeSel.addEventListener('change', fuelleKategorien);
-        fuelleKategorien();
-    })();
-
-    // Reiterwechsel — als Funktion, weil ihn auch die Rechnungs-Voreinstellung ausloest.
-    function demoZeigeReiter(name) {
-        document.querySelectorAll('.demo-tab').forEach(function (b) {
-            b.setAttribute('aria-selected', String(b.dataset.view === name));
+    billing.hidden = false;
+    billing.querySelectorAll('button').forEach(function (button) {
+        button.addEventListener('click', function () {
+            if (!plans[button.dataset.period]) return;
+            selectedPeriod = button.dataset.period;
+            renderBilling();
         });
-        document.querySelectorAll('.demo-view').forEach(function (v) { v.hidden = true; });
-        var view = document.getElementById('dv-' + name);
-        if (view) view.hidden = false;
-    }
-
-    document.querySelectorAll('.demo-tab').forEach(function (btn) {
-        btn.addEventListener('click', function () { demoZeigeReiter(btn.dataset.view); });
     });
 
-    // Rechnung bezahlt: Status umschalten und hinspringen. Erst dadurch ist die Kette
-    // Rechnung -> Zahlung -> Buchung -> EUER als Abfolge sichtbar statt als vier Reiter.
-    window.demoRechnungBezahlt = function () {
-        var st = document.getElementById('demoInvStatus');
-        if (st) { st.textContent = 'bezahlt'; st.classList.add('bezahlt'); }
-        demoZeigeReiter('rechnung');
-    };
-
-    // Demo: Enter im Betragsfeld bucht
-    var demoAmtInp = document.getElementById('demoAmt');
-    if (demoAmtInp) {
-        demoAmtInp.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') window.demoAddCustom();
+    function updateSession() {
+        // Nur den vorhandenen Landing-Hinweis erhalten. Die App prüft Token und Abo.
+        try { hasSession = Boolean(localStorage.getItem('whop_access_token')); }
+        catch (error) { hasSession = false; }
+        sessionLinks.forEach(function (link) {
+            link.href = hasSession ? appUrl : (link === checkout ? plans[selectedPeriod].url : '#preise');
+            link.textContent = hasSession ? 'Zur App' : '7 Tage kostenlos testen';
+            if (hasSession) link.dataset.session = '1';
+            else delete link.dataset.session;
         });
+        root.querySelector('[data-login]').textContent = hasSession ? 'Zur App' : 'Anmelden';
+        renderBilling();
     }
-
-    // Demo initial rendern
-    renderDemoStats(false);
-    renderDemoChart();
-    renderDemoList();
-    renderDemoLog();
-    renderDemoLager();
-
-    /* ════════════════════════════════════════
-       PRICING TOGGLE
-       ════════════════════════════════════════ */
-    window.setBilling = function (mode) {
-        var isYearly = mode === 'yearly';
-        document.getElementById('billingMonthly').classList.toggle('billing-btn-active', !isYearly);
-        document.getElementById('billingMonthly').setAttribute('aria-pressed', String(!isYearly));
-        document.getElementById('billingYearly').classList.toggle('billing-btn-active', isYearly);
-        document.getElementById('billingYearly').setAttribute('aria-pressed', String(isYearly));
-
-        var priceEl  = document.getElementById('proPrice');
-        var periodEl = document.getElementById('proPricePeriod');
-        var descEl   = document.getElementById('proDesc');
-        var ctaBtn   = document.getElementById('proCtaBtn');
-
-        if (isYearly) {
-            priceEl.childNodes[0].textContent = '11,25 € ';
-            periodEl.textContent = '/ Monat';
-            descEl.textContent   = 'Abgerechnet jährlich (135 €) · Du sparst 45 € · inkl. MwSt.';
-        } else {
-            priceEl.childNodes[0].textContent = '15,00 € ';
-            periodEl.textContent = '/ Monat';
-            descEl.textContent   = 'inkl. MwSt. · Jederzeit kündbar';
-        }
-        // Bei aktiver Whop-Session zeigt der CTA "Zur App" (checkExistingSession) — nicht überschreiben
-        if (!ctaBtn.dataset.session) {
-            ctaBtn.textContent = 'Jetzt 7 Tage kostenlos testen →';
-            ctaBtn.href        = isYearly
-                ? 'https://whop.com/checkout/plan_b5IBQ1lecggOT'
-                : 'https://whop.com/checkout/plan_iR6YIKLcychSZ';
-        }
-    };
-
-    /* ════════════════════════════════════════
-       FAQ
-       ════════════════════════════════════════ */
-    window.toggleFaq = function (btn) {
-        var item = btn.closest('.faq-item');
-        var isOpen = item.classList.contains('open');
-        document.querySelectorAll('.faq-item.open').forEach(function (i) { i.classList.remove('open'); });
-        if (!isOpen) item.classList.add('open');
-    };
-})();
-
-(function () {
-    'use strict';
-
-    var APP_URL = 'app.html';   // Haupt-App; Anmeldung, Registrierung & Zahlung laufen dort über Whop (OAuth)
-
-    function showLoader(msg) {
-        document.getElementById('loaderText').textContent = msg || 'Wird geladen...';
-        document.getElementById('pageLoader').classList.add('show');
-    }
-
-    // ── Bereits über Whop angemeldet? → CTAs auf "Zur App" umstellen ──
-    function checkExistingSession() {
-        try {
-            if (!localStorage.getItem('whop_access_token')) return;
-        } catch (e) { return; }
-        var btns = document.querySelectorAll('.btn-hero, .btn-plan-free, .btn-plan-pro, .btn-primary');
-        btns.forEach(function(btn) {
-            btn.textContent = 'Zur App →';
-            btn.dataset.session = '1';
-            // CTAs sind jetzt <a>-Elemente (Whop-Checkout bzw. #preise) — href mit umstellen,
-            // sonst gewinnt die Default-Navigation über den onclick-Handler
-            if (btn.hasAttribute('href')) btn.setAttribute('href', APP_URL);
-            btn.onclick = function(ev) {
-                ev.preventDefault();
-                showLoader('App wird geöffnet...');
-                window.location.href = APP_URL;
-            };
-        });
-    }
-
-    // Alle CTAs leiten direkt zur App — Login/Registrierung läuft dort über Whop
-    window.openAuth = function (mode) {
-        showLoader('Weiter zur Anmeldung...');
-        window.location.href = APP_URL;
-    };
-
-    checkExistingSession();
-})();
-
-// ── Delegierte Klick-Handler: data-action statt onclick= (CSP script-src-attr) ──
-(function () {
-    'use strict';
-    document.addEventListener('click', function (e) {
-        var el = e.target.closest('[data-action]');
-        if (!el) return;
-        switch (el.dataset.action) {
-            case 'auth':        window.openAuth(el.dataset.mode); break;
-            case 'faq':         window.toggleFaq(el); break;
-            case 'billing':     window.setBilling(el.dataset.plan); break;
-            case 'demo-add':
-                window.demoAdd(el.dataset.label, parseFloat(el.dataset.amount), el.dataset.type, el.dataset.cat);
-                if (el.dataset.demoInvoice) window.demoRechnungBezahlt();
-                break;
-            case 'demo-custom': window.demoAddCustom(); break;
-        }
+    updateSession();
+    window.addEventListener('pageshow', updateSession);
+    window.addEventListener('storage', function (event) {
+        if (event.key === 'whop_access_token' || event.key === null) updateSession();
+    });
+    root.querySelector('[data-consent-settings]').addEventListener('click', function (event) {
+        if (!window.CookieBanner) return;
+        event.preventDefault();
+        window.CookieBanner.reset();
     });
 })();

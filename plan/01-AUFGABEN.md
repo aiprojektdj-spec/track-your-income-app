@@ -50,6 +50,29 @@ Die drei Funde aus Live-Test 5 sind weiterhin gefixt und stehen unten als ✅ �
 was sich beim Bauen gegenüber der ursprünglichen Fundbeschreibung als falsch herausgestellt hat.
 Das ist bei zweien von dreien passiert, also beim Lesen der Fundtexte einkalkulieren.
 
+### 1.11 Bestandscheck für Altdaten vor den Audit-Fixes · ✅ erledigt 2026-10-19 (PR #61, #63)
+
+Die Audit-Fixes vom 14./15.10.2026 (EÜR als Zahlungsrechnung, Steuerstatus je Vorgang,
+Bankimport-Dublettenschutz `cc40704`, Storno/Retoure als eigene Rückzahlung, Verkauf ohne
+vorab vergebene ID `530f98a`) wirken nur für neue Vorgänge. `js/bestandscheck.js` sucht die
+Altlasten in der aktiven Firma: **Einstellungen → Daten und Verbindungen → Bestandscheck**.
+Nur lesend; jede Korrektur wird einzeln übernommen und protokolliert, festgeschriebene
+Zeiträume nur per Storno. Test: `test/test-bestandscheck.js`.
+
+Korrekturvorschlag nur, wo eindeutig: Bank-Dubletten aus verschiedenen Importläufen,
+USt-Status laut belegter Historie, USt-Zahlung in Kategorie „Umsatzsteuer an Finanzamt“,
+Protokoll-Nachtrag für Verkäufe ohne „erstellt“, Materialverbrauch mit genau einem passenden
+Verkauf, „USt-Status gilt seit Beginn unverändert“ (#63). **Nur Hinweis** bei alten Retouren
+und Rechnungsstornos, doppelten Teilzahlungen und Verkäufen ohne Steuersatz.
+
+Angewendet am 2026-10-19 auf getstackr.de für **Secondlife Vintage** (`co_mq28rug4pqlj8`):
+Historie bestätigt (KU seit Beginn, User-Aussage), 4 Verkäufe gestempelt, danach 0 Befunde.
+
+**Rest, braucht dich:** die anderen Firmen sind nicht durchgesehen — u. a. Reck & Schwarz GbR
+(135 Verkäufe), die zweite „Secondlife Vintage“ (`co_mqp1k7u6z4m6b`, 8 Verkäufe) und Demo.
+Firma wechseln, Bestandscheck öffnen, Vorschläge prüfen. Die Historie-Bestätigung nur, wenn
+die Firma nie zwischen KU und Regelbesteuerung gewechselt hat.
+
 ### 1.8 Harnesse für die ungetesteten Rechenmodule (Fund C des Vollaudits) · **teilweise** — 9 von 11, Stand 2026-10-07
 
 > **Korrektur vom 2026-09-16.** Hier stand „✅ erledigt 2026-09-15 (`d399034`)". Das war

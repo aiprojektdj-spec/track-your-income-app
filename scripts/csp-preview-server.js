@@ -1,13 +1,17 @@
 // Lokaler Test-Server, der die Header aus vercel.json wirklich anwendet.
 // Zweck: die CSP-Header gegen die echten Seiten fahren und die Browser-Konsole
 // auf Violations pruefen, bevor deployed wird. Kein Produktionscode.
-//   node scripts/csp-preview-server.js   →   http://localhost:4321
+//   node scripts/csp-preview-server.js 4368   →   http://127.0.0.1:4368
 const http = require('http');
 const fs   = require('fs');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const cfg  = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
+const PORT = Number(process.argv[2] || 4321);
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+    throw new Error('Vorschau-Port muss eine ganze Zahl zwischen 1 und 65535 sein.');
+}
 
 const MIME = {
     '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -20,7 +24,7 @@ const MIME = {
 function toRegExp(source) {
     let re = source
         .replace(/[.+^${}()|[\]\\]/g, '\\$&')   // literal escapen, * und : bleiben
-        .replace(/\\\(\\\.\\\*\\\)/g, '.*')     // "(.*)" wieder als Wildcard
+        .replace(/\\\(\\\.\*\\\)/g, '.*')       // "(.*)" wieder als Wildcard
         .replace(/:[A-Za-z_]+\*/g, '.*')        // ":path*"
         .replace(/:[A-Za-z_]+/g, '[^/]+');      // ":slug"
     return new RegExp('^' + re + '$');
@@ -44,17 +48,26 @@ function resolveFile(urlPath) {
 
 http.createServer((req, res) => {
     const urlPath = req.url.split('?')[0];
-    const file    = resolveFile(urlPath);
-
-    if (!file.startsWith(ROOT)) { res.writeHead(403).end('forbidden'); return; }
+    // Header gegen die angefragte URL pruefen, wie beim Vercel-Rewrite.
+    headersFor(urlPath).forEach(h => res.setHeader(h.key, h.value));
+    // Jeder Vorschauaufruf muss den aktuellen Dateistand sehen.
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    let file;
+    try { file = resolveFile(urlPath); }
+    catch (err) { res.writeHead(400).end('ungueltiger Pfad'); return; }
+    const relative = path.relative(ROOT, file);
+    if (relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
+        res.writeHead(403).end('forbidden'); return;
+    }
+    // Statische Vorschau: Backend-Quellcode nicht als API-Antwort ausliefern.
+    if (relative === 'api' || relative.startsWith('api' + path.sep)) {
+        res.writeHead(501).end('Serverless-APIs stehen nur in der Vercel-Umgebung bereit.'); return;
+    }
 
     fs.readFile(file, (err, buf) => {
         if (err) { res.writeHead(404).end('not found: ' + urlPath); return; }
-        // Bewusst die Header der ANGEFRAGTEN URL, nicht der aufgeloesten Datei —
-        // genau so matcht Vercel (Rewrite passiert nach dem Header-Matching).
-        headersFor(urlPath).forEach(h => res.setHeader(h.key, h.value));
-        res.setHeader('Cache-Control', 'no-store');
         res.setHeader('Content-Type', MIME[path.extname(file)] || 'application/octet-stream');
         res.writeHead(200).end(buf);
     });
-}).listen(Number(process.argv[2] || 4321), '127.0.0.1', () => console.log('CSP-Preview auf http://127.0.0.1:' + (process.argv[2] || 4321)));
+}).listen(PORT, '127.0.0.1', () => console.log('CSP-Preview auf http://127.0.0.1:' + PORT));

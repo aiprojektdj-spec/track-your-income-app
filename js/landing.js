@@ -15,7 +15,7 @@
     var hasSession = false;
     var plans = {
         month: { price: '15', note: '15 € monatlich abgerechnet', renewal: 'Ohne Kündigung vor Ende der Testphase folgen 15 € monatlich (Endpreis, keine USt nach § 19 UStG). Das Abo verlängert sich automatisch um einen Monat.', url: 'https://whop.com/checkout/plan_iR6YIKLcychSZ' },
-        year: { price: '11,25', note: '135 € jährlich abgerechnet', renewal: 'Ohne Kündigung vor Ende der Testphase folgen 135 € jährlich (Endpreis, keine USt nach § 19 UStG). Das Abo verlängert sich automatisch um ein Jahr.', url: 'https://whop.com/checkout/plan_b5IBQ1lecggOT' }
+        year: { price: '11,25', note: '135 € jährlich abgerechnet', renewal: 'Ohne Kündigung vor Ende der Testphase folgen 135 € jährlich (Endpreis, keine USt nach § 19 UStG). Das Abo verlängert sich automatisch um ein Jahr.', url: 'https://whop.com/checkout/plan_CKs4MKzXmOz1E' }
     };
 
     function setMenu(open) {

@@ -13,7 +13,7 @@ var UserPlan = (function () {
     // hängen). Direkter Checkout-Link landet sofort auf "Stackr Pro" (verifiziert: HTTP 200).
     var WHOP_PURCHASE_URL = 'https://whop.com/checkout/plan_iR6YIKLcychSZ'; // Direkt-Checkout monatlich
     var WHOP_URL_MONTHLY  = 'https://whop.com/checkout/plan_iR6YIKLcychSZ'; // Stackr Pro monatlich (15 €) — Whop-Plan plan_iR6YIKLcychSZ
-    var WHOP_URL_YEARLY   = 'https://whop.com/checkout/plan_b5IBQ1lecggOT'; // Stackr Pro jährlich (135 €) — Whop-Plan plan_b5IBQ1lecggOT (Produkt "Stackr App Access", gewährt dieselbe App)
+    var WHOP_URL_YEARLY   = 'https://whop.com/checkout/plan_CKs4MKzXmOz1E'; // Stackr Pro jährlich (135 €) — Whop-Plan plan_CKs4MKzXmOz1E (zweite Preisoption im Produkt "Stackr Pro")
 
     var _plan   = 'pro';
     var _loaded = false;

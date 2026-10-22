@@ -43,7 +43,7 @@
             });
             if (checkout) {
                 checkout.href = yearly
-                    ? 'https://whop.com/checkout/plan_b5IBQ1lecggOT'
+                    ? 'https://whop.com/checkout/plan_CKs4MKzXmOz1E'
                     : 'https://whop.com/checkout/plan_iR6YIKLcychSZ';
             }
             if (planPrice) planPrice.innerHTML = yearly

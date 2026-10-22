@@ -27,7 +27,7 @@ var AuthUI = (function () {
     var WHOP_PURCHASE_URL = 'https://whop.com/checkout/plan_iR6YIKLcychSZ'; // Fallback = Direkt-Checkout monatlich
     // Direkt-Checkout-Links pro Abo-Intervall — echte Whop-Plan-Links hier eintragen:
     var WHOP_URL_MONTHLY  = 'https://whop.com/checkout/plan_iR6YIKLcychSZ'; // Stackr Pro monatlich (15 €) — Whop-Plan plan_iR6YIKLcychSZ
-    var WHOP_URL_YEARLY   = 'https://whop.com/checkout/plan_b5IBQ1lecggOT'; // Stackr Pro jährlich (135 €) — Whop-Plan plan_b5IBQ1lecggOT (Produkt "Stackr App Access", gewährt dieselbe App)
+    var WHOP_URL_YEARLY   = 'https://whop.com/checkout/plan_CKs4MKzXmOz1E'; // Stackr Pro jährlich (135 €) — Whop-Plan plan_CKs4MKzXmOz1E (zweite Preisoption im Produkt "Stackr Pro")
     // Referral/Affiliate-Basislink — {ref} wird durch den Whop-Username ersetzt. Direkter
     // Checkout-Link (NICHT der Company-Hub), ?a= funktioniert dort ebenso (verifiziert):
     var WHOP_REFERRAL_BASE = 'https://whop.com/checkout/plan_iR6YIKLcychSZ?a={ref}'; // Whop-Affiliate: ?a=<username> (bestätigt, docs.whop.com/developer/guides/affiliates)

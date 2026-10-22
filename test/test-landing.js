@@ -10,7 +10,7 @@ const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 const html = read('index.html');
 const source = read('js/landing.js');
 const MONTH = 'https://whop.com/checkout/plan_iR6YIKLcychSZ';
-const YEAR = 'https://whop.com/checkout/plan_b5IBQ1lecggOT';
+const YEAR = 'https://whop.com/checkout/plan_CKs4MKzXmOz1E';
 
 function eventTarget(target = {}) {
     const listeners = new Map();

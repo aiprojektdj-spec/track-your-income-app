@@ -18,6 +18,14 @@ Stand 2026-10-23, gegen Code und Supabase geprüft. Vor dem Abarbeiten `git log 
   Browser ruft `/api/shopify-install` same-origin (`connect-src 'self'`), der Sprung zu
   `*.myshopify.com` ist eine Top-Level-Navigation.
 
+## 0. Vor dem Test: nichts pushen, was `db7cf92` enthält
+
+`db7cf92` (R2-Nachtrag, lokal, Stand 2026-10-23) lässt `api/shopify-install.js` vor dem Redirect
+`firma_rolle(...) = 'owner'` prüfen. Die Funktion gibt es nur in `…000002`, und selbst mit ihr
+stünde die Testfirma erst nach dem Datenumzug (R4/R5) in `companies`. Ist `db7cf92` live, endet
+jeder Install-Versuch mit „nicht Owner“. Der Test läuft also gegen den heute live liegenden Stand
+(`6dba391`). Erst nach dem Test pushen, oder den Test bis nach R5 verschieben.
+
 ## 1. Vercel-Variablen (User)
 
 Projekt `track-your-income-app` → Settings → Environment Variables → **nur Production**:

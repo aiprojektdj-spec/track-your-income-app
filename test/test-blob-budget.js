@@ -49,11 +49,12 @@ function build(opts) {
     // meldet chargeBlobBudget ihn ueber api/_alert.js — hier als Spion eingehaengt.
     const alerts = [];
     const alertOps = async (source, event, detail) => { alerts.push({ source, event, detail }); };
-    const fn = new Function('store', 'BLOB_BUDGET_BYTES',
+    const fn = new Function('store', 'BLOB_BUDGET_BYTES', 'BLOB_LEDGER_BUDGET_BYTES',
                             'BLOB_BUDGET_WINDOW', 'console', 'alertOps',
                             m[0] + '; return chargeBlobBudget;')(
         fakeStore,
-        opts.budget !== undefined ? opts.budget : 10 * GB, 2592000,
+        opts.budget !== undefined ? opts.budget : 10 * GB,
+        opts.ledgerBudget !== undefined ? opts.ledgerBudget : 20 * GB, 2592000,
         { error: () => {} }, alertOps);
     return { charge: fn, store, calls, alerts };
 }
@@ -124,5 +125,23 @@ function build(opts) {
     assert.ok(defBytes < 28 * GB, 'kleiner als die im Audit genannte Stundenleistung');
     pass++; console.log('✓ Default-Deckel 1 GB je 30-Tage-Fenster');
 
-    console.log('\n' + pass + '/10 Tests bestanden ✅');
+    // 9) Ledger-Chiffrate laufen über ein eigenes Budget (Kundenfall 2026-10-22: 9-MB-Ledger
+    //    bei jedem Push hatte das 1-GB-Anhangsbudget geleert und den Sync gestoppt)
+    const bL = build({ budget: 10 * MB, ledgerBudget: 30 * MB });
+    assert.strictEqual(await bL.charge('user_1', 10 * MB), true);
+    assert.strictEqual(await bL.charge('user_1', 9 * MB, true), true, 'Ledger trotz vollem Anhangsbudget');
+    assert.strictEqual(bL.store.get('blob:ledgerbytes:user_1'), 9 * MB, 'eigener Zähler');
+    assert.strictEqual(bL.store.get('blob:bytes:user_1'), 10 * MB, 'Anhangszähler unberührt');
+    assert.strictEqual(await bL.charge('user_1', 1, false), false, 'Anhänge bleiben am 1-GB-Deckel');
+    assert.strictEqual(await bL.charge('user_1', 22 * MB, true), false, 'Ledger-Deckel greift auch');
+    pass++; console.log('✓ Ledger-Uploads haben ein eigenes Budget');
+
+    const ldMatch = src.match(/BLOB_LEDGER_MAX_BYTES \|\| String\(([^)]+)\)/);
+    assert.ok(ldMatch, 'Default für BLOB_LEDGER_MAX_BYTES nicht gefunden');
+    assert.strictEqual(eval(ldMatch[1]), 20 * GB, 'Default 20 GB');   // eslint-disable-line no-eval
+    assert.ok(/uploadIdC\.indexOf\('ledger_'\) === 0 && finalName\.indexOf\('ledger-'\) !== 0/.test(src),
+        'commit: ledger_-Teile nur als ledger-… zusammensetzbar');
+    pass++; console.log('✓ Ledger-Default 20 GB, commit bindet ledger_-Teile an ledger-Namen');
+
+    console.log('\n' + pass + '/12 Tests bestanden ✅');
 })().catch(e => { console.error('✗ FAIL', e); process.exit(1); });

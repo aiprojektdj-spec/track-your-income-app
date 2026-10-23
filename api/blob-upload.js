@@ -152,23 +152,31 @@ var GRANTEE_ID_RE    = /^[A-Za-z0-9_-]{1,128}$/;
 // Das Fenster selbst gibt das Budget ohnehin zurück, eine Gegenbuchung ist unnötig.
 var BLOB_BUDGET_BYTES  = parseInt(process.env.BLOB_MAX_BYTES || String(1 * 1024 * 1024 * 1024), 10);
 var BLOB_BUDGET_WINDOW = parseInt(process.env.BLOB_BUDGET_WINDOW_SEC || '2592000', 10); // 30 Tage
+// Eigenes Budget fuer Ledger-Chiffrate (Kundenfall 2026-10-22): ein Ledger ueber dem Inline-
+// Limit (3,5 MB) wird bei JEDEM Push komplett neu hochgeladen; bei 9 MB war 1 GB nach ~115
+// Syncs leer und der Sync stand. Der Ledger ersetzt sich selbst (api/blob-cleanup.js raeumt
+// ueberholte ledger-* ab), es waechst also Verkehr, kein Speicher. 20 GB/30 Tage kosten im
+// schlimmsten Fall ~5 $ (fra1: FDT 0,15 $/GB + Blob-Transfer/Origin 0,11 $/GB).
+var BLOB_LEDGER_BUDGET_BYTES = parseInt(process.env.BLOB_LEDGER_MAX_BYTES || String(20 * 1024 * 1024 * 1024), 10);
 
 // Bucht `bytes` auf das Budget. Rückgabe false = Deckel erreicht, dann wird die Buchung
 // zurückgenommen, damit ein abgelehnter Upload kein Budget verbraucht.
 // Speicher-Fehler lassen den Upload durch (fail-open, wie das bestehende Rate-Limit hier und
 // in api/sync.js): ein Ausfall darf keinen zahlenden Kunden am Arbeiten hindern.
 // Das Fenster setzt nur die erste Buchung (Redis: EXPIRE … NX, Supabase: sync_counter_add).
-async function chargeBlobBudget(userId, bytes) {
+// ledger=true bucht auf das eigene Ledger-Budget (blob:ledgerbytes:, BLOB_LEDGER_BUDGET_BYTES).
+async function chargeBlobBudget(userId, bytes, ledger) {
     var problem = store.configProblem();
     if (problem) {
         await alertOps('blob-upload', (store.backendName() || 'store') + '-env-missing',
             'Byte-Budget und Rate-Limit sind komplett aus: ' + problem);
         return true;
     }
-    var key = 'blob:bytes:' + userId;
+    var key = (ledger ? 'blob:ledgerbytes:' : 'blob:bytes:') + userId;
+    var max = ledger ? BLOB_LEDGER_BUDGET_BYTES : BLOB_BUDGET_BYTES;
     try {
         var total = await store.counterAdd(key, bytes, BLOB_BUDGET_WINDOW);
-        if (Number(total) <= BLOB_BUDGET_BYTES) return true;
+        if (Number(total) <= max) return true;
         await store.counterAdd(key, -bytes, BLOB_BUDGET_WINDOW);
         return false;
     } catch (e) {
@@ -308,10 +316,16 @@ module.exports = async function handler(req, res) {
             if (!Buffer.isBuffer(body)) return res.status(400).json({ error: 'bad_payload' });
             if (body.length > MAX_CHUNK) return res.status(413).json({ error: 'too_large', maxChunk: MAX_CHUNK });
 
+            // Ledger erkennt man am Namen (put: ledger-…) bzw. an der Upload-ID (chunk: ledger_…);
+            // commit erzwingt, dass ledger_-Teile nur als ledger-… zusammengesetzt werden.
+            var isLedger = action === 'chunk'
+                ? String(req.query.uploadId || '').indexOf('ledger_') === 0
+                : String(req.query.name || '').indexOf('ledger-') === 0;
             // Budget VOR dem put() buchen — danach liegt das Objekt schon im Blob-Store und
             // kostet, auch wenn wir die Antwort ablehnen (Fund R6).
-            if (!(await chargeBlobBudget(userId, body.length))) {
-                return res.status(507).json({ error: 'storage_budget', maxBytes: BLOB_BUDGET_BYTES,
+            if (!(await chargeBlobBudget(userId, body.length, isLedger))) {
+                return res.status(507).json({ error: 'storage_budget',
+                                              maxBytes: isLedger ? BLOB_LEDGER_BUDGET_BYTES : BLOB_BUDGET_BYTES,
                                               windowSec: BLOB_BUDGET_WINDOW });
             }
 
@@ -351,6 +365,10 @@ module.exports = async function handler(req, res) {
                 if (uploadIdC === null) uploadIdC = mC[1];
                 if (mC[1] !== uploadIdC || parseInt(mC[2], 10) !== ic) return res.status(400).json({ error: 'bad_chunks', index: ic });
             }
+            // Auf das Ledger-Budget gebuchte Teile duerfen nur ein Ledger werden, sonst liefe ein
+            // Anhang am 1-GB-Deckel vorbei.
+            if (uploadIdC.indexOf('ledger_') === 0 && finalName.indexOf('ledger-') !== 0)
+                return res.status(400).json({ error: 'bad_name' });
             // Ein Upload wird höchstens einmal zusammengesetzt: Wiederholung nach geglücktem
             // Commit (z. B. wenn das Aufräumen der Teile scheiterte) erzeugt kein zweites Objekt.
             var onceKey = 'blob:commit:' + userId + ':' + scope + ':' + uploadIdC, onceHeld = false;

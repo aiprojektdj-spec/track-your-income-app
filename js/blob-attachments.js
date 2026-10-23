@@ -66,7 +66,8 @@ var BlobAttachments = (function () {
             if (!r.ok) throw new Error('blob_put_' + r.status);
             return r.json.url;
         }
-        var chunkUrls = [], uploadId = _randId();
+        // ledger_-Präfix: der Server bucht Ledger-Teile auf ein eigenes, größeres Budget
+        var chunkUrls = [], uploadId = (name.indexOf('ledger-') === 0 ? 'ledger_' : '') + _randId();
         for (var i = 0, idx = 0; i < bytes.length; i += MAX_CHUNK, idx++) {
             var piece = bytes.subarray(i, Math.min(i + MAX_CHUNK, bytes.length));
             var cr = await _req('chunk', scope, { uploadId: uploadId, index: idx }, piece);

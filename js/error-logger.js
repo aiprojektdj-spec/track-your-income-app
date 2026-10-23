@@ -125,14 +125,24 @@
     };
 
     // ── Unhandled Promise rejections ──
+    // Ein abgelehntes Promise trägt Datei/Zeile nur im Stack (fileName/lineNumber kennt nur
+    // Firefox). Ohne sie kam beim Server "Error:sonstig (?:0)" an — nicht auffindbar (Alarm
+    // vom 2026-10-16). Genommen wird nur der erste Rahmen mit http(s)-URL; daraus gehen, wie bei
+    // window.onerror, nur Pfad (_path: ohne Host und Query) und Zeile/Spalte raus, kein Text.
+    function _ortAusStack(stack) {
+        var t = String(stack || '').match(/(https?:\/\/[^\s()@]+?):(\d+):(\d+)/);
+        return t ? { source: t[1], line: parseInt(t[2], 10), col: parseInt(t[3], 10) } : null;
+    }
+
     window.addEventListener('unhandledrejection', function(ev) {
         var reason = ev.reason || {};
+        var ort = reason.fileName ? null : _ortAusStack(reason.stack);
         _capture(
             'promise',
             reason.message || String(reason),
-            reason.fileName || '',
-            reason.lineNumber || 0,
-            reason.columnNumber || 0,
+            reason.fileName || (ort ? ort.source : ''),
+            reason.lineNumber || (ort ? ort.line : 0),
+            reason.columnNumber || (ort ? ort.col : 0),
             reason.stack || '',
             reason.name || ''
         );

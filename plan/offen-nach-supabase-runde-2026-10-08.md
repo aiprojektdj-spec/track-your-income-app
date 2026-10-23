@@ -37,7 +37,9 @@ Reihenfolge einhalten. Rückweg ist jeweils: Variablen tauschen bzw. entfernen �
 Steuerberater-Zugang zurückkommen (Befund B2, `plan/audit-supabase-security-2026-10-07.md`).
 
 1. [ ] Supabase-Organisation auf **Pro**, Spend Cap setzen.
-2. [ ] Storage → Settings: projektweite Upload-Grenze **≥ 200 MB**.
+2. [x] ~~Storage → Settings: projektweite Upload-Grenze **≥ 200 MB**.~~ Überholt am 2026-10-15:
+   Spend Cap bleibt an (globale Grenze 50 MB), `MAX_TOTAL_BYTES` in `api/blob-upload.js` auf 50 MB
+   gesenkt (`d0a19cb`). Aktuelle Checkliste: `plan/supabase-pro-2026-10-15.md`.
 3. [x] **Migrationen** — am 2026-10-08 per Supabase-MCP geprüft: Prod und Preview haben dieselben
    13 Tabellen (alle mit RLS) und 32 `sync_*`-Funktionen; Prod trägt die frühen Migrationen nicht in
    der Historie (damals über den SQL-Editor), die Objekte sind aber da. Security-Advisor in beiden:

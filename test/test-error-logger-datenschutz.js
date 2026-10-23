@@ -63,5 +63,23 @@ check('S8: unhandledrejection und ErrorLogger.log mit freiem Kontext', () => {
     assert.strictEqual(JSON.parse(k.beacons[2]).message, 'Error:sonstig@rechnung-speichern');
 });
 
+check('Promise ohne fileName: Ort aus dem Stack (nur Pfad + Zeile), Text bleibt draußen', () => {
+    // Alarm 2026-10-16: "Error:sonstig (?:0)" — ohne Ort nicht auffindbar.
+    const k = client();
+    k.hoerer.unhandledrejection({ reason: { name: 'Error', message: 'Speichern für Max Mustermann fehlgeschlagen',
+        stack: 'Error: Speichern für Max Mustermann fehlgeschlagen\n    at speichere (https://stackr.example/js/cloud-sync.js?token=GEHEIM123:812:17)\n    at https://stackr.example/js/app.js:5:1' } });
+    // Firefox-Form: funktion@url:zeile:spalte
+    k.hoerer.unhandledrejection({ reason: { name: 'TypeError', message: 'x',
+        stack: 'lade@https://stackr.example/js/store.js:44:9\n@https://stackr.example/js/app.js:1:1' } });
+    // Ohne verwertbaren Stack bleibt es wie bisher leer
+    k.hoerer.unhandledrejection({ reason: 'Max Mustermann' });
+    assert.strictEqual(k.beacons.length, 3);
+    k.beacons.forEach(sauber);
+    const a = JSON.parse(k.beacons[0]), b = JSON.parse(k.beacons[1]), c = JSON.parse(k.beacons[2]);
+    assert.deepStrictEqual([a.source, a.line, a.col], ['/js/cloud-sync.js', 812, 17]);
+    assert.deepStrictEqual([b.source, b.line, b.col], ['/js/store.js', 44, 9]);
+    assert.deepStrictEqual([c.source, c.line], ['', 0]);
+});
+
 console.log(`\n${pass} bestanden, ${fail} fehlgeschlagen`);
 if (fail) process.exit(1);

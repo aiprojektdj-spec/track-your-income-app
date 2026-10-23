@@ -1121,6 +1121,10 @@ const Euer = {
         this._charts = [];
     },
 
+    // Von App.navigate beim Verlassen der Seite aufgerufen — sonst lebten die Diagramme bis zum
+    // nächsten EÜR-Aufruf weiter (siehe js/dashboard.js runLeaveHook).
+    runLeaveHook() { this._destroyCharts(); },
+
     init() {
         this._destroyCharts();
         if (this._view === 'uva') {

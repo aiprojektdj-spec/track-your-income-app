@@ -593,7 +593,9 @@ const App = {
         // anderen Seitenwechsel unschädlich.
         if (page !== this.currentPage) {
             [typeof RechApp !== 'undefined' ? RechApp : null,
-             typeof EBApp    !== 'undefined' ? EBApp    : null].forEach(sub => {
+             typeof EBApp    !== 'undefined' ? EBApp    : null,
+             typeof Dashboard !== 'undefined' ? Dashboard : null,   // Diagramme zerstören
+             typeof Euer !== 'undefined' ? Euer : null].forEach(sub => {
                 if (sub && typeof sub.runLeaveHook === 'function') {
                     try { sub.runLeaveHook(); }
                     catch (e) { console.warn('[App] Aufräumen der Sub-App fehlgeschlagen:', e); }

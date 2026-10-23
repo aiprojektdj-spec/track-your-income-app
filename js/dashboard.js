@@ -396,10 +396,20 @@ const Dashboard = {
         }
     },
 
+    // Alle Diagramme zerstören. Auch beim Verlassen der Seite (runLeaveHook, aufgerufen von
+    // App.navigate): sonst hingen sie weiter an Resize-Ereignissen, obwohl ihr Element weg ist —
+    // ApexCharts wirft dann "Cannot read properties of null (reading 'getAttribute')"
+    // (Alarm vom 2026-10-16).
+    _destroyCharts() {
+        ['_chart', '_chartJahres', '_chartGewinn'].forEach(k => {
+            if (this[k]) { try { this[k].destroy(); } catch (e) { /* Element schon weg */ } this[k] = null; }
+        });
+    },
+
+    runLeaveHook() { this._destroyCharts(); },
+
     _refresh() {
-        if (this._chart) { this._chart.destroy(); this._chart = null; }
-        if (this._chartJahres) { this._chartJahres.destroy(); this._chartJahres = null; }
-        if (this._chartGewinn) { this._chartGewinn.destroy(); this._chartGewinn = null; }
+        this._destroyCharts();
         const contentEl = document.getElementById('content');
         contentEl.innerHTML = this.render();
         this.init();

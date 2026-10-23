@@ -286,7 +286,13 @@
       <ram:SellerTradeParty>
         <ram:Name>Muster Handel GmbH</ram:Name>
         <ram:DefinedTradeContact>
-          <ram:PersonName>Max Muster</ram:PersonName>
+          <ram:PersonName>Muster Handel GmbH</ram:PersonName>
+          <ram:TelephoneUniversalCommunication>
+            <ram:CompleteNumber>+49 30 1234567</ram:CompleteNumber>
+          </ram:TelephoneUniversalCommunication>
+          <ram:EmailURIUniversalCommunication>
+            <ram:URIID>rechnung@example.org</ram:URIID>
+          </ram:EmailURIUniversalCommunication>
         </ram:DefinedTradeContact>
         <ram:PostalTradeAddress>
           <ram:PostcodeCode>10115</ram:PostcodeCode>
@@ -298,6 +304,9 @@
           <ram:URIID schemeID="EM">rechnung@example.org</ram:URIID>
         </ram:URIUniversalCommunication>
         <ram:SpecifiedTaxRegistration>
+          <ram:ID schemeID="FC">11/222/33333</ram:ID>
+        </ram:SpecifiedTaxRegistration>
+        <ram:SpecifiedTaxRegistration>
           <ram:ID schemeID="VA">DE123456789</ram:ID>
         </ram:SpecifiedTaxRegistration>
       </ram:SellerTradeParty>
@@ -305,7 +314,7 @@
         <ram:Name>Beispiel Kunde GmbH</ram:Name>
         <ram:PostalTradeAddress>
           <ram:PostcodeCode>20095</ram:PostcodeCode>
-          <ram:LineOne>Kundenstr. 2</ram:LineOne>
+          <ram:LineOne>Kundenstrasse 2</ram:LineOne>
           <ram:CityName>Hamburg</ram:CityName>
           <ram:CountryID>DE</ram:CountryID>
         </ram:PostalTradeAddress>
@@ -338,7 +347,10 @@
         <ram:RateApplicablePercent>19.00</ram:RateApplicablePercent>
       </ram:ApplicableTradeTax>
       <ram:SpecifiedTradePaymentTerms>
-        <ram:Description>Zahlbar innerhalb 14 Tagen</ram:Description>
+        <ram:Description>Zahlbar innerhalb von 14 Tagen nach Rechnungserhalt.</ram:Description>
+        <ram:DueDateDateTime>
+          <udt:DateTimeString format="102">20261028</udt:DateTimeString>
+        </ram:DueDateDateTime>
       </ram:SpecifiedTradePaymentTerms>
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
         <ram:LineTotalAmount>0.30</ram:LineTotalAmount>

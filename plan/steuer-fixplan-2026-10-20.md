@@ -73,19 +73,24 @@ Legende: ☐ offen · ☑ erledigt (Commit) · ⏸ wartet auf Entscheidung
 
 ## Folgepunkte aus den Fixes
 
-- ~~DATEV bucht den Restbuchwert eines Anlagenabgangs (E-01) noch nicht~~ — erledigt in `5665799`
-  (Konto 2310 SKR03 / 6895 SKR04; Kontonummern noch gegen den amtlichen DATEV-Kontenrahmen prüfen).
-- **E-07/E-08 entschieden (User, 2026-10-22):** eigene Kategorien Bewirtung/Geschenke/Gewerbesteuer;
-  Fahrt mit „tatsächlichen Kosten“ bucht 0 €. Offen dazu: DATEV-Konten für Bewirtung/Geschenke/GewSt
-  (fallen auf „sonstige“; Sollwerte nur aus dem DATEV-Kontenrahmen), Nutzungsentnahme Kfz/Telefon,
-  eigene Zeilen „nicht abziehbar“ im Anlage-EÜR-Export.
-- **Offen:** `kosit-proben/` mit dem neuen Code neu
-  erzeugen und beim KoSIT-Validator hochladen (User); `datenschutz.html:454` Fristbeginn
-  Jahresende statt „letzte Eintragung“ (Rechtstext → User/Anwalt).
-- ~~Logikreview R-L1a „doppelte Soll-USt-Korrektur durch Stornodokument + Rückzahlung“~~ — bestätigt
-  (Soll Q1/2026 −38 statt −19 €) und behoben im Kz70/R-L1a-Commit.
-- U06: Umsätze mit Anlagevermögen (§19 Abs. 2 S. 2 UStG) lassen sich noch nicht kennzeichnen und zählen mit.
-- Restore (F1) setzt Datensätze weiter auf den Backup-Stand zurück; nachvollziehbar über das Protokoll.
+Stand 2026-10-23: alle erledigt außer den mit „User“ markierten Schritten.
+
+- ~~DATEV-Konten Anlagenabgang, Bewirtung, Geschenke, GewSt~~ — gegen den DATEV-Kontenrahmen 2026
+  (SKR 03 Art.-Nr. 11174, SKR 04 Art.-Nr. 11175, PDF von datev.de) geprüft: 2310/2315 bzw. 6895/4855
+  nach Buchverlust/-gewinn, Erlöse 8800/8801/8820/8829 bzw. 6889/6885/4845/4849, Bewirtung
+  4650/4654 bzw. 6640/6644, Geschenke 4630/4635 bzw. 6610/6620, GewSt 4320/7610,
+  Privatentnahme 1800/2100.
+- ~~Privatnutzung Kfz/Telefon~~ — Entscheidung User 2026-10-23: Privatanteil in % je Ausgabe (mindert
+  Betriebsausgabe und Vorsteuer, DATEV bucht ihn als Privatentnahme). Keine 1-%-Regel.
+- ~~Zeilen „nicht abziehbar“ im Anlage-EÜR-Export~~ — Angabezeilen Bewirtung/Geschenke/GewSt (nicht im Gewinn).
+- ~~U06: Anlagenverkäufe in der KU-Grenze~~ — der Abgang im Anlagenverzeichnis fragt den Erlös ab und
+  bucht ihn als Anlagenverkauf; der zählt nicht zum Gesamtumsatz (§19 Abs. 2 S. 2 UStG).
+- ~~kosit-proben neu erzeugen~~ — `node scripts/kosit-proben.js`. **User:** beim KoSIT-Validator
+  hochladen und das Ergebnis eintragen.
+- ~~datenschutz.html Fristbeginn~~ — präzisiert (§147 Abs. 4 AO, §14b UStG). **User/Anwalt:** gegenlesen.
+- ~~Logikreview R-L1a~~ — bestätigt (Soll Q1/2026 −38 statt −19 €) und behoben in `b75cb85`.
+- Bewusst offen: Restore (F1) setzt Datensätze auf den Backup-Stand zurück (nachvollziehbar über das
+  Protokoll); Privatanteil bei §13b-Ausgaben (Steuerschuld voll, Vorsteuer anteilig) nicht abgebildet.
 
 ## Entscheidungen (User, 2026-10-20)
 

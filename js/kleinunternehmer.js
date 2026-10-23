@@ -36,7 +36,8 @@ const Kleinunternehmer = {
         };
         const alle = Store.getAllSalesRaw ? Store.getAllSalesRaw() : Store.getSales(true);
         const out = [];
-        alle.filter(s => !s.storniert && s.datum && String(s.datum).startsWith(y))
+        // Umsätze mit Wirtschaftsgütern des Anlagevermögens bleiben außer Ansatz (§19 Abs. 2 S. 2 UStG)
+        alle.filter(s => !s.storniert && !s.anlagevermoegen && s.datum && String(s.datum).startsWith(y))
             .forEach(s => out.push({ datum: s.datum, betrag: netto(s).netto }));
         // Erstattungen aus Retouren mindern das Vereinnahmte, anteilig netto wie der Verkauf.
         // Altbestand: Retoure hat den Verkauf storniert → der Verkauf zählt schon nicht, kein Doppelabzug.
@@ -44,7 +45,7 @@ const Kleinunternehmer = {
             const b = parseFloat(r.erstattungBetrag) || 0;
             if (!b || !r.datum || !String(r.datum).startsWith(y)) return;
             const sale = alle.find(s => s.id === r.saleId);
-            if (sale && sale.storniert) return;
+            if (sale && (sale.storniert || sale.anlagevermoegen)) return;
             const n = sale ? netto(sale) : null;
             const faktor = n && n.brutto ? n.netto / n.brutto : 1;
             out.push({ datum: r.datum, betrag: -b * faktor });

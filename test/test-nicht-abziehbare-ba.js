@@ -96,4 +96,34 @@ const jahr = c => c.Euer._berechne(2026, 0, 'jahr');
     ok('E-08: 60 € Fahrt (tatsächlich) + 60 € Tankbeleg + 30 € Pauschale = 90 € statt 150 €');
 }
 
-console.log('\n' + n + '/4 Tests bestanden');
+// Privatanteil (Entscheidung User 2026-10-23) — Telefon 30 % privat
+{
+    const k = welt({ expenses: [{ id: 't', datum: '2026-04-01', kategorie: 'Büro', betrag: 100, ustSatz: 0, privatAnteil: 30 }] });
+    assert.strictEqual(r2(jahr(k).privatAnteil), 30);
+    assert.strictEqual(r2(jahr(k).gewinn), -70);
+    const r = welt({ settings: { ustMode: 'regel', ustVersteuerungsart: 'soll' },
+        expenses: [{ id: 't', datum: '2026-04-01', kategorie: 'Büro', betrag: 119, ustSatz: 19, privatAnteil: 30 }] });
+    const e = jahr(r);
+    assert.strictEqual(r2(e.vorsteuer), 13.3);
+    assert.strictEqual(r2(e.nettoGewinn), -70);
+    assert.strictEqual(r2(r.Vorsteuer._calcFromExpenses('2026-04-01', '2026-06-30').vst19), 13.3);
+    ok('Privatanteil: KU 100 € / 30 % → BA 70 €; Regel 119 € → BA netto 70 €, Vorsteuer 13,30 € in EÜR und UVA');
+}
+
+// Angaben für die Anlage EÜR: nicht abziehbare Beträge als eigene Zeilen, nicht im Gewinn
+{
+    const c = welt({ expenses: [
+        { id: 'b', datum: '2026-03-01', kategorie: 'Bewirtung', betrag: 100, ustSatz: 0 },
+        { id: 'gw', datum: '2026-03-03', kategorie: 'Gewerbesteuer', betrag: 500, ustSatz: 0 }] });
+    const e = jahr(c);
+    const z = c.Euer._elsterZeilen(e);
+    const w = k => z.find(x => x.key === k);
+    assert.strictEqual(r2(w('nichtAbzBewirtung').betrag), 30);
+    assert.strictEqual(r2(w('nichtAbzGewSt').betrag), 500);
+    assert.ok(w('nichtAbzGewSt').info && /nicht im Gewinn/.test(w('nichtAbzGewSt').bezeichnung));
+    assert.strictEqual(r2(w('sonstige').betrag), 70);
+    assert.strictEqual(r2(e.gewinn), -70);
+    ok('Anlage-EÜR-Angaben: Bewirtung 30 € und GewSt 500 € als Angabezeilen, Sammelposten 70 €');
+}
+
+console.log('\n' + n + '/6 Tests bestanden');

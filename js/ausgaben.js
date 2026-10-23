@@ -26,8 +26,30 @@ const Ausgaben = {
 
     // Jahresfunktionen (CLAUDE.md Regel 7): Geschenkgrenze 35 € bis 2023, 50 € ab 2024
     // (Wachstumschancengesetz); Bewirtung 70 % abziehbar seit 2004.
+    // Leer/0 → undefined (kein Feld), 1–100 → Zahl, sonst null (ungültig)
+    _leseProzent(id) {
+        const el = typeof document !== 'undefined' ? document.getElementById(id) : null;
+        const raw = el ? String(el.value || '').trim().replace(',', '.') : '';
+        if (!raw) return undefined;
+        const v = parseFloat(raw);
+        if (isNaN(v) || v < 0 || v > 100) return null;
+        return v === 0 ? undefined : v;
+    },
+
     _geschenkGrenze(year) { return (parseInt(year, 10) || 0) >= 2024 ? 50 : 35; },
     _bewirtungAbziehbar(year) { return 0.7; },
+
+    // Privatanteil in % (z. B. Telefon, Pkw nach Fahrtenbuchmethode; Entscheidung User 2026-10-23).
+    // Der private Teil ist keine Betriebsausgabe (§4 Abs. 4, §12 Nr. 1 EStG) und berechtigt nicht
+    // zum Vorsteuerabzug (§15 Abs. 1 S. 1 Nr. 1 UStG, nur für das Unternehmen bezogen).
+    _privatQuote(e) {
+        const p = parseFloat(e && e.privatAnteil);
+        return isNaN(p) ? 0 : Math.min(100, Math.max(0, p)) / 100;
+    },
+    _privatBetrag(e) { return (parseFloat(e && e.betrag) || 0) * this._privatQuote(e); },
+    _betrieblich(e) { return (parseFloat(e && e.betrag) || 0) - this._privatBetrag(e); },
+    // Anteil der Vorsteuer, der abziehbar bleibt (0 bei Geschenk über der Grenze)
+    _vstFaktor(e, alle) { return this._vorsteuerGesperrt(e, alle) ? 0 : 1 - this._privatQuote(e); },
 
     _hatVstAbzug(e) {
         const r = parseFloat(this._normUstSatz(e.ustSatz != null && e.ustSatz !== '' ? e.ustSatz : e.steuersatz));
@@ -36,7 +58,7 @@ const Ausgaben = {
         return SteuerStatus.istRegel(e, Store.getSettings ? Store.getSettings() : {});
     },
     _bemessung(e) {
-        const b = parseFloat(e.betrag) || 0;
+        const b = this._betrieblich(e);
         if (!this._hatVstAbzug(e)) return b;
         const r = parseFloat(this._normUstSatz(e.ustSatz != null && e.ustSatz !== '' ? e.ustSatz : e.steuersatz));
         return b / (1 + r / 100);
@@ -60,7 +82,7 @@ const Ausgaben = {
     // Nicht abziehbarer Teil des abgeflossenen Betrags (inkl. einer nicht abziehbaren Vorsteuer).
     _nichtAbziehbar(e, alle) {
         if (!e) return 0;
-        const b = parseFloat(e.betrag) || 0;
+        const b = this._betrieblich(e);   // der Privatanteil wird gesondert abgezogen
         if (e.kategorie === this.KAT_GEWST) return b;
         if (e.kategorie === this.KAT_BEWIRTUNG) return this._bemessung(e) * (1 - this._bewirtungAbziehbar(String(e.datum || '').slice(0, 4)));
         if (this._geschenkUeberGrenze(e, alle)) return b;
@@ -462,6 +484,11 @@ const Ausgaben = {
                                 Bestimmt den Vorsteuerabzug (Vorsteuer-Übersicht). „Unklar" = kein automatischer Abzug, bis nachgepflegt — wird NIE automatisch als 19% behandelt.
                             </div>
                         </div>
+                        <div class="form-group">
+                            <label class="form-label" for="exp_privatAnteil">Privatanteil in %</label>
+                            <input type="number" class="form-input" id="exp_privatAnteil" min="0" max="100" step="1" placeholder="0">
+                            <div class="form-hint" style="font-size:12px;color:var(--text-muted);">Z. B. Telefon oder Pkw (Fahrtenbuch). Der private Teil zählt nicht als Betriebsausgabe und nicht zur Vorsteuer.</div>
+                        </div>
                     </div>
                     <div id="exp_ksaHint" style="display:none;margin-bottom:12px;padding:10px 12px;border-radius:var(--radius-sm);font-size:12px;line-height:1.6;"></div>
                     <div class="form-row">
@@ -630,6 +657,10 @@ const Ausgaben = {
                 Utils.showToast('Betrag ungültig', 'error');
                 return;
             }
+            if (this._leseProzent('exp_privatAnteil') === null) {
+                Utils.showToast('Privatanteil bitte zwischen 0 und 100 % angeben', 'warning');
+                return;
+            }
             if (document.getElementById('exp_kategorie').value === this.KAT_GESCHENKE
                 && !(document.getElementById('exp_empfaenger')?.value || '').trim()) {
                 Utils.showToast('Bitte den Empfänger des Geschenks angeben (§4 Abs. 7 EStG)', 'warning');
@@ -662,6 +693,7 @@ const Ausgaben = {
                     ? !!Store.getSettings().ustDauerfristverlaengerung : undefined,
                 empfaenger: document.getElementById('exp_kategorie').value === this.KAT_GESCHENKE
                     ? (document.getElementById('exp_empfaenger')?.value || '').trim() : undefined,
+                privatAnteil: this._leseProzent('exp_privatAnteil'),
                 belegFoto
             });
 
@@ -756,6 +788,10 @@ const Ausgaben = {
                             <select class="form-select" id="ee_ustSatz">${this._ustSatzOptions(exp.ustSatz)}</select>
                             <div class="form-hint" style="font-size:12px;color:var(--text-muted);">„Unklar" = kein automatischer Vorsteuerabzug, bis nachgepflegt.</div>
                         </div>
+                        <div class="form-group">
+                            <label class="form-label" for="ee_privatAnteil">Privatanteil in %</label>
+                            <input type="number" class="form-input" id="ee_privatAnteil" min="0" max="100" step="1" value="${exp.privatAnteil || ''}">
+                        </div>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -802,6 +838,10 @@ const Ausgaben = {
                     }
                     const eeKat = document.getElementById('ee_kategorie').value;
                     const eeEmpf = (document.getElementById('ee_empfaenger')?.value || '').trim();
+                    if (this._leseProzent('ee_privatAnteil') === null) {
+                        Utils.showToast('Privatanteil bitte zwischen 0 und 100 % angeben', 'warning');
+                        return;
+                    }
                     if (eeKat === this.KAT_GESCHENKE && !eeEmpf) {
                         Utils.showToast('Bitte den Empfänger des Geschenks angeben (§4 Abs. 7 EStG)', 'warning');
                         return;
@@ -821,6 +861,7 @@ const Ausgaben = {
                         ustZeitraum: eeKat === 'Umsatzsteuer an Finanzamt' ? exp.ustZeitraum : undefined,
                         ustDauerfrist: eeKat === 'Umsatzsteuer an Finanzamt' ? exp.ustDauerfrist : undefined,
                         empfaenger: eeKat === this.KAT_GESCHENKE ? eeEmpf : undefined,
+                        privatAnteil: this._leseProzent('ee_privatAnteil'),
                         belegFoto,
                         createdAt: exp.createdAt
                     });

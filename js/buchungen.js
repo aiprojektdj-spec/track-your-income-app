@@ -1653,6 +1653,7 @@ const Buchungen = {
                     datum: Utils.getDateInputValue('es_datum'),
                     purchaseId: s.purchaseId,
                     purchaseIds: s.purchaseIds,  // preserve multi-sale links
+                    anlagevermoegen: s.anlagevermoegen, anlageId: s.anlageId,   // Anlagenverkauf (js/afa.js)
                     marke: document.getElementById('es_marke').value.trim(),
                     artikeltyp: document.getElementById('es_artikeltyp').value.trim(),
                     groesse: document.getElementById('es_groesse').value.trim(),

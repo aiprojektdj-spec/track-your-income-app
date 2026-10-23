@@ -912,7 +912,8 @@ const GbR = {
         // Nicht abziehbarer Teil (Bewirtung, Geschenke, GewSt) wie in euer.js abziehen (E-07)
         const _nA = e => (typeof Ausgaben !== 'undefined' && Ausgaben._nichtAbziehbar) ? Ausgaben._nichtAbziehbar(e) : 0;
         const sonstigeAusgaben = expenses.reduce((sum, e) => {
-            const brutto = parseFloat(e.betrag) || 0;
+            // betrieblicher Anteil (ohne Privatanteil), wie euer.js
+            const brutto = (typeof Ausgaben !== 'undefined' && Ausgaben._betrieblich) ? Ausgaben._betrieblich(e) : (parseFloat(e.betrag) || 0);
             if (!isRegel) return sum + brutto - _nA(e);
             if (typeof Ausgaben !== 'undefined' && Ausgaben._vorsteuerGesperrt && Ausgaben._vorsteuerGesperrt(e)) return sum;
             const rateRaw = (e.ustSatz != null && e.ustSatz !== '') ? parseFloat(e.ustSatz) : ((e.steuersatz != null && e.steuersatz !== '') ? parseFloat(e.steuersatz) : 19);

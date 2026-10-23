@@ -59,4 +59,13 @@ let n = 0; const ok = t => { n++; console.log('✓ ' + t); };
     assert.strictEqual(c.Kleinunternehmer.summe(2026), 0);
     ok('U06d: stornierter Altbestands-Verkauf und seine Retoure zählen beide nicht');
 }
-console.log('\n' + n + '/4 KU-Gesamtumsatz-Tests bestanden');
+// (e) Anlagenverkauf (§19 Abs. 2 S. 2 UStG): Umsätze mit Anlagevermögen bleiben außer Ansatz —
+// auch die Rückzahlung dazu
+{
+    const c = welt([{ id: 'w', datum: '2026-03-01', verkaufspreis: 20000, steuersatz: 0 },
+        { id: 'l', datum: '2026-04-01', verkaufspreis: 8000, steuersatz: 0, anlagevermoegen: true, anlageId: 'L' }],
+        [{ id: 'r', datum: '2026-05-01', saleId: 'l', erstattungBetrag: 500 }], { ustMode: 'klein' });
+    assert.strictEqual(r2(c.Kleinunternehmer.summe(2026)), 20000);
+    ok('U06e: Verkauf eines Anlageguts (8.000 €) zählt nicht zum Gesamtumsatz');
+}
+console.log('\n' + n + '/5 KU-Gesamtumsatz-Tests bestanden');

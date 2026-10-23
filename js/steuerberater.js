@@ -178,12 +178,15 @@ var Steuerberater = (function () {
     // gezahlte Vorsteuer als eigene Zeilen; die Spalte summiert deshalb auf den Gewinn.
     function buildEurSection(year, eur, isKlein) {
         var zeilen = (typeof Euer._elsterZeilen === 'function') ? Euer._elsterZeilen(eur) : [];
-        var rows = zeilen.filter(function (z) { return z.key !== 'gewinn' && Math.abs(z.betrag) >= 0.005; })
+        var rows = zeilen.filter(function (z) { return z.key !== 'gewinn' && !z.info && Math.abs(z.betrag) >= 0.005; })
             .map(function (z) {
                 var ausgabe = ['waren', 'afa', 'fahrt', 'sonstige', 'vorsteuer', 'ustZahlung'].indexOf(z.key) !== -1;
                 return [(ausgabe ? '− ' : '+ ') + z.bezeichnung, z.betrag, ausgabe ? '#dc2626' : '#16a34a'];
             });
         rows.push(['= Gewinn / Überschuss', eur.gewinn, eur.gewinn >= 0 ? '#16a34a' : '#dc2626']);
+        // Nicht abziehbare Beträge (Bewirtung, Geschenke, GewSt): nur Angabe, nicht im Gewinn
+        zeilen.filter(function (z) { return z.info && Math.abs(z.betrag) >= 0.005; })
+            .forEach(function (z) { rows.push(['(' + z.bezeichnung + ')', z.betrag, '#6b7280']); });
         var rowHtml = rows.map(function (r) {
             return '<tr><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;">' + esc(r[0]) + '</td><td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700;color:' + r[2] + ';">' + fmtCur(r[1]) + '</td></tr>';
         }).join('');

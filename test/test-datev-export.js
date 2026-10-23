@@ -61,6 +61,7 @@ function ladeMitDaten(o) {
         getMaterialEinkauefe:  () => d.materialEinkaeufe,
         getRetouren:           () => d.retouren,
         getAfaAnlagen:         () => d.afaAnlagen,
+        getSales:              () => d.sales.filter(s => !s.storniert),
         // Eigenbelege gehen nicht ueber einen Getter, sondern ueber den company-praefixierten
         // Schluessel. Der Shim beantwortet genau den Schluessel, den das Modul bildet.
         _syncReadRaw:       (k) => (k === 'co_test__eigenbelege_belege' ? d.eigenbelege : []),
@@ -707,6 +708,37 @@ block(() => {
     const ab = buchungen({ afaAnlagen: [{ id: 'L', bezeichnung: 'Laptop', anschaffungsdatum: '2026-12-01', anschaffungskosten: 3000, nutzungsdauer: 3, methode: 'linear', abgangsdatum: '2027-03-15' }] }, '2027')
         .find(r => r[13].indexOf('Abgang Restbuchwert') === 0);
     check('E-01 Abgang: Restbuchwert 2.666,67 auf 2310', ab && ab[0] === '2666,67' && ab[6] === '2310');
+});
+
+console.log('\n── Steuer-Audit-Folgepunkte 2026-10-23 (Kontenrahmen 2026) ───');
+
+block(() => {
+    // Echtes Ausgaben-Modul (Geschenkgrenze, Privatanteil) — wie im Browser global
+    const { ladeModule } = require('./_lade-module');
+    const settings = { ustMode: 'regel', ustVersteuerungsart: 'soll' };
+    let alle = [];
+    global.Ausgaben = ladeModule(['js/steuerstatus.js', 'js/ausgaben.js'], { Store: { getSettings: () => settings, getExpenses: () => alle }, Utils: {}, document: { getElementById: () => null } }).Ausgaben;
+    try {
+        const e = (id, kategorie, betrag, extra) => Object.assign({ id, datum: '2026-04-01', kategorie, betrag, ustSatz: 19, beschreibung: kategorie }, extra || {});
+        const zeilen = (ex, skr) => { alle = ex; return buchungen({ expenses: ex, settings }, '2026', skr).map(r => [r[0], r[6], r[8]]); };
+        const bew = zeilen([e('b', 'Bewirtung', 119)]);
+        check('K1 Bewirtung 119 → 4650 83,30 + 4654 35,70, beide mit Vorsteuer (BU 9)',
+            JSON.stringify(bew) === JSON.stringify([['83,30', '4650', '9'], ['35,70', '4654', '9']]));
+        check('K2 Geschenk 59,50 brutto (50 netto) → 4630 mit BU', JSON.stringify(zeilen([e('g', 'Geschenke an Geschäftsfreunde', 59.5, { empfaenger: 'X' })])) === JSON.stringify([['59,50', '4630', '9']]));
+        check('K3 Geschenk 71,40 (60 netto) → 4635 ohne BU', JSON.stringify(zeilen([e('g', 'Geschenke an Geschäftsfreunde', 71.4, { empfaenger: 'X' })])) === JSON.stringify([['71,40', '4635', '']]));
+        check('K4 Gewerbesteuer → 4320 / SKR04 7610', zeilen([e('w', 'Gewerbesteuer', 500, { ustSatz: 0 })])[0][1] === '4320'
+            && zeilen([e('w', 'Gewerbesteuer', 500, { ustSatz: 0 })], 'SKR04')[0][1] === '7610');
+        const tel = zeilen([e('t', 'Büro', 100, { privatAnteil: 30 })]);
+        check('K5 Telefon 100 € mit 30 % privat → 30,00 Privatentnahme 1800 ohne BU + 70,00 betrieblich mit BU',
+            JSON.stringify(tel) === JSON.stringify([['30,00', '1800', ''], ['70,00', '4930', '9']]));
+        // Anlagenverkauf: Erlöskonto und Restbuchwertkonto nach Buchgewinn/-verlust
+        const anl = { id: 'L', bezeichnung: 'Laptop', anschaffungsdatum: '2026-12-01', anschaffungskosten: 3000, nutzungsdauer: 3, methode: 'linear', abgangsdatum: '2027-03-15' };
+        const vk = p => ({ id: 'v', datum: '2027-03-15', verkaufspreis: p, steuersatz: 19, anlagevermoegen: true, anlageId: 'L' });
+        const g = buchungen({ afaAnlagen: [anl], sales: [vk(3570)] }, '2027');     // 3.000 netto > RBW 2.666,67
+        check('K6 Buchgewinn: Erlös 8820, Restbuchwert 2315', g.some(r => r[6] === '8820') && g.find(r => r[13].indexOf('Abgang Restbuchwert') === 0)[6] === '2315');
+        const v = buchungen({ afaAnlagen: [anl], sales: [vk(1190)] }, '2027', 'SKR04');
+        check('K7 Buchverlust SKR04: Erlös 6885, Restbuchwert 6895', v.some(r => r[6] === '6885') && v.find(r => r[13].indexOf('Abgang Restbuchwert') === 0)[6] === '6895');
+    } finally { delete global.Ausgaben; }
 });
 
 console.log('\n' + pass + '/' + total + ' Checks bestanden');

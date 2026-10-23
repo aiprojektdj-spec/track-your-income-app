@@ -446,9 +446,27 @@ const Afa = {
         if (!anlage) return;
         const datum = prompt(`Abgang von "${anlage.bezeichnung}" (Verkauf, Entnahme, Verschrottung)\nDatum (JJJJ-MM-TT):`, new Date().toLocaleDateString('sv-SE'));
         if (datum === null) return;
+        // Verkaufserlös gleich hier: der Verkauf wird als Anlagenverkauf gekennzeichnet und zählt
+        // nicht zum Gesamtumsatz der Kleinunternehmer-Grenze (§19 Abs. 2 S. 2 UStG).
+        const erlRaw = prompt('Verkaufserlös in € brutto (leer lassen bei Entnahme oder Verschrottung):', '');
+        if (erlRaw === null) return;
+        const _e = erlRaw.trim();
+        const erl = !_e ? 0 : parseFloat(_e.indexOf(',') !== -1 ? _e.replace(/\./g, '').replace(',', '.') : _e);   // 1.234,56 oder 1234.56
+        if (!Number.isFinite(erl) || erl < 0) { Utils.showToast('Ungültiger Verkaufserlös', 'error'); return; }
         const r = Store.abgangAfaAnlage(id, datum.trim());
         if (!r.ok) { Utils.showToast(r.fehler, 'error'); return; }
-        Utils.showToast('Abgang erfasst — AfA bis ' + Utils.formatDate(datum.trim()) + ', Restbuchwert wird im Abgangsjahr als Betriebsausgabe angesetzt. Einen Verkaufserlös bitte als Verkauf buchen.', 'success', 8000);
+        if (erl > 0) {
+            const settings = Store.getSettings();
+            const regel = typeof SteuerStatus !== 'undefined' ? SteuerStatus.modeAm(datum.trim(), settings) === 'regel' : settings.ustMode === 'regel';
+            Store.saveSale({
+                datum: datum.trim(), artikeltyp: 'Anlagenverkauf', marke: '', beschreibung: anlage.bezeichnung || '',
+                verkaufsplattform: '', verkaufspreis: erl, steuersatz: regel ? 19 : 0,
+                versandkostenKaeufer: 0, plattformgebuehrProzent: 0, versandkostenVerkaufer: 0,
+                anlagevermoegen: true, anlageId: id
+            });
+        }
+        Utils.showToast('Abgang erfasst — AfA bis ' + Utils.formatDate(datum.trim()) + ', Restbuchwert im Abgangsjahr als Betriebsausgabe'
+            + (erl > 0 ? ', Erlös als Anlagenverkauf gebucht (zählt nicht zur Kleinunternehmergrenze).' : '.'), 'success', 8000);
         this._refresh();
     },
 

@@ -340,8 +340,16 @@ const Euer = {
         // nicht. Die Geschenkgrenze gilt je Empfänger und Wirtschaftsjahr, deshalb alle Ausgaben.
         const _ausgabenAlle = Store.getExpenses();
         const _hatAusgabenModul = typeof Ausgaben !== 'undefined' && !!Ausgaben._nichtAbziehbar;
-        const nichtAbziehbar = _hatAusgabenModul
-            ? betriebsExpenses.reduce((sum, e) => sum + Ausgaben._nichtAbziehbar(e, _ausgabenAlle), 0) : 0;
+        const nichtAbziehbarJe = { bewirtung: 0, geschenke: 0, gewst: 0 };
+        if (_hatAusgabenModul) betriebsExpenses.forEach(e => {
+            const n = Ausgaben._nichtAbziehbar(e, _ausgabenAlle);
+            if (!n) return;
+            const k = e.kategorie === Ausgaben.KAT_BEWIRTUNG ? 'bewirtung' : e.kategorie === Ausgaben.KAT_GEWST ? 'gewst' : 'geschenke';
+            nichtAbziehbarJe[k] += n;
+        });
+        const nichtAbziehbar = nichtAbziehbarJe.bewirtung + nichtAbziehbarJe.geschenke + nichtAbziehbarJe.gewst;
+        // Privatanteil (Telefon, Pkw nach Fahrtenbuch …): keine Betriebsausgabe, keine Vorsteuer
+        const privatAnteil = _hatAusgabenModul ? betriebsExpenses.reduce((sum, e) => sum + Ausgaben._privatBetrag(e), 0) : 0;
 
         // Category breakdown for Betriebsausgaben — dynamic (all actual categories)
         const catBreakdown = {};
@@ -394,7 +402,7 @@ const Euer = {
         // Vorsteuer heben sich auf, maßgeblich ist die gebuchte Zahlung an das Finanzamt.
         const vorsteuerManuell = (typeof Vorsteuer !== 'undefined' && Vorsteuer._calcManualEntries)
             ? (Vorsteuer._calcManualEntries(startDate, endDate).sonstige || 0) : 0;
-        const abzugsfaehig = wareneinkauf + versandkosten + plattformgebuehren + fahrtkosten + materialEinkauf + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten + anlagenRestbuchwert + vorsteuerManuell - nichtAbziehbar;
+        const abzugsfaehig = wareneinkauf + versandkosten + plattformgebuehren + fahrtkosten + materialEinkauf + sonstigeAusgaben + eigenbelegeAusgaben + afaKosten + anlagenRestbuchwert + vorsteuerManuell - nichtAbziehbar - privatAnteil;
 
         // ── Vorsteuer: tatsächlicher USt-Satz pro Einkauf (Fix: war pauschal /1.19) ──
         // Purchases können jetzt ustSatz = 19 | 7 | 0 tragen.
@@ -413,13 +421,15 @@ const Euer = {
             // (Reverse Charge) wird separat über §13b-Einträge verrechnet, nicht hier.
             const vstExpenses = betriebsExpenses.reduce((sum, ex) => {
                 if (!_regel(ex)) return sum;
-                if (_hatAusgabenModul && Ausgaben._vorsteuerGesperrt(ex, _ausgabenAlle)) return sum;   // §15 Abs. 1a UStG
+                // §15 Abs. 1a UStG (Geschenk über der Grenze) und Privatanteil: nur der abziehbare Teil
+                const _vstF = _hatAusgabenModul ? Ausgaben._vstFaktor(ex, _ausgabenAlle) : 1;
+                if (!_vstF) return sum;
                 const raw = (ex.ustSatz != null && ex.ustSatz !== '') ? ex.ustSatz : ex.steuersatz;
                 if (raw === undefined || raw === null || raw === '' || raw === 'unklar' || raw === 'rc') return sum;
                 const rate = parseFloat(raw);
                 if (isNaN(rate) || rate === 0) return sum;
                 const brutto = parseFloat(ex.betrag) || 0;
-                return sum + (brutto - brutto / (1 + rate / 100));
+                return sum + (brutto - brutto / (1 + rate / 100)) * _vstF;
             }, 0);
             // Fahrtkosten sind die Kilometerpauschale (§9 EStG, 0,30 €/km je Fahrtenbuch) — eine
             // Pauschale ohne Rechnung, NIE USt-belastet. Gehörte NIE in die Vorsteuer (Fix
@@ -483,7 +493,7 @@ const Euer = {
             salesKleinBrutto, retourenKleinBrutto, vorsteuerTeile,
             salesRegel, betriebsExpenses, summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
             eigenbelegeInPeriod, eigenbelegeAusgaben, eigenbelegeVorsteuer, abzugsfaehig, vorsteuer,
-            nichtAbziehbar, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues
+            nichtAbziehbar, nichtAbziehbarJe, privatAnteil, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues
         };
     },
 
@@ -503,6 +513,9 @@ const Euer = {
             restbuchwert:   'Restbuchwert der ausgeschiedenen Anlagegüter',
             fahrt:          'Fahrtkosten (Kilometerpauschale)',
             sonstige:       'Übrige Betriebsausgaben (netto, Sammelposten)',
+            nichtAbzBewirtung: 'Bewirtungsaufwendungen – nicht abziehbarer Teil (Angabe, nicht im Gewinn)',
+            nichtAbzGeschenke: 'Geschenke – nicht abziehbar (Angabe, nicht im Gewinn)',
+            nichtAbzGewSt:     'Gewerbesteuer – nicht abziehbar (Angabe, nicht im Gewinn)',
             vorsteuer:      'Gezahlte Vorsteuerbeträge',
             ustZahlung:     'An das Finanzamt gezahlte Umsatzsteuer',
             gewinn:         'Gewinn / Verlust'
@@ -526,7 +539,12 @@ const Euer = {
             { key: 'fahrt',         betrag: d.fahrtkosten },
             { key: 'sonstige',      betrag: d.versandkosten + d.plattformgebuehren + d.materialEinkauf
                                             + d.sonstigeAusgaben + d.eigenbelegeAusgaben - d.vorsteuerTeile.ausgaben
-                                            - (d.nichtAbziehbar || 0) },
+                                            - (d.nichtAbziehbar || 0) - (d.privatAnteil || 0) },
+            // Nur Angaben (info): in der Anlage EÜR stehen die nicht abziehbaren Beträge in eigenen
+            // Zeilen bzw. Spalten — sie sind oben schon aus dem Gewinn genommen.
+            { key: 'nichtAbzBewirtung', betrag: (d.nichtAbziehbarJe || {}).bewirtung || 0, info: true },
+            { key: 'nichtAbzGeschenke', betrag: (d.nichtAbziehbarJe || {}).geschenke || 0, info: true },
+            { key: 'nichtAbzGewSt',     betrag: (d.nichtAbziehbarJe || {}).gewst || 0, info: true },
             { key: 'vorsteuer',     betrag: d.vorsteuer },
             { key: 'ustZahlung',    betrag: d.ustZahlungenFA },
             { key: 'gewinn',        betrag: d.gewinn }
@@ -574,7 +592,7 @@ const Euer = {
             fahrtkosten, materialEinkauf, afaAnlagen, afaKosten, anlagenRestbuchwert, retourenErstattungen, nettoEinnahmen,
             ustEinnahmen, summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
             eigenbelegeAusgaben, vorsteuer, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues,
-            einnahmenNetto, nettoGewinn, ustZahlungenFA, ustErstattungenFA, ohneSteuersatz, nichtAbziehbar
+            einnahmenNetto, nettoGewinn, ustZahlungenFA, ustErstattungenFA, ohneSteuersatz, nichtAbziehbar, privatAnteil
         } = _d;
 
         this._lastGewinn = gewinn; // für Gewerbesteuer-Live-Update
@@ -814,6 +832,10 @@ const Euer = {
                             ${nichtAbziehbar > 0 ? `<tr style="opacity:0.8;">
                                 <td style="padding-left:16px;font-size:12px;">↳ davon nicht abziehbar <span style="color:var(--text-muted);">(Bewirtung 30 %, Geschenke über 50 €, Gewerbesteuer – §4 Abs. 5/5b EStG; mindert den Gewinn nicht)</span></td>
                                 <td style="text-align:right;font-size:12px;">−${Utils.formatCurrency(nichtAbziehbar)}</td>
+                            </tr>` : ''}
+                            ${privatAnteil > 0 ? `<tr style="opacity:0.8;">
+                                <td style="padding-left:16px;font-size:12px;">↳ davon Privatanteil <span style="color:var(--text-muted);">(keine Betriebsausgabe, keine Vorsteuer)</span></td>
+                                <td style="text-align:right;font-size:12px;">−${Utils.formatCurrency(privatAnteil)}</td>
                             </tr>` : ''}
                             ${eigenbelegeAusgaben > 0 ? `<tr>
                                 <td>Eigenbelege (Ersatzbelege) <span style="font-size:11px;color:var(--text-muted);">(${eigenbelegeRaw.filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, startDate, endDate)).length} Belege)</span></td>
@@ -1310,7 +1332,7 @@ const Euer = {
                     ...(d.ohneSteuersatz.length ? [['Achtung:', d.ohneSteuersatz.length + ' regelbesteuerte Verkäufe ohne Steuersatz — mit 19 % gerechnet, bitte prüfen.', '']] : []),
                     ['', '', ''],
                     ['Position', 'Betrag (€)', ''],
-                    ...zeilen.map(z => [z.bezeichnung, z.betrag.toFixed(2), ''])
+                    ...zeilen.map(z => [z.bezeichnung, z.betrag.toFixed(2), z.info ? 'nur Angabe' : ''])
                 ];
                 Utils.downloadCSV(rows, `anlage_euer_hilfe_${y}.csv`);
                 // Ein Toast beantwortete die naechste Frage nicht: ELSTER importiert keine

@@ -40,6 +40,19 @@ var DatevExport = (function () {
         afa_immat:      '4822',  // Abschreibungen auf immaterielle Vermögensgegenstände
         afa_gwg:        '4855',  // Sofortabschreibung geringwertiger Wirtschaftsgüter
         anlagenabgang:  '2310',  // Anlagenabgänge Sachanlagen (Restbuchwert bei Buchverlust)
+        // Konten unten gegen den DATEV-Kontenrahmen SKR 03 2026 (Art.-Nr. 11174, gültig ab
+        // 2026-01-01) geprüft am 2026-10-23 (Steuer-Audit-Folgepunkte)
+        anlagenabgang_gewinn: '2315',  // Anlagenabgänge Sachanlagen (Restbuchwert bei Buchgewinn)
+        erloese_anlage_19_verlust: '8801', // Erlöse aus Verkäufen Sachanlagevermögen 19 % USt (bei Buchverlust)
+        erloese_anlage_0_verlust:  '8800', // Erlöse aus Verkäufen Sachanlagevermögen (bei Buchverlust)
+        erloese_anlage_19_gewinn:  '8820', // Erlöse aus Verkäufen Sachanlagevermögen 19 % USt (bei Buchgewinn)
+        erloese_anlage_0_gewinn:   '8829', // Erlöse aus Verkäufen Sachanlagevermögen (bei Buchgewinn)
+        bewirtung:      '4650',  // Bewirtungskosten
+        bewirtung_na:   '4654',  // Nicht abzugsfähige Bewirtungskosten
+        geschenke:      '4630',  // Geschenke abzugsfähig ohne § 37b EStG
+        geschenke_na:   '4635',  // Geschenke nicht abzugsfähig ohne § 37b EStG
+        gewst:          '4320',  // Gewerbesteuer
+        privatentnahme: '1800',  // Privatentnahmen allgemein
         // Bank / Kasse / Privat
         bank:           '1200',  // Bank
         ust_vz:         '1780',  // Umsatzsteuer-Vorauszahlungen (Zahlung an / Erstattung vom Finanzamt)
@@ -79,6 +92,18 @@ var DatevExport = (function () {
         afa_immat:      '6200',  // Abschreibungen auf immaterielle Vermögensgegenstände
         afa_gwg:        '6260',  // Sofortabschreibungen geringwertiger Wirtschaftsgüter
         anlagenabgang:  '6895',  // Anlagenabgänge Sachanlagen (Restbuchwert bei Buchverlust)
+        // gegen den DATEV-Kontenrahmen SKR 04 2026 (Art.-Nr. 11175) geprüft am 2026-10-23
+        anlagenabgang_gewinn: '4855',  // Anlagenabgänge Sachanlagen (Restbuchwert bei Buchgewinn)
+        erloese_anlage_19_verlust: '6885', // Erlöse aus Verkäufen Sachanlagevermögen 19 % USt (bei Buchverlust)
+        erloese_anlage_0_verlust:  '6889', // Erlöse aus Verkäufen Sachanlagevermögen (bei Buchverlust)
+        erloese_anlage_19_gewinn:  '4845', // Erlöse aus Verkäufen Sachanlagevermögen 19 % USt (bei Buchgewinn)
+        erloese_anlage_0_gewinn:   '4849', // Erlöse aus Verkäufen Sachanlagevermögen (bei Buchgewinn)
+        bewirtung:      '6640',  // Bewirtungskosten
+        bewirtung_na:   '6644',  // Nicht abzugsfähige Bewirtungskosten
+        geschenke:      '6610',  // Geschenke abzugsfähig ohne § 37b EStG
+        geschenke_na:   '6620',  // Geschenke nicht abzugsfähig ohne § 37b EStG
+        gewst:          '7610',  // Gewerbesteuer
+        privatentnahme: '2100',  // Privatentnahmen allgemein
         bank:           '1800',  // Bank
         ust_vz:         '3820',  // Umsatzsteuer-Vorauszahlungen (Zahlung an / Erstattung vom Finanzamt)
         kasse:          '1600',  // Kasse
@@ -112,6 +137,9 @@ var DatevExport = (function () {
         // Zahlungsverkehr mit dem Finanzamt (Audit 2026-10-13, T01) — vor 'versand' prüfen,
         // kein Aufwandskonto.
         if (cat.indexOf('umsatzsteuer') === 0) return accounts.ust_vz;
+        if (cat === 'bewirtung') return accounts.bewirtung;
+        if (cat.indexOf('geschenke') === 0) return accounts.geschenke;
+        if (cat === 'gewerbesteuer') return accounts.gewst;
         if (cat.indexOf('versand') > -1 || cat.indexOf('porto') > -1) return accounts.versand;
         if (cat.indexOf('plattform') > -1 || cat.indexOf('provision') > -1) return accounts.plattform;
         if (cat.indexOf('fahrt') > -1 || cat.indexOf('reise') > -1) return accounts.fahrt;
@@ -233,6 +261,24 @@ var DatevExport = (function () {
         var istPauschal = function (p) { return !!(p && p.pauschalmarge && p.warenart === 'kunst'); };
         var verkaufPauschal = function (s) { var ps = verknuepft(s); return ps.length === 1 && istPauschal(ps[0]); };
         var verkaufBrutto = function (s) { return (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0); };
+        // Anlagenverkauf (Verkauf mit `anlagevermoegen`, angelegt beim Abgang in js/afa.js):
+        // DATEV trennt Erlös- und Restbuchwertkonto nach Buchgewinn/-verlust (Kontenrahmen 2026)
+        var afaAnlagenAlle = Store.getAfaAnlagen ? Store.getAfaAnlagen() : [];
+        var anlageVerkauf = function (anlageId) {
+            return (Store.getSales ? Store.getSales() : []).find(function (x) { return x.anlagevermoegen && x.anlageId === anlageId && !x.storniert; });
+        };
+        var anlageBuchgewinn = function (a, sale) {
+            if (!a || !sale || typeof Afa === 'undefined' || !Afa._restbuchwertAbgang) return false;
+            var rbw = Afa._restbuchwertAbgang(a, parseInt(String(a.abgangsdatum || '').slice(0, 4), 10));
+            var satz = parseFloat(sale.steuersatz) || 0;
+            var netto = satz > 0 ? verkaufBrutto(sale) / (1 + satz / 100) : verkaufBrutto(sale);
+            return netto > rbw + 0.004;
+        };
+        var anlageErloesKonto = function (sale) {
+            var a = afaAnlagenAlle.find(function (x) { return x.id === sale.anlageId; });
+            var mitUst = !isKlein && (parseFloat(sale.steuersatz) || 0) === 19;
+            return accounts['erloese_anlage_' + (mitUst ? '19' : '0') + '_' + (anlageBuchgewinn(a, sale) ? 'gewinn' : 'verlust')];
+        };
         // Satz eines Direktverkaufs: wie _rate/_perRateGroups in der Voranmeldung
         var verkaufSaetze = function (s) {
             if (s.steuersaetze && Object.keys(s.steuersaetze).length) {
@@ -330,7 +376,8 @@ var DatevExport = (function () {
         sales.filter(function (s) { return !s._invoiceId; }).forEach(function (s) {
             // Käufer-Versand zählt zur Einnahme (konsistent zu UVA/EÜR)
             var konten = sammler();
-            if (isKlein) konten.add(accounts.erloese_klein, verkaufBrutto(s));
+            if (s.anlagevermoegen) konten.add(anlageErloesKonto(s), verkaufBrutto(s));
+            else if (isKlein) konten.add(accounts.erloese_klein, verkaufBrutto(s));
             else if (sonderKonto(s)) konten.add(sonderKonto(s), verkaufBrutto(s));
             else if (ist25aVerkauf(s)) teile25a(verkaufBrutto(s), ekSumme(s), verkaufPauschal(s)).forEach(function (t) { konten.add(t[0], t[1]); });
             else verkaufSaetze(s).forEach(function (g) { konten.add(kontoFuerSatz(g[0]), g[1]); });
@@ -430,11 +477,31 @@ var DatevExport = (function () {
                      : (e.steuersatz != null && e.steuersatz !== '') ? e.steuersatz : 'unklar';
             var istUstFA = /^umsatzsteuer/i.test(e.kategorie || '');
             var bu = (isKlein || istUstFA) ? '' : parseFloat(satz) === 19 ? '9' : parseFloat(satz) === 7 ? '8' : '';
+            // Aufteilung wie in der EÜR (js/ausgaben.js): Privatanteil → Privatentnahme ohne
+            // Vorsteuer; Bewirtung 70/30 (Vorsteuer auf beides); Geschenk über der Grenze → nicht
+            // abzugsfähig ohne Vorsteuer; Gewerbesteuer ohne Vorsteuer.
+            var A = (typeof Ausgaben !== 'undefined' && Ausgaben._privatBetrag) ? Ausgaben : null;
+            var teile = [];
+            var privat = A ? A._privatBetrag(e) : 0;
+            var betrieb = betrag - privat;
+            if (privat > 0.004) teile.push({ betrag: privat, konto: accounts.privatentnahme, bu: '', text: 'Privatanteil ' });
+            if (A && e.kategorie === A.KAT_BEWIRTUNG) {
+                var abz = Math.round(betrieb * A._bewirtungAbziehbar(String(e.datum || '').slice(0, 4)) * 100) / 100;
+                teile.push({ betrag: abz, konto: accounts.bewirtung, bu: bu, text: '' });
+                teile.push({ betrag: Math.round((betrieb - abz) * 100) / 100, konto: accounts.bewirtung_na, bu: bu, text: 'n.abz. ' });
+            } else if (A && e.kategorie === A.KAT_GESCHENKE && A._geschenkUeberGrenze(e)) {
+                teile.push({ betrag: betrieb, konto: accounts.geschenke_na, bu: '', text: '' });
+            } else if (A && e.kategorie === A.KAT_GEWST) {
+                teile.push({ betrag: betrieb, konto: accounts.gewst, bu: '', text: '' });
+            } else {
+                teile.push({ betrag: betrieb, konto: konto, bu: bu, text: '' });
+            }
+            teile.filter(function (t) { return t.betrag > 0.004; }).forEach(function (t) {
             rows.push({
-                umsatz:       betrag,
+                umsatz:       Math.round(t.betrag * 100) / 100,
                 // Erstattung vom Finanzamt ist ein Zufluss: Haben auf dem USt-Konto, Soll Bank
                 sh:           /erstattung/i.test(e.kategorie || '') && istUstFA ? 'H' : 'S',
-                konto:        konto,
+                konto:        t.konto,
                 gegenkonto:   accounts.bank,
                 datum:        e.datum,
                 // Feldnamen am 2026-09-21 gegen js/ausgaben.js gemessen: die Ausgabe
@@ -445,8 +512,9 @@ var DatevExport = (function () {
                 // Kategorie statt der Beschreibung. Beides faellt in der App nicht auf,
                 // sondern erst beim Steuerberater — und dort beim Zuordnen der Belege.
                 belegfeld1:   e.belegNr || e.id.slice(0, 12),
-                buchungstext: String(e.beschreibung || e.kategorie || 'Ausgabe').slice(0, 60),
-                buSchluessel: bu,
+                buchungstext: (t.text + String(e.beschreibung || e.kategorie || 'Ausgabe')).slice(0, 60),
+                buSchluessel: t.bu,
+            });
             });
         });
 
@@ -574,7 +642,7 @@ var DatevExport = (function () {
                 var rbw = (typeof Afa !== 'undefined' && Afa._restbuchwertAbgang) ? Afa._restbuchwertAbgang(a, parseInt(year, 10)) : 0;
                 if (rbw > 0) {
                     rows.push({
-                        umsatz: rbw, sh: 'S', konto: accounts.anlagenabgang, gegenkonto: k.anlage,
+                        umsatz: rbw, sh: 'S', konto: anlageBuchgewinn(a, anlageVerkauf(a.id)) ? accounts.anlagenabgang_gewinn : accounts.anlagenabgang, gegenkonto: k.anlage,
                         datum: a.abgangsdatum, belegfeld1: beleg,
                         buchungstext: ('Abgang Restbuchwert ' + bez).slice(0, 60), buSchluessel: '',
                     });

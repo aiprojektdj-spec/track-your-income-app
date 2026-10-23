@@ -70,7 +70,8 @@ const Vorsteuer = {
         let unklarCount = 0, unklarBetrag = 0;
         expenses.forEach(e => {
             const raw = this._expenseUstRaw(e);
-            const brutto = parseFloat(e.betrag) || 0;
+            // Nur der betriebliche Anteil berechtigt zum Vorsteuerabzug (Privatanteil, Entscheidung 2026-10-23)
+            const brutto = (parseFloat(e.betrag) || 0) * ((typeof Ausgaben !== 'undefined' && Ausgaben._vstFaktor) ? 1 - Ausgaben._privatQuote(e) : 1);
 
             if (raw === 'unklar') {
                 // Kein Satz hinterlegt → kein Vorsteuerabzug (§15 UStG verlangt eine ordnungsgemäße

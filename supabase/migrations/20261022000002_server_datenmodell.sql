@@ -49,8 +49,14 @@
 --   sync_shopify_integration_speichern wieder durch die Fassung OHNE Owner-Prüfung. Danach
 --   diese Datei erneut ausführen.
 --
--- Offen für spätere Schritte (bewusst nicht hier): Umzug alter Audit-Ketten (R5 braucht einen
--- Importweg am Verkettungs-Trigger vorbei), Perioden festschreiben/Wiedereröffnen (R7),
+-- Umzug alter Audit-Ketten (R5): audit_uebernehmen() legt jeden Browser-Eintrag als eigene
+-- Zeile (aktion 'browser_audit') an. Der Originaltext steht wortgleich in `details` — die
+-- Browser-Prüfsumme hängt an der Schlüsselreihenfolge von JSON.stringify, die jsonb nicht
+-- erhält —, `neu` trägt ihn zusätzlich als jsonb zum Abfragen. Die Server-Kette läuft
+-- über diese Zeilen hinweg weiter, der Trigger wird also nicht umgangen. Die Browser-Kette
+-- (prevHash/checksum) prüft api/data.js vor dem Aufruf.
+--
+-- Offen für spätere Schritte (bewusst nicht hier): Perioden festschreiben/Wiedereröffnen (R7),
 -- StB-Einladung und Mitgliederliste für Owner (R7), Schreibfunktionen für anhaenge/user_prefs.
 -- Endpunkte: api/_auth.js, api/data.js (R3).
 --
@@ -165,6 +171,7 @@ create table if not exists audit_log (
     hash       text        not null
 );
 create index if not exists audit_log_firma on audit_log (company_id, seq);
+create index if not exists audit_log_browser on audit_log (company_id, entity_id) where aktion = 'browser_audit';
 
 create table if not exists anhaenge (
     company_id   text        not null references companies (id),
@@ -638,6 +645,37 @@ begin
                               'mehr', v_n > v_lim, 'rows', v_rows);
 end $$;
 
+-- Umzug (R5): Audit-Einträge aus dem Browser übernehmen, in Stücken und wiederholbar.
+-- p_eintraege = Originaltexte der Einträge (JSON-Strings, wie im Browser-Log gespeichert),
+-- in Browser-Reihenfolge. Schon übernommene IDs werden übersprungen. Nur Owner.
+-- Rückgabe: Zahl neu übernommener Einträge.
+create or replace function audit_uebernehmen(p_user text, p_company text, p_eintraege text[])
+returns integer language plpgsql security definer set search_path = public, pg_temp as $$
+declare
+    v_roh text;
+    v_e   jsonb;
+    v_n   integer := 0;
+begin
+    perform set_config('stackr.user', p_user, true);
+    if not ist_owner(p_company) then
+        raise exception using errcode = '42501', message = 'kein Schreibrecht';
+    end if;
+    foreach v_roh in array coalesce(p_eintraege, '{}'::text[]) loop
+        v_e := v_roh::jsonb;
+        if jsonb_typeof(v_e) <> 'object' or coalesce(v_e->>'id', '') = '' then
+            raise exception using errcode = '22023', message = 'Audit-Eintrag ohne id';
+        end if;
+        if exists (select 1 from audit_log a where a.company_id = p_company
+                      and a.aktion = 'browser_audit' and a.entity_id = v_e->>'id') then
+            continue;
+        end if;
+        insert into audit_log (company_id, aktion, art, entity_id, neu, details)
+        values (p_company, 'browser_audit', v_e->>'entityType', v_e->>'id', v_e, v_roh);
+        v_n := v_n + 1;
+    end loop;
+    return v_n;
+end $$;
+
 -- Shopify-Integrationen der Firma für die Oberfläche (Stufe 3). Nie der Token.
 create or replace function shopify_status(p_user text, p_company text)
 returns jsonb language plpgsql stable security definer set search_path = public, pg_temp as $$
@@ -738,6 +776,7 @@ alter function einstellung_schreiben(text, text, text, jsonb, integer) owner to 
 alter function datensatz_lesen(text, text, text, text) owner to stackr_app;
 alter function aenderungen_seit(text, text, bigint, integer) owner to stackr_app;
 alter function shopify_status(text, text)             owner to stackr_app;
+alter function audit_uebernehmen(text, text, text[])  owner to stackr_app;
 
 -- ── Rechte ──────────────────────────────────────────────────────────────────────
 -- Datentabellen: niemand außer stackr_app, auch service_role nicht.
@@ -779,6 +818,7 @@ revoke all on function einstellung_schreiben(text, text, text, jsonb, integer) f
 revoke all on function datensatz_lesen(text, text, text, text) from public, anon, authenticated;
 revoke all on function aenderungen_seit(text, text, bigint, integer) from public, anon, authenticated;
 revoke all on function shopify_status(text, text)          from public, anon, authenticated;
+revoke all on function audit_uebernehmen(text, text, text[]) from public, anon, authenticated;
 revoke all on function sync_auth_cache_get(text)           from public, anon, authenticated;
 revoke all on function sync_auth_cache_put(text, text, boolean, integer) from public, anon, authenticated;
 
@@ -799,5 +839,6 @@ grant execute on function einstellung_schreiben(text, text, text, jsonb, integer
 grant execute on function datensatz_lesen(text, text, text, text) to service_role;
 grant execute on function aenderungen_seit(text, text, bigint, integer) to service_role;
 grant execute on function shopify_status(text, text)          to service_role;
+grant execute on function audit_uebernehmen(text, text, text[]) to service_role;
 grant execute on function sync_auth_cache_get(text)           to service_role;
 grant execute on function sync_auth_cache_put(text, text, boolean, integer) to service_role;

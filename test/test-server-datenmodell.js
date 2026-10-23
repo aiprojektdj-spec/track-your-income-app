@@ -44,6 +44,8 @@
 //      aenderungen_seit als StB → Daten
 //   j) Shopify: sync_shopify_integration_speichern mit fremder Firma → 42501; shopify_status
 //      liefert keinen Token
+//   k) audit_uebernehmen mit zwei Browser-Einträgen (Originaltext) → 2, zweiter Aufruf → 0;
+//      details ist byte-gleich zum Original, die Server-Kette bleibt geschlossen
 // =============================================================================
 'use strict';
 const assert = require('assert');
@@ -159,7 +161,8 @@ function pruefe(roh) {
 
     // Pflicht-Funktionen für R3
     for (const sig of ['firma_anlegen(text,text,text,text,text)', 'firma_rolle(text,text)', 'firmen_lesen(text)',
-                       'datensatz_lesen(text,text,text,text)', 'aenderungen_seit(text,text,bigint,integer)'])
+                       'datensatz_lesen(text,text,text,text)', 'aenderungen_seit(text,text,bigint,integer)',
+                       'audit_uebernehmen(text,text,text[])'])
         if (!funktionen.some(fn => fn.sig === sig)) f('fehlt: ' + sig);
     if (!funktionen.some(fn => fn.name === 'datensatz_schreiben')) f('fehlt: datensatz_schreiben');
     for (const t of ['companies', 'company_members', 'records', 'settings', 'nummernkreise', 'perioden',

@@ -149,6 +149,18 @@ module.exports = async function handler(req, res) {
         }
     }
 
+    // Die Firma muss dem Nutzer gehören (plan/server-umbau-2026-10-22.md, Abschnitt 1, Shopify
+    // Punkt 2). Die DB prüft dasselbe beim Speichern im Callback noch einmal
+    // (sync_shopify_integration_speichern). Bis die Firmen auf dem Server liegen (R5), gibt
+    // es hier für niemanden 'owner' — der Connector ist so lange geschlossen.
+    try {
+        if ((await db.rpc('firma_rolle', { p_user: userId, p_company: companyId })) !== 'owner')
+            return res.status(403).json({ error: 'not_company_owner' });
+    } catch (e) {
+        _log.logError('shopify-install', 'FIRMA_ROLLE_FAILED', e);
+        return res.status(502).json({ error: 'db_unreachable' });
+    }
+
     var st = S.erzeugeState(secret, shop, Date.now(), { u: userId, c: companyId });
     var basis = S.appBasis(req.headers['host']);
     res.setHeader('Set-Cookie', S.nonceCookie(st.nonce, Math.floor(S.STATE_MAX_ALTER_MS / 1000)));

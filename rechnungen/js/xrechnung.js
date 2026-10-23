@@ -204,7 +204,7 @@ var XRechnung = (function () {
              + '      <ram:ID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</ram:ID>\n'
              + '    </ram:BusinessProcessSpecifiedDocumentContextParameter>\n'
              + '    <ram:GuidelineSpecifiedDocumentContextParameter>\n'
-             + '      <ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xoev-de:kosit:standard:xrechnung_3.0</ram:ID>\n'
+             + '      <ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID>\n'
              + '    </ram:GuidelineSpecifiedDocumentContextParameter>\n'
              + '  </rsm:ExchangedDocumentContext>\n';
 
@@ -368,11 +368,11 @@ var XRechnung = (function () {
         xml += '    </ram:ApplicableHeaderTradeDelivery>\n';
 
         // ── ApplicableHeaderTradeSettlement ──────────────────────────────
+        // Schemareihenfolge (CII D16B): PaymentReference VOR InvoiceCurrencyCode — umgekehrt ist
+        // die Datei XSD-ungültig (KoSIT-Validator 2.4.0 über e-rechnung-validator.de, 2026-10-23)
         xml += '    <ram:ApplicableHeaderTradeSettlement>\n'
+             + '      <ram:PaymentReference>' + esc(inv.nummer) + '</ram:PaymentReference>\n'
              + '      <ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>\n';
-
-        // Payment reference
-        xml += '      <ram:PaymentReference>' + esc(inv.nummer) + '</ram:PaymentReference>\n';
 
         // Payment means (SEPA credit transfer)
         if (settings.iban) {

@@ -580,6 +580,15 @@ Ablauf, Fundstellen und der Datenschutzvorbehalt beim Hochladen stehen in
 **Was der Lauf nicht beantwortet:** ob Kategorie `E` die steuerlich richtige Zuordnung für §25a
 ist. Der Validator prüft die Form, nicht die Subsumtion — die steht im Abschnitt darüber.
 
+**Ergebnis 2026-10-23/24 — alle sechs Proben gültig.** Geprüft mit e-rechnung-validator.de
+(Engine Mustang 2.26.0, KoSIT-Validator 2.4.0, Profil XRechnung 3.0), nur Musterdaten. Die Proben
+erzeugt jetzt `node scripts/kosit-proben.js` aus dem ausgelieferten Generator. Der erste Lauf fand
+zwei echte Fehler, die bis dahin in **jeder** exportierten XRechnung steckten: `PaymentReference`
+nach `InvoiceCurrencyCode` (XSD-ungültig) und die alte Kennung `urn:xoev-de:…` statt
+`urn:xeinkauf.de:kosit:xrechnung_3.0` (BR-DE-21). Behoben in `9364d51`; danach 01–06 ohne
+Fehler und ohne Warnung. Der Vorbehalt „nicht gegen den amtlichen Validator geprüft“ entfällt
+für diese Fälle — bei Änderungen am Generator Proben neu erzeugen und erneut prüfen.
+
 ### KoSIT-Validierung der E-Rechnung — die Herleitung (2026-09-05)
 
 Der XRechnung-Export läuft ohne offizielle Schematron-Prüfung; der Toast beim Export sagt das

@@ -43,8 +43,108 @@
         <h1 id="hero-title">Deine Buchhaltung.<br>Ein klarer Überblick.</h1>
         <a class="action hero-action" href="#preise" data-session-link>7 Tage kostenlos testen</a>
       </div>
-      <figure class="product-figure demo-figure">
-        <iframe class="demo-frame" src="demo.html" title="Interaktive stackr-Demo mit Beispieldaten"></iframe>
+      <figure class="product-figure ad" aria-label="stackr zum Durchklicken, mit Beispieldaten">
+        <div class="ad-window">
+          <div class="ad-bar">
+            <span class="ad-brand" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M32 6 48 32 32 58 16 32Z" fill="currentColor"/></svg>stackr</span>
+            <div class="ad-tabs" role="tablist" aria-label="Bereiche der Demo">
+              <button type="button" role="tab" id="ad-tab-uebersicht" aria-controls="ad-uebersicht" aria-selected="true">Übersicht</button>
+              <button type="button" role="tab" id="ad-tab-buchungen" aria-controls="ad-buchungen" aria-selected="false" tabindex="-1">Buchungen</button>
+              <button type="button" role="tab" id="ad-tab-rechnungen" aria-controls="ad-rechnungen" aria-selected="false" tabindex="-1">Rechnungen</button>
+              <button type="button" role="tab" id="ad-tab-lager" aria-controls="ad-lager" aria-selected="false" tabindex="-1">Lager</button>
+              <button type="button" role="tab" id="ad-tab-euer" aria-controls="ad-euer" aria-selected="false" tabindex="-1">EÜR</button>
+            </div>
+            <span class="ad-company">Vintage Kiste (Muster)</span>
+          </div>
+          <div class="ad-body">
+            <section class="ad-panel" role="tabpanel" id="ad-uebersicht" aria-labelledby="ad-tab-uebersicht" tabindex="0">
+              <div class="ad-head"><h2>Übersicht</h2><span class="ad-chip">Jahr 2026</span></div>
+              <div class="ad-kpis">
+                <div class="ad-card"><span>Einnahmen</span><strong>8.450,00 €</strong><small>erfasste Einnahmen</small></div>
+                <div class="ad-card"><span>Ausgaben</span><strong>2.180,00 €</strong><small>Einkäufe und Kosten</small></div>
+                <div class="ad-card"><span>Gewinn</span><strong>6.270,00 €</strong><small>nach erfassten Kosten</small></div>
+              </div>
+              <div class="ad-card ad-chart">
+                <div class="ad-chart-head"><span>Einnahmen und Ausgaben</span><span class="ad-legend"><i class="ad-in"></i>Einnahmen<i class="ad-out"></i>Ausgaben</span></div>
+                <svg viewBox="0 0 600 150" preserveAspectRatio="none" aria-hidden="true">
+                  <path class="ad-grid" d="M0 20H600M0 50H600M0 80H600M0 110H600M0 140H600"/>
+                  <path class="ad-area" d="M20 140L70 140L120 140L170 140L220 110.2L270 93L320 80.5L370 57.9L420 51.2L470 41.6L470 140Z"/>
+                  <path class="ad-line-in" d="M20 140L70 140L120 140L170 140L220 110.2L270 93L320 80.5L370 57.9L420 51.2L470 41.6"/>
+                  <path class="ad-line-out" d="M20 140L70 140L120 140L170 140L220 129.9L270 126.1L320 124.2L370 119.8L420 118.9L470 116.5"/>
+                </svg>
+                <div class="ad-months" aria-hidden="true"><span>Jan</span><span>Feb</span><span>Mär</span><span>Apr</span><span>Mai</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Okt</span><span>Nov</span><span>Dez</span></div>
+                <p class="ad-sr">Einnahmen Mai bis Oktober: 620, 980, 1.240, 1.710, 1.850 und 2.050 Euro. Ausgaben: 210, 290, 330, 420, 440 und 490 Euro.</p>
+              </div>
+            </section>
+            <section class="ad-panel" role="tabpanel" id="ad-buchungen" aria-labelledby="ad-tab-buchungen" tabindex="0" hidden>
+              <div class="ad-head"><h2>Buchungen</h2>
+                <div class="ad-filter" role="group" aria-label="Buchungen filtern">
+                  <button type="button" data-filter="alle" aria-pressed="true">Alle</button><button type="button" data-filter="ein" aria-pressed="false">Einnahmen</button><button type="button" data-filter="aus" aria-pressed="false">Ausgaben</button>
+                </div>
+              </div>
+              <table class="ad-table">
+                <thead><tr><th>Datum</th><th>Beschreibung</th><th class="ad-opt">Kategorie</th><th class="ad-num">Betrag</th></tr></thead>
+                <tbody>
+                  <tr data-typ="ein"><td>21.10.</td><td>Levi's 501, W32</td><td class="ad-opt">Warenverkauf</td><td class="ad-num">+ 48,00 €</td></tr>
+                  <tr data-typ="aus"><td>19.10.</td><td>DHL Porto, 3 Pakete</td><td class="ad-opt">Versandkosten</td><td class="ad-num">− 16,47 €</td></tr>
+                  <tr data-typ="ein"><td>17.10.</td><td>Carhartt Detroit Jacket</td><td class="ad-opt">Warenverkauf</td><td class="ad-num">+ 89,00 €</td></tr>
+                  <tr data-typ="aus"><td>15.10.</td><td>Ankauf Flohmarkt, 12 Teile</td><td class="ad-opt">Wareneinkauf</td><td class="ad-num">− 64,00 €</td></tr>
+                  <tr data-typ="ein"><td>12.10.</td><td>Nike Air Max 90, Gr. 43</td><td class="ad-opt">Warenverkauf</td><td class="ad-num">+ 110,00 €</td></tr>
+                  <tr data-typ="aus"><td>09.10.</td><td>Versandkartons, 50 Stück</td><td class="ad-opt">Verpackung</td><td class="ad-num">− 18,90 €</td></tr>
+                  <tr data-typ="ein"><td>06.10.</td><td>Rechnung RE-2026-018</td><td class="ad-opt">Warenverkauf</td><td class="ad-num">+ 240,00 €</td></tr>
+                </tbody>
+              </table>
+            </section>
+            <section class="ad-panel" role="tabpanel" id="ad-rechnungen" aria-labelledby="ad-tab-rechnungen" tabindex="0" hidden>
+              <div class="ad-head"><h2>Rechnungen</h2><span class="ad-chip">2 offen · 409,00 €</span></div>
+              <div class="ad-split">
+                <ul class="ad-invoices" aria-label="Rechnungen">
+                  <li><button type="button" data-invoice="0" aria-pressed="true"><span>RE-2026-021<small>Kleiderkreis e. V.</small></span><span class="ad-num">320,00 €<small>offen</small></span></button></li>
+                  <li><button type="button" data-invoice="1" aria-pressed="false"><span>RE-2026-020<small>Lisa Martens</small></span><span class="ad-num">89,00 €<small>offen</small></span></button></li>
+                  <li><button type="button" data-invoice="2" aria-pressed="false"><span>RE-2026-019<small>Atelier Brandt</small></span><span class="ad-num">135,00 €<small>bezahlt</small></span></button></li>
+                  <li><button type="button" data-invoice="3" aria-pressed="false"><span>RE-2026-018<small>Retro Store Leipzig</small></span><span class="ad-num">240,00 €<small>bezahlt</small></span></button></li>
+                </ul>
+                <div class="ad-card ad-invoice" aria-live="polite">
+                  <div class="ad-invoice-head"><strong data-inv="nr">RE-2026-021</strong><span data-inv="datum">20.10.2026</span></div>
+                  <p class="ad-invoice-to" data-inv="kunde">Kleiderkreis e. V.</p>
+                  <div class="ad-invoice-pos"><span data-inv="pos">Vintage-Konvolut, 40 Teile à 8,00 €</span><span data-inv="betrag">320,00 €</span></div>
+                  <div class="ad-invoice-sum"><span>Gesamtbetrag</span><strong data-inv="summe">320,00 €</strong></div>
+                  <p class="ad-invoice-note">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</p>
+                </div>
+              </div>
+            </section>
+            <section class="ad-panel" role="tabpanel" id="ad-lager" aria-labelledby="ad-tab-lager" tabindex="0" hidden>
+              <div class="ad-head"><h2>Lager</h2><span class="ad-chip">38 Artikel</span></div>
+              <div class="ad-kpis">
+                <div class="ad-card"><span>Im Bestand</span><strong>38</strong><small>Artikel</small></div>
+                <div class="ad-card"><span>Lagerwert</span><strong>1.240,00 €</strong><small>zum Einkaufspreis</small></div>
+                <div class="ad-card"><span>Ø Standzeit</span><strong>23 Tage</strong><small>bis zum Verkauf</small></div>
+              </div>
+              <table class="ad-table">
+                <thead><tr><th>Artikel</th><th class="ad-opt">Nr.</th><th class="ad-num">Einkauf</th><th class="ad-num">Preis</th></tr></thead>
+                <tbody>
+                  <tr><td>Ralph Lauren Hemd, M</td><td class="ad-opt">VK-104</td><td class="ad-num">6,00 €</td><td class="ad-num">35,00 €</td></tr>
+                  <tr><td>Adidas Trainingsjacke 90er</td><td class="ad-opt">VK-103</td><td class="ad-num">9,00 €</td><td class="ad-num">55,00 €</td></tr>
+                  <tr><td>Wollmantel, Gr. 38</td><td class="ad-opt">VK-101</td><td class="ad-num">14,00 €</td><td class="ad-num">79,00 €</td></tr>
+                  <tr><td>Dr. Martens 1460, Gr. 40</td><td class="ad-opt">VK-099</td><td class="ad-num">22,00 €</td><td class="ad-num">85,00 €</td></tr>
+                  <tr><td>Levi's 501, W34</td><td class="ad-opt">VK-098</td><td class="ad-num">8,00 €</td><td class="ad-num">48,00 €</td></tr>
+                </tbody>
+              </table>
+            </section>
+            <section class="ad-panel" role="tabpanel" id="ad-euer" aria-labelledby="ad-tab-euer" tabindex="0" hidden>
+              <div class="ad-head"><h2>Einnahmenüberschussrechnung</h2><span class="ad-chip">2026</span></div>
+              <dl class="ad-euer">
+                <div><dt>Betriebseinnahmen</dt><dd>8.450,00 €</dd></div>
+                <div><dt>Wareneinkauf</dt><dd>− 1.640,00 €</dd></div>
+                <div><dt>Versandkosten</dt><dd>− 312,00 €</dd></div>
+                <div><dt>Verpackung und Bürobedarf</dt><dd>− 228,00 €</dd></div>
+                <div class="ad-euer-sum"><dt>Gewinn</dt><dd>6.270,00 €</dd></div>
+              </dl>
+              <p class="ad-hint">Export als PDF, CSV oder DATEV in der Vollversion. Die Übermittlung an ELSTER erfolgt separat.</p>
+            </section>
+          </div>
+        </div>
+        <figcaption>Beispieldaten einer Musterfirma. Klick dich durch.</figcaption>
       </figure>
     </section>
     <section class="features wrap" id="funktionen" aria-label="Funktionen">

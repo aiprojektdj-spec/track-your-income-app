@@ -326,9 +326,29 @@ in Prod). Erst übernehmen, wenn diese Migration live ist.
    **im selben Deploy** wie das Umschalten.
 4. C2, D1 mit dem nächsten Anwaltstermin.
 
-## Fragen an den User (👤)
+## Fragen an den User (👤) — Antworten 2026-10-24
 
-1. Make.com: DPA akzeptiert, Region des Kontos? (C2)
-2. Serverdaten nach Kündigung: Frist und Lese-Zugang? (B4)
-3. Supabase-Backups im Pro-Plan: Frequenz/Aufbewahrung laut Dashboard? (C3)
-4. Ü1-Texte (A1–A3) und F10-Hinweis jetzt einbauen lassen — vor oder nach Anwalt?
+1. Make.com: DPA akzeptiert, Region des Kontos? (C2) → **unbekannt.** Bleibt offen: im
+   Make-Konto unter Organisation → Legal/DPA und Region (EU1/US1) nachsehen. Bis dahin Make in
+   Ziffer 7 **nicht** aufgenommen (keine Behauptung eines DPA).
+2. Serverdaten nach Kündigung: Frist und Lese-Zugang? (B4) → **„werden gelöscht, nach 6 Monaten
+   oder 30 Tagen, unsicher“.** Nicht geraten (Regel 9): ⟦N⟧ bleibt offen. Hinweis: Der Umbauplan
+   (Abschnitt 3) nennt 6 Monate nur als Stichtag für Kunden, die nie umziehen, und 30 Tage für das
+   alte Cloud-Sync-Chiffrat nach erfolgreichem Umzug — beides ist **keine** Regel für Daten nach
+   Vertragsende. Muss vor R-Livegang entschieden werden.
+3. Supabase-Backups: → **nächtlich, Aufbewahrung unbekannt.** In Supabase → Database → Backups
+   ablesen (Pro: laut Anbieter tägliche Backups mit begrenzter Aufbewahrung — Zahl dort
+   bestätigen). Wichtig für Art. 17: gelöschte Daten leben bis zum Ablauf im Backup weiter → in
+   DSE Ziffer 8 nennen, sobald die Zahl feststeht.
+4. Ü1-Texte: → **einbauen.** Erledigt 2026-10-24: A1 (DSE 4.1, 4.3, 6.1, cookies.html:192,
+   Opt-in-Dialog `js/cloud-sync.js`, Verfahrensdoku Abschnitt 1 + Historie + Stand), A2 (Ziffer 7
+   als Liste, Supabase nur SCC, AWS Frankfurt + Subprozessor-Link), A3 (Ziffer 5 Sitzungen).
+   Annahme: Spiegel-Beginn 14.10.2026 (Datum von `STORAGE_MIRROR` aus der Vercel-Liste laut
+   Memory) für die Historie der Verfahrensdoku.
+
+**Weiter offen aus P0-sofort:** A4 (Migration `kuendigungen` in Prod, User), A5 (In-App-Hinweis +
+Whop-Mail zum Anbieterwechsel, Text in `rechtstexte-supabase-entwurf.md` F10).
+
+Nebenfund beim Testlauf: `test/test-server-datenmodell.js` schlägt auf `origin/master` fehl
+(„Vorlage gefunden: from public, anon, authenticated, service_role“) — liest nur Migrationen,
+unabhängig von diesem Audit.

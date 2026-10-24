@@ -58,6 +58,9 @@ var CloudSync = (function () {
     var ANCHOR_CHECK_INTERVAL_MS = 24 * 3600000;   // taeglich reicht — kein manueller Klick noetig, um eine Abweichung zu bemerken
     var LS_KEY_MISMATCH = 'oyi_sync_key_mismatch';   // Sackgasse: Cloud-Daten liegen unter einem anderen Schlüssel als dem lokalen
     var LS_ERR_TOAST    = 'oyi_sync_err_toast_last'; // Drosselung der allgemeinen Fehlermeldung (nicht bei jedem Start nerven)
+    // Letzter abgebrochener Lauf {at, msg, text, firma}. Kundenfall 2026-10-24: die Diagnose meldete
+    // "Alles in Ordnung", waehrend die Wolke seit zwei Tagen gelb war — der Fehler stand nur in der Konsole.
+    var LS_LAST_ERR     = 'oyi_sync_last_err';
     // Start-Sync drosseln: Jeder Seitenaufruf (App, /rechnungen/, /lager/, /eigenbelege/) zog bisher
     // __account + jede Firma einzeln — bei 8 Firmen 9+ Aufrufe pro Laden. Wer schnell zwischen den
     // Seiten wechselte, lief in das 40/min-Limit von api/sync.js (429, gesehen 2026-10-11).
@@ -910,6 +913,7 @@ var CloudSync = (function () {
         _running = true; _needReload = false; _changedActive = false; _conflicts = [];
         var laufStart = Date.now();
         _setDot('sync');
+        var aktFirma = 'Stammdaten';
         try {
             retryPendingDeletions().catch(function (e) { console.warn('[CloudSync] retryPendingDeletions:', e && e.message); }); // fire-and-forget, blockiert den Sync nicht
             var regBefore = '';
@@ -925,12 +929,13 @@ var CloudSync = (function () {
             for (var i = 0; i < zuSyncen.length; i++) {
                 var name = (zuSyncen[i].name || '').trim();
                 _setDot('sync', '(' + (name ? name + ', ' : '') + (i + 1) + ' von ' + zuSyncen.length + ')');
+                aktFirma = name || zuSyncen[i].id;
                 await _syncScope(zuSyncen[i].id, isStartup);
             }
             _refreshSwitcher(regBefore);
             _setDot('ok');
             _setMismatch(false);   // Lauf komplett durch → Schlüssel passt, alte Sackgassen-Markierung weg
-            try { localStorage.setItem(LS_LAST_OK, String(Date.now())); localStorage.setItem(LS_CLEAN_AT, String(laufStart)); } catch (e) {}
+            try { localStorage.setItem(LS_LAST_OK, String(Date.now())); localStorage.setItem(LS_CLEAN_AT, String(laufStart)); localStorage.removeItem(LS_LAST_ERR); } catch (e) {}
             _maybeAutoVerifyAnchors();   // fire-and-forget, taeglich throttled
             if (_conflicts.length) {
                 console.warn('[CloudSync] Parallel-Konflikte erkannt (beide Fassungen gesichert):', _conflicts);
@@ -944,6 +949,10 @@ var CloudSync = (function () {
         } catch (e) {
             console.warn('[CloudSync] sync error:', e && e.message);
             var msg = (e && e.message) || '';
+            try {
+                localStorage.setItem(LS_LAST_ERR, JSON.stringify({ at: Date.now(), msg: msg || 'unbekannter Fehler',
+                                                                   text: (e && e.userMessage) || '', firma: aktFirma }));
+            } catch (le) {}
             if (msg === 'key_mismatch') {
                 // Der eine Fehler, der von allein NIE weggeht: ohne Zutun des Nutzers bleibt der
                 // Sync für immer tot. Deshalb dauerhaft markieren, roter Punkt, lauter Hinweis.
@@ -1530,7 +1539,7 @@ var CloudSync = (function () {
             if (!k) continue;
             for (var p = 0; p < prefixes.length; p++) if (k.indexOf(prefixes[p]) === 0) { doomed.push(k); break; }
         }
-        doomed.push(LS_CONFLICTS, LS_LAST_OK, LS_CLEAN_AT, LS_LAST_CHANGE, LS_PENDING_DEL, LS_ANCHOR_CHECK, LS_ERR_TOAST,
+        doomed.push(LS_CONFLICTS, LS_LAST_OK, LS_CLEAN_AT, LS_LAST_CHANGE, LS_PENDING_DEL, LS_ANCHOR_CHECK, LS_ERR_TOAST, LS_LAST_ERR,
                     LS_KEY(uid), LS_KEY_PRESENT(uid));
         doomed.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
         // Der Schlüssel liegt seit der IndexedDB-Umstellung dort, nicht mehr in localStorage —
@@ -1603,6 +1612,11 @@ var CloudSync = (function () {
         row('Cloud-Sync eingeschaltet', _enabled() ? 'ja' : 'nein', _enabled() ? 'ok' : 'warn');
         var lastOk = parseInt(localStorage.getItem(LS_LAST_OK) || '0', 10);
         row('Letzter erfolgreicher Sync', lastOk ? new Date(lastOk).toLocaleString('de-DE') : 'noch nie', lastOk && (Date.now() - lastOk) < HEALTHY_MAX_AGE_MS ? 'ok' : 'warn');
+        var lastErr = null;
+        try { lastErr = JSON.parse(localStorage.getItem(LS_LAST_ERR) || 'null'); } catch (e) {}
+        if (lastErr && !(lastErr.at > lastOk)) lastErr = null;
+        if (lastErr) row('Letzter Sync-Versuch', new Date(lastErr.at).toLocaleString('de-DE') + ' · abgebrochen bei ' +
+                         (lastErr.firma || '?') + ': ' + (lastErr.text || lastErr.msg), 'bad');
 
         if (!_token()) {
             row('Server', 'nicht abgefragt (nicht angemeldet)', 'bad');
@@ -1633,7 +1647,10 @@ var CloudSync = (function () {
                     if (probe === 'ok') {
                         row('Test-Entschlüsselung', 'erfolgreich — Schlüssel passt', 'ok');
                         _setMismatch(false);
-                        verdict = _enabled()
+                        verdict = lastErr
+                            ? 'Schlüssel und Cloud-Daten passen zusammen, aber der Sync bricht ab (' + lastErr.msg + '). ' +
+                              'Deine Daten liegen lokal sicher. Bitte diesen Bericht an den Support schicken.'
+                            : _enabled()
                             ? 'Alles in Ordnung: Schlüssel und Cloud-Daten passen zusammen.'
                             : 'Schlüssel und Cloud-Daten passen zusammen — Cloud-Sync ist auf diesem Gerät nur ausgeschaltet.';
                     } else if (probe === 'unreachable') {

@@ -1,6 +1,6 @@
 # Spec: Kündigungsbutton (§ 312k BGB)
 
-**Status:** nicht implementiert, nur Spezifikation. Code-Entwurf wurde probehalber gebaut und auf Nutzerwunsch wieder entfernt — diese Datei ist die Grundlage für die spätere Umsetzung.
+**Status (2026-10-24):** gebaut — Formular `kuendigen.html` ohne Login, `api/kuendigung.js` (Supabase-Nachweis, automatische Whop-Kündigung zum Periodenende, Make-Bestätigungsmail), Footer-Link auf allen Rechtsseiten + Landing, Konto-Menü „Verträge hier kündigen“. Der Rest dieser Datei ist der alte Entwurf.
 
 ## Ausgangslage
 

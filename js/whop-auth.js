@@ -31,9 +31,9 @@ var AuthUI = (function () {
     // Referral/Affiliate-Basislink — {ref} wird durch den Whop-Username ersetzt. Direkter
     // Checkout-Link (NICHT der Company-Hub), ?a= funktioniert dort ebenso (verifiziert):
     var WHOP_REFERRAL_BASE = 'https://whop.com/checkout/plan_iR6YIKLcychSZ?a={ref}'; // Whop-Affiliate: ?a=<username> (bestätigt, docs.whop.com/developer/guides/affiliates)
-    // §312k BGB Kündigungsbutton: Whops eigener Self-Service-Weg (nicht der Company-Hub, siehe
-    // Kommentar oben zu WHOP_PURCHASE_URL) — verifiziert per docs.whop.com/.../cancel-a-subscription.
-    var WHOP_MANAGE_URL = 'https://whop.com/@me/settings/orders/';
+    // §312k BGB Kündigungsbutton: eigene Kündigungsseite (Formular ohne Login, api/kuendigung.js);
+    // dort steht Whops Self-Service-Weg (whop.com/@me/settings/orders/) als Alternative.
+    var KUENDIGEN_URL = '/kuendigen.html';
     // Preise (nur für die Ersparnis-Anzeige):
     var PRICE_MONTHLY = 15;   // €/Monat
     var PRICE_YEARLY  = 135;  // €/Jahr
@@ -833,7 +833,7 @@ var AuthUI = (function () {
             '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-my-code">Mein Freigabe-Code</button>' +
             '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-muted,#888);cursor:pointer;text-align:left;font-size:12px;border-radius:5px;" data-action="stb-manage">Freigaben verwalten</button>' +
             '<hr style="border:none;border-top:1px solid var(--border,#2e2e42);margin:2px 0;">' +
-            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-manage-membership">Abo verwalten / kündigen</button>' +
+            '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:var(--text-primary,#fff);cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-manage-membership">Verträge hier kündigen</button>' +
             '<button role="menuitem" style="display:block;width:100%;padding:8px 12px;background:none;border:none;color:#ef4444;cursor:pointer;text-align:left;font-size:13px;border-radius:5px;" data-action="wa-logout">Abmelden</button>';
 
         document.body.appendChild(menu);
@@ -863,8 +863,8 @@ var AuthUI = (function () {
         }, 100);
     }
 
-    // ── §312k Kündigungsbutton: direkt zu Whops Self-Service-Kündigung ──
-    function _openManageMembership() { window.open(WHOP_MANAGE_URL, '_blank', 'noopener'); }
+    // ── §312k Kündigungsbutton: eigene Kündigungsseite ──
+    function _openManageMembership() { window.open(KUENDIGEN_URL, '_blank', 'noopener'); }
 
     // ── Referral: „Stackr empfehlen" ──────────────────────────
     // LEGAL: „Kunden werben Kunden"/Prämien haben in DE steuer-/AGB-Implikationen.

@@ -138,7 +138,7 @@ const Dashboard = {
                     <div style="font-size:13px;line-height:1.55;">
                         <strong>${kopf}</strong><br>${detail}
                         <div style="margin-top:8px;font-size:12px;color:var(--text-muted);">
-                            Abo verwalten oder kündigen kannst du jederzeit über dein Whop-Konto — siehe Kontomenü oben rechts.
+                            Kündigen kannst du jederzeit über „Verträge hier kündigen“ im Kontomenü oben rechts oder unten auf jeder Seite von getstackr.de.
                         </div>
                     </div>
                 </div>

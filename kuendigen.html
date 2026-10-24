@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none';">
+<link rel="icon" href="assets/stackr-concepts/raute-facette.svg" type="image/svg+xml">
+<title>Verträge hier kündigen — Stackr</title>
+<link rel="stylesheet" href="css/kuendigen.css">
+</head>
+<body>
+<a href="#inhalt" class="skip-link">Zum Inhalt springen</a>
+
+<nav class="legal-header" aria-label="Hauptnavigation">
+    <a href="index.html" class="nav-brand">
+        <span class="nav-brand-icon">◆</span>
+        <span class="nav-brand-text">stackr</span>
+    </a>
+    <a href="index.html" class="nav-back">Zur Startseite</a>
+</nav>
+
+<main class="page-wrap" id="inhalt" tabindex="-1">
+
+    <h1>Verträge hier kündigen</h1>
+    <p class="subtitle">Kündige dein Stackr-Abo direkt hier — ohne Anmeldung.</p>
+
+    <form class="k-form" method="post" action="/api/kuendigung">
+
+        <fieldset>
+            <legend>Art der Kündigung</legend>
+            <label class="k-wahl"><input type="radio" name="art" value="ordentlich" checked> Ordentliche Kündigung</label>
+            <label class="k-wahl"><input type="radio" name="art" value="ausserordentlich"> Außerordentliche Kündigung (aus wichtigem Grund)</label>
+            <label for="k-grund">Grund (nur bei außerordentlicher Kündigung)</label>
+            <textarea id="k-grund" name="grund" maxlength="2000"></textarea>
+        </fieldset>
+
+        <fieldset>
+            <legend>Deine Angaben</legend>
+            <label for="k-name">Vor- und Nachname *</label>
+            <input type="text" id="k-name" name="name" required maxlength="200" autocomplete="name">
+            <label for="k-email">E-Mail-Adresse deines Whop-Kontos *</label>
+            <input type="email" id="k-email" name="email" required maxlength="254" autocomplete="email">
+            <p class="k-hinweis">An diese Adresse schicken wir die Eingangsbestätigung. Mit ihr finden wir dein Abo.</p>
+            <label for="k-kennung">Whop-Benutzername oder Bestellnummer (optional)</label>
+            <input type="text" id="k-kennung" name="kennung" maxlength="200">
+        </fieldset>
+
+        <fieldset>
+            <legend>Vertrag</legend>
+            <label for="k-vertrag">Welches Abo möchtest du kündigen?</label>
+            <select id="k-vertrag" name="vertrag">
+                <option value="unbekannt">Stackr Pro (alle meine Abos)</option>
+                <option value="monatlich">Stackr Pro monatlich</option>
+                <option value="jaehrlich">Stackr Pro jährlich</option>
+            </select>
+        </fieldset>
+
+        <fieldset>
+            <legend>Zeitpunkt</legend>
+            <label class="k-wahl"><input type="radio" name="zeitpunkt" value="naechstmoeglich" checked> Zum nächstmöglichen Zeitpunkt</label>
+            <label class="k-wahl"><input type="radio" name="zeitpunkt" value="datum"> Zu einem bestimmten Datum</label>
+            <label for="k-datum">Datum (nur wenn bestimmtes Datum gewählt)</label>
+            <input type="date" id="k-datum" name="datum">
+        </fieldset>
+
+        <div class="k-honig" aria-hidden="true">
+            <label for="k-website">Bitte leer lassen</label>
+            <input type="text" id="k-website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
+        <button type="submit" class="action">jetzt kündigen</button>
+        <p class="k-hinweis" style="margin-top:12px">
+            Nach dem Absenden siehst du eine Bestätigung mit Datum und Uhrzeit, die du speichern oder drucken
+            kannst. Eine Eingangsbestätigung erhältst du zusätzlich per E-Mail. Wie wir die Angaben verarbeiten,
+            steht in der <a href="datenschutz.html#kuendigung">Datenschutzerklärung</a>.
+        </p>
+    </form>
+
+    <div class="section k-alternativ">
+        <h2>Alternativ: direkt bei Whop</h2>
+        <p>
+            Wenn du bei Whop angemeldet bist, kannst du dein Abo auch dort selbst beenden:
+            <a href="https://whop.com/@me/settings/orders/" target="_blank" rel="noopener">whop.com/@me/settings/orders</a>.
+            Kündigungen per E-Mail an <a href="mailto:secondlife.vintage07@gmail.com">secondlife.vintage07@gmail.com</a>
+            nehmen wir ebenfalls entgegen.
+        </p>
+    </div>
+
+</main>
+
+<footer class="legal-footer">
+    <div style="margin-bottom:8px;">◆ <strong>stackr</strong></div>
+    <div>
+        <a href="index.html">Startseite</a> ·
+        <a href="impressum.html">Impressum</a> ·
+        <a href="datenschutz.html">Datenschutz</a> ·
+        <a href="agb.html">AGB</a> ·
+        <a href="refund.html">Widerruf</a> ·
+        <a href="cookies.html">Cookies</a> ·
+        <a href="verfahrensdokumentation.html">Verfahrensdoku</a> ·
+        <a href="barrierefreiheit.html">Barrierefreiheit</a> ·
+        <a href="kuendigen.html">Verträge hier kündigen</a>
+    </div>
+</footer>
+
+</body>
+</html>

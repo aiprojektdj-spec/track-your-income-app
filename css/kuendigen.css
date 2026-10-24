@@ -1,0 +1,13 @@
+/* Kündigungsformular nach § 312k BGB (kuendigen.html) — nur die Formularteile, Rest aus legal.css */
+@import url('legal.css');
+.k-form fieldset{border:1px solid var(--border-subtle);border-radius:var(--radius-surface);padding:16px 20px;margin:0 0 24px}
+.k-form legend{font-weight:550;color:var(--text);padding:0 6px}
+.k-form label{display:block;color:var(--text);margin:0 0 6px;font-size:15px}
+.k-form .k-wahl{display:flex;gap:10px;align-items:flex-start;margin:8px 0;color:var(--text-muted)}
+.k-form .k-wahl input{margin-top:5px}
+.k-form input[type=text],.k-form input[type=email],.k-form input[type=date],.k-form select,.k-form textarea{width:100%;min-height:44px;padding:10px 12px;margin:0 0 16px;border:1px solid var(--border-control);border-radius:var(--radius-control);background:var(--surface);color:var(--text);font:inherit;box-sizing:border-box}
+.k-form textarea{min-height:96px;resize:vertical}
+.k-form .k-hinweis{font-size:14px;margin:-8px 0 16px}
+.k-form .k-honig{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+.k-form button.action{cursor:pointer;width:100%}
+.k-alternativ{margin-top:48px}

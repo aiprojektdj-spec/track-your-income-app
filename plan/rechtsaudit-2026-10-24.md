@@ -346,8 +346,16 @@ in Prod). Erst übernehmen, wenn diese Migration live ist.
    Annahme: Spiegel-Beginn 14.10.2026 (Datum von `STORAGE_MIRROR` aus der Vercel-Liste laut
    Memory) für die Historie der Verfahrensdoku.
 
-**Weiter offen aus P0-sofort:** A4 (Migration `kuendigungen` in Prod, User), A5 (In-App-Hinweis +
-Whop-Mail zum Anbieterwechsel, Text in `rechtstexte-supabase-entwurf.md` F10).
+**A4 erledigt 2026-10-24:** Migration `20261024000001_kuendigungen` per Supabase-Connector in
+`stackr-prod` eingespielt (User: „mach das alles für mich“). Geprüft: RLS an, anon ohne Tabellen-
+und Funktionsrecht, `service_role` darf ausführen; `sync_kuendigung_add` + `_status` in einer
+zurückgerollten Transaktion getestet (keine Zeile übrig, Sequenz steht danach auf 1 → erste echte
+Kündigung bekommt K-2). Im Preview-Projekt (fremde Organisation) nicht eingespielt.
+**A5 erledigt 2026-10-24:** In-App-Fenster `_maybeNotifyAnbieterwechsel()` in `js/cloud-sync.js`
+(einmal, nur bei aktivem Sync mit Schlüssel, nicht über ein offenes Fenster; neu Aktivierende
+ausgenommen), Merker `oyi_sync_hinweis_supabase` in `cookies.html`, Test
+`test/test-hinweis-anbieterwechsel.js`. Whop-Mail als Entwurf 3 in `plan/whop-mails-entwuerfe.md`
+— **verschicken muss der User** (Claude meldet sich nicht bei Whop an).
 
 Nebenfund beim Testlauf: `test/test-server-datenmodell.js` schlägt auf `origin/master` fehl
 („Vorlage gefunden: from public, anon, authenticated, service_role“) — liest nur Migrationen,

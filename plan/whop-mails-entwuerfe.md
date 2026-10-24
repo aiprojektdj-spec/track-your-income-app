@@ -90,3 +90,38 @@ Der Kernsatz bleibt die **Beruhigung**: die Daten sind nicht weg — plus die Fr
 
 **Nimm die Vorwarnung.** Sie verhindert Rückbuchungen bei bereits zahlenden Kunden, die Kündigungsmail
 sichert den Gekündigten das Backup. Beide sind Service, keine Werbung — solange kein Rabatt drinsteht.
+
+---
+
+## 3. Einmalig: Neuer Speicherort für den Cloud-Sync (Stand 2026-10-24)
+
+Aus `plan/rechtsaudit-2026-10-24.md` (A5, DSE Ziffer 9: „Bei wesentlichen Änderungen informieren
+wir registrierte Nutzer per E-Mail“). **Keine Automation**, sondern eine einmalige Nachricht an
+alle aktiven Mitglieder (Whop → Marketing → neue E-Mail bzw. Broadcast). Reine Pflicht-Information,
+keine Werbung — deshalb ohne Angebot, ohne Rabatt, ohne Link auf Upgrades. Der gleiche Inhalt
+erscheint in der App einmal als Fenster bei allen, die den Cloud-Sync aktiv haben.
+
+**Betreff:** Stackr: neuer Speicherort für deinen Cloud-Sync
+
+> Hallo,
+>
+> kurze Information zu deinem Stackr-Konto: Seit Oktober 2026 speichern wir die verschlüsselten
+> Daten des Cloud-Sync zusätzlich bei **Supabase** (Supabase, Inc.) in Frankfurt am Main (EU). Wir
+> ziehen den Speicher damit von Upstash zu Supabase um; nach Abschluss des Umzugs löschen wir die
+> Daten bei Upstash.
+>
+> **An der Verschlüsselung ändert sich nichts.** Deine Daten werden weiterhin auf deinem Gerät
+> verschlüsselt, den Schlüssel hast nur du. Auch Supabase sieht nur unlesbares Chiffrat.
+>
+> Nutzt du den Cloud-Sync nicht, betrifft dich die Änderung nur bei der Anmeldung: Deine
+> Login-Sitzung liegt jetzt ebenfalls verschlüsselt bei Supabase in Frankfurt.
+>
+> Die aktualisierte Datenschutzerklärung (Ziffern 4, 5 und 7) findest du unter
+> https://getstackr.de/datenschutz.html. Fragen? Antworte einfach auf diese Mail oder schreib an
+> secondlife.vintage07@gmail.com.
+>
+> Viele Grüße
+> Jonathan von Stackr
+
+**Hinweis:** Der Satz zur Login-Sitzung gilt für alle Nutzer (`whop_sessions` wird unabhängig vom
+Cloud-Sync gespiegelt), deshalb geht die Mail an alle aktiven Mitglieder, nicht nur an Sync-Nutzer.

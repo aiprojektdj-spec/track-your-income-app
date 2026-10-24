@@ -52,6 +52,7 @@ var CloudSync = (function () {
     var HEALTHY_MAX_AGE_MS = 7 * 86400000;   // älter → lokale Backup-Hinweise NICHT unterdrücken (Sync könnte hängen)
     var LS_CODE_REMIND = 'oyi_sync_code_remind_last';                         // Timestamp der letzten Wiederherstellungscode-Erinnerung
     var CODE_REMIND_INTERVAL_MS = 90 * 86400000;   // alle 90 Tage — Code-Verlust ist das eine Risiko, das isHealthy() nicht erkennen kann
+    var LS_HINWEIS_SUPABASE = 'oyi_sync_hinweis_supabase';                   // einmaliger Hinweis Anbieterwechsel Upstash → Supabase gezeigt
     var LS_ANCHORED = function (scope) { return 'oyi_sync_anchored_' + scope; };   // bereits an den Server gemeldete Audit-Entry-IDs (Set)
     var ANCHOR_BATCH = 500;   // muss <= Server-Limit (1000, siehe api/sync.js) sein
     var LS_ANCHOR_CHECK = 'oyi_sync_anchor_check_last';                       // Timestamp der letzten automatischen Anker-Pruefung
@@ -1064,6 +1065,31 @@ var CloudSync = (function () {
         }, 6000);
     }
 
+    // ── Einmaliger Hinweis: neuer Speicherort (DSE Ziffer 9, plan/rechtsaudit-2026-10-24.md A5) ──
+    // Die Einwilligung beim Aktivieren wurde mit dem Text „Upstash“ erteilt; seit Oktober 2026
+    // liegt dasselbe Chiffrat zusätzlich bei Supabase. Wer nach der Umstellung aktiviert hat, sah
+    // den neuen Dialogtext schon (Schlüssel wird dort gesetzt) und bekommt den Hinweis nicht.
+    // Gilt als gezeigt, sobald er erscheint; steht schon ein anderes Fenster offen, beim nächsten Start.
+    function _maybeNotifyAnbieterwechsel() {
+        if (!_enabled() || !_hasKey()) return;
+        try { if (localStorage.getItem(LS_HINWEIS_SUPABASE)) return; } catch (e) { return; }
+        setTimeout(function () {
+            if (typeof App === 'undefined' || !App.showModal) return;
+            var ov = document.getElementById('modalOverlay');
+            if (ov && ov.classList.contains('active')) return;
+            try { localStorage.setItem(LS_HINWEIS_SUPABASE, String(Date.now())); } catch (e) { return; }
+            App.showModal('Neuer Speicherort für deinen Cloud-Sync',
+              '<div style="display:flex;flex-direction:column;gap:14px;font-size:13px;line-height:1.5;">' +
+                '<div>Seit Oktober 2026 speichern wir deine verschlüsselten Sync-Daten zusätzlich bei ' +
+                  '<strong>Supabase (Frankfurt, EU)</strong>. Wir ziehen den Speicher von Upstash dorthin um; ' +
+                  'nach Abschluss des Umzugs löschen wir die Daten bei Upstash.</div>' +
+                '<div>An der Verschlüsselung ändert sich nichts: Nur du hast den Schlüssel, auch Supabase sieht nur unlesbares Chiffrat.</div>' +
+                '<div><a href="/datenschutz.html#abschnitt-4" target="_blank" rel="noopener">Datenschutzerklärung, Ziffer 4 und 7</a></div>' +
+                '<button class="btn btn-primary" data-action="close-modal" style="width:100%;">Verstanden</button>' +
+              '</div>', '');
+        }, 8000);
+    }
+
     function _startupSyncNoetig() {
         var cleanAt = 0, change = 0;
         try {
@@ -1100,6 +1126,7 @@ var CloudSync = (function () {
         }
         if (!_enabled() || !_hasKey() || !_token()) return;
         _maybeRemindCode();
+        _maybeNotifyAnbieterwechsel();
         var tries = 0;
         var iv = setInterval(function () {
             tries++;
@@ -1372,6 +1399,7 @@ var CloudSync = (function () {
         var got = (conf ? conf.value : '').toUpperCase().replace(/[^A-Z2-7]/g, '');
         if (got !== expected) { Utils.showToast('Die eingegebenen Gruppen stimmen nicht. Bitte prüfen.', 'error'); if (conf) conf.focus(); return; }
         localStorage.setItem(LS_ENABLED, '1');
+        try { localStorage.setItem(LS_HINWEIS_SUPABASE, String(Date.now())); } catch (e) {}   // neuer Dialogtext nennt Supabase schon
         _setMismatch(false);
         App.closeModal();
         Utils.showToast('Cloud-Sync aktiviert', 'success');

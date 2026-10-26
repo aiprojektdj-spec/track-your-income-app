@@ -154,6 +154,26 @@ var redis = {
 
     setPubkey: async function (u, data) { await redisCmd(['SET', 'pubkey:' + u, JSON.stringify(data)]); },
     getPubkey: async function (u) { return parseOrNull(await redisCmd(['GET', 'pubkey:' + u])); },
+    delPubkey: async function (u) { await redisCmd(['DEL', 'pubkey:' + u]); },
+
+    // Alle Nutzer mit Sync-Daten (api/_loeschung.js). SCAN über sync:<user>:<scope> und
+    // scopes:<user>; sync:rl:… und sync:iprl:… fallen durch den Filter auf Whop-IDs (user_…).
+    listUsers: async function () {
+        var set = {}, muster = ['sync:*', 'scopes:*'];
+        for (var m = 0; m < muster.length; m++) {
+            var cursor = '0', runden = 0;
+            do {
+                var r = await redisCmd(['SCAN', cursor, 'MATCH', muster[m], 'COUNT', '1000']);
+                cursor = String((r && r[0]) || '0');
+                ((r && r[1]) || []).forEach(function (k) {
+                    var teile = String(k).split(':');
+                    var u = teile[0] === 'sync' ? teile.slice(1, -1).join(':') : teile.slice(1).join(':');
+                    if (/^user_[A-Za-z0-9]+$/.test(u)) set[u] = 1;
+                });
+            } while (cursor !== '0' && ++runden < 10000);
+        }
+        return Object.keys(set).sort();
+    },
 
     // Deckel wie claimScope; ein bereits bestehender Grantee läuft immer durch.
     addGrant: async function (o, g, data, max) {
@@ -224,6 +244,8 @@ var supabase = {
 
     setPubkey: async function (u, data) { await db.rpc('sync_set_pubkey', { p_user: u, p_data: data }); },
     getPubkey: function (u) { return db.rpc('sync_get_pubkey', { p_user: u }); },
+    delPubkey: async function (u) { await db.rpc('sync_delete_pubkey', { p_user: u }); },
+    listUsers: async function () { return (await db.rpc('sync_list_users', {})) || []; },
 
     addGrant:       async function (o, g, data, max) { return (await db.rpc('sync_add_grant', { p_owner: o, p_grantee: g, p_data: data, p_max: max })) === true; },
     getGrant:       function (o, g) { return db.rpc('sync_get_grant', { p_owner: o, p_grantee: g }); },
@@ -319,6 +341,23 @@ module.exports = {
     revokeGrant: async function (o, g) {
         await P.revokeGrant(o, g);
         await mirror('revokeGrant', function (m) { return m.revokeGrant(o, g); });
+    },
+    delPubkey: async function (u) {
+        await P.delPubkey(u);
+        await mirror('delPubkey', function (m) { return m.delPubkey(u); });
+    },
+
+    // Für api/_loeschung.js: Vereinigung aus primärem System und Spiegel — ein Nutzer, dessen
+    // Daten nur noch im Spiegel liegen, muss trotzdem gelöscht werden. Scopes ebenso.
+    listUsers: async function () {
+        var a = await P.listUsers(), b = [];
+        if (M && M.isConfigured()) { try { b = await M.listUsers(); } catch (e) { b = []; } }
+        return Array.from(new Set(a.concat(b))).sort();
+    },
+    listScopesAlle: async function (u) {
+        var a = await P.listScopes(u), b = [];
+        if (M && M.isConfigured()) { try { b = await M.listScopes(u); } catch (e) { b = []; } }
+        return Array.from(new Set(a.concat(b)));
     },
 
     // Für scripts/backfill-sync-supabase.js

@@ -26,6 +26,7 @@ var clientErr  = require('./_client-errors.js');
 var db         = require('./_db.js');
 var speicher   = require('./_sync-store.js');
 var sitzungen  = require('./_whop-sessions.js');
+var loeschung  = require('./_loeschung.js');
 
 var TMP_MAX_AGE_MS   = 24 * 60 * 60 * 1000;      // alles älter als 24 h unter tmp/ ist mit Sicherheit verwaist
 var ALERT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 Tage Alarm-Historie — lang genug, um einen
@@ -191,6 +192,7 @@ module.exports = async function handler(req, res) {
         await supabaseAufraeumen();
         await sitzungenAufraeumen();
         await shopifyAufraeumen();
+        await loeschung.laufen(now);   // Cloud-Daten 30 Tage nach Abo-Ende (api/_loeschung.js), wirft nie
         await heartbeat();
         return res.status(200).json({ ok: true, deleted: deleted, alertsDeleted: alertsDeleted, ledgerDeleted: ledgerDeleted });
     } catch (e) {

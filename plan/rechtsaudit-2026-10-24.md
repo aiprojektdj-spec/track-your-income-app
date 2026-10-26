@@ -166,6 +166,32 @@ Vertragsende). → Anwalt.
 > Aufbewahrung gebucht hat. Gesetzliche Aufbewahrungspflichten (§ 147 AO, § 14b UStG) treffen
 > den Nutzer; der Anbieter weist vor der Löschung per E-Mail darauf hin.
 
+**Gebaut 2026-10-26:** `api/_loeschung.js`, täglich aus `api/blob-cleanup.js`, Migration
+`20261026000002_loeschplan.sql`, Test `test/test-loeschung.js` (31 Prüfungen). Entscheidungen
+User: Frist ab Ende der Bezahlzeit, Mail bei Abo-Ende + 7 Tage vor Löschung, Prüfliste bleibt,
+**Start als Probelauf** (meldet nur, löscht nicht, mailt keine Kunden).
+
+**Scharfschalten — Reihenfolge (User):**
+1. Migration `20261026000002_loeschplan.sql` in `stackr-prod` einspielen (Claude durfte nicht —
+   Auto-Mode-Sperre „Production Deploy“), dann Code pushen. Ohne Migration meldet der Lauf
+   täglich `loeschung lauf-fehler`.
+2. Einige Tage Probelauf-Berichte (`loeschung — probelauf` in ops_alerts/Make) ansehen: Stimmen
+   die IDs? Steht dein eigenes Konto drin → `SYNC_OWNER_IDS` in Vercel ergänzen.
+3. **Make-Route für Kunden-Mails anlegen/prüfen:** Ereignisse `loeschung-vorwarnung` **und
+   `kuendigung`** an die Adresse im Feld `email` mit `mail_betreff`/`mail_text` schicken. Ob die
+   Route für Kündigungen schon existiert, ist unbekannt — **fehlt sie, bekommen Kündigende heute
+   keine Eingangsbestätigung per Mail (§ 312k Abs. 4 BGB)**. Mit einer Testkündigung prüfen.
+4. AGB §7 (3) und DSE Ziffer 8 mit der 30-Tage-Zusage einbauen (Entwurf B4; Halbsatz „weitere
+   Aufbewahrung gebucht“ streichen).
+5. Erst dann `SYNC_LOESCHUNG=aktiv` in Vercel (Production) setzen und neu deployen.
+
+Grenzen: Wer beim ersten scharfen Lauf schon lange inaktiv ist, bekommt volle 30 Tage ab dann.
+Mehr als 3 neue Vormerkungen und mehr als die Hälfte aller Nutzer an einem Tag → Abbruch mit
+Alarm `massen-vormerkung` (Schutz gegen kaputte Whop-Antworten) — bei vielen alten Testkonten
+kann das den ersten Lauf blockieren; dann Testdaten vorher löschen oder Grenze anheben.
+Offen: Kann ein Nutzer ohne Abo überhaupt noch exportieren (Hard-Gate)? Die Mail rät zum Export
+„solange du Zugriff hast“.
+
 **Entschieden 2026-10-26 (User): 30 Tage** (`plan/02-ENTSCHEIDUNGEN.md`). Offen bleiben
 Lese-Zugang in der Frist und eine Archiv-Option („weitere Aufbewahrung gebucht“ gibt es nicht —
 Halbsatz sonst streichen). **Erst einbauen, wenn die Löschung gebaut ist** — heute löscht nichts

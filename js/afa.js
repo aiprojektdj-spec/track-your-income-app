@@ -353,6 +353,29 @@ const Afa = {
                 </select>
                 <div class="form-hint">Bestimmt das Anlagekonto im DATEV-Export. GWG (Methode „Sofort") bucht unabhängig davon auf das GWG-Konto.</div>
             </div>
+            <div id="afa_pkwGroup" style="${(existing.anlagenart || 'bga') === 'pkw' ? '' : 'display:none;'}">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="afa_privat">Private Nutzung</label>
+                        <select class="form-select" id="afa_privat">
+                            <option value="" ${existing.privatnutzung === '1prozent' ? '' : 'selected'}>Keine / Fahrtenbuch (Privatanteil je Ausgabe)</option>
+                            <option value="1prozent" ${existing.privatnutzung === '1prozent' ? 'selected' : ''}>1-%-Regel</option>
+                        </select>
+                        <div class="form-hint">1-%-Regel nur bei mehr als 50 % betrieblicher Nutzung (§6 Abs. 1 Nr. 4 EStG). Fahrten Wohnung–Betrieb sind nicht eingerechnet.</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="afa_blp">Bruttolistenpreis (€)</label>
+                        <input type="number" class="form-input" id="afa_blp" step="1" min="0" max="99999999" value="${existing.bruttolistenpreis || ''}" placeholder="inkl. Sonderausstattung und USt">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="afa_antrieb">Antrieb</label>
+                        <select class="form-select" id="afa_antrieb">
+                            ${[['verbrenner', 'Verbrenner (1 %)'], ['elektro', 'Reines Elektroauto (0,25 % / 0,5 %)'], ['hybrid', 'Plug-in-Hybrid mit ≤ 50 g CO₂ oder Mindestreichweite (0,5 %)']]
+                                .map(([v, t]) => `<option value="${v}" ${(existing.antrieb || 'verbrenner') === v ? 'selected' : ''}>${t}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+            </div>
             <div class="form-group">
                 <label class="form-label">Kategorie / Notiz</label>
                 <input type="text" class="form-input" id="afa_notiz" maxlength="1000" value="${Utils.escapeHtml(existing.notiz || '')}" placeholder="z.B. Büroausstattung, Fahrzeug, IT-Equipment ...">
@@ -374,6 +397,9 @@ const Afa = {
             if (isSofort) ndInput.value = 1;
         };
         methodeSel.addEventListener('change', updateSofortState);
+        const artSel = document.getElementById('afa_art');
+        const pkwGroup = document.getElementById('afa_pkwGroup');
+        if (artSel && pkwGroup) artSel.addEventListener('change', () => { pkwGroup.style.display = artSel.value === 'pkw' ? '' : 'none'; });
         // Vorschlag: bei AK≤800€ auf Sofort umschalten, solange der Nutzer die Methode nicht manuell geändert hat
         let methodeManuellGesetzt = isEdit;
         methodeSel.addEventListener('change', () => { methodeManuellGesetzt = true; });
@@ -394,6 +420,65 @@ const Afa = {
     // Netto-AK für die GWG-Grenze (E-02)
     _gwgNetto(ak, ustEnthalten) {
         return (parseFloat(ak) || 0) - Math.max(0, parseFloat(ustEnthalten) || 0);
+    },
+
+    // ── Private Kfz-Nutzung nach der 1-%-Regel (§6 Abs. 1 Nr. 4 S. 2 EStG) ──────────────────────
+    // Entscheidung User 2026-10-26: nur der Kern — Nutzungsentnahme je Kalendermonat als
+    // Betriebseinnahme, bei Regelbesteuerung USt darauf; keine Fahrten Wohnung–Betrieb (0,03 %),
+    // keine Kostendeckelung. Der Pkw muss zu mehr als 50 % betrieblich genutzt werden (Hinweis im
+    // Formular). Ab Anschaffungs- bis Abgangsmonat zählt jeder Kalendermonat voll.
+    //  - Verbrenner: 1 % des auf volle 100 € abgerundeten Bruttolistenpreises
+    //  - reines E-Auto (Anschaffung 2019–2030, Listenpreis bis zur Grenze): ein Viertel (Nr. 3)
+    //  - teureres E-Auto / Hybrid mit 50 g CO₂ oder Mindestreichweite (2019–2030): Hälfte (Nr. 2/4/5)
+    //  - E-Auto vor 2019 (Batterieabschlag Nr. 1) ist nicht abgebildet → 1 %
+    // USt (Abschn. 15.23 Abs. 5 UStAE): Bemessung 80 % des ungeminderten 1-%-Werts, 19 % — nur
+    // wenn bei Anschaffung Vorsteuerabzug bestand (Regelbesteuerung am Anschaffungsdatum).
+    // Listenpreisgrenze für das Viertel je Anschaffungsdatum (CLAUDE.md Regel 7).
+    _eAutoGrenze(anschaffung) {
+        const d = String(anschaffung || '');
+        if (d < '2020-01-01') return 40000;
+        if (d < '2024-01-01') return 60000;
+        if (d < '2025-07-01') return 70000;
+        return 100000;
+    },
+    _kfzFaktor(asset) {
+        const d = String(asset.anschaffungsdatum || '');
+        const beguenstigt = d >= '2019-01-01' && d < '2031-01-01';
+        const blp = parseFloat(asset.bruttolistenpreis) || 0;
+        if (asset.antrieb === 'elektro' && beguenstigt) return blp <= this._eAutoGrenze(d) ? 0.25 : 0.5;
+        if (asset.antrieb === 'hybrid' && beguenstigt) return 0.5;
+        return 1;
+    },
+    _hat1Prozent(asset) {
+        return !!asset && !asset.storniert && asset.anlagenart === 'pkw' && asset.privatnutzung === '1prozent'
+            && (parseFloat(asset.bruttolistenpreis) || 0) > 0;
+    },
+    // Je Monat im Zeitraum: { monat:'YYYY-MM', wert (ESt-Entnahme), bemessung (USt), ust }
+    nutzungsentnahme(startDate, endDate) {
+        const settings = (typeof Store !== 'undefined' && Store.getSettings) ? Store.getSettings() : {};
+        const regelAm = d => (typeof SteuerStatus !== 'undefined') ? SteuerStatus.modeAm(d, settings) === 'regel' : settings.ustMode === 'regel';
+        const monate = [];
+        ((typeof Store !== 'undefined' && Store.getAfaAnlagen) ? Store.getAfaAnlagen() : []).filter(a => this._hat1Prozent(a)).forEach(a => {
+            const blp = parseFloat(a.bruttolistenpreis) || 0;
+            const abger = Math.floor(blp / 100) * 100;
+            const wert = Math.floor(blp * this._kfzFaktor(a) / 100) * 100 * 0.01;
+            const vst = regelAm(a.anschaffungsdatum);
+            const von = String(a.anschaffungsdatum).slice(0, 7);
+            const bis = a.abgangsdatum ? String(a.abgangsdatum).slice(0, 7) : '9999-12';
+            let [y, m] = String(startDate).slice(0, 7).split('-').map(Number);
+            const ende = String(endDate).slice(0, 7);
+            for (let k = 0; k < 1200; k++) {
+                const mon = y + '-' + String(m).padStart(2, '0');
+                if (mon > ende) break;
+                if (mon >= von && mon <= bis) {
+                    const bemessung = vst && regelAm(mon + '-01') ? Math.round(abger * 0.01 * 0.8 * 100) / 100 : 0;
+                    monate.push({ anlageId: a.id, monat: mon, wert, bemessung, ust: Math.round(bemessung * 19) / 100 });
+                }
+                if (++m > 12) { m = 1; y++; }
+            }
+        });
+        const sum = k => monate.reduce((s, x) => s + x[k], 0);
+        return { monate, wert: sum('wert'), bemessung: sum('bemessung'), ust: sum('ust') };
     },
 
     _saveForm(existingId) {
@@ -421,8 +506,19 @@ const Afa = {
             return;
         }
         if (!Number.isFinite(nd) || nd < 1) { Utils.showToast('Nutzungsdauer muss ≥ 1 sein', 'error'); return; }
+        const art = document.getElementById('afa_art')?.value || 'bga';
+        const privatnutzung = art === 'pkw' ? (document.getElementById('afa_privat')?.value || '') : '';
+        const blp = parseFloat(document.getElementById('afa_blp')?.value) || 0;
+        if (privatnutzung === '1prozent' && !(blp > 0)) { Utils.showToast('Für die 1-%-Regel bitte den Bruttolistenpreis angeben', 'error'); return; }
 
+        // saveAfaAnlage ersetzt den Datensatz — Felder ohne Eingabe im Formular (Abgang, Erfassung)
+        // übernehmen, sonst ging ein erfasster Abgang beim Bearbeiten still verloren.
+        const vorher = existingId ? (Store.getAfaAnlagen().find(a => a.id === existingId) || {}) : {};
         const item = {
+            ...vorher,
+            privatnutzung: privatnutzung || undefined,
+            bruttolistenpreis: privatnutzung ? blp : undefined,
+            antrieb: privatnutzung ? (document.getElementById('afa_antrieb')?.value || 'verbrenner') : undefined,
             id: existingId || undefined,
             bezeichnung: bez,
             anschaffungsdatum: datum,
@@ -430,7 +526,7 @@ const Afa = {
             nutzungsdauer: nd,
             methode,
             // DATEV-Anlagekonto (js/datev.js, ANLAGEN). Fehlt es — Anlagen vor 2026-10-08 —, gilt 'bga'.
-            anlagenart: document.getElementById('afa_art')?.value || 'bga',
+            anlagenart: art,
             ustEnthalten: ustEnthalten || undefined,
             notiz: notiz || ''
         };

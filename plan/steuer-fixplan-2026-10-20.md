@@ -89,8 +89,11 @@ Stand 2026-10-23: alle erledigt außer den mit „User“ markierten Schritten.
   hochladen und das Ergebnis eintragen.
 - ~~datenschutz.html Fristbeginn~~ — präzisiert (§147 Abs. 4 AO, §14b UStG). **User/Anwalt:** gegenlesen.
 - ~~Logikreview R-L1a~~ — bestätigt (Soll Q1/2026 −38 statt −19 €) und behoben in `b75cb85`.
+- ~~1-%-Regel und §13b-Privatanteil~~ — Entscheidung User 2026-10-26: 1-%-Regel als Kern (Pkw-Anlage mit
+  Bruttolistenpreis und Antrieb; Entnahme je Monat in EÜR, Kz 81 mit 80 %-Bemessung, DATEV 8921/8924 bzw.
+  4645/4639), ohne Fahrten Wohnung–Betrieb und ohne Kostendeckelung. §13b: Steuer voll, Vorsteuer anteilig.
 - Bewusst offen: Restore (F1) setzt Datensätze auf den Backup-Stand zurück (nachvollziehbar über das
-  Protokoll); Privatanteil bei §13b-Ausgaben (Steuerschuld voll, Vorsteuer anteilig) nicht abgebildet.
+  Protokoll); 1-%-Regel ohne 0,03 % Wohnung–Betrieb, Kostendeckelung und Batterieabschlag (E-Auto vor 2019).
 
 ## Entscheidungen (User, 2026-10-20)
 

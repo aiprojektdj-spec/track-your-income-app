@@ -320,11 +320,17 @@ const Euer = {
             sum + (parseFloat(s.verkaufspreis) || 0) + (parseFloat(s.versandkostenKaeufer) || 0), 0);
         // Vereinnahmte USt: Marktplatz-Verkäufe minus Rückzahlungen plus Rechnungen (Gutschriften mit §17-Vorzeichen)
         const ustAusRechnungen = rechnungenNetting.ust;
-        const ustEinnahmen = salesRegelNetting.ust - retourenRegelNetting.ust + ustAusRechnungen;
+        // Private Kfz-Nutzung nach der 1-%-Regel (js/afa.js nutzungsentnahme): Betriebseinnahme
+        // (unentgeltliche Wertabgabe), bei Regelbesteuerung zzgl. USt darauf. Eigene Zeile, kein
+        // Umsatz aus Verkäufen — zählt deshalb nicht in einnahmenNetto (Umsatzgrenzen).
+        const kfzNE = (typeof Afa !== 'undefined' && Afa.nutzungsentnahme) ? Afa.nutzungsentnahme(startDate, endDate) : { wert: 0, ust: 0 };
+        const kfzPrivat = kfzNE.wert;
+        const ustKfzPrivat = kfzNE.ust;
+        const ustEinnahmen = salesRegelNetting.ust - retourenRegelNetting.ust + ustAusRechnungen + ustKfzPrivat;
         // Betriebseinnahmen ohne USt
         const einnahmenNetto = salesKleinBrutto + salesNettoWeighted - retourenKleinBrutto - retourenNettoWeighted + rechnungsEinnahmen;
-        // Steuerliche Summe der Einnahmen = netto + vereinnahmte USt + Erstattungen vom Finanzamt
-        const summeEinnahmen = einnahmenNetto + ustEinnahmen + ustErstattungenFA;
+        // Steuerliche Summe der Einnahmen = netto + Kfz-Nutzungsentnahme + vereinnahmte USt + Erstattungen vom Finanzamt
+        const summeEinnahmen = einnahmenNetto + kfzPrivat + ustEinnahmen + ustErstattungenFA;
 
         // Regelbesteuerte Verkäufe ohne gespeicherten Steuersatz werden mit 19 % gerechnet — das
         // darf nicht unbemerkt geschehen (T02). Sondersätze (Ausfuhr/OSS) tragen ihren Satz selbst.
@@ -456,7 +462,7 @@ const Euer = {
         const gewinn = summeEinnahmen - summeAusgaben;
         // Wirtschaftlicher Nettogewinn: Erlöse und Kosten ohne Umsatzsteuer und ohne Zahlungen mit
         // dem Finanzamt. Für Marge/Kennzahlen — NICHT für die Steuererklärung.
-        const nettoGewinn = einnahmenNetto - ausgabenNetto;
+        const nettoGewinn = einnahmenNetto + kfzPrivat - ausgabenNetto;
 
         // ── Chart-Daten ────────────────────────────────────────────────────────
         // Monatliche Einnahmen/Ausgaben für das gesamte Jahr (unabhängig vom Zeitraum-Filter)
@@ -493,7 +499,7 @@ const Euer = {
             salesKleinBrutto, retourenKleinBrutto, vorsteuerTeile,
             salesRegel, betriebsExpenses, summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
             eigenbelegeInPeriod, eigenbelegeAusgaben, eigenbelegeVorsteuer, abzugsfaehig, vorsteuer,
-            nichtAbziehbar, nichtAbziehbarJe, privatAnteil, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues
+            nichtAbziehbar, nichtAbziehbarJe, privatAnteil, kfzPrivat, ustKfzPrivat, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues
         };
     },
 
@@ -506,6 +512,7 @@ const Euer = {
             geprueft: false,
             erloeseKlein:   'Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer',
             erloese:        'Umsatzsteuerpflichtige Betriebseinnahmen (netto)',
+            kfzPrivat:      'Private Kfz-Nutzung (1-%-Regel, Nutzungsentnahme)',
             ust:            'Vereinnahmte Umsatzsteuer',
             ustErstattung:  'Vom Finanzamt erstattete Umsatzsteuer',
             waren:          'Waren, Rohstoffe und Hilfsstoffe (netto)',
@@ -531,6 +538,7 @@ const Euer = {
         const zeilen = [
             { key: 'erloeseKlein',  betrag: erloeseKlein },
             { key: 'erloese',       betrag: d.einnahmenNetto - erloeseKlein },
+            { key: 'kfzPrivat',     betrag: d.kfzPrivat || 0 },
             { key: 'ust',           betrag: d.ustEinnahmen },
             { key: 'ustErstattung', betrag: d.ustErstattungenFA },
             { key: 'waren',         betrag: d.wareneinkauf - d.vorsteuerTeile.purch },
@@ -592,7 +600,7 @@ const Euer = {
             fahrtkosten, materialEinkauf, afaAnlagen, afaKosten, anlagenRestbuchwert, retourenErstattungen, nettoEinnahmen,
             ustEinnahmen, summeEinnahmen, sonstigeAusgaben, catBreakdown, kategorien, eigenbelegeRaw,
             eigenbelegeAusgaben, vorsteuer, summeAusgaben, gewinn, monthlyData, donutLabels, donutValues,
-            einnahmenNetto, nettoGewinn, ustZahlungenFA, ustErstattungenFA, ohneSteuersatz, nichtAbziehbar, privatAnteil
+            einnahmenNetto, nettoGewinn, ustZahlungenFA, ustErstattungenFA, ohneSteuersatz, nichtAbziehbar, privatAnteil, kfzPrivat
         } = _d;
 
         this._lastGewinn = gewinn; // für Gewerbesteuer-Live-Update
@@ -763,6 +771,10 @@ const Euer = {
                             <tr style="opacity:0.8;">
                                 <td style="padding-left:16px;font-size:12px;">↳ davon vereinnahmte Umsatzsteuer <span style="color:var(--text-muted);">(Betriebseinnahme im Zuflussjahr)</span></td>
                                 <td style="text-align:right;font-size:12px;">${Utils.formatCurrency(ustEinnahmen)}</td>
+                            </tr>` : ''}
+                            ${kfzPrivat > 0 ? `<tr>
+                                <td>Private Kfz-Nutzung <span style="font-size:11px;color:var(--text-muted);">(1-%-Regel, §6 Abs. 1 Nr. 4 EStG)</span></td>
+                                <td style="text-align:right">${Utils.formatCurrency(kfzPrivat)}</td>
                             </tr>` : ''}
                             ${ustErstattungenFA > 0 ? `<tr>
                                 <td>Umsatzsteuer-Erstattung vom Finanzamt</td>

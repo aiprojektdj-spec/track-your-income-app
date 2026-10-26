@@ -475,7 +475,10 @@ const UstVoranmeldung = {
         const bruttoUmsatz = bruttoUmsatz19adj + bruttoUmsatz7adj;
 
         // Kz. 81 + Kz. 83: Netto-Umsätze 19%
-        const nettoUmsatz19 = bruttoUmsatz19adj / 1.19;
+        // + private Kfz-Nutzung (1-%-Regel, unentgeltliche Wertabgabe §3 Abs. 9a Nr. 1 UStG): gehört
+        // laut Anleitung USt 1 E in die Zeilen 13–16 (js/afa.js nutzungsentnahme, 80 %-Bemessung)
+        const kfzBemessung = (typeof Afa !== 'undefined' && Afa.nutzungsentnahme) ? Afa.nutzungsentnahme(startDate, endDate).bemessung : 0;
+        const nettoUmsatz19 = bruttoUmsatz19adj / 1.19 + kfzBemessung;
         const ust19         = nettoUmsatz19 * 0.19;
 
         // Kz. 86 + Kz. 35: Netto-Umsätze 7%

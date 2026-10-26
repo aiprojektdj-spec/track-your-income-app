@@ -741,5 +741,25 @@ block(() => {
     } finally { delete global.Ausgaben; }
 });
 
+console.log('\n── Private Kfz-Nutzung 1-%-Regel (Kontenrahmen 2026) ──────────');
+
+block(() => {
+    // js/afa.js liest Store global — nur für diesen Block einen Shim setzen
+    const anlagen = [{ id: 'P', bezeichnung: 'Pkw', anschaffungsdatum: '2026-01-10', anschaffungskosten: 30000, nutzungsdauer: 6,
+        methode: 'linear', anlagenart: 'pkw', privatnutzung: '1prozent', bruttolistenpreis: 40050, antrieb: 'verbrenner' }];
+    const alt = global.Store;
+    global.Store = { getSettings: () => ({ ustMode: 'regel' }), getAfaAnlagen: () => anlagen };
+    try {
+        const zeilen = (skr, settings) => buchungen({ afaAnlagen: anlagen, settings: settings || { ustMode: 'regel' } }, '2026', skr)
+            .filter(r => r[13].indexOf('Private Kfz-Nutzung 1-%-Regel 2026-01') === 0).map(r => [r[0], r[1], r[6], r[7]]);
+        check('KF1 Jan 2026 SKR03: 380,80 H 8921 und 80,00 H 8924 gegen Privatentnahme 1800',
+            JSON.stringify(zeilen()) === JSON.stringify([['380,80', 'H', '8921', '1800'], ['80,00', 'H', '8924', '1800']]));
+        check('KF2 SKR04: 4645 / 4639 gegen 2100', JSON.stringify(zeilen('SKR04').map(z => z[2] + '/' + z[3])) === JSON.stringify(['4645/2100', '4639/2100']));
+        anlagen[0].antrieb = 'elektro'; anlagen[0].bruttolistenpreis = 60000;
+        // E-Auto: Entnahme 150, USt-Bemessung 480 → 571,20 auf 8921, Rest −330 → 330,00 im Soll auf 8924
+        check('KF3 E-Auto: 571,20 H 8921 und 330,00 S 8924', JSON.stringify(zeilen()) === JSON.stringify([['571,20', 'H', '8921', '1800'], ['330,00', 'S', '8924', '1800']]));
+    } finally { global.Store = alt; }
+});
+
 console.log('\n' + pass + '/' + total + ' Checks bestanden');
 assert.strictEqual(pass, total, 'DATEV-Export: ' + (total - pass) + ' Pruefung(en) fehlgeschlagen');

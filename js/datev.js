@@ -53,6 +53,8 @@ var DatevExport = (function () {
         geschenke_na:   '4635',  // Geschenke nicht abzugsfähig ohne § 37b EStG
         gewst:          '4320',  // Gewerbesteuer
         privatentnahme: '1800',  // Privatentnahmen allgemein
+        kfz_nutzung_19: '8921',  // Verwendung von Gegenständen für Zwecke außerhalb des Unternehmens 19 % USt (Fahrzeug-Nutzung)
+        kfz_nutzung_0:  '8924',  // Verwendung von Gegenständen für Zwecke außerhalb des Unternehmens ohne USt (Fahrzeug-Nutzung)
         // Bank / Kasse / Privat
         bank:           '1200',  // Bank
         ust_vz:         '1780',  // Umsatzsteuer-Vorauszahlungen (Zahlung an / Erstattung vom Finanzamt)
@@ -104,6 +106,8 @@ var DatevExport = (function () {
         geschenke_na:   '6620',  // Geschenke nicht abzugsfähig ohne § 37b EStG
         gewst:          '7610',  // Gewerbesteuer
         privatentnahme: '2100',  // Privatentnahmen allgemein
+        kfz_nutzung_19: '4645',  // Verwendung von Gegenständen für Zwecke außerhalb des Unternehmens 19 % USt (Fahrzeug-Nutzung)
+        kfz_nutzung_0:  '4639',  // Verwendung von Gegenständen für Zwecke außerhalb des Unternehmens ohne USt (Fahrzeug-Nutzung)
         bank:           '1800',  // Bank
         ust_vz:         '3820',  // Umsatzsteuer-Vorauszahlungen (Zahlung an / Erstattung vom Finanzamt)
         kasse:          '1600',  // Kasse
@@ -648,6 +652,27 @@ var DatevExport = (function () {
                     });
                 }
             });
+
+        // ── Private Kfz-Nutzung (1-%-Regel, js/afa.js nutzungsentnahme) ─────────────
+        // Je Monat: Privatentnahme an Fahrzeug-Nutzung. Der USt-pflichtige Teil (80 % des
+        // ungeminderten 1-%-Werts) brutto auf das Automatikkonto 19 %, der Rest auf "ohne USt" —
+        // bei E-Autos kann der Rest negativ sein (ESt-Wert gemindert, USt-Bemessung nicht); dann
+        // dreht die S/H-Logik unten das Vorzeichen.
+        if (typeof Afa !== 'undefined' && Afa.nutzungsentnahme) {
+            Afa.nutzungsentnahme(vonDate, bisDate).monate.forEach(function (m) {
+                var tag = new Date(Date.UTC(+m.monat.slice(0, 4), +m.monat.slice(5, 7), 0)).toISOString().slice(0, 10);
+                var mitUst = Math.round((m.bemessung + m.ust) * 100) / 100;
+                var rest = Math.round((m.wert - m.bemessung) * 100) / 100;
+                [[mitUst, accounts.kfz_nutzung_19], [rest, accounts.kfz_nutzung_0]].forEach(function (t) {
+                    if (Math.abs(t[0]) < 0.005) return;
+                    rows.push({
+                        umsatz: t[0], sh: 'H', konto: t[1], gegenkonto: accounts.privatentnahme,
+                        datum: tag, belegfeld1: 'KFZ-' + m.monat,
+                        buchungstext: 'Private Kfz-Nutzung 1-%-Regel ' + m.monat, buSchluessel: '',
+                    });
+                });
+            });
+        }
 
         // Sort by date
         rows.sort(function (a, b) { return (a.datum || '').localeCompare(b.datum || ''); });

@@ -198,7 +198,10 @@ const Vorsteuer = {
             const n = parseFloat(e.betrag) || 0;
             const s = n * this.RC_AUSGABE_SATZ / 100;
             netto += n; steuer += s;
-            if (typeof SteuerStatus === 'undefined' || SteuerStatus.istRegel(e, settings)) vorsteuer += s;
+            // Privatanteil (Entscheidung User 2026-10-26): Steuer nach §13b voll geschuldet, Vorsteuer
+            // nur für den betrieblichen Anteil (§15 Abs. 1 S. 1 Nr. 4 UStG — für das Unternehmen bezogen)
+            const betrieblich = (typeof Ausgaben !== 'undefined' && Ausgaben._privatQuote) ? 1 - Ausgaben._privatQuote(e) : 1;
+            if (typeof SteuerStatus === 'undefined' || SteuerStatus.istRegel(e, settings)) vorsteuer += s * betrieblich;
         });
         return { netto, steuer, vorsteuer, count: expenses.length };
     },

@@ -537,6 +537,45 @@ var CloudSync = (function () {
         _blobCacheMem[scope] = c;
         try { localStorage.setItem(LS_BLOBCACHE(scope), JSON.stringify(c)); } catch (e) {}
     }
+    // Der Cache gilt nur fuer den Schluessel, unter dem seine Referenzen verschluesselt sind.
+    // Kundenfall 2026-10-24: Reset auf Geraet A (purgeAll loescht alle Anhaenge, neuer
+    // Schluessel), Geraet B verbindet sich mit dem neuen Code und behaelt seinen alten Cache —
+    // sein naechster Push schrieb Referenzen auf geloeschte Dateien ins Ledger, jeder Pull
+    // scheiterte danach mit blob_get_404. Deshalb bei jedem Schluesselwechsel leeren.
+    function _clearBlobCaches() {
+        _blobCacheMem = {};
+        var weg = [];
+        try {
+            for (var i = 0; i < localStorage.length; i++) {
+                var k = localStorage.key(i);
+                if (k && k.indexOf('oyi_sync_blobcache_') === 0) weg.push(k);
+            }
+            weg.forEach(function (k) { localStorage.removeItem(k); });
+        } catch (e) {}
+    }
+    // Anhaenge, deren Datei es nicht mehr gibt (404): aus der lokalen Kopie desselben
+    // Datensatzes wiederherstellen, sonst das Feld entfernen. Tote Referenzen fliegen aus dem
+    // Cache, damit der Push die lokale Fassung neu hochlaedt und die Cloud-Daten heilt.
+    // Rueckgabe: Zahl der Anhaenge, die weder in der Cloud noch auf diesem Geraet liegen.
+    function _repairMissingAttachments(missing, cache) {
+        var tot = {};
+        missing.forEach(function (m) { tot[m.url] = 1; });
+        Object.keys(cache).forEach(function (h) { if (cache[h] && tot[cache[h].url]) delete cache[h]; });
+        var verloren = 0;
+        missing.forEach(function (m) {
+            var lokal = Store._syncReadRaw(m.key), quelle = lokal;
+            if (Array.isArray(lokal)) {
+                var id = m.obj && m.obj.id;
+                quelle = (id == null) ? null : lokal.filter(function (r) { return r && r.id === id; })[0];
+            }
+            var wert = quelle && quelle[m.field];
+            if (typeof wert === 'string' && wert.indexOf('data:') === 0) m.obj[m.field] = wert;
+            else { delete m.obj[m.field]; verloren++; }
+        });
+        console.warn('[CloudSync] ' + missing.length + ' Anhang-Datei(en) in der Cloud nicht mehr vorhanden, ' +
+                     verloren + ' davon auch lokal nicht:', missing.map(function (m) { return m.key + '.' + m.field; }));
+        return verloren;
+    }
     // ── Offene Konflikte persistieren (überleben Reload, dedupe scope+key+id) ──
     function _loadConflicts() { try { return JSON.parse(localStorage.getItem(LS_CONFLICTS) || '[]'); } catch (e) { return []; } }
     function _clearConflicts() { try { localStorage.removeItem(LS_CONFLICTS); } catch (e) {} }
@@ -827,7 +866,7 @@ var CloudSync = (function () {
         if (pull.status === 403) throw new Error('pro_required');
         if (pull.status !== 200) throw new Error('pull_' + pull.status);
 
-        var remote = null, remoteVer = 0;
+        var remote = null, remoteVer = 0, fehlend = [];
         if (pull.json.blob) {
             remoteVer = pull.json.blob.version || 0;
             try {
@@ -847,7 +886,12 @@ var CloudSync = (function () {
             // unveränderte Anhänge nicht erneut hochlädt.
             if (remote) {
                 var hydCache = _getBlobCache(scope);
-                await BlobAttachments.hydrateFields(remote.keys, function (ct, iv) { return _decryptBytes(ct, iv, scope); }, null, hydCache);
+                await BlobAttachments.hydrateFields(remote.keys, function (ct, iv) { return _decryptBytes(ct, iv, scope); }, null, hydCache, fehlend);
+                if (fehlend.length) {
+                    var verloren = _repairMissingAttachments(fehlend, hydCache);
+                    if (verloren && typeof Utils !== 'undefined') Utils.showToast(verloren + (verloren === 1 ? ' Anhang war' : ' Anhänge waren') +
+                        ' weder in der Cloud noch auf diesem Gerät vorhanden und wurde' + (verloren === 1 ? '' : 'n') + ' aus den Einträgen entfernt.', 'warning', 10000);
+                }
                 _saveBlobCache(scope, hydCache);
             }
         }
@@ -859,7 +903,8 @@ var CloudSync = (function () {
             if (scope === _activeScope()) { if (isStartup) _needReload = true; else _changedActive = true; }
         }
 
-        if (remote === null || merged.remoteDirty) {
+        // fehlend: die Cloud enthaelt tote Anhang-Referenzen — pushen, auch ohne Datenaenderung
+        if (remote === null || merged.remoteDirty || fehlend.length) {
             // Große Felder vor dem Verschlüsseln auslagern — hält das Ledger-Chiffrat
             // unabhängig von Anzahl/Größe der Anhänge klein (siehe blob-attachments.js).
             // Cache verhindert Doppel-Upload unveränderter Anhänge bei jedem Scope-Sync.
@@ -1251,6 +1296,7 @@ var CloudSync = (function () {
             return false;
         }
         _cryptoKeyCache = null;
+        _clearBlobCaches();
         _setMismatch(false);
         return true;
     }
@@ -1472,6 +1518,7 @@ var CloudSync = (function () {
             }
             localStorage.setItem(LS_ENABLED, '1');
             _cryptoKeyCache = null;
+            _clearBlobCaches();   // Referenzen des alten Schluessels taugen nicht mehr, s. dort
             _setMismatch(false);
             // Wurde dieser Dialog aus dem Onboarding heraus geöffnet, darf der Wizard beim
             // Schließen NICHT zurückkommen — die Daten sind unterwegs und gleich folgt der Reload.
@@ -1546,6 +1593,7 @@ var CloudSync = (function () {
         // ohne dieses Aufräumen bliebe der alte, zu nichts mehr passende Schlüssel liegen.
         await _wipeKeyStore(uid);
         _cryptoKeyCache = null; _cryptoKeyUid = null;
+        _blobCacheMem = {};
     }
     // Schlüssel restlos von diesem Gerät entfernen (IndexedDB + beide localStorage-Spuren).
     async function _wipeKeyStore(uid) {
@@ -1843,6 +1891,7 @@ var CloudSync = (function () {
             localStorage.removeItem(LS_META(scope));
             localStorage.removeItem(LS_BASE(scope));
             localStorage.removeItem(LS_BLOBCACHE(scope));
+            delete _blobCacheMem[scope];
             localStorage.removeItem(LS_ANCHORED(scope));
             return redisOk && blobOk;
         } catch (e) {
@@ -2109,6 +2158,7 @@ var CloudSync = (function () {
         _test: { api: _api, decryptCtTest: _decryptCt, gzipWrite: _gzipWrite, mergeRecords: _mergeRecords, mergeAudit: _mergeAudit, merge: _merge, toB32: _toB32, fromB32: _fromB32,
             loadPendingDeletions: _loadPendingDeletions, queuePendingDeletion: _queuePendingDeletion,
             probeKey: _probeKey, classifyDecryptError: _classifyDecryptError,
+            repairMissingAttachments: _repairMissingAttachments, getBlobCache: _getBlobCache, saveBlobCache: _saveBlobCache, clearBlobCaches: _clearBlobCaches,
             hasMismatch: _hasMismatch, setMismatch: _setMismatch, encrypt: _encrypt, b64: _b64,
             // Seit F6: decryptCt fuer den Rundlauf-Test Worker <-> Inline-Fallback,
             // cwState um im Browser zu belegen, welcher der beiden Wege gelaufen ist.

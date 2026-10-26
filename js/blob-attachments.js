@@ -254,23 +254,32 @@ var BlobAttachments = (function () {
     // cache (optional): derselbe Cache wie bei offloadLargeFields. Jeder hydrierte Anhang
     // wird dort mit seiner vorhandenen Referenz vermerkt — sonst lädt der nächste Push ihn
     // erneut hoch (zweites Gerät, verlorener localStorage-Cache) und frisst das Byte-Budget.
-    async function hydrateFields(keys, decryptBytes, owner, cache) {
+    // missing (optional): Array — ein Anhang, den es nicht mehr gibt (HTTP 404), bricht dann
+    // nicht alles ab, sondern landet dort als { key, obj, field, url }; das Feld behält seine
+    // Referenz, der Aufrufer entscheidet. Ohne missing wirft auch ein 404 (wie bisher).
+    async function hydrateFields(keys, decryptBytes, owner, cache, missing) {
         var found = [];
-        function visit(obj) {
+        function visit(obj, k) {
             if (!obj || typeof obj !== 'object') return;
             for (var field in obj) {
                 var v = obj[field];
-                if (v && typeof v === 'object' && v.__blobref__) found.push({ o: obj, f: field, ref: v });
+                if (v && typeof v === 'object' && v.__blobref__) found.push({ k: k, o: obj, f: field, ref: v });
             }
         }
         Object.keys(keys).forEach(function (k) {
             var v = keys[k];
-            if (Array.isArray(v)) v.forEach(visit); else visit(v);
+            if (Array.isArray(v)) v.forEach(function (r) { visit(r, k); }); else visit(v, k);
         });
         if (!found.length) return keys;
         var urls = await _sign(found.map(function (x) { return x.ref.url; }), owner);
         await Promise.all(found.map(async function (x, i) {
-            var ctBytes = await _download(urls[i]);
+            var ctBytes;
+            try { ctBytes = await _download(urls[i]); }
+            catch (e) {
+                if (!missing || !e || e.message !== 'blob_get_404') throw e;
+                missing.push({ key: x.k, obj: x.o, field: x.f, url: x.ref.url });
+                return;
+            }
             var plain   = await decryptBytes(ctBytes, x.ref.iv);
             x.o[x.f] = _bytesToDataUrl(plain, x.ref.mime || 'application/octet-stream');
             if (cache) cache[_fnv1a(x.o[x.f])] = x.ref;

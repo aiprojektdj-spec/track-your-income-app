@@ -279,7 +279,18 @@ Vorschlag Ziffer 7, Ergänzung:
 > **Make.com** (Celonis SE ⟦bzw. Vertragspartner laut DPA⟧) — Versand der Kündigungsbestätigung
 > und interner Betriebsmeldungen; ⟦Region⟧.
 
+**TIA Supabase erledigt 2026-10-26:** `compliance/transfer-impact-assessment-supabase.md`
+(Fortschreibung von `plan/tia-supabase-2026-10-07.md`): neu bewertet Whop-Sitzungen (Chiffrat,
+Schlüssel bei Vercel), **Kündigungen im Klartext**, Betriebsalarme, Shopify vorbereitet;
+Ergebnis weiter „vertretbar“, Pflicht-Wiedervorlage vor dem Klartext-Umzug.
+
 ### C3 GoBD-Verfahrensdokumentation (`compliance/gobd-verfahrensdokumentation.md` + `verfahrensdokumentation.html`)
+
+**Übergangsstand erledigt 2026-10-26:** interne Fassung an die öffentliche angeglichen
+(Festschreibung, Rechnungssperre, Hash-Kette, externer Anker, E-Rechnung, § 147 Abs. 6 AO) plus
+Supabase-Spiegel und Abschnitt „Vorschau Server-Umbau“; Vorfassung gesichert als
+`compliance/gobd-verfahrensdokumentation-2026-06-23.md`. Die Tabelle unten gilt weiter für den
+Klartext-Umzug.
 
 Heute (Ü1) nur Stand/Änderungshistorie nachziehen (A1). Mit R neu zu schreiben:
 

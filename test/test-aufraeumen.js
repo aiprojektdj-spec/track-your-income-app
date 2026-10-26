@@ -70,7 +70,8 @@ const MODS = ['api/blob-cleanup.js', 'api/_alert.js', 'api/_sync-store.js', 'api
               'api/_client-errors.js', 'api/_storage.js', 'api/_whop-sessions.js'];
 const ENVS = ['STORAGE_BACKEND', 'STORAGE_MIRROR', 'BLOB_BACKEND', 'SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY',
               'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN', 'KV_REST_API_URL', 'KV_REST_API_TOKEN',
-              'CRON_SECRET', 'ALERT_WEBHOOK_URL', 'BLOB_READ_WRITE_TOKEN'];
+              'CRON_SECRET', 'ALERT_WEBHOOK_URL', 'BLOB_READ_WRITE_TOKEN',
+              'SHOPIFY_CLIENT_SECRET', 'SHOPIFY_TOKEN_KEY'];
 function load(env) {
     for (const k of ENVS) delete process.env[k];
     Object.assign(process.env, { CRON_SECRET: 's', ALERT_WEBHOOK_URL: 'https://hook.example/a',
@@ -140,6 +141,28 @@ console.warn  = function () {};
     check('5g Fehler beim Sitzungs-Aufräumen: 200, aufraeumen-failed gemeldet, Zähler-Aufräumen lief trotzdem',
           res.code === 200 && alarme.some(a => JSON.stringify(a).includes('aufraeumen-failed') && JSON.stringify(a).includes('whop-sessions')) &&
           rpcs.includes('sync_aufraeumen'));
+
+    // ── 6: Shopify-Bestelleingang (Migration 20261026000001, plan/rechtsaudit-2026-10-24.md B5) ──
+    const ssql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261026000001_shopify_loeschfrist.sql'), 'utf8');
+    check('6a sync_shopify_aufraeumen löscht nur gebuchte Zeilen nach 90 Tagen',
+          /create or replace function sync_shopify_aufraeumen\(\)/.test(ssql) &&
+          /delete from shopify_eingang\s+where status = 'verarbeitet'\s+and verarbeitet_am < now\(\) - interval '90 days'/.test(ssql));
+    check('6b nur service_role darf sie ausführen, search_path fest',
+          /revoke all on function sync_shopify_aufraeumen\(\) from public, anon, authenticated/.test(ssql) &&
+          /grant execute on function sync_shopify_aufraeumen\(\) to service_role/.test(ssql) &&
+          /set search_path = public, pg_temp/.test(ssql));
+    const SHOP = { SHOPIFY_CLIENT_SECRET: 'c', SHOPIFY_TOKEN_KEY: 'k' };
+    h = load(SBK); res = mkRes(); await h(req, res);
+    check('6c ohne Shopify-Konfiguration: kein Aufruf (Tabellen gibt es dann evtl. nicht)',
+          res.code === 200 && !rpcs.includes('sync_shopify_aufraeumen'));
+    h = load(Object.assign({}, SBK, SHOP)); res = mkRes(); await h(req, res);
+    check('6d mit Shopify-Konfiguration: läuft einmal, auch wenn Redis primär ist',
+          res.code === 200 && rpcs.filter(n => n === 'sync_shopify_aufraeumen').length === 1);
+    rpcFehler = true; rpcFehlerName = 'sync_shopify_aufraeumen';
+    h = load(Object.assign({}, SB, SHOP)); res = mkRes(); await h(req, res);
+    rpcFehler = false;
+    check('6e Fehler: 200, aufraeumen-failed mit shopify-eingang gemeldet',
+          res.code === 200 && alarme.some(a => JSON.stringify(a).includes('shopify-eingang')));
 
     console.log('\n' + pass + '/' + total + ' bestanden');
     process.exit(pass === total ? 0 : 1);

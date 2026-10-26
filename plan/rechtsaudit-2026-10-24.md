@@ -186,9 +186,15 @@ Rollen: Nutzer (Händler) = Verantwortlicher für Käuferdaten; Stackr = **Auftr
 Nutzers** (→ B3); Shopify = Auftragsverarbeiter des Händlers bzw. eigenständig für die
 Plattform — gegenüber Stackr kein AV-Verhältnis. Whop unverändert eigenständig.
 
-**Lücke P1:** `shopify_eingang` hat keine Löschfrist — Zeilen bleiben nach `verarbeitet` ewig
-(einzige Deletes: redact/uninstall, `20261022000001_shopify.sql:89-99`). Vorschlag: nach
-Buchung löschen oder 90 Tage nach `verarbeitet_am`.
+**Lücke P1 — erledigt 2026-10-26:** `shopify_eingang` hatte keine Löschfrist. Jetzt
+`sync_shopify_aufraeumen()` (`20261026000001_shopify_loeschfrist.sql`): Status `verarbeitet`
+90 Tage nach `verarbeitet_am`; `neu`/`geladen`/`pruefen` bleiben, bis gebucht. Täglich aus
+`api/blob-cleanup.js`, nur wenn `SHOPIFY_CLIENT_SECRET` + `SHOPIFY_TOKEN_KEY` gesetzt sind.
+Test `test/test-aufraeumen.js` Abschnitt 6, SQL gegen Prod-Postgres zurückgerollt geprüft.
+Nicht eingespielt — nach `20261022000001_shopify.sql` ausführen. **Achtung:** Sind die
+Shopify-Variablen in Vercel schon gesetzt, die Shopify-Migration aber nicht, meldet der tägliche
+Lauf `aufraeumen-failed shopify-eingang`, bis beide Migrationen drin sind.
+Wirkung erst ab Stufe B2: heute setzt noch nichts `verarbeitet_am`.
 **Hinweis:** `app/uninstalled` löscht das Token sofort (`token_chiffrat = null`,
 `20261022000001_shopify.sql:77-80`); Bestelleingang bleibt bis `shop/redact` (laut Shopify
 48 h nach Deinstallation). Im Text so beschreiben.
@@ -232,6 +238,12 @@ Formulierung des Dialogs daher als **Information + Zustimmung zur Vertragsänder
 ## P1
 
 ### C1 VVT (`compliance/verzeichnis-verarbeitungstaetigkeiten.md`, Stand 23.06.) veraltet
+
+**Erledigt 2026-10-26:** Neufassung mit 13 Tätigkeiten + Anbieterübersicht liegt im Worktree
+`.claude/worktrees/eloquent-spence-d54e83/compliance/` (gitignored; Hauptordner per Hook
+gesperrt). Vorfassung im Hauptordner gesichert als
+`compliance/verzeichnis-verarbeitungstaetigkeiten-2026-06-23.md`. **User kopiert die neue Datei
+in den Hauptordner.**
 
 Fehlt komplett: Cloud-Sync, Belege (Vercel Blob), Whop-Sitzungen, Rate-Limits (IP),
 Fehlerprotokolle, Reichweitenmessung (Vercel Web Analytics, Einwilligung), Kündigung,

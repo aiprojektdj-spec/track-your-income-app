@@ -369,6 +369,6 @@ ausgenommen), Merker `oyi_sync_hinweis_supabase` in `cookies.html`, Test
 `test/test-hinweis-anbieterwechsel.js`. Whop-Mail als Entwurf 3 in `plan/whop-mails-entwuerfe.md`
 — **verschicken muss der User** (Claude meldet sich nicht bei Whop an).
 
-Nebenfund beim Testlauf: `test/test-server-datenmodell.js` schlägt auf `origin/master` fehl
-(„Vorlage gefunden: from public, anon, authenticated, service_role“) — liest nur Migrationen,
-unabhängig von diesem Audit.
+Nebenfund beim Testlauf: `test/test-server-datenmodell.js` schlug **nur lokal unter Windows**
+fehl (CRLF-Checkout, Vorlagen mit `\n`); die CI auf Linux war grün. Behoben 2026-10-26 durch
+Normalisieren der Zeilenenden beim Einlesen.

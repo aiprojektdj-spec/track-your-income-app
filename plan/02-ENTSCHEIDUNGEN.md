@@ -19,6 +19,18 @@ werden. Alles hier ist **geprüft und bewusst so entschieden**. Wer einen dieser
 
 ---
 
+> **LÖSCHFRIST NACH VERTRAGSENDE: 30 TAGE — entschieden vom User am 2026-10-26.**
+>
+> Serverseitig gespeicherte Daten eines Nutzers werden 30 Tage nach Ende des Abos gelöscht
+> (Alternative 6 Monate verworfen: datensparsamer, Nutzer müssen in der Frist exportieren).
+> **Noch nicht gebaut:** Heute löscht nichts automatisch nach Kündigung (kein Whop-Ereignis
+> verdrahtet, kein Cron). Die Zusage gehört deshalb erst dann in AGB §7 und DSE Ziffer 8, wenn die
+> Löschung läuft — spätestens mit dem Klartext-Umzug. Textentwurf: `plan/rechtsaudit-2026-10-24.md`, B4.
+> Offen für den Bau: Was zählt als „Ende“ (Whop `went_invalid` bzw. Periodenende), Vorwarnung per
+> E-Mail vor der Löschung, Ausnahme GoBD-Prüfliste (bleibt bis Fristablauf, DSE 6.1).
+
+---
+
 > **LOCAL-FIRST AUFGEGEBEN — entschieden vom User am 2026-10-21.**
 >
 > Stackr wird serverführend mit **lesbaren** Daten (Supabase), wie sevDesk oder lexoffice.

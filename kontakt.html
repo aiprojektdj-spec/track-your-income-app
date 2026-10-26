@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none';">
+<link rel="icon" href="assets/stackr-concepts/raute-facette.svg" type="image/svg+xml">
+<title>Kontakt — Stackr</title>
+<link rel="stylesheet" href="css/kuendigen.css">
+</head>
+<body>
+<a href="#inhalt" class="skip-link">Zum Inhalt springen</a>
+
+<nav class="legal-header" aria-label="Hauptnavigation">
+    <a href="index.html" class="nav-brand">
+        <span class="nav-brand-icon">◆</span>
+        <span class="nav-brand-text">stackr</span>
+    </a>
+    <a href="index.html" class="nav-back">Zur Startseite</a>
+</nav>
+
+<main class="page-wrap" id="inhalt" tabindex="-1">
+
+    <h1>Kontakt</h1>
+    <p class="subtitle">Schreib uns direkt hier — ohne Anmeldung. Wir antworten werktags innerhalb von 48 Stunden.</p>
+
+    <form class="k-form" method="post" action="/api/kontakt">
+
+        <fieldset>
+            <legend>Deine Angaben</legend>
+            <label for="k-name">Name *</label>
+            <input type="text" id="k-name" name="name" required maxlength="200" autocomplete="name">
+            <label for="k-email">E-Mail-Adresse *</label>
+            <input type="email" id="k-email" name="email" required maxlength="254" autocomplete="email">
+            <p class="k-hinweis">An diese Adresse schicken wir unsere Antwort.</p>
+        </fieldset>
+
+        <fieldset>
+            <legend>Deine Nachricht</legend>
+            <label for="k-betreff">Betreff (optional)</label>
+            <input type="text" id="k-betreff" name="betreff" maxlength="200">
+            <label for="k-nachricht">Nachricht *</label>
+            <textarea id="k-nachricht" name="nachricht" required maxlength="5000" rows="8"></textarea>
+            <p class="k-hinweis">Bitte schick uns hierüber keine Passwörter, Wiederherstellungscodes oder Buchhaltungsdaten.</p>
+        </fieldset>
+
+        <div class="k-honig" aria-hidden="true">
+            <label for="k-website">Bitte leer lassen</label>
+            <input type="text" id="k-website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
+        <button type="submit" class="action">Nachricht senden</button>
+        <p class="k-hinweis" style="margin-top:12px">
+            Wie wir deine Angaben verarbeiten, steht in der <a href="datenschutz.html#kontakt">Datenschutzerklärung</a>.
+            Kündigen kannst du dein Abo über <a href="kuendigen.html">Verträge hier kündigen</a>.
+        </p>
+    </form>
+
+    <div class="section k-alternativ">
+        <h2>Alternativ: per E-Mail</h2>
+        <p>
+            <a href="mailto:secondlife.vintage07@gmail.com">secondlife.vintage07@gmail.com</a>
+        </p>
+    </div>
+
+</main>
+
+<footer class="legal-footer">
+    <div style="margin-bottom:8px;">◆ <strong>stackr</strong></div>
+    <div>
+        <a href="index.html">Startseite</a> ·
+        <a href="impressum.html">Impressum</a> ·
+        <a href="datenschutz.html">Datenschutz</a> ·
+        <a href="agb.html">AGB</a> ·
+        <a href="refund.html">Widerruf</a> ·
+        <a href="cookies.html">Cookies</a> ·
+        <a href="verfahrensdokumentation.html">Verfahrensdoku</a> ·
+        <a href="barrierefreiheit.html">Barrierefreiheit</a> ·
+        <a href="kuendigen.html">Verträge hier kündigen</a>
+    </div>
+</footer>
+
+</body>
+</html>

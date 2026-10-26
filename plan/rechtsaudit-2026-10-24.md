@@ -161,13 +161,15 @@ Vertragsende). → Anwalt.
 > **§7 Datenspeicherung, Export und Kündigung.** (1) Buchhaltungsdaten speichert der Anbieter
 > auf Servern in der EU (Frankfurt) bei Auftragsverarbeitern; Einzelheiten in der
 > Datenschutzerklärung. (2) Der Nutzer kann seine Daten jederzeit vollständig exportieren
-> (CSV/XLSX, Gesamt-Export). (3) Nach Vertragsende bleiben die Daten ⟦N⟧ Tage nur lesend zum
+> (CSV/XLSX, Gesamt-Export). (3) Nach Vertragsende bleiben die Daten 30 Tage nur lesend zum
 > Export verfügbar und werden danach gelöscht, soweit der Nutzer nicht zuvor die weitere
 > Aufbewahrung gebucht hat. Gesetzliche Aufbewahrungspflichten (§ 147 AO, § 14b UStG) treffen
 > den Nutzer; der Anbieter weist vor der Löschung per E-Mail darauf hin.
 
-**Offene Produktfrage (nicht raten, Regel 9):** Was passiert mit Serverdaten nach Kündigung —
-Frist ⟦N⟧, Lese-Zugang, Archiv-Option? Ohne Antwort ist §7 (3) nicht formulierbar.
+**Entschieden 2026-10-26 (User): 30 Tage** (`plan/02-ENTSCHEIDUNGEN.md`). Offen bleiben
+Lese-Zugang in der Frist und eine Archiv-Option („weitere Aufbewahrung gebucht“ gibt es nicht —
+Halbsatz sonst streichen). **Erst einbauen, wenn die Löschung gebaut ist** — heute löscht nichts
+automatisch nach Kündigung.
 
 ### B5 Shopify — Rolle, Daten, Text
 
@@ -318,6 +320,10 @@ in Prod). Erst übernehmen, wenn diese Migration live ist.
   (z. B. Kontaktformular; Telefon nur auf Anfrage nicht zwingend). Vorschlag: Satz streichen und
   einen zweiten Weg nennen, z. B. Kontaktformular — oder: „Auf Anfrage nennen wir dir
   kurzfristig einen telefonischen Kontakt.“ Ob das reicht → Anwalt.
+- **Erledigt 2026-10-26 (User: Kontaktformular):** `kontakt.html` + `api/kontakt.js` (ohne JS,
+  Honigtopf, Rate-Limit, Versand über Make-Webhook event `kontakt`), Impressum nennt das
+  Formular, falscher EuGH-Satz gestrichen, DSE-Absatz `#kontakt`, CSP-Route + Weiterleitung alte
+  Domain, Test `test/test-kontakt.js`.
 - Domain: Impressum ist unter getstackr.de und der alten Adresse dieselbe Seite (gleicher
   Deploy) — ok. VVT nennt nur die alte Domain (C1).
 - Streitschlichtung: OS-Plattform-Link fehlt korrekt (Plattform seit 20.07.2025 eingestellt);
@@ -355,7 +361,7 @@ in Prod). Erst übernehmen, wenn diese Migration live ist.
    Make-Konto unter Organisation → Legal/DPA und Region (EU1/US1) nachsehen. Bis dahin Make in
    Ziffer 7 **nicht** aufgenommen (keine Behauptung eines DPA).
 2. Serverdaten nach Kündigung: Frist und Lese-Zugang? (B4) → **„werden gelöscht, nach 6 Monaten
-   oder 30 Tagen, unsicher“.** Nicht geraten (Regel 9): ⟦N⟧ bleibt offen. Hinweis: Der Umbauplan
+   oder 30 Tagen, unsicher“.** → **2026-10-26 entschieden: 30 Tage.** Hinweis: Der Umbauplan
    (Abschnitt 3) nennt 6 Monate nur als Stichtag für Kunden, die nie umziehen, und 30 Tage für das
    alte Cloud-Sync-Chiffrat nach erfolgreichem Umzug — beides ist **keine** Regel für Daten nach
    Vertragsende. Muss vor R-Livegang entschieden werden.

@@ -177,7 +177,8 @@ function ok(msg) { pass++; console.log('✓ ' + msg); }
 
 // 1–6: die echte Migration
 assert.strictEqual(DATEI.length, 1, 'genau eine *_server_datenmodell.sql');
-const ECHT = fs.readFileSync(path.join(DIR, DATEI[0]), 'utf8');
+// CRLF → LF: unter Windows checkt git (autocrlf) mit CRLF aus, die Vorlagen unten enthalten '\n'.
+const ECHT = fs.readFileSync(path.join(DIR, DATEI[0]), 'utf8').replace(/\r\n/g, '\n');
 assert.ok(DATEI[0] > '20261022000001', 'läuft nach der Shopify-Migration');
 const befund = pruefe(ECHT);
 assert.deepStrictEqual(befund, [], 'E-A-Lücken:\n' + befund.join('\n'));

@@ -130,6 +130,16 @@ async function sitzungenAufraeumen() {
     catch (e) { await alertOps('blob-cleanup', 'aufraeumen-failed', 'whop-sessions: ' + (e && e.message)); return null; }
 }
 
+// Shopify-Bestelleingang: gebuchte Zeilen nach 90 Tagen weg (Migration
+// 20261026000001_shopify_loeschfrist.sql). Gleiche Bedingung wie api/shopify-webhook.js —
+// ohne Shopify-Konfiguration gibt es die Tabellen womöglich nicht, ein Aufruf wäre täglich
+// ein Fehlalarm. Wirft nie.
+async function shopifyAufraeumen() {
+    if (!process.env.SHOPIFY_CLIENT_SECRET || !process.env.SHOPIFY_TOKEN_KEY || !db.isConfigured()) return null;
+    try { return await db.rpc('sync_shopify_aufraeumen', {}); }
+    catch (e) { await alertOps('blob-cleanup', 'aufraeumen-failed', 'shopify-eingang: ' + (e && e.message)); return null; }
+}
+
 module.exports = async function handler(req, res) {
     // Vercel Cron sendet 'Authorization: Bearer $CRON_SECRET', wenn CRON_SECRET gesetzt ist.
     // Ohne gesetztes Secret bleibt der Endpoint deaktiviert (kein offener Lösch-Endpoint).
@@ -180,6 +190,7 @@ module.exports = async function handler(req, res) {
         await clientErrorSummary(now);
         await supabaseAufraeumen();
         await sitzungenAufraeumen();
+        await shopifyAufraeumen();
         await heartbeat();
         return res.status(200).json({ ok: true, deleted: deleted, alertsDeleted: alertsDeleted, ledgerDeleted: ledgerDeleted });
     } catch (e) {

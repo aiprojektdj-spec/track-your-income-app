@@ -23,7 +23,7 @@
 
     <h1>Verfahrensdokumentation</h1>
     <p class="subtitle">Technische Beschreibung der GoBD-relevanten Verfahren in Stackr (BMF-Schreiben vom 28.11.2019)</p>
-    <p class="update-date">Stand: Juli 2026</p>
+    <p class="update-date">Stand: Oktober 2026</p>
 
 <nav class="legal-toc" aria-label="Inhaltsverzeichnis"><h2>Inhalt</h2><ol><li><a href="#abschnitt-1">1. Systemüberblick</a></li><li><a href="#abschnitt-2">2. Erfassung (GoBD Rz. 45 ff. — Zeitgerechtigkeit)</a></li><li><a href="#abschnitt-3">3. Unveränderbarkeit (GoBD Rz. 58 ff.)</a></li><li><a href="#abschnitt-4">4. Nachvollziehbarkeit — Änderungsprotokoll (GoBD Rz. 47, 130 ff.)</a></li><li><a href="#abschnitt-5">5. Datenspeicherung &amp; -sicherheit (GoBD Rz. 103 ff.)</a></li><li><a href="#abschnitt-6">6. Aufbewahrung (§147 AO)</a></li><li><a href="#abschnitt-7">7. Maschinelle Auswertbarkeit &amp; Export (GoBD Rz. 138 ff.)</a></li><li><a href="#abschnitt-8">8. Verantwortlichkeiten</a></li><li><a href="#abschnitt-9">9. Änderungshistorie dieses Dokuments</a></li></ol></nav>
 
@@ -43,7 +43,8 @@
             Anbieter-Datenbank: alle Buchungsdaten liegen im Browser-Speicher (localStorage/IndexedDB) auf dem
             Gerät des Nutzers, company-präfixiert bei Mehrfirmen-Nutzung. Ein serverseitiger Cloud-Sync ist
             optional (Opt-in) und überträgt ausschließlich Ende-zu-Ende-verschlüsseltes Chiffrat — der Server
-            (Vercel Serverless + Upstash Redis, EU/Frankfurt) kann die Buchungsdaten zu keinem Zeitpunkt einsehen.
+            (Vercel Serverless; Speicher bei Upstash Redis und Supabase, beide EU/Frankfurt, während eines
+            Anbieterwechsels parallel) kann die Buchungsdaten zu keinem Zeitpunkt einsehen.
         </p>
         <p>
             Erfasste Belegarten: Einkäufe, Verkäufe/Rechnungen (inkl. E-Rechnungs-Import und -Export),
@@ -175,6 +176,8 @@
             <li>Juli 2026 — Ersterstellung</li>
             <li>25.07.2026 — Abschnitt 4 präzisiert: Reichweite der lokalen Hash-Kette klargestellt,
                 optionaler Cloud-Anker (externer SHA-256-Inhalts-Hash je Audit-Eintrag) ergänzt</li>
+            <li>14.10.2026 — Speicher des Cloud-Sync (Chiffrat, Anker) zusätzlich bei Supabase (Frankfurt)
+                gespiegelt, Umzug von Upstash Redis auf Supabase begonnen (Abschnitt 1)</li>
         </ul>
     </div>
 

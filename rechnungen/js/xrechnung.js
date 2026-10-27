@@ -67,7 +67,7 @@ var XRechnung = (function () {
     // (§6a UStG ig. Lieferung, steuerfrei) von Leistung (§13b UStG Reverse Charge) statt beide
     // pauschal auf einen Wert zu kollabieren — die Rechtsfolgen unterscheiden sich (Steuerschuldner!).
     function taxCategoryFor(rate, isKlein, pos, inv, kunde) {
-        if (isKlein) return { code: 'E', reasonCode: 'VATEX-EU-O', reason: 'Umsatzsteuerbefreiung nach §19 UStG (Kleinunternehmer)' };
+        if (isKlein) return { code: 'E', reasonCode: 'VATEX-EU-O', reason: 'Kein Ausweis von Umsatzsteuer aufgrund Kleinunternehmerregelung nach §19 UStG' };
         if (rate > 0) return { code: 'S', reasonCode: null, reason: null };
         var istDiff25a = !!(pos && pos.differenzbesteuert);
         var kundeLand = kunde && kunde.land;

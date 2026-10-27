@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none';">
+<link rel="icon" href="assets/stackr-concepts/raute-facette.svg" type="image/svg+xml">
+<title>DATEV-Export für Selbstständige und Steuerberater – Stackr</title>
+<meta name="description" content="Buchungsstapel im DATEV-Format (SKR03/SKR04) mit Belegbildern aus Stackr exportieren und der Steuerberatung übergeben.">
+<link rel="canonical" href="https://getstackr.de/datev-export-selbststaendige.html">
+<meta property="og:type" content="article">
+<meta property="og:title" content="DATEV-Export für Selbstständige und Steuerberater – Stackr">
+<meta property="og:description" content="Buchungsstapel im DATEV-Format (SKR03/SKR04) mit Belegbildern aus Stackr exportieren und der Steuerberatung übergeben.">
+<meta property="og:url" content="https://getstackr.de/datev-export-selbststaendige.html">
+<meta property="og:image" content="https://getstackr.de/assets/stackr-landing-social.png">
+<meta property="og:locale" content="de_DE">
+<link rel="stylesheet" href="css/legal.css">
+</head>
+<body>
+<a href="#inhalt" class="skip-link">Zum Inhalt springen</a>
+
+<nav class="legal-header" aria-label="Hauptnavigation">
+    <a href="index.html" class="nav-brand">
+        <span class="nav-brand-icon">◆</span>
+        <span class="nav-brand-text">stackr</span>
+    </a>
+    <a href="index.html" class="nav-back">Zur Startseite</a>
+</nav>
+
+<main class="page-wrap" id="inhalt" tabindex="-1">
+
+    <h1>DATEV-Export für Selbstständige und Steuerberater</h1>
+    <p class="subtitle">Wer seine Zahlen an eine Kanzlei übergibt, will keine Excel-Listen verschicken. Stackr exportiert einen Buchungsstapel im DATEV-Format.</p>
+    <p class="update-date">Stand: Oktober 2026. Gesetze und Verwaltungsanweisungen ändern sich; prüfe den aktuellen Stand.</p>
+
+    <div class="info-box">
+        <strong>Keine Steuerberatung.</strong> Diese Seite gibt einen allgemeinen Überblick und ersetzt weder Steuerberatung noch eine Auskunft deines Finanzamts.
+    </div>
+
+    <nav class="legal-toc" aria-label="Inhalt">
+        <h2>Inhalt</h2>
+        <ol>
+            <li><a href="#wozu">Wozu ein DATEV-Export?</a></li>
+            <li><a href="#export-inhalt">Was der Export enthält</a></li>
+            <li><a href="#belege">Belege mitliefern</a></li>
+            <li><a href="#grenzen">Was du vor der Übergabe wissen solltest</a></li>
+            <li><a href="#stackr">Stackr im Alltag</a></li>
+        </ol>
+    </nav>
+
+    <section class="section" id="wozu">
+        <h2>Wozu ein DATEV-Export?</h2>
+        <p>Viele Steuerberatungen arbeiten mit DATEV. Statt Belege und Listen einzeln zu übergeben, kann die Kanzlei einen Buchungsstapel einlesen. Das spart ihr das Abtippen und dir Rückfragen.</p>
+        <p>Wie viel Arbeit der Import in der Kanzlei macht, hängt von deren Einstellungen und Arbeitsweise ab. Sprich vorab kurz mit ihr, ob sie einen Stapel in dieser Form übernimmt.</p>
+    </section>
+
+    <section class="section" id="export-inhalt">
+        <h2>Was der Export enthält</h2>
+        <p>Du wählst ein Jahr und einen Kontenrahmen (SKR 03 oder SKR 04). Stackr erzeugt daraus eine Buchungsstapel-Datei im DATEV-Format (EXTF, Version 13). Enthalten sind:</p>
+        <ul>
+            <li>Einnahmen und Retouren</li>
+            <li>Ausgaben, Wareneinkäufe, Fahrtkosten, Verpackungsmaterial und Eigenbelege</li>
+            <li>Anlagen: Zugang im Kaufjahr und jährliche Abschreibung (AfA)</li>
+        </ul>
+        <p>Für Aufwand ohne Zahlungsvorgang, etwa Kilometerpauschale oder Eigenbelege, wählst du das Gegenkonto (vorbelegt mit Privateinlage).</p>
+    </section>
+
+    <section class="section" id="belege">
+        <h2>Belege mitliefern</h2>
+        <p>Optional packt Stackr die Belegbilder in ein ZIP neben den Stapel. Jede Bilddatei trägt die Belegnummer, die im Stapel in Belegfeld 1 steht. So findet die Kanzlei zu jeder Buchung den passenden Beleg. Eine kurze Liesmich-Datei erklärt den Aufbau.</p>
+    </section>
+
+    <section class="section" id="grenzen">
+        <h2>Was du vor der Übergabe wissen solltest</h2>
+        <ul>
+            <li>Berater- und Mandantennummer sind im Stapel Platzhalter (00000 und 00001). Deine Kanzlei trägt ihre eigenen Nummern ein.</li>
+            <li>Die Zuordnung zu den Konten ist ein Vorschlag auf Basis des Kontenrahmens. Die Kanzlei prüft sie und passt sie bei Bedarf an.</li>
+            <li>Hast du eine Anlagenanschaffung zusätzlich als Ausgabe erfasst, steht sie doppelt im Stapel.</li>
+            <li>Stackr ist ein eigenständiges Produkt und steht in keiner Verbindung zur DATEV eG. „DATEV“ ist eine Marke der DATEV eG.</li>
+        </ul>
+    </section>
+
+    <section class="section" id="stackr">
+        <h2>Stackr im Alltag</h2>
+        <p>Du erfasst Einnahmen, Ausgaben und Belege laufend und exportierst am Jahresende oder nach Absprache mit deiner Kanzlei. Wer ohne Steuerberatung arbeitet, nutzt die <a href="euer-software.html">EÜR-Auswertung</a> mit Übertragungshilfe für die Anlage EÜR.</p>
+        <p>Stackr berät nicht steuerlich: Prüfe die Ergebnisse, bei Unsicherheit gemeinsam mit deiner Steuerberatung.</p>
+
+        <div class="highlight-box">
+            <strong>Stackr 7 Tage kostenlos testen.</strong> Danach 15 € monatlich oder 135 € jährlich, jeweils Endpreis ohne Umsatzsteuer nach § 19 UStG. Ein gültiges Zahlungsmittel ist für den Test erforderlich. Ohne Kündigung vor Ende der Testphase folgen 15 € monatlich; das Abo verlängert sich automatisch um einen Monat.<br>
+            <a class="action" href="index.html#preise">Zu den Preisen</a>
+        </div>
+    </section>
+
+</main>
+
+<footer class="legal-footer">
+    <div style="margin-bottom:8px;">◆ <strong>stackr</strong></div>
+    <div>
+        <a href="index.html">Startseite</a> ·
+        <a href="buchhaltung-reseller-vinted.html">Reseller &amp; Vinted</a> ·
+        <a href="lager-bestandsfuehrung-reseller.html">Lager für Reseller</a> ·
+        <a href="euer-software.html">EÜR-Software</a> ·
+        <a href="rechnung-schreiben-kleinunternehmer.html">Rechnung &amp; XRechnung</a> ·
+        <a href="kleinunternehmergrenze-2026-2027.html">Kleinunternehmergrenze</a> ·
+        <a href="datev-export-selbststaendige.html" aria-current="page">DATEV-Export</a> ·
+        <a href="buchhaltung-gbr.html">GbR</a> ·
+        <a href="impressum.html">Impressum</a> ·
+        <a href="datenschutz.html">Datenschutz</a> ·
+        <a href="agb.html">AGB</a> ·
+        <a href="refund.html">Widerruf</a> ·
+        <a href="cookies.html">Cookies</a> ·
+        <a href="verfahrensdokumentation.html">Verfahrensdoku</a> ·
+        <a href="barrierefreiheit.html">Barrierefreiheit</a> ·
+        <a href="kuendigen.html">Verträge hier kündigen</a>
+    </div>
+</footer>
+
+</body>
+</html>

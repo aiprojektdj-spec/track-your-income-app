@@ -2,37 +2,38 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://getstackr.de/</loc>
-    <changefreq>monthly</changefreq>
-    <priority>1.0</priority>
+    <lastmod>2026-10-24</lastmod>
   </url>
   <url>
     <loc>https://getstackr.de/agb.html</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <lastmod>2026-10-24</lastmod>
   </url>
   <url>
     <loc>https://getstackr.de/datenschutz.html</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <lastmod>2026-10-26</lastmod>
   </url>
   <url>
     <loc>https://getstackr.de/impressum.html</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <lastmod>2026-10-26</lastmod>
   </url>
   <url>
     <loc>https://getstackr.de/barrierefreiheit.html</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <lastmod>2026-10-24</lastmod>
   </url>
   <url>
     <loc>https://getstackr.de/cookies.html</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.2</priority>
+    <lastmod>2026-10-24</lastmod>
   </url>
   <url>
     <loc>https://getstackr.de/refund.html</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.2</priority>
+    <lastmod>2026-10-24</lastmod>
+  </url>
+  <url>
+    <loc>https://getstackr.de/kuendigen.html</loc>
+    <lastmod>2026-10-24</lastmod>
+  </url>
+  <url>
+    <loc>https://getstackr.de/verfahrensdokumentation.html</loc>
+    <lastmod>2026-10-24</lastmod>
   </url>
 </urlset>

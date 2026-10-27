@@ -40,13 +40,14 @@
     <div class="section">
         <h2 id="abschnitt-1">1. Systemüberblick</h2>
         <p>
-            Stackr ist eine browserbasierte, <strong>Local-First</strong>-Anwendung für Einnahmen-Überschuss-Rechnung
-            (EÜR), Rechnungsstellung, Lagerverwaltung, Eigenbelege und Fahrtenbuch. Es gibt keine zentrale
-            Anbieter-Datenbank: alle Buchungsdaten liegen im Browser-Speicher (localStorage/IndexedDB) auf dem
-            Gerät des Nutzers, company-präfixiert bei Mehrfirmen-Nutzung. Ein serverseitiger Cloud-Sync ist
-            optional (Opt-in) und überträgt ausschließlich Ende-zu-Ende-verschlüsseltes Chiffrat — der Server
-            (Vercel Serverless; Speicher bei Upstash Redis und Supabase, beide EU/Frankfurt, während eines
-            Anbieterwechsels parallel) kann die Buchungsdaten zu keinem Zeitpunkt einsehen.
+            Stackr ist eine browserbasierte, <strong>serverführende</strong> Anwendung für
+            Einnahmen-Überschuss-Rechnung (EÜR), Rechnungsstellung, Lagerverwaltung, Eigenbelege und Fahrtenbuch.
+            Führender Datenbestand ist eine zentrale Datenbank bei Supabase (PostgreSQL, Frankfurt/EU), je Firma
+            getrennt durch zeilenbasierte Zugriffssteuerung (Row Level Security). Zugriffe laufen über
+            Serverless-Funktionen bei Vercel (Region Frankfurt). Der Browser hält eine Offline-Lesekopie und eine
+            Warteschlange für Änderungen, die beim nächsten Verbindungsaufbau an den Server übertragen werden.
+            Die Daten sind transport- und datenträgerverschlüsselt, nicht Ende-zu-Ende-verschlüsselt; der
+            Anbieter kann sie technisch einsehen.
         </p>
         <p>
             Erfasste Belegarten: Einkäufe, Verkäufe/Rechnungen (inkl. E-Rechnungs-Import und -Export),
@@ -110,6 +111,7 @@
             Berechnungsformel gezielt sowohl einen Eintrag als auch die nachfolgende Kette manipuliert.
         </p>
         <p>
+            <!-- ⟦P17: Abschnitt 4 durch serverseitige Hash-Kette/Periodensperre (20261022000002_server_datenmodell.sql) ersetzen, sobald live – vorher nicht beschreiben⟧ -->
             Geräteunabhängige Nachweisbarkeit liefert der optionale <strong>Cloud-Anker</strong>: Ist Cloud-Sync
             aktiviert, wird für jeden neuen Audit-Eintrag ein kryptografischer SHA-256-Inhalts-Hash (keine
             Klardaten) an eine reine Anhänge-Liste auf dem Sync-Server übermittelt, die vom Endgerät aus nicht
@@ -124,17 +126,15 @@
     <div class="section">
         <h2 id="abschnitt-5">5. Datenspeicherung &amp; -sicherheit (GoBD Rz. 103 ff.)</h2>
         <p>
-            Primärspeicher ist der Browser des Nutzers (localStorage/IndexedDB), company-präfixiert bei
-            mehreren Firmen. Es gibt standardmäßig keine Übertragung an Server des Anbieters. Aktiviert der
-            Nutzer den optionalen Cloud-Sync, wird ein lokal erzeugter, nie übertragener AES-256-GCM-Schlüssel
-            zur Ende-zu-Ende-Verschlüsselung verwendet; der Sync-Server (EU) speichert ausschließlich Chiffrat.
+            Primärspeicher ist die Datenbank bei Supabase (Frankfurt/EU); Belege liegen in einem nicht
+            öffentlichen Speicher-Bucket desselben Anbieters. Der Transport ist TLS-verschlüsselt, die
+            Datenträger sind beim Anbieter verschlüsselt. Die Offline-Lesekopie im Browser ist kein Primärspeicher.
         </p>
         <p>
-            <strong>Backup-Verantwortung liegt beim Nutzer.</strong> Die Software bietet manuellen und
-            optionalen automatischen Dateisystem-Export (JSON, verschlüsselt möglich über
-            <code>js/backup-crypto.js</code>) sowie CSV/XLSX-Export je Modul. Beim Löschen der Browserdaten
-            ohne vorheriges Backup gehen lokal gespeicherte Daten verloren — hierauf wird in der App und in
-            den AGB (§7) hingewiesen.
+            <strong>Datensicherung:</strong> Der Anbieter sichert die Datenbank täglich, Aufbewahrung
+            ⟦7 Tage, D2⟧, ohne zeitpunktgenaue Wiederherstellung; im Fehlerfall können Änderungen bis zu einem Tag
+            verloren gehen. Zusätzlich bietet die Software manuellen Gesamt-Export (JSON) sowie CSV/XLSX-Export
+            je Modul.
         </p>
     </div>
 
@@ -144,8 +144,11 @@
             Bücher, Aufzeichnungen und Jahresabschlüsse sind zehn Jahre, Buchungsbelege und Rechnungen
             acht Jahre aufzubewahren (§147 Abs. 3 AO, §14b Abs. 1 UStG); die Frist beginnt mit dem Schluss
             des Kalenderjahres der letzten Eintragung bzw. der Entstehung des Belegs (§147 Abs. 4 AO).
-            Die Software löscht keine Daten automatisch nach Fristablauf — Aufbewahrung und Archivierung
-            liegen in der Verantwortung des Nutzers (lokale Speicherung bzw. eigenes Backup-Regime).
+            Aufbewahrung und Archivierung liegen in der Verantwortung des Nutzers. Während der Vertragslaufzeit
+            hält der Anbieter die Daten vor; nach Vertragsende bleiben sie 30 Tage zum Export verfügbar und
+            werden danach gelöscht, nach vorheriger Erinnerung per E-Mail (AGB §7). Für die restliche
+            Aufbewahrungsfrist muss der Nutzer die Daten vorher vollständig und maschinell auswertbar
+            exportieren (Datenzugriff der Finanzverwaltung nach §147 Abs. 6 AO über den Export).
         </p>
     </div>
 
@@ -180,6 +183,8 @@
                 optionaler Cloud-Anker (externer SHA-256-Inhalts-Hash je Audit-Eintrag) ergänzt</li>
             <li>14.10.2026 — Speicher des Cloud-Sync (Chiffrat, Anker) zusätzlich bei Supabase (Frankfurt)
                 gespiegelt, Umzug von Upstash Redis auf Supabase begonnen (Abschnitt 1)</li>
+            <li>⟦Datum Livegang⟧ — Umstellung auf serverführende Speicherung im Klartext bei Supabase
+                (Abschnitte 1, 5, 6); Ende-zu-Ende-Verschlüsselung und lokaler Primärspeicher entfallen</li>
         </ul>
     </div>
 

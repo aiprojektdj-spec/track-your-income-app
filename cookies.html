@@ -187,12 +187,13 @@
 
         <h3>IndexedDB (lokale Datenbank)</h3>
         <p>
-            Für größere Datenmengen (z. B. umfangreiche Buchungshistorie) nutzt Stackr die
-            <strong style="color:var(--text);">IndexedDB</strong> des Browsers — eine strukturierte
-            lokale Datenbank, die ausschließlich auf deinem Gerät gespeichert wird und das Gerät
-            nicht verlässt — sofern du nicht den optionalen, Ende-zu-Ende-verschlüsselten Cloud-Sync
-            aktivierst. In diesem Fall wird ausschließlich unlesbares Chiffrat bei Upstash bzw. Supabase (jeweils Frankfurt, EU)
-            abgelegt; Details in der <a href="datenschutz.html">Datenschutzerklärung</a> (Ziffer 4).
+            Stackr nutzt die <strong style="color:var(--text);">IndexedDB</strong> des Browsers für eine
+            <strong style="color:var(--text);">Offline-Lesekopie</strong> deiner Buchhaltungsdaten und eine kurze
+            Warteschlange für Änderungen, damit die App bei kurzen Netzabbrüchen weiterläuft. Diese Daten sind
+            eine Kopie des Server-Stands bei Supabase (Frankfurt, EU); sie werden beim Abmelden bzw. über
+            <em>Konto → Gerät zurücksetzen</em> gelöscht. Details in der
+            <a href="datenschutz.html">Datenschutzerklärung</a> (Ziffern 2.3 und 4).
+            <!-- ⟦Tabelle localStorage nach Umbau gegen die tatsaechlichen Schluessel pruefen, Cloud-Sync-Zeile streichen⟧ -->
         </p>
         <p>Rechtsgrundlage für alle o. g. Technologien: § 25 Abs. 2 TDDDG (technisch notwendig).</p>
     </div>

@@ -6,7 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none';">
 <link rel="icon" href="assets/stackr-concepts/raute-facette.svg" type="image/svg+xml">
 <title>Datenschutzerklärung — Stackr</title>
-<meta name="description" content="Datenschutzerklärung von stackr: welche Daten verarbeitet werden, lokale Speicherung, verschlüsselter Cloud-Sync, Whop-Login und deine Rechte.">
+<meta name="description" content="Datenschutzerklärung von stackr: welche Daten verarbeitet werden, Speicherung in Frankfurt, Auftragsverarbeitung, Whop-Login und deine Rechte.">
 <link rel="canonical" href="https://getstackr.de/datenschutz.html">
 <link rel="stylesheet" href="css/legal.css">
 </head>
@@ -27,12 +27,13 @@
     <p class="subtitle">Informationen zum Umgang mit deinen personenbezogenen Daten</p>
     <p class="update-date">Stand: Oktober 2026</p>
 
-<nav class="legal-toc" aria-label="Inhaltsverzeichnis"><h2>Inhalt</h2><ol><li><a href="#abschnitt-1">1. Verantwortlicher</a></li><li><a href="#abschnitt-2">2. Welche Daten wir erheben</a></li><li><a href="#abschnitt-3">3. Cookies &amp; lokale Speicherung</a></li><li><a href="#abschnitt-4">4. Datenspeicherung &amp; optionaler Cloud-Sync</a></li><li><a href="#abschnitt-5">5. Login &amp; Zahlungsabwicklung (Whop)</a></li><li><a href="#abschnitt-6">6. Deine Rechte</a></li><li><a href="#abschnitt-7">6.1 Was bei einer Löschung bestehen bleibt</a></li><li><a href="#abschnitt-8">7. Auftragsverarbeitung (AVV)</a></li><li><a href="#abschnitt-9">8. Speicherdauer &amp; Löschung</a></li><li><a href="#abschnitt-10">9. Änderungen dieser Erklärung</a></li></ol></nav>
+<nav class="legal-toc" aria-label="Inhaltsverzeichnis"><h2>Inhalt</h2><ol><li><a href="#abschnitt-1">1. Verantwortlicher</a></li><li><a href="#abschnitt-2">2. Welche Daten wir erheben</a></li><li><a href="#abschnitt-3">3. Cookies &amp; lokale Speicherung</a></li><li><a href="#abschnitt-4">4. Datenspeicherung auf unseren Servern</a></li><li><a href="#abschnitt-5">5. Login &amp; Zahlungsabwicklung (Whop)</a></li><li><a href="#abschnitt-6">6. Deine Rechte</a></li><li><a href="#abschnitt-7">6.1 Was bei einer Löschung bestehen bleibt</a></li><li><a href="#abschnitt-8">7. Auftragsverarbeitung (AVV)</a></li><li><a href="#abschnitt-9">8. Speicherdauer &amp; Löschung</a></li><li><a href="#abschnitt-10">9. Änderungen dieser Erklärung</a></li></ol></nav>
 
     <div class="highlight-box">
         <strong>Kurz zusammengefasst:</strong> Wir speichern nur was nötig ist.
-        Deine Buchhaltungsdaten bleiben lokal auf deinem Gerät (Browser-Speicher) und werden nicht
-        an uns übertragen. Für Login und Zahlung nutzen wir Whop. Wir tracken dich nicht.
+        Deine Buchhaltungsdaten speichern wir auf unseren Servern in Frankfurt am Main (EU); sie sind
+        verschlüsselt übertragen und gespeichert, aber nicht Ende-zu-Ende-verschlüsselt. Für Login und
+        Zahlung nutzen wir Whop. Wir tracken dich nicht.
     </div>
 
     <!-- ── 1. Verantwortlicher ── -->
@@ -80,9 +81,8 @@
             jeweils abgeleitet aus dem Seitenaufruf. <strong>Nach Angaben des Anbieters arbeitet der
             Dienst ohne Cookies</strong> und legt keine dauerhafte Kennung auf deinem Gerät ab; es
             wird kein geräteübergreifendes Nutzungsprofil gebildet, und es findet keine Werbung oder
-            Weitergabe zu Werbezwecken statt. Deine Buchhaltungsdaten sind davon nicht berührt — sie
-            verlassen dein Gerät nur bei aktiviertem Cloud-Sync und dann ausschließlich verschlüsselt
-            (Ziffer 4).
+            Weitergabe zu Werbezwecken statt. Deine Buchhaltungsdaten sind davon nicht berührt
+            (Ziffer 2.3).
         </p>
         <p>
             Rechtsgrundlage: <strong>Art. 6 Abs. 1 lit. a DSGVO</strong> (Einwilligung), für den
@@ -107,20 +107,22 @@
 
         <h3>2.3 Buchhaltungsdaten</h3>
         <p>
-            Deine eingegebenen Buchhaltungsdaten (Einnahmen, Ausgaben, Rechnungen etc.)
-            werden standardmäßig ausschließlich lokal auf deinem Gerät gespeichert (localStorage/IndexedDB des
-            Browsers). Sie verlassen dein Gerät nicht und sind nur für dich zugänglich. Eine
-            Übermittlung an Server des Anbieters oder Dritter findet nicht statt — <strong>es sei denn, du
-            aktivierst ausdrücklich den optionalen Cloud-Sync</strong> (siehe Ziffer 4). In diesem Fall werden
-            ausschließlich Ende-zu-Ende-verschlüsselte, für uns und den Anbieter unlesbare Daten übertragen.
+            Deine Buchhaltungsdaten (Einnahmen, Ausgaben, Rechnungen, Belege, Lager, Protokoll)
+            speichern wir auf unseren Servern bei <strong>Supabase</strong> (Supabase, Inc.) in Frankfurt
+            am Main (EU), damit du von mehreren Geräten darauf zugreifen, Integrationen nutzen und deinem
+            Steuerberater Zugriff geben kannst. Die Daten sind dort transportverschlüsselt (TLS) und auf
+            dem Datenträger verschlüsselt gespeichert<!-- ⟦D6: at rest in Supabase-Sicherheitsdoku bestaetigen⟧ -->,
+            aber <strong>nicht Ende-zu-Ende-verschlüsselt</strong>: Wir können sie technisch einsehen. Wir
+            tun das nur, soweit es für Betrieb, Fehlerbehebung oder auf deine Anfrage (Support) nötig ist.
+            Eine Kopie bleibt als Offline-Lesekopie in deinem Browser (Ziffer 3).
         </p>
         <p>
             Zu den Buchhaltungsdaten zählen auch die von dir hinterlegten <strong>Daten deiner eigenen
             Kunden</strong> (z.B. Firma, Ansprechpartner, Anschrift, USt-IdNr.) — soweit du Rechnungen,
-            Eigenbelege oder das OSS-Modul nutzt. Diese unterliegen denselben Regeln: lokale Speicherung,
-            Übertragung nur bei aktiviertem Cloud-Sync und dann ebenfalls Ende-zu-Ende-verschlüsselt.
-            Als Nutzer bist du für diese Daten deiner Kunden gegenüber selbst datenschutzrechtlich
-            verantwortlich (Art. 4 Nr. 7 DSGVO); Stackr fungiert insoweit lediglich als technisches Werkzeug.
+            Eigenbelege oder das OSS-Modul nutzt. Für diese Daten bist du gegenüber deinen Kunden
+            datenschutzrechtlich verantwortlich (Art. 4 Nr. 7 DSGVO); wir verarbeiten sie <strong>in deinem
+            Auftrag</strong> (Art. 28 DSGVO). Der Auftragsverarbeitungsvertrag ist Bestandteil der
+            <a href="agb.html#anlage-avv">AGB (Anlage)</a>.
         </p>
         <p>Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.</p>
         <h3>2.4 Fehlerprotokolle</h3>
@@ -185,15 +187,10 @@
         </ul>
         <p>
             Darüber hinaus nutzt die App <strong>IndexedDB</strong> und <strong>localStorage</strong>
-            des Browsers zur lokalen Speicherung deiner Buchhaltungsdaten.
-            Diese Daten verlassen deinen Browser nicht, sofern du den optionalen Cloud-Sync
-            (Ziffer 4) nicht aktivierst.
-        </p>
-        <p>
-            Aktivierst du den Cloud-Sync, werden zusätzlich folgende Schlüssel lokal gespeichert:
-            <strong>oyi_sync_enabled</strong> (Status), <strong>oyi_sync_key_…</strong> (dein geheimer
-            Verschlüsselungsschlüssel — bleibt ausschließlich auf deinem Gerät) und
-            <strong>oyi_device_id</strong> (geräteinterne Kennung für die Zusammenführung).
+            des Browsers für eine <strong>Offline-Lesekopie</strong> deiner Buchhaltungsdaten und eine
+            kurze Warteschlange für Änderungen, damit die App bei kurzen Netzabbrüchen weiterläuft. Diese
+            Daten sind eine Kopie des Server-Stands (Ziffer 2.3); sie werden beim Abmelden bzw. über
+            <em>Konto → Gerät zurücksetzen</em> gelöscht. <!-- ⟦pruefen: wird die Kopie beim Abmelden wirklich geloescht? Schluesselnamen nach Umbau nachtragen⟧ -->
         </p>
         <p>
             Zusätzlich speichert die App bei technischen Fehlern automatisch ein
@@ -211,61 +208,40 @@
         <p>Wir setzen <strong>keine</strong> Tracking-, Analyse- oder Werbe-Cookies ein.</p>
     </div>
 
-    <!-- ── 4. Lokale Datenspeicherung ── -->
+    <!-- ── 4. Datenspeicherung auf unseren Servern ── -->
     <div class="section">
-        <h2 id="abschnitt-4">4. Datenspeicherung &amp; optionaler Cloud-Sync</h2>
-        <p>
-            Stackr ist eine Local-First-Anwendung. Deine Buchhaltungsdaten werden standardmäßig ausschließlich
-            im Speicher deines Browsers (localStorage und IndexedDB) auf deinem eigenen Gerät
-            abgelegt und nicht an Server des Anbieters oder Dritter übertragen.
-        </p>
-        <p>
-            Für die Sicherung deiner Daten bist du selbst verantwortlich (Export/Backup in der App).
-            Beim Löschen der Browserdaten gehen lokal gespeicherte Daten verloren.
-        </p>
+        <h2 id="abschnitt-4">4. Datenspeicherung auf unseren Servern</h2>
 
-        <h3>4.1 Optionaler Cloud-Sync (Ende-zu-Ende-verschlüsselt)</h3>
-        <p>
-            Als Pro-Funktion kannst du einen <strong>optionalen Cloud-Sync</strong> aktivieren, der deine Daten
-            zwischen mehreren Geräten abgleicht. Dieser ist <strong>standardmäßig deaktiviert</strong> und wird
-            nur nach deiner ausdrücklichen Aktivierung (Opt-in) wirksam. Solange du ihn nicht aktivierst, bleiben
-            alle Aussagen zur rein lokalen Speicherung unverändert gültig.
-        </p>
+        <h3>4.1 Speicherort, Zugriff und Sicherung</h3>
         <ul>
             <li>
-                <strong>Echte Ende-zu-Ende-Verschlüsselung:</strong> Beim Aktivieren erzeugt Stackr auf deinem Gerät
-                einen geheimen 256-Bit-Schlüssel (AES-GCM). Dieser Schlüssel bleibt <strong>ausschließlich auf deinen
-                Geräten</strong> und wird niemals hochgeladen. Hochgeladen wird nur das damit verschlüsselte Chiffrat.
-            </li>
-            <li>
-                <strong>Was gespeichert wird:</strong> Auf dem Sync-Server liegt ausschließlich unlesbares Chiffrat
-                nebst technischen Metadaten (Versionsnummer, Zeitstempel, Geräte-Kennung). Weder wir noch der Anbieter
-                können diese Daten entschlüsseln oder einsehen.
-            </li>
-            <li>
-                <strong>Wo gespeichert wird:</strong> Die verschlüsselten Daten werden in der Region
-                <strong>Frankfurt am Main (EU, eu-central-1)</strong> gespeichert. Wir ziehen den Speicher derzeit
-                von <strong>Upstash</strong> (Upstash, Inc.) zu <strong>Supabase</strong> (Supabase, Inc.) um; während
-                des Umzugs liegt dasselbe Chiffrat bei beiden Anbietern, jeweils in Frankfurt. Nach Abschluss des
-                Umzugs werden die Daten bei Upstash gelöscht. Der
-                Transport erfolgt ausschließlich über eine von uns betriebene, abgesicherte Serverless-Funktion
-                (Vercel) auf <a href="https://getstackr.de">getstackr.de</a> bzw. der bisherigen Adresse
+                <strong>Wo gespeichert wird:</strong> Deine Buchhaltungsdaten und Belege liegen in einer
+                Datenbank und einem nicht öffentlichen Speicher bei <strong>Supabase</strong> (Supabase, Inc.) in
+                der Region <strong>Frankfurt am Main (EU, eu-central-1)</strong>, in einem Rechenzentrum von Amazon
+                Web Services. Sie erreichen die Datenbank über Server-Funktionen bei <strong>Vercel</strong>
+                (Vercel Inc.), die ebenfalls in Frankfurt am Main laufen, auf
+                <a href="https://getstackr.de">getstackr.de</a> bzw. der bisherigen Adresse
                 <a href="https://track-your-income-app.vercel.app">track-your-income-app.vercel.app</a>.
-                Große Anhänge (z.B. Belegfotos, Rechnungslogos) werden vor dem Hochladen ebenfalls auf deinem Gerät
-                verschlüsselt und als eigene Datei bei <strong>Vercel Blob</strong> (Vercel Inc.) in der Region
-                Frankfurt am Main (EU) abgelegt. Abrufbar
-                sind sie nur über einen nicht erratbaren Link; der Inhalt bleibt auch dort unlesbares Chiffrat. Beim
-                Abruf verbindet sich dein Browser direkt mit Vercel Blob, dabei wird deine IP-Adresse übermittelt.
             </li>
             <li>
-                <strong>Wiederherstellungscode:</strong> Der Schlüssel wird dir als Wiederherstellungscode angezeigt.
-                Er ist der einzige Weg, die verschlüsselten Cloud-Daten zu lesen. Geht er samt aller Geräte verloren,
-                sind die Cloud-Daten unwiederbringlich — wir können ihn weder einsehen noch zurücksetzen.
+                <strong>Wer zugreifen kann:</strong> Jede Firma ist in der Datenbank von allen anderen getrennt
+                (zeilenbasierte Zugriffssteuerung). Lesen und ändern kannst du; dein Steuerberater nur, wenn du
+                ihn freigibst (Ziffer 4.3). Wir als Betreiber sehen Inhalte nur, soweit es für Betrieb,
+                Fehlerbehebung oder auf deine Anfrage nötig ist. <!-- ⟦P9: Zugriffsprotokoll Betreiber/Support dokumentieren⟧ -->
+            </li>
+            <li>
+                <strong>Datensicherung:</strong> Wir sichern die Datenbank täglich; Sicherungen werden nach
+                ⟦7 Tagen, D2⟧ überschrieben. Zusätzlich kannst du deine Daten jederzeit vollständig exportieren.
+            </li>
+            <li>
+                <strong>Bisheriger Cloud-Sync:</strong> Hattest du den früheren, Ende-zu-Ende-verschlüsselten
+                Cloud-Sync aktiviert, löschen wir den alten verschlüsselten Stand bei Upstash (Upstash, Inc.) und
+                Supabase ⟦30 Tage⟧ nach deinem erfolgreichen Umzug, ebenso verschlüsselte Anhänge bei Vercel Blob.
             </li>
         </ul>
         <p>
-            Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) bzw. Art. 6 Abs. 1 lit. a DSGVO
-            (deine Einwilligung durch Aktivierung). Zur Auftragsverarbeitung siehe Ziffer 7.
+            Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung). Zur Auftragsverarbeitung siehe
+            Ziffer 7.
         </p>
 
         <h3>4.2 Optionale Webhooks (z.B. Make.com)</h3>
@@ -274,8 +250,7 @@
             Ereignissen (neue Einnahme, neue Rechnung, neuer Eigenbeleg) automatisch die betroffenen Daten sendet
             — inklusive personenbezogener Angaben, die darin enthalten sind (z.B. Kundenname, Betrag, Rechnungsdaten).
             Diese Funktion ist <strong>standardmäßig deaktiviert</strong> und wird nur aktiv, wenn du selbst eine
-            URL hinterlegst. Anders als beim Cloud-Sync (Ziffer 4.1) wird der Inhalt hierbei <strong>unverschlüsselt
-            im Klartext</strong> direkt aus deinem Browser an die von dir eingetragene URL übertragen — Stackr
+            URL hinterlegst. Der Inhalt wird hierbei <strong>im Klartext</strong> direkt aus deinem Browser an die von dir eingetragene URL übertragen — Stackr
             selbst sieht diese Übertragung nicht und kann sie nicht protokollieren oder absichern. Trägst du eine
             URL bei einem Drittanbieter außerhalb der EU/des EWR ein, kann darin ein Drittlandtransfer liegen, für
             den <strong>du selbst als datenschutzrechtlich Verantwortlicher</strong> gegenüber deinen Kunden
@@ -285,14 +260,15 @@
 
         <h3>4.3 Steuerberater-Freigabe (optional)</h3>
         <p>
-            Wenn du einem Steuerberater Lesezugriff auf deine Daten gewährst, werden dazu dein öffentlicher
-            Schlüssel (Public Key) und der Freigabe-Status (Grant) serverseitig bei Upstash und Supabase
-            (jeweils Frankfurt, siehe Ziffer 4.1) gespeichert sowie — bei jeder API-Anfrage zum Schutz vor
-            Missbrauch — deine IP-Adresse kurzzeitig (Rate-Limit-Zähler, 60 Sekunden) bei Upstash
-            verarbeitet. Der Steuerberater erhält ausschließlich Lesezugriff auf einen mit seinem eigenen
-            Schlüssel entschlüsselbaren Datenauszug; ohne aktive Freigabe hat er keinen Zugriff.
-            Rechtsgrundlage: Art. 6 Abs. 1 lit. a DSGVO (Einwilligung durch Aktivierung) bzw. lit. f (berechtigtes
-            Interesse an Missbrauchsschutz bei der IP-Verarbeitung).
+            Wenn du einem Steuerberater Zugang gibst, speichern wir bei Supabase (Frankfurt, Ziffer 4.1), wem du
+            ihn gegeben hast und seit wann. Der Steuerberater kann deine Buchhaltungsdaten dann <strong>im
+            Klartext lesen</strong>, aber nicht ändern; widerrufst du die Freigabe, endet sein Zugriff sofort.
+            Was er mit den gelesenen Daten tut, verantwortet er selbst (eigener Verantwortlicher,
+            Art. 4 Nr. 7 DSGVO). <!-- ⟦Anwalt: Rolle StB als eigener Verantwortlicher bestaetigen⟧ -->
+            Zum Schutz vor Missbrauch verarbeiten wir bei jeder Anfrage deine IP-Adresse kurzzeitig in einem
+            Zähler (60 Sekunden).
+            Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (die Freigabe ist Teil der von dir gewählten Leistung)
+            bzw. lit. f (berechtigtes Interesse an Missbrauchsschutz bei der IP-Verarbeitung).
         </p>
 
         <h3>4.4 Belegerkennung („Beleg auslesen“)</h3>
@@ -314,6 +290,25 @@
             Auswählen eines Bildes. Die erkannten Werte werden dir lediglich als Vorschlag angeboten;
             übernommen wird nur, was du selbst anklickst. Eine Verarbeitung personenbezogener Daten
             durch uns findet dabei nicht statt.
+        </p>
+
+        <h3>4.5 Shopify-Anbindung (optional)</h3>
+        <p>
+            Verbindest du deinen Shopify-Shop, erhalten wir nach deiner Freigabe in Shopify ein Zugriffsrecht,
+            um Bestellungen und Auszahlungen zu lesen (<code>read_orders</code>,
+            <code>read_shopify_payments_payouts</code>). Wir speichern je Bestellung nur Bestellnummer, Datum,
+            Beträge, Artikel, Zahlungsart und das Land der Liefer- bzw. Rechnungsadresse, <strong>nicht</strong>
+            Namen, E-Mail-Adressen oder Anschriften deiner Käufer. Shopify übermittelt uns bei neuen Bestellungen
+            eine Benachrichtigung, die solche Angaben enthält; wir werten sie nur zur Prüfung der Echtheit aus und
+            speichern sie nicht. Das Zugriffsrecht speichern wir verschlüsselt bei Supabase (Frankfurt).
+            Hinsichtlich der Käuferdaten handeln wir in deinem Auftrag (Ziffer 7).
+        </p>
+        <p>
+            Deinstallierst du die App, löschen wir das Zugriffsrecht sofort. Die übernommenen Bestelldaten
+            löschen wir, sobald Shopify uns die Löschung des Shops meldet (laut Shopify 48 Stunden nach der
+            Deinstallation); bereits verbuchte Bestellungen löschen wir 90 Tage nach der Verbuchung aus dem
+            Eingang, die Buchung selbst bleibt Teil deiner Buchhaltung.
+            Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
         </p>
     </div>
 
@@ -347,12 +342,12 @@
         <p>
             <strong>Login-Sitzung und Missbrauchsschutz:</strong> Damit du dich nicht stündlich neu anmelden
             musst, legen wir nach dem Login eine zufällige Sitzungskennung zusammen mit den von Whop
-            ausgegebenen Anmelde-Token (Zugangs- und Erneuerungstoken) serverseitig bei <strong>Upstash</strong>
-            (Upstash, Inc.) und — zusätzlich verschlüsselt — bei <strong>Supabase</strong> (Supabase, Inc.) ab,
-            jeweils in der Region Frankfurt am Main (EU). Der Eintrag verfällt automatisch 30 Tage
-            nach der letzten Erneuerung. Bei jeder Anmeldung, Zugangsprüfung und Sitzungserneuerung verarbeiten
-            wir außerdem deine IP-Adresse in einem Zähler, der die Anfragen pro Minute begrenzt; dieser Zähler
-            liegt ebenfalls bei Upstash und wird nach 60 Sekunden automatisch gelöscht.
+            ausgegebenen Anmelde-Token (Zugangs- und Erneuerungstoken) serverseitig und zusätzlich verschlüsselt
+            bei <strong>Supabase</strong> (Supabase, Inc.) in der Region Frankfurt am Main (EU) ab. Der Eintrag
+            verfällt automatisch 30 Tage nach der letzten Erneuerung. Bei jeder Anmeldung, Zugangsprüfung und
+            Sitzungserneuerung verarbeiten wir außerdem deine IP-Adresse in einem Zähler, der die Anfragen pro
+            Minute begrenzt; dieser Zähler wird nach 60 Sekunden automatisch gelöscht.
+            <!-- ⟦pruefen: liegen Sitzungen und Zaehler nach dem Umzug wirklich nur noch bei Supabase? Sonst Upstash wieder nennen⟧ -->
             Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Bereitstellung des Logins) bzw. lit. f DSGVO
             (berechtigtes Interesse an Missbrauchsschutz).
         </p>
@@ -431,12 +426,12 @@
     <div class="section">
         <h2 id="abschnitt-7">6.1 Was bei einer Löschung bestehen bleibt</h2>
         <p>
-            Löschst du deinen verschlüsselten Cloud-Stand, wird dieser vollständig und bestätigt entfernt —
-            einschließlich ausgelagerter Anhänge. Ein technischer Rest bleibt jedoch bewusst erhalten:
-            eine <strong>Prüfliste („Anker")</strong>, die je Buchung ausschließlich einen
+            Werden deine Buchhaltungsdaten gelöscht (auf deinen Wunsch oder nach Vertragsende, Ziffer 8),
+            entfernen wir sie vollständig — einschließlich der Belege. Ein technischer Rest bleibt jedoch
+            bewusst erhalten: eine <strong>Prüfliste</strong>, die je Buchung ausschließlich einen
             <strong>Prüfwert (Hash), eine interne Kennung und einen Zeitstempel</strong> enthält.
             Buchhaltungsinhalte, Beträge, Namen oder Belege sind darin nicht enthalten. Die Prüfliste liegt
-            wie der Cloud-Stand bei Upstash und Supabase in Frankfurt (Ziffer 4.1).
+            bei Supabase in Frankfurt (Ziffer 4.1). <!-- ⟦pruefen: Hash-Kette des Server-Datenmodells statt sync_anchors – Begriffe nach Umbau angleichen⟧ -->
         </p>
         <p>
             Diese Prüfliste ist der Nachweis, dass nachträglich keine Buchung unbemerkt verändert wurde
@@ -452,8 +447,8 @@
             gleichwohl deinem Konto zugeordnet und werden von uns als personenbezogene Daten behandelt.
         </p>
         <p>
-            Nach Ablauf der gesetzlichen Aufbewahrungsfrist wird auch die Prüfliste entfernt. Deine lokal
-            auf dem Gerät gespeicherten Daten sind davon nicht betroffen — die löschst du jederzeit selbst.
+            Nach Ablauf der gesetzlichen Aufbewahrungsfrist wird auch die Prüfliste entfernt. Die
+            Offline-Lesekopie in deinem Browser löschst du jederzeit selbst (Ziffer 3).
         </p>
     </div>
 
@@ -461,40 +456,46 @@
     <div class="section">
         <h2 id="abschnitt-8">7. Auftragsverarbeitung (AVV)</h2>
         <p>
-            Solange der optionale Cloud-Sync nicht aktiviert ist, werden Buchhaltungsdaten ausschließlich lokal
-            auf deinem Gerät verarbeitet; eine Auftragsverarbeitung dieser Daten durch Dritte findet nicht statt.
-        </p>
-        <p>
             Folgende Anbieter sind als <strong>Auftragsverarbeiter</strong> nach Art. 28 DSGVO für uns tätig:
         </p>
         <ul>
             <li>
-                <strong>Upstash, Inc.</strong> — bei aktiviertem Cloud-Sync (Ziffer 4) Speicherung der
-                verschlüsselten Daten; unabhängig davon Login-Sitzungen und Missbrauchszähler (Ziffer 5) sowie
-                Fehlerprotokolle (Ziffer 2.4). Region Frankfurt (EU).
-            </li>
-            <li>
-                <strong>Supabase, Inc.</strong> — derzeit parallel zu Upstash Speicherung der verschlüsselten
-                Cloud-Sync-Daten, der Prüfliste und der Steuerberater-Freigaben (Ziffern 4.1, 4.3, 6.1), der
-                verschlüsselten Login-Sitzungen (Ziffer 5) sowie der Kündigungsnachweise (Ziffer 5). Region
-                Frankfurt (EU); die Daten liegen in einem Rechenzentrum von Amazon Web Services in Frankfurt,
-                weitere Unterauftragsverarbeiter nennt Supabase unter
+                <strong>Supabase, Inc.</strong> — Speicherung deiner Buchhaltungsdaten und Belege, der Prüfliste,
+                der Steuerberater-Freigaben, der Shopify-Anbindung, der Login-Sitzungen und der
+                Kündigungsnachweise (Ziffern 2.3, 4, 5, 6.1). Region Frankfurt (EU); die Daten liegen in einem
+                Rechenzentrum von Amazon Web Services in Frankfurt, weitere Unterauftragsverarbeiter nennt
+                Supabase unter
                 <a href="https://supabase.com/legal/subprocessors" target="_blank" rel="noopener">supabase.com/legal/subprocessors</a>.
             </li>
             <li>
-                <strong>Vercel Inc.</strong> — Betrieb der Website und der Transport-Funktion sowie Speicherung
-                verschlüsselter Anhänge (Vercel Blob, Region Frankfurt).
+                <strong>Vercel Inc.</strong> — Betrieb der Website und der Server-Funktionen, über die deine Daten
+                laufen (Region Frankfurt, EU), sowie Betriebsprotokolle (Vercel Blob, Frankfurt).
+            </li>
+            <li>
+                <strong>Upstash, Inc.</strong> — Fehlerprotokolle (Ziffer 2.4) und bis zu ihrer Löschung die
+                verschlüsselten Daten des früheren Cloud-Sync (Ziffer 4.1). Region Frankfurt (EU).
+                <!-- ⟦streichen, sobald Upstash abgeschaltet ist; Fehlerprotokolle ggf. nach Supabase⟧ -->
+            </li>
+            <li>
+                <strong>Make.com</strong> (Celonis SE) — Versand der Kündigungsbestätigung, Weiterleitung des
+                Kontaktformulars und interner Betriebsmeldungen (Ziffern 2.4, 5). Region ⟦D4⟧.
             </li>
         </ul>
         <p>
-            Mit allen drei Anbietern besteht ein Auftragsverarbeitungsvertrag (Data Processing Agreement), der
-            Bestandteil der jeweiligen Vertragsbedingungen ist. Da alle drei US-Gesellschaften sind, ist ein
-            Zugriff aus einem Drittland nicht ausgeschlossen, auch wenn die Daten in Frankfurt liegen.
-            Upstash und Vercel sind unter dem EU-US Data Privacy Framework zertifiziert (Art. 45 DSGVO),
-            hilfsweise gelten die EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO). Für Supabase
-            stützen wir eine mögliche Übermittlung auf die EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c
-            DSGVO). Die Daten des Cloud-Sync sind Ende-zu-Ende-verschlüsseltes, für die Anbieter unlesbares
-            Chiffrat; das Risiko ist entsprechend minimiert.
+            Mit allen Anbietern besteht ein Auftragsverarbeitungsvertrag (Data Processing Agreement), der
+            Bestandteil der jeweiligen Vertragsbedingungen ist. <!-- ⟦D4: Make-DPA erst nennen, wenn abgeschlossen⟧ -->
+            Da es sich um Gesellschaften mit Sitz bzw. Konzernverbindung in den USA handelt, ist ein Zugriff aus
+            einem Drittland nicht ausgeschlossen, auch wenn die Daten in Frankfurt liegen. Vercel und Upstash sind
+            unter dem EU-US Data Privacy Framework zertifiziert (Art. 45 DSGVO), hilfsweise gelten die
+            EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO). Für Supabase stützen wir eine mögliche
+            Übermittlung auf die EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO); wir haben sie in
+            einer Transfer-Folgenabschätzung bewertet. Deine Buchhaltungsdaten sind <strong>nicht
+            Ende-zu-Ende-verschlüsselt</strong>, sondern auf dem Transportweg und auf dem Datenträger.
+        </p>
+        <p>
+            Soweit du in Stackr Daten deiner eigenen Kunden erfasst, handeln wir umgekehrt <strong>in deinem
+            Auftrag</strong>; der Vertrag dazu ist <a href="agb.html#anlage-avv">Anlage der AGB</a>. Die oben
+            genannten Anbieter sind insoweit unsere Unterauftragsverarbeiter.
         </p>
         <p>
             Whop (Whop Inc., USA) wird nicht als Auftragsverarbeiter für uns tätig, sondern ist
@@ -515,9 +516,14 @@
             <li>Session-Daten: automatisch nach Ablauf der Session</li>
             <li>Account-Daten: auf Anfrage oder bei Kontolöschung sofort</li>
             <li>Fehlerprotokolle (Ziffer 2.4): automatisch nach 30 Tagen</li>
-            <li>Buchhaltungsdaten: auf Anfrage — beachte die steuerlichen Aufbewahrungsfristen nach § 147 AO:
-                Rechnungen und sonstige Buchungsbelege grundsätzlich 8 Jahre, Bücher, Aufzeichnungen und
-                Jahresabschlüsse 10 Jahre (jeweils ab Schluss des Kalenderjahres, in dem der Beleg entstanden, die Rechnung ausgestellt bzw. die letzte Eintragung in das Buch gemacht wurde, § 147 Abs. 4 AO, § 14b UStG)</li>
+            <li>Buchhaltungsdaten: solange dein Vertrag läuft; nach Vertragsende noch 30 Tage zum Export,
+                danach Löschung (vorher erinnern wir dich per E-Mail). Datensicherungen verfallen nach
+                ⟦7 Tagen, D2⟧. <strong>Die steuerlichen Aufbewahrungsfristen treffen dich, nicht uns</strong> —
+                exportiere deine Daten vor der Löschung: Rechnungen und sonstige Buchungsbelege grundsätzlich
+                8 Jahre, Bücher, Aufzeichnungen und Jahresabschlüsse 10 Jahre (jeweils ab Schluss des
+                Kalenderjahres, in dem der Beleg entstanden, die Rechnung ausgestellt bzw. die letzte Eintragung
+                in das Buch gemacht wurde, § 147 Abs. 4 AO, § 14b UStG). Die Prüfliste (Ziffer 6.1) bleibt bis
+                zum Ende der gesetzlichen Frist.</li>
         </ul>
     </div>
 

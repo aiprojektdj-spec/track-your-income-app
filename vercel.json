@@ -155,6 +155,30 @@
       ]
     },
     {
+      "source": "/datev-export-selbststaendige.html",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'" }
+      ]
+    },
+    {
+      "source": "/lager-bestandsfuehrung-reseller.html",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'" }
+      ]
+    },
+    {
+      "source": "/buchhaltung-gbr.html",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'" }
+      ]
+    },
+    {
+      "source": "/kleinunternehmergrenze-2026-2027.html",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'" }
+      ]
+    },
+    {
       "source": "/verfahrensdokumentation.html",
       "headers": [
         { "key": "Content-Security-Policy", "value": "default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'" }

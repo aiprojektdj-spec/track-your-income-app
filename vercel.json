@@ -137,6 +137,24 @@
       ]
     },
     {
+      "source": "/buchhaltung-reseller-vinted.html",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'" }
+      ]
+    },
+    {
+      "source": "/euer-software.html",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'" }
+      ]
+    },
+    {
+      "source": "/rechnung-schreiben-kleinunternehmer.html",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'" }
+      ]
+    },
+    {
       "source": "/verfahrensdokumentation.html",
       "headers": [
         { "key": "Content-Security-Policy", "value": "default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'" }

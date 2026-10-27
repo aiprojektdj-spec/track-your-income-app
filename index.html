@@ -20,6 +20,8 @@
   <meta name="twitter:image" content="https://getstackr.de/assets/stackr-landing-social.png">
   <meta name="theme-color" content="#111111">
   <link rel="icon" href="assets/stackr-concepts/raute-facette.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
   <link rel="preload" href="fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/cookie-banner.css">
@@ -224,6 +226,21 @@
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "Organization",
+      "@id": "https://getstackr.de/#organisation",
+      "name": "stackr",
+      "url": "https://getstackr.de/",
+      "logo": "https://getstackr.de/apple-touch-icon.png"
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://getstackr.de/#website",
+      "name": "stackr",
+      "url": "https://getstackr.de/",
+      "inLanguage": "de",
+      "publisher": { "@id": "https://getstackr.de/#organisation" }
+    },
+    {
       "@type": "SoftwareApplication",
       "name": "stackr",
       "applicationCategory": "FinanceApplication",
@@ -231,16 +248,21 @@
       "description": "Rechnungen, Belege und Zahlen. An einem Ort. Buchhaltung für Selbstständige, Freelancer, Kleinunternehmer, Reseller und GbRs.",
       "url": "https://getstackr.de/",
       "inLanguage": "de",
+      "publisher": { "@id": "https://getstackr.de/#organisation" },
       "offers": [
         {
           "@type": "Offer",
           "name": "Pro monatlich",
+          "url": "https://getstackr.de/#preise",
+          "availability": "https://schema.org/InStock",
           "price": "15.00",
           "priceCurrency": "EUR"
         },
         {
           "@type": "Offer",
           "name": "Pro jährlich",
+          "url": "https://getstackr.de/#preise",
+          "availability": "https://schema.org/InStock",
           "price": "135.00",
           "priceCurrency": "EUR"
         }

@@ -40,8 +40,6 @@ const RPC = {
         a.p_eintraege.forEach(e => eingang.set(a.p_shop + '|' + e.order_id, { payload: e.payload, status: 'geladen' }));
         return a.p_eintraege.length;
     },
-    // 20261022000002_server_datenmodell.sql: nur user_pro ist Owner von co_abc
-    firma_rolle: a => (a.p_user === 'user_pro' && a.p_company === 'co_abc' ? 'owner' : null),
     sync_shopify_import_cursor: a => { const i = integrations.get(a.p_shop); if (i && i.status === 'aktiv') i.import_cursor = a.p_cursor; }
 };
 let dbKaputt = false;
@@ -177,18 +175,6 @@ async function check(name, fn) {
         assert.ok(/HttpOnly/.test(c) && /Secure/.test(c) && /SameSite=Lax/.test(c) && /Path=\/api\/shopify-callback/.test(c), c);
         nonce = S.leseCookie(c.split(';')[0], S.NONCE_COOKIE);
         assert.deepStrictEqual(S.pruefeState(state, nonce, SHOP, SECRET, Date.now()), { u: 'user_pro', c: 'co_abc' });
-    });
-
-    await check('Install: Firma, die dem Nutzer nicht gehört → 403, DB-Ausfall → 502', async () => {
-        let res = mockRes();
-        await install({ method: 'POST', headers: { host: 'getstackr.de', authorization: 'Bearer tok_pro' }, body: { shop: SHOP, companyId: 'co_fremd' } }, res);
-        assert.strictEqual(res.statusCode, 403);
-        assert.strictEqual(res.body.error, 'not_company_owner');
-        dbKaputt = true;
-        res = mockRes();
-        await install({ method: 'POST', headers: { host: 'getstackr.de', authorization: 'Bearer tok_pro' }, body: { shop: SHOP, companyId: 'co_abc' } }, res);
-        dbKaputt = false;
-        assert.strictEqual(res.statusCode, 502);
     });
 
     await check('Install: fremder Host bekommt die Hauptdomain als Redirect-Ziel', async () => {

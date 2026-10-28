@@ -265,6 +265,10 @@ dauerhafter Local-only-Modus (doppelte Pflege).
 ```text
 R0  Fragen geklärt (F2–F5 User, F1/F6 Annahme) — erledigt 2026-10-22   ─┐
 R1  Recht anstoßen: Supabase-DPA, Vercel-DPA prüfen, Anwalt-Termin      │ parallel
+    (DPAs geprüft 2026-10-28: beide automatisch wirksam, nichts zu unterschreiben —
+    Supabase v1 01.08.2026 über ToS, Dashboard Org-Settings → Legal Documents;
+    Vercel vercel.com/legal/dpa Stand 17.03./wirksam 31.03.2026, gilt für Pro, Team
+    aiprojektdj-spec ist Pro. Offen: Anwalt-Termin, Subprozessor-Benachrichtigungen)
 R2  Migration Phase 1 — gebaut, Preview offen (companies, members, records, settings, ─┘
     nummernkreise, perioden, audit_log, anhaenge, auth_cache, RLS,
     Shopify-FK) → stackr-preview (User führt aus), RLS-Testfälle

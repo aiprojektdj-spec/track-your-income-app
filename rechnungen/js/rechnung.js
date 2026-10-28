@@ -1496,11 +1496,12 @@ var Rechnung = (function() {
         return html;
     }
 
-    function printInvoiceWindow(invoiceHtml, asPdf, watermarkText) {
+    function printInvoiceWindow(invoiceHtml, asPdf, watermarkText, zusatzCss) {
         // watermarkText is embedded in invoiceHtml already via generatePreviewHtml
         // Das about:blank-iframe erbt die CSP der App: eingebettete Style-Bloecke werden geblockt, Links auf die eigene
         // Domain nicht. Absoluter Pfad, weil die Seite auch unter /rechnungen/ laufen kann.
-        var cssLinks = ['/css/rechnung-dokument.css', '/css/rechnung-druck.css'].map(function(pfad) {
+        // zusatzCss: weitere Stylesheets fuer andere Dokumente (Mahnung: /css/mahnung-dokument.css).
+        var cssLinks = ['/css/rechnung-dokument.css', '/css/rechnung-druck.css'].concat(zusatzCss || []).map(function(pfad) {
             return '<link rel="stylesheet" href="' + location.origin + pfad + '">';
         }).join('');
         var fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Rechnung</title>' + cssLinks + '</head><body>' + invoiceHtml + '</body></html>';

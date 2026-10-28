@@ -71,5 +71,22 @@ check('Alle Seiten mit Rechnungsmodul binden css/rechnung-dokument.css ein', () 
     }
 });
 
+check('Mahnung: keine Inline-Stile, Druck nur ueber das Druck-iframe (2026-10-28)', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'rechnungen/js/mahnungen.js'), 'utf8');
+    const vorschau = src.slice(src.indexOf('function showMahnungPreview'), src.indexOf('function init('));
+    assert.ok(vorschau.length > 100, 'showMahnungPreview nicht gefunden');
+    const dokument = vorschau.slice(0, vorschau.indexOf("var overlay = document.getElementById('modalOverlay')"));
+    assert.ok(!/style="/.test(dokument), 'Inline-Stil im Mahnungsdokument (redesign.css biegt Farben im Modal um)');
+    assert.ok(!/window\.print\(/.test(vorschau), 'window.print() druckt die ganze App-Seite mit');
+    assert.ok(/printInvoiceWindow\([^)]*mahnung-dokument\.css/.test(vorschau), 'Druck ohne mahnung-dokument.css');
+    const css = fs.readFileSync(path.join(ROOT, 'css/mahnung-dokument.css'), 'utf8');
+    for (const k of ['.invoice-preview-new', '.invoice-header-bar', '.mahn-meta', '.mahn-text', '.mahn-betrag', '.mahn-gesamt'])
+        assert.ok(css.includes(k + ' {'), k + ' fehlt');
+    for (const f of ['app.html', 'rechnungen/index.html']) {
+        const html = fs.readFileSync(path.join(ROOT, f), 'utf8');
+        assert.ok(/<link rel="stylesheet" href="(\.\.\/)?css\/mahnung-dokument\.css">/.test(html), f + ' bindet mahnung-dokument.css nicht ein');
+    }
+});
+
 console.log('\n' + pass + ' bestanden, ' + fail + ' fehlgeschlagen');
 if (fail) process.exit(1);

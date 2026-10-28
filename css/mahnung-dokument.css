@@ -1,0 +1,113 @@
+/* Mahnungsdokument (Vorschau in der App und Druck/PDF). Lag bis 2026-10-28 in css/style.css
+   ("New Professional Invoice Preview"); genutzt nur von rechnungen/js/mahnungen.js. Eigene Datei,
+   weil das Druck-iframe (Rechnung.printInvoiceWindow) sie verlinkt - eingebettete Styles blockiert
+   die CSP. Keine Inline-Farben im Mahnungs-HTML: css/redesign.css biegt style="color:#.." und
+   "background:#.." in Modals per !important auf App-Farben um. */
+.invoice-preview-new {
+    background: white;
+    color: #333;
+    max-width: 800px;
+    margin: 0 auto;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.invoice-header-bar {
+    background: #0e3b2e;
+    color: white;
+    padding: 24px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.invoice-header-bar .company-name {
+    font-size: 22px;
+    font-weight: 700;
+}
+.invoice-header-bar .company-address {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-top: 4px;
+}
+.invoice-header-bar .doc-info {
+    text-align: right;
+}
+.invoice-header-bar .doc-type {
+    font-size: 20px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.invoice-header-bar .doc-meta {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-top: 4px;
+}
+.invoice-body-content {
+    padding: 24px 32px;
+}
+.invoice-sender-line {
+    font-size: 10px;
+    color: #999;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 4px;
+    margin-bottom: 12px;
+}
+.invoice-recipient {
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+.invoice-recipient strong {
+    font-size: 14px;
+}
+.invoice-title-line {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #10b981;
+    color: #14241e;
+}
+.invoice-bank-info {
+    margin-top: 24px;
+    padding: 12px 16px;
+    background: #f6f8f7;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #555;
+}
+.invoice-bank-info strong {
+    color: #333;
+}
+.invoice-footer-bar {
+    margin-top: 32px;
+    padding-top: 12px;
+    border-top: 1px solid #ddd;
+    font-size: 10px;
+    color: #999;
+    text-align: center;
+}
+
+/* Vorher Inline-Stile in mahnungen.js */
+.mahn-meta {
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    color: #555;
+}
+.mahn-text {
+    margin: 1.5rem 0;
+    line-height: 1.7;
+}
+.mahn-betrag {
+    margin: 1.5rem 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 1rem;
+    background: #f9f9f9;
+}
+.mahn-gesamt {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #ccc;
+}

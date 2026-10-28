@@ -280,18 +280,18 @@ var Mahnungen = (function() {
         html += '<div class="invoice-title-line">' + title + '</div>';
 
         // Meta info
-        html += '<div style="margin-bottom: 1rem; font-size: 0.9rem; color: #555;">';
+        html += '<div class="mahn-meta">';
         html += 'Rechnungsdatum: ' + Utils.formatDate(inv.datum) + ' | F\u00E4llig seit: ' + Utils.formatDate(inv.faelligkeit);
         html += '</div>';
 
         // Letter body
-        html += '<div style="margin: 1.5rem 0; line-height: 1.7;">';
+        html += '<div class="mahn-text">';
         html += '<p>' + greeting + '</p>';
         html += '<p>' + bodyText + '</p>';
         html += '</div>';
 
         // Amount box
-        html += '<div style="margin: 1.5rem 0; border: 1px solid #ccc; border-radius: 4px; padding: 1rem; background: #f9f9f9;">';
+        html += '<div class="mahn-betrag">';
         html += '<div><strong>Rechnungsbetrag:</strong> ' + Utils.formatCurrency(brutto) + '</div>';
         if (gebuehren > 0) {
             html += '<div><strong>Mahngeb\u00FChren:</strong> ' + Utils.formatCurrency(gebuehren) + '</div>';
@@ -300,12 +300,12 @@ var Mahnungen = (function() {
             html += '<div><strong>Verzugszinsen</strong> (' + (getBasiszinssatz() + (isB2BKunde(kunde) ? 9 : 5)) + '% p.a. seit F\u00E4lligkeit): ' + Utils.formatCurrency(zinsen) + '</div>';
         }
         if (gebuehren > 0 || zinsen > 0) {
-            html += '<div style="font-size: 1.1em; font-weight: bold; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #ccc;"><strong>Gesamtbetrag:</strong> ' + Utils.formatCurrency(brutto + gebuehren + zinsen) + '</div>';
+            html += '<div class="mahn-gesamt"><strong>Gesamtbetrag:</strong> ' + Utils.formatCurrency(brutto + gebuehren + zinsen) + '</div>';
         }
         html += '</div>';
 
         // Closing
-        html += '<div style="margin: 1.5rem 0; line-height: 1.7;">';
+        html += '<div class="mahn-text">';
         html += '<p>' + closing + '</p>';
         html += '<p>Mit freundlichen Gr\u00FC\u00DFen<br><br>' + Utils.escapeHtml(settings.firmenname || '') + '</p>';
         html += '</div>';
@@ -371,7 +371,8 @@ var Mahnungen = (function() {
             overlay.removeEventListener('click', overlayHandler);
         }
         function overlayHandler(e) { if (e.target === overlay) closePreview(); }
-        printBtn.addEventListener('click', function() { window.print(); });
+        // Ueber das Druck-iframe der Rechnungen: der Druck des Fensters nahm die ganze App-Seite mit.
+        printBtn.addEventListener('click', function() { Rechnung.printInvoiceWindow(html, false, null, ['/css/mahnung-dokument.css']); });
         closeBtn.addEventListener('click', closePreview);
         overlay.addEventListener('click', overlayHandler);
     }

@@ -22,7 +22,7 @@ Seit 2026-10-27 laufen die Vercel-Funktionen nachweislich in `fra1` (Commit 7fa1
 ## Offene Platzhalter (⟦…⟧, teils als HTML-Kommentar)
 
 - **D2** Backup-Aufbewahrung Supabase (7 Tage?) — DSE 4.1/8, AGB-Anlage Ziff. 6, Verfahrensdoku 5
-- **D4** Make.com: DPA + Region — DSE 7 (vorher Make-Zeile nicht live)
+- ~~**D4** Make.com: DPA + Region~~ — erledigt 2026-10-28: DPA ist Teil der Make-Vertragsbedingungen (make.com/en/terms-and-conditions), Zone eu1, Vertragspartner Celonis SE (Muenchen)
 - **D6** „at rest verschlüsselt“ in Supabase-Doku bestätigen — DSE 2.3
 - Frist Altbestand-Löschung (30 Tage?) — DSE 4.1
 - AVV: Ankündigungsfrist Unterauftragsverarbeiter, Prüfrecht

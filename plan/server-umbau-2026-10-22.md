@@ -272,7 +272,7 @@ R1  Recht anstoßen: Supabase-DPA, Vercel-DPA prüfen, Anwalt-Termin      │ pa
 R2  Migration Phase 1 — gebaut, Preview offen (companies, members, records, settings, ─┘
     nummernkreise, perioden, audit_log, anhaenge, auth_cache, RLS,
     Shopify-FK) → stackr-preview (User führt aus), RLS-Testfälle
-R3  api/_auth.js + api/data.js (pull/push/changes/migrate) + Tests      ← R2
+R3  api/_auth.js + api/data.js (pull/push/changes/migrate) + Tests      ← R2  — gebaut 2026-10-29
 R4  P1 Spiegel in js/server-store.js, nur für Testfirma                 ← R3
 R5  Umzugsdialog + migrate (Abschnitt 3), Prüfsummen-Vergleich          ← R4
 R6  P2 Server liest mit, je Firma umschaltbar; 2-Geräte-Test            ← R5

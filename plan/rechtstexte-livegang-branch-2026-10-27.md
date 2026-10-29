@@ -21,9 +21,11 @@ Seit 2026-10-27 laufen die Vercel-Funktionen nachweislich in `fra1` (Commit 7fa1
 
 ## Offene Platzhalter (⟦…⟧, teils als HTML-Kommentar)
 
-- **D2** Backup-Aufbewahrung Supabase (7 Tage?) — DSE 4.1/8, AGB-Anlage Ziff. 6, Verfahrensdoku 5
+- ~~**D2** Backup-Aufbewahrung~~ — erledigt 2026-10-29: Pro-Plan = taegliche Backups, 7 Tage (supabase.com/docs/guides/platform/backups)
+- **Neu:** Supabase-Backups enthalten **keine Storage-Objekte** (Belege) — nur die Datenbank. Texte sagen bewusst "Datenbank"; Produktentscheidung, ob Belege eigens gesichert werden (sonst AVV Ziff. 6 praezisieren)
+- **Neu:** Postgres-SSL-Erzwingung ist bei Supabase standardmaessig aus (Dashboard → Database → Settings → SSL enforcement) — vor Livegang einschalten, sonst stimmt "TLS beim Transport" nur fuer die HTTP-APIs
 - ~~**D4** Make.com: DPA + Region~~ — erledigt 2026-10-28: DPA ist Teil der Make-Vertragsbedingungen (make.com/en/terms-and-conditions), Zone eu1, Vertragspartner Celonis SE (Muenchen)
-- **D6** „at rest verschlüsselt“ in Supabase-Doku bestätigen — DSE 2.3
+- ~~**D6** at rest~~ — erledigt 2026-10-29: "All customer data is encrypted at rest with AES-256" (supabase.com/security)
 - Frist Altbestand-Löschung (30 Tage?) — DSE 4.1
 - AVV: Ankündigungsfrist Unterauftragsverarbeiter, Prüfrecht
 - AGB §7 Abs. 3 erst live, wenn Löschung, Lesezugang und Vorwarn-Mail gebaut sind

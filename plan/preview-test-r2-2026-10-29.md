@@ -49,6 +49,23 @@ ausführen, sonst fällt die Owner-Prüfung in `sync_shopify_integration_speiche
 7. Neues Jahr buchbar, Nummernkreis zieht 1
 8. Hash-Kette im `audit_log` lückenlos (4 Einträge)
 
+## Prüfliste a–k aus test/test-server-datenmodell.js
+
+Zusätzlich geprüft von der Session „DPAs Supabase + Vercel (R1)“ auf demselben Branch vor dem
+Löschen (jeweils mit Rollback):
+
+- b) `stackr_app`: `rolbypassrls = f`, `rolcanlogin = f`
+- c) `aenderungen_seit`, `audit_uebernehmen`, `datensatz_schreiben`, `firma_anlegen`,
+  `shopify_status` gehören `stackr_app` und sind SECURITY DEFINER
+- f) nur `gesperrt_grund` setzen → ok
+- g) update/delete/truncate auf `audit_log` als postgres → SR002; Kette 0 Brüche bei 9 Einträgen
+- i) StB schreibt → 42501; StB `aenderungen_seit` liefert Daten
+- k) `audit_uebernehmen` → 2, zweiter Aufruf 0, `details` byte-gleich 2/2
+- d, e, h, j durch die Fälle oben abgedeckt
+
+**Offen: a)** Ein zweiter Lauf von `20261022000002` (Wiederholbarkeit) wurde nicht ausgeführt.
+Statisch ist die Datei wiederholbar (`if not exists`, `create or replace`, `drop … if exists`).
+
 ## Security-Advisor
 
 Nur INFO `rls_enabled_no_policy` auf den 16 Tabellen, auf die nur service_role zugreift.

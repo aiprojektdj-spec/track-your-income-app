@@ -82,6 +82,7 @@
         'js/stb-share.js',
         'js/server-abbild.js',
         'js/server-store.js',
+        'js/server-umzug.js',
         'js/domain-umzug.js',
 
         // Einstieg zuletzt: startet sofort beim Ausfuehren (DOMContentLoaded ist vorbei),

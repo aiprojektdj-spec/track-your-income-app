@@ -274,7 +274,7 @@ R2  Migration Phase 1 — gebaut, Preview offen (companies, members, records, se
     Shopify-FK) → stackr-preview (User führt aus), RLS-Testfälle
 R3  api/_auth.js + api/data.js (pull/push/changes/migrate) + Tests      ← R2  — gebaut 2026-10-29
 R4  P1 Spiegel in js/server-store.js, nur für Testfirma                 ← R3  — gebaut 2026-10-29
-R5  Umzugsdialog + migrate (Abschnitt 3), Prüfsummen-Vergleich          ← R4
+R5  Umzugsdialog + migrate (Abschnitt 3), Prüfsummen-Vergleich          ← R4  — gebaut 2026-10-29
 R6  P2 Server liest mit, je Firma umschaltbar; 2-Geräte-Test            ← R5
 R7  P3 Regeln je Modul (Rechnungen → Eigenbelege → Verkauf/Lager →     ← R6
     Retouren → Rest); StB-Rolle

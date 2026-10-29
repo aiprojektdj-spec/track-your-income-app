@@ -80,6 +80,8 @@
         'js/blob-attachments.js',
         'js/cloud-sync.js',
         'js/stb-share.js',
+        'js/server-abbild.js',
+        'js/server-store.js',
         'js/domain-umzug.js',
 
         // Einstieg zuletzt: startet sofort beim Ausfuehren (DOMContentLoaded ist vorbei),

@@ -167,6 +167,7 @@ const Store = {
     },
 
     _idbPut(key, valueStr) {
+        if (typeof ServerStore !== 'undefined') ServerStore.notiere(key);   // P1-Spiegel (js/server-store.js)
         if (!this._mainIdbReady || !this._mainIdb) return;
         try {
             const tx = this._mainIdb.transaction(this.MAIN_IDB_KV, 'readwrite');
@@ -211,6 +212,7 @@ const Store = {
     },
 
     _idbDelete(key) {
+        if (typeof ServerStore !== 'undefined') ServerStore.notiere(key);   // P1-Spiegel (js/server-store.js)
         if (!this._mainIdbReady || !this._mainIdb) return;
         try {
             const tx = this._mainIdb.transaction(this.MAIN_IDB_KV, 'readwrite');
@@ -239,6 +241,7 @@ const Store = {
 
     // ── Promise-basierter Schreibvorgang (für Bulk-Saves & Verifizierung) ──
     _idbPutAsync(key, valueStr) {
+        if (typeof ServerStore !== 'undefined') ServerStore.notiere(key);   // P1-Spiegel (js/server-store.js)
         return new Promise((resolve, reject) => {
             if (!this._mainIdbReady || !this._mainIdb) {
                 return reject(new Error('IndexedDB nicht bereit'));
@@ -3168,6 +3171,7 @@ const Store = {
     // ── Atomare Bulk-Transaktion: schreibt alle Einträge in einer IDB-Transaktion ──
     // Entweder alles oder nichts — verhindert Teilimporte bei Abbruch.
     _idbPutBatch(entries) {
+        if (typeof ServerStore !== 'undefined' && entries) entries.forEach(function (e) { ServerStore.notiere(e.k); });   // P1-Spiegel
         if (!this._mainIdbReady || !this._mainIdb || !entries.length) return;
         try {
             const tx = this._mainIdb.transaction(this.MAIN_IDB_KV, 'readwrite');

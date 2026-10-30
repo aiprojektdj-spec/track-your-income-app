@@ -971,7 +971,9 @@ var CloudSync = (function () {
             var companies = (typeof CompanyManager !== 'undefined') ? CompanyManager.getAll() : [];
             // Read-only-Mandanten (Steuerberater-Ansicht) NIE hochladen — sie zaehlen auch
             // nicht mit, sonst stimmt die Anzeige "x von y" nicht.
-            var zuSyncen = companies.filter(function (c) { return c && c.id && !c._readonly; });
+            // Serverfuehrende Firmen (R6, js/server-store.js) ruhen hier: kein LWW-Merge mehr.
+            var zuSyncen = companies.filter(function (c) { return c && c.id && !c._readonly &&
+                !(typeof ServerStore !== 'undefined' && ServerStore.fuehrt(c.id)); });
             for (var i = 0; i < zuSyncen.length; i++) {
                 var name = (zuSyncen[i].name || '').trim();
                 _setDot('sync', '(' + (name ? name + ', ' : '') + (i + 1) + ' von ' + zuSyncen.length + ')');

@@ -21,7 +21,12 @@
 //                  aus der DB prüfen, Prüfsumme Server = Browser vergleichen, dann
 //                  umzug_abschliessen (Audit-Eintrag „Datenübernahme …“)
 //   pruefsumme     { company } → { pruefsumme, records, settings } (Abgleich, täglich)
-//   status         { company } → { firma, rolle, umgezogen_am }
+//   status         { company } → { firma, rolle, seq, umgezogen_am, server_fuehrt }
+//   modus          { company, server_fuehrt } → { server_fuehrt } (R6, nur Owner)
+//
+// Body: JSON, oder gzip-komprimiertes JSON als application/octet-stream (der Browser
+// komprimiert große Anfragen, damit Anhänge über 3,5 MB noch unter Vercels 4,5-MB-Grenze
+// passen — verlustfrei, die Belege bleiben unverändert). Entpackt höchstens 64 MB.
 //
 // Grenzen: Vercel nimmt höchstens 4,5 MB Body — der Browser schickt in Stücken (MAX_OPS,
 // MAX_AUDIT); was darüber liegt, lehnt Vercel selbst mit 413 ab. Spalten für Regeln (datum,
@@ -31,6 +36,7 @@
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (api/_db.js), Whop/Owner wie api/sync.js.
 // =============================================================================
 var crypto  = require('crypto');
+var zlib    = require('zlib');
 var _log    = require('./_log.js');
 var db      = require('./_db.js');
 var auth    = require('./_auth.js');
@@ -45,6 +51,7 @@ var MAX_AUDIT   = 2000;                    // Einträge je migrate_commit
 var PARALLEL    = 4;                       // gleichzeitige RPCs je Request (DB serialisiert je Firma)
 var RATE_MAX    = 120;                     // je Nutzer und Minute — der Umzug schickt viele Stücke
 var IP_RATE_MAX = 120;                     // je IP und Minute, vor Whop
+var MAX_ENTPACKT = 64 * 1024 * 1024;       // gzip-Body entpackt (Schutz gegen gzip-Bomben)
 
 function sha256(s) { return crypto.createHash('sha256').update(s, 'utf8').digest('hex'); }
 
@@ -123,7 +130,7 @@ async function serverPruefsumme(userId, company) {
     return {
         pruefsumme: sha256(Abbild.pruefzeilen(records, settings)),
         records: records.filter(function (r) { return !r.geloescht; }).length,
-        settings: settings.length
+        settings: settings.filter(function (s) { return !Abbild.istOrd(s.key); }).length
     };
 }
 
@@ -176,7 +183,12 @@ module.exports = async function handler(req, res) {
         } catch (e) { await alertOps('data', 'rate-limit-open', e && e.message); }
     }
 
-    var body = req.body || {};
+    var body = req.body;
+    if (Buffer.isBuffer(body)) {
+        try { body = JSON.parse(zlib.gunzipSync(body, { maxOutputLength: MAX_ENTPACKT }).toString('utf8')); }
+        catch (e) { return res.status(400).json({ error: 'bad_body' }); }
+    }
+    body = body || {};
     var action = body.action;
     var company = String(body.company || '');
     if (!(action === 'pull' && !body.company) && !COMPANY_RE.test(company))
@@ -221,7 +233,14 @@ module.exports = async function handler(req, res) {
             if (!fa) return res.status(200).json({ firma: false });
             var st = fa.rolle === 'owner'
                 ? await db.rpc('umzug_stand', { p_user: userId, p_company: company, p_mit_audit: false }) : {};
-            return res.status(200).json({ firma: true, rolle: fa.rolle, seq: fa.seq, umgezogen_am: (st && st.umgezogen_am) || null });
+            var mo = await db.rpc('firma_modus', { p_user: userId, p_company: company, p_server_fuehrt: null });
+            return res.status(200).json({ firma: true, rolle: fa.rolle, seq: fa.seq, umgezogen_am: (st && st.umgezogen_am) || null,
+                                          server_fuehrt: !!(mo && mo.server_fuehrt) });
+        }
+
+        if (action === 'modus') {
+            if (typeof body.server_fuehrt !== 'boolean') return res.status(400).json({ error: 'bad_modus' });
+            return res.status(200).json(await db.rpc('firma_modus', { p_user: userId, p_company: company, p_server_fuehrt: body.server_fuehrt }));
         }
 
         if (action === 'pruefsumme') {

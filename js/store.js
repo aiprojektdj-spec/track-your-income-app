@@ -1026,6 +1026,7 @@ const Store = {
     // setCompany() schreibt nur eine Variable im Speicher, der Firmenwechsel bleibt also
     // moeglich — der Berater sitzt nicht fest.
     _isReadonlyCompany() {
+        if (typeof ServerStore !== 'undefined' && ServerStore.nurLesen()) return true;   // R6: offline nur lesen
         try {
             const active = localStorage.getItem('oyi_active_company');
             if (!active) return false;
@@ -1046,7 +1047,8 @@ const Store = {
         if (jetzt - this._roToastTs > 3000) {
             this._roToastTs = jetzt;
             if (typeof Utils !== 'undefined' && Utils.showToast) {
-                Utils.showToast('Nur-Lese-Ansicht — die Daten des Mandanten koennen hier nicht geaendert werden.', 'warning');
+                Utils.showToast((typeof ServerStore !== 'undefined' && ServerStore.nurLesen()) ? 'Offline — nur lesen.'
+                    : 'Nur-Lese-Ansicht — die Daten des Mandanten koennen hier nicht geaendert werden.', 'warning');
             }
         }
         return false;

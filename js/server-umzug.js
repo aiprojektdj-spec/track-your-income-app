@@ -23,8 +23,9 @@
 // 'stackr_server_umzug' = '1' (sonst sähen echte Kunden einen Dialog, den Datenschutzerklärung
 // und AGB noch nicht tragen). Von Hand: ServerUmzug.dialog().
 // Annahme: Ein Kettenbruch hält den Umzug nicht auf, er steht im Protokolleintrag
-// (User-Entscheidung 2026-10-28). Anhänge (Base64) gehen inline mit (User 2026-10-28); ein
-// einzelner Datensatz über 3,5 MB bricht den Umzug mit Hinweis ab.
+// (User-Entscheidung 2026-10-28). Anhänge (Base64) gehen inline mit (User 2026-10-28); große
+// Anfragen gehen gzip-komprimiert (verlustfrei, User 2026-10-29), erst über 4,4 MB komprimiert
+// bricht der Umzug mit Hinweis ab.
 // Der Dialogtext ist ein Entwurf — Freigabe mit den Rechtstexten (R8, Anwalt).
 // ============================================================================
 const ServerUmzug = {
@@ -64,7 +65,7 @@ const ServerUmzug = {
         let quelle;
         if (!leer) {
             quelle = '<p style="margin:0;">Gefunden auf diesem Gerät: <strong>' + z.records.length + ' Datensätze</strong>, ' +
-                     z.settings.length + ' Einstellungen und ' + this._auditTexte(company).length + ' Protokolleinträge.</p>';
+                     z.settings.filter((s) => !ServerAbbild.istOrd(s.key)).length + ' Einstellungen und ' + this._auditTexte(company).length + ' Protokolleinträge.</p>';
         } else if (this._cloudSyncAktiv()) {
             quelle = '<p style="margin:0;">Auf diesem Gerät liegen noch keine Daten dieser Firma. Lade sie zuerst aus deinem ' +
                      'Cloud-Sync (Wiederherstellungscode nötig) und starte den Umzug danach erneut.</p>' +
@@ -159,16 +160,18 @@ const ServerUmzug = {
 
         const ops = z.records.map((x) => ({ t: 'r', art: x.art, id: x.id, data: x.data }))
             .concat(z.settings.map((x) => ({ t: 's', key: x.key, data: x.data })));
+        // Ein Datensatz über MAX_BYTES (großer Anhang) bildet ein eigenes Stück; ServerStore._api
+        // schickt es gzip-komprimiert. Erst was auch so über 4,4 MB liegt, kommt als 413 zurück.
         const groesse = (op) => JSON.stringify(op).length;
-        const zuGross = ops.filter((op) => groesse(op) > this.MAX_BYTES);
-        if (zuGross.length) {
-            return this._ende({ ok: false, fehler: zuGross.map((op) => ServerStore._opKey(op) + ' ist größer als 3,5 MB (Anhang?) und kann so nicht übertragen werden') });
-        }
         const versionen = {}, probleme = [];
         const stuecke = this._stuecke(ops, this.MAX_OPS, groesse);
         for (let i = 0; i < stuecke.length; i++) {
             this._fortschritt('Datensätze ' + (i + 1) + ' / ' + stuecke.length + ' …');
             r = await api({ action: 'migrate', ops: stuecke[i] });
+            if (r.status === 413) {
+                return this._ende({ ok: false, fehler: stuecke[i].map((op) => ServerStore._opKey(op) +
+                    ' ist auch komprimiert größer als 4,5 MB (sehr großer Anhang?) und kann so nicht übertragen werden') });
+            }
             if (r.status !== 200 && r.status !== 409) return this._ende({ ok: false, fehler: ['Übertragen: HTTP ' + r.status] });
             const nachschieben = [];
             (r.json.results || []).forEach((x, k) => {

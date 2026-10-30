@@ -49,10 +49,11 @@ assert.ok(n >= 12, 'zu wenige rpc-Aufrufe gefunden: ' + n);
 ok(n + ' rpc-Aufrufe passen zur Migration');
 
 // ── 2. Umzugs-Migration nach E-A ─────────────────────────────────────────────
-const UMZUG = ohneKommentare(fs.readFileSync(path.join(MIG, '20261028000001_server_umzug.sql'), 'utf8'));
+const UMZUG = ['20261028000001_server_umzug.sql', '20261029000001_server_fuehrt.sql']
+    .map(f => ohneKommentare(fs.readFileSync(path.join(MIG, f), 'utf8'))).join('\n');
 const typen = (a) => a.split(',').map(x => x.trim()).filter(Boolean).map(x => x.split(/\s+/).slice(1).join(' ')).join(', ');
 const umzugFns = [...UMZUG.matchAll(/create or replace function (\w+)\(([^)]*)\)([\s\S]*?)\bas \$\$([\s\S]*?)\$\$/g)];
-assert.strictEqual(umzugFns.length, 2);
+assert.strictEqual(umzugFns.length, 3);
 for (const [, name, args, kopf, body] of umzugFns) {
     const sig = name + '(' + typen(args) + ')';
     assert.ok(/security definer/.test(kopf) && /set search_path = public, pg_temp/.test(kopf), sig + ': Kopf');
@@ -66,7 +67,7 @@ for (const [, name, args, kopf, body] of umzugFns) {
     assert.deepStrictEqual(grants, ['service_role'], sig + ': execute nur service_role');
     assert.ok(/ist_owner\(p_company\)/.test(body), sig + ': nur Owner');
 }
-ok('Umzugs-Migration: 2 Datenfunktionen nach RLS-Weg E-A');
+ok('Umzugs-/Modus-Migration: 3 Datenfunktionen nach RLS-Weg E-A');
 
 // ── 3. ServerAbbild ──────────────────────────────────────────────────────────
 const Abbild = require('../js/server-abbild.js');
@@ -123,7 +124,13 @@ const cache = {
 };
 const alle = Abbild.alleZeilen('co_a', cache);
 assert.deepStrictEqual(alle.records.map(r => r.art + '/' + r.id), ['sales/s1']);
-assert.deepStrictEqual(alle.settings.map(s => s.key), ['settings']);
+assert.deepStrictEqual(alle.settings.map(s => s.key), ['ord__sales', 'settings']);
+assert.deepStrictEqual(alle.settings[0].data, ['s1'], 'Reihenfolge je Liste');
+assert.strictEqual(Abbild.vollerSchluessel('co_a', 'sales'), 'co_a__reselling_sales');
+assert.strictEqual(Abbild.vollerSchluessel('co_a', 'rech_invoices'), 'co_a__rechnungsbuch_invoices');
+assert.strictEqual(Abbild.vollerSchluessel('co_a', 'eb_belege'), 'co_a__eigenbelege_belege');
+assert.strictEqual(JSON.stringify(Abbild.ordneWie({ c: 3, a: { y: 2, x: 1 }, b: 2 }, { b: 0, a: { x: 0, y: 0 } })), '{"b":2,"a":{"x":1,"y":2},"c":3}');
+assert.strictEqual(Abbild.pruefzeilen([], [{ key: 'ord__sales', data: [] }]), '', 'leere Reihenfolge zählt nicht');
 assert.strictEqual(alle.fehler.length, 1);
 
 assert.deepStrictEqual(Abbild.spalten({ datum: '2026-02-30' }), { datum: null, gesperrt_grund: null, quelle: null });
@@ -285,8 +292,22 @@ async function call(body, token) {
 
     // status / pruefsumme / pull
     antwort.firmen_lesen = [{ id: C, rolle: 'owner', seq: 9 }];
+    antwort.firma_modus = (x) => ({ server_fuehrt: x.p_server_fuehrt === null ? false : x.p_server_fuehrt });
     r = await call({ action: 'status', company: C });
-    assert.deepStrictEqual(r.body, { firma: true, rolle: 'owner', seq: 9, umgezogen_am: '2026-10-28T10:00:00Z' });
+    assert.deepStrictEqual(r.body, { firma: true, rolle: 'owner', seq: 9, umgezogen_am: '2026-10-28T10:00:00Z', server_fuehrt: false });
+    assert.deepStrictEqual((await call({ action: 'modus', company: C, server_fuehrt: true })).body, { server_fuehrt: true });
+    assert.strictEqual((await call({ action: 'modus', company: C, server_fuehrt: 'ja' })).code, 400);
+    // gzip-Body (große Anhänge)
+    rpcs = [];
+    antwort.datensatz_schreiben = { status: 'ok', version: 1, seq: 1 };
+    const gross = { action: 'push', company: C, ops: [{ t: 'r', art: 'eb_belege', id: 'b1', data: { foto: 'data:image/png;base64,' + 'QUJD'.repeat(400000) } }] };
+    let res = mkRes();
+    await handler({ method: 'POST', headers: { authorization: 'Bearer tok' }, body: require('zlib').gzipSync(JSON.stringify(gross)) }, res);
+    assert.strictEqual(res.code, 200);
+    assert.strictEqual(rpcs.find(x => x.name === 'datensatz_schreiben').args.p_data.foto.length, gross.ops[0].data.foto.length);
+    res = mkRes();
+    await handler({ method: 'POST', headers: { authorization: 'Bearer tok' }, body: Buffer.from('kein gzip') }, res);
+    assert.strictEqual(res.code, 400);
     assert.deepStrictEqual((await call({ action: 'status', company: 'co_anders' })).body, { firma: false });
     assert.strictEqual((await call({ action: 'pruefsumme', company: C })).body.pruefsumme, browserSumme);
     assert.deepStrictEqual((await call({ action: 'pull' })).body.firmen, antwort.firmen_lesen);

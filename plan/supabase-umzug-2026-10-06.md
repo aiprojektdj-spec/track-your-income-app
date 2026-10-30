@@ -1,6 +1,6 @@
 # Supabase-Umzug: Upstash Redis + Vercel Blob → Supabase
 
-Stand: 2026-10-07 abends, **gegen Code und Supabase-Konto geprüft** (per Supabase-Connector, nur lesend), nicht gegen den Plan.
+Stand: **2026-10-30**, gegen `origin/master` und das Supabase-Projekt `stackr-prod` geprüft (per Connector, nur lesend), nicht gegen den Plan. Laufende Checkliste zum Spiegel und Backfill: [`supabase-pro-2026-10-15.md`](supabase-pro-2026-10-15.md).
 Der Gesamtplan liegt außerhalb des Repos (`Desktop/CFC/STACKR_PLAN_2026-10-06.md`, Phase 1).
 Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 
@@ -12,7 +12,7 @@ Diese Datei beschreibt nur den Speicher-Umzug und hält fest, wer was macht.
 | E2 | **Whop bleibt** Login und Zahlung. Supabase kennt nur die Whop-`user_id` |
 | E3 | **Kein `supabase-js`**, kein `tweetnacl`. Zugriff nur aus `api/` per `fetch` auf PostgREST/Storage, Service-Key nie im Browser |
 | E5 | Eigenes Projekt `stackr-prod`, Frankfurt (eu-central-1), Pro-Plan. Ursprünglich auch `stackr-preview` geplant; Stand 2026-10-16 gibt es **kein** Preview-Projekt mehr (`nvtjzeffngwfsqjzdrdz` gelöscht) |
-| E6 | ~~Supabase bleibt bis zum Launch im Free-Plan~~ (User, 2026-10-07) — **überholt**: Stand 2026-10-16 (per Connector geprüft) läuft die Organisation auf **Pro**. Es gibt nur noch ein Projekt: `usrhhjwvoefjdgrwovkg` = `stackr-prod` (Name im Dashboard gesetzt), Prod laut PR #18, steht in der CSP |
+| E6 | ~~Supabase bleibt bis zum Launch im Free-Plan~~ (User, 2026-10-07) — **überholt**: Organisation auf **Pro** (geprüft 2026-10-16 und 2026-10-30). Nur ein Projekt: `usrhhjwvoefjdgrwovkg` = `stackr-prod` (Prod laut PR #18, steht in der CSP), Preview-Projekt gelöscht |
 
 ## Was es schon gibt — Sync (Commit `78a711e`, auf `master`, ohne Env-Variablen wirkungslos)
 
@@ -80,16 +80,16 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 
 | # | Schritt | Wer | Erledigt wenn |
 |---|---|---|---|
-| 0 | Supabase-Projekt `stackr-prod` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 2026-10-16: `usrhhjwvoefjdgrwovkg` heißt `stackr-prod`, Frankfurt, Organisation auf **Pro**. Preview-Projekt gibt es nicht mehr. Spend Cap, 2FA und AV-Vertrag lassen sich per Connector nicht prüfen → im Dashboard bestätigen |
-| 1 | Migrationen in `stackr-prod` ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`, Stand 2026-10-16: zehn) | 👤, 🤖 liefert Anleitung | ✅ 2026-10-16 per Connector geprüft: `stackr-prod` hat alle zehn (Stichproben: `ops_alerts`, Sequenzrechte für `service_role`, `sync_append_anchors_v2`) — 13 Tabellen, alle mit RLS, 33 `sync_*`-Funktionen, alle mit festem `search_path`. Neue Migrationen weiter hier ausführen |
-| 2 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in Vercel eintragen (Sensitive), getrennt für Production und Preview; dazu `WHOP_SESSION_KEY` (32 Byte Base64, für die Whop-Sitzungen in Supabase) | 👤 | 🟡 2026-10-08 **Production** gesetzt (Type Secret): `SUPABASE_URL` = `usrhhjwvoefjdgrwovkg`, `SUPABASE_SERVICE_ROLE_KEY` = Legacy-`service_role`-JWT (der Code schickt ihn auch als Bearer, deshalb kein `sb_secret_…`), `WHOP_SESSION_KEY` lokal erzeugt, nie angezeigt. Bewusst **nicht** gesetzt: `STORAGE_BACKEND`, `STORAGE_MIRROR`, `BLOB_BACKEND`. Preview: **keine** Supabase-Werte setzen, solange es kein Preview-Projekt gibt (sonst schreibt Preview in Prod). `WHOP_SESSION_KEY` nicht mehr ändern (sonst einmal Neu-Login für alle) |
+| 0 | Supabase-Projekt `stackr-prod` anlegen (Frankfurt, Spend Cap, 2FA), AV-Vertrag abschließen | 👤 | 🟡 Projekt ✅ (`usrhhjwvoefjdgrwovkg` = `stackr-prod`, Frankfurt, Org auf **Pro**, kein Preview-Projekt). DPA ✅ automatisch über die ToS (`077f348`, 28.10.). **Offen für den User, per Connector nicht prüfbar:** Spend Cap, 2FA im Dashboard bestätigen; Supabase auf der DPF-Liste nachsehen (laut Rechtsaudit 24.10. kein DPF, nur SCC) |
+| 1 | Migrationen in `stackr-prod` ausführen, in Dateinamen-Reihenfolge (alle aus `supabase/migrations/`) | 👤, 🤖 liefert Anleitung | 🟡 2026-10-30 per Connector: **12 von 16** in Prod (alle bis `20261015000001`, dazu `kuendigungen` und `loeschplan`). **Nicht** in Prod: `20261022000001_shopify`, `20261026000001_shopify_loeschfrist` (sollen laut Kopf in beide Projekte — offen, ohne Tabellen sind die Shopify-Endpunkte fail-closed), `20261022000002_server_datenmodell` und `20261028000001_server_umzug` (laut Kopf **bewusst** erst zum Livegang R9). 15 Tabellen, alle mit RLS |
+| 2 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in Vercel eintragen (Sensitive), getrennt für Production und Preview; dazu `WHOP_SESSION_KEY` (32 Byte Base64, für die Whop-Sitzungen in Supabase) | 👤 | 🟡 2026-10-08 **Production** gesetzt (Type Secret): `SUPABASE_URL` = `usrhhjwvoefjdgrwovkg`, `SUPABASE_SERVICE_ROLE_KEY` = Legacy-`service_role`-JWT (der Code schickt ihn auch als Bearer, deshalb kein `sb_secret_…`), `WHOP_SESSION_KEY` lokal erzeugt, nie angezeigt. Seit 2026-10-14 zusätzlich `STORAGE_MIRROR=supabase` (Schritt 4); `STORAGE_BACKEND` und `BLOB_BACKEND` weiter **nicht** gesetzt. Preview: **keine** Supabase-Werte setzen, solange es kein Preview-Projekt gibt (sonst schreibt Preview in Prod). `WHOP_SESSION_KEY` nicht mehr ändern (sonst einmal Neu-Login für alle) |
 | 3 | Code deployen | 🤖 | ✅ `78a711e`/`747dcfd` auf `master` |
-| 4 | `STORAGE_MIRROR=supabase` setzen, neu deployen → Dual-Write | 👤 | keine `mirror-failed`-Alarme |
-| 5 | Backfill `--write`, dann `--check` (lokal, mit den Prod-Env-Werten) | 👤 führt aus, 🤖 begleitet | `--check` Exit 0 |
-| 6 | Einige Tage beobachten, `--check` erneut | 👤/🤖 | stabil, keine Abweichung |
-| 7 | Umschalten: `STORAGE_BACKEND=supabase`, `STORAGE_MIRROR=redis` | 👤 | Sync läuft, Rückweg = Variablen tauschen |
+| 4 | `STORAGE_MIRROR=supabase` setzen, neu deployen → Dual-Write | 👤 | ✅ seit **2026-10-14** ca. 19:22 UTC (`supabase-pro-2026-10-15.md`). 2026-10-30: Supabase wird live beschrieben (11 Zeilen in `sync_snapshots`, letzte Schreibung 29.10.), Whop-Sitzungen vorhanden, **kein** `mirror-failed` in `ops_alerts`, `rate_limits` leer → primär weiter Upstash |
+| 5 | Backfill `--write`, dann `--check` (lokal, mit den Prod-Env-Werten) | 👤 führt aus, 🤖 begleitet | 🟡 laut `supabase-pro-2026-10-15.md` am 15.10. gestartet; ein `--check` mit Exit 0 ist **nirgends belegt** → vom User bestätigen lassen bzw. erneut laufen lassen. Belege (`backfill-blob-supabase.js`) offen: Bucket `attachments` ist leer |
+| 6 | Einige Tage beobachten, `--check` erneut | 👤/🤖 | 🟡 läuft; Whop-Sitzungen brauchen **30 Tage** ohne `mirror-failed` ab 14.10. |
+| 7 | Umschalten: `STORAGE_BACKEND=supabase`, `STORAGE_MIRROR=redis` | 👤 | offen. **Frühestens in der Nacht 13./14.11.2026** (30 Tage Sitzungs-TTL); jeder `mirror-failed` setzt die Frist neu |
 | 8 | 14 Tage beobachten, dann `STORAGE_MIRROR` leeren | 👤 | — |
-| 9 | DSE, Verarbeitungsverzeichnis, `CLOUD-SYNC.md`, Landing-Text anpassen | 🤖 Entwurf, 👤 Freigabe | erst **beim** Umschalten, nicht vorher |
+| 9 | DSE, Verarbeitungsverzeichnis, `CLOUD-SYNC.md`, Landing-Text anpassen | 🤖 Entwurf, 👤 Freigabe | 🟡 Übergangsfassung (Spiegel) ist live seit `f538e85` (24.10.): DSE, Cookies, Opt-in-Dialog, Verfahrensdoku nennen Supabase; Freigabe des Wortlauts durch den Anwalt steht aus. Endfassung (ohne Upstash) erst nach Schritt 8 |
 
 ## Risiken und Fallen
 

@@ -3,7 +3,7 @@
 // Supabase gibt anon/authenticated per Default-Privileges Rechte auf alles, was neu in
 // `public` angelegt wird (Tabellen, Sequenzen, Funktionen). Jede Migration nimmt das für
 // ihre eigenen Objekte zurück — dieser Test sorgt dafür, dass keine künftige Migration das
-// vergisst (Härtung H2 aus plan/audit-supabase-security-2026-10-07.md).
+// vergisst (Härtung H2 aus plan/archiv/audit-supabase-security-2026-10-07.md).
 //
 // Geprüft wird je Datei, für jedes dort NEU angelegte Objekt:
 //   Tabelle   → RLS an + revoke … from public, anon, authenticated

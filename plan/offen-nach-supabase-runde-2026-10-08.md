@@ -34,7 +34,7 @@ Vor dem Abarbeiten gegen Code und Konto prüfen, nicht gegen diese Datei (CLAUDE
 
 Reihenfolge einhalten. Rückweg ist jeweils: Variablen tauschen bzw. entfernen — beim Sync **vorher
 `scripts/backfill-sync-supabase.js --check`** und jede Abweichung bereinigen, sonst kann ein entzogener
-Steuerberater-Zugang zurückkommen (Befund B2, `plan/audit-supabase-security-2026-10-07.md`).
+Steuerberater-Zugang zurückkommen (Befund B2, `plan/archiv/audit-supabase-security-2026-10-07.md`).
 
 1. [ ] Supabase-Organisation auf **Pro**, Spend Cap setzen.
 2. [x] ~~Storage → Settings: projektweite Upload-Grenze **≥ 200 MB**.~~ Überholt am 2026-10-15:

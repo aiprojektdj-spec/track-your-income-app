@@ -36,8 +36,9 @@ Upstash Redis + Vercel Blob → Supabase kann weiterlaufen. Der Code ist fertig 
 - [x] **Preview-Projekt** `nvtjzeffngwfsqjzdrdz` liegt in der Organisation **„Stackr Preview“
       (Free Plan)** — so gewollt, soll nicht dauerhaft laufen. Pausiert nach 7 Tagen ohne
       Nutzung; vor einem Preview-Test im Dashboard wieder starten. CSP-Eintrag bleibt.
-- [ ] **Die 3 Snapshots/3 Sitzungen in Prod** zuordnen: Wenn `STORAGE_MIRROR` in Vercel
-      schon gesetzt ist, ist Schritt 3 unten bereits angelaufen; sonst sind es Testdaten.
+- [x] **Die 3 Snapshots/3 Sitzungen in Prod** zuordnen: Spiegeldaten, keine Testdaten. Am
+      2026-10-30 per Connector geprüft: der älteste Snapshot (2026-10-14 19:24 UTC) und der älteste
+      Anker (19:24) liegen zwei Minuten nach der ersten gespiegelten Whop-Sitzung (19:22).
 
 ## 2. Vercel-Variablen (👤)
 
@@ -51,10 +52,12 @@ Production, sonst landen Chiffrate und Refresh-Tokens echter Kunden im Preview-P
 
 ## 3. Spiegel einschalten (👤 setzt, 🤖 begleitet)
 
-- [ ] `STORAGE_MIRROR=supabase` in **Production**, neu deployen.
+- [x] `STORAGE_MIRROR=supabase` in **Production**, neu deployen. (Belegt durch die gespiegelten
+      Daten seit 2026-10-14; die Variable selbst ist von hier aus nicht lesbar.)
       Ab jetzt schreibt jeder Sync, jede Freigabe und jede Whop-Sitzung zusätzlich nach Supabase;
       gelesen wird weiter aus Redis.
-- [ ] 🤖 `api/health.js` aufrufen: Supabase muss grün sein.
+- [x] 🤖 `api/health.js` aufrufen: Supabase muss grün sein. Am 2026-10-30:
+      `{"ok":true,"redis":"ok","supabase":"ok"}`, bis dahin kein `mirror-failed` in `ops_alerts`.
 - [x] **Spiegel läuft seit 2026-10-14 ca. 21:22 Uhr** (erste Whop-Sitzung in Supabase,
       19:22 UTC; per Connector abgelesen). Bis 2026-10-15 kein `mirror-failed` in `ops_alerts`.
 - **Frühester Umschalttermin: Nacht vom 13. auf den 14.11.2026** — 30 Tage Sitzungs-TTL (W1).
@@ -76,6 +79,8 @@ node scripts/backfill-sync-supabase.js --check
 ```
 
 - [ ] `--check` endet mit Exit 0, keine `ABWEICHUNG`.
+      **Stand 2026-10-30: der Backfill ist noch nicht gelaufen** — der älteste Anker in Supabase
+      ist vom Spiegelstart (2026-10-14 19:24), im Bucket `attachments` liegen 0 Belege.
 - [ ] Belege: `node scripts/backfill-blob-supabase.js` (erst trocken, dann schreiben).
 - Alles in einem Lauf: `output/backfill-supabase.sh` (fragt die Schlüssel verdeckt ab, gestartet
   2026-10-15). Neue Belege landen bis zum Umschalten weiter nur in Vercel Blob → in der

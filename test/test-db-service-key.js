@@ -1,6 +1,6 @@
 // Service-Key nie in Fehlermeldungen:  node test/test-db-service-key.js
 // =============================================================================
-// Befund B3 aus plan/audit-supabase-security-2026-10-07.md: Enthält SUPABASE_SERVICE_ROLE_KEY
+// Befund B3 aus plan/archiv/audit-supabase-security-2026-10-07.md: Enthält SUPABASE_SERVICE_ROLE_KEY
 // ein in HTTP-Headern ungültiges Zeichen (Zeilenumbruch mitten im Wert), wirft fetch
 // "Headers.append: "<voller Wert>" is an invalid header value." — und diese Meldung ging über
 // _log/alertOps in Log und Alarm-Mail. Geprüft wird mit dem ECHTEN fetch von Node: ein

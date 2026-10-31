@@ -14,6 +14,11 @@ Abgeglichen mit [`02-ENTSCHEIDUNGEN.md`](02-ENTSCHEIDUNGEN.md): Fail-open der Ra
 per Konsole umgehbare Whop-Gate und der kostenlose StB-Zugang sind bewusst so und werden hier
 nicht als Befund geführt.
 
+> **Abgeschlossen am 2026-10-30, ins Archiv verschoben.** Alle Befunde (B1–B3) und Härtungen
+> (H1–H4) sind umgesetzt und gemergt (PRs #17, #44, #51, #57); live in `stackr-prod` gegengeprüft:
+> keine Funktion für `anon`/`authenticated` ausführbar, keine Tabelle ohne RLS, `search_path`
+> überall gesetzt. Zeilenangaben unten sind Stand 2026-10-07.
+
 ## Ergebnis in einem Satz
 
 **Keine kritische oder hohe Lücke.** Service-Key, RLS/Rechte, Pfad- und Eigentumsprüfung und

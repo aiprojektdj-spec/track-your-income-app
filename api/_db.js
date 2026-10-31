@@ -11,8 +11,8 @@
 // Fehler tragen nur Funktionsname und HTTP-Status, nie den Antwort-Body: der kann
 // bei PostgREST Parameterwerte wiederholen (siehe api/_log.js).
 //
-// Der Service-Key wird vor Gebrauch geprüft (Befund B3, plan/audit-supabase-security-
-// 2026-10-07.md): Steckt ein Zeichen darin, das in einem HTTP-Header ungültig ist (z. B.
+// Der Service-Key wird vor Gebrauch geprüft (Befund B3, plan/archiv/audit-supabase-
+// security-2026-10-07.md): Steckt ein Zeichen darin, das in einem HTTP-Header ungültig ist (z. B.
 // ein Zeilenumbruch MITTEN im Wert nach dem Kopieren), wirft fetch eine Meldung, die den
 // vollen Wert wiederholt — und die landete über _log/alertOps in Log und Alarm-Mail. Ein
 // solcher Wert gilt deshalb als nicht gesetzt; die Meldung nennt dann nur den Namen.

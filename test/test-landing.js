@@ -182,7 +182,7 @@ test('Jahr und zurück auf Monat ändern Betrag, Abrechnung, Verlängerung und C
     assertCheckout(page, MONTH);
     assert.strictEqual(page.get('[data-price]').textContent, '15');
     assert.strictEqual(page.get('[data-billing-note]').textContent, '15 € monatlich abgerechnet');
-    assert.match(page.get('[data-renewal]').textContent, /15 € monatlich[\s\S]*einen Monat/);
+    assert.match(page.get('[data-renewal]').textContent, /15 € monatlich[\s\S]*jederzeit zum Monatsende kündbar/);
 });
 
 test('Vorhandene Session bleibt nach beiden Abrechnungswechseln beim App-Einstieg', () => {

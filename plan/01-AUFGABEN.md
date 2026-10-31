@@ -73,7 +73,7 @@ Historie bestätigt (KU seit Beginn, User-Aussage), 4 Verkäufe gestempelt, dana
 Firma wechseln, Bestandscheck öffnen, Vorschläge prüfen. Die Historie-Bestätigung nur, wenn
 die Firma nie zwischen KU und Regelbesteuerung gewechselt hat.
 
-### 1.8 Harnesse für die ungetesteten Rechenmodule (Fund C des Vollaudits) · **teilweise** — 9 von 11, Stand 2026-10-07
+### 1.8 Harnesse für die ungetesteten Rechenmodule (Fund C des Vollaudits) · ✅ **erledigt** — 11 von 11, Stand 2026-10-30
 
 > **Korrektur vom 2026-09-16.** Hier stand „✅ erledigt 2026-09-15 (`d399034`)". Das war
 > ungenau, und eine erste Richtigstellung („nur das Datum stimmte nicht") hätte es bloß
@@ -102,7 +102,7 @@ Offen, nach Rechenrelevanz:
 | Zeilen | Modul | Warum es zählt |
 |---|---|---|
 | 705 | `statistiken` | ✅ erledigt `f048e33` — vier von vierzehn Einkaufssummen rechneten ohne Menge |
-| 422 | `datev` | ✅ Harness seit `fc28401`, zwei Punkte offen → s. 1.9 |
+| 422 | `datev` | ✅ Harness seit `fc28401`; die zwei Punkte aus 1.9 erledigt (`b14ebfd`, `62aac4b`, `da7b384`, `5352ba9`) |
 | 635 | `materiallager` | ✅ erledigt 2026-09-15 (`25e1945`) — die Mittelung war von keinem Test erreichbar |
 | 650 | `fahrtenbuch` | ✅ erledigt 2026-09-15 (`26a1004`) — 37 Checks, Regel-7-Hinweis offen |
 | 952 | `i18n` | ✅ erledigt 2026-09-15 (`9373cbd`) — 15 Checks, kein Fund |
@@ -156,11 +156,11 @@ mit `3d333a7`, einen Tag *nach* dem Vermerk „erledigt".
 | `companies` | `test-companies.js` | ✅ `3d333a7` |
 | `protokoll` | `test-z3-export.js` | ✅ lädt `js/protokoll.js`; dessen einzige Logik neben `render()` ist der Z3-Export (`_z3Cell`, `_z3IndexXml`, `exportZ3`) — geprüft 2026-10-07 |
 | `steuerberater` | `test-steuerberater.js` | ✅ 2026-10-07 (`3c469a7`) — **Fund:** das Paket an den Steuerberater rechnete die EÜR mit eigener Formel (ohne AfA, Fahrten, Eigenbelege, Rechnungsbuch, brutto bei Regelbesteuerung). Jetzt aus `Euer._berechne()`, wie bei A1 |
-| `webhooks` | — | **offen — Entscheidung nötig**, rechnet nichts (53 Zeilen, `fire`/`test`) |
+| `webhooks` | `test-webhooks.js` | ✅ `9272008` (2026-10-07) |
 | `blob-attachments` | `test-blob-storage.js`, `test-sync-token-refresh.js` | ✅ `747dcfd`, `2abbb69` (2026-10-06, Supabase-Umzug) |
-| `error-logger` | — | **offen — Entscheidung nötig**, rechnet nichts. `test-client-error.js` verweist auf ein `test-error-logger-beacon.js`, das es nicht gibt, und `js/error-logger.js` schickt (Stand 2026-10-07) nichts an `/api/client-error` — `_send()` ist ein `console.warn` mit TODO |
+| `error-logger` | `test-error-logger-beacon.js` | ✅ `0aff90d` (2026-10-07) — sendet seitdem bereinigte Fehler per `sendBeacon` an `/api/client-error` |
 
-Ob die letzten zwei (Stand 2026-10-07; vorher vier) genug Rechenrelevanz haben, um einen Harness zu lohnen, ist eine berechtigte
+*(Erledigt: alle elf haben seit 2026-10-07 einen Harness, Stand 2026-10-30 gegen `origin/master` geprüft.)* Ob die letzten zwei (Stand 2026-10-07; vorher vier) genug Rechenrelevanz haben, um einen Harness zu lohnen, ist eine berechtigte
 Frage — `error-logger` und `webhooks` rechnen nichts. Sie gehört aber **entschieden und hier
 vermerkt**, nicht durch ein „erledigt" überdeckt.
 
@@ -193,9 +193,15 @@ Bei jedem Fund lohnt die Frage, ob die fehlerhafte Rechnung eine geteilte Funkti
 
 **Vor dem Greifen abstimmen** — an diesem Repo arbeiten mehrere Sessions gleichzeitig.
 
-### 1.9 DATEV-Stapel: zwei Punkte, die eine Festlegung brauchen
+### 1.9 DATEV-Stapel: zwei Punkte, die eine Festlegung brauchen · ✅ erledigt 2026-10-08/09
 
-> **Am 2026-10-07 gegen den Code geprüft — beide Reste weiterhin offen:** AfA und Retouren fehlen
+> **✅ Stand 2026-10-30, gegen den Code geprüft:** Retouren als Gegenbuchung auf dem Erlöskonto
+> (`b14ebfd`), AfA je Anlage gegen ihr Anlagekonto und Buchung je Position (`62aac4b`),
+> BU-Schlüssel neu festgelegt (`da7b384`, `5352ba9`) — der Auffang `40` und die Hinweise
+> „Nicht enthalten: AfA und Retouren“ sind aus `js/datev.js` verschwunden. User-Entscheidung
+> 2026-10-08. Der Kasten darunter ist der Stand davor.
+
+> *Überholt:* **Am 2026-10-07 gegen den Code geprüft — beide Reste weiterhin offen:** AfA und Retouren fehlen
 > im Stapel (Hinweis in [`js/datev.js:665`](../js/datev.js) und `:708`), und die BU-Schlüssel-Wahl
 > ([`js/datev.js:177`](../js/datev.js): 19 % → leer, 7 % → `2`, sonst `40`) ist fachlich nicht
 > bestätigt. Beides braucht eine Festlegung, keine Session rät das.
@@ -914,7 +920,7 @@ rotieren **und** als Secret neu anlegen, dann deployen, dann `.env.local` nachzi
 |---|---|---|---|
 | 1 | **2.2 Whop-Mails** | Verhindert Rückbuchungen bei der 135-€-Verlängerung; beide Texte liegen fertig entworfen | 1 h |
 | 2 | **2.6 Alarm abnehmen** | Ein `curl`. Schließt den letzten unbelegten Link der Alarmkette und bestätigt nebenbei das Blob-Ziel | 5 min |
-| 3 | **1.9 (b) DATEV-Buchungsregeln** | Seit `b2a86f3` fehlen nur noch **AfA und Retouren** im Stapel (Stand 2026-10-07). Die Regeln dafür kann keine Session raten | Festlegung |
+| 3 | ~~**1.9 (b) DATEV-Buchungsregeln**~~ | ✅ erledigt 2026-10-08/09 (`b14ebfd`, `62aac4b`) — AfA und Retouren sind im Stapel | — |
 | 4 | **2.3 Live-Tests** | Drei der sieben Punkte sind noch nie unter echten Bedingungen gelaufen | mehrere Sitzungen |
 
 > **Korrigiert am 2026-09-15 — zum zweiten Mal dieselbe Sorte Fehler.** Auf Rang 2 stand
@@ -931,10 +937,10 @@ rotieren **und** als Secret neu anlegen, dann deployen, dann `.env.local` nachzi
 
 **Abschnitt 1 ist seit dem 2026-09-13 nicht mehr leer** — hier stand bis dahin das Gegenteil,
 und zwar noch, nachdem der Abschnittskopf oben bereits korrigiert war. Zwei Stellen derselben
-Datei widersprachen sich also einen Tag lang. Offen ist dort **1.9** (die zwei DATEV-Punkte) —
+Datei widersprachen sich also einen Tag lang. ~~Offen ist dort **1.9** (die zwei DATEV-Punkte)~~ **✅ seit 2026-10-09 erledigt (`62aac4b`)** —
 ~~und der **Regel-7-Rest aus 1.8**: die Kilometersätze …~~ **✅ seit `8abd2b6` (2026-09-18) aus
-`_getKmSaetze(year)`**, am 2026-10-07 gegen den Code geprüft. Dazu in 1.8 die Entscheidung, ob
-`webhooks` und `error-logger` einen Harness brauchen.
+`_getKmSaetze(year)`**, am 2026-10-07 gegen den Code geprüft. ~~Dazu in 1.8 die Entscheidung, ob
+`webhooks` und `error-logger` einen Harness brauchen.~~ **✅ beide haben einen (`9272008`, `0aff90d`).**
 
 > **Korrigiert am 2026-09-15 — dieselbe Sorte Widerspruch, ein drittes Mal.** Hier stand
 > „Offen sind dort **1.8** … und **1.9**", während `d399034` die Tabelle in 1.8 am selben Tag

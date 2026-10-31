@@ -175,8 +175,8 @@ block(() => {
         settings: { ustMode: 'klein', ustVersteuerungsart: 'soll' },
         invoices: [Object.assign({}, RECHNUNG, { isKlein: true })],
     })[0];
-    check('C4 Kleinunternehmer bucht auf 8195 ohne Umsatzsteuer',
-        klein[6] === '8195' && klein[0] === '200,00' && klein[8] === '');
+    check('C4 Kleinunternehmer bucht auf 8192 ohne Umsatzsteuer',
+        klein[6] === '8192' && klein[0] === '200,00' && klein[8] === '');
 
     const direkt = buchungen({ sales: [VERKAUF] })[0];
     check('C5 Direktverkauf zaehlt den Kaeufer-Versand zur Einnahme (wie UVA und EUER)',
@@ -564,7 +564,7 @@ block(() => {
     check('K6 Retoure aus einem anderen Jahr faellt weg', zJ.length === 0);
 
     const zK = buchungen({ settings: { ustMode: 'klein' }, retouren: [Object.assign({}, RETOURE, { saleId: null })] });
-    check('K7 Kleinunternehmer: Retoure auf dem Kleinunternehmer-Erloeskonto', !!zK[0] && zK[0][6] === '8195');
+    check('K7 Kleinunternehmer: Retoure auf dem Kleinunternehmer-Erloeskonto', !!zK[0] && zK[0][6] === '8192');
 });
 
 // ── L) Buchen je Position nach Art (Entscheidung User 2026-10-08) ──────────────────────
@@ -690,7 +690,7 @@ block(() => {
         const ret = buchungen({ sales: [v('oss1', 'FR')], retouren: [{ id: 'r1', datum: '2026-06-01', saleId: 'oss1', erstattungBetrag: 50 }] })
             .find(r => r[13].indexOf('Retoure') === 0);
         check('O6 Retoure eines OSS-Verkaufs -> 8200', ret && ret[6] === '8200');
-        check('O7 Kleinunternehmer bleibt 8195', buchungen({ sales: [v('oss1', 'FR')], settings: { ustMode: 'klein' } })[0][6] === '8195');
+        check('O7 Kleinunternehmer bleibt 8192', buchungen({ sales: [v('oss1', 'FR')], settings: { ustMode: 'klein' } })[0][6] === '8192');
     } finally { delete global.OSS; }
 });
 

@@ -190,6 +190,33 @@ async function _checkAccess(userToken, userId) {
     throw e;
 }
 
+// Abbuchung gescheitert, Whop versucht es noch (past_due): has_access und valid=true melden dann
+// keinen Zugang, das Abo laeuft aber weiter. Ohne diese Pruefung sah der Kunde den Kaufbildschirm
+// und haette ein zweites Abo abschliessen koennen (Vorfall 2026-11-01). Endet die Mahnphase bei
+// Whop, wechselt der Status und der Zugang endet von selbst.
+// Filter nicht blind trauen (s. Historie oben): Nutzer, Status und Produkt selbst pruefen.
+// Fehler heissen "kein Zugang" wie bisher — dieser Weg darf nie jemanden freischalten, den er
+// nicht bestaetigt hat, und die Entscheidung der beiden Hauptwege nicht in einen 502 kippen.
+async function _pastDueMembership(userId) {
+    try {
+        var firma = process.env.WHOP_COMPANY_ID || 'biz_2OEWYGlOwb8b0f';
+        var r = await fetch('https://api.whop.com/api/v1/memberships?account_id=' + encodeURIComponent(firma) +
+                            '&statuses[]=past_due&user_ids[]=' + encodeURIComponent(userId) + '&first=100', {
+            headers: { 'Authorization': 'Bearer ' + WHOP_API_KEY, 'Accept': 'application/json' },
+            signal:  AbortSignal.timeout(8000)
+        });
+        if (!r.ok) { var e = new Error('memberships v1 HTTP ' + r.status); e.httpStatus = r.status; throw e; }
+        var j = await r.json();
+        return ((j && j.data) || []).filter(function (m) {
+            return m && m.status === 'past_due' && m.user && m.user.id === userId &&
+                   m.product && ACCESS_IDS.indexOf(m.product.id) !== -1;
+        })[0] || null;
+    } catch (err) {
+        _log.logError('whop-access', 'PAST_DUE_CHECK_FAILED', err);
+        return null;
+    }
+}
+
 module.exports = async function handler(req, res) {
     setzeCorsOrigin(req, res);  // getstackr.de und alte Adresse, s. api/_cors.js
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -256,6 +283,15 @@ module.exports = async function handler(req, res) {
         var access    = await _checkAccess(token, userId);
         var hasAccess = access.ok === true;
         var det       = access.detail || {};
+        var manageUrl = null;
+        if (!hasAccess && WHOP_API_KEY) {
+            var pastDue = await _pastDueMembership(userId);
+            if (pastDue) {
+                hasAccess = true;
+                det       = { status: 'past_due', renewsAt: null };
+                manageUrl = pastDue.manage_url || null;
+            }
+        }
         // status/renews_at durchreichen (Fund N2). Nur wenn Zugang besteht — bei einem
         // abgelehnten Zugriff hat der Client damit nichts zu tun, und weniger ist besser.
         var grace = hasAccess ? _signGraceToken(userId) : null;
@@ -266,7 +302,8 @@ module.exports = async function handler(req, res) {
             has_access: hasAccess, user_id: userId,
             grace_token: grace,
             status:      hasAccess ? (det.status || null) : null,
-            renews_at:   hasAccess ? (det.renewsAt || null) : null
+            renews_at:   hasAccess ? (det.renewsAt || null) : null,
+            manage_url:  manageUrl
         });
     } catch (err) {
         // Netz/5xx/unbestimmt → 502 → Client nutzt Offline-Grace (kein falsches „kein Abo").

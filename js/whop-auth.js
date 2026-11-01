@@ -459,6 +459,7 @@ var AuthUI = (function () {
             if (hasAccess) {
                 _stampGrace(graceToken);
                 await _onAuthorized(me);
+                if (accJson.status === 'past_due') _showPaymentNotice(accJson.manage_url);
                 return true;
             }
 
@@ -486,6 +487,35 @@ var AuthUI = (function () {
             console.warn('[WhopAuth] Validierung fehlgeschlagen (offline?):', err && err.message);
             return _graceFallback();
         }
+    }
+
+    // ── Abbuchung gescheitert (past_due): Zugang bleibt, Kunde muss es aber erfahren ──
+    function _showPaymentNotice(manageUrl) {
+        if (document.getElementById('whopPaymentNotice')) return;
+        var url = /^https:\/\/whop\.com\//.test(manageUrl || '') ? manageUrl : 'https://whop.com/@me/settings/orders/';
+        var box = document.createElement('div');
+        box.id = 'whopPaymentNotice';
+        box.setAttribute('role', 'alert');
+        box.style.cssText = 'position:fixed;left:16px;right:16px;bottom:16px;max-width:560px;margin:0 auto;z-index:9000;display:flex;gap:12px;align-items:center;background:var(--surface,#1e1e2e);border:1px solid rgba(239,68,68,.5);border-radius:10px;padding:12px 14px;box-shadow:0 8px 28px rgba(0,0,0,.45);font-size:13px;line-height:1.5;color:var(--text-primary,#fff);';
+        var text = document.createElement('div');
+        text.style.cssText = 'flex:1;min-width:0;';
+        text.textContent = 'Deine letzte Abbuchung ist fehlgeschlagen. Whop versucht es erneut — klappt es nicht, endet dein Zugang. ';
+        var link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = 'Zahlung bei Whop prüfen';
+        link.style.cssText = 'color:var(--accent,#10b981);font-weight:600;';
+        text.appendChild(link);
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.setAttribute('aria-label', 'Hinweis schließen');
+        close.textContent = '×';
+        close.style.cssText = 'background:none;border:none;color:var(--text-muted,#888);font-size:18px;line-height:1;cursor:pointer;padding:4px;';
+        close.addEventListener('click', function () { box.remove(); });
+        box.appendChild(text);
+        box.appendChild(close);
+        document.body.appendChild(box);
     }
 
     // ── Gerätesperre: gehören die bereits vorhandenen lokalen Daten diesem Nutzer? ──

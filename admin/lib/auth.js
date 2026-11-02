@@ -5,7 +5,7 @@
 //   1. Token bei Supabase validieren (GET /auth/v1/user) — Signatur/Ablauf macht Supabase
 //   2. E-Mail == ADMIN_EMAIL (Allowlist, genau ein Eintrag; Env, nicht im Code)
 //   3. Claim aal == "aal2"  (zweiter Faktor wurde in dieser Session geprueft)
-//   4. Idle-Timeout 30 min (admin_session_touch)
+//   4. Idle-Timeout 30 min (sync_admin_session_touch)
 //   5. Recht ueber permissions.can()
 // Jede Ablehnung: 401 (nicht angemeldet/abgelaufen) bzw. 403 (angemeldet, aber nicht erlaubt).
 //
@@ -62,7 +62,7 @@ async function requireAdmin(req, permission) {
     var cl = claims(token);
     if (cl.aal !== 'aal2' || !cl.session_id) throw fail(401, 'mfa_fehlt');
 
-    var ok = await db.rpc('admin_session_touch', { p_sid: cl.session_id, p_email: allowed, p_idle_secs: IDLE_SECS });
+    var ok = await db.rpc('sync_admin_session_touch', { p_sid: cl.session_id, p_email: allowed, p_idle_secs: IDLE_SECS });
     if (!ok) throw fail(401, 'sitzung_abgelaufen');
 
     if (permission && !perms.can(ADMIN_ROLE, permission)) throw fail(403, 'recht_fehlt');

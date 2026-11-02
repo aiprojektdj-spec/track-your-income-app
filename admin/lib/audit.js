@@ -13,7 +13,7 @@ function clientIp(req) {
 }
 
 async function logAction(req, admin, entry) {
-    return db.rpc('admin_audit_add', {
+    return db.rpc('sync_admin_audit_add', {
         p_admin:       admin.email,
         p_action:      entry.action,
         p_target_type: entry.targetType || '',
@@ -34,7 +34,7 @@ function iso(v) {
 }
 
 async function search(f) {
-    return db.rpc('admin_audit_search', {
+    return db.rpc('sync_admin_audit_search', {
         p_admin:       nz(f.admin),
         p_action:      nz(f.action),
         p_target_type: nz(f.targetType),

@@ -29,22 +29,22 @@ create index if not exists admin_audit_admin  on admin_audit_log (admin_email, i
 
 alter table admin_audit_log enable row level security;
 
-create or replace function admin_audit_gesperrt() returns trigger language plpgsql as $$
+create or replace function sync_admin_audit_gesperrt() returns trigger language plpgsql set search_path = public, pg_temp as $$
 begin
     raise exception 'admin_audit_log ist append-only';
 end $$;
 
 drop trigger if exists admin_audit_kein_update on admin_audit_log;
 create trigger admin_audit_kein_update before update or delete on admin_audit_log
-    for each row execute function admin_audit_gesperrt();
+    for each row execute function sync_admin_audit_gesperrt();
 drop trigger if exists admin_audit_kein_truncate on admin_audit_log;
 create trigger admin_audit_kein_truncate before truncate on admin_audit_log
-    for each statement execute function admin_audit_gesperrt();
+    for each statement execute function sync_admin_audit_gesperrt();
 
-create or replace function admin_audit_add(
+create or replace function sync_admin_audit_add(
     p_admin text, p_action text, p_target_type text, p_target_id text,
     p_before jsonb, p_after jsonb, p_ip text, p_ua text)
-returns bigint language sql as $$
+returns bigint language sql set search_path = public, pg_temp as $$
     insert into admin_audit_log (admin_email, action, target_type, target_id, before, after, ip, user_agent)
     values (left(p_admin, 200), left(p_action, 80), left(coalesce(p_target_type, ''), 60),
             left(coalesce(p_target_id, ''), 200), p_before, p_after,
@@ -53,10 +53,10 @@ returns bigint language sql as $$
 $$;
 
 -- Keyset-Paginierung: p_before_id = kleinste id der letzten Seite (null = erste Seite).
-create or replace function admin_audit_search(
+create or replace function sync_admin_audit_search(
     p_admin text, p_action text, p_target_type text, p_target_id text,
     p_from timestamptz, p_to timestamptz, p_limit int, p_before_id bigint)
-returns setof admin_audit_log language sql stable as $$
+returns setof admin_audit_log language sql stable set search_path = public, pg_temp as $$
     select * from admin_audit_log
      where (p_admin       is null or admin_email = p_admin)
        and (p_action      is null or action = p_action)
@@ -81,8 +81,8 @@ create table if not exists admin_sessions (
 );
 alter table admin_sessions enable row level security;
 
-create or replace function admin_session_touch(p_sid text, p_email text, p_idle_secs int)
-returns boolean language plpgsql as $$
+create or replace function sync_admin_session_touch(p_sid text, p_email text, p_idle_secs int)
+returns boolean language plpgsql set search_path = public, pg_temp as $$
 declare v_last timestamptz;
 begin
     delete from admin_sessions where last_seen < now() - interval '7 days';
@@ -102,13 +102,16 @@ end $$;
 -- ── Rechte ──────────────────────────────────────────────────────────────────────
 revoke all on admin_audit_log, admin_sessions from public, anon, authenticated;
 revoke all on sequence admin_audit_log_id_seq from public, anon, authenticated;
-revoke all on function admin_audit_add(text, text, text, text, jsonb, jsonb, text, text) from public, anon, authenticated;
-revoke all on function admin_audit_search(text, text, text, text, timestamptz, timestamptz, int, bigint) from public, anon, authenticated;
-revoke all on function admin_session_touch(text, text, int) from public, anon, authenticated;
-revoke all on function admin_audit_gesperrt() from public, anon, authenticated;
-grant select, insert on admin_audit_log to service_role;
+revoke all on function sync_admin_audit_add(text, text, text, text, jsonb, jsonb, text, text) from public, anon, authenticated;
+revoke all on function sync_admin_audit_search(text, text, text, text, timestamptz, timestamptz, int, bigint) from public, anon, authenticated;
+revoke all on function sync_admin_session_touch(text, text, int) from public, anon, authenticated;
+revoke all on function sync_admin_audit_gesperrt() from public, anon, authenticated;
+-- Alle vier Rechte, weil test-migration-tabellenrechte.js sie je Tabelle verlangt; UPDATE/DELETE
+-- scheitern am Trigger oben, nicht am Recht.
+grant select, insert, update, delete on admin_audit_log to service_role;
 grant usage on sequence admin_audit_log_id_seq to service_role;
 grant select, insert, update, delete on admin_sessions to service_role;
-grant execute on function admin_audit_add(text, text, text, text, jsonb, jsonb, text, text) to service_role;
-grant execute on function admin_audit_search(text, text, text, text, timestamptz, timestamptz, int, bigint) to service_role;
-grant execute on function admin_session_touch(text, text, int) to service_role;
+grant execute on function sync_admin_audit_add(text, text, text, text, jsonb, jsonb, text, text) to service_role;
+grant execute on function sync_admin_audit_search(text, text, text, text, timestamptz, timestamptz, int, bigint) to service_role;
+grant execute on function sync_admin_session_touch(text, text, int) to service_role;
+grant execute on function sync_admin_audit_gesperrt() to service_role;

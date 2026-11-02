@@ -151,6 +151,8 @@ function aufraeumen() {
 }
 
 module.exports = {
+    // nur für scripts/backfill-sessions-budget-supabase.js
+    _seal: SEAL_KEY ? seal : null,
     configProblem: configProblem,
     aufraeumen:    aufraeumen,
 

@@ -80,4 +80,7 @@ anders: nicht anfassen, per `send_message` abstimmen.
 | [`plan/01-AUFGABEN.md`](plan/01-AUFGABEN.md) | Was noch offen ist — **vor dem Greifen gegen den Code prüfen** |
 | [`plan/02-ENTSCHEIDUNGEN.md`](plan/02-ENTSCHEIDUNGEN.md) | Was bewusst **nicht** geändert wird. Vor jedem Audit lesen |
 | [`plan/03-ARBEITSREGELN.md`](plan/03-ARBEITSREGELN.md) | Ausführliche Fassung dieser Regeln, mit den Vorfällen dahinter |
+| [`SPEC.md`](SPEC.md) | Ziel, Invarianten (was nie passieren darf) mit Test-Zuordnung, Operationen mit Folgen |
+| [`THREAT_MODEL.md`](THREAT_MODEL.md) | Schutzwerte, Angriffspfade, vorhandene und fehlende Kontrollen |
+| [`docs/decisions/`](docs/decisions/README.md) | ADRs: Grundentscheidungen; neue Entscheidungen als eigene Datei |
 | `plan/archiv/` | Erledigte Audits, Session-Prompts, Restlisten. **Nie als Arbeitsgrundlage lesen**, nur zur Herkunft eines Befunds. Erledigte Plandateien gehören hierher, nicht in den Hauptordner |

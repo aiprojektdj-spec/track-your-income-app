@@ -22,7 +22,7 @@ const R = store._backends.redis, S = store._backends.supabase;
 const MODE = process.argv.includes('--write') ? 'write' : process.argv.includes('--check') ? 'check' : 'dry';
 const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL   || process.env.KV_REST_API_URL   || '';
 const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
-const ANCHOR_MAX  = 20000;   // wie api/sync.js
+const NO_CAP      = 1000000000;   // wie der Spiegel in api/_sync-store.js: Backfill läuft ohne Deckel
 
 async function redisCmd(cmd) {
     const r = await fetch(REDIS_URL, { method: 'POST', body: JSON.stringify(cmd),
@@ -49,7 +49,10 @@ async function replaceAnchors(u, s, rows) {
     const r = await fetch(base + '/rest/v1/sync_anchors?user_id=eq.' + encodeURIComponent(u) + '&scope=eq.' + encodeURIComponent(s),
         { method: 'DELETE', headers: { apikey: key, Authorization: 'Bearer ' + key } });
     if (!r.ok) throw new Error('DELETE sync_anchors HTTP ' + r.status);
-    if (rows.length) await S.appendAnchors(u, s, rows, ANCHOR_MAX);
+    if (!rows.length) return;
+    // v2 verlangt p_max_user; ohne den Parameter antwortet PostgREST mit 404.
+    const ar = await S.appendAnchors(u, s, rows, NO_CAP, NO_CAP);
+    if (!ar || ar.status !== 'ok') throw new Error('Anker ' + u + '/' + s + ': Status ' + (ar && ar.status));
 }
 
 // Zeilenzahl einer Tabelle — findet, was in Supabase liegt, in Redis aber nicht mehr
@@ -88,7 +91,9 @@ const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
     }
     for (const k of await scan('syncanchor:*')) {
         const m = /^syncanchor:([^:]+):([^:]+)$/.exec(k); if (!m) continue;
-        const rows = await R.listAnchors(m[1], m[2]);
+        // Redis führt dieselbe ID teils mehrfach; Supabase speichert je ID eine Zeile (erste gewinnt).
+        const seen = new Set();
+        const rows = (await R.listAnchors(m[1], m[2])).filter(x => !seen.has(x.id) && seen.add(x.id));
         n.anchors += rows.length;
         if (MODE === 'write') await replaceAnchors(m[1], m[2], rows);
         if (MODE === 'check' && !same(rows, await S.listAnchors(m[1], m[2]))) diffs.push(k);

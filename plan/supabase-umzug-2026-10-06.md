@@ -102,11 +102,11 @@ Rollen: 👤 = User (Konten, Schlüssel, Vercel-Dashboard), 🤖 = Claude (Code,
 
 ## Reihenfolge danach (Vorschlag)
 
-1. Sync (oben), komplett bis Schritt 8.
+1. Sync (oben), komplett bis Schritt 8. **Backfill Redis → Supabase am 2026-11-02 gelaufen:** 26 Snapshots, 23 Scopes, 40 Pubkeys, 0 Grants, 33.102 Anker-Einträge in Redis = 8.001 eindeutige IDs in Supabase (Redis führt IDs teils mehrfach). `--check` Exit 0. Dafür zwei Skriptfixes: `p_max_user` für `sync_append_anchors_v2` (sonst HTTP 404) und Check nach eindeutigen IDs.
 2. ~~Rate-Limits + Fehlerzähler (`whop-token`, `whop-access`, `client-error`)~~ ✅ Code fertig, schaltet mit `STORAGE_BACKEND` um. Beim Umschalten meldet die erste Tagesmail evtl. bekannte Fehler als neu (Supabase kennt sie noch nicht), harmlos.
 3. ~~`api/health.js` prüft Supabase~~ ✅ (Redis weiter Pflicht, solange Upstash läuft).
 4. ~~Whop-Refresh-Sitzungen (`whop-token`, `whop-refresh`)~~ ✅ Code fertig (2026-10-08), schaltet mit `STORAGE_BACKEND` um, spiegelt mit `STORAGE_MIRROR`, Entscheidungen W1–W6 umgesetzt. Offen: `WHOP_SESSION_KEY` setzen (👤), dann Ablauf im nächsten Abschnitt.
-5. Storage: Code fertig (`747dcfd`, Budget/Sperre `ceb8d6a`), CSP fertig (`fb44856`), Fix B1 für `sb:`-Referenzen in `api/sync.js` gemergt (PR #17). Offen: Upload-Grenze, Backfill der Blob-Dateien, Umschalten.
+5. Storage: Code fertig (`747dcfd`, Budget/Sperre `ceb8d6a`), CSP fertig (`fb44856`), Fix B1 für `sb:`-Referenzen in `api/sync.js` gemergt (PR #17). **Backfill Blob → Supabase Storage am 2026-11-02 gelaufen:** 245 von 245 Objekten kopiert, je Datei SHA-256 geprüft, `--check` Exit 0. Offen: Upload-Grenze, Umschalten (`BLOB_BACKEND`).
 6. `_alert.js`: zweites Alarmziel neu wählen (Supabase-Tabelle?).
 7. Upstash abschalten, `@vercel/blob` entfernen, Rechtstexte final. Dabei Alarm `whop-refresh`/`redis-fehlt` umbenennen + Make-Filter anpassen (W3).
 

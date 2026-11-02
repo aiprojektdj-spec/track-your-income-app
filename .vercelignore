@@ -19,3 +19,4 @@ output/
 .playwright-cli/
 # Den lokalen Export nicht als statisches Unterverzeichnis ausliefern.
 deploy/
+admin/

@@ -1,0 +1,21 @@
+// Stackr Admin — Router (#members, #member/<id>, #audit) und Start
+(function () {
+    'use strict';
+    var A = window.Admin, $ = A.$;
+    var SECTIONS = { members: 'view-members', member: 'view-member', audit: 'view-audit' };
+
+    A.route = function () {
+        if (!A.me) return;
+        var parts = (location.hash || '#members').slice(1).split('/');
+        var name = SECTIONS[parts[0]] ? parts[0] : 'members';
+        Object.keys(SECTIONS).forEach(function (k) { $(SECTIONS[k]).hidden = k !== name; });
+        document.querySelectorAll('[data-nav]').forEach(function (a) {
+            var on = a.getAttribute('data-nav') === (name === 'member' ? 'members' : name);
+            a.classList.toggle('active', on);
+        });
+        if (A.views[name]) A.views[name].show(parts.slice(1).join('/'));
+    };
+
+    window.addEventListener('hashchange', A.route);
+    A.start();
+})();

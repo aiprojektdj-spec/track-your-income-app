@@ -25,6 +25,11 @@ async function logAction(req, admin, entry) {
     });
 }
 
+// Kontext fuer schreibende SQL-Funktionen, die den Audit-Eintrag selbst (atomar) anlegen
+function ctx(req, admin) {
+    return { admin: admin.email, ip: clientIp(req), ua: String((req.headers && req.headers['user-agent']) || '').slice(0, 300) };
+}
+
 function nz(v) { return v ? String(v) : null; }
 
 function iso(v) {
@@ -46,4 +51,4 @@ async function search(f) {
     });
 }
 
-module.exports = { logAction: logAction, search: search, clientIp: clientIp };
+module.exports = { logAction: logAction, search: search, clientIp: clientIp, ctx: ctx };

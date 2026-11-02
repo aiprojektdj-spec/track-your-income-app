@@ -79,4 +79,22 @@ function sendError(res, err) {
     res.end(JSON.stringify({ error: status === 500 ? 'serverfehler' : err.code }));
 }
 
-module.exports = { requireAdmin: requireAdmin, sendError: sendError, IDLE_SECS: IDLE_SECS };
+function sendJson(res, body, status) {
+    res.statusCode = status || 200;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.end(JSON.stringify(body));
+}
+
+// Nur die erlaubten Methoden durchlassen; sonst 405 und false
+function methodOnly(req, res, methods) {
+    if (methods.indexOf(req.method) !== -1) return true;
+    res.statusCode = 405;
+    res.setHeader('Allow', methods.join(', '));
+    res.end();
+    return false;
+}
+
+module.exports = {
+    requireAdmin: requireAdmin, sendError: sendError, sendJson: sendJson, methodOnly: methodOnly, IDLE_SECS: IDLE_SECS
+};

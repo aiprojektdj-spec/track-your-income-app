@@ -1,9 +1,12 @@
-// Stackr Admin — Login (Google + TOTP) und Audit-Ansicht. Kein Framework, kein Build.
+// Stackr Admin — Kern: Sitzung, Login (Google + TOTP), API-Aufrufe, Hilfsfunktionen.
+// Ansichten haengen sich an window.Admin.views[name] = { show(param) } (js/audit.js, js/members.js);
+// js/boot.js startet Router und Anmeldung.
 (function () {
     'use strict';
     var CFG = window.ADMIN_CONFIG;
     var KEY = 'stackr_admin_session';
     var $ = function (id) { return document.getElementById(id); };
+    var Admin = window.Admin = { views: {}, me: null, $: $ };
 
     // ── Sitzung (sessionStorage: nur dieser Tab, weg beim Schliessen) ──────────────
     function loadSession() {
@@ -14,12 +17,26 @@
     }
     function clearSession() { try { sessionStorage.removeItem(KEY); } catch (e) {} }
 
-    function toast(msg) {
+    Admin.toast = function (msg) {
         var t = $('toast');
         t.textContent = msg;
         t.classList.add('on');
         setTimeout(function () { t.classList.remove('on'); }, 3500);
-    }
+    };
+
+    // ── Kleine DOM-Helfer (nur textContent, nie innerHTML) ─────────────────────────
+    Admin.el = function (tag, attrs, kids) {
+        var n = document.createElement(tag);
+        Object.keys(attrs || {}).forEach(function (k) {
+            if (k === 'text') n.textContent = attrs[k];
+            else if (k === 'class') n.className = attrs[k];
+            else n.setAttribute(k, attrs[k]);
+        });
+        (kids || []).forEach(function (c) { n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+        return n;
+    };
+    Admin.fmt = function (v) { return v ? new Date(v).toLocaleString('de-DE') : '–'; };
+    Admin.fmtDay = function (v) { return v ? new Date(v).toLocaleDateString('de-DE') : '–'; };
 
     // ── Supabase Auth (REST) ───────────────────────────────────────────────────────
     function sb(path, opts) {
@@ -48,15 +65,22 @@
         return true;
     }
 
-    // ── Admin-API ──────────────────────────────────────────────────────────────────
-    async function api(path, retried) {
+    // ── Admin-API: Admin.api('/api/x?..') oder Admin.api('/api/x', { body: {...} }) ──
+    Admin.api = async function api(path, opts, retried) {
+        opts = opts || {};
         var s = loadSession();
-        var r = await fetch(path, { headers: { Authorization: 'Bearer ' + (s ? s.access_token : '') } });
+        var h = { Authorization: 'Bearer ' + (s ? s.access_token : '') };
+        if (opts.body) h['Content-Type'] = 'application/json';
+        var r = await fetch(path, { method: opts.method || (opts.body ? 'POST' : 'GET'), headers: h,
+                                    body: opts.body ? JSON.stringify(opts.body) : undefined });
         var body = await r.json().catch(function () { return {}; });
-        if (r.status === 401 && body.error === 'token_ungueltig' && !retried && await refresh()) return api(path, true);
-        if (!r.ok) { var e = new Error(body.error || 'fehler'); e.status = r.status; throw e; }
+        if (r.status === 401 && body.error === 'token_ungueltig' && !retried && await refresh()) return api(path, opts, true);
+        if (!r.ok) {
+            if (r.status === 401) Admin.logout('Sitzung abgelaufen, bitte neu anmelden.');
+            var e = new Error(body.error || 'fehler'); e.status = r.status; throw e;
+        }
         return body;
-    }
+    };
 
     // ── Ansichten ──────────────────────────────────────────────────────────────────
     function showLogin(msg) {
@@ -72,8 +96,8 @@
             encodeURIComponent(location.origin + location.pathname);
     });
 
-    function logout(msg) { clearSession(); showLogin(msg); }
-    $('btn-logout').addEventListener('click', function () { logout('Abgemeldet.'); });
+    Admin.logout = function (msg) { clearSession(); Admin.me = null; showLogin(msg); };
+    $('btn-logout').addEventListener('click', function () { Admin.logout('Abgemeldet.'); });
 
     // ── MFA (TOTP) ─────────────────────────────────────────────────────────────────
     async function startMfa() {
@@ -83,7 +107,7 @@
         $('mfa').hidden = false;
         $('login-msg').textContent = '';
         var ur = await sb('/user');
-        if (!ur.ok) return logout('Anmeldung abgelaufen.');
+        if (!ur.ok) return Admin.logout('Anmeldung abgelaufen.');
         var user = await ur.json();
         var f = (user.factors || []).filter(function (x) { return x.factor_type === 'totp' && x.status === 'verified'; })[0];
         var factorId;
@@ -94,7 +118,7 @@
             $('mfa-secret').textContent = '';
         } else {
             var er = await sb('/factors', { method: 'POST', body: { factor_type: 'totp', friendly_name: 'Stackr Admin ' + Date.now() } });
-            if (!er.ok) return logout('2FA konnte nicht eingerichtet werden.');
+            if (!er.ok) return Admin.logout('2FA konnte nicht eingerichtet werden.');
             var en = await er.json();
             factorId = en.id;
             $('mfa-hint').textContent = 'Erstanmeldung: QR-Code scannen, dann den Code eingeben.';
@@ -105,81 +129,33 @@
         $('btn-mfa').onclick = async function () {
             var code = $('mfa-code').value.replace(/\s+/g, '');
             var cr = await sb('/factors/' + factorId + '/challenge', { method: 'POST' });
-            if (!cr.ok) return toast('Challenge fehlgeschlagen.');
+            if (!cr.ok) return Admin.toast('Challenge fehlgeschlagen.');
             var ch = await cr.json();
             var vr = await sb('/factors/' + factorId + '/verify', { method: 'POST', body: { challenge_id: ch.id, code: code } });
-            if (!vr.ok) return toast('Code falsch.');
+            if (!vr.ok) return Admin.toast('Code falsch.');
             saveSession(await vr.json());
             $('mfa-code').value = '';
-            init();
+            Admin.start();
         };
     }
 
-    // ── Audit-Log ──────────────────────────────────────────────────────────────────
-    var lastId = null;
-
-    function cell(tr, text) { var td = document.createElement('td'); td.textContent = text; tr.appendChild(td); return td; }
-
-    function renderRows(rows, append) {
-        var tb = $('audit-rows');
-        if (!append) tb.textContent = '';
-        rows.forEach(function (r) {
-            var tr = document.createElement('tr');
-            cell(tr, new Date(r.ts).toLocaleString('de-DE'));
-            cell(tr, r.admin_email);
-            cell(tr, r.action);
-            cell(tr, r.target_type ? r.target_type + ' ' + r.target_id : '');
-            var td = cell(tr, '');
-            if (r.before != null || r.after != null) {
-                var pre = document.createElement('pre');
-                pre.textContent = JSON.stringify({ vorher: r.before, nachher: r.after }, null, 1);
-                td.appendChild(pre);
-            }
-            cell(tr, r.ip);
-            tb.appendChild(tr);
-        });
-        $('audit-empty').hidden = tb.children.length > 0;
-        $('audit-more').hidden = rows.length < 50;
-        if (rows.length) lastId = rows[rows.length - 1].id;
-    }
-
-    async function loadAudit(append) {
-        var p = new URLSearchParams();
-        new FormData($('audit-filter')).forEach(function (v, k) {
-            if (!v) return;
-            // "Bis" gilt inklusive: bis zum Beginn des Folgetags
-            if (k === 'to') { var d = new Date(v); d.setDate(d.getDate() + 1); v = d.toISOString(); }
-            if (k === 'from') v = new Date(v).toISOString();
-            p.set(k, v);
-        });
-        if (append && lastId) p.set('beforeId', lastId);
-        try {
-            renderRows((await api('/api/audit?' + p)).rows, append);
-        } catch (e) {
-            if (e.status === 401) return logout('Sitzung abgelaufen, bitte neu anmelden.');
-            toast('Audit-Log konnte nicht geladen werden.');
-        }
-    }
-
-    $('audit-filter').addEventListener('submit', function (ev) { ev.preventDefault(); lastId = null; loadAudit(false); });
-    $('audit-more').addEventListener('click', function () { loadAudit(true); });
-
-    // ── Start ──────────────────────────────────────────────────────────────────────
-    async function init() {
+    // ── Start: prueft Anmeldung, zeigt dann die App (Router in boot.js) ────────────
+    Admin.start = async function () {
         sessionFromHash();
         if (!loadSession()) return showLogin();
         try {
-            var me = await api('/api/me');
+            Admin.me = await Admin.api('/api/me');
             $('login').hidden = true;
             $('app').hidden = false;
-            $('who').textContent = me.email;
-            loadAudit(false);
+            $('who').textContent = Admin.me.email;
+            Admin.route();
         } catch (e) {
             if (e.message === 'mfa_fehlt') return startMfa();
-            if (e.status === 403) return logout('Kein Zugriff fuer dieses Konto.');
-            if (e.status === 503) return logout('Server nicht konfiguriert.');
-            logout(e.status === 401 ? 'Bitte neu anmelden.' : 'Fehler beim Laden.');
+            if (e.status === 403) return Admin.logout('Kein Zugriff fuer dieses Konto.');
+            if (e.status === 503) return Admin.logout('Server nicht konfiguriert.');
+            Admin.logout(e.status === 401 ? 'Bitte neu anmelden.' : 'Fehler beim Laden.');
         }
-    }
-    init();
+    };
+
+    Admin.can = function (perm) { return !!(Admin.me && Admin.me.permissions.indexOf(perm) !== -1); };
 })();

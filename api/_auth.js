@@ -19,6 +19,7 @@
 var crypto = require('crypto');
 var db     = require('./_db.js');
 var _log   = require('./_log.js');
+var gesperrt = require('./_gesperrt.js');
 
 var TTL_S = 300;
 
@@ -96,7 +97,10 @@ async function pruefe(req) {
 
     try {
         var c = await db.rpc('sync_auth_cache_get', { p_hash: hash });
-        if (c && c.user_id && c.pro === true) return { ok: true, userId: c.user_id, pro: true, ausCache: true };
+        if (c && c.user_id && c.pro === true) {
+            if (await gesperrt.istGesperrt(c.user_id)) return { ok: false, status: 403, error: 'account_suspended' };
+            return { ok: true, userId: c.user_id, pro: true, ausCache: true };
+        }
     } catch (e) {
         _log.logError('auth', 'AUTH_CACHE_GET_FAILED', e);
     }
@@ -115,6 +119,8 @@ async function pruefe(req) {
         _log.logError('auth', 'WHOP_USERINFO_FAILED', e);
         return { ok: false, status: 502, error: 'whop_unreachable' };
     }
+
+    if (await gesperrt.istGesperrt(userId)) return { ok: false, status: 403, error: 'account_suspended' };
 
     var pro = isOwnerIdentity(userId, prefUsername);
     if (!pro) {

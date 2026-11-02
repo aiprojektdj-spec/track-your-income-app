@@ -24,7 +24,7 @@
         setTimeout(function () { t.classList.remove('on'); }, 3500);
     };
 
-    // ── Kleine DOM-Helfer (nur textContent, nie innerHTML) ─────────────────────────
+    // ── Kleine DOM-Helfer (nur Textknoten, nie HTML-Strings) ─────────────────────────
     Admin.el = function (tag, attrs, kids) {
         var n = document.createElement(tag);
         Object.keys(attrs || {}).forEach(function (k) {

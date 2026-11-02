@@ -47,3 +47,11 @@ dialog::backdrop { background:rgba(0,0,0,.5); }
 #search-results button:hover, #search-results button:focus { background:var(--bg); }
 #search-hint, .none { font-size:12px; opacity:.7; } .row { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
 #confirm-form label { display:flex; flex-direction:column; gap:4px; margin-top:10px; }
+.kpis { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:10px; margin:12px 0; }
+.kpi { border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:var(--card); }
+.kpi small { display:block; opacity:.7; } .kpi strong { font-size:20px; } .kpi .d { font-size:12px; opacity:.8; }
+.kpi .up { color:var(--accent); } .kpi .down { color:var(--bad); }
+.chart { overflow-x:auto; } .chart svg { max-width:100%; height:auto; background:var(--card); border:1px solid var(--line); border-radius:8px; }
+.chart text { fill:var(--fg); font-size:10px; }
+.note { font-size:12px; opacity:.75; }
+#flag-form { display:flex; flex-direction:column; gap:8px; max-width:560px; }

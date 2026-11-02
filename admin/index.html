@@ -26,14 +26,66 @@
     <header>
         <strong>Stackr Admin</strong>
         <nav>
+            <a href="#dashboard" data-nav="dashboard">Dashboard</a>
             <a href="#members" data-nav="members">Mitglieder</a>
             <a href="#dunning" data-nav="dunning">Mahnwesen</a>
+            <a href="#flags" data-nav="flags">Feature-Flags</a>
             <a href="#audit" data-nav="audit">Audit-Log</a>
         </nav>
         <button id="btn-search" type="button" class="ghost">Suchen <kbd>Strg K</kbd></button>
         <span id="who"></span>
         <button id="btn-logout" type="button">Abmelden</button>
     </header>
+
+    <section id="view-dashboard" hidden>
+        <h2>Dashboard</h2>
+        <form id="dash-filter">
+            <label>Von <input name="from" type="date" required></label>
+            <label>Bis <input name="to" type="date" required></label>
+            <button type="submit">Anzeigen</button>
+            <button type="button" id="btn-metrics" class="ghost">Kennzahlen jetzt berechnen</button>
+            <span id="dash-stand"></span>
+        </form>
+        <p id="dash-warn" class="box" hidden></p>
+        <div id="kpis" class="kpis"></div>
+        <h3>MRR-Bewegung pro Tag</h3>
+        <div id="chart-mrr" class="chart"></div>
+        <h3>Anmeldungen pro Tag</h3>
+        <div id="chart-signups" class="chart"></div>
+        <h3>Kohorten (nach Anmeldemonat, heute noch aktiv)</h3>
+        <table><thead><tr><th>Monat</th><th>Angemeldet</th><th>Heute aktiv</th><th>Anteil</th></tr></thead><tbody id="cohorts"></tbody></table>
+        <h3>Monatsbetrag je Whop-Plan</h3>
+        <p class="note">Whop liefert keinen Preis. Trage je Plan-ID den Betrag pro Monat ein (Jahresplan: Jahresbetrag geteilt durch 12). Daraus entsteht der MRR.</p>
+        <table><thead><tr><th>Plan-ID</th><th>Bezeichnung</th><th>EUR pro Monat</th><th></th></tr></thead><tbody id="plans"></tbody></table>
+        <form id="plan-form" class="inline">
+            <input name="plan_id" placeholder="plan_..." aria-label="Plan-ID" required>
+            <input name="label" placeholder="Bezeichnung" aria-label="Bezeichnung">
+            <input name="eur" placeholder="15,00" inputmode="decimal" aria-label="Euro pro Monat" required>
+            <button type="submit">Speichern</button>
+        </form>
+    </section>
+
+    <section id="view-flags" hidden>
+        <h2>Feature-Flags</h2>
+        <table>
+            <thead><tr><th>Key</th><th>Status</th><th>Regeln</th><th>Notaus</th><th></th></tr></thead>
+            <tbody id="flags-rows"></tbody>
+        </table>
+        <p id="flags-empty" hidden>Noch keine Flags.</p>
+        <form id="flag-form" class="box">
+            <h3 id="flag-form-title">Flag anlegen</h3>
+            <label>Key (klein, a-z 0-9 . _ -) <input name="key" required maxlength="63" pattern="[a-z0-9][a-z0-9._\-]{1,62}"></label>
+            <label>Beschreibung <input name="description" maxlength="300"></label>
+            <label>Status
+                <select name="status"><option value="off">aus (alle)</option><option value="rules">nach Regeln</option><option value="on">an (alle)</option></select>
+            </label>
+            <label>Prozent-Rollout (nur bei "nach Regeln") <input name="percent" type="number" min="0" max="100" value="0"></label>
+            <label>Nutzer-IDs (Leerzeichen/Komma) <textarea name="user_ids" rows="2"></textarea></label>
+            <label>Konto-IDs <textarea name="account_ids" rows="2"></textarea></label>
+            <label>Plan-IDs <textarea name="plan_ids" rows="2"></textarea></label>
+            <div class="row"><button type="submit">Speichern</button></div>
+        </form>
+    </section>
 
     <section id="view-members" hidden>
         <h2>Mitglieder</h2>
@@ -168,6 +220,8 @@
 <script src="js/audit.js"></script>
 <script src="js/members.js"></script>
 <script src="js/billing.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/flags.js"></script>
 <script src="js/boot.js"></script>
 </body>
 </html>

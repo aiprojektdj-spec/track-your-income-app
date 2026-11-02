@@ -2,12 +2,12 @@
 (function () {
     'use strict';
     var A = window.Admin, $ = A.$;
-    var SECTIONS = { members: 'view-members', member: 'view-member', dunning: 'view-dunning', audit: 'view-audit' };
+    var SECTIONS = { dashboard: 'view-dashboard', flags: 'view-flags', members: 'view-members', member: 'view-member', dunning: 'view-dunning', audit: 'view-audit' };
 
     A.route = function () {
         if (!A.me) return;
-        var parts = (location.hash || '#members').slice(1).split('/');
-        var name = SECTIONS[parts[0]] ? parts[0] : 'members';
+        var parts = (location.hash || '#dashboard').slice(1).split('/');
+        var name = SECTIONS[parts[0]] ? parts[0] : 'dashboard';
         Object.keys(SECTIONS).forEach(function (k) { $(SECTIONS[k]).hidden = k !== name; });
         document.querySelectorAll('[data-nav]').forEach(function (a) {
             var on = a.getAttribute('data-nav') === (name === 'member' ? 'members' : name);

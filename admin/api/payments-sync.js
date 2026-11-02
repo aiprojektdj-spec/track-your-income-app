@@ -26,7 +26,10 @@ module.exports = async function handler(req, res) {
                 p_rows: rows.slice(i, i + CHUNK), p_ctx: c, p_audit: i + CHUNK >= rows.length
             }, 30000);
         }
-        auth.sendJson(res, { ok: true, zahlungen: rows.length });
+        var metriken = true;
+        try { await db.rpc('sync_admin_metrics_compute', { p_ctx: c, p_audit: false }, 30000); }
+        catch (e2) { metriken = false; }   // Abgleich war erfolgreich; Kennzahlen lassen sich per Knopf nachholen
+        auth.sendJson(res, { ok: true, zahlungen: rows.length, metriken: metriken });
     } catch (err) {
         auth.sendError(res, err);
     }

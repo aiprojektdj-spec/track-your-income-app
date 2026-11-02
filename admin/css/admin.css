@@ -55,3 +55,5 @@ dialog::backdrop { background:rgba(0,0,0,.5); }
 .chart text { fill:var(--fg); font-size:10px; }
 .note { font-size:12px; opacity:.75; }
 #flag-form { display:flex; flex-direction:column; gap:8px; max-width:560px; }
+progress { width:100%; } .box summary { cursor:pointer; font-weight:600; }
+#bulk-errors { color:var(--bad); }

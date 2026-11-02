@@ -30,6 +30,7 @@
             <a href="#members" data-nav="members">Mitglieder</a>
             <a href="#dunning" data-nav="dunning">Mahnwesen</a>
             <a href="#flags" data-nav="flags">Feature-Flags</a>
+            <a href="#betrieb" data-nav="betrieb">Betrieb</a>
             <a href="#audit" data-nav="audit">Audit-Log</a>
         </nav>
         <button id="btn-search" type="button" class="ghost">Suchen <kbd>Strg K</kbd></button>
@@ -104,7 +105,27 @@
             </label>
             <button type="submit">Filtern</button>
             <button type="button" id="btn-whop-sync" class="ghost">Mit Whop abgleichen</button>
+            <button type="button" id="btn-export-members" class="ghost">CSV exportieren</button>
+            <label id="export-reveal-wrap" hidden><input type="checkbox" id="export-reveal"> E-Mail im Klartext (wird protokolliert)</label>
         </form>
+        <details id="bulk" class="box" hidden>
+            <summary>Bulk-Aktion auf alle gefilterten Mitglieder</summary>
+            <p class="note">Wirkt auf ALLE Mitglieder, die zu den Filtern oben passen (max. 500), nicht nur auf die sichtbare Seite. Erst Trockenlauf, dann bestaetigen.</p>
+            <form id="bulk-form" class="inline">
+                <select name="op" aria-label="Aktion"><option value="tag.add">Tag setzen</option><option value="suspend">Sperren</option></select>
+                <input name="param" placeholder="Tag oder Sperrgrund" maxlength="300" aria-label="Tag oder Sperrgrund" required>
+                <button type="submit">Trockenlauf</button>
+            </form>
+            <div id="bulk-preview" hidden>
+                <p id="bulk-count"></p>
+                <ul id="bulk-sample"></ul>
+                <label>Zur Bestaetigung tippen: <code id="bulk-expect"></code> <input id="bulk-confirm" autocomplete="off"></label>
+                <button type="button" id="bulk-run" class="danger" disabled>Ausfuehren</button>
+                <progress id="bulk-progress" max="100" value="0" hidden></progress>
+                <p id="bulk-result"></p>
+                <ul id="bulk-errors"></ul>
+            </div>
+        </details>
         <table>
             <thead><tr>
                 <th><button class="th" data-sort="name" type="button">Name</button></th>
@@ -162,7 +183,8 @@
 
     <section id="view-dunning" hidden>
         <h2>Mahnwesen</h2>
-        <p><button id="btn-pay-sync" type="button">Zahlungen mit Whop abgleichen</button> <span id="dun-stand"></span></p>
+        <p><button id="btn-pay-sync" type="button">Zahlungen mit Whop abgleichen</button>
+           <button id="btn-export-payments" type="button" class="ghost">Zahlungen als CSV (30 Tage)</button> <span id="dun-stand"></span></p>
         <h3>Ueberfaellige Abos</h3>
         <table>
             <thead><tr><th>Mitglied</th><th>E-Mail</th><th>Letzte Zahlung</th></tr></thead>
@@ -177,6 +199,22 @@
         <p id="dun-failed-empty" hidden>Keine fehlgeschlagenen Zahlungen.</p>
     </section>
 
+    <section id="view-betrieb" hidden>
+        <h2>Betrieb</h2>
+        <div id="betrieb-kpis" class="kpis"></div>
+        <h3>Missbrauchs-Warteschlange</h3>
+        <p><button type="button" id="btn-abuse-scan">Jetzt pruefen</button>
+           <span class="note">Meldet 5+ Anmeldungen derselben Firmen-Domain in 24 h und 3+ fehlgeschlagene Zahlungen eines Mitglieds in 30 Tagen. Login-Orte und IP-Haeufung gibt es nicht (nicht erfasst).</span></p>
+        <table><thead><tr><th>Art</th><th>Betrifft</th><th>Details</th><th>Seit</th><th></th></tr></thead><tbody id="abuse-rows"></tbody></table>
+        <p id="abuse-empty" hidden>Keine offenen Meldungen.</p>
+        <h3>Betriebs-Alarme (letzte 50)</h3>
+        <table><thead><tr><th>Zeit</th><th>Quelle</th><th>Ereignis</th><th>Detail</th></tr></thead><tbody id="alarm-rows"></tbody></table>
+        <p id="alarm-empty" hidden>Keine Alarme.</p>
+        <h3>Client-Fehler (7 Tage, haeufigste)</h3>
+        <table><thead><tr><th>Anzahl</th><th>Eintrag</th></tr></thead><tbody id="clerr-rows"></tbody></table>
+        <p id="clerr-empty" hidden>Keine Client-Fehler.</p>
+    </section>
+
     <section id="view-audit" hidden>
         <h2>Audit-Log</h2>
         <form id="audit-filter">
@@ -186,6 +224,7 @@
             <label>Von <input name="from" type="date"></label>
             <label>Bis <input name="to" type="date"></label>
             <button type="submit">Suchen</button>
+            <button type="button" id="btn-export-audit" class="ghost">CSV exportieren</button>
         </form>
         <table>
             <thead><tr><th>Zeit</th><th>Admin</th><th>Aktion</th><th>Ziel</th><th>Aenderung</th><th>IP</th></tr></thead>
@@ -222,6 +261,8 @@
 <script src="js/billing.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/flags.js"></script>
+<script src="js/bulk.js"></script>
+<script src="js/betrieb.js"></script>
 <script src="js/boot.js"></script>
 </body>
 </html>

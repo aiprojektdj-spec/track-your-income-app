@@ -93,6 +93,7 @@
         var okReason = $('confirm-reason-wrap').hidden || $('confirm-reason').value.trim().length >= 3;
         $('confirm-ok').disabled = !(okReason && $('confirm-input').value.trim() === $('confirm-expect').textContent);
     }
+    A.askConfirm = askConfirm;
     $('confirm-input').addEventListener('input', confirmReady);
     $('confirm-reason').addEventListener('input', confirmReady);
     $('confirm-cancel').addEventListener('click', function () { $('confirm-dialog').close(); });

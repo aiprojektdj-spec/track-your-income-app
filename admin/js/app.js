@@ -157,5 +157,22 @@
         }
     };
 
+    // Datei laden (Authorization-Header geht nur per fetch) und als Download speichern
+    Admin.download = async function (path, fallbackName) {
+        var s = loadSession();
+        var r = await fetch(path, { headers: { Authorization: 'Bearer ' + (s ? s.access_token : '') } });
+        if (!r.ok) {
+            var b = await r.json().catch(function () { return {}; });
+            if (r.status === 401) Admin.logout('Sitzung abgelaufen, bitte neu anmelden.');
+            var e = new Error(b.error || 'fehler'); e.status = r.status; throw e;
+        }
+        var m = /filename="([^"]+)"/.exec(r.headers.get('Content-Disposition') || '');
+        var url = URL.createObjectURL(await r.blob());
+        var a = document.createElement('a');
+        a.href = url; a.download = m ? m[1] : fallbackName;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    };
+
     Admin.can = function (perm) { return !!(Admin.me && Admin.me.permissions.indexOf(perm) !== -1); };
 })();

@@ -16,13 +16,13 @@ Spalte „Test“ nennt vorhandene Harnesses; `TODO(confirm)` = Zuordnung ungepr
 
 | ID | Invariante | Erzwungen durch | Test |
 | --- | --- | --- | --- |
-| INV-1 | Festgeschriebene Buchungen werden nie geändert oder gelöscht, nur storniert (GoBD) `TODO(confirm)` | Store-Prüfung in `js/store.js` | `test-store-gobd-fixes.js`, `test-sync-gobd-merge.js` |
-| INV-2 | Ein Nutzer sieht nie Daten eines anderen Nutzers (Mandantentrennung) `TODO(confirm)` | Supabase RLS + serverseitige Nutzer-ID in `api/` | `test-migration-rechte.js`, `test-server-store.js` |
+| INV-1 | Festgeschriebene Buchungen werden nie geändert oder gelöscht, nur storniert (GoBD) | Client: `canEdit`/Periodensperre in `js/store.js` (geprüft 2026-11-02); Server-Seite `TODO(confirm)` | `test-store-gobd-fixes.js`, `test-sync-gobd-merge.js` |
+| INV-2 | Ein Nutzer sieht nie Daten eines anderen Nutzers (Mandantentrennung) | RLS an, **ohne Policy** (Sync-Tabellen): Zugriff nur über `api/` mit Service-Key und Nutzer-ID aus dem Token (geprüft 2026-11-02); neuere Server-Tabellen `TODO(confirm)` | `test-migration-rechte.js`, `test-server-store.js` |
 | INV-3 | Cloud-Sync speichert nur Chiffrat, solange Local-First gilt; Klartext erst nach dem Umzug `TODO(confirm)` | Client-Verschlüsselung, `api/sync.js` | `test-cloud-sync.js`, `test-api-sync.js` |
 | INV-4 | Ohne gültigen Whop-Zugang kein Zugriff auf `api/*`-Daten; Steuerberater-Zugang ist read-only `TODO(confirm)` | `api/_auth.js`, `api/whop-access.js` | `test-whop-access.js`, `test-stb-readonly-sperre.js` |
 | INV-5 | Steuer-Gesetzeswerte kommen aus Jahresfunktionen, nie aus jahresfesten Konstanten | Konvention (CLAUDE.md Regel 7) | `test-steuerregeln-jahr.js`, `test-ksa-jahresabhaengig.js` |
 | INV-6 | Rechnungen enthalten alle Pflichtangaben nach §14 UStG; Kleinunternehmer-Konten/-Hinweise korrekt `TODO(confirm)` | Rechnungs-Validierung | `test-rechnung-pflichtangaben-audit.js`, `test-xrechnung-regeln.js` |
-| INV-7 | Nach Vertragsende werden Serverdaten nach 30 Tagen gelöscht (entschieden 2026-10-26, **noch nicht gebaut**) | offen | `test-loeschung.js` (Teilabdeckung) `TODO(confirm)` |
+| INV-7 | Nach Vertragsende werden Serverdaten nach 30 Tagen gelöscht (entschieden 2026-10-26, **noch nicht gebaut**, bestätigt vom User 2026-11-02) | offen | `test-loeschung.js` deckt nur Teile ab |
 
 ## Verträge
 
@@ -51,3 +51,4 @@ Betrieb (Deploy, Backup, Alarmkette): `docs/OPERATIONS.md` (derzeit noch ungetra
 | Logik-Tests laufen bei jedem Push auf `master` und jedem PR | gemessen | `.github/workflows/tests.yml` |
 | Rechtstexte freigegeben | geplant | Anwalt-Freigabe offen |
 | Upstash-Redis-Backup | ungeprüft | `docs/OPERATIONS.md`, Abschnitt Backup |
+| Supabase-Backup / PITR (Pro) | ungeprüft (User weiß es nicht, 2026-11-02) | im Supabase-Dashboard nachsehen |

@@ -24,7 +24,7 @@
 
 | Pfad | Kontrolle | Getestet durch |
 | --- | --- | --- |
-| Nutzer A liest Daten von Nutzer B | RLS in Supabase, Nutzer-ID serverseitig aus Token | `test-migration-rechte.js`, `test-server-store.js` |
+| Nutzer A liest Daten von Nutzer B | RLS an ohne Policy (kein Direktzugriff), Zugriff nur über `api/` mit Nutzer-ID aus dem Token | `test-migration-rechte.js`, `test-server-store.js` |
 | Zugriff ohne Abo / mit widerrufenem Token | Whop-Prüfung, signiertes Grace-Token | `test-whop-access.js`, `test-whop-refresh-widerruf.js` |
 | Rate-Limit-Umgehung auf `api/*` | Redis-Rate-Limit; Fehlen alarmiert | `test-rate-limit-backend.js`, `test-api-grenzen.js` |
 | XSS / Script-Injection | CSP pro Route in `vercel.json`, `script-src 'self'` | `test-csp-*.js` |
@@ -38,10 +38,11 @@
 ## Sensible Daten
 
 - Rechtsgrundlage / Verträge: Whop-DPA und AV-Verträge offen; Anwalt-Freigabe offen
-- Aufbewahrung und Löschung: 30 Tage nach Vertragsende entschieden, nicht gebaut
+- Aufbewahrung und Löschung: 30 Tage nach Vertragsende entschieden, nicht gebaut (bestätigt 2026-11-02)
+- Backup Supabase (Pro): ungeprüft, im Dashboard nachsehen
 - Verschlüsselung: in Transit TLS (HSTS); at rest Chiffrat (Sync) bzw. Supabase-Standard `TODO(confirm)`
 - Zugriffsprotokoll: Audit-Log je Firma im Store (GoBD); Server-Zugriffslog `TODO(confirm)`
-- Meldeweg bei Datenpanne: nicht dokumentiert
+- Meldeweg bei Datenpanne: der Inhaber meldet selbst an die zuständige Aufsichtsbehörde (Art. 33 DSGVO, binnen 72 h); Kontaktdaten der Behörde `TODO(confirm)`
 
 ## Notschalter
 

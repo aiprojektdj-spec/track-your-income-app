@@ -2,7 +2,7 @@
 (function () {
     'use strict';
     var A = window.Admin, $ = A.$;
-    var SECTIONS = { members: 'view-members', member: 'view-member', audit: 'view-audit' };
+    var SECTIONS = { members: 'view-members', member: 'view-member', dunning: 'view-dunning', audit: 'view-audit' };
 
     A.route = function () {
         if (!A.me) return;

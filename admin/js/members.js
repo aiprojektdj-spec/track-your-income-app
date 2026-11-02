@@ -197,6 +197,7 @@
         fact(bb, 'Plan-ID', m.plan_id || '–');
         fact(bb, 'Mitgliedschafts-ID', m.membership_id || '–');
 
+        if (A.loadPayments) A.loadPayments(id);
         renderNotes(d.notes);
         var rev = $('btn-reveal');
         if (rev) rev.addEventListener('click', function () { show(id, true); });

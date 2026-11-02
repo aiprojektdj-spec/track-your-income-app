@@ -22,6 +22,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # Kein Geheimnis im Repo: private Schluessel, bekannte Token-Formate, .env-Dateien
+      - name: Secret-Scan
+        run: |
+          if git ls-files | grep -E '(^|/)\.env'; then echo "::error::.env-Datei im Repo"; exit 1; fi
+          P='-----BEGIN [A-Z ]*PRIVATE KEY-----|vercel_blob_rw_[A-Za-z0-9]{10,}|AKIA[0-9A-Z]{16}|sk_live_[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|"role"[[:space:]]*:[[:space:]]*"service_role"|eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}'
+          if git grep -nIE -e "$P" -- . ':!package-lock.json' ':!js/vendor' ':!plan'; then
+            echo "::error::Moegliches Geheimnis im Repo (siehe Treffer oben)"; exit 1
+          fi
       - run: npm ci
       - name: Alle Tests
         run: |

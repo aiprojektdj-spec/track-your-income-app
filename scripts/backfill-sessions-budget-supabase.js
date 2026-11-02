@@ -12,8 +12,8 @@
 //   node scripts/backfill-sessions-budget-supabase.js --check    fehlt etwas / weicht etwas ab? Exit 1
 //
 // Env: KV_REST_API_URL/KV_REST_API_TOKEN (oder UPSTASH_REDIS_REST_*), SUPABASE_URL,
-// SUPABASE_SERVICE_ROLE_KEY und WHOP_SESSION_KEY (derselbe wie in Vercel, sonst lassen
-// sich die Sitzungen nicht verschlüsseln). Gibt nur Zähler aus, nie Schlüssel oder Inhalte.
+// SUPABASE_SERVICE_ROLE_KEY und optional WHOP_SESSION_KEY (derselbe wie in Vercel; ohne
+// ihn werden die Sitzungen übersprungen und nur die Budget-Zähler kopiert). Gibt nur Zähler aus, nie Schlüssel oder Inhalte.
 // =============================================================================
 'use strict';
 const path = require('path');
@@ -51,11 +51,12 @@ async function counterRow(key) {
 }
 
 (async () => {
-    if (!REDIS_URL || !REDIS_TOKEN || !db.isConfigured() || !sess._seal)
-        throw new Error('KV_REST_API_*, SUPABASE_* und WHOP_SESSION_KEY müssen gesetzt sein');
+    if (!REDIS_URL || !REDIS_TOKEN || !db.isConfigured()) throw new Error('KV_REST_API_* und SUPABASE_* müssen gesetzt sein');
+    // Ohne WHOP_SESSION_KEY bleiben die Sitzungen außen vor (nur Budget-Zähler).
+    if (!sess._seal) console.log('WHOP_SESSION_KEY fehlt: Sitzungen werden übersprungen');
     const n = { sitzungen: 0, sitzungenFehlen: 0, sitzungenKopiert: 0, zaehler: 0, zaehlerFehlen: 0, zaehlerKopiert: 0 };
 
-    for (const k of await scan('whoprt:*')) {
+    for (const k of sess._seal ? await scan('whoprt:*') : []) {
         if (k.indexOf('whoprt:lock:') === 0) continue;
         const sid = k.slice('whoprt:'.length);
         const raw = await redisCmd(['GET', k]); if (!raw) continue;

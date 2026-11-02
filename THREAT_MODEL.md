@@ -30,7 +30,7 @@
 | XSS / Script-Injection | CSP pro Route in `vercel.json`, `script-src 'self'` | `test-csp-*.js` |
 | Verwundbare Abhängigkeit | genau eine Prod-Abhängigkeit, `npm audit` + Signaturprüfung in CI | `tests.yml` |
 | Manipuliertes Vendor-Skript (xlsx) | lokal in `js/vendor/`, SHA-256 in `VERSIONS.md` | `test-vendor-xlsx-api.js` |
-| Geleaktes Secret im Repo | Secret-Scan in CI: **fehlt** | – |
+| Geleaktes Secret im Repo | Secret-Scan in `tests.yml` (nur bekannte Token-Formate, kein gitleaks) | CI |
 | Falsche Cron-/Alarmkonfiguration bleibt unbemerkt | `api/_alert.js`, Heartbeat (Env fehlt noch) | `test-alert-*.js` |
 | Agent committet fremde Hunks | CLAUDE.md Regeln 1–2, deny-Regeln für `git add -A` | manuell |
 | Agent führt Zerstörendes aus (`rm -rf`, Force-Push, `reset --hard`) | Hook `block-dangerous.sh`: **noch nicht aktiv** | – |

@@ -27,12 +27,33 @@
 //
 // Annahme: Ein gelöschter Einstellungsschlüssel wird nicht gespiegelt (es gibt noch keine
 // Lösch-Funktion für settings); die tägliche Prüfsumme zeigt so einen Fall als Abweichung.
+//
+// P2 „Server führt“ (R6), je Firma umschaltbar, geräteübergreifend (companies.server_fuehrt):
+//   ServerStore.serverFuehrt('co_…', true|false)  — Spiegel muss an sein
+//   - Holen: beim Start, beim Zurückkehren in den Tab und alle 60 s 'changes' ab der letzten
+//     seq; Zeilen werden in Store._cache übernommen (Listen über ord__<art> in Reihenfolge,
+//     Schlüsselreihenfolge wie lokal, damit Store._calcRecordChecksum stimmt). Datensätze mit
+//     unversendeter lokaler Änderung bleiben stehen, ihren Konflikt entscheidet das Senden.
+//   - Konflikt beim Senden: der Server-Stand gilt, er wird lokal übernommen, mit Hinweis.
+//   - Der alte Cloud-Sync ruht für die Firma (kein LWW-Merge mehr, js/cloud-sync.js).
+//   - Offline (navigator.onLine false): nur lesen — Store._isReadonlyCompany() greift, Banner.
+// Annahme: Beim Start wird aus der lokalen Kopie gezeichnet und danach geholt (wie Cloud-Sync:
+// geändert → einmal neu laden). Ein Datensatz, den ein anderes Gerät NEU angelegt hat, kommt
+// in jsonb-Schlüsselreihenfolge; die Integritätsprüfung im Protokoll kann ihn als abweichend
+// zählen, bis der Server die Prüfung übernimmt (R7).
+//
+// Große Anfragen (> 64 KB) gehen gzip-komprimiert raus (verlustfrei); was auch komprimiert
+// über 4,4 MB liegt, lehnt _api selbst mit 413 ab.
 // ============================================================================
 const ServerStore = {
     API:           '/api/data',
     LS_FIRMEN:     'stackr_server_spiegel',
     LS_ABWEICHUNG: 'stackr_server_abweichungen',
     LS_PRUEFUNG:   'stackr_server_pruefung',
+    LS_FUEHRT:     'stackr_server_fuehrt',
+    HOLEN:         60000,
+    GZIP_AB:       64 * 1024,
+    MAX_GZIP:      4.4 * 1024 * 1024,
     IDB_NAME:      'stackr_server_store',
     MAX_OPS:       200,
     MAX_BYTES:     3.5 * 1024 * 1024,
@@ -132,7 +153,8 @@ const ServerStore = {
         const z = (wert === null || wert === undefined) ? null : ServerAbbild.zerlege(name, wert);
         if (z && z.fehler) { this._abweichung(z.fehler); return; }
         const neu = !z ? null : z.art
-            ? { voll: fullKey, art: z.art, ids: z.records.reduce((o, r) => (o[r.id] = this._hash(JSON.stringify(r.data)), o), {}) }
+            ? { voll: fullKey, art: z.art, ids: z.records.reduce((o, r) => (o[r.id] = this._hash(JSON.stringify(r.data)), o), {}),
+                oh: this._hash(JSON.stringify(z.records.map((r) => r.id))) }
             : { voll: fullKey, key: z.key, h: this._hash(JSON.stringify(z.data)) };
         if (z && z.art) z.records.forEach((r) => {
             if (!alt || !alt.ids || alt.ids[r.id] !== neu.ids[r.id]) ops.push({ t: 'r', art: z.art, id: r.id, data: r.data });
@@ -140,6 +162,7 @@ const ServerStore = {
         if (alt && alt.ids) Object.keys(alt.ids).forEach((id) => {
             if (!neu || !neu.ids || !(id in neu.ids)) ops.push({ t: 'r', art: alt.art, id, geloescht: true });
         });
+        if (z && z.art && (!alt || alt.oh !== neu.oh)) ops.push({ t: 's', key: ServerAbbild.ORD + z.art, data: z.records.map((r) => r.id) });
         if (z && z.key && (!alt || alt.h !== neu.h)) ops.push({ t: 's', key: z.key, data: z.data });
         if (neu) m.basis[name] = neu; else delete m.basis[name];
     },
@@ -167,15 +190,28 @@ const ServerStore = {
                 let r;
                 try { r = await this._api({ action: 'push', company, ops }); }
                 catch (err) { return this._spaeter(); }
+                if (r.status === 413) {
+                    // auch komprimiert zu groß: melden und raus, sonst blockiert das Stück die Outbox
+                    this._abweichung('zu groß, auch komprimiert: ' + stueck.map((e) => this._opKey(e.op)).join(', '));
+                    stueck.forEach((e) => this._vergiss(m, e.op));
+                    await this._speicher.loescheOps(stueck);
+                    await this._speicher.putMeta(company, m);
+                    continue;
+                }
                 if (r.status !== 200 && r.status !== 409) {
-                    if (r.status === 413 || r.status === 400) this._abweichung('push abgelehnt: HTTP ' + r.status + ' ' + JSON.stringify(r.json || {}).slice(0, 200));
+                    if (r.status === 400) this._abweichung('push abgelehnt: HTTP ' + r.status + ' ' + JSON.stringify(r.json || {}).slice(0, 200));
                     return this._spaeter();
                 }
                 const results = (r.json && r.json.results) || [];
-                const raus = [], neu = [];
+                const raus = [], neu = [], serverStand = [], fuehrt = this.fuehrt(company);
                 stueck.forEach((e, i) => {
                     const x = results[i] || {}, ok = this._opKey(e.op);
                     if (x.status === 'ok' || x.status === 'vorhanden') { m.versionen[ok] = x.version; raus.push(e); }
+                    else if (x.status === 'konflikt' && fuehrt && x.version) {
+                        // P2: der Server-Stand gilt
+                        serverStand.push({ t: e.op.t, art: e.op.art, id: e.op.id, key: e.op.key, data: x.data, version: x.version, geloescht: false });
+                        raus.push(e);
+                    }
                     else if (x.status === 'konflikt' && e.versuche < 3) {
                         if (x.version) m.versionen[ok] = x.version; else delete m.versionen[ok];
                         neu.push(Object.assign({}, e, { versuche: e.versuche + 1 }));
@@ -190,6 +226,10 @@ const ServerStore = {
                 });
                 await this._speicher.loescheOps(raus);          // nur, wenn rev unverändert
                 await this._speicher.ersetzeOps(neu);
+                if (serverStand.length) {
+                    const k = await this._uebernehme(company, serverStand, m);
+                    if (k.length && company === Store._companyId) this._neuZeichnen(false, 'Ein anderes Gerät hat das zwischenzeitlich geändert — Server-Stand übernommen.');
+                }
                 await this._speicher.putMeta(company, m);
                 if (neu.length) this._spaeter();
             }
@@ -197,6 +237,11 @@ const ServerStore = {
     },
 
     _vergiss(m, op) {
+        if (op.t === 's' && ServerAbbild.istOrd(op.key)) {
+            const l = m.basis[op.key.slice(ServerAbbild.ORD.length)];
+            if (l) l.oh = null;
+            return;
+        }
         const b = m.basis[op.t === 's' ? op.key : op.art];
         if (!b) return;
         if (op.t === 's') b.h = null; else if (b.ids) delete b.ids[op.id];
@@ -264,10 +309,155 @@ const ServerStore = {
         let pr = {};
         try { pr = JSON.parse(localStorage.getItem(this.LS_PRUEFUNG) || '{}'); } catch (e) {}
         for (const c of firmen) {
+            try {
+                const st = await this._api({ action: 'status', company: c });
+                if (st.status === 200) this._setzeFuehrt(c, !!st.json.server_fuehrt);
+            } catch (e) {}
             await this.abgleich(c);
+            if (this.fuehrt(c)) { try { await this.hole(c, true); } catch (e) {} }
             if (!pr[c] || Date.now() - pr[c].ts > this.PRUEF_ABSTAND) { try { await this.pruefen(c); } catch (e) {} }
         }
-        if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('online', () => this.verarbeite());
+        this._banner();
+        if (typeof window !== 'undefined' && window.addEventListener) {
+            window.addEventListener('online', () => { this._banner(); this.verarbeite().then(() => this._holeAlle()); });
+            window.addEventListener('offline', () => this._banner());
+        }
+        if (typeof document !== 'undefined' && document.addEventListener) {
+            document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') this._holeAlle(); });
+        }
+        if (typeof setInterval === 'function') setInterval(() => this._holeAlle(), this.HOLEN);
+    },
+
+    // ── P2: Server führt (R6) ───────────────────────────────────────────────
+    fuehrt(company) {
+        try { const l = JSON.parse(localStorage.getItem(this.LS_FUEHRT) || '[]'); return Array.isArray(l) && l.indexOf(company) !== -1; }
+        catch (e) { return false; }
+    },
+    _setzeFuehrt(company, an) {
+        let l = [];
+        try { l = JSON.parse(localStorage.getItem(this.LS_FUEHRT) || '[]'); } catch (e) {}
+        l = (Array.isArray(l) ? l : []).filter((c) => c !== company);
+        if (an) l.push(company);
+        try { localStorage.setItem(this.LS_FUEHRT, JSON.stringify(l)); } catch (e) {}
+    },
+    async serverFuehrt(company, an) {
+        if (!this.aktiv(company)) throw new Error('Erst den Spiegel einschalten: ServerStore.spiegelEin(\'' + company + '\')');
+        await this.verarbeite();
+        const r = await this._api({ action: 'modus', company, server_fuehrt: !!an });
+        if (r.status !== 200) throw new Error('Modus umschalten: HTTP ' + r.status);
+        this._setzeFuehrt(company, !!r.json.server_fuehrt);
+        if (r.json.server_fuehrt) await this.hole(company, false);
+        this._banner();
+        return r.json;
+    },
+
+    // Offline in einer serverführenden aktiven Firma: nur lesen (Plan F2). Für Store._isReadonlyCompany.
+    nurLesen() {
+        const c = (typeof Store !== 'undefined') && Store._companyId;
+        return !!c && typeof navigator !== 'undefined' && navigator.onLine === false && this.fuehrt(c);
+    },
+    _banner() {
+        if (typeof document === 'undefined' || !document.getElementById || !document.body) return;
+        let el = document.getElementById('serverNurLesen');
+        if (!this.nurLesen()) { if (el) el.remove(); return; }
+        if (el) return;
+        el = document.createElement('div');
+        el.id = 'serverNurLesen';
+        el.setAttribute('role', 'status');
+        el.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:99999;padding:8px 14px;border-radius:8px;background:var(--bg-card,#1f2937);color:var(--warning,#f59e0b);border:1px solid var(--warning,#f59e0b);font-size:13px;';
+        el.textContent = 'Offline — nur lesen. Änderungen sind wieder möglich, sobald die Verbindung zurück ist.';
+        document.body.appendChild(el);
+    },
+
+    async _holeAlle() {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+        for (const c of this.firmen()) if (this.fuehrt(c)) { try { await this.hole(c, false); } catch (e) {} }
+    },
+
+    // Änderungen seit der letzten seq holen und übernehmen. → { geaendert: [Schlüssel] } | { fehler }
+    async hole(company, start) {
+        if (!this.fuehrt(company)) return { geaendert: [] };
+        await this.verarbeite();
+        const m = await this._ladeMeta(company);
+        const rows = [];
+        let seq = m.seq || 0;
+        for (let runde = 0; runde < 10000; runde++) {
+            const r = await this._api({ action: 'changes', company, seq, limit: 1000 });
+            if (r.status !== 200) return { fehler: r.status };
+            (r.json.rows || []).forEach((z) => rows.push(z));
+            seq = r.json.bis || seq;
+            if (!r.json.mehr) break;
+        }
+        const geaendert = await this._uebernehme(company, rows, m);
+        m.seq = Math.max(seq, m.seq || 0);
+        await this._speicher.putMeta(company, m);
+        if (geaendert.length && company === Store._companyId) this._neuZeichnen(start, 'Änderungen von einem anderen Gerät übernommen.');
+        return { geaendert };
+    },
+
+    _neuZeichnen(start, text) {
+        if (typeof window === 'undefined') return;
+        const toast = (typeof Utils !== 'undefined' && Utils.showToast) ? Utils.showToast.bind(Utils) : null;
+        if (start) {
+            if (toast) toast('Server-Stand übernommen — lade neu…', 'info', 1800);
+            setTimeout(() => location.reload(), 1300);
+            return;
+        }
+        if (toast) toast(text, 'info', 4000);
+        if (typeof App !== 'undefined' && App.navigate && App.currentPage) App.navigate(App.currentPage);
+    },
+
+    // Server-Zeilen in Store._cache übernehmen; liefert die geänderten Schlüssel.
+    // Datensätze mit unversendeter lokaler Änderung (Outbox) bleiben stehen.
+    async _uebernehme(company, rows, m) {
+        const offen = new Set((await this._speicher.alleOps()).filter((e) => e.company === company).map((e) => this._opKey(e.op)));
+        const jeArt = Object.create(null), sets = Object.create(null);
+        rows.forEach((z) => {
+            const ok = z.t === 's' ? 's/' + z.key : 'r/' + z.art + '/' + z.id;
+            if (offen.has(ok)) return;
+            if (z.version) m.versionen[ok] = z.version;
+            if (z.t === 's') sets[z.key] = z; else (jeArt[z.art] = jeArt[z.art] || []).push(z);
+        });
+        const arten = new Set(Object.keys(jeArt));
+        Object.keys(sets).forEach((k) => { if (ServerAbbild.istOrd(k)) arten.add(k.slice(ServerAbbild.ORD.length)); });
+        const neu = {};
+        arten.forEach((art) => {
+            const voll = ServerAbbild.vollerSchluessel(company, art);
+            let lokal = [];
+            if (Store._cache[voll] != null) { try { lokal = JSON.parse(Store._cache[voll]); } catch (e) { lokal = null; } }
+            const z = Array.isArray(lokal) ? ServerAbbild.zerlege(art, lokal) : null;
+            if (!z || z.fehler || !z.art) { this._abweichung('Liste nicht übernehmbar: ' + voll); return; }
+            const daten = new Map(), reihe = [];
+            z.records.forEach((r) => { daten.set(r.id, r.data); reihe.push(r.id); });
+            (jeArt[art] || []).forEach((row) => {
+                if (row.geloescht) { daten.delete(row.id); return; }
+                const alt = daten.get(row.id);
+                if (alt && ServerAbbild.kanonisch(alt) === ServerAbbild.kanonisch(row.data)) return;
+                if (!daten.has(row.id)) reihe.push(row.id);
+                daten.set(row.id, ServerAbbild.ordneWie(row.data, alt));
+            });
+            const ord = sets[ServerAbbild.ORD + art];
+            const ids = (ord && Array.isArray(ord.data)) ? ord.data.concat(reihe) : reihe;
+            const gesehen = new Set(), liste = [];
+            ids.forEach((id) => { if (daten.has(id) && !gesehen.has(id)) { gesehen.add(id); liste.push(daten.get(id)); } });
+            const str = JSON.stringify(liste);
+            if (str !== Store._cache[voll] && !(Store._cache[voll] == null && !liste.length && !ord)) neu[voll] = str;
+        });
+        Object.keys(sets).forEach((k) => {
+            if (ServerAbbild.istOrd(k)) return;
+            const voll = ServerAbbild.vollerSchluessel(company, k);
+            let lokal;
+            try { lokal = Store._cache[voll] != null ? JSON.parse(Store._cache[voll]) : undefined; } catch (e) {}
+            if (lokal !== undefined && ServerAbbild.kanonisch(lokal) === ServerAbbild.kanonisch(sets[k].data)) return;
+            neu[voll] = JSON.stringify(ServerAbbild.ordneWie(sets[k].data, lokal));
+        });
+        const keys = Object.keys(neu);
+        if (!keys.length) return keys;
+        Store.syncApplyKeys(neu);
+        // Basis sofort nachziehen, sonst schickte der Haken den Server-Stand zurück
+        const egal = [];
+        keys.forEach((k) => { const s = ServerAbbild.schluessel(k); if (s) this._diff(m, k, s.name, egal); this._dirty.delete(k); });
+        return keys;
     },
 
     // ── Hilfen ──────────────────────────────────────────────────────────────
@@ -301,8 +491,14 @@ const ServerStore = {
         const auth = (typeof AuthUI !== 'undefined') ? AuthUI : null;
         let tok = (auth && auth.validToken && await auth.validToken()) || '';
         if (!tok) { try { tok = localStorage.getItem('whop_access_token') || ''; } catch (e) {} }
+        let payload = JSON.stringify(body), typ = 'application/json';
+        if (payload.length > this.GZIP_AB && typeof CompressionStream !== 'undefined') {
+            payload = await new Response(new Blob([payload]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer();
+            typ = 'application/octet-stream';
+            if (payload.byteLength > this.MAX_GZIP) return { status: 413, json: { error: 'zu_gross_komprimiert' } };
+        }
         const send = (t) => fetch(this.API, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t }, body: JSON.stringify(body)
+            method: 'POST', headers: { 'Content-Type': typ, 'Authorization': 'Bearer ' + t }, body: payload
         });
         let res = await send(tok);
         if (res.status === 401 && auth && auth.refreshToken) {

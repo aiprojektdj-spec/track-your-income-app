@@ -102,7 +102,7 @@ async function lokalGleichServer() {
     assert.strictEqual(srv.calls[0].action, 'firma_anlegen');
     assert.strictEqual(srv.calls[0].name, 'Testfirma');
     const erst = pushes()[0];
-    assert.deepStrictEqual(erst.ops.map((o) => ServerStore._opKey(o)).sort(), ['r/sales/s1', 'r/sales/s2', 's/rech_invoice_counter', 's/settings']);
+    assert.deepStrictEqual(erst.ops.map((o) => ServerStore._opKey(o)).sort(), ['r/sales/s1', 'r/sales/s2', 's/ord__sales', 's/rech_invoice_counter', 's/settings']);
     assert.ok(erst.ops.every((o) => o.version === null));
     assert.strictEqual(Object.keys(mem.out).length, 0, 'Outbox leer');
     await lokalGleichServer();
@@ -114,7 +114,7 @@ async function lokalGleichServer() {
     ServerStore.notiere('co_t__reselling_sales');
     await ServerStore.verarbeite();
     const ops = pushes()[0].ops;
-    assert.deepStrictEqual(ops.map((o) => [ServerStore._opKey(o), o.version, !!o.geloescht]), [['r/sales/s1', 1, false], ['r/sales/s2', 1, true]]);
+    assert.deepStrictEqual(ops.map((o) => [ServerStore._opKey(o), o.version, !!o.geloescht]), [['r/sales/s1', 1, false], ['r/sales/s2', 1, true], ['s/ord__sales', 1, false]]);
     assert.ok(!ops[1].data, 'Löschung ohne Inhalt');
     srv.calls = [];
     await ServerStore.verarbeite();
@@ -177,7 +177,7 @@ async function lokalGleichServer() {
     setze('co_fremd__reselling_sales', [{ id: 'y' }]);
     ServerStore.notiere('co_fremd__reselling_sales');
     await ServerStore.abgleich('co_t');
-    assert.deepStrictEqual(pushes().flatMap((p) => p.ops.map((o) => ServerStore._opKey(o))), ['r/eb_belege/e1']);
+    assert.deepStrictEqual(pushes().flatMap((p) => p.ops.map((o) => ServerStore._opKey(o))), ['r/eb_belege/e1', 's/ord__eb_belege']);
     assert.ok(!srv.calls.some((c) => c.company === 'co_fremd'));
     Store._cache['co_t__reselling_sales'] = JSON.stringify([{ id: 's1', datum: '2026-01-05', preis: 13 }]);
     ServerStore.notiere('co_t__reselling_sales');

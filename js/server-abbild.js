@@ -15,6 +15,9 @@
 //   Doppelte id in einem Array: ab dem zweiten Vorkommen id + '#2', '#3' … (data bleibt
 //   unverändert) — verlustfrei und auf beiden Seiten gleich.
 //   Ausgenommen: audit_log (geht über audit_uebernehmen), reselling_tombstones (entfällt).
+//   Reihenfolge: Zeilen haben keine Position. Je Liste deshalb zusätzlich eine Einstellung
+//   ord__<art> = [ids in Browser-Reihenfolge] — auch für leere Listen (der Schlüssel existiert).
+//   R6 baut daraus die Arrays wieder auf.
 //
 // Annahme: Zähler (invoice_counter …) und Festschreibungen (closed_years, ust_perioden)
 // liegen bis R7 als gewöhnliche settings auf dem Server; nummernkreise/perioden füllt erst
@@ -25,6 +28,16 @@ const ServerAbbild = {
     ART_RE:   /^[a-z0-9_]{1,40}$/,
     KEY_RE:   /^[a-z0-9_]{1,60}$/,
     AUSGENOMMEN: ['audit_log', 'reselling_tombstones'],
+    ORD: 'ord__',
+
+    istOrd(key) { return String(key || '').indexOf(this.ORD) === 0; },
+
+    // Umkehrung von schluessel(): 'sales' → 'co_x__reselling_sales'
+    vollerSchluessel(company, name) {
+        if (name.indexOf('rech_') === 0) return company + '__rechnungsbuch_' + name.slice(5);
+        if (name.indexOf('eb_') === 0)   return company + '__eigenbelege_' + name.slice(3);
+        return company + '__reselling_' + name;
+    },
 
     // 'co_x__reselling_sales' → { company: 'co_x', name: 'sales' }; null = kein Firmenschlüssel
     // oder ausgenommen. name kann ungültig sein (ART_RE/KEY_RE) — das meldet zerlege().
@@ -75,7 +88,10 @@ const ServerAbbild = {
             if (wert === null || wert === undefined) return;
             const z = this.zerlege(s.name, wert);
             if (z.fehler) out.fehler.push(z.fehler);
-            else if (z.art) z.records.forEach(function (r) { out.records.push({ art: z.art, id: r.id, data: r.data }); });
+            else if (z.art) {
+                z.records.forEach(function (r) { out.records.push({ art: z.art, id: r.id, data: r.data }); });
+                out.settings.push({ key: this.ORD + z.art, data: z.records.map(function (r) { return r.id; }) });
+            }
             else out.settings.push({ key: z.key, data: z.data });
         });
         return out;
@@ -117,12 +133,28 @@ const ServerAbbild = {
     },
 
     // Grundlage der Prüfsumme (SHA-256 bildet jede Seite selbst): eine Zeile je Datensatz und
-    // Einstellung, sortiert. Gelöschte Datensätze und null-Einstellungen zählen nicht.
+    // Einstellung, sortiert. Gelöschte Datensätze und null-Einstellungen zählen nicht, eine
+    // leere Reihenfolge auch nicht (gelöschter Listenschlüssel = leere Liste).
     pruefzeilen(records, settings) {
         const z = [];
         (records || []).forEach((r) => { if (!r.geloescht) z.push('r\t' + r.art + '\t' + r.id + '\t' + this.kanonisch(r.data)); });
-        (settings || []).forEach((s) => { if (s.data !== null && s.data !== undefined) z.push('s\t' + s.key + '\t' + this.kanonisch(s.data)); });
+        (settings || []).forEach((s) => {
+            if (s.data === null || s.data === undefined) return;
+            if (this.istOrd(s.key) && Array.isArray(s.data) && !s.data.length) return;
+            z.push('s\t' + s.key + '\t' + this.kanonisch(s.data));
+        });
         return z.sort().join('\n');
+    },
+
+    // Schlüssel von `neu` in die Reihenfolge von `alt` bringen (rekursiv), neue hinten an.
+    // jsonb ordnet Schlüssel um; Store._calcRecordChecksum hängt aber an der Reihenfolge.
+    ordneWie(neu, alt) {
+        if (!neu || !alt || typeof neu !== 'object' || typeof alt !== 'object' || Array.isArray(neu) !== Array.isArray(alt)) return neu;
+        if (Array.isArray(neu)) return neu.map((x, i) => this.ordneWie(x, alt[i]));
+        const out = {};
+        Object.keys(alt).forEach((k) => { if (k in neu) out[k] = this.ordneWie(neu[k], alt[k]); });
+        Object.keys(neu).forEach((k) => { if (!(k in out)) out[k] = neu[k]; });
+        return out;
     },
 
     // Identisch zu Store._calcChecksum (js/store.js) — test/test-server-data.js vergleicht beide.

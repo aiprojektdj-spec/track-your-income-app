@@ -11,7 +11,8 @@
 //   4. Wiederholung: 'vorhanden', kein zweiter Eintrag
 //   5. Kettenbruch: Umzug läuft, Bruch steht im Eintrag
 //   6. vorhandener Datensatz mit anderem Inhalt → push mit Server-Version
-//   7. zu großer Datensatz / Prüfsummen-Abweichung → kein Datenübernahme-Eintrag
+//   7. großer Anhang geht gzip-komprimiert durch; auch komprimiert zu groß / Prüfsummen-
+//      Abweichung → kein Datenübernahme-Eintrag
 // =============================================================================
 'use strict';
 const assert = require('assert');
@@ -77,18 +78,22 @@ const localStorage = { getItem: (k) => (ls.has(k) ? ls.get(k) : null), setItem: 
 ls.set('whop_access_token', 'tok');
 const browserAufrufe = [];
 async function browserFetch(url, opts) {
-    const body = JSON.parse(opts.body);
-    browserAufrufe.push(body);
+    // gzip-Body kommt bei Vercel als Buffer an (application/octet-stream)
+    const gz = typeof opts.body !== 'string';
+    const roh = gz ? Buffer.from(opts.body) : null;
+    const body = gz ? JSON.parse(require('zlib').gunzipSync(roh).toString('utf8')) : JSON.parse(opts.body);
+    browserAufrufe.push(Object.assign({ _gzip: gz, _bytes: gz ? roh.length : opts.body.length }, body));
     const res = { code: 0, body: null, setHeader() {} };
     res.status = (c) => { res.code = c; return { json: (b) => { res.body = b; }, end: () => {} }; };
-    await handler({ method: 'POST', headers: { authorization: opts.headers.Authorization }, body: JSON.parse(JSON.stringify(body)) }, res);
+    await handler({ method: 'POST', headers: { authorization: opts.headers.Authorization }, body: gz ? roh : JSON.parse(opts.body) }, res);
     return { status: res.code, json: async () => res.body };
 }
 const modale = [];
 const ctx = ladeModule(['js/store.js', 'js/server-abbild.js', 'js/server-store.js', 'js/server-umzug.js'], {
     localStorage, fetch: browserFetch, setTimeout: () => 0, clearTimeout: () => {}, crypto: crypto.webcrypto, TextEncoder,
+    CompressionStream, Response, Blob,
     navigator: { onLine: true }, document: { addEventListener() {}, readyState: 'complete', getElementById: () => null },
-    Companies: { getAll: () => ['co_u', 'co_v', 'co_w', 'co_x', 'co_y', 'co_leer'].map((id) => ({ id, name: 'Firma ' + id, land: 'DE' })) },
+    Companies: { getAll: () => ['co_u', 'co_v', 'co_w', 'co_x', 'co_y', 'co_z', 'co_leer'].map((id) => ({ id, name: 'Firma ' + id, land: 'DE' })) },
     App: { showModal: (t, b) => modale.push({ t, b }), closeModal() {} }
 });
 const { Store, ServerStore, ServerUmzug } = ctx;
@@ -151,7 +156,7 @@ const ok = (m) => { pass++; console.log('✓ ' + m); };
     browserAufrufe.length = 0;
     let e = await ServerUmzug.starte();
     assert.ok(e.ok, JSON.stringify(e));
-    assert.strictEqual(browserAufrufe.filter((b) => b.action === 'migrate').length, 3, '5 Ops in Stücken zu 2');
+    assert.strictEqual(browserAufrufe.filter((b) => b.action === 'migrate').length, 4, '5 Ops + 2 Reihenfolgen in Stücken zu 2');
     assert.strictEqual(browserAufrufe.filter((b) => b.action === 'migrate_commit' && b.audit).length, 2, '3 Einträge in Stücken zu 2');
     const roh = Store._cache['co_u__audit_log'];
     assert.strictEqual('[' + DB.firmen.co_u.audit.join(',') + ']', roh, 'Protokoll wortgleich');
@@ -193,11 +198,20 @@ const ok = (m) => { pass++; console.log('✓ ' + m); };
 
     // 7. zu groß / Prüfsumme weicht ab
     befuelle('co_x');
-    ServerUmzug.MAX_BYTES = 200;
+    // 6 MB Base64, gut komprimierbar → geht als gzip durch
+    Store._cache['co_x__eigenbelege_belege'] = JSON.stringify([{ id: 'e1', foto: 'data:application/pdf;base64,' + 'JVBERi0xLjQK'.repeat(500000) }]);
+    browserAufrufe.length = 0;
     e = await ServerUmzug.starte();
-    assert.ok(!e.ok && /r\/eb_belege\/e1 ist größer als 3,5 MB/.test(e.fehler[0]), JSON.stringify(e));
-    assert.ok(!DB.firmen.co_x || !DB.firmen.co_x.recs.size, 'nichts übertragen');
-    ServerUmzug.MAX_BYTES = 3.5 * 1024 * 1024;
+    assert.ok(e.ok, JSON.stringify(e));
+    const gzStueck = browserAufrufe.find((b) => b.action === 'migrate' && b.ops.some((o) => o.id === 'e1'));
+    assert.ok(gzStueck._gzip && gzStueck._bytes < 4.4 * 1024 * 1024, 'komprimiert unter der Grenze');
+    assert.strictEqual(DB.firmen.co_x.recs.get('eb_belege/e1').data.foto.length, 28 + 12 * 500000, 'Anhang unverändert');
+    // 6 MB Zufall (z. B. JPEG) → auch komprimiert zu groß
+    befuelle('co_z');
+    Store._cache['co_z__eigenbelege_belege'] = JSON.stringify([{ id: 'e1', foto: 'data:image/jpeg;base64,' + crypto.randomBytes(4600000).toString('base64') }]);
+    e = await ServerUmzug.starte();
+    assert.ok(!e.ok && /r\/eb_belege\/e1 ist auch komprimiert größer als 4,5 MB/.test(e.fehler[0]), JSON.stringify(e).slice(0, 300));
+    assert.ok(!DB.firmen.co_z.recs.has('eb_belege/e1') && !DB.firmen.co_z.eintraege.length, 'nicht übernommen');
     befuelle('co_y');
     DB.verfaelsche = (data) => (data.preis === 30 ? Object.assign({}, data, { preis: 31 }) : data);
     e = await ServerUmzug.starte();
@@ -205,7 +219,7 @@ const ok = (m) => { pass++; console.log('✓ ' + m); };
     assert.ok(!e.ok && /Prüfsumme weicht ab/.test(e.fehler[0]), JSON.stringify(e));
     assert.strictEqual(DB.firmen.co_y.eintraege.length, 0, 'kein Datenübernahme-Eintrag');
     assert.strictEqual(modale.pop().t, 'Umzug nicht abgeschlossen');
-    ok('zu großer Datensatz / Prüfsummen-Abweichung → kein Datenübernahme-Eintrag');
+    ok('großer Anhang gzip-komprimiert; zu groß / Prüfsummen-Abweichung → kein Datenübernahme-Eintrag');
 
     console.log('\n' + pass + '/7 Prüfungen bestanden ✅');
 })().catch((err) => { console.error(err); process.exit(1); });

@@ -35,6 +35,7 @@
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps = require('./_alert.js').alertOps;
 var _log     = require('./_log.js');
+var gesperrt = require('./_gesperrt.js');
 var storage  = require('./_storage.js');
 var store    = require('./_sync-store.js');   // Grant-Check (sign), Rate-Limit, Byte-Budget, Commit-Sperre
 var setzeCorsOrigin = require('./_cors.js');
@@ -268,6 +269,8 @@ module.exports = async function handler(req, res) {
     // Eigene Anhänge löschen geht auch ohne aktives Abo (S9) — nur im eigenen Namespace,
     // s. isOwnedBlobUrl bzw. der userId-Pfad in purge.
     var isSelbstbedienung = action === 'delete' || action === 'purge';
+    // Sperre aus dem Admin-Panel (Selbstbedienung bleibt moeglich, s. api/_gesperrt.js)
+    if (!isSelbstbedienung && await gesperrt.istGesperrt(userId)) return res.status(403).json({ error: 'account_suspended' });
     if (!isOwner && !signOwner && !isSelbstbedienung) {
         try {
             if (!(await whopHasAccess(token, userId))) return res.status(403).json({ error: 'pro_required' });

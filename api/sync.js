@@ -30,6 +30,7 @@
 // Meldet stillschweigende Degradierung (offener Deckel) an ALERT_WEBHOOK_URL, siehe api/_alert.js
 var alertOps = require('./_alert.js').alertOps;
 var _log     = require('./_log.js');
+var gesperrt = require('./_gesperrt.js');
 var store    = require('./_sync-store.js');
 var setzeCorsOrigin = require('./_cors.js');
 
@@ -236,6 +237,10 @@ module.exports = async function handler(req, res) {
     // damit die Antwort 'readonly' ist, egal ob der StB selbst ein Abo hat.
     if ((action === 'push' || action === 'delete') && body.owner)
         return res.status(403).json({ error: 'readonly' });
+
+    // ── 3b. Sperre aus dem Admin-Panel (Selbstbedienung bleibt moeglich, s. api/_gesperrt.js) ──
+    if (!isSelbstbedienung && await gesperrt.istGesperrt(userId))
+        return res.status(403).json({ error: 'account_suspended' });
 
     // ── 4. PRO erzwingen (server-seitig) — nur für Owner-/Schreib-Aktionen ────
     var isOwner = isOwnerIdentity(userId, prefUsername);

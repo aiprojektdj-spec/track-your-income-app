@@ -17,7 +17,7 @@ var DatevExport = (function () {
         erloese_19:     '8400',  // Erlöse 19 % USt
         erloese_7:      '8300',  // Erlöse 7 % USt
         erloese_0:      '8200',  // Erlöse (ohne Steuerautomatik) — 0 % ohne eigene Kennzahl
-        erloese_klein:  '8195',  // Erlöse als Kleinunternehmer i.S.d. § 19 Abs. 1 UStG
+        erloese_klein:  '8192',  // Steuerfreie Erlöse Kleinunternehmer nach § 19 Abs. 1 UStG (SKR03 2026, Art.-Nr. 11174 S. 26; 8195-96 dort reserviert)
         erloese_igl:    '8125',  // Steuerfreie innergemeinschaftliche Lieferungen § 4 Nr. 1b UStG
         erloese_ausfuhr:'8120',  // Steuerfreie Umsätze § 4 Nr. 1a UStG (Ausfuhr)
         erloese_rc_eu:  '8336',  // Erlöse aus im anderen EG-Land stpfl. sonstigen Leistungen, Empfänger schuldet die USt
@@ -74,7 +74,7 @@ var DatevExport = (function () {
         erloese_19:     '4400',  // Erlöse 19 % USt
         erloese_7:      '4300',  // Erlöse 7 % USt
         erloese_0:      '4200',  // Erlöse
-        erloese_klein:  '4185',  // Erlöse als Kleinunternehmer i.S.d. § 19 Abs. 1 UStG
+        erloese_klein:  '4184',  // Steuerfreie Erlöse Kleinunternehmer nach § 19 Abs. 1 UStG (SKR04 2026, Art.-Nr. 11175 S. 14; 4185-88 dort reserviert)
         erloese_igl:    '4125',  // Steuerfreie innergemeinschaftliche Lieferungen § 4 Nr. 1b UStG
         erloese_ausfuhr:'4120',  // Steuerfreie Umsätze § 4 Nr. 1a UStG
         erloese_rc_eu:  '4336',  // wie 8336

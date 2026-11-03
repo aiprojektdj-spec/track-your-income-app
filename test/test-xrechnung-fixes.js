@@ -105,7 +105,7 @@ const settingsBase = { firmenname: 'Test GmbH', adresse: 'Musterstr. 1', plz: '1
     var invKlein = { nummer: 'RE-7', datum: '2026-03-01', typ: 'rechnung', isKlein: true,
         positionen: [{ beschreibung: 'X', menge: 1, einzelpreis: 100, mwstSatz: 19 }] };
     var xmlKlein = XRechnung.generate(invKlein, settingsBase, { firma: 'K', strasse: 'S', plz: '1', ort: 'O', land: 'DE' });
-    check('Kleinunternehmer -> CategoryCode E + VATEX-EU-O', /<ram:CategoryCode>E<\/ram:CategoryCode>/.test(xmlKlein) && xmlKlein.includes('VATEX-EU-O'));
+    check('Kleinunternehmer -> CategoryCode E mit Befreiungstext, ohne VATEX-EU-O (nur Kategorie O)', /<ram:CategoryCode>E<\/ram:CategoryCode>/.test(xmlKlein) && !xmlKlein.includes('VATEX-EU-O') && /<ram:ExemptionReason>[^<]*19 UStG/.test(xmlKlein));
 }
 
 // ── 5) validatePflichtfelder(): erkennt fehlende §14-Pflichtangaben ──────────

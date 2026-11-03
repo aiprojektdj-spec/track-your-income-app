@@ -73,7 +73,8 @@ global.fetch = async (url, opts) => {
     if (url.indexOf('http://sb.mock/rest/v1/rpc/') === 0) {
         if (!supabaseUp) return { ok: false, status: 503, text: async () => '' };
         rpcCalls.push({ name: url.split('/').pop(), body: JSON.parse(opts.body), key: opts.headers.apikey });
-        return { ok: true, status: 200, text: async () => 'true' };
+        // Sperrabfrage des Admin-Panels (api/_gesperrt.js): hier nie gesperrt
+        return { ok: true, status: 200, text: async () => (url.endsWith('sync_admin_gesperrt') ? 'false' : 'true') };
     }
     if (url.includes('/oauth/userinfo')) return { ok: true, json: async () => ({ sub: 'u1', preferred_username: 'u1' }) };
     if (url.includes('/me/has_access/')) return { ok: true, status: 200, json: async () => ({ valid: true }) };

@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Stackr Admin</title>
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+<main id="login" class="card" hidden>
+    <h1>Stackr Admin</h1>
+    <p id="login-msg"></p>
+    <button id="btn-google" type="button">Mit Google anmelden</button>
+    <div id="mfa" hidden>
+        <p id="mfa-hint"></p>
+        <img id="mfa-qr" alt="QR-Code fuer die Authenticator-App" hidden>
+        <p><code id="mfa-secret"></code></p>
+        <label for="mfa-code">6-stelliger Code</label>
+        <input id="mfa-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6">
+        <button id="btn-mfa" type="button">Bestaetigen</button>
+    </div>
+</main>
+
+<div id="app" hidden>
+    <header>
+        <strong>Stackr Admin</strong>
+        <nav>
+            <a href="#dashboard" data-nav="dashboard">Dashboard</a>
+            <a href="#members" data-nav="members">Mitglieder</a>
+            <a href="#dunning" data-nav="dunning">Mahnwesen</a>
+            <a href="#flags" data-nav="flags">Feature-Flags</a>
+            <a href="#betrieb" data-nav="betrieb">Betrieb</a>
+            <a href="#audit" data-nav="audit">Audit-Log</a>
+        </nav>
+        <button id="btn-search" type="button" class="ghost">Suchen <kbd>Strg K</kbd></button>
+        <span id="who"></span>
+        <button id="btn-logout" type="button">Abmelden</button>
+    </header>
+
+    <section id="view-dashboard" hidden>
+        <h2>Dashboard</h2>
+        <form id="dash-filter">
+            <label>Von <input name="from" type="date" required></label>
+            <label>Bis <input name="to" type="date" required></label>
+            <button type="submit">Anzeigen</button>
+            <button type="button" id="btn-metrics" class="ghost">Kennzahlen jetzt berechnen</button>
+            <span id="dash-stand"></span>
+        </form>
+        <p id="dash-warn" class="box" hidden></p>
+        <div id="kpis" class="kpis"></div>
+        <h3>MRR-Bewegung pro Tag</h3>
+        <div id="chart-mrr" class="chart"></div>
+        <h3>Anmeldungen pro Tag</h3>
+        <div id="chart-signups" class="chart"></div>
+        <h3>Kohorten (nach Anmeldemonat, heute noch aktiv)</h3>
+        <table><thead><tr><th>Monat</th><th>Angemeldet</th><th>Heute aktiv</th><th>Anteil</th></tr></thead><tbody id="cohorts"></tbody></table>
+        <h3>Monatsbetrag je Whop-Plan</h3>
+        <p class="note">Whop liefert keinen Preis. Trage je Plan-ID den Betrag pro Monat ein (Jahresplan: Jahresbetrag geteilt durch 12). Daraus entsteht der MRR.</p>
+        <table><thead><tr><th>Plan-ID</th><th>Bezeichnung</th><th>EUR pro Monat</th><th></th></tr></thead><tbody id="plans"></tbody></table>
+        <form id="plan-form" class="inline">
+            <input name="plan_id" placeholder="plan_..." aria-label="Plan-ID" required>
+            <input name="label" placeholder="Bezeichnung" aria-label="Bezeichnung">
+            <input name="eur" placeholder="15,00" inputmode="decimal" aria-label="Euro pro Monat" required>
+            <button type="submit">Speichern</button>
+        </form>
+    </section>
+
+    <section id="view-flags" hidden>
+        <h2>Feature-Flags</h2>
+        <table>
+            <thead><tr><th>Key</th><th>Status</th><th>Regeln</th><th>Notaus</th><th></th></tr></thead>
+            <tbody id="flags-rows"></tbody>
+        </table>
+        <p id="flags-empty" hidden>Noch keine Flags.</p>
+        <form id="flag-form" class="box">
+            <h3 id="flag-form-title">Flag anlegen</h3>
+            <label>Key (klein, a-z 0-9 . _ -) <input name="key" required maxlength="63" pattern="[a-z0-9][a-z0-9._\-]{1,62}"></label>
+            <label>Beschreibung <input name="description" maxlength="300"></label>
+            <label>Status
+                <select name="status"><option value="off">aus (alle)</option><option value="rules">nach Regeln</option><option value="on">an (alle)</option></select>
+            </label>
+            <label>Prozent-Rollout (nur bei "nach Regeln") <input name="percent" type="number" min="0" max="100" value="0"></label>
+            <label>Nutzer-IDs (Leerzeichen/Komma) <textarea name="user_ids" rows="2"></textarea></label>
+            <label>Konto-IDs <textarea name="account_ids" rows="2"></textarea></label>
+            <label>Plan-IDs <textarea name="plan_ids" rows="2"></textarea></label>
+            <div class="row"><button type="submit">Speichern</button></div>
+        </form>
+    </section>
+
+    <section id="view-members" hidden>
+        <h2>Mitglieder</h2>
+        <form id="members-filter">
+            <label>Suche <input name="q" placeholder="E-Mail, Name, ID, Domain"></label>
+            <label>Status
+                <select name="status">
+                    <option value="">alle</option><option value="active">aktiv</option><option value="trialing">Test</option>
+                    <option value="past_due">ueberfaellig</option><option value="canceled">gekuendigt</option>
+                    <option value="expired">abgelaufen</option><option value="completed">beendet</option>
+                </select>
+            </label>
+            <label>Tag <select name="tag" id="tag-filter"><option value="">alle</option></select></label>
+            <label>Sperre
+                <select name="suspended"><option value="">alle</option><option value="1">gesperrt</option><option value="0">nicht gesperrt</option></select>
+            </label>
+            <button type="submit">Filtern</button>
+            <button type="button" id="btn-whop-sync" class="ghost">Mit Whop abgleichen</button>
+            <button type="button" id="btn-export-members" class="ghost">CSV exportieren</button>
+            <label id="export-reveal-wrap" hidden><input type="checkbox" id="export-reveal"> E-Mail im Klartext (wird protokolliert)</label>
+        </form>
+        <details id="bulk" class="box" hidden>
+            <summary>Bulk-Aktion auf alle gefilterten Mitglieder</summary>
+            <p class="note">Wirkt auf ALLE Mitglieder, die zu den Filtern oben passen (max. 500), nicht nur auf die sichtbare Seite. Erst Trockenlauf, dann bestaetigen.</p>
+            <form id="bulk-form" class="inline">
+                <select name="op" aria-label="Aktion"><option value="tag.add">Tag setzen</option><option value="suspend">Sperren</option></select>
+                <input name="param" placeholder="Tag oder Sperrgrund" maxlength="300" aria-label="Tag oder Sperrgrund" required>
+                <button type="submit">Trockenlauf</button>
+            </form>
+            <div id="bulk-preview" hidden>
+                <p id="bulk-count"></p>
+                <ul id="bulk-sample"></ul>
+                <label>Zur Bestaetigung tippen: <code id="bulk-expect"></code> <input id="bulk-confirm" autocomplete="off"></label>
+                <button type="button" id="bulk-run" class="danger" disabled>Ausfuehren</button>
+                <progress id="bulk-progress" max="100" value="0" hidden></progress>
+                <p id="bulk-result"></p>
+                <ul id="bulk-errors"></ul>
+            </div>
+        </details>
+        <table>
+            <thead><tr>
+                <th><button class="th" data-sort="name" type="button">Name</button></th>
+                <th><button class="th" data-sort="email" type="button">E-Mail</button></th>
+                <th><button class="th" data-sort="status" type="button">Status</button></th>
+                <th><button class="th" data-sort="signup_at" type="button">Angemeldet</button></th>
+                <th><button class="th" data-sort="last_active_at" type="button">Zuletzt aktiv</button></th>
+                <th>Tags</th>
+            </tr></thead>
+            <tbody id="members-rows"></tbody>
+        </table>
+        <p id="members-empty" hidden>Keine Mitglieder gefunden. Mit "Mit Whop abgleichen" die Liste fuellen.</p>
+        <div class="pager">
+            <button id="pg-prev" type="button" class="ghost">Zurueck</button>
+            <span id="pg-info"></span>
+            <button id="pg-next" type="button" class="ghost">Weiter</button>
+        </div>
+    </section>
+
+    <section id="view-member" hidden>
+        <p><a href="#members">&larr; Mitglieder</a></p>
+        <h2 id="m-title"></h2>
+        <div id="m-badges"></div>
+        <div class="tabs" role="tablist">
+            <button type="button" data-tab="overview" class="on">Uebersicht</button>
+            <button type="button" data-tab="billing">Billing</button>
+            <button type="button" data-tab="activity">Aktivitaet</button>
+            <button type="button" data-tab="notes">Notizen</button>
+        </div>
+        <div id="tab-overview" class="tab"></div>
+        <div id="tab-billing" class="tab" hidden>
+            <dl id="m-billing-basic"></dl>
+            <p class="note">Nur Anzeige. Erstattung und Kuendigung machst du im Whop-Dashboard. Von der Karte kennt das Panel nur Marke und letzte 4 Ziffern.</p>
+            <table>
+                <thead><tr><th>Datum</th><th>Betrag</th><th>Erstattet</th><th>Status</th><th>Karte</th><th>Fehler</th></tr></thead>
+                <tbody id="m-payments"></tbody>
+            </table>
+            <p id="m-payments-empty" hidden>Keine Zahlungen im Panel. Unter "Mahnwesen" mit Whop abgleichen.</p>
+        </div>
+        <div id="tab-activity" class="tab" hidden>
+            <table><thead><tr><th>Zeit</th><th>Admin</th><th>Aktion</th><th>Aenderung</th></tr></thead><tbody id="m-activity"></tbody></table>
+            <p id="m-activity-empty" hidden>Noch keine Admin-Aktionen zu diesem Mitglied.</p>
+        </div>
+        <div id="tab-notes" class="tab" hidden>
+            <form id="note-form">
+                <label class="grow">Neue interne Notiz (nie fuer Kunden sichtbar)
+                    <textarea name="body" rows="3" maxlength="5000" required></textarea>
+                </label>
+                <button type="submit">Speichern</button>
+            </form>
+            <ul id="m-notes" class="notes"></ul>
+            <p id="m-notes-empty" hidden>Keine Notizen.</p>
+        </div>
+    </section>
+
+    <section id="view-dunning" hidden>
+        <h2>Mahnwesen</h2>
+        <p><button id="btn-pay-sync" type="button">Zahlungen mit Whop abgleichen</button>
+           <button id="btn-export-payments" type="button" class="ghost">Zahlungen als CSV (30 Tage)</button> <span id="dun-stand"></span></p>
+        <h3>Ueberfaellige Abos</h3>
+        <table>
+            <thead><tr><th>Mitglied</th><th>E-Mail</th><th>Letzte Zahlung</th></tr></thead>
+            <tbody id="dun-pastdue"></tbody>
+        </table>
+        <p id="dun-pastdue-empty" hidden>Keine ueberfaelligen Abos.</p>
+        <h3>Fehlgeschlagene Zahlungen (30 Tage)</h3>
+        <table>
+            <thead><tr><th>Datum</th><th>Mitglied</th><th>Betrag</th><th>Karte</th><th>Grund</th></tr></thead>
+            <tbody id="dun-failed"></tbody>
+        </table>
+        <p id="dun-failed-empty" hidden>Keine fehlgeschlagenen Zahlungen.</p>
+    </section>
+
+    <section id="view-betrieb" hidden>
+        <h2>Betrieb</h2>
+        <div id="betrieb-kpis" class="kpis"></div>
+        <h3>Missbrauchs-Warteschlange</h3>
+        <p><button type="button" id="btn-abuse-scan">Jetzt pruefen</button>
+           <span class="note">Meldet 5+ Anmeldungen derselben Firmen-Domain in 24 h und 3+ fehlgeschlagene Zahlungen eines Mitglieds in 30 Tagen. Login-Orte und IP-Haeufung gibt es nicht (nicht erfasst).</span></p>
+        <table><thead><tr><th>Art</th><th>Betrifft</th><th>Details</th><th>Seit</th><th></th></tr></thead><tbody id="abuse-rows"></tbody></table>
+        <p id="abuse-empty" hidden>Keine offenen Meldungen.</p>
+        <h3>Betriebs-Alarme (letzte 50)</h3>
+        <table><thead><tr><th>Zeit</th><th>Quelle</th><th>Ereignis</th><th>Detail</th></tr></thead><tbody id="alarm-rows"></tbody></table>
+        <p id="alarm-empty" hidden>Keine Alarme.</p>
+        <h3>Client-Fehler (7 Tage, haeufigste)</h3>
+        <table><thead><tr><th>Anzahl</th><th>Eintrag</th></tr></thead><tbody id="clerr-rows"></tbody></table>
+        <p id="clerr-empty" hidden>Keine Client-Fehler.</p>
+    </section>
+
+    <section id="view-audit" hidden>
+        <h2>Audit-Log</h2>
+        <form id="audit-filter">
+            <label>Aktion <input name="action"></label>
+            <label>Ziel-Typ <input name="targetType"></label>
+            <label>Ziel-ID <input name="targetId"></label>
+            <label>Von <input name="from" type="date"></label>
+            <label>Bis <input name="to" type="date"></label>
+            <button type="submit">Suchen</button>
+            <button type="button" id="btn-export-audit" class="ghost">CSV exportieren</button>
+        </form>
+        <table>
+            <thead><tr><th>Zeit</th><th>Admin</th><th>Aktion</th><th>Ziel</th><th>Aenderung</th><th>IP</th></tr></thead>
+            <tbody id="audit-rows"></tbody>
+        </table>
+        <p id="audit-empty" hidden>Keine Eintraege fuer diese Filter.</p>
+        <button id="audit-more" type="button" hidden>Aeltere laden</button>
+    </section>
+</div>
+
+<dialog id="search-dialog">
+    <form method="dialog" class="search-box">
+        <input id="search-input" placeholder="Mitglied suchen: E-Mail, Name, ID, Domain" autocomplete="off" aria-label="Mitglied suchen">
+        <ul id="search-results"></ul>
+        <p id="search-hint">Mindestens 2 Zeichen. Enter oeffnet den ersten Treffer, Esc schliesst.</p>
+    </form>
+</dialog>
+
+<dialog id="confirm-dialog">
+    <form id="confirm-form" method="dialog">
+        <h3 id="confirm-title"></h3>
+        <p id="confirm-text"></p>
+        <label id="confirm-reason-wrap">Grund <input id="confirm-reason" maxlength="300"></label>
+        <label>Zur Bestaetigung tippen: <code id="confirm-expect"></code> <input id="confirm-input" autocomplete="off"></label>
+        <div class="row"><button type="button" id="confirm-cancel" class="ghost">Abbrechen</button><button type="submit" id="confirm-ok" class="danger" disabled>Bestaetigen</button></div>
+    </form>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/audit.js"></script>
+<script src="js/members.js"></script>
+<script src="js/billing.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/flags.js"></script>
+<script src="js/bulk.js"></script>
+<script src="js/betrieb.js"></script>
+<script src="js/boot.js"></script>
+</body>
+</html>

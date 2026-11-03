@@ -39,7 +39,7 @@
 
 - Rechtsgrundlage / Verträge: Whop-DPA und AV-Verträge offen; Anwalt-Freigabe offen
 - Aufbewahrung und Löschung: 30 Tage nach Vertragsende entschieden, nicht gebaut (bestätigt 2026-11-02)
-- Backup Supabase (Pro): ungeprüft, im Dashboard nachsehen
+- Backup Supabase (Pro): tägliche Backups (vom User bestätigt 2026-11-03); PITR und Restore-Test ungeprüft
 - Verschlüsselung: in Transit TLS (HSTS); at rest Chiffrat (Sync) bzw. Supabase-Standard `TODO(confirm)`
 - Zugriffsprotokoll: Audit-Log je Firma im Store (GoBD); Server-Zugriffslog `TODO(confirm)`
 - Meldeweg bei Datenpanne: der Inhaber meldet selbst an die zuständige Aufsichtsbehörde (Art. 33 DSGVO, binnen 72 h); Kontaktdaten der Behörde `TODO(confirm)`

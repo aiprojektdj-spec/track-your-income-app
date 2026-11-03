@@ -51,4 +51,4 @@ Betrieb (Deploy, Backup, Alarmkette): `docs/OPERATIONS.md` (derzeit noch ungetra
 | Logik-Tests laufen bei jedem Push auf `master` und jedem PR | gemessen | `.github/workflows/tests.yml` |
 | Rechtstexte freigegeben | geplant | Anwalt-Freigabe offen |
 | Upstash-Redis-Backup | ungeprüft | `docs/OPERATIONS.md`, Abschnitt Backup |
-| Supabase-Backup / PITR (Pro) | ungeprüft (User weiß es nicht, 2026-11-02) | im Supabase-Dashboard nachsehen |
+| Supabase-Backup (Pro) | täglich, vom User bestätigt 2026-11-03; PITR und Restore-Test ungeprüft | Supabase-Dashboard |

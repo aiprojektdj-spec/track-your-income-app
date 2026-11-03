@@ -19,4 +19,5 @@ output/
 .playwright-cli/
 # Den lokalen Export nicht als statisches Unterverzeichnis ausliefern.
 deploy/
-admin/
+# admin/ steht bewusst NICHT hier: die Datei gilt im Repo-Root fuer ALLE Vercel-Projekte, auch fuer
+# das Admin-Projekt (Root admin/), dem sonst alle Dateien fehlen. Stackr leitet /admin/* in vercel.json um.

@@ -42,7 +42,7 @@
 - Backup Supabase (Pro): tägliche Backups (vom User bestätigt 2026-11-03); PITR und Restore-Test ungeprüft
 - Verschlüsselung: in Transit TLS (HSTS); at rest Chiffrat (Sync) bzw. Supabase-Standard `TODO(confirm)`
 - Zugriffsprotokoll: Audit-Log je Firma im Store (GoBD); Server-Zugriffslog `TODO(confirm)`
-- Meldeweg bei Datenpanne: der Inhaber meldet selbst an die zuständige Aufsichtsbehörde (Art. 33 DSGVO, binnen 72 h); Kontaktdaten der Behörde `TODO(confirm)`
+- Meldeweg bei Datenpanne: der Inhaber meldet selbst an die zuständige Aufsichtsbehörde (Art. 33 DSGVO, binnen 72 h); zuständig ist der LfDI Baden-Württemberg (Sitz des Betreibers: Fronreute). Online-Meldung unter https://www.baden-wuerttemberg.datenschutz.de/datenpanne-melden/ , Heilbronner Straße 35, 70191 Stuttgart, Tel. 0711/61 55 41-0, poststelle@lfdi.bwl.de (Stand 2026-11-03, von der Behörden-Website)
 
 ## Notschalter
 

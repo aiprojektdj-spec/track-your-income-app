@@ -636,6 +636,8 @@ const Store = {
         if (!this._fsDirHandle || this._fsPending) return false;
         this._fsPending = true;
         try {
+            // Leere App: vorhandene Backups nicht mit leeren Dateien verdraengen (js/backup-ordner.js)
+            if (typeof BackupOrdner !== 'undefined' && await BackupOrdner.leereAppSchuetzen(this)) return false;
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
             const ts = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
@@ -736,7 +738,9 @@ const Store = {
                     const isCurrentCompany = slug
                         ? name.startsWith('backup' + slug + '_')
                         : (name.startsWith('backup_') && !/^backup_[a-zA-ZäöüÄÖÜß]/.test(name.slice(7)));
-                    files.push({ name, handle, isCurrentCompany });
+                    // Groesse zeigt in der Liste, welche Datei echte Daten enthaelt
+                    const size = await handle.getFile().then(f => f.size).catch(() => null);
+                    files.push({ name, handle, isCurrentCompany, size });
                 }
             }
             return files.sort((a, b) => b.name.localeCompare(a.name));
@@ -3035,6 +3039,7 @@ const Store = {
         // ── Schritt 2: Backup-Keys auf Ziel-Prefix mappen ────────────────────
         // Backup kann von einer anderen Firma stammen — Prefix wird remappt.
         const entries = []; // { key, value } für Bulk-Transaktion
+        let backupAudit = [];
         for (const [key, value] of Object.entries(data)) {
             if (key.startsWith('_')) continue; // Meta-Keys überspringen
 
@@ -3051,8 +3056,16 @@ const Store = {
                     targetKey = curAKey;
                 }
             }
-            // Vorhandenes Protokoll nie durch das Backup ersetzen (s. `vorher` oben)
-            if (targetKey === curAKey && vorher.audit.length) targetKey = null;
+            // Vorhandenes Protokoll nie durch das Backup ersetzen, sondern unten vereinigen
+            // (s. `vorher`). Vorher blieb das Backup-Protokoll immer draussen, weil der
+            // Import-Eintrag schon vor dieser Stelle steht: ein frisches Profil verlor es ganz.
+            if (targetKey === curAKey) {
+                try {
+                    const log = typeof value === 'string' ? JSON.parse(value) : value;
+                    if (Array.isArray(log)) backupAudit = backupAudit.concat(log);
+                } catch (e) { console.warn('[Store] Backup-Protokoll nicht lesbar:', e.message); }
+                targetKey = null;
+            }
             if (targetKey) {
                 this._cache[targetKey] = value; // sofort in Memory
                 entries.push({ k: targetKey, v: value });
@@ -3066,6 +3079,10 @@ const Store = {
             const i = entries.findIndex(e => e.k === key);
             if (i >= 0) entries[i].v = str; else entries.push({ k: key, v: str });
         };
+        // Union statt Ersetzen: kein Eintrag geht verloren, manipulierte bleiben als Bruch markiert.
+        if (backupAudit.length && typeof BackupCrypto !== 'undefined') {
+            setze(curAKey, BackupCrypto._test.mergeAudit(vorher.audit, backupAudit));
+        }
         const closed = Array.from(new Set(vorher.closed.concat(this.getClosedYears()))).sort();
         if (closed.length) setze(curPfx + 'closed_years', closed);
         const periodeKey = p => [p.year, p.quartal, p.monat || ''].join('|');

@@ -38,7 +38,8 @@ var DomainUmzug = (function () {
         var d = e.data || {};
         if (d.type === 'stackr-umzug-bereit') {
             var bundle = BackupCrypto.buildBundle();
-            popup.postMessage({ type: 'stackr-umzug-daten', v: 1, bundle: bundle }, NEU);
+            // aktiv: die hier geoeffnete Firma, damit die neue Adresse genau sie zeigt
+            popup.postMessage({ type: 'stackr-umzug-daten', v: 1, bundle: bundle, aktiv: _ls('oyi_active_company') }, NEU);
         } else if (d.type === 'stackr-umzug-fertig') {
             _ls(LS_UMZUG_AM, new Date().toISOString());
             _renderBanner();
@@ -116,6 +117,9 @@ var DomainUmzug = (function () {
                 _fehler('Die Übernahme ist fehlgeschlagen: ' + _esc(err && err.message || err) + ' Deine Daten unter der bisherigen Adresse sind unverändert.', weiter);
                 return;
             }
+            // Hat der Kunde hier vorher schon eine (leere) Firma angelegt, bleibt sonst die aktiv
+            // und die uebernommenen Daten wirken verschwunden (Kundenfall 2026-11-08).
+            _aktiviereUebernommene(d.bundle, d.aktiv);
             var firmen = Object.keys(d.bundle).filter(function (k) { return k !== '__account'; }).length;
             try { window.opener.postMessage({ type: 'stackr-umzug-fertig', firmen: firmen }, ALT); } catch (e2) {}
             _karte('Umzug abgeschlossen',
@@ -124,6 +128,13 @@ var DomainUmzug = (function () {
         }
         window.addEventListener('message', onMsg);
         window.opener.postMessage({ type: 'stackr-umzug-bereit', v: 1 }, ALT);
+    }
+
+    function _aktiviereUebernommene(bundle, aktiv) {
+        var liste = (bundle.__account && Array.isArray(bundle.__account.oyi_companies)) ? bundle.__account.oyi_companies : [];
+        var ids = liste.map(function (c) { return c && c.id; }).filter(function (id) { return typeof id === 'string'; });
+        var ziel = ids.indexOf(aktiv) !== -1 ? aktiv : ids[0];
+        if (ziel) _ls('oyi_active_company', ziel);
     }
 
     function _fehler(text, weiter) {

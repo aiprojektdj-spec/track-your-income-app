@@ -92,6 +92,24 @@ function umgebung(host, search, opts) {
     await u.send({ type: 'stackr-umzug-daten', v: 1, bundle }, ALT, u.opener);
     check('B9 zweite Sendung wird nicht noch einmal importiert', u.calls.restore.length === 1);
 
+    // ── Neue Domain mit vorher angelegter leerer Firma (Kundenfall 2026-11-08) ──
+    u = umgebung('getstackr.de', '?umzug=1');
+    u.store.oyi_active_company = 'co_leer';
+    u.mod.vorDemStart(() => {});
+    const zwei = { __account: { oyi_companies: [{ id: 'co_a' }, { id: 'co_b' }] }, co_a: {}, co_b: {} };
+    await u.send({ type: 'stackr-umzug-daten', v: 1, bundle: zwei, aktiv: 'co_b' }, ALT, u.opener);
+    check('F1 nach Umzug ist die an der alten Adresse aktive Firma aktiv', u.store.oyi_active_company === 'co_b');
+    u = umgebung('getstackr.de', '?umzug=1');
+    u.store.oyi_active_company = 'co_leer';
+    u.mod.vorDemStart(() => {});
+    await u.send({ type: 'stackr-umzug-daten', v: 1, bundle: zwei, aktiv: 'co_fremd' }, ALT, u.opener);
+    check('F2 unbekannte aktive Firma: erste uebernommene wird aktiv', u.store.oyi_active_company === 'co_a');
+    u = umgebung('track-your-income-app.vercel.app');
+    u.store.oyi_active_company = 'co_a';
+    u.mod.vorDemStart(() => {}); u.mod.starten();
+    await u.send({ type: 'stackr-umzug-bereit' }, NEU, u.popup);
+    check('F3 alte Adresse schickt ihre aktive Firma mit', u.calls.toPopup[0].msg.aktiv === 'co_a');
+
     // ── Neue Domain ohne Opener (Verbindung durch Login abgerissen) ──
     u = umgebung('getstackr.de', '?umzug=1', { opener: false });
     check('C1 ohne Opener: Hinweis statt Import', u.mod.vorDemStart(() => {}) === true && u.calls.restore.length === 0);

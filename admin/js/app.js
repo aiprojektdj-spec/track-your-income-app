@@ -76,7 +76,8 @@
         var body = await r.json().catch(function () { return {}; });
         if (r.status === 401 && body.error === 'token_ungueltig' && !retried && await refresh()) return api(path, opts, true);
         if (!r.ok) {
-            if (r.status === 401) Admin.logout('Sitzung abgelaufen, bitte neu anmelden.');
+            // mfa_fehlt: Sitzung behalten, Admin.start() leitet zur TOTP-Eingabe weiter
+            if (r.status === 401 && body.error !== 'mfa_fehlt') Admin.logout('Sitzung abgelaufen, bitte neu anmelden.');
             var e = new Error(body.error || 'fehler'); e.status = r.status; throw e;
         }
         return body;

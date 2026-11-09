@@ -84,6 +84,7 @@
         'js/server-store.js',
         'js/server-umzug.js',
         'js/domain-umzug.js',
+        'js/safari-speicher-hinweis.js',
 
         // Einstieg zuletzt: startet sofort beim Ausfuehren (DOMContentLoaded ist vorbei),
         // frueher lief der Start erst nach allen Skripten — so bleibt die Reihenfolge gleich.

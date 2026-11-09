@@ -29,10 +29,14 @@ for (const h of vercel.headers || []) {
     if (csp) header[h.source] = csp.value;
 }
 
-// Route, unter der eine Datei ausgeliefert wird: x/index.html → /x(.*), sonst /<datei>
+// Route, unter der eine Datei ausgeliefert wird: x/index.html → /x(.*) bzw. /x(/.*)?
+// (eng, damit Geschwister wie /lager-bestandsfuehrung-reseller.html nicht mitgetroffen
+// werden), sonst /<datei>
 function routeOf(file) {
     const m = /^([^/]+)\/index\.html$/.exec(file);
-    return m ? '/' + m[1] + '(.*)' : '/' + file;
+    if (!m) return '/' + file;
+    const eng = '/' + m[1] + '(/.*)?';
+    return header[eng] ? eng : '/' + m[1] + '(.*)';
 }
 
 function htmlFiles() {

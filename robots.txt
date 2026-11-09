@@ -16,5 +16,7 @@ Allow: /impressum.html
 Allow: /cookies.html
 Allow: /refund.html
 Allow: /barrierefreiheit.html
+# Ratgeberseite beginnt mit /lager und faellt sonst unter "Disallow: /lager"
+Allow: /lager-bestandsfuehrung-reseller.html
 
 Sitemap: https://getstackr.de/sitemap.xml

@@ -38,7 +38,7 @@
 ## Sensible Daten
 
 - Rechtsgrundlage / Verträge: Whop-DPA und AV-Verträge offen; Anwalt-Freigabe offen
-- Aufbewahrung und Löschung: 30 Tage nach Vertragsende, Löschlauf gebaut (`api/_loeschung.js`), Standard ist Probelauf, scharf nur mit `SYNC_LOESCHUNG=aktiv`
+- Aufbewahrung und Löschung: 30 Tage nach Vertragsende, Löschlauf gebaut (`api/_loeschung.js`), Standard ist Probelauf, scharf nur mit `SYNC_LOESCHUNG=aktiv`; in Vercel nicht gesetzt (geprüft 2026-11-09), also nur Probelauf
 - Backup Supabase (Pro): tägliche Backups (vom User bestätigt 2026-11-03); PITR und Restore-Test ungeprüft
 - Verschlüsselung: in Transit TLS (HSTS); Sync-Daten als Chiffrat; Supabase-Daten at rest nach Herstellerangabe verschlüsselt (nicht selbst geprüft)
 - Zugriffsprotokoll: `audit_log` je Firma, insert-only mit Hash-Kette (Datenbank-Trigger); Server-Zugriffe nur in den Vercel-Logs (Aufbewahrung je Plan)

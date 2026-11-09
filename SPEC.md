@@ -22,7 +22,7 @@ Spalte „Test“ nennt vorhandene Harnesses; `TODO(confirm)` = Zuordnung ungepr
 | INV-4 | Ohne gültigen Whop-Zugang kein Zugriff auf `api/*`-Daten; Schreiben in Firmendaten nur für Rolle `owner`, Steuerberater lesen nur (geprüft 2026-11-05) | `api/_auth.js`, `api/whop-access.js`; RLS-Policies `*_schreiben` mit `rolle = 'owner'` | `test-whop-access.js`, `test-stb-readonly-sperre.js` |
 | INV-5 | Steuer-Gesetzeswerte kommen aus Jahresfunktionen, nie aus jahresfesten Konstanten | Konvention (CLAUDE.md Regel 7) | `test-steuerregeln-jahr.js`, `test-ksa-jahresabhaengig.js` |
 | INV-6 | Rechnungen enthalten alle Pflichtangaben nach §14 UStG; Kleinunternehmer-Konten/-Hinweise korrekt `TODO(confirm)` | Rechnungs-Validierung | `test-rechnung-pflichtangaben-audit.js`, `test-xrechnung-regeln.js` |
-| INV-7 | Nach Vertragsende werden Serverdaten nach 30 Tagen gelöscht | Gebaut: `api/_loeschung.js` (Vormerken, Mail ab Tag 23, Löschung Tag 30), Aufruf aus `api/blob-cleanup.js`. **Probelauf ist Standard**, scharf nur mit `SYNC_LOESCHUNG=aktiv`. Ob scharf geschaltet ist, steht nicht im Code `TODO(confirm)` | `test-loeschung.js` |
+| INV-7 | Nach Vertragsende werden Serverdaten nach 30 Tagen gelöscht | Gebaut: `api/_loeschung.js` (Vormerken, Mail ab Tag 23, Löschung Tag 30), Aufruf aus `api/blob-cleanup.js`. **Probelauf ist Standard**, scharf nur mit `SYNC_LOESCHUNG=aktiv`. **Nicht scharf:** `SYNC_LOESCHUNG` ist in Vercel nicht gesetzt (geprüft 2026-11-09), es läuft nur der Probelauf | `test-loeschung.js` |
 
 ## Verträge
 

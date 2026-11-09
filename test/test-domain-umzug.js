@@ -120,6 +120,12 @@ function umgebung(host, search, opts) {
     u = umgebung('getstackr.de', '', { firmen: [{ id: 'co_a' }] });
     check('D2 neue Domain mit Daten startet normal', u.mod.vorDemStart(() => {}) === false);
 
+    u = umgebung('getstackr.de', '?alt=leer', { firmen: [] });
+    check('D3 Rueckleitung ohne Daten: erklaerende Karte statt derselben Frage',
+          u.mod.vorDemStart(() => {}) === true && !!u.elements.umzugAltLeerWeiter && !u.elements.umzugNeu);
+    u = umgebung('getstackr.de', '?alt=leer', { firmen: [{ id: 'co_a' }] });
+    check('D4 alt=leer mit vorhandener Firma: normaler Start', u.mod.vorDemStart(() => {}) === false);
+
     // ── Andere Hosts ──
     u = umgebung('localhost');
     check('E1 andere Hosts: keine Wirkung', u.mod.vorDemStart(() => {}) === false && u.listeners.length === 0);

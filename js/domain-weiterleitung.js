@@ -33,14 +33,22 @@ var DomainWeiterleitung = (function () {
         return host === ALT_HOST && !hatDaten(ls);
     }
 
+    // Kam der Besuch ueber "Zur bisherigen Adresse" von getstackr.de (?vonneu=1), meldet die
+    // Rueckleitung, dass hier nichts liegt — sonst landet der Kunde kommentarlos wieder auf
+    // derselben Karte (Kundenfall 2026-11-09: "geht nicht weiter"). Sonst Ziel ohne Query,
+    // ein alter OAuth-Code gilt dort nicht.
+    function zielFuer(search) {
+        return /[?&]vonneu=1(&|$)/.test(String(search || '')) ? ZIEL + '?alt=leer' : ZIEL;
+    }
+
     function pruefen() {
         try {
-            if (sollUmleiten(location.hostname, localStorage)) { location.replace(ZIEL); return true; }
+            if (sollUmleiten(location.hostname, localStorage)) { location.replace(zielFuer(location.search)); return true; }
         } catch (e) {}
         return false;
     }
 
-    return { hatDaten: hatDaten, sollUmleiten: sollUmleiten, pruefen: pruefen, ZIEL: ZIEL };
+    return { hatDaten: hatDaten, sollUmleiten: sollUmleiten, zielFuer: zielFuer, pruefen: pruefen, ZIEL: ZIEL };
 })();
 if (typeof window !== 'undefined' && typeof location !== 'undefined') DomainWeiterleitung.pruefen();
 if (typeof module !== 'undefined' && module.exports) module.exports = DomainWeiterleitung;

@@ -28,6 +28,10 @@ check('W9 getstackr.de leitet nie um', W.sollUmleiten('getstackr.de', ls({})) ==
 check('W10 localhost/Preview leitet nie um', W.sollUmleiten('localhost', ls({})) === false);
 check('W11 Ziel ist getstackr.de/app.html ohne Query (alter OAuth-Code gilt dort nicht)',
       W.ZIEL === 'https://getstackr.de/app.html');
+check('W12 Rueckleitung nach "Zur bisherigen Adresse" meldet alt=leer',
+      W.zielFuer('?vonneu=1') === 'https://getstackr.de/app.html?alt=leer');
+check('W13 normale Rueckleitung bleibt ohne Query (auch mit OAuth-Code)',
+      W.zielFuer('') === W.ZIEL && W.zielFuer('?code=abc') === W.ZIEL && W.zielFuer('?vonneu=10') === W.ZIEL);
 
 console.log(fails ? `\n${fails} Fehler` : '\nAlle Checks gruen');
 process.exit(fails ? 1 : 0);

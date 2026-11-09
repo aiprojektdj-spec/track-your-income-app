@@ -148,9 +148,26 @@ var DomainUmzug = (function () {
     function _frageNeuOderBestand(weiter) {
         _karte('Willkommen bei Stackr',
             'Hast du Stackr bisher unter <strong>track-your-income-app.vercel.app</strong> genutzt? Dann liegen deine Daten noch dort. Melde dich dort an und klick oben auf „Jetzt umziehen“.',
-            '<a class="btn btn-primary" style="width:100%;text-align:center;" href="' + ALT + '/app.html" id="umzugZuAlt">Zur bisherigen Adresse</a>' +
+            '<a class="btn btn-primary" style="width:100%;text-align:center;" href="' + ALT + '/app.html?vonneu=1" id="umzugZuAlt">Zur bisherigen Adresse</a>' +
             '<button type="button" class="btn" id="umzugNeu" style="width:100%;">Ich bin neu bei Stackr</button>');
         document.getElementById('umzugNeu').addEventListener('click', function () {
+            _ls(LS_NEU_FRAGE, '1');
+            _ohneUmzugWeiter(weiter);
+        });
+    }
+
+    // Rueckleitung von der alten Adresse (js/domain-weiterleitung.js): dort liegen in diesem
+    // Browser keine Daten. Nicht erneut dieselbe Frage stellen (Schleife, Kundenfall
+    // 2026-11-09), sondern die echten Wege nennen.
+    function _altLeer(weiter) {
+        _karte('Keine Daten an der bisherigen Adresse',
+            'In diesem Browser liegen unter <strong>track-your-income-app.vercel.app</strong> keine Stackr-Daten. ' +
+            'Vielleicht liegen sie auf einem anderen Gerät oder in einem anderen Browser: Öffne Stackr dort und lass dir ' +
+            'unter Cloud-Sync den Wiederherstellungscode anzeigen. Den gibst du hier im nächsten Schritt unter ' +
+            '„Mit bestehendem Sync verbinden“ ein. Hast du eine Backup-Datei, importierst du sie nach dem Einrichten ' +
+            'unter „Backup &amp; Daten“.',
+            '<button type="button" class="btn btn-primary" id="umzugAltLeerWeiter" style="width:100%;">Weiter</button>');
+        document.getElementById('umzugAltLeerWeiter').addEventListener('click', function () {
             _ls(LS_NEU_FRAGE, '1');
             _ohneUmzugWeiter(weiter);
         });
@@ -179,6 +196,10 @@ var DomainUmzug = (function () {
             return true;
         }
         var ohneFirma = typeof CompanyManager !== 'undefined' && CompanyManager.getAll().length === 0;
+        if (ohneFirma && new URLSearchParams(location.search).get('alt') === 'leer') {
+            _altLeer(weiter);
+            return true;
+        }
         if (ohneFirma && !_ls(LS_NEU_FRAGE)) {
             _frageNeuOderBestand(weiter);
             return true;

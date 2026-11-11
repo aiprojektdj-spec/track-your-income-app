@@ -29,6 +29,10 @@ check('A3 Zeile: Betraege, IDs, Karte nur Marke + letzte 4, keine weiteren Karte
     z.amount_cents === 1500 && z.refunded_cents === 500 && z.currency === 'eur' && z.whop_user_id === 'user_1' && z.card_last4 === '4242' &&
     !('card_number' in z) && JSON.stringify(z).indexOf('4242424242424242') === -1);
 check('A4 card_last4 wird auf 4 Zeichen gekuerzt', B.zeile({ id: 'p', card_last4: '1234567890' }).card_last4 === '7890');
+const z1 = B.zeile({ id: 'pay_9', status: 'paid', total: { amount: '15.00', currency: 'eur', decimals: 2 }, refunded_amount: { amount: '0.00', currency: 'eur', decimals: 2 },
+    user: { id: 'user_9' }, membership_id: 'mem_9', payment_instrument: { card: { brand: 'visa', last4: '4242', issuer_identification_number: '424242' } } });
+check('A4b v1-Format: Money-Objekt, Waehrung, Karte aus payment_instrument, keine BIN', z1.amount_cents === 1500 && z1.refunded_cents === 0 &&
+    z1.currency === 'eur' && z1.card_brand === 'visa' && z1.card_last4 === '4242' && z1.membership_id === 'mem_9' && JSON.stringify(z1).indexOf('424242') === -1);
 
 // ── B) nur GET ─────────────────────────────────────────────────────────────────
 (async () => {

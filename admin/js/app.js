@@ -123,7 +123,10 @@
             var en = await er.json();
             factorId = en.id;
             $('mfa-hint').textContent = 'Erstanmeldung: QR-Code scannen, dann den Code eingeben.';
-            $('mfa-qr').src = en.totp.qr_code;
+            // Supabase liefert rohes SVG ("data:image/svg+xml;utf-8,<svg ..."); unkodierte '#'
+            // schneiden die Data-URI als Fragment ab -> Bild kaputt. SVG neu kodieren.
+            var qr = String(en.totp.qr_code || ''), i = qr.indexOf('<');
+            $('mfa-qr').src = i > -1 ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(qr.slice(i)) : qr;
             $('mfa-qr').hidden = false;
             $('mfa-secret').textContent = en.totp.secret;
         }

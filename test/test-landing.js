@@ -133,7 +133,7 @@ function assertCheckout(page, url, label = '7 Tage kostenlos testen') {
 }
 function assertMenu(page, open) {
     assert.strictEqual(page.get('.menu-toggle').getAttribute('aria-expanded'), String(open));
-    assert.strictEqual(page.get('.menu-toggle').getAttribute('aria-label'), open ? 'Navigation schließen' : 'Navigation öffnen');
+    assert.strictEqual(page.get('.menu-toggle').getAttribute('aria-label'), open ? 'Menü schließen' : 'Menü öffnen');
     assert.strictEqual(page.get('#navigation').classList.contains('is-open'), open);
 }
 

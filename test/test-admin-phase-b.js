@@ -49,7 +49,17 @@ check('A5 E-Mail maskiert', M.maskEmail('max.mustermann@firma.de') === 'm***@fir
     const u1 = w.rows.find(r => r.whop_user_id === 'user_1');
     check('B1 eine Zeile je Nutzer, Mitgliedschaft ohne Nutzer uebersprungen', w.rows.length === 3 && w.gelesen === 4);
     check('B2 aktive schlaegt gekuendigte; Plan, E-Mail klein; aeltestes Anmeldedatum', u1.status === 'active' && u1.plan_id === 'plan_b' && u1.email === 'a@x.de' && u1.signup_at === '2026-01-01T00:00:00Z');
-    check('B3 Seitenwechsel per Cursor', urls.length === 2 && urls[1].indexOf('after=c1') !== -1);
+    check('B3 Seitenwechsel per Cursor', urls.filter(u => u.indexOf('/memberships') !== -1).length === 2 && urls[1].indexOf('after=c1') !== -1);
+
+    // Whop API v1: kein user-Objekt, Plan in variant_id, E-Mail nur ueber /members
+    const w2 = await M.whopLaden({ WHOP_API_KEY: 'k' }, async (url) => ({ ok: true, json: async () => url.indexOf('/members?') !== -1
+        ? { data: [{ email: 'C@Z.de', name: 'Cem', user: { id: 'user_9', username: 'cem' } }], page_info: { has_next_page: false } }
+        : { data: [{ id: 'mem_9', status: 'active', user_id: 'user_9', variant_id: 'plan_v' }], page_info: { has_next_page: false } } }));
+    const u9 = w2.rows[0];
+    check('B4 v1-Format: Plan aus variant_id, E-Mail/Name aus /members', u9.plan_id === 'plan_v' && u9.email === 'c@z.de' && u9.name === 'Cem' && u9.username === 'cem');
+    const w3 = await M.whopLaden({ WHOP_API_KEY: 'k' }, async (url) => url.indexOf('/members?') !== -1 ? { ok: false, status: 403 }
+        : { ok: true, json: async () => ({ data: [{ id: 'mem_9', status: 'active', user_id: 'user_9', variant_id: 'plan_v' }], page_info: { has_next_page: false } }) });
+    check('B5 /members gesperrt: Abgleich laeuft ohne E-Mail weiter', w3.rows.length === 1 && w3.rows[0].email === '');
 
     // ── C) Endpunkte ──────────────────────────────────────────────────────────
     process.env.SUPABASE_URL = 'http://sb.mock';

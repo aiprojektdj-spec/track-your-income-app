@@ -35,6 +35,7 @@ var MAIL2_TAG    = 23;
 var VORLAUF_TAGE = 7;
 var GUELTIG      = { active: 1, trialing: 1, past_due: 1 };
 var WHOP_API     = 'https://api.whop.com/api/v1';
+var whopEmails = require('./_whop-mitglieder.js').whopEmails;
 var MAX_SEITEN   = 200;
 
 function _ids(s) { return String(s || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean); }
@@ -64,6 +65,10 @@ async function whopMitglieder(env, fetchFn) {
         if (!pi || !pi.has_next_page || !pi.end_cursor) break;
         after = pi.end_cursor;
     }
+    // Whop API v1: Mitgliedschaften tragen keine E-Mail mehr. Ohne Adresse wuerde der Lauf
+    // spaeter ohne Warnmail loeschen, darum wirft ein Fehler hier und bricht den Lauf ab.
+    var mails = await whopEmails(env, fetchFn);
+    Object.keys(mails).forEach(function (u) { if (!info[u]) info[u] = { email: mails[u] }; });
     return { aktiv: aktiv, info: info, n: n };
 }
 

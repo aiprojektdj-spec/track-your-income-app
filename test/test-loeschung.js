@@ -151,6 +151,19 @@ const geloescht = (w, u) => w.ops.some(x => x.indexOf('clearScopes ' + u) === 0)
     w.d.now = T0 + 38 * TAG; await L.tageslauf(w.d);
     check('6d 7 Tage nach Mail 2: gelöscht', geloescht(w, 'user_B'));
 
+    // 8 Whop API v1: Mitgliedschaft nur mit user_id, E-Mail aus /members; /members-Fehler bricht ab
+    const W = require(path.join(ROOT, 'api', '_whop-mitglieder.js'));
+    const v1 = async (url) => ({ ok: true, json: async () => url.indexOf('/members?') !== -1
+        ? { data: [{ email: 'V@X.de', user: { id: 'user_V' } }], page_info: { has_next_page: false } }
+        : { data: [{ status: 'canceled', user_id: 'user_V' }], page_info: { has_next_page: false } } });
+    const mails = await W.whopEmails({ WHOP_API_KEY: 'k' }, v1);
+    check('8a v1: E-Mail aus /members, klein', mails.user_V === 'v@x.de');
+    let wirft = false;
+    try { await W.whopEmails({ WHOP_API_KEY: 'k' }, async () => ({ ok: false, status: 403 })); } catch (e) { wirft = true; }
+    check('8b /members-Fehler wirft (Loeschlauf darf nicht ohne Warnadresse weiterlaufen)', wirft);
+    const lsrc = fs.readFileSync(path.join(ROOT, 'api/_loeschung.js'), 'utf8');
+    check('8c whopMitglieder holt E-Mails ueber whopEmails ohne try/catch', /var mails = await whopEmails\(env, fetchFn\);/.test(lsrc));
+
     // 7 Migration und Verdrahtung
     const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20261026000002_loeschplan.sql'), 'utf8');
     const fns = ['sync_loeschplan_liste()', 'sync_loeschplan_vormerken(text[])', 'sync_loeschplan_mail(text, integer)',

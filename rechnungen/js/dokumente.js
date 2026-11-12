@@ -258,7 +258,8 @@ var Dokumente = (function() {
 
         toolbar.appendChild(printBtn);
         toolbar.appendChild(closeBtn);
-        document.body.appendChild(toolbar);
+        // Im <dialog> selbst: der Dialog liegt im Top-Layer und deckt sonst alles ausserhalb ab (Klick ging ins Leere).
+        overlay.appendChild(toolbar);
 
         overlay.classList.add('active');
 

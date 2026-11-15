@@ -63,13 +63,17 @@
         var banner = document.createElement('div');
         banner.id = 'cookieBanner';
         banner.innerHTML =
+            // Drei Absaetze statt eines Textblocks: LCP misst Text pro Block-Element.
+            // Als ein Block war der Hinweis beim Erstbesuch groesser als die H1 der
+            // Landing und wurde so zum LCP-Element (0,7 s statt 0,4 s). Wortlaut unveraendert.
             '<div class="cb-text">' +
-                '<strong>Datenschutz-Hinweis</strong><br>' +
+                '<p><strong>Datenschutz-Hinweis</strong><br>' +
                 'Für Anmeldung und Betrieb speichert Stackr technisch notwendige Daten lokal in deinem ' +
-                'Browser (localStorage/IndexedDB). Das ist einwilligungsfrei und lässt sich nicht abwählen. ' +
-                'Zusätzlich möchten wir die Nutzung anonym und cookiefrei messen (Vercel Web Analytics) — ' +
-                'dafür brauchen wir deine Einwilligung. Keine Werbung, keine Weitergabe zu Werbezwecken. ' +
-                'Mehr in unserer <a href="/datenschutz.html">Datenschutzerklärung</a>.' +
+                'Browser (localStorage/IndexedDB). Das ist einwilligungsfrei und lässt sich nicht abwählen.</p>' +
+                '<p>Zusätzlich möchten wir die Nutzung anonym und cookiefrei messen (Vercel Web Analytics) — ' +
+                'dafür brauchen wir deine Einwilligung.</p>' +
+                '<p>Keine Werbung, keine Weitergabe zu Werbezwecken. ' +
+                'Mehr in unserer <a href="/datenschutz.html">Datenschutzerklärung</a>.</p>' +
             '</div>' +
             '<div class="cb-actions">' +
                 '<button class="cb-btn-min" data-action="cb-necessary">Nur notwendige</button>' +

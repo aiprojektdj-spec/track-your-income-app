@@ -149,6 +149,43 @@ die Beleg-Nr. mit dem Lieferantenkürzel versehen.
 per CSV importierbar“, „Betrag fehlt oder ist keine Zahl“, „Betrag muss größer 0 sein“, „Unzulässiger USt-Satz …“,
 „Periode festgeschrieben (Datum …)“. Fehlt eine Pflichtspalte im Kopf, meldet der Dialog das und importiert nichts.
 
+## Eigenbeleg-CSV — Eigenbelege → Alle Eigenbelege → „CSV importieren“
+
+Vorlage: Knopf „Vorlage herunterladen (CSV)“ im Dialog (`stackr-eigenbelege-vorlage.csv`, eine erfundene
+Beispielzeile, vor dem Import löschen). Der Kopf wird an den Spaltennamen erkannt:
+`Datum; Zweck; Betrag brutto; MwSt-Satz; Begründung; Verkäufer; Kategorie; Zahlungsweg; Notizen`. Nur CSV
+(Semikolon oder Komma).
+
+| Spalte | Pflicht | Bedeutung |
+|---|---|---|
+| Datum | **ja** | echter Kalendertag |
+| Zweck | **ja** | betriebliche Veranlassung |
+| Betrag brutto | **ja** | > 0 |
+| MwSt-Satz | **ja** | `0`, `7` oder `19` (auch `19%`); andere Werte = Zeile übersprungen |
+| Begründung | **ja** | Kennung oder Name: `verloren`, `nicht_ausgehaendigt`, `barzahlung_flohmarkt`, `onlinekauf`, `unleserlich`, `verloren_ust_rekonstruiert`, `sonstiges` |
+| Verkäufer | nein | leer = im Beleg noch ausfüllen (das Bearbeiten-Formular verlangt ihn) |
+| Kategorie | nein | Kennung oder Name einer Eigenbeleg-Kategorie (z. B. `fahrtkosten`); leer = noch zu wählen; unbekannt = Zeile übersprungen |
+| Zahlungsweg | nein | `bar`, `ec`, `kreditkarte`, `paypal`, `ueberweisung`, `klarna`, `sonstiges` (oder der Anzeigename); leer = `sonstiges` |
+| Notizen | nein | Freitext |
+
+**Importierte Belege sind unbestätigt** (`bestaetigt: false`): Liste zeigt das Etikett „Unbestätigt“, sie zählen
+**nicht** in EÜR, DATEV-Stapel, DATEV-Belegarchiv und in den Summen der Eigenbeleg-Seite, bis jemand in der
+Liste auf „Bestätigen“ klickt (Audit-Eintrag, nicht in festgeschriebenen Perioden; das Z3-Protokoll
+`eigenbelege.csv` listet sie weiter). Ein Vorsteuerabzug wird per CSV nie gesetzt, Warenpositionen entstehen
+nicht (kein Lager-Eintrag). Bestehende Belege ohne das Feld gelten wie bisher als bestätigt.
+
+Nummer: `<Präfix>-<JJJJ>-<NNN>` wie im Formular (nächste freie Nummer), vergeben erst beim Import, nicht in der
+Vorschau; abgewählte Dubletten und übersprungene Zeilen verbrauchen keine Nummer. Gespeichert wird in die
+**aktive Firma**; stimmen die beiden Firmenquellen der App nicht überein, bricht der Dialog ab.
+
+**Dublette, wenn:** ein nicht stornierter Beleg mit gleichem Datum + Betrag brutto (Cent) + Zweck existiert;
+gleiche Zeilen in einer Datei werden durchgezählt (`#1`, `#2`).
+
+**Übersprungen:** „Datum fehlt oder ist ungültig“, „Zweck fehlt“, „Betrag brutto fehlt oder ist keine Zahl“,
+„Betrag brutto muss größer 0 sein“, „MwSt-Satz fehlt oder ist keine Zahl“, „Unzulässiger MwSt-Satz …“,
+„Begründung fehlt“, „Unbekannte Begründung …“, „Unbekannte Kategorie …“, „Unbekannter Zahlungsweg …“,
+„Periode festgeschrieben (Belegdatum …)“. Fehlt eine Pflichtspalte im Kopf, importiert der Dialog nichts.
+
 ## Festgeschriebene Perioden (GoBD)
 
 Zeilen, deren Datum in einer festgeschriebenen Periode liegt (USt-Voranmeldung eingereicht oder
@@ -167,6 +204,7 @@ selbst wird gebucht und die Vorschau weist darauf hin.
 | Periode festgeschrieben (Kaufdatum / Verkaufsdatum …) | beide |
 | Datum fehlt oder ist ungültig | Einkaufs-CSV (Buchungen), Ausgaben-CSV |
 | Unbekannte Kategorie / Unzulässiger USt-Satz / Betrag muss größer 0 sein | Ausgaben-CSV |
+| Zweck/Begründung/MwSt-Satz fehlen oder unzulässig, Unbekannte Begründung/Kategorie/Zahlungsweg | Eigenbeleg-CSV |
 
 **Fehlerdatei** (`import-fehler.csv`): UTF-8 mit BOM, Semikolon, Kopfzeile `Zeile;Grund`, eine Zeile je
 nicht importierter Zeile. Enthält auch abgewählte Dubletten (Grund beginnt mit „Dublette:“). Die

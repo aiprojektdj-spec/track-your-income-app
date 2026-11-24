@@ -1223,6 +1223,7 @@ function renderAlle() {
             <div style="display:flex;gap:8px">
                 <button class="btn btn-secondary" data-action="eb-export-csv"><i class="ti ti-table-export"></i> CSV</button>
                 <button class="btn btn-secondary" data-action="eb-export-json"><i class="ti ti-database-export"></i> Backup</button>
+                <button class="btn btn-secondary" data-action="eb-import-csv"><i class="ti ti-table-import"></i> CSV importieren</button>
                 <button class="btn btn-primary"   data-action="eb-navigate" data-page="neu"><i class="ti ti-plus"></i> Neuer Eigenbeleg</button>
             </div>
         </div>
@@ -1481,6 +1482,21 @@ Der Beleg zählt danach in EÜR und DATEV-Export. Bitte vorher Betrag, Verkäufe
     if (typeof Store !== 'undefined') Store._addAuditEntry('bearbeitet', 'eigenbeleg', id, old, belege[idx], 'Eigenbeleg bestätigt');
     toast('Eigenbeleg bestätigt', 'success');
     applyFilter();
+}
+
+// CSV-Import (js/import-eigenbelege.js): Belege kommen unbestaetigt an; Nummer ueber EB.genId() wie im Formular.
+function csvImportOeffnen() {
+    EigenbelegImport.oeffneDialog({
+        kategorien: getAllKat(), begruendungen: BEGRUENDUNGEN,
+        bestand: () => EB.getBelege(),
+        gesperrt: d => typeof Store !== 'undefined' && Store.isPeriodLocked(d),
+        // _ebPrefix() liest localStorage, Store.setCompany() setzt Store._companyId: beide muessen dieselbe Firma meinen
+        firmaPasst: () => typeof Store === 'undefined' || (Store._companyId || '') === (localStorage.getItem('oyi_active_company') || ''),
+        modal: document.getElementById('modal'), openModal, closeModal, toast, nachImport: () => applyFilter(),
+        genId: () => EB.genId(), calcMwst, heute: today, einstellungen: EB.getEinstellungen(),
+        getBelege: () => EB.getBelege(), saveBelege: v => EB.saveBelege(v),
+        audit: (id, b) => { if (typeof Store !== 'undefined') Store._addAuditEntry('erstellt', 'eigenbeleg', id, null, b, 'Eigenbeleg erstellt (CSV-Import, unbestätigt): ' + id); }
+    });
 }
 
 // GoBD §146 Abs.4 HGB: kein physisches Löschen mehr — Storno-Flag, Beleg bleibt
@@ -2189,6 +2205,7 @@ document.addEventListener('click', function (e) {
         case 'eb-print':              printBeleg(d.id); break;
         case 'eb-delete':             deleteBeleg(d.id); break;
         case 'eb-confirm-beleg':      bestaetigeBeleg(d.id); break;
+        case 'eb-import-csv':         csvImportOeffnen(); break;
         case 'eb-close':              closeModal(); break;
         case 'eb-close-edit':         closeModal(); editBeleg(d.id); break;
         case 'eb-select-lager':       selectLagerArtikel(Number(d.idx), d.id); closeModal(); break;

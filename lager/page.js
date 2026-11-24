@@ -1754,7 +1754,11 @@ const ExcelImport = {
             anzahl:       find('anzahl', 'menge', 'quantity', 'qty', 'stück', 'stueck'),
             verkaufspreis:find('verkauf', 'verkaufspreis', 'vk', 'vk-preis', 'sale', 'sold', 'erlös', 'erloes', 'umsatz'),
             verkaufsdatum:find('verkaufsdatum', 'verkaufdatum', 'vk-datum', 'sale date', 'saledate', 'sold date'),
-            verkaufswo:   find('wo2', 'wohin', 'käufer', 'kaeufer', 'buyer', 'sold to'),
+            verkaufswo:   find('wo2', 'wohin', 'sold to'),
+            // Einzeilen-Format: eigene Spalten fuer Plattform, Gebuehr in EUR und Kaeufer
+            verkaufsplattform: find('plattform', 'verkaufsplattform', 'platform'),
+            gebuehrEur:   find('gebühr eur', 'gebuehr eur', 'gebühr (eur)', 'gebühr (€)', 'gebühr €', 'plattformgebühr eur', 'plattformgebühr (€)', 'fee eur'),
+            kaeufer:      find('käufer', 'kaeufer', 'buyer'),
             // Optionale Ausgaben-/Einnahmen-Posten für die EÜR (€ bzw. %) — nur bei passender Spalte
             versandKaeufer:    find('versand käufer', 'versandkäufer', 'versandkosten käufer', 'versand vom käufer', 'shipping charged'),
             versandVerkaeufer: find('versand', 'porto', 'shipping', 'versandkosten', 'versandkosten verkäufer', 'versand verkäufer'),
@@ -1802,6 +1806,8 @@ const ExcelImport = {
                 <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--text-secondary);">
                     <div style="font-weight:700;color:var(--info);margin-bottom:4px;">Excel-Import</div>
                     <div>Lade eine <strong>.xlsx, .xls oder .csv</strong>-Datei mit deinen Artikeln hoch. Spalten werden automatisch erkannt — du kannst sie zuordnen.
+                    Einkauf und Verkauf stehen in <strong>einer Zeile</strong>: ist ein Verkaufspreis eingetragen, gilt der Artikel als verkauft.
+                    <a href="#" id="excelVorlageLink">CSV-Vorlage herunterladen</a>
                     Hast du eine eigene <strong>Artikelnummer</strong>-Spalte, wird sie übernommen; sonst vergibt Stackr automatisch fortlaufende Nummern.</div>
                 </div>
 
@@ -1855,6 +1861,10 @@ const ExcelImport = {
         App.showModal('Excel-Import', body, footer);
 
         document.getElementById('excelFileInput').addEventListener('change', e => this._handleFile(e.target.files[0]));
+        document.getElementById('excelVorlageLink').addEventListener('click', e => {
+            e.preventDefault();
+            Utils.downloadFile(LagerImport.vorlageCsv(), 'stackr-lager-vorlage.csv', 'text/csv;charset=utf-8');
+        });
         // Datum bestimmt den Dublettenabgleich und die Periodensperre bei Zeilen ohne eigenes Datum.
         document.getElementById('excelDatum').addEventListener('change', () => { if (this._rows.length) this._renderPreview(); });
         document.getElementById('excelImportBtn').addEventListener('click', () => this._import());
@@ -1956,6 +1966,9 @@ const ExcelImport = {
             { key: 'verkaufspreis', label: 'Verkaufspreis',  required: false },
             { key: 'verkaufsdatum', label: 'Verkaufsdatum',  required: false },
             { key: 'verkaufswo',    label: 'Verkauft an / wo',required: false },
+            { key: 'verkaufsplattform', label: 'Verkaufsplattform',  required: false },
+            { key: 'kaeufer',           label: 'Käufer',             required: false },
+            { key: 'gebuehrEur',        label: 'Plattformgebühr (€)', required: false },
             { key: 'versandKaeufer',    label: 'Versand v. Käufer (€)',  required: false },
             { key: 'versandVerkaeufer', label: 'Versandkosten (€)',      required: false },
             { key: 'gebuehrProzent',    label: 'Plattformgebühr (%)',    required: false },
@@ -2155,12 +2168,12 @@ const ExcelImport = {
                 if (row.verkauft) {
                     const sale = {
                         datum:            row.verkaufsdatum || row.datum,
-                        verkaufsplattform: row.verkaufswo || 'Sonstiges',
+                        verkaufsplattform: row.verkaufsplattform || row.verkaufswo || 'Sonstiges',
                         verkaufspreis:    row.verkaufspreis,
                         versandkostenKaeufer:    row.versandKaeufer,
                         plattformgebuehrProzent: row.gebuehrProzent,
                         versandkostenVerkaufer:  row.versandVerkaeufer,
-                        kaeufer:          row.verkaufswo || '',
+                        kaeufer:          row.kaeufer || row.verkaufswo || '',
                         notizen:          'Excel-Import',
                         marke:            row.marke,
                         artikeltyp:       row.artikeltyp,
@@ -2174,7 +2187,8 @@ const ExcelImport = {
                     sale.createdAt = new Date().toISOString();
                     if (Store._stampRecord) Store._stampRecord(sale);
                     newSales.push(sale);
-                    if (row.verkaufswo) Store.addPlatform && Store.addPlatform(row.verkaufswo);
+                    const plattform = row.verkaufsplattform || row.verkaufswo;
+                    if (plattform) Store.addPlatform && Store.addPlatform(plattform);
                 }
             });
 

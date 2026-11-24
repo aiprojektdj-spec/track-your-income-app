@@ -40,7 +40,7 @@ Dublette, die zweite ist neu.
 | Tags | nein | Komma-getrennt (`Vintage, Nike`), Doppelte und Leere entfallen |
 | Notizen / Bemerkung | nein | Freitext am Artikel |
 | Typ, Größe, Einkaufsquelle, Anzahl | nein | Anzahl > 1 legt mehrere Artikel an (`NR-1`, `NR-2`, …) |
-| Verkaufspreis, Verkaufsdatum, Verkauft an, Versand Käufer, Versandkosten, Plattformgebühr % | nein | Ist ein Verkaufspreis > 0 da, gilt der Artikel als verkauft und der Verkauf wird mit angelegt |
+| Verkaufspreis, Verkaufsdatum, Plattform, Käufer, Versand Käufer, Versand Verkäufer, Gebühr EUR (oder Plattformgebühr %) | nein | Ist ein Verkaufspreis > 0 da, gilt der Artikel als verkauft und der Verkauf wird in derselben Zeile mit angelegt. Verkaufsdatum leer = Kaufdatum. Plattform leer = „Sonstiges“. Gebühr EUR wird auf Prozent von (Preis + Versand Käufer) umgerechnet, 2 Nachkommastellen; steht auch eine Prozent-Spalte da, gilt diese. Bei Anzahl > 1 gilt Verkaufspreis für die ganze Zeile. |
 
 **Dublette, wenn:** die Artikelnummer schon vergeben ist (auch eine stornierte Nummer; bei Anzahl > 1
 auch `NR-1`) — oder, ohne Artikelnummer, Kaufdatum + Marke + Beschreibung + Größe + EK-Preis (in
@@ -49,6 +49,19 @@ aus „Gemeinsame Felder“; für den Dublettenabgleich muss es dasselbe sein wi
 
 **Noch nicht im Modell, daher nicht importierbar (Lücke):** *Zustand* (kein Feld am Artikel; steht
 im Alltag oft in den Notizen) und *Einkaufsnebenkosten* (nur `versandanteil` bei Bulk-Einkäufen).
+
+### Einzeilen-Format und Vorlage
+
+Ein Artikel je Zeile, Verkauf optional in derselben Zeile. Im Dialog „Excel-Import“ lädt der Link
+„CSV-Vorlage herunterladen“ `stackr-lager-vorlage.csv` herunter (zwei erfundene Beispielzeilen, vor dem
+Import löschen). Die Spalten, genau in dieser Schreibweise und Reihenfolge (so erkennt Stackr sie
+ohne Zuordnung):
+
+`Artikelnummer; Kaufdatum; Marke; Beschreibung; Artikeltyp; Größe; Anzahl; Einkaufspreis; Einkaufsquelle; Lagerbereich; Lagerregal; Lagerfach; Warenkategorie; Tags; Notizen; Verkaufsdatum; Verkaufspreis; Plattform; Gebühr EUR; Versand Käufer; Versand Verkäufer; Käufer`
+
+Format: CSV, UTF-8 (mit oder ohne BOM), Semikolon als Trenner, Dezimalpunkt (`12.50`, ohne
+Tausendertrenner), Datum `JJJJ-MM-TT`, Tags kommagetrennt in einer Zelle. Pflicht: `Einkaufspreis` und
+`Marke` oder `Beschreibung`. Gleiche Datei erneut importieren = nur Dubletten (Artikelnummer).
 
 ## Verkäufe-Import — Dialog „Verkäufe-Import (CSV)“
 

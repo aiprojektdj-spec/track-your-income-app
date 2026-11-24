@@ -24,6 +24,12 @@ const LagerImport = (function () {
     }
     function aktiv(p) { return p && !p.storniert && !p.gegengebucht && p.status !== 'gegenbuchung'; }
 
+    // Plattformgebuehr in EUR -> Prozent von Preis + Versand Kaeufer (2 Nachkommastellen).
+    // Eine Stelle fuer Lager-Import, Verkaeufe-Import und Einzeilen-Format.
+    function gebuehrProzent(eur, preis, vsk) {
+        return preis > 0 ? Math.round((eur / (preis + vsk)) * 10000) / 100 : 0;
+    }
+
     // ── Einkaeufe (ExcelImport) ──────────────────────────────────────────────
     function fpEinkauf(datum, marke, beschr, groesse, preis) {
         return K.fingerprint([datum || '', marke || '', beschr || '', groesse || '', cent(preis)]);
@@ -81,11 +87,18 @@ const LagerImport = (function () {
                 verkauft: verkauft,
                 verkaufspreis: verkauft ? vkPreis : 0,
                 verkaufsdatum: vkDatum,
-                verkaufswo: String(get('verkaufswo') || '').trim(),
+                verkaufswo: text(get('verkaufswo')),
+                verkaufsplattform: text(get('verkaufsplattform')),
+                kaeufer: text(get('kaeufer')),
                 versandKaeufer: verkauft ? K.zahl(get('versandKaeufer')) : 0,
                 versandVerkaeufer: verkauft ? K.zahl(get('versandVerkaeufer')) : 0,
-                gebuehrProzent: verkauft ? K.zahl(get('gebuehrProzent')) : 0
+                gebuehrProzent: 0
             };
+            if (verkauft) {
+                // Prozent-Spalte hat Vorrang; sonst Gebuehr in EUR, umgerechnet auf den Gesamterloes der Zeile
+                var prozent = K.zahl(get('gebuehrProzent'));
+                row.gebuehrProzent = prozent > 0 ? prozent : gebuehrProzent(K.zahl(get('gebuehrEur')), vkPreis, row.versandKaeufer);
+            }
             var key, dublette;
             if (row.artikelNr) {
                 key = 'nr:' + upper(row.artikelNr);
@@ -152,7 +165,7 @@ const LagerImport = (function () {
                 verkaufsplattform: opt.plattform,
                 verkaufspreis: preis,
                 versandkostenKaeufer: vsk,
-                plattformgebuehrProzent: preis > 0 ? Math.round((gebuehr / (preis + vsk)) * 10000) / 100 : 0,
+                plattformgebuehrProzent: gebuehrProzent(gebuehr, preis, vsk),
                 versandkostenVerkaufer: vskVk,
                 kaeufer: kaeufer,
                 notizen: 'Importiert aus ' + opt.plattform + '-CSV' + (purchase ? ' · Lager-Match: ' + purchase.artikelNr : '')
@@ -249,7 +262,24 @@ const LagerImport = (function () {
         });
     }
 
+    // ── Einzeilen-Format (Vorlage, Export): ein Artikel je Zeile, Verkauf in derselben Zeile ──
+    // Kopfnamen werden von ExcelImport._autoDetect erkannt (Test: test-import-lager.js).
+    var EINZEILEN_SPALTEN = ['Artikelnummer', 'Kaufdatum', 'Marke', 'Beschreibung', 'Artikeltyp', 'Größe', 'Anzahl',
+        'Einkaufspreis', 'Einkaufsquelle', 'Lagerbereich', 'Lagerregal', 'Lagerfach', 'Warenkategorie', 'Tags', 'Notizen',
+        'Verkaufsdatum', 'Verkaufspreis', 'Plattform', 'Gebühr EUR', 'Versand Käufer', 'Versand Verkäufer', 'Käufer'];
+
+    // CSV-Vorlage: UTF-8 mit BOM, Semikolon, Punkt-Dezimal, Datum JJJJ-MM-TT. Die Beispielzeilen sind erfunden
+    // und gekennzeichnet; vor dem Import loeschen oder ueberschreiben.
+    function vorlageCsv() {
+        var bsp1 = ['BSP-001', '2026-01-15', 'Beispielmarke', 'BEISPIEL - Zeile loeschen: Jacke, nicht verkauft', 'Jacke', 'M', 1, '12.50', 'Flohmarkt',
+            'Keller', 'R1', 'F2', 'Kleidung', 'Vintage, Winter', 'Kleiner Fleck am Aermel', '', '', '', '', '', '', ''];
+        var bsp2 = ['BSP-002', '2026-01-15', 'Beispielmarke', 'BEISPIEL - Zeile loeschen: Hose, verkauft', 'Hose', '32', 1, '8.00', 'Flohmarkt',
+            '', '', '', 'Kleidung', '', '', '2026-02-03', '25.00', 'Vinted', '1.25', '3.90', '3.90', 'Max Muster'];
+        return '﻿' + [EINZEILEN_SPALTEN, bsp1, bsp2].map(K.csvZeile).join('\r\n') + '\r\n';
+    }
+
     return {
+        gebuehrProzent: gebuehrProzent, EINZEILEN_SPALTEN: EINZEILEN_SPALTEN, vorlageCsv: vorlageCsv,
         einkaufsZeilen: einkaufsZeilen, verkaufsZeilen: verkaufsZeilen, ausgewaehlt: ausgewaehlt,
         vorschauHtml: vorschauHtml, verdrahte: verdrahte, nichtImportiert: nichtImportiert, berichtHtml: berichtHtml, zeigeBericht: zeigeBericht,
         _bestandEinkauf: bestandEinkauf, _bestandVerkauf: bestandVerkauf

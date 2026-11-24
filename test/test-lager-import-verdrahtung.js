@@ -113,6 +113,36 @@ function storeStub(opt) {
         assert.strictEqual(JSON.stringify(kategorien), JSON.stringify(['Kleidung']));
     });
 
+    await check('Vorlage (Einzeilen-Format): alle Spalten erkannt, Verkauf in derselben Zeile, zweiter Import = nur Dubletten', async () => {
+        const store = storeStub({});
+        const { ctx, el } = welt(store);
+        const X = ctx.ExcelImport;
+        const csv = ctx.LagerImport.vorlageCsv();
+        assert.strictEqual(csv.charCodeAt(0), 0xFEFF);
+        const XLSX = require(path.join(__dirname, '..', 'js', 'vendor', 'xlsx.full.min.js'));
+        const wb = XLSX.read(new TextEncoder().encode(csv), { type: 'array', codepage: 65001 });
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '', raw: false });
+        const spalten = Object.keys(rows[0]);
+        assert.strictEqual(JSON.stringify(spalten), JSON.stringify(Array.from(ctx.LagerImport.EINZEILEN_SPALTEN)));
+        const m = X._autoDetect(spalten);
+        const zugeordnet = new Set(Object.values(m).filter(Boolean));
+        spalten.forEach(c => assert.ok(zugeordnet.has(c), 'Spalte nicht erkannt: ' + c));
+        X._columns = spalten; X._mapping = m; X._rows = rows;
+        X._renderPreview();
+        assert.strictEqual(X._erg.fehler.length, 0);
+        await X._import();
+        const [a, b] = store.daten.purchases;
+        assert.strictEqual(a.artikelNr, 'BSP-001'); assert.strictEqual(a.lagerort.regal, 'R1'); assert.strictEqual(a.status, 'verfuegbar');
+        assert.strictEqual(b.status, 'verkauft');
+        assert.strictEqual(store.daten.sales.length, 1);
+        const v = store.daten.sales[0];
+        assert.strictEqual(v.datum, '2026-02-03'); assert.strictEqual(v.verkaufsplattform, 'Vinted'); assert.strictEqual(v.kaeufer, 'Max Muster');
+        assert.strictEqual(v.verkaufspreis, 25); assert.strictEqual(v.versandkostenKaeufer, 3.9); assert.strictEqual(v.versandkostenVerkaufer, 3.9);
+        assert.strictEqual(v.plattformgebuehrProzent, 4.33);       // 1,25 / (25 + 3,90)
+        X._renderPreview();
+        assert.ok(X._erg.zeilen.every(z => z.dublette) && X._erg.zeilen.length === 2, 'zweiter Import: nur Dubletten');
+    });
+
     await check('ExcelImport: Haken an der Dublette importiert sie doch', async () => {
         const bestand = [{ id: 'p1', artikelNr: '2026-001', datum: '2026-03-01', marke: 'Nike', beschreibung: 'Hoodie', groesse: '', einkaufspreis: 12.5, status: 'verfuegbar' }];
         const store = storeStub({ purchases: bestand });

@@ -133,6 +133,28 @@ check('Einkauf: ohne diese Spalten bleiben die Felder leer (alte Dateien gueltig
     assert.strictEqual(z.notizen, '');
 });
 
+check('Einkauf mit Verkauf: Gebuehr in EUR wird in Prozent umgerechnet, Prozent-Spalte hat Vorrang', () => {
+    const map = Object.assign({ gebuehrEur: 'G', gebuehrProzent: 'P', versandKaeufer: 'V', verkaufsplattform: 'Pl', kaeufer: 'K' }, MAP);
+    const r = zeile({ Marke: 'A', EK: '5', VK: '20', G: '1,00', V: '4', Pl: 'eBay', K: 'Erika' });
+    const z = L.einkaufsZeilen([r], map, OPT()).zeilen[0].row;
+    assert.strictEqual(z.gebuehrProzent, 4.17);
+    assert.strictEqual(z.verkaufsplattform, 'eBay'); assert.strictEqual(z.kaeufer, 'Erika');
+    const mitProzent = L.einkaufsZeilen([Object.assign({}, r, { P: '10' })], map, OPT()).zeilen[0].row;
+    assert.strictEqual(mitProzent.gebuehrProzent, 10);
+    const unverkauft = L.einkaufsZeilen([zeile({ Marke: 'A', EK: '5', G: '1' })], map, OPT()).zeilen[0].row;
+    assert.strictEqual(unverkauft.gebuehrProzent, 0);
+    assert.strictEqual(L.gebuehrProzent(1, 0, 0), 0);
+});
+
+check('Vorlage: BOM, Semikolon, 22 Spalten in Kopf und Beispielzeilen', () => {
+    const t = L.vorlageCsv();
+    assert.strictEqual(t.charCodeAt(0), 0xFEFF);
+    const zeilen = t.slice(1).split('\r\n').filter(Boolean);
+    assert.strictEqual(zeilen.length, 3);
+    zeilen.forEach(z => assert.strictEqual(z.split(';').length, 22));
+    assert.strictEqual(zeilen[0].split(';')[5], 'Größe');
+});
+
 // ── Verkaeufe ──
 const SMAP = { datum: 'Datum', beschreibung: 'Titel', preis: 'Preis', gebuehr: 'Gebühr', versandKaeufer: 'Versand' };
 const srow = (o) => Object.assign({ Datum: '', Titel: '', Preis: '', 'Gebühr': '', Versand: '' }, o);

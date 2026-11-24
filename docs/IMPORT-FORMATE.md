@@ -63,6 +63,20 @@ Format: CSV, UTF-8 (mit oder ohne BOM), Semikolon als Trenner, Dezimalpunkt (`12
 Tausendertrenner), Datum `JJJJ-MM-TT`, Tags kommagetrennt in einer Zelle. Pflicht: `Einkaufspreis` und
 `Marke` oder `Beschreibung`. Gleiche Datei erneut importieren = nur Dubletten (Artikelnummer).
 
+### Export im Einzeilen-Format
+
+Lager → Export → „Einzeilen-Format (.csv)“ schreibt die aktuell gefilterten Artikel in genau diese
+Spalten (`Lager_Einzeilen_JJJJ-MM-TT.csv`). Die Datei lässt sich unverändert wieder über den
+Excel-Import einlesen; im selben Bestand sind dann alle Zeilen Dubletten (0 neue). Regeln:
+
+- Stornierte Artikel und stornierte Verkäufe entfallen (ein Reimport würde sie sonst als aktive Ware anlegen).
+- `Anzahl` ist immer 1 (jeder Artikel hat eine eigene Zeile und Artikelnummer).
+- `Gebühr EUR` = (Verkaufspreis + Versand Käufer) × Gebühr-%, auf Cent gerundet.
+- Sammelverkäufe (ein Verkauf, mehrere Artikel) werden gleichmäßig auf die Artikel verteilt, der Cent-Rest geht an den ersten.
+- Textzellen, die mit `=`, `+`, `-` oder `@` beginnen, bekommen ein führendes `'` (Schutz vor Formeln in Excel).
+- In einen **leeren** Bestand importiert, legt die Datei alle Artikel und Verkäufe wieder an. Das Gebühr-% kann dabei um
+  Rundungsreste abweichen (EUR ist auf Cent gerundet).
+
 ## Verkäufe-Import — Dialog „Verkäufe-Import (CSV)“
 
 | Spalte (Feld) | Pflicht | Bedeutung |

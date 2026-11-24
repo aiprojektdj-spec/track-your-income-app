@@ -278,7 +278,59 @@ const LagerImport = (function () {
         return '﻿' + [EINZEILEN_SPALTEN, bsp1, bsp2].map(K.csvZeile).join('\r\n') + '\r\n';
     }
 
+    // ── Export im Einzeilen-Format (gleiche Spalten wie die Vorlage, wieder importierbar) ──
+    function r2(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
+    function dez(n) { return r2(n).toFixed(2); }
+    // CSV-Formel-Schutz fuer Textzellen (=, +, -, @ am Anfang -> Apostroph), Zahlen bleiben unberuehrt
+    function csvText(v) { var s = text(v); return /^[=+\-@\t\r]/.test(s) ? "'" + s : s; }
+
+    // purchases: Artikel in Exportreihenfolge, sales: alle Verkaeufe. Stornierte Artikel und Verkaeufe entfallen
+    // (ein Reimport wuerde sie sonst als aktive Ware anlegen). Sammelverkaeufe (purchaseIds) werden
+    // gleichmaessig auf ihre Artikel verteilt, Cent-Rest auf den ersten.
+    function einzeilenExport(purchases, sales) {
+        var proArtikel = {};
+        (sales || []).forEach(function (s) {
+            if (!aktiv(s)) return;
+            var ids = s.purchaseIds && s.purchaseIds.length ? s.purchaseIds : (s.purchaseId ? [s.purchaseId] : []);
+            ids.forEach(function (id, i) {
+                if (proArtikel[id]) return;
+                var n = ids.length, teil = function (x) {
+                    var summe = Number(x) || 0, basis = r2(summe / n);
+                    return i === 0 ? r2(summe - basis * (n - 1)) : basis;
+                };
+                var vk = teil(s.verkaufspreis), vkK = teil(s.versandkostenKaeufer);
+                proArtikel[id] = { s: s, vk: vk, vkK: vkK, vkV: teil(s.versandkostenVerkaufer),
+                    geb: r2((vk + vkK) * (parseFloat(s.plattformgebuehrProzent) || 0) / 100) };
+            });
+        });
+        var zeilen = [];
+        (purchases || []).forEach(function (p) {
+            if (!aktiv(p)) return;
+            var lo = p.lagerort || {}, v = proArtikel[p.id];
+            zeilen.push([
+                csvText(p.artikelNr), p.datum || '', csvText(p.marke), csvText(p.beschreibung), csvText(p.artikeltyp), csvText(p.groesse), 1,
+                dez(p.einkaufspreis), csvText(p.einkaufsquelle), csvText(lo.bereich), csvText(lo.regal), csvText(lo.fach),
+                csvText(p.warenkategorie), csvText((p.tags || []).join(', ')), csvText(p.notizen),
+                v ? v.s.datum || '' : '', v ? dez(v.vk) : '', v ? csvText(v.s.verkaufsplattform) : '', v ? dez(v.geb) : '',
+                v ? dez(v.vkK) : '', v ? dez(v.vkV) : '', v ? csvText(v.s.kaeufer) : ''
+            ]);
+        });
+        return { kopf: EINZEILEN_SPALTEN, zeilen: zeilen };
+    }
+
+    function einzeilenCsv(purchases, sales) {
+        var e = einzeilenExport(purchases, sales);
+        return '﻿' + [e.kopf].concat(e.zeilen).map(K.csvZeile).join('\r\n') + '\r\n';
+    }
+
+    function exportiereEinzeilen(purchases, sales) {
+        var csv = einzeilenCsv(purchases, sales);
+        Utils.downloadFile(csv, 'Lager_Einzeilen_' + new Date().toLocaleDateString('sv-SE') + '.csv', 'text/csv;charset=utf-8');
+        Utils.showToast('Einzeilen-CSV exportiert', 'success');
+    }
+
     return {
+        einzeilenExport: einzeilenExport, einzeilenCsv: einzeilenCsv, exportiereEinzeilen: exportiereEinzeilen,
         gebuehrProzent: gebuehrProzent, EINZEILEN_SPALTEN: EINZEILEN_SPALTEN, vorlageCsv: vorlageCsv,
         einkaufsZeilen: einkaufsZeilen, verkaufsZeilen: verkaufsZeilen, ausgewaehlt: ausgewaehlt,
         vorschauHtml: vorschauHtml, verdrahte: verdrahte, nichtImportiert: nichtImportiert, berichtHtml: berichtHtml, zeigeBericht: zeigeBericht,

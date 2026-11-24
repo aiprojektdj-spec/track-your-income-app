@@ -143,6 +143,64 @@ function storeStub(opt) {
         assert.ok(X._erg.zeilen.every(z => z.dublette) && X._erg.zeilen.length === 2, 'zweiter Import: nur Dubletten');
     });
 
+    await check('Rundlauf: Einzeilen-Export -> Excel-Import = 0 neue Zeilen (alles Dubletten)', async () => {
+        const einkaeufe = [
+            { id: 'p1', artikelNr: '2026-001', datum: '2026-01-10', marke: 'Nike', beschreibung: 'Hoodie "Retro"', groesse: 'M', artikeltyp: 'Pullover', einkaufspreis: 12.5, einkaufsquelle: 'Flohmarkt', status: 'verkauft',
+              lagerort: { bereich: 'Keller', regal: 'R1', fach: '2' }, warenkategorie: 'Kleidung', tags: ['Vintage', 'Nike'], notizen: 'Fleck; links' },
+            { id: 'p2', artikelNr: '2026-002', datum: '2026-01-11', marke: 'Zara', beschreibung: 'Kleid', groesse: 'S', einkaufspreis: 8, status: 'verfuegbar', lagerort: {} },
+            { id: 'p3', artikelNr: '2026-003', datum: '2026-01-12', marke: 'H&M', beschreibung: 'Set A', einkaufspreis: 3, status: 'verkauft' },
+            { id: 'p4', artikelNr: '2026-004', datum: '2026-01-12', marke: 'H&M', beschreibung: 'Set B', einkaufspreis: 3, status: 'verkauft' },
+            { id: 'p5', artikelNr: '2026-005', datum: '2026-01-13', marke: 'Alt', beschreibung: 'storniert', einkaufspreis: 1, storniert: true },
+            { id: 'p6', artikelNr: '', datum: '2026-01-14', marke: 'Ohne', beschreibung: 'Nummer', groesse: 'L', einkaufspreis: 4.5, status: 'verfuegbar' },
+            { id: 'p7', artikelNr: '2026-007', datum: '2026-01-15', marke: 'X', beschreibung: '=HYPERLINK("http://boese")', einkaufspreis: 2, status: 'verfuegbar' }
+        ];
+        const verkaeufe = [
+            { id: 's1', purchaseId: 'p1', datum: '2026-02-01', verkaufspreis: 25, versandkostenKaeufer: 3.9, versandkostenVerkaufer: 3.9, plattformgebuehrProzent: 4.33, verkaufsplattform: 'Vinted', kaeufer: 'Erika' },
+            { id: 's2', purchaseIds: ['p3', 'p4'], datum: '2026-02-02', verkaufspreis: 10.01, versandkostenKaeufer: 0, versandkostenVerkaufer: 0, plattformgebuehrProzent: 10, verkaufsplattform: 'eBay' },
+            { id: 's3', purchaseId: 'p2', datum: '2026-02-03', verkaufspreis: 9, storniert: true }
+        ];
+        const store = storeStub({});
+        const { ctx } = welt(store);
+        const L = ctx.LagerImport;
+        const e = L.einzeilenExport(einkaeufe, verkaeufe);
+        assert.strictEqual(e.zeilen.length, 6, 'stornierter Artikel entfaellt');
+        // Sammelverkauf: 10,01 auf zwei Artikel, Cent-Rest auf den ersten
+        const preise = e.zeilen.filter(z => /Set/.test(z[3])).map(z => z[16]);
+        assert.strictEqual(JSON.stringify(preise), JSON.stringify(['5.00', '5.01']));
+        assert.strictEqual(e.zeilen[0][18], '1.25');                 // (25 + 3,90) * 4,33 %
+        assert.ok(/^'=HYPERLINK/.test(e.zeilen[5][3]), 'Formel-Schutz');
+        const csv = L.einzeilenCsv(einkaeufe, verkaeufe);
+        assert.strictEqual(csv.charCodeAt(0), 0xFEFF);
+        const XLSX = require(path.join(__dirname, '..', 'js', 'vendor', 'xlsx.full.min.js'));
+        const wb = XLSX.read(new TextEncoder().encode(csv), { type: 'array', codepage: 65001 });
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '', raw: false });
+        assert.strictEqual(rows.length, 6);
+        // Import in den Bestand, aus dem exportiert wurde: nichts Neues
+        const bestandStore = storeStub({ purchases: einkaeufe, sales: verkaeufe });
+        const { ctx: ctx2 } = welt(bestandStore);
+        const X = ctx2.ExcelImport;
+        X._columns = Object.keys(rows[0]); X._mapping = X._autoDetect(X._columns); X._rows = rows;
+        X._renderPreview();
+        assert.strictEqual(X._erg.fehler.length, 0);
+        assert.strictEqual(X._erg.zeilen.length, 6);
+        assert.strictEqual(X._erg.zeilen.filter(z => !z.dublette).length, 0, 'keine neuen Zeilen');
+        // Import in einen leeren Bestand legt alles wieder an (6 Artikel, 4 davon mit eigener Nummer verkauft = 3 Verkaeufe)
+        const leer = storeStub({});
+        const { ctx: ctx3 } = welt(leer);
+        const Y = ctx3.ExcelImport;
+        Y._columns = Object.keys(rows[0]); Y._mapping = Y._autoDetect(Y._columns); Y._rows = rows;
+        Y._renderPreview();
+        assert.strictEqual(Y._erg.zeilen.filter(z => z.dublette).length, 0);
+        await Y._import();
+        assert.strictEqual(leer.daten.purchases.length, 6);
+        assert.strictEqual(leer.daten.purchases.filter(p => p.status === 'verkauft').length, 3);
+        assert.strictEqual(leer.daten.sales.length, 3);
+        const hoodie = leer.daten.purchases.find(p => p.artikelNr === '2026-001');
+        assert.strictEqual(hoodie.beschreibung, 'Hoodie "Retro"');
+        assert.strictEqual(hoodie.notizen, 'Fleck; links');
+        assert.strictEqual(JSON.stringify(hoodie.tags), JSON.stringify(['Vintage', 'Nike']));
+    });
+
     await check('ExcelImport: Haken an der Dublette importiert sie doch', async () => {
         const bestand = [{ id: 'p1', artikelNr: '2026-001', datum: '2026-03-01', marke: 'Nike', beschreibung: 'Hoodie', groesse: '', einkaufspreis: 12.5, status: 'verfuegbar' }];
         const store = storeStub({ purchases: bestand });

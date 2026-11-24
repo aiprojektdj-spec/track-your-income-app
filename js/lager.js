@@ -1296,6 +1296,13 @@ const Lager = {
                     <div style="font-size:12px;font-weight:400;opacity:.8;">Universalformat, Semikolon-getrennt, UTF-8</div>
                 </div>
             </button>
+            <button class="btn btn-outline" style="padding:12px 20px;font-size:14px;justify-content:flex-start;gap:12px;"
+                    data-action="lg-export-einzeilen">
+                <div style="text-align:left;">
+                    <div style="font-weight:700;">Einzeilen-Format (.csv)</div>
+                    <div style="font-size:12px;font-weight:400;opacity:.8;">Einkauf und Verkauf je Artikel in einer Zeile, wieder importierbar (Excel-Import)</div>
+                </div>
+            </button>
         </div>`;
         App.showModal('Lager exportieren', body, '');
     },
@@ -2808,6 +2815,10 @@ if (window.Actions) Actions.register({
     'lg-calc-vk':      function () { Lager._calcVkNetto(); },
     'lg-export-xlsx':  function () { App.closeModal(); Lager.exportXLSX(); },
     'lg-export-csv':   function () { App.closeModal(); Lager.exportCSV(); },
+    'lg-export-einzeilen': function () {
+        App.closeModal();
+        LagerImport.exportiereEinzeilen(Lager._lastAllFiltered.length ? Lager._lastAllFiltered : Store.getPurchases(), Store.getAllSalesRaw());
+    },
     'lg-pick-swatch':  function (e, el) {
         document.querySelectorAll('[data-swatch]').forEach(function (s) { s.style.outline = 'none'; });
         el.style.outline = '3px solid ' + el.dataset.swatch;

@@ -28,18 +28,19 @@ function welt(store) {
     const get = id => el[id] || (el[id] = { id, innerHTML: '', value: '', style: {}, disabled: false, textContent: '', querySelectorAll: () => [], addEventListener() {} });
     el.excelDatum = get('excelDatum'); el.excelDatum.value = '2026-03-01';
     el.excelQuelle = get('excelQuelle'); el.excelQuelle.value = 'Flohmarkt';
-    const toasts = [];
-    const kern = ladeModule(['js/import-kern.js', 'js/import-lager.js']);
+    const toasts = [], modale = [], downloads = [];
+    const document = { getElementById: get, querySelectorAll: () => [] };
+    const Utils = { downloadFile: (inhalt, name) => downloads.push({ inhalt, name }), showToast: (m, t) => toasts.push([t, m]), escapeHtml: s => String(s == null ? '' : s), formatCurrency: n => String(n) };
+    const App = { closeModal() { modale.push('zu'); }, showModal: (titel, body) => modale.push({ titel, body }) };
+    const kern = ladeModule(['js/import-kern.js', 'js/import-lager.js'], { document, Utils, App });
     const ctx = vm.createContext({
         console, Math, Date, JSON, Set, Map, Promise, setTimeout,
         ImportKern: kern.ImportKern, LagerImport: kern.LagerImport,
-        document: { getElementById: get, querySelectorAll: () => [] },
-        Utils: { showToast: (m, t) => toasts.push([t, m]), escapeHtml: s => String(s == null ? '' : s), formatCurrency: n => String(n) },
-        Store: store, App: { closeModal() {} }, Lager: { _filters: {} }, renderPage() {}, confirm: () => true,
+        document, Utils, Store: store, App, Lager: { _filters: {} }, renderPage() {}, confirm: () => true,
         window: {}
     });
     vm.runInContext(holeObjekt('ExcelImport') + '\n' + holeObjekt('SalesImport'), ctx);
-    return { ctx, el, toasts };
+    return { ctx, el, toasts, modale, downloads };
 }
 
 function storeStub(opt) {
@@ -60,7 +61,7 @@ function storeStub(opt) {
     await check('ExcelImport: Dubletten vorab abgewaehlt, Import legt nur Neues an, uebersprungene Zeilen gemeldet', async () => {
         const bestand = [{ id: 'p1', artikelNr: '2026-001', datum: '2026-03-01', marke: 'Nike', beschreibung: 'Hoodie', groesse: 'M', einkaufspreis: 12.5, status: 'verfuegbar' }];
         const store = storeStub({ purchases: bestand });
-        const { ctx, el } = welt(store);
+        const { ctx, el, modale, downloads } = welt(store);
         const X = ctx.ExcelImport;
         X._columns = ['Marke', 'Beschreibung', 'Größe', 'EK'];
         X._rows = [
@@ -76,6 +77,18 @@ function storeStub(opt) {
         await X._import();
         assert.strictEqual(store.daten.purchases.length, 2, 'ein neuer Artikel');
         assert.strictEqual(store.daten.purchases[1].marke, 'Zara');
+        // Ergebnisfenster statt stillem Schliessen, mit Zeilennummern aus der Datei
+        const bericht = modale.find(m => m && m.titel === 'Import-Ergebnis');
+        assert.ok(bericht, 'Ergebnisfenster');
+        assert.ok(/Zeile 6: EK-Preis/.test(bericht.body) && /Zeile 4: Dublette/.test(bericht.body));
+        // Fehlerdatei: UTF-8-BOM, Semikolon, Kopfzeile, Zeilen wie in der Datei
+        ctx.LagerImport.verdrahte({ querySelectorAll: s => s === '.imp-fehlerdatei' ? [{ addEventListener: (_, f) => f() }] : [] }, X._erg);
+        assert.strictEqual(downloads.length, 1);
+        assert.strictEqual(downloads[0].name, 'import-fehler.csv');
+        assert.strictEqual(downloads[0].inhalt.charCodeAt(0), 0xFEFF);
+        const csv = downloads[0].inhalt.slice(1).split('\r\n');
+        assert.strictEqual(csv[0], 'Zeile;Grund');
+        assert.ok(/^4;Dublette/.test(csv[1]) && /^6;EK-Preis/.test(csv[2]), csv.join(' | '));
     });
 
     await check('ExcelImport: Haken an der Dublette importiert sie doch', async () => {

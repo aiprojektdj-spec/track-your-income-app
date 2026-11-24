@@ -180,5 +180,24 @@ check('vorschauHtml: Zaehler, Dublettenliste ohne Haken, Fehlerliste, HTML maski
     assert.ok(!/<b>X/.test(h));
 });
 
+// ── Meldung / Fehlerdatei ──
+check('nichtImportiert: Fehler + abgewaehlte Dubletten, nach Zeile sortiert; Haken nimmt die Dublette heraus', () => {
+    const rows = [zeile({ Marke: 'Nike', Beschreibung: 'Hoodie', 'Größe': 'M', EK: '12,5' }), zeile({ Marke: 'Q', EK: 'x' }), zeile({ Marke: 'Neu', EK: '1' })];
+    const e = L.einkaufsZeilen(rows, MAP, OPT({ bestand: BESTAND, nummern: [7, 3, 9] }));
+    const liste = L.nichtImportiert(e);
+    eq(liste.map(f => f.zeile), [3, 7]);
+    assert.ok(/^Dublette/.test(liste[1].grund) && /^EK-Preis/.test(liste[0].grund));
+    e.zeilen[0].importieren = true;
+    eq(L.nichtImportiert(e).map(f => f.zeile), [3]);
+});
+
+check('berichtHtml: Kopf, Liste mit Zeilennummer, Fehlerdatei-Knopf nur bei Meldungen', () => {
+    const e = L.einkaufsZeilen([zeile({ Marke: 'Q', EK: 'x' })], MAP, OPT({ nummern: [4] }));
+    const h = L.berichtHtml(e, '3 Artikel importiert');
+    assert.ok(/3 Artikel importiert/.test(h) && /Zeile 4: EK-Preis/.test(h) && /imp-fehlerdatei/.test(h));
+    const leer = L.berichtHtml({ zeilen: [], fehler: [] }, 'ok');
+    assert.ok(!/imp-fehlerdatei/.test(leer));
+});
+
 if (fail) { console.log(fail + ' fehlgeschlagen'); process.exit(1); }
 console.log('alle ok');

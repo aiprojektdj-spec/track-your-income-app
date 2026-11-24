@@ -2181,7 +2181,9 @@ const ExcelImport = {
                 Store._addAuditEntriesBatch(auditItems);
             }
 
-            App.closeModal();
+            const bericht = erg.fehler.length > 0 || dublettenOffen > 0;
+            if (bericht) LagerImport.zeigeBericht('Import-Ergebnis', erg, `${totalToCreate} Artikel importiert${soldToCreate > 0 ? ` (${soldToCreate} als verkauft)` : ''}`);
+            else App.closeModal();
             Utils.showToast(`${totalToCreate} Artikel aus Excel importiert${soldToCreate > 0 ? ` · ${soldToCreate} als verkauft` : ''}${skipped > 0 ? ` · ${skipped} übersprungen` : ''}`, 'success');
             Lager._filters.status = '';
             renderPage();
@@ -2600,7 +2602,8 @@ const SalesImport = {
             // checksum des Vorgängers), und es entsteht nur EINE Schreiboperation.
             if (Store._addAuditEntriesBatch && auditItems.length) Store._addAuditEntriesBatch(auditItems);
 
-            App.closeModal();
+            if (skipped > 0 || dublettenOffen > 0) LagerImport.zeigeBericht('Import-Ergebnis', erg, `${total} Verkäufe importiert (${matched} mit Lager-Match)`);
+            else App.closeModal();
             Utils.showToast(`${total} Verkäufe importiert · ${matched} Lager-Artikel als verkauft markiert`, 'success');
             renderPage();
         } catch (err) {

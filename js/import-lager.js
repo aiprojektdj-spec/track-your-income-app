@@ -164,6 +164,8 @@ const LagerImport = (function () {
         return { zeilen: zeilen, fehler: fehler };
     }
 
+    var FEHLERDATEI_KNOPF = '<button type="button" class="btn btn-sm imp-fehlerdatei" style="margin-top:6px;">Fehlerdatei (CSV) herunterladen</button>';
+
     // ── Gemeinsames ──────────────────────────────────────────────────────────
     function ausgewaehlt(erg) { return erg.zeilen.filter(function (z) { return z.importieren; }); }
 
@@ -187,14 +189,45 @@ const LagerImport = (function () {
         if (erg.fehler.length) {
             h += '<div style="border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.06);border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:8px;max-height:120px;overflow:auto;">' +
                 '<div style="font-weight:600;margin-bottom:4px;">Übersprungen</div>' +
-                erg.fehler.map(function (f) { return '<div>Zeile ' + f.zeile + ': ' + esc(f.grund) + '</div>'; }).join('') + '</div>';
+                erg.fehler.map(function (f) { return '<div>Zeile ' + f.zeile + ': ' + esc(f.grund) + '</div>'; }).join('') + FEHLERDATEI_KNOPF + '</div>';
         }
         return h;
     }
 
-    // Haken in container -> erg.zeilen[].importieren
+    // Alles, was NICHT importiert wird: uebersprungene Zeilen und abgewaehlte Dubletten, nach Zeile sortiert.
+    function nichtImportiert(erg) {
+        var liste = erg.fehler.slice();
+        erg.zeilen.forEach(function (z) {
+            if (z.dublette && !z.importieren) liste.push({ zeile: z.zeile, grund: 'Dublette: bereits vorhanden (' + z.label + ')' });
+        });
+        return liste.sort(function (a, b) { return a.zeile - b.zeile; });
+    }
+
+    // Ergebnisfenster nach dem Import: Zaehler, nicht importierte Zeilen mit Zeilennummer und Grund, Fehlerdatei.
+    function berichtHtml(erg, kopf) {
+        var liste = nichtImportiert(erg);
+        return '<div style="font-size:13px;line-height:1.6;">' +
+            '<div style="font-weight:700;margin-bottom:6px;">' + esc(kopf) + '</div>' +
+            (liste.length ? '<div>' + liste.length + ' Zeile(n) nicht importiert:</div>' +
+                '<div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;margin-top:4px;max-height:240px;overflow:auto;">' +
+                liste.map(function (f) { return '<div>Zeile ' + f.zeile + ': ' + esc(f.grund) + '</div>'; }).join('') + '</div>' + FEHLERDATEI_KNOPF : '') +
+            '</div>';
+    }
+
+    // Ersetzt den Importdialog durch das Ergebnisfenster (nur wenn es etwas zu melden gibt).
+    function zeigeBericht(titel, erg, kopf) {
+        App.showModal(titel, berichtHtml(erg, kopf), '<button class="btn btn-primary" data-action="close-modal">Schließen</button>');
+        verdrahte(document.getElementById('modal'), erg);
+    }
+
+    // Haken in container -> erg.zeilen[].importieren; Fehlerdatei-Knopf -> CSV-Download
     function verdrahte(container, erg) {
         if (!container || !container.querySelectorAll) return;
+        container.querySelectorAll('.imp-fehlerdatei').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                Utils.downloadFile(K.fehlerCsv(nichtImportiert(erg)), 'import-fehler.csv', 'text/csv;charset=utf-8');
+            });
+        });
         container.querySelectorAll('.imp-dup').forEach(function (cb) {
             cb.addEventListener('change', function () {
                 erg.zeilen.forEach(function (z) { if (String(z.zeile) === cb.dataset.zeile) z.importieren = cb.checked; });
@@ -204,7 +237,7 @@ const LagerImport = (function () {
 
     return {
         einkaufsZeilen: einkaufsZeilen, verkaufsZeilen: verkaufsZeilen, ausgewaehlt: ausgewaehlt,
-        vorschauHtml: vorschauHtml, verdrahte: verdrahte,
+        vorschauHtml: vorschauHtml, verdrahte: verdrahte, nichtImportiert: nichtImportiert, berichtHtml: berichtHtml, zeigeBericht: zeigeBericht,
         _bestandEinkauf: bestandEinkauf, _bestandVerkauf: bestandVerkauf
     };
 })();

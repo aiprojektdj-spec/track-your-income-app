@@ -14,7 +14,7 @@ leere Zeilen mitgezählt). Code: `js/import-kern.js` (Parser), `js/import-lager.
 | Zahlen | `1.234,56`, `1,234.56`, `12,50 €`, `12.5`, `-3,20`. Sind beide Trenner da, ist der letzte der Dezimaltrenner. **Ein einzelner Punkt ist immer Dezimalpunkt:** `1.234` = 1,234, nicht 1234. Tausendertrenner daher nur zusammen mit Dezimalstellen schreiben. Leer/ungültig = 0 bzw. Fehler (je nach Pflichtfeld). |
 | Datum | `2026-11-24`, `24.11.2026`, `24/11/2026`, `24.11.26`, Excel-Seriennummer (z. B. `46164`), Zellen mit Datumsformat. Ist ein Teil größer als 12, ist er der Tag (`11/24/2026` = 24.11.). Mehrdeutig (`01.02.2026`) gilt Tag.Monat. Es muss ein echter Kalendertag sein (`31.02.` = ungültig). **Empfohlen für Automatisierung: `JJJJ-MM-TT`.** |
 | Dateien | `.xlsx`, `.xls`, `.csv`. Bei mehreren Blättern wählt Stackr das Datenblatt, im Dialog umschaltbar. Spaltenüberschriften werden automatisch zugeordnet (deutsch/englisch) und lassen sich im Dialog ändern. |
-| Fehlerdatei | Siehe unten „Übersprungene Zeilen“. |
+| Meldung | Die Vorschau nennt Neu / Dubletten / übersprungen. Nach dem Import erscheint ein Ergebnisfenster mit jeder nicht importierten Zeile (Zeilennummer + Grund) und dem Knopf „Fehlerdatei (CSV) herunterladen“. |
 
 ## Dublettenschutz
 
@@ -75,3 +75,8 @@ selbst wird gebucht und die Vorschau weist darauf hin.
 | Marke und Beschreibung fehlen | Lager |
 | Datum fehlt oder ist ungültig / Preis fehlt, ist 0 oder keine Zahl | Verkäufe |
 | Periode festgeschrieben (Kaufdatum / Verkaufsdatum …) | beide |
+
+**Fehlerdatei** (`import-fehler.csv`): UTF-8 mit BOM, Semikolon, Kopfzeile `Zeile;Grund`, eine Zeile je
+nicht importierter Zeile. Enthält auch abgewählte Dubletten (Grund beginnt mit „Dublette:“). Die
+korrigierte Datei kann direkt erneut importiert werden; bereits angelegte Zeilen erkennt der
+Dublettenschutz.

@@ -5,13 +5,14 @@
 //  B) Die Kopfzeile "Artikel und Beschreibung" traf keinen exakten Namen der Auto-Erkennung,
 //     die Beschreibung blieb leer. Ebenso "Einkaufskosten", "Produktnr." und "Umsatz".
 // Gelesen wird wie im echten Import: XLSX.read ohne Optionen, dann sheet_to_json(raw:false).
-// _parseDate/_autoDetect/_findHeaderRow kommen per Quelltext-Extraktion aus lager/page.js.
+// _autoDetect/_findHeaderRow kommen per Quelltext-Extraktion aus lager/page.js, der Datumsparser aus js/import-kern.js.
 'use strict';
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const XLSX = require(path.join(__dirname, '..', 'js', 'vendor', 'xlsx.full.min.js'));
 
+const { ImportKern } = require('./_lade-module').ladeModule(['js/import-kern.js']);
 const pageSrc = fs.readFileSync(path.join(__dirname, '..', 'lager', 'page.js'), 'utf8');
 const excelStart = pageSrc.indexOf('const ExcelImport = {');
 assert.ok(excelStart !== -1, 'ExcelImport nicht gefunden');
@@ -25,7 +26,7 @@ function extractMethod(sig) {
     return rest.slice(0, m.index);
 }
 const ExcelImport = {
-    _parseDate:     new Function('v', extractMethod('_parseDate(v) {')),
+    _parseDate:     v => ImportKern.datum(v),   // Parser wohnt seit Paket 0 in js/import-kern.js
     _autoDetect:    new Function('columns', extractMethod('_autoDetect(columns) {')),
     _findHeaderRow: new Function('aoa', extractMethod('_findHeaderRow(aoa) {'))
 };

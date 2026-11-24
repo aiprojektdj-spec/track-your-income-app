@@ -47,6 +47,15 @@ check('schluessel: Laufnummer bei gleichen Zeilen, Normalisierung', () => {
     assert.strictEqual(K.schluessel(['2026-01-01', 'nike', 1250], {}), '2026-01-01|nike|1250#1');
 });
 
+check('zeilennummern: Dateizeilen, Leerzeilen mitgezaehlt', () => {
+    const aoa = [['Titel'], ['Kopf', 'x'], ['a', 'b'], ['', ''], [], ['c', '']];
+    assert.strictEqual(JSON.stringify(K.zeilennummern(aoa, 1)), '[3,6]');
+});
+
+check('fingerprint: gleiche Normalisierung wie schluessel', () => {
+    assert.strictEqual(K.fingerprint(['A  b', 5]), 'a b|5');
+});
+
 check('fehlerCsv: BOM, Semikolon, Quoting', () => {
     const t = K.fehlerCsv([{ zeile: 3, grund: 'Datum fehlt' }, { zeile: 7, grund: 'Titel "a;b"' }]);
     assert.strictEqual(t.charCodeAt(0), 0xFEFF);

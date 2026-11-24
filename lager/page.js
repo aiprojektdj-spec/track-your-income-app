@@ -1782,37 +1782,6 @@ const ExcelImport = {
         return best === -1 ? 0 : best;
     },
 
-    // Robuster Datums-Parser → 'YYYY-MM-DD' (lokal, kein UTC-Versatz) oder null.
-    // Erkennt ISO, DE (TT.MM.JJJJ) und US (M/T/JJ) — bei 13/x ist die >12-Zahl zwingend der Tag.
-    _parseDate(v) {
-        if (v == null || v === '') return null;
-        const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        if (v instanceof Date) return isNaN(v.getTime()) ? null : fmt(v);
-        const s = String(v).trim();
-        if (!s) return null;
-        // Excel-Seriennummer (Tage seit 30.12.1899). Kommt, wenn SheetJS das Zellformat nicht
-        // umsetzen kann — Google Sheets exportiert Datumszellen als "dd.MM.yyyy" (grosses MM),
-        // daraus wurde "46164" und ueber new Date() unten das Jahr 46164 (Kundentabelle
-        // 2026-10-20). Fuenf Stellen = 1927 bis 2173; eine vierstellige Jahreszahl faellt nicht hinein.
-        if (/^\d{5}(\.\d+)?$/.test(s)) {
-            const d = new Date(Math.round((parseFloat(s) - 25569) * 86400000));
-            return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-        }
-        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-        const m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/);
-        if (m) {
-            let a = +m[1], b = +m[2], y = m[3]; if (y.length === 2) y = '20' + y;
-            let day, mon;
-            if (a > 12 && b <= 12)      { day = a; mon = b; }   // DE  TT/MM
-            else if (b > 12 && a <= 12) { day = b; mon = a; }   // US  MM/TT
-            else                        { day = a; mon = b; }   // mehrdeutig → DE-Default
-            if (mon >= 1 && mon <= 12 && day >= 1 && day <= 31)
-                return `${y}-${String(mon).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        }
-        const d = new Date(s);
-        return isNaN(d.getTime()) ? null : fmt(d);
-    },
-
     open() {
         // Kein `typeof XLSX`-Guard mehr: die Bibliothek wird seit der Lazy-Load-Umstellung
         // (Utils.ensureXlsx) erst in _handleFile() nachgeladen. Der alte Guard schlug daher
@@ -1879,6 +1848,8 @@ const ExcelImport = {
         App.showModal('Excel-Import', body, footer);
 
         document.getElementById('excelFileInput').addEventListener('change', e => this._handleFile(e.target.files[0]));
+        // Datum bestimmt den Dublettenabgleich und die Periodensperre bei Zeilen ohne eigenes Datum.
+        document.getElementById('excelDatum').addEventListener('change', () => { if (this._rows.length) this._renderPreview(); });
         document.getElementById('excelImportBtn').addEventListener('click', () => this._import());
     },
 
@@ -1949,6 +1920,9 @@ const ExcelImport = {
         const json = alleZeilen.filter(r => Object.values(r).some(v => String(v == null ? '' : v).trim() !== ''));
         if (json.length === 0) return leer();
         this._rows = json;
+        // Zeilennummern wie in der Datei (fuer Meldungen); passt die Zahl nicht, zaehlt LagerImport selbst.
+        const nummern = ImportKern.zeilennummern(aoa, hdrIdx);
+        this._nummern = nummern.length === json.length ? nummern : null;
         // Nur echte Spalten — leere __EMPTY-Platzhalter (z. B. erste Leerspalte) raus
         this._columns = Object.keys(json[0]).filter(k => k && !/^__EMPTY/.test(k));
         this._mapping = this._autoDetect(this._columns);
@@ -2001,8 +1975,8 @@ const ExcelImport = {
         document.querySelectorAll('[data-field]').forEach(sel => {
             sel.addEventListener('change', () => {
                 this._mapping[sel.dataset.field] = sel.value;
-                // Die Artikelnummern-Warnung hängt am Mapping — nach dem Umstellen neu rechnen.
-                if (sel.dataset.field === 'artikelNr') this._renderPreview();
+                // Warnung und Dublettenpruefung haengen am Mapping — nach dem Umstellen neu rechnen.
+                this._renderPreview();
             });
         });
     },
@@ -2027,9 +2001,23 @@ const ExcelImport = {
         return { taken, dupes };
     },
 
+    // Pruefung der Zeilen (Pflichtfelder, Dubletten, festgeschriebene Periode) — Ergebnis in this._erg.
+    _pruefe() {
+        const el = id => document.getElementById(id);
+        this._erg = LagerImport.einkaufsZeilen(this._rows, this._mapping, {
+            datum: (el('excelDatum') || {}).value || new Date().toLocaleDateString('sv-SE'),
+            quelle: (el('excelQuelle') || {}).value || '',
+            nummern: this._nummern,
+            bestand: Store.getAllPurchasesRaw ? Store.getAllPurchasesRaw() : [],
+            gesperrt: d => Store.isPeriodLocked(d)
+        });
+        return this._erg;
+    },
+
     _renderPreview() {
         const rows = this._rows.slice(0, 10);
         const c = this._artNrConflicts();
+        const erg = this._mapping.einkaufspreis ? this._pruefe() : null;
         const warn = (c.taken + c.dupes) > 0
             ? `<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.5;margin-bottom:8px;">
                    <strong>${c.taken + c.dupes} Artikelnummern kollidieren</strong>
@@ -2038,7 +2026,7 @@ const ExcelImport = {
                    es geht nichts verloren und nichts wird überschrieben.
                </div>`
             : '';
-        const html = warn + `
+        const html = (erg ? LagerImport.vorschauHtml(erg) : '') + warn + `
             <table style="width:100%;border-collapse:collapse;font-size:11px;">
                 <thead style="background:var(--bg-secondary);position:sticky;top:0;">
                     <tr>${this._columns.map(c => `<th style="padding:5px 8px;text-align:left;border-bottom:1px solid var(--border);font-weight:600;">${Utils.escapeHtml(c)}</th>`).join('')}</tr>
@@ -2050,6 +2038,7 @@ const ExcelImport = {
             ${this._rows.length > 10 ? `<div style="padding:8px;text-align:center;font-size:11px;color:var(--text-muted);background:var(--bg-secondary);">… und ${this._rows.length - 10} weitere Zeilen</div>` : ''}
         `;
         document.getElementById('excelPreview').innerHTML = html;
+        if (erg) LagerImport.verdrahte(document.getElementById('excelPreview'), erg);
     },
 
     async _import() {
@@ -2063,56 +2052,20 @@ const ExcelImport = {
             return;
         }
 
-        // Werte aus Excel-Zeilen extrahieren
-        const validRows = [];
-        let skipped = 0;
-        for (const r of this._rows) {
-            const get = field => {
-                const col = this._mapping[field];
-                return col ? r[col] : '';
-            };
-            const preis = parseFloat(String(get('einkaufspreis')).replace(',', '.').replace(/[^\d.\-]/g, ''));
-            const anzahl = parseInt(String(get('anzahl') || '1').replace(/[^\d]/g, '')) || 1;
-            const marke = String(get('marke') || '').trim();
-            const beschr = String(get('beschreibung') || '').trim();
-
-            if (isNaN(preis) || preis < 0 || (!marke && !beschr)) { skipped++; continue; }
-
-            // Verkaufs-Daten (optional) — ist ein Verkaufspreis > 0 da, gilt der Artikel als verkauft
-            const num = v => parseFloat(String(v).replace(',', '.').replace(/[^\d.\-]/g, '')) || 0;
-            const vkPreis = parseFloat(String(get('verkaufspreis')).replace(',', '.').replace(/[^\d.\-]/g, ''));
-            const verkauft = !isNaN(vkPreis) && vkPreis > 0;
-            const rowDatum = this._parseDate(get('datum')) || datum;
-
-            validRows.push({
-                datum:         rowDatum,                                       // pro Zeile, sonst gemeinsames Datum
-                // Eigene Artikelnummer aus der Tabelle. Leer = wie bisher automatisch vergeben.
-                artikelNr:     String(get('artikelNr') || '').trim().slice(0, 60),
-                marke,
-                artikeltyp:    String(get('artikeltyp') || 'Sonstiges').trim() || 'Sonstiges',
-                groesse:       String(get('groesse') || '').trim(),
-                beschreibung:  beschr,
-                einkaufspreis: preis,
-                einkaufsquelle: String(get('quelle') || '').trim() || quelle,  // pro Zeile, sonst gemeinsame Quelle
-                anzahl:        Math.max(1, Math.min(9999, anzahl)),
-                verkauft,
-                verkaufspreis: verkauft ? vkPreis : 0,
-                verkaufsdatum: verkauft ? (this._parseDate(get('verkaufsdatum')) || rowDatum) : '',
-                verkaufswo:    String(get('verkaufswo') || '').trim(),
-                versandKaeufer:    verkauft ? num(get('versandKaeufer')) : 0,
-                versandVerkaeufer: verkauft ? num(get('versandVerkaeufer')) : 0,
-                gebuehrProzent:    verkauft ? num(get('gebuehrProzent')) : 0
-            });
-        }
+        // Geprueft wird in _pruefe(): Pflichtfelder, Dubletten (vorab abgewaehlt), festgeschriebene Perioden.
+        const erg = this._erg || this._pruefe();
+        const validRows = LagerImport.ausgewaehlt(erg).map(z => z.row);
+        const skipped = erg.fehler.length;
+        const dublettenOffen = erg.zeilen.filter(z => z.dublette && !z.importieren).length;
 
         if (validRows.length === 0) {
-            Utils.showToast('Keine gültigen Zeilen gefunden (EK-Preis + Marke/Beschreibung erforderlich)', 'warning');
+            Utils.showToast(erg.zeilen.length ? 'Nichts zu importieren: alle Zeilen sind Dubletten (Haken in der Vorschau setzen, um sie trotzdem zu importieren)' : 'Keine gültigen Zeilen gefunden (EK-Preis + Marke/Beschreibung erforderlich)', 'warning');
             return;
         }
 
         const totalToCreate = validRows.reduce((s, r) => s + r.anzahl, 0);
         const soldToCreate  = validRows.filter(r => r.verkauft).reduce((s, r) => s + r.anzahl, 0);
-        if (!confirm(`${validRows.length} Excel-Zeilen → ${totalToCreate} einzelne Artikel werden angelegt.${soldToCreate > 0 ? `\n\nDavon ${soldToCreate} direkt als „verkauft" markiert (mit Verkaufspreis + Verkaufsdatum).` : ''}${skipped > 0 ? `\n\n${skipped} Zeilen übersprungen (ungültiger Preis oder fehlende Marke/Beschreibung).` : ''}\n\nFortfahren?`)) return;
+        if (!confirm(`${validRows.length} Excel-Zeilen → ${totalToCreate} einzelne Artikel werden angelegt.${soldToCreate > 0 ? `\n\nDavon ${soldToCreate} direkt als „verkauft" markiert (mit Verkaufspreis + Verkaufsdatum).` : ''}${skipped > 0 ? `\n\n${skipped} Zeilen übersprungen (Grund je Zeile in der Vorschau).` : ''}${dublettenOffen > 0 ? `\n${dublettenOffen} Dubletten nicht importiert (bereits im Lager).` : ''}\n\nFortfahren?`)) return;
 
         btn.disabled = true;
         btn.textContent = 'Importiere…';
@@ -2256,48 +2209,6 @@ const SalesImport = {
     _mapping: {},
     _platform: 'Vinted',
 
-    // Robuste Datums-Parser (akzeptiert ISO, DE, US, EU)
-    _parseDate(s) {
-        if (!s) return null;
-        s = String(s).trim();
-        if (!s) return null;
-        // Bereits ISO?
-        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-        // DD.MM.YYYY / DD/MM/YYYY / DD-MM-YYYY
-        let m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/);
-        if (m) {
-            const day   = m[1].padStart(2, '0');
-            const month = m[2].padStart(2, '0');
-            let year    = m[3];
-            if (year.length === 2) year = '20' + year;
-            return `${year}-${month}-${day}`;
-        }
-        // Fallback: native Date
-        const d = new Date(s);
-        if (!isNaN(d.getTime())) return d.toLocaleDateString('sv-SE');
-        return null;
-    },
-
-    // Robuster Zahlen-Parser (DE/EN, € entfernt)
-    _parseNum(s) {
-        if (s == null || s === '') return 0;
-        let str = String(s).replace(/[^\d.,\-]/g, '');
-        if (!str) return 0;
-        if (str.indexOf(',') > -1 && str.indexOf('.') > -1) {
-            // Beide Trennzeichen → letztes ist Dezimal
-            if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
-                str = str.replace(/\./g, '').replace(',', '.');
-            } else {
-                str = str.replace(/,/g, '');
-            }
-        } else if (str.indexOf(',') > -1) {
-            // Nur Komma → DE-Dezimal
-            str = str.replace(',', '.');
-        }
-        const n = parseFloat(str);
-        return isNaN(n) ? 0 : n;
-    },
-
     // Plattform-spezifische Auto-Detection (Vinted/eBay/generisch)
     _autoDetect(columns, platform) {
         const lc = c => (c || '').toString().trim().toLowerCase();
@@ -2430,6 +2341,10 @@ const SalesImport = {
                     return;
                 }
                 this._rows = json;
+                // Zeilennummern wie in der Datei (Kopfzeile = Zeile 1); passt die Zahl nicht, zaehlt LagerImport selbst.
+                const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+                const nummern = ImportKern.zeilennummern(aoa, 0);
+                this._nummern = nummern.length === json.length ? nummern : null;
                 this._columns = Object.keys(json[0]);
                 this._mapping = this._autoDetect(this._columns, this._platform);
                 this._renderMapping();
@@ -2507,6 +2422,30 @@ const SalesImport = {
         };
     },
 
+    _plattform() {
+        if (this._platform !== 'Sonstige') return this._platform;
+        const custom = ((document.getElementById('salesCustomPlatform') || {}).value || '').trim();
+        return custom || 'Sonstige';
+    },
+
+    // Pruefung der Zeilen (Pflichtfelder, Dubletten, festgeschriebene Periode) — Ergebnis in this._erg.
+    _pruefe() {
+        const purchases = Store.getPurchases(true);
+        const artNrMap = {};
+        purchases.forEach(p => { if (p.artikelNr && !p.storniert) artNrMap[String(p.artikelNr).toUpperCase()] = p; });
+        this._erg = LagerImport.verkaufsZeilen(this._rows, this._mapping, {
+            plattform: this._plattform(),
+            nummern: this._nummern,
+            purchases: Store.getAllPurchasesRaw ? Store.getAllPurchasesRaw() : purchases,
+            sales: Store.getAllSalesRaw ? Store.getAllSalesRaw() : [],
+            gesperrt: d => Store.isPeriodLocked(d),
+            einkaufGesperrt: p => Store.isLocked(p),
+            findArtNr: this._makeArtNrMatcher(artNrMap),
+            artNrMap
+        });
+        return this._erg;
+    },
+
     // Geparste Vorschau mit erkannter Artikel-Nr-Zuordnung
     _renderPreview() {
         const purchases = Store.getPurchases ? Store.getPurchases(true) : [];
@@ -2520,12 +2459,12 @@ const SalesImport = {
         };
 
         const parsed = this._rows.slice(0, 8).map(r => {
-            const datum = this._parseDate(get(r, 'datum'));
+            const datum = ImportKern.datum(get(r, 'datum'));
             const beschr = String(get(r, 'beschreibung') || '').trim();
-            const preis = this._parseNum(get(r, 'preis'));
-            const gebuehr = this._parseNum(get(r, 'gebuehr'));
-            const vsk = this._parseNum(get(r, 'versandKaeufer'));
-            const vskVk = this._parseNum(get(r, 'versandVk'));
+            const preis = ImportKern.zahl(get(r, 'preis'));
+            const gebuehr = ImportKern.zahl(get(r, 'gebuehr'));
+            const vsk = ImportKern.zahl(get(r, 'versandKaeufer'));
+            const vskVk = ImportKern.zahl(get(r, 'versandVk'));
             const kaeufer = String(get(r, 'kaeufer') || '').trim();
 
             const matchNr = findArtNr(beschr);
@@ -2565,23 +2504,16 @@ const SalesImport = {
         `;
         document.getElementById('salesPreview').innerHTML = html;
 
-        // Statistik: wie viele Matches?
-        const allParsed = this._rows.map(r => {
-            const beschr = String(get(r, 'beschreibung') || '').trim();
-            const datum  = this._parseDate(get(r, 'datum'));
-            const preis  = this._parseNum(get(r, 'preis'));
-            const matchNr = findArtNr(beschr);
-            return { valid: datum && preis > 0, matchNr };
-        });
-        const totalValid   = allParsed.filter(p => p.valid).length;
-        const totalSkipped = allParsed.length - totalValid;
-        const totalMatched = allParsed.filter(p => p.valid && p.matchNr).length;
-
-        document.getElementById('salesStats').innerHTML = `
-            <strong>${totalValid}</strong> gültige Verkäufe ·
-            <strong>${totalMatched}</strong> automatisch dem Lager zugeordnet ·
-            ${totalSkipped > 0 ? `<strong>${totalSkipped}</strong> übersprungen (Datum/Preis fehlt)` : ''}
-        `;
+        // Statistik, Dubletten und uebersprungene Zeilen
+        const erg = (this._mapping.datum && this._mapping.preis) ? this._pruefe() : null;
+        const stats = document.getElementById('salesStats');
+        if (!erg) { stats.innerHTML = ''; return; }
+        const totalMatched = erg.zeilen.filter(z => z.purchase).length;
+        const gesperrtN = erg.zeilen.filter(z => z.statusGesperrt).length;
+        stats.innerHTML = LagerImport.vorschauHtml(erg) +
+            `<div><strong>${totalMatched}</strong> automatisch dem Lager zugeordnet</div>` +
+            (gesperrtN ? `<div style="color:var(--warning);">${gesperrtN} davon mit Einkauf in festgeschriebener Periode: Status bleibt unverändert (GoBD).</div>` : '');
+        LagerImport.verdrahte(stats, erg);
     },
 
     async _import() {
@@ -2590,82 +2522,39 @@ const SalesImport = {
             return col ? row[col] : '';
         };
 
-        let plattform = this._platform;
-        if (plattform === 'Sonstige') {
-            const custom = (document.getElementById('salesCustomPlatform') || {}).value?.trim();
-            plattform = custom || 'Sonstige';
-        }
+        const plattform = this._plattform();
 
         if (!this._mapping.datum || !this._mapping.preis) {
             Utils.showToast('Bitte Datum und Verkaufspreis zuordnen', 'warning');
             return;
         }
 
-        const purchases = Store.getPurchases(true);
-        const artNrMap = {};
-        purchases.forEach(p => { if (p.artikelNr && !p.storniert) artNrMap[String(p.artikelNr).toUpperCase()] = p; });
-        const findArtNr = this._makeArtNrMatcher(artNrMap);
-
-        // Verkäufe vorbereiten
+        // Geprueft wird in _pruefe(): Pflichtfelder, Dubletten (vorab abgewaehlt), festgeschriebene Perioden.
+        const erg = this._erg || this._pruefe();
+        const gewaehlt = LagerImport.ausgewaehlt(erg);
+        const skipped = erg.fehler.length;
+        const dublettenOffen = erg.zeilen.filter(z => z.dublette && !z.importieren).length;
         const newSales = [];
         const updatedPurchases = new Set(); // IDs deren Status auf 'verkauft' gesetzt wird
-        let skipped = 0, matched = 0;
-
-        for (const r of this._rows) {
-            const datum  = this._parseDate(get(r, 'datum'));
-            const preis  = this._parseNum(get(r, 'preis'));
-            const beschr = String(get(r, 'beschreibung') || '').trim();
-
-            if (!datum || preis <= 0) { skipped++; continue; }
-
-            const gebuehr = this._parseNum(get(r, 'gebuehr'));
-            const vsk     = this._parseNum(get(r, 'versandKaeufer'));
-            const vskVk   = this._parseNum(get(r, 'versandVk'));
-            const kaeufer = String(get(r, 'kaeufer') || '').trim();
-
-            // Gebühr in Prozent umrechnen (für die App)
-            const gebuehrProzent = preis > 0 ? Math.round((gebuehr / (preis + vsk)) * 10000) / 100 : 0;
-
-            // Lager-Match versuchen via Artikel-Nr im Titel
-            const matchedNr = findArtNr(beschr);
-            const matchedPurchase = matchedNr ? artNrMap[matchedNr] : null;
-
-            const sale = {
-                id: 'sale_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9),
-                datum,
-                verkaufsplattform:       plattform,
-                verkaufspreis:           preis,
-                versandkostenKaeufer:    vsk,
-                plattformgebuehrProzent: gebuehrProzent,
-                versandkostenVerkaufer:  vskVk,
-                kaeufer,
-                notizen:                 `Importiert aus ${plattform}-CSV` + (matchedPurchase ? ` · Lager-Match: ${matchedPurchase.artikelNr}` : '')
-            };
-
-            if (matchedPurchase) {
-                sale.purchaseId   = matchedPurchase.id;
-                sale.marke        = matchedPurchase.marke || '';
-                sale.artikeltyp   = matchedPurchase.artikeltyp || '';
-                sale.groesse      = matchedPurchase.groesse || '';
-                sale.beschreibung = matchedPurchase.beschreibung || '';
-                updatedPurchases.add(matchedPurchase.id);
-                matched++;
-            } else {
-                // Manueller Verkauf ohne Lager-Link
-                sale.beschreibung = beschr;
-            }
-
+        let matched = 0;
+        gewaehlt.forEach(z => {
+            const sale = z.sale;
+            sale.id = 'sale_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
             if (Store._stampRecord) Store._stampRecord(sale);
             newSales.push(sale);
-        }
+            if (z.purchase) {
+                matched++;
+                if (!z.statusGesperrt) updatedPurchases.add(z.purchase.id);
+            }
+        });
 
         if (newSales.length === 0) {
-            Utils.showToast('Keine gültigen Verkäufe zum Importieren', 'warning');
+            Utils.showToast(erg.zeilen.length ? 'Nichts zu importieren: alle Zeilen sind Dubletten (Haken in der Vorschau setzen, um sie trotzdem zu importieren)' : 'Keine gültigen Verkäufe zum Importieren', 'warning');
             return;
         }
 
         const total = newSales.length;
-        if (!confirm(`${total} Verkäufe werden gebucht (${matched} mit Lager-Match, ${total - matched} manuell).${skipped > 0 ? `\n${skipped} Zeilen übersprungen.` : ''}\n\nFortfahren?`)) return;
+        if (!confirm(`${total} Verkäufe werden gebucht (${matched} mit Lager-Match, ${total - matched} manuell).${skipped > 0 ? `\n${skipped} Zeilen übersprungen (Grund je Zeile in der Vorschau).` : ''}${dublettenOffen > 0 ? `\n${dublettenOffen} Dubletten nicht importiert (bereits gebucht).` : ''}\n\nFortfahren?`)) return;
 
         const btn = document.getElementById('salesImportBtn');
         btn.disabled = true;

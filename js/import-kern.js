@@ -62,13 +62,30 @@ const ImportKern = (function () {
 
     function norm(s) { return String(s == null ? '' : s).toLowerCase().replace(/\s+/g, ' ').trim(); }
 
+    // Teile -> Fingerabdruck (ohne Laufnummer): normalisierte Teile, mit | getrennt.
+    function fingerprint(teile) {
+        return teile.map(function (t) { return typeof t === 'number' ? String(t) : norm(t); }).join('|');
+    }
+
     // Teile -> Schluessel. zaehler ist ein Objekt, das der Aufrufer pro Importlauf frisch anlegt:
     // zwei gleiche Zeilen in einer Datei ergeben #1/#2, dieselbe Datei erneut ergibt wieder #1/#2.
     function schluessel(teile, zaehler) {
-        var fp = teile.map(function (t) { return typeof t === 'number' ? String(t) : norm(t); }).join('|');
+        var fp = fingerprint(teile);
         zaehler = zaehler || {};
         zaehler[fp] = (zaehler[fp] || 0) + 1;
         return fp + '#' + zaehler[fp];
+    }
+
+    // Zeilennummern wie in der Datei (1-basiert) fuer die nicht leeren Datenzeilen.
+    // aoa = alle Zeilen inkl. Leerzeilen (sheet_to_json mit header:1), kopfIdx = 0-basierte Kopfzeile.
+    // sheet_to_json laesst Leerzeilen weg; die Nummern muessen trotzdem zur Datei passen.
+    function zeilennummern(aoa, kopfIdx) {
+        var nr = [];
+        for (var i = kopfIdx + 1; i < aoa.length; i++) {
+            var leer = (aoa[i] || []).every(function (c) { return c == null || String(c).trim() === ''; });
+            if (!leer) nr.push(i + 1);
+        }
+        return nr;
     }
 
     function csvZelle(v) {
@@ -84,6 +101,6 @@ const ImportKern = (function () {
         return '﻿' + zeilen.join('\r\n') + '\r\n';
     }
 
-    return { zahl: zahl, datum: datum, norm: norm, schluessel: schluessel, csvZelle: csvZelle, csvZeile: csvZeile, fehlerCsv: fehlerCsv };
+    return { zahl: zahl, datum: datum, norm: norm, fingerprint: fingerprint, schluessel: schluessel, zeilennummern: zeilennummern, csvZelle: csvZelle, csvZeile: csvZeile, fehlerCsv: fehlerCsv };
 })();
 if (typeof window !== 'undefined') window.ImportKern = ImportKern;

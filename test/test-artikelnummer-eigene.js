@@ -27,6 +27,8 @@ function extractMethod(src, startMarker, endMarkerRe) {
 
 const storeSrc = fs.readFileSync(path.join(__dirname, '..', 'js', 'store.js'), 'utf8');
 const pageSrc  = fs.readFileSync(path.join(__dirname, '..', 'lager', 'page.js'), 'utf8');
+// Zeilenaufbau des Excel-Imports wohnt seit Paket 1 in js/import-lager.js
+const lagerImportSrc = fs.readFileSync(path.join(__dirname, '..', 'js', 'import-lager.js'), 'utf8');
 const lagerSrc = fs.readFileSync(path.join(__dirname, '..', 'js', 'lager.js'), 'utf8');
 
 let pass = 0, total = 0;
@@ -126,7 +128,7 @@ check('C0 uniqueNr existiert im Import-Pfad',
 check('C0b eigene Nummer hat Vorrang vor der Generierung',
       /if \(row\.artikelNr\) \{[\s\S]*?uniqueNr\(row\.anzahl > 1/.test(pageSrc));
 check('C0c artikelNr wird aus der Tabelle uebernommen',
-      /artikelNr:\s+String\(get\('artikelNr'\) \|\| ''\)\.trim\(\)/.test(pageSrc));
+      /artikelNr:\s+String\(get\('artikelNr'\) \|\| ''\)\.trim\(\)/.test(lagerImportSrc));
 check('C0d artikelNr steht im Mapping-Dialog',
       /\{ key: 'artikelNr',\s+label: 'Artikelnummer'/.test(pageSrc));
 check('C0e Auto-Erkennung kennt sku/artikelnummer',

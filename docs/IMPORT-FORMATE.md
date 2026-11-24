@@ -118,6 +118,37 @@ früher mit einem Rohdatum wie `08.04.2026` gespeichert wurden, erkennt der Abgl
 **Übersprungen:** „Marke und Beschreibung fehlen“, „EK-Preis fehlt oder ist keine Zahl“, „EK-Preis ist
 negativ“, „Datum fehlt oder ist ungültig“, „Periode festgeschrieben (Kaufdatum …)“.
 
+## Ausgaben-CSV — Ausgaben → „CSV Import“
+
+Vorlage: Knopf „Vorlage herunterladen (CSV)“ im Dialog (`stackr-ausgaben-vorlage.csv`, eine erfundene
+Beispielzeile, vor dem Import löschen). Der Kopf wird an den Spaltennamen erkannt (keine Zuordnung im Dialog):
+`Datum; Kategorie; Beschreibung; Betrag; USt-Satz; Beleg-Nr.; Lieferant; Notizen`. Auch der Ausgaben-CSV-Export
+(ohne Lieferant/Notizen) ist importierbar. Nur CSV (Semikolon oder Komma), kein Excel.
+
+| Spalte | Pflicht | Bedeutung |
+|---|---|---|
+| Datum | **ja** | echter Kalendertag |
+| Kategorie | **ja** | exakt eine der Stackr-Kategorien (Groß/Klein egal): Versand, Verpackung, Plattformgebühren, Fahrtkosten, Büro, Equipment, Software/Abos, Honorare an Künstler/Publizisten, Bewirtung, Gewerbesteuer, Sonstiges. **Keine stille Zuordnung zu „Sonstiges“** |
+| Betrag | **ja** | **Bruttobetrag** (inkl. USt), > 0 |
+| USt-Satz | nein | `19`, `7`, `0` (auch `19%`), `rc` (Reverse Charge) oder `unklar`. Leer = `unklar` (wie im Formular, nie automatisch 19 %). Andere Sätze (`16`, Text) = Zeile übersprungen |
+| Beschreibung, Lieferant, Notizen | nein | Freitext |
+| Beleg-Nr. | nein | siehe Dublettenschutz |
+
+Nicht per CSV importierbar (Zeile übersprungen, im Formular erfassen): **Geschenke an Geschäftsfreunde**
+(Empfänger ist Pflicht, §4 Abs. 7 EStG) und **Umsatzsteuer an Finanzamt / -Erstattung vom Finanzamt**
+(Zeitraum, Zehn-Tage-Regel). Bewirtung, Gewerbesteuer und Privatanteil-Regeln wirken wie bei manuell
+erfassten Ausgaben in der EÜR; ein Privatanteil lässt sich per CSV nicht setzen.
+
+**Dublette, wenn:** mit Beleg-Nr. — eine nicht stornierte Ausgabe mit derselben Beleg-Nr. existiert (Groß/Klein
+egal, Betrag egal); gleiche Beleg-Nr. mehrfach in der Datei wird durchgezählt (ein Beleg mit zwei Zeilen
+bleibt beim Reimport erkennbar). Ohne Beleg-Nr. — Datum + Betrag (Cent) + Beschreibung + Lieferant stimmen
+überein. Hinweis: Zwei verschiedene Lieferanten mit gleicher Rechnungsnummer gelten als Dublette; in dem Fall
+die Beleg-Nr. mit dem Lieferantenkürzel versehen.
+
+**Übersprungen:** „Datum fehlt oder ist ungültig“, „Kategorie fehlt“, „Unbekannte Kategorie …“, „Kategorie … nicht
+per CSV importierbar“, „Betrag fehlt oder ist keine Zahl“, „Betrag muss größer 0 sein“, „Unzulässiger USt-Satz …“,
+„Periode festgeschrieben (Datum …)“. Fehlt eine Pflichtspalte im Kopf, meldet der Dialog das und importiert nichts.
+
 ## Festgeschriebene Perioden (GoBD)
 
 Zeilen, deren Datum in einer festgeschriebenen Periode liegt (USt-Voranmeldung eingereicht oder
@@ -134,7 +165,8 @@ selbst wird gebucht und die Vorschau weist darauf hin.
 | Marke und Beschreibung fehlen | Lager |
 | Datum fehlt oder ist ungültig / Preis fehlt, ist 0 oder keine Zahl | Verkäufe |
 | Periode festgeschrieben (Kaufdatum / Verkaufsdatum …) | beide |
-| Datum fehlt oder ist ungültig | Einkaufs-CSV (Buchungen) |
+| Datum fehlt oder ist ungültig | Einkaufs-CSV (Buchungen), Ausgaben-CSV |
+| Unbekannte Kategorie / Unzulässiger USt-Satz / Betrag muss größer 0 sein | Ausgaben-CSV |
 
 **Fehlerdatei** (`import-fehler.csv`): UTF-8 mit BOM, Semikolon, Kopfzeile `Zeile;Grund`, eine Zeile je
 nicht importierter Zeile. Enthält auch abgewählte Dubletten (Grund beginnt mit „Dublette:“). Die

@@ -404,6 +404,7 @@ const Ausgaben = {
                 <h2>Ausgaben</h2>
                 <div class="page-header-actions no-print">
                     <button class="btn" id="expenseExportCSV">CSV Export</button>
+                    <button class="btn" id="expenseImportCSV">CSV Import</button>
                 </div>
             </div>
 
@@ -893,6 +894,9 @@ const Ausgaben = {
                 this._refresh();
             });
         });
+
+        const importBtn = document.getElementById('expenseImportCSV');
+        if (importBtn) importBtn.addEventListener('click', () => AusgabenImport.oeffneDialog(() => this._refresh()));
 
         // CSV Export
         const exportBtn = document.getElementById('expenseExportCSV');

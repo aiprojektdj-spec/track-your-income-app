@@ -24,6 +24,7 @@
         'js/import-kern.js',
         'js/import-lager.js',
         'js/import-buchungen.js',
+        'js/import-ausgaben.js',
         'js/buchungen.js',
         'js/lager.js',
         'js/datev.js',

@@ -91,6 +91,28 @@ function storeStub(opt) {
         assert.ok(/^4;Dublette/.test(csv[1]) && /^6;EK-Preis/.test(csv[2]), csv.join(' | '));
     });
 
+    await check('ExcelImport: Lagerort, Warenkategorie, Tags und Notizen landen am Artikel', async () => {
+        const store = storeStub({});
+        const kategorien = [];
+        store.addWarenkategorie = k => kategorien.push(k);
+        const { ctx } = welt(store);
+        const X = ctx.ExcelImport;
+        const spalten = ['Marke', 'EK', 'Lagerort', 'Regal', 'Fach', 'Warenkategorie', 'Tags', 'Bemerkung'];
+        const m = X._autoDetect(spalten);
+        assert.strictEqual(m.lagerBereich, 'Lagerort'); assert.strictEqual(m.lagerRegal, 'Regal'); assert.strictEqual(m.lagerFach, 'Fach');
+        assert.strictEqual(m.warenkategorie, 'Warenkategorie'); assert.strictEqual(m.tags, 'Tags'); assert.strictEqual(m.notizen, 'Bemerkung');
+        X._columns = spalten; X._mapping = m;
+        X._rows = [{ Marke: 'Nike', EK: '5', Lagerort: 'Keller', Regal: 'R2', Fach: '7', Warenkategorie: 'Kleidung', Tags: 'a, b', Bemerkung: 'ok' }];
+        X._renderPreview();
+        await X._import();
+        const p = store.daten.purchases[0];
+        assert.strictEqual(JSON.stringify(p.lagerort), JSON.stringify({ bereich: 'Keller', regal: 'R2', fach: '7' }));
+        assert.strictEqual(p.warenkategorie, 'Kleidung');
+        assert.strictEqual(JSON.stringify(p.tags), JSON.stringify(['a', 'b']));
+        assert.strictEqual(p.notizen, 'ok');
+        assert.strictEqual(JSON.stringify(kategorien), JSON.stringify(['Kleidung']));
+    });
+
     await check('ExcelImport: Haken an der Dublette importiert sie doch', async () => {
         const bestand = [{ id: 'p1', artikelNr: '2026-001', datum: '2026-03-01', marke: 'Nike', beschreibung: 'Hoodie', groesse: '', einkaufspreis: 12.5, status: 'verfuegbar' }];
         const store = storeStub({ purchases: bestand });

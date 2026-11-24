@@ -12,6 +12,16 @@ const LagerImport = (function () {
     function cent(n) { return Math.round((Number(n) || 0) * 100); }
     function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
     function upper(s) { return String(s || '').trim().toUpperCase(); }
+    function text(v) { return String(v == null ? '' : v).trim(); }
+    // Tags: Komma-getrennt, ohne Leere und ohne Doppelte (Gross/Klein egal), Reihenfolge bleibt
+    function tags(v) {
+        var gesehen = {}, out = [];
+        text(v).split(',').forEach(function (t) {
+            t = t.trim();
+            if (t && !gesehen[t.toLowerCase()]) { gesehen[t.toLowerCase()] = true; out.push(t); }
+        });
+        return out;
+    }
     function aktiv(p) { return p && !p.storniert && !p.gegengebucht && p.status !== 'gegenbuchung'; }
 
     // ── Einkaeufe (ExcelImport) ──────────────────────────────────────────────
@@ -64,6 +74,10 @@ const LagerImport = (function () {
                 einkaufspreis: preis,
                 einkaufsquelle: String(get('quelle') || '').trim() || opt.quelle || '',
                 anzahl: anzahl,
+                lagerort: { bereich: text(get('lagerBereich')), regal: text(get('lagerRegal')), fach: text(get('lagerFach')) },
+                warenkategorie: text(get('warenkategorie')),
+                tags: tags(get('tags')),
+                notizen: text(get('notizen')),
                 verkauft: verkauft,
                 verkaufspreis: verkauft ? vkPreis : 0,
                 verkaufsdatum: vkDatum,

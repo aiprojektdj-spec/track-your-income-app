@@ -116,6 +116,23 @@ check('Einkauf: Rundlauf – eigene Anlage nochmal importiert = nur Dubletten', 
     assert.strictEqual(L.ausgewaehlt(zweit).length, 1);
 });
 
+check('Einkauf: Lagerort, Warenkategorie, Tags (Komma, ohne Doppelte), Notizen', () => {
+    const map = Object.assign({ lagerBereich: 'Bereich', lagerRegal: 'Regal', lagerFach: 'Fach', warenkategorie: 'WK', tags: 'Tags', notizen: 'Notiz' }, MAP);
+    const r = zeile({ Marke: 'Nike', EK: '5', Bereich: ' Keller ', Regal: 'R2', Fach: '7', WK: 'Kleidung', Tags: 'Vintage, nike ,, vintage, Y2K', Notiz: 'Fleck am Aermel' });
+    const z = L.einkaufsZeilen([r], map, OPT()).zeilen[0].row;
+    eq(z.lagerort, { bereich: 'Keller', regal: 'R2', fach: '7' });
+    assert.strictEqual(z.warenkategorie, 'Kleidung');
+    eq(z.tags, ['Vintage', 'nike', 'Y2K']);
+    assert.strictEqual(z.notizen, 'Fleck am Aermel');
+});
+
+check('Einkauf: ohne diese Spalten bleiben die Felder leer (alte Dateien gueltig)', () => {
+    const z = L.einkaufsZeilen([zeile({ Marke: 'Nike', EK: '5' })], MAP, OPT()).zeilen[0].row;
+    eq(z.lagerort, { bereich: '', regal: '', fach: '' });
+    eq(z.tags, []);
+    assert.strictEqual(z.notizen, '');
+});
+
 // ── Verkaeufe ──
 const SMAP = { datum: 'Datum', beschreibung: 'Titel', preis: 'Preis', gebuehr: 'Gebühr', versandKaeufer: 'Versand' };
 const srow = (o) => Object.assign({ Datum: '', Titel: '', Preis: '', 'Gebühr': '', Versand: '' }, o);

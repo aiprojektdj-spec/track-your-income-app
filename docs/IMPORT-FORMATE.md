@@ -35,6 +35,10 @@ Dublette, die zweite ist neu.
 | Marke **oder** Beschreibung | **ja** (mindestens eins) | |
 | Kaufdatum / Datum | nein | leer oder ungültig = das Datum aus „Gemeinsame Felder“ (keine Fehlermeldung) |
 | Artikelnummer | nein | eigene Nummer; leer = automatisch `JJJJ-NNN` |
+| Lagerort (Bereich), Regal, Fach | nein | werden am Artikel als Lagerort gespeichert |
+| Warenkategorie | nein | Freitext; neue Kategorien erscheinen danach in der Auswahlliste. „Kategorie“/„Typ“ bedeutet Artikeltyp, nicht Warenkategorie |
+| Tags | nein | Komma-getrennt (`Vintage, Nike`), Doppelte und Leere entfallen |
+| Notizen / Bemerkung | nein | Freitext am Artikel |
 | Typ, Größe, Einkaufsquelle, Anzahl | nein | Anzahl > 1 legt mehrere Artikel an (`NR-1`, `NR-2`, …) |
 | Verkaufspreis, Verkaufsdatum, Verkauft an, Versand Käufer, Versandkosten, Plattformgebühr % | nein | Ist ein Verkaufspreis > 0 da, gilt der Artikel als verkauft und der Verkauf wird mit angelegt |
 
@@ -42,6 +46,9 @@ Dublette, die zweite ist neu.
 auch `NR-1`) — oder, ohne Artikelnummer, Kaufdatum + Marke + Beschreibung + Größe + EK-Preis (in
 Cent) mit einem nicht stornierten Artikel übereinstimmen. Hinweis: Ohne Datumsspalte zählt das Datum
 aus „Gemeinsame Felder“; für den Dublettenabgleich muss es dasselbe sein wie beim ersten Import.
+
+**Noch nicht im Modell, daher nicht importierbar (Lücke):** *Zustand* (kein Feld am Artikel; steht
+im Alltag oft in den Notizen) und *Einkaufsnebenkosten* (nur `versandanteil` bei Bulk-Einkäufen).
 
 ## Verkäufe-Import — Dialog „Verkäufe-Import (CSV)“
 

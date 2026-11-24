@@ -1758,7 +1758,14 @@ const ExcelImport = {
             // Optionale Ausgaben-/Einnahmen-Posten für die EÜR (€ bzw. %) — nur bei passender Spalte
             versandKaeufer:    find('versand käufer', 'versandkäufer', 'versandkosten käufer', 'versand vom käufer', 'shipping charged'),
             versandVerkaeufer: find('versand', 'porto', 'shipping', 'versandkosten', 'versandkosten verkäufer', 'versand verkäufer'),
-            gebuehrProzent:    find('gebühr %', 'gebuehr %', 'provision %', 'fee %', 'plattformgebühr %', 'gebührprozent')
+            gebuehrProzent:    find('gebühr %', 'gebuehr %', 'provision %', 'fee %', 'plattformgebühr %', 'gebührprozent'),
+            // Lagerort, Warenkategorie, Tags, Notizen ("kategorie" bleibt beim Artikeltyp)
+            lagerBereich:   find('lagerbereich', 'lagerort', 'bereich', 'lager', 'standort'),
+            lagerRegal:     find('regal', 'lagerregal'),
+            lagerFach:      find('fach', 'lagerfach'),
+            warenkategorie: find('warenkategorie'),
+            tags:           find('tags', 'schlagworte', 'schlagwörter', 'stichworte', 'stichwörter'),
+            notizen:        find('notizen', 'notiz', 'bemerkung', 'bemerkungen', 'kommentar', 'anmerkung')
         };
     },
 
@@ -1951,7 +1958,13 @@ const ExcelImport = {
             { key: 'verkaufswo',    label: 'Verkauft an / wo',required: false },
             { key: 'versandKaeufer',    label: 'Versand v. Käufer (€)',  required: false },
             { key: 'versandVerkaeufer', label: 'Versandkosten (€)',      required: false },
-            { key: 'gebuehrProzent',    label: 'Plattformgebühr (%)',    required: false }
+            { key: 'gebuehrProzent',    label: 'Plattformgebühr (%)',    required: false },
+            { key: 'lagerBereich',      label: 'Lagerort: Bereich',      required: false },
+            { key: 'lagerRegal',        label: 'Lagerort: Regal',        required: false },
+            { key: 'lagerFach',         label: 'Lagerort: Fach',         required: false },
+            { key: 'warenkategorie',    label: 'Warenkategorie',         required: false },
+            { key: 'tags',              label: 'Tags (Komma-getrennt)',  required: false },
+            { key: 'notizen',           label: 'Notizen',                required: false }
         ];
         const opts = ['<option value="">— nicht zuordnen —</option>',
                       ...this._columns.map(c => `<option value="${Utils.escapeHtml(c)}">${Utils.escapeHtml(c)}</option>`)].join('');
@@ -2097,6 +2110,7 @@ const ExcelImport = {
             const existingSales = Store.getAllSalesRaw ? Store.getAllSalesRaw() : [];
             validRows.forEach(row => {
                 if (row.marke) Store.addBrand(row.marke);
+                if (row.warenkategorie && Store.addWarenkategorie) Store.addWarenkategorie(row.warenkategorie);
                 const ry = String(new Date(row.datum).getFullYear());   // Artikel-Nr. pro Jahr fortlaufend
                 if (!yearMax[ry]) yearMax[ry] = 0;
                 const unitIds = [];
@@ -2124,7 +2138,10 @@ const ExcelImport = {
                         status:        row.verkauft ? 'verkauft' : 'verfuegbar',
                         sessionId,
                         artikelNr:     artNr,
-                        lagerort:      { bereich: '', regal: '', fach: '' }
+                        lagerort:      Object.assign({}, row.lagerort),
+                        warenkategorie: row.warenkategorie,
+                        tags:          row.tags.slice(),
+                        notizen:       row.notizen
                     };
                     // EINDEUTIGE ID vergeben (sonst kollidieren UI-Selektionen)
                     record.id = Store.generateId();

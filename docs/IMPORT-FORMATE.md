@@ -93,6 +93,31 @@ Die Plattform wählt man im Dialog (Vinted, eBay, Mercari, Etsy, Depop, Sonstige
 Plattform und gleichem Titel existiert. Bei einer Zuordnung zum Lager zählt statt des Titels die
 Artikelnummer des Artikels.
 
+## Einkaufs-CSV — Dialog „CSV Import“ unter Buchungen
+
+Vorlage: Knopf „Einkauf-Template.csv“ im Dialog. Spalten (die Zuordnung im Dialog lässt sich ändern):
+`Datum; Marke; Artikeltyp; Größe; Beschreibung; Einkaufspreis; Anzahl; Einkaufsquelle; Notizen`. Alte
+Vorlagen bleiben importierbar. Trenner Semikolon oder Komma, auch `.xlsx`/`.xls`.
+
+| Spalte | Pflicht | Bedeutung |
+|---|---|---|
+| Datum | **ja** | Kaufdatum; fehlt es oder ist es kein echter Kalendertag, wird die Zeile übersprungen (es gibt hier kein Standarddatum) |
+| Einkaufspreis | **ja** | ≥ 0, Tausendertrenner erlaubt (`1.234,56`) |
+| Marke **oder** Beschreibung | **ja** (mindestens eins) | |
+| Artikeltyp, Größe, Einkaufsquelle, Notizen | nein | Freitext |
+| Anzahl | nein | wird als Feld am Artikel gespeichert (kein Vervielfacher: eine Zeile = ein Datensatz) |
+
+Ablauf: erster Klick auf „Importieren“ zeigt die Vorschau (neu / Dubletten / übersprungen), zweiter Klick
+legt an. Wer ein Artikelnummernschema, Lagerort oder Verkaufsdaten braucht, nimmt stattdessen den
+Lager-Import (Einzeilen-Format).
+
+**Dublette, wenn:** ein nicht stornierter Einkauf mit gleichem Datum + Marke + Beschreibung + Größe +
+EK-Preis (Cent) existiert (gleicher Schlüssel wie beim Lager-Import ohne Artikelnummer). Einkäufe, die
+früher mit einem Rohdatum wie `08.04.2026` gespeichert wurden, erkennt der Abgleich nicht als Dublette.
+
+**Übersprungen:** „Marke und Beschreibung fehlen“, „EK-Preis fehlt oder ist keine Zahl“, „EK-Preis ist
+negativ“, „Datum fehlt oder ist ungültig“, „Periode festgeschrieben (Kaufdatum …)“.
+
 ## Festgeschriebene Perioden (GoBD)
 
 Zeilen, deren Datum in einer festgeschriebenen Periode liegt (USt-Voranmeldung eingereicht oder
@@ -109,6 +134,7 @@ selbst wird gebucht und die Vorschau weist darauf hin.
 | Marke und Beschreibung fehlen | Lager |
 | Datum fehlt oder ist ungültig / Preis fehlt, ist 0 oder keine Zahl | Verkäufe |
 | Periode festgeschrieben (Kaufdatum / Verkaufsdatum …) | beide |
+| Datum fehlt oder ist ungültig | Einkaufs-CSV (Buchungen) |
 
 **Fehlerdatei** (`import-fehler.csv`): UTF-8 mit BOM, Semikolon, Kopfzeile `Zeile;Grund`, eine Zeile je
 nicht importierter Zeile. Enthält auch abgewählte Dubletten (Grund beginnt mit „Dublette:“). Die

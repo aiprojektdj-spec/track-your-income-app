@@ -334,7 +334,7 @@ const LagerImport = (function () {
         gebuehrProzent: gebuehrProzent, EINZEILEN_SPALTEN: EINZEILEN_SPALTEN, vorlageCsv: vorlageCsv,
         einkaufsZeilen: einkaufsZeilen, verkaufsZeilen: verkaufsZeilen, ausgewaehlt: ausgewaehlt,
         vorschauHtml: vorschauHtml, verdrahte: verdrahte, nichtImportiert: nichtImportiert, berichtHtml: berichtHtml, zeigeBericht: zeigeBericht,
-        _bestandEinkauf: bestandEinkauf, _bestandVerkauf: bestandVerkauf
+        fpEinkauf: fpEinkauf, _bestandEinkauf: bestandEinkauf, _bestandVerkauf: bestandVerkauf
     };
 })();
 if (typeof window !== 'undefined') window.LagerImport = LagerImport;

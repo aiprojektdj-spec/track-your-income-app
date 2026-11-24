@@ -1709,7 +1709,9 @@ const Buchungen = {
         App.showModal('CSV Import - Einkäufe', body, '');
 
         let parsedRows = [];
+        let zeilenNr = [];      // Zeilennummer in der Datei je parsedRows-Eintrag (Meldungen)
         let headers = [];
+        let erg = null;         // Pruefergebnis (BuchungenImport) nach dem ersten Klick auf "Importieren"
 
         document.getElementById('csvTemplateEinkaufBtn').addEventListener('click', () => {
             Utils.downloadCSV([
@@ -1731,6 +1733,8 @@ const Buchungen = {
                 return;
             }
             headers = parsedRows[0];
+            erg = null;
+            document.getElementById('csvDoImport').textContent = 'Importieren';
             const dataRows = parsedRows.slice(1, 6);
 
             // Show preview
@@ -1770,6 +1774,10 @@ const Buchungen = {
                 </div>`;
             });
             document.getElementById('csvMapping').innerHTML = mappingHtml;
+            document.querySelectorAll('.csv-map').forEach(sel => sel.addEventListener('change', () => {
+                erg = null;
+                document.getElementById('csvDoImport').textContent = 'Importieren';
+            }));
             document.getElementById('csvPreviewArea').style.display = 'block';
         };
 
@@ -1791,6 +1799,7 @@ const Buchungen = {
                         const ws = wb.Sheets[Utils.waehleDatenblatt(wb)];
                         const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
                         parsedRows = raw.map(row => row.map(cell => String(cell == null ? '' : cell)));
+                        zeilenNr = parsedRows.map((_, i) => i + 1);
                         processCSVRows();
                     } catch (err) {
                         Utils.showToast('Fehler beim Lesen der Excel-Datei: ' + Utils.errorText(err, 'Bitte prüfen, ob es eine gültige .xlsx-Datei ist.'), 'error');
@@ -1802,6 +1811,9 @@ const Buchungen = {
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     parsedRows = Utils.parseCSV(ev.target.result);
+                    // parseCSV laesst Leerzeilen weg; die Nummern muessen trotzdem zur Datei passen
+                    zeilenNr = [];
+                    String(ev.target.result).split(/\r?\n/).forEach((l, i) => { if (l.trim()) zeilenNr.push(i + 1); });
                     processCSVRows();
                 };
                 reader.readAsText(file);
@@ -1817,35 +1829,32 @@ const Buchungen = {
                 if (field !== '-- Ignorieren --') mappings[field] = col;
             });
 
-            let imported = 0;
-            let skipped = 0;
-            parsedRows.slice(1).forEach(row => {
-                const obj = { status: 'verfuegbar' };
-                for (const [field, col] of Object.entries(mappings)) {
-                    const val = row[col] || '';
-                    if (field === 'einkaufspreis') obj[field] = parseFloat(val.replace(',', '.')) || 0;
-                    else if (field === 'anzahl') obj[field] = parseInt(val) || 1;
-                    else obj[field] = val.trim();
-                }
-                if (!obj.marke && !obj.beschreibung) {
-                    skipped++;
-                    return;
-                }
-                if (obj.marke) Store.addBrand(obj.marke);
-                if (obj.einkaufsquelle) Store.addEinkaufsquelle(obj.einkaufsquelle);
-                Store.savePurchase(obj);
-                imported++;
-            });
-
-            const resultEl = document.getElementById('csvImportResult');
-            if (resultEl) {
+            // Schritt 1: pruefen und Vorschau zeigen (Dubletten, uebersprungene Zeilen); Schritt 2: importieren
+            if (!erg) {
+                erg = BuchungenImport.einkaufsZeilen(parsedRows.slice(1), mappings, {
+                    nummern: zeilenNr.slice(1),
+                    bestand: Store.getAllPurchasesRaw(),
+                    gesperrt: d => Store.isPeriodLocked(d)
+                });
+                const resultEl = document.getElementById('csvImportResult');
                 resultEl.style.display = 'block';
                 resultEl.style.background = 'var(--bg-card)';
-                resultEl.innerHTML = `<strong>${imported}</strong> Einkäufe importiert` + (skipped > 0 ? `, <strong>${skipped}</strong> übersprungen (keine Daten)` : '');
+                resultEl.innerHTML = LagerImport.vorschauHtml(erg);
+                LagerImport.verdrahte(resultEl, erg);
+                const n = LagerImport.ausgewaehlt(erg).length;
+                document.getElementById('csvDoImport').textContent = n > 0 ? `${n} Einkäufe jetzt importieren` : 'Keine neuen Zeilen';
+                return;
             }
-
-            App.closeModal();
-            Utils.showToast(`${imported} Einkäufe importiert` + (skipped > 0 ? `, ${skipped} übersprungen` : ''), 'success');
+            let imported = 0;
+            LagerImport.ausgewaehlt(erg).forEach(z => {
+                const obj = z.row;
+                if (obj.marke) Store.addBrand(obj.marke);
+                if (obj.einkaufsquelle) Store.addEinkaufsquelle(obj.einkaufsquelle);
+                const saved = Store.savePurchase(obj);
+                if (saved && saved.id) imported++;
+            });
+            if (LagerImport.nichtImportiert(erg).length > 0) LagerImport.zeigeBericht('Import-Ergebnis', erg, `${imported} Einkäufe importiert`);
+            else { App.closeModal(); Utils.showToast(`${imported} Einkäufe importiert`, 'success'); }
             this._renderTab();
         });
     }

@@ -21,6 +21,9 @@
         'js/vendor/flatpickr-de.js',
 
         'js/dashboard.js',
+        'js/import-kern.js',
+        'js/import-lager.js',
+        'js/import-buchungen.js',
         'js/buchungen.js',
         'js/lager.js',
         'js/datev.js',

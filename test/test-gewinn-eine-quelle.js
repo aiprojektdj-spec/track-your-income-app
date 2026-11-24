@@ -117,6 +117,8 @@ global.SteuerBerechnung = {
 // Ausgaben  600 Ware + 40 Versand + 105 Gebuehr + 150 Fahrt + 90 Material
 //         + 200 Ausgabe + 120 Eigenbeleg + 800 AfA = 2105.
 // Gewinn = 950 - 2105 = -1155.
+// js/euer.js / js/datev.js filtern Eigenbelege ueber EigenbelegStatus (unbestaetigte zaehlen nicht); echtes Modul als Global
+global.EigenbelegStatus = require('./_lade-module').ladeModule(['js/eigenbeleg-status.js']).EigenbelegStatus;
 const euerSrc = fs.readFileSync(__dirname + '/../js/euer.js', 'utf8');
 const berechneBody = extractMethod(euerSrc, '_berechne(year, month, period) {', /\n    \},/);
 const _berechne = new Function('year', 'month', 'period', berechneBody);

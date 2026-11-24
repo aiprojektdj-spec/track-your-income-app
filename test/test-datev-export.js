@@ -35,6 +35,8 @@ function block(fn) {
     }
 }
 
+// js/euer.js / js/datev.js filtern Eigenbelege ueber EigenbelegStatus (unbestaetigte zaehlen nicht); echtes Modul als Global
+global.EigenbelegStatus = require('./_lade-module').ladeModule(['js/eigenbeleg-status.js']).EigenbelegStatus;
 const datevSrc = fs.readFileSync(__dirname + '/../js/datev.js', 'utf8');
 
 // ── Modul laden ────────────────────────────────────────────────────────────

@@ -279,7 +279,7 @@ window.addEventListener('themechange', () => {
 function renderDashboard() {
     const belege  = EB.getBelege();
     const year    = new Date().getFullYear();
-    const thisYear= belege.filter(b => (b.belegDatum||'').startsWith(String(year)));
+    const thisYear= belege.filter(b => (b.belegDatum||'').startsWith(String(year)) && EigenbelegStatus.zaehlt(b));
     const summe   = thisYear.reduce((a,b) => a+(b.betragBrutto||0), 0);
 
     const zwMap={}, katMap={};
@@ -1285,7 +1285,7 @@ function applyFilter() {
     const tbl   = document.getElementById('belege-table');
     const foot  = document.getElementById('belege-footer');
     // Stornierte Belege bleiben sichtbar (GoBD), zaehlen aber nicht in die Summen mit.
-    const aktiv = res.filter(x=>!x.storniert);
+    const aktiv = res.filter(x=>!x.storniert && EigenbelegStatus.zaehlt(x));   // unbestaetigte zaehlen nicht mit
     const total = aktiv.reduce((a,x)=>a+(x.betragBrutto||0), 0);
     const bar   = aktiv.filter(x=>x.zahlungsweg==='bar').reduce((a,x)=>a+(x.betragBrutto||0), 0);
 
@@ -1311,7 +1311,7 @@ function applyFilter() {
                 const vName = x.verkäufer?.name || x.empfaenger || '—';
                 const storniert = !!x.storniert;
                 return `<tr${storniert ? ' style="opacity:.5"' : ''}>
-                    <td><span style="font-family:monospace;font-size:11px;color:var(--accent-light)">${x.id}</span>${storniert ? ' <span class="badge" style="background:#dc262622;color:#dc2626">Storniert</span>' : ''}</td>
+                    <td><span style="font-family:monospace;font-size:11px;color:var(--accent-light)">${x.id}</span>${storniert ? ' <span class="badge" style="background:#dc262622;color:#dc2626">Storniert</span>' : ''}${!storniert && !EigenbelegStatus.zaehlt(x) ? ' <span class="badge" style="background:#f59e0b22;color:#b45309">Unbestätigt</span>' : ''}</td>
                     <td style="white-space:nowrap">${datum(x.belegDatum)}</td>
                     <td>${esc(vName)}</td>
                     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.zweck||'')}">${esc(x.zweck||'—')}</td>
@@ -1320,6 +1320,7 @@ function applyFilter() {
                     <td style="text-align:right;font-weight:600;white-space:nowrap">${euro(x.betragBrutto)}</td>
                     <td style="white-space:nowrap">
                         <button class="action-btn" data-action="eb-view" data-id="${x.id}"   aria-label="Ansehen" title="Ansehen"><i class="ti ti-eye"></i></button>
+                        ${!storniert && !EigenbelegStatus.zaehlt(x) ? `<button class="btn btn-small btn-primary" data-action="eb-confirm-beleg" data-id="${esc(x.id)}" title="Beleg prüfen und bestätigen: erst dann zählt er in EÜR und DATEV">Bestätigen</button>` : ''}
                         ${storniert ? '' : `<button class="action-btn action-btn-accent" data-action="eb-edit" data-id="${x.id}"   aria-label="Bearbeiten" title="Bearbeiten"><i class="ti ti-pencil"></i></button>`}
                         <button class="action-btn" data-action="eb-print" data-id="${x.id}"  aria-label="PDF / Drucken" title="PDF / Drucken"><i class="ti ti-file-download"></i></button>
                         ${storniert ? '' : `<button class="action-btn action-btn-danger" data-action="eb-delete" data-id="${x.id}" aria-label="Löschen" title="Löschen"><i class="ti ti-trash"></i></button>`}
@@ -1463,6 +1464,23 @@ function editBeleg(id) {
         return;
     }
     renderNeu(id);
+}
+
+// Unbestaetigten (per CSV importierten) Beleg bestaetigen: erst danach zaehlt er in EUER/DATEV/Summen.
+// Periodensperre wie bei Bearbeiten; Audit-Eintrag mit altem und neuem Stand.
+function bestaetigeBeleg(id) {
+    const belege = EB.getBelege();
+    const idx = belege.findIndex(x => x.id === id);
+    const pruef = EigenbelegStatus.kannBestaetigen(belege[idx], { gesperrt: d => typeof Store !== 'undefined' && Store.isPeriodLocked(d) });
+    if (!pruef.ok) { toast(pruef.grund === 'Periode festgeschrieben' ? 'Dieser Eigenbeleg liegt in einer GoBD-festgeschriebenen Periode und kann nicht mehr bestätigt werden.' : pruef.grund + '.', 'warning'); return; }
+    if (!confirm(`Eigenbeleg ${id} bestätigen?
+Der Beleg zählt danach in EÜR und DATEV-Export. Bitte vorher Betrag, Verkäufer, Zweck und Begründung prüfen.`)) return;
+    const old = belege[idx];
+    belege[idx] = EigenbelegStatus.bestaetigt(old, new Date().toISOString());
+    EB.saveBelege(belege);
+    if (typeof Store !== 'undefined') Store._addAuditEntry('bearbeitet', 'eigenbeleg', id, old, belege[idx], 'Eigenbeleg bestätigt');
+    toast('Eigenbeleg bestätigt', 'success');
+    applyFilter();
 }
 
 // GoBD §146 Abs.4 HGB: kein physisches Löschen mehr — Storno-Flag, Beleg bleibt
@@ -2170,6 +2188,7 @@ document.addEventListener('click', function (e) {
         case 'eb-edit':               editBeleg(d.id); break;
         case 'eb-print':              printBeleg(d.id); break;
         case 'eb-delete':             deleteBeleg(d.id); break;
+        case 'eb-confirm-beleg':      bestaetigeBeleg(d.id); break;
         case 'eb-close':              closeModal(); break;
         case 'eb-close-edit':         closeModal(); editBeleg(d.id); break;
         case 'eb-select-lager':       selectLagerArtikel(Number(d.idx), d.id); closeModal(); break;

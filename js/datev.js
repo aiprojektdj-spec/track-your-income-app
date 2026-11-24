@@ -584,7 +584,7 @@ var DatevExport = (function () {
                 var k  = (co ? co + '__' : '') + 'eigenbelege_belege';
                 return (Store._syncReadRaw ? Store._syncReadRaw(k) : JSON.parse(localStorage.getItem(k) || '[]')) || [];
             } catch (e) { return []; }
-        })();
+        })().filter(function (b) { return EigenbelegStatus.zaehlt(b); });   // unbestaetigte CSV-Eigenbelege erst nach "Bestaetigen"
         eigenbelege
             .filter(function (b) {
                 return !b.storniert && b.belegDatum && b.belegDatum >= vonDate && b.belegDatum <= bisDate;
@@ -973,7 +973,7 @@ var DatevExport = (function () {
             var k  = (co ? co + '__' : '') + 'eigenbelege_belege';
             var ebs = (Store._syncReadRaw ? Store._syncReadRaw(k) : JSON.parse(localStorage.getItem(k) || '[]')) || [];
             ebs.forEach(function (b) {
-                if (b.storniert) return;
+                if (b.storniert || !EigenbelegStatus.zaehlt(b)) return;
                 nimm('eigenbelege', b.belegDatum, b.belegNr || b.id, b.foto);
             });
         } catch (e) { /* dito */ }

@@ -71,7 +71,7 @@ function exportiere(o, ohneEuer) {
         showToast: (m, t) => out.toasts.push([m, t])
     };
     const dateien = ohneEuer ? ['js/steuerberater.js']
-        : ['js/steuerstatus.js', 'js/steuer-berechnung.js', 'js/euer.js', 'js/steuerberater.js'];
+        : ['js/eigenbeleg-status.js', 'js/steuerstatus.js', 'js/steuer-berechnung.js', 'js/euer.js', 'js/steuerberater.js'];
     const ctx = ladeModule(dateien, { Store, Utils, Afa: { _calcJahresAfa: () => o.afa },
         document: { getElementById: id => felder[id] || { checked: false } } });
     ctx.Steuerberater.init();

@@ -24,6 +24,8 @@ function check(name, cond, detail) {
 }
 
 const wurzel = path.join(__dirname, '..');
+// js/euer.js / js/datev.js filtern Eigenbelege ueber EigenbelegStatus (unbestaetigte zaehlen nicht); echtes Modul als Global
+global.EigenbelegStatus = require('./_lade-module').ladeModule(['js/eigenbeleg-status.js']).EigenbelegStatus;
 const datevSrc = fs.readFileSync(path.join(wurzel, 'js', 'datev.js'), 'utf8');
 
 // StackrZip kommt echt herein, nicht als Attrappe: ausDataUrl() entscheidet ueber Endung und

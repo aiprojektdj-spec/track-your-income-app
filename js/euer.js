@@ -367,7 +367,7 @@ const Euer = {
 
         // Eigenbelege als Ausgaben (aus eigenbelege/index.html localStorage)
         // Felder: belegDatum (nicht datum), betragNetto (nicht betrag)
-        const eigenbelegeRaw = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; const _k = (_ebCo?_ebCo+'__':'')+'eigenbelege_belege'; return (typeof Store !== 'undefined' ? Store._syncReadRaw(_k) : JSON.parse(localStorage.getItem(_k) || '[]')) || []; } catch { return []; } })();
+        const eigenbelegeRaw = (() => { try { const _ebCo = localStorage.getItem('oyi_active_company')||''; const _k = (_ebCo?_ebCo+'__':'')+'eigenbelege_belege'; return (typeof Store !== 'undefined' ? Store._syncReadRaw(_k) : JSON.parse(localStorage.getItem(_k) || '[]')) || []; } catch { return []; } })().filter(b => EigenbelegStatus.zaehlt(b));   // unbestaetigte CSV-Eigenbelege zaehlen erst nach "Bestaetigen"
         const eigenbelegeInPeriod = eigenbelegeRaw
             .filter(b => !b.storniert && b.belegDatum && Utils.isInPeriod(b.belegDatum, startDate, endDate));
         // Abgeflossen ist der Bruttobetrag (§11 Abs.2 EStG). Eine abziehbare Vorsteuer steckt darin

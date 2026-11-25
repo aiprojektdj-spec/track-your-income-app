@@ -35,10 +35,10 @@ let rows, rl, calls, sbFail, hookFail, whopFail, members;
 function reset() {
     rows = []; rl = {}; calls = []; sbFail = false; hookFail = false; whopFail = 0;
     members = [
-        { id: 'mem_A', status: 'active',   user: { email: 'Kunde@Example.de' }, renewal_period_end: '2026-11-21T10:00:00Z' },
-        { id: 'mem_B', status: 'canceled', user: { email: 'kunde@example.de' } },
-        { id: 'mem_C', status: 'trialing', user: { email: 'andere@example.de' } },
-        { id: 'mem_D', status: 'trialing', user: { email: 'kunde@example.de' }, renewal_period_end: 1798000000 }
+        { id: 'mem_A', status: 'active',   user_id: 'user_K', current_period_end: '2026-11-21T10:00:00Z' },
+        { id: 'mem_B', status: 'canceled', user_id: 'user_K' },
+        { id: 'mem_C', status: 'trialing', user_id: 'user_X' },
+        { id: 'mem_D', status: 'trialing', user_id: 'user_K', current_period_end: 1798000000 }
     ];
 }
 function ok(body) { return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body), text: () => Promise.resolve(body == null ? '' : JSON.stringify(body)) }); }
@@ -63,6 +63,9 @@ global.fetch = function (url, opts) {
             const after = u.searchParams.get('after');
             const start = after ? 2 : 0;
             return ok({ data: members.slice(start, start + 2), page_info: { has_next_page: start === 0 && members.length > 2, end_cursor: 'c2' } });
+        }
+        if (u.pathname === '/api/v1/members') {
+            return ok({ data: [{ email: 'Kunde@Example.de', user: { id: 'user_K' } }, { email: 'andere@example.de', user: { id: 'user_X' } }], page_info: { has_next_page: false } });
         }
         const m = u.pathname.match(/^\/api\/v1\/memberships\/([^/]+)\/cancel$/);
         if (m) { const x = members.find(y => y.id === m[1]); return ok(Object.assign({}, x, { status: 'canceling', cancel_at_period_end: true })); }
@@ -123,7 +126,7 @@ const BASIS = { art: 'ordentlich', name: 'Kim Kunde', email: 'kunde@example.de',
     check('Supabase-Zeile mit normalisierter E-Mail', rows.length === 1 && rows[0].p_email === 'kunde@example.de' && rows[0].p_art === 'ordentlich');
     check('Whop-Suche mit account_id, zweite Seite per after', whopCalls().some(c => c.url.indexOf('account_id=biz_2OEWYGlOwb8b0f') !== -1) && whopCalls().some(c => c.url.indexOf('after=c2') !== -1));
     check('genau mem_A und mem_D gekündigt (laufend, gleiche E-Mail)', cancels.length === 2 && /mem_A/.test(cancels[0].url) && /mem_D/.test(cancels[1].url));
-    check('cancellation_mode at_period_end', cancels.every(c => JSON.parse(c.opts.body).cancellation_mode === 'at_period_end'));
+    check('cancel_at_period_end true (sonst entzieht Whop v1 den Zugang sofort)', cancels.every(c => JSON.parse(c.opts.body).cancel_at_period_end === true));
     check('Authorization mit WHOP_API_KEY', cancels[0].opts.headers.Authorization === 'Bearer apik_test');
     check('Status gekuendigt + spätestes Wirksamkeitsdatum', rows[0].p_status === 'gekuendigt' && rows[0].p_wirksam === new Date(1798000000 * 1000).toISOString());
     const hook = JSON.parse(hookCalls()[0].opts.body);

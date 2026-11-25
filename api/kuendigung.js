@@ -11,7 +11,7 @@
 //   1. Erklärung in kuendigungen speichern (supabase/migrations/20261024000001_kuendigungen.sql)
 //   2. Ordentliche Kündigung zum nächstmöglichen Zeitpunkt: alle laufenden Whop-Mitgliedschaften
 //      mit genau dieser E-Mail zum Periodenende kündigen (POST /api/v1/memberships/{id}/cancel,
-//      cancellation_mode at_period_end). Außerordentliche Kündigung und Wunschdatum werden
+//      cancel_at_period_end: true). Außerordentliche Kündigung und Wunschdatum werden
 //      bewusst NICHT automatisch ausgeführt, sondern als 'manuell' gemeldet.
 //   3. Meldung an ALERT_WEBHOOK_URL (Make) mit event 'kuendigung' — das Szenario schickt daraus
 //      die Eingangsbestätigung per E-Mail an den Kunden (§ 312k Abs. 4 BGB) und benachrichtigt
@@ -35,6 +35,7 @@
 var _log  = require('./_log.js');
 var db    = require('./_db.js');
 var store = require('./_sync-store.js');
+var whopEmails = require('./_whop-mitglieder.js').whopEmails;
 
 var BODY_MAX     = 8192;
 var IP_RATE_MAX  = 5;
@@ -101,12 +102,16 @@ async function _whop(pfad, opts) {
 async function _mitgliedschaften(email) {
     var treffer = [], after = '', seite = 0;
     var firma = _env('WHOP_COMPANY_ID', 'biz_2OEWYGlOwb8b0f');
+    // Whop API v1: E-Mail steht nur in /members; Mitgliedschaften haben nur user_id
+    var mails = await whopEmails({ WHOP_API_KEY: _env('WHOP_API_KEY'), WHOP_COMPANY_ID: firma }, fetch);
     while (seite++ < MAX_PAGES) {
         var q = '/memberships?account_id=' + encodeURIComponent(firma) + '&first=100' +
                 (after ? '&after=' + encodeURIComponent(after) : '');
         var j = await _whop(q);
         (j.data || []).forEach(function (m) {
-            var mail = m && m.user && m.user.email;
+            if (!m) return;
+            var uid  = m.user_id || (m.user && m.user.id);
+            var mail = (m.user && m.user.email) || (uid && mails[uid]);
             if (mail && String(mail).toLowerCase() === email && LAUFEND[m.status]) treffer.push(m);
         });
         var pi = j.page_info;
@@ -130,10 +135,11 @@ async function kuendigeBeiWhop(d) {
             var m = await _whop('/memberships/' + encodeURIComponent(liste[i].id) + '/cancel', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ cancellation_mode: 'at_period_end' })
+                // v1: ohne cancel_at_period_end=true entzieht Whop den Zugang SOFORT
+                body:    JSON.stringify({ cancel_at_period_end: true })
             });
             ids.push(liste[i].id);
-            var ende = (m && m.renewal_period_end) || liste[i].renewal_period_end;
+            var ende = (m && (m.current_period_end || m.renewal_period_end)) || liste[i].current_period_end || liste[i].renewal_period_end;
             if (ende) {
                 var t = typeof ende === 'number' ? new Date(ende < 1e12 ? ende * 1000 : ende) : new Date(ende);
                 if (!isNaN(t) && (!wirksam || t > wirksam)) wirksam = t;

@@ -20,7 +20,7 @@
 
     function setMenu(open) {
         menu.setAttribute('aria-expanded', String(open));
-        menu.setAttribute('aria-label', open ? 'Navigation schließen' : 'Navigation öffnen');
+        menu.setAttribute('aria-label', open ? 'Menü schließen' : 'Menü öffnen');
         navigation.classList.toggle('is-open', open);
     }
     header.classList.add('js-menu');

@@ -97,7 +97,9 @@ async function status(p) { try { await p; return 200; } catch (e) { return e.sta
     const apiFiles = fs.readdirSync(path.join(A, 'api')).map(f => fs.readFileSync(path.join(A, 'api', f), 'utf8')).join('\n');
     check('D4 kein Endpunkt schreibt oder loescht Audit-Eintraege', !/sync_admin_audit_add|delete from admin_audit_log|update admin_audit_log/i.test(apiFiles));
     check('D5 jeder Endpunkt ruft requireAdmin', fs.readdirSync(path.join(A, 'api')).every(f => /requireAdmin/.test(fs.readFileSync(path.join(A, 'api', f), 'utf8'))));
-    check('D6 admin/ ist vom Stackr-Deployment ausgeschlossen', /^admin\/$/m.test(fs.readFileSync(path.join(ROOT, '.vercelignore'), 'utf8')));
+    const vj = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
+    check('D6 Stackr leitet /admin/* um (Redirect greift vor dem Dateisystem); .vercelignore darf admin/ NICHT enthalten, sonst fehlen dem Admin-Projekt alle Dateien',
+        vj.redirects.some(r => r.source === '/admin/:path*') && !/^admin\/?$/m.test(fs.readFileSync(path.join(ROOT, '.vercelignore'), 'utf8')));
 
     console.log('\n' + pass + '/' + total + ' bestanden');
     process.exit(pass === total ? 0 : 1);

@@ -38,6 +38,8 @@
     color: #9ba8a1;
     line-height: 1.55;
 }
+#cookieBanner .cb-text p { margin: 0; }
+#cookieBanner .cb-text p + p { margin-top: 4px; }
 #cookieBanner .cb-text strong { color: #eef2f0; }
 #cookieBanner .cb-text a { color: #34d399; text-decoration: none; }
 #cookieBanner .cb-text a:hover { text-decoration: underline; }

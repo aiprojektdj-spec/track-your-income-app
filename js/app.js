@@ -2438,6 +2438,15 @@ const App = {
                     fsSelectBtn.disabled = true;
                     fsSelectBtn.textContent = 'Ordner wird gewählt…';
                     const handle = await Store.selectBackupFolder();
+                    // Leere App + Ordner mit Backups: Wiederherstellung anbieten statt leer dazuzuschreiben
+                    if (await BackupOrdner.leereAppSchuetzen(Store)) {
+                        this._updateFsBackupStatus(handle.name, true);
+                        this.closeModal();
+                        this.showBackupModal();
+                        document.getElementById('fsListBackupsBtn').click();
+                        Utils.showToast('Der Ordner enthält Backups. Wähle eines zum Wiederherstellen.', 'info');
+                        return;
+                    }
                     // Sofort ein Backup schreiben um Berechtigung zu testen
                     const filename = await Store.writeFileSystemBackup('einrichtung');
                     this._updateFsBackupStatus(handle.name, true);
@@ -2471,6 +2480,12 @@ const App = {
                         return;
                     }
                 }
+                if (await BackupOrdner.leereAppSchuetzen(Store)) {
+                    Utils.showToast('Die App enthält noch keine Daten, deshalb wurde nichts gesichert. Vorhandene Backups findest du unter „Vorhandene Backups“.', 'info');
+                    fsNowBtn.disabled = false;
+                    fsNowBtn.textContent = 'Jetzt sichern';
+                    return;
+                }
                 App.showSpinner('Backup wird geschrieben…');
                 const filename = await Store.writeFileSystemBackup('manuell');
                 App.hideSpinner();
@@ -2498,7 +2513,8 @@ const App = {
                     Utils.showToast('Keine Backup-Dateien im Ordner gefunden', 'info');
                     return;
                 }
-                const listHtml = files.slice(0, 30).map(f => {
+                // Alle Dateien zeigen: die neuesten koennen leer sein, die echten stehen dann weiter unten
+                const listHtml = files.map(f => {
                     // Datum aus Dateiname extrahieren — funktioniert mit und ohne Firmenname
                     const m = f.name.match(/(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2}-\d{2})/);
                     const dateStr = m ? `${m[1]} ${m[2].replace(/-/g, ':')}` : f.name;
@@ -2510,20 +2526,24 @@ const App = {
                         <div style="font-size:13px;min-width:0;">
                             <span style="font-weight:500;">${dateStr}</span>
                             <span style="font-size:11px;color:var(--text-muted);margin-left:6px;">${Utils.escapeHtml(typeLabel)}</span>
+                            ${f.size != null ? `<span style="font-size:11px;color:var(--text-muted);margin-left:6px;">${Math.max(1, Math.round(f.size / 1024))} KB</span>` : ''}
                             ${otherFirma ? `<span style="font-size:10px;background:var(--warning-bg);color:var(--warning);border-radius:4px;padding:1px 5px;margin-left:6px;">andere Firma</span>` : ''}
                         </div>
                         <button class="btn btn-small btn-warning" data-fs-restore="${Utils.escapeHtml(f.name)}" style="white-space:nowrap;flex-shrink:0;">Wiederherstellen</button>
                     </div>`;
                 }).join('');
                 const otherCount = files.filter(f => !f.isCurrentCompany).length;
-                const totalExtra = files.length > 30 ? `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">… und ${files.length - 30} weitere</div>` : '';
+                const leerHinweis = BackupOrdner.appIstLeer(Store)
+                    ? '<div style="margin-bottom:10px;font-size:13px;">Wähle das neueste Backup mit deinen Daten. Sehr kleine Dateien sind meist leer.</div>'
+                    : '';
                 const modalBody = `
+                    ${leerHinweis}
                     <div style="margin-bottom:10px;font-size:13px;color:var(--text-secondary);">
                         Ordner: <strong>${Utils.escapeHtml(Store.getFsBackupFolderName())}</strong>
                         &nbsp;·&nbsp; ${files.length} Backup-Datei(en)
                         ${otherCount > 0 ? `<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">(${otherCount} von anderen Firmen — gedimmt)</span>` : ''}
                     </div>
-                    <div style="max-height:400px;overflow-y:auto;">${listHtml}${totalExtra}</div>
+                    <div style="max-height:400px;overflow-y:auto;">${listHtml}</div>
                 `;
                 this.showModal('Backup-Dateien im Ordner', modalBody, '');
 

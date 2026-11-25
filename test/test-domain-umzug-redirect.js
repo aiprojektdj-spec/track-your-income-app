@@ -25,7 +25,11 @@ const leitetUm = pfad => umzug.some(r => trifft(r.source, pfad));
 
 check('R1 es gibt Umzugs-Redirects, alle nur fuer den alten Host', umzug.length > 0);
 ['/', '/index.html', '/agb.html', '/datenschutz.html', '/impressum.html', '/cookies.html',
- '/refund.html', '/barrierefreiheit.html', '/landing-v2.html'].forEach(p =>
+ '/refund.html', '/barrierefreiheit.html', '/landing-v2.html', '/verfahrensdokumentation.html',
+ // Ratgeberseiten: sonst doppelt indexierbar unter beiden Domains
+ '/buchhaltung-reseller-vinted.html', '/euer-software.html', '/rechnung-schreiben-kleinunternehmer.html',
+ '/datev-export-selbststaendige.html', '/lager-bestandsfuehrung-reseller.html', '/buchhaltung-gbr.html',
+ '/kleinunternehmergrenze-2026-2027.html'].forEach(p =>
     check('R2 ' + p + ' leitet auf getstackr.de um', leitetUm(p)));
 ['/app', '/app.html', '/lager/', '/lager/index.html', '/rechnungen/', '/eigenbelege/',
  '/api/sync', '/api/whop-token', '/api/whop-access', '/js/app.js', '/sitemap.xml'].forEach(p =>

@@ -86,7 +86,7 @@ async function whopLaden(env, fetchFn) {
                 email:         String((m.user && m.user.email) || '').toLowerCase(),
                 name:          String((m.user && m.user.name) || ''),
                 username:      String((m.user && m.user.username) || ''),
-                plan_id:       String((m.plan && m.plan.id) || m.plan_id || ''),
+                plan_id:       String((m.plan && m.plan.id) || m.plan_id || m.variant_id || ''),
                 membership_id: String(m.id || ''),
                 status:        String(m.status || ''),
                 signup_at:     m.created_at || null
@@ -105,7 +105,50 @@ async function whopLaden(env, fetchFn) {
         if (!pi || !pi.has_next_page || !pi.end_cursor) break;
         after = pi.end_cursor;
     }
-    return { rows: Object.keys(best).map(function (k) { return best[k]; }), gelesen: gelesen };
+    var rows = Object.keys(best).map(function (k) { return best[k]; });
+    // Seit Whop API v1 hat eine Mitgliedschaft kein user-Objekt mehr (nur user_id). E-Mail, Name und
+    // Benutzername liefert nur /members. Best effort: scheitert der Abruf (z. B. fehlendes Key-Recht),
+    // bleiben die Felder leer, der Abgleich laeuft trotzdem durch.
+    if (rows.some(function (r) { return !r.email; })) {
+        try {
+            var info = await whopMembersLaden(env, fetchFn, firma);
+            rows.forEach(function (r) {
+                var i = info[r.whop_user_id];
+                if (!i) return;
+                if (!r.email)    r.email    = i.email;
+                if (!r.name)     r.name     = i.name;
+                if (!r.username) r.username = i.username;
+            });
+        } catch (e) { /* E-Mails bleiben leer */ }
+    }
+    return { rows: rows, gelesen: gelesen };
+}
+
+// user_id -> { email, name, username } aus GET /members
+async function whopMembersLaden(env, fetchFn, firma) {
+    var info = {}, after = '';
+    for (var seite = 0; seite < MAX_SEITEN; seite++) {
+        var r = await fetchFn(WHOP_API + '/members?account_id=' + encodeURIComponent(firma) + '&first=100' +
+                              (after ? '&after=' + encodeURIComponent(after) : ''), {
+            headers: { 'Authorization': 'Bearer ' + env.WHOP_API_KEY, 'Accept': 'application/json' },
+            signal:  AbortSignal.timeout(8000)
+        });
+        if (!r.ok) throw new Error('Whop members HTTP ' + r.status);
+        var j = await r.json();
+        (j.data || []).forEach(function (m) {
+            var u = m && m.user && m.user.id;
+            if (!u) return;
+            info[u] = {
+                email:    String(m.email || '').toLowerCase(),
+                name:     String(m.name || m.user.name || ''),
+                username: String(m.user.username || '')
+            };
+        });
+        var pi = j.page_info;
+        if (!pi || !pi.has_next_page || !pi.end_cursor) break;
+        after = pi.end_cursor;
+    }
+    return info;
 }
 
 module.exports = {

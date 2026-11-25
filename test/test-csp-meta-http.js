@@ -24,7 +24,7 @@ const parse = c => {
 };
 
 let fail = 0;
-for (const [datei, route] of [['app.html', '/app.html'], ['app.html', '/app'], ['lager/index.html', '/lager(.*)'],
+for (const [datei, route] of [['app.html', '/app.html'], ['app.html', '/app'], ['lager/index.html', '/lager(/.*)?'],
     ['rechnungen/index.html', '/rechnungen(.*)'], ['eigenbelege/index.html', '/eigenbelege(.*)'], ['index.html', '/index.html']]) {
     const html = fs.readFileSync(path.join(ROOT, datei), 'utf8');
     const m = html.match(/http-equiv="Content-Security-Policy" content="([^"]*)"/);

@@ -76,7 +76,8 @@
         var body = await r.json().catch(function () { return {}; });
         if (r.status === 401 && body.error === 'token_ungueltig' && !retried && await refresh()) return api(path, opts, true);
         if (!r.ok) {
-            if (r.status === 401) Admin.logout('Sitzung abgelaufen, bitte neu anmelden.');
+            // mfa_fehlt: Sitzung behalten, Admin.start() leitet zur TOTP-Eingabe weiter
+            if (r.status === 401 && body.error !== 'mfa_fehlt') Admin.logout('Sitzung abgelaufen, bitte neu anmelden.');
             var e = new Error(body.error || 'fehler'); e.status = r.status; throw e;
         }
         return body;
@@ -122,7 +123,10 @@
             var en = await er.json();
             factorId = en.id;
             $('mfa-hint').textContent = 'Erstanmeldung: QR-Code scannen, dann den Code eingeben.';
-            $('mfa-qr').src = en.totp.qr_code;
+            // Supabase liefert rohes SVG ("data:image/svg+xml;utf-8,<svg ..."); unkodierte '#'
+            // schneiden die Data-URI als Fragment ab -> Bild kaputt. SVG neu kodieren.
+            var qr = String(en.totp.qr_code || ''), i = qr.indexOf('<');
+            $('mfa-qr').src = i > -1 ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(qr.slice(i)) : qr;
             $('mfa-qr').hidden = false;
             $('mfa-secret').textContent = en.totp.secret;
         }

@@ -621,8 +621,11 @@ const Buchungen = {
                         <input type="number" step="0.01" min="0" max="99999999" class="form-input" id="vk_versandKaeufer" value="0">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Plattformgebühr (%)</label>
-                        <input type="number" step="0.01" min="0" max="100" class="form-input" id="vk_gebuehr" value="0">
+                        <label class="form-label">Plattformgebühr (% oder €)</label>
+                        <div style="display:flex;gap:6px;">
+                            <input type="number" step="0.01" min="0" class="form-input" id="vk_gebuehr" value="0" style="flex:1;min-width:0;">
+                            ${LagerImport.gebuehrEinheitHtml('vk_gebuehr', '', '')}
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Versandkosten (meine Kosten)</label>
@@ -800,7 +803,7 @@ const Buchungen = {
         const calcNetto = () => {
             const vk = parseFloat(document.getElementById('vk_preis').value) || 0;
             const vkK = parseFloat(document.getElementById('vk_versandKaeufer').value) || 0;
-            const geb = parseFloat(document.getElementById('vk_gebuehr').value) || 0;
+            const geb = LagerImport.gebuehrAusFeld('vk_gebuehr', vk, vkK);
             const versandVk = parseFloat(document.getElementById('vk_versandVk').value) || 0;
             const netto = Utils.calculateNetRevenue(vk, vkK, geb, versandVk);
             document.getElementById('vk_netto').textContent = Utils.formatCurrency(netto);
@@ -815,7 +818,7 @@ const Buchungen = {
             if (gewinnEl) gewinnEl.textContent = Utils.formatCurrency(netto - selectedEK);
         };
 
-        ['vk_preis', 'vk_versandKaeufer', 'vk_gebuehr', 'vk_versandVk'].forEach(id => {
+        ['vk_preis', 'vk_versandKaeufer', 'vk_gebuehr', 'vk_gebuehr_einheit', 'vk_versandVk'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', calcNetto);
         });
@@ -843,7 +846,12 @@ const Buchungen = {
                 if (!gebField || parseFloat(gebField.value) > 0) return;
                 const gebuehren = Store.getPlattformGebuehren();
                 const cfg = gebuehren[plattformSelect.value];
-                if (cfg) { gebField.value = cfg.prozent; calcNetto(); }
+                if (cfg) {
+                    gebField.value = cfg.prozent;
+                    const einheit = document.getElementById('vk_gebuehr_einheit');
+                    if (einheit) einheit.value = 'pct';      // Vorgabe der Plattform ist immer Prozent
+                    calcNetto();
+                }
             };
             plattformSelect.addEventListener('change', autoFillFee);
             // Auto-fill on initial render
@@ -871,7 +879,7 @@ const Buchungen = {
 
                 const vkPreisVal = parseFloat(document.getElementById('vk_preis').value) || 0;
                 const vkVersandKVal = parseFloat(document.getElementById('vk_versandKaeufer').value) || 0;
-                const vkGebuehrVal = parseFloat(document.getElementById('vk_gebuehr').value) || 0;
+                const vkGebuehrVal = LagerImport.gebuehrAusFeld('vk_gebuehr', vkPreisVal, vkVersandKVal);
                 const vkVersandVkVal = parseFloat(document.getElementById('vk_versandVk').value) || 0;
                 if (vkPreisVal < 0 || vkVersandKVal < 0 || vkGebuehrVal < 0 || vkVersandVkVal < 0) {
                     Utils.showToast('Beträge dürfen nicht negativ sein', 'warning');

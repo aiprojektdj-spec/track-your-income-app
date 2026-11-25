@@ -330,9 +330,12 @@ const Lager = {
                                    value="0" style="padding:6px 10px;font-size:13px;" data-action-input="lg-calc-vk">
                         </div>
                         <div>
-                            <label class="form-label" style="font-size:11px;">Gebühr (%)</label>
-                            <input type="number" step="0.1" min="0" max="100" class="form-input" id="vk_gebuehr"
-                                   value="0" style="padding:6px 10px;font-size:13px;" data-action-input="lg-calc-vk">
+                            <label class="form-label" style="font-size:11px;">Gebühr (% oder €)</label>
+                            <div style="display:flex;gap:4px;">
+                                <input type="number" step="0.01" min="0" class="form-input" id="vk_gebuehr"
+                                       value="0" style="padding:6px 10px;font-size:13px;flex:1;min-width:0;" data-action-input="lg-calc-vk">
+                                ${LagerImport.gebuehrEinheitHtml('vk_gebuehr', 'lg-calc-vk', 'padding:6px 4px;font-size:13px;')}
+                            </div>
                         </div>
                     </div>
 
@@ -434,7 +437,7 @@ const Lager = {
                 ausfuhrnachweis,
                 verkaufspreis:     preis,
                 versandkostenKaeufer:   parseFloat(document.getElementById('vk_versandKaeufer').value) || 0,
-                plattformgebuehrProzent: parseFloat(document.getElementById('vk_gebuehr').value)      || 0,
+                plattformgebuehrProzent: LagerImport.gebuehrAusFeld('vk_gebuehr', preis, parseFloat(document.getElementById('vk_versandKaeufer').value) || 0),
                 versandkostenVerkaufer:  parseFloat(document.getElementById('vk_versandVk').value)    || 0,
                 kaeufer:  (document.getElementById('vk_kaeufer') || {}).value?.trim() || '',
                 notizen:  document.getElementById('vk_notizen').value.trim()
@@ -474,7 +477,7 @@ const Lager = {
         try {
             const preis  = parseFloat(document.getElementById('vk_preis')?.value)         || 0;
             const vsk    = parseFloat(document.getElementById('vk_versandKaeufer')?.value) || 0;
-            const geb    = parseFloat(document.getElementById('vk_gebuehr')?.value)        || 0;
+            const geb    = LagerImport.gebuehrAusFeld('vk_gebuehr', preis, vsk);
             const vskVk  = parseFloat(document.getElementById('vk_versandVk')?.value)      || 0;
             const ek     = Lager._vkTotalEK || 0;
 

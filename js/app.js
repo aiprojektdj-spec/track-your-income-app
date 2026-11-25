@@ -2701,7 +2701,9 @@ const App = {
                 { schluessel: 'versandverkaeufer', titel: 'Versand-Verkäufer (€)', beispiel: '4.99' },
                 { schluessel: 'verkaufsplattform', titel: 'Verkaufsplattform', beispiel: 'Vinted' },
                 { schluessel: 'kaeufer',      titel: 'Käufer',               beispiel: 'Max Muster' },
-                { schluessel: 'notizen',      titel: 'Notizen',              beispiel: '' }
+                { schluessel: 'notizen',      titel: 'Notizen',              beispiel: '' },
+                // Optional und ganz hinten: aeltere Vorlagen ohne diese Spalte bleiben gueltig.
+                { schluessel: 'plattformgebuehr', titel: 'Plattformgebühr (EUR)', beispiel: '' }
             ],
             ausgaben: [
                 { schluessel: 'datum',        titel: 'Datum (JJJJ-MM-TT)',    beispiel: '2026-01-10' },
@@ -2905,7 +2907,8 @@ const App = {
                                 beschreibung,
                                 verkaufspreis: parseNum(r[5]),
                                 versandkostenKaeufer: parseNum(r[6]),
-                                plattformgebuehrProzent: parseNum(r[7]),
+                                // Prozent-Spalte hat Vorrang; sonst optionale EUR-Spalte (r[12]) -> Prozent, 2 Stellen
+                                plattformgebuehrProzent: LagerImport.gebuehrAusAngaben(parseNum(r[7]), parseNum(r[12]), parseNum(r[5]), parseNum(r[6])),
                                 versandkostenVerkaufer: parseNum(r[8]),
                                 verkaufsplattform: String(r[9] || '').trim(),
                                 kaeufer: String(r[10] || '').trim(),

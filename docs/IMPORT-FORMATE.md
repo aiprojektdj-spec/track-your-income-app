@@ -93,6 +93,20 @@ Die Plattform wählt man im Dialog (Vinted, eBay, Mercari, Etsy, Depop, Sonstige
 Plattform und gleichem Titel existiert. Bei einer Zuordnung zum Lager zählt statt des Titels die
 Artikelnummer des Artikels.
 
+## Plattformgebühr in EUR statt Prozent
+
+Stackr speichert die Gebühr nur als Prozent (von Verkaufspreis + Versand Käufer). Eine Angabe in EUR wird
+umgerechnet und **auf 2 Nachkommastellen gerundet** gespeichert (`1,25 € / 28,90 € = 4,33 %`). Im Rückweg
+(Prozent × Basis) kann deshalb **±1 Cent** Abweichung zur eingegebenen EUR-Gebühr entstehen. Ist neben EUR auch
+Prozent angegeben, gilt Prozent.
+
+| Wo | Wie |
+|---|---|
+| Excel-Vorlage (Daten-Import, Blatt „Verkäufe“) | optionale **letzte** Spalte „Plattformgebühr (EUR)“ (Spalte 13). Nur wirksam, wenn „Plattformgebühr (%)“ leer oder 0 ist. Ältere Vorlagen ohne die Spalte bleiben gültig. |
+| Lager-Import / Einzeilen-Format | Spalte „Gebühr EUR“ (siehe oben) |
+| Verkäufe-Import | Spalte „Gebühr“ ist EUR |
+| Verkaufsdialoge (Buchungen, Lager, „Buchen“ im Lager) | Feld „Plattformgebühr“ mit Auswahl **% / €** |
+
 ## Einkaufs-CSV — Dialog „CSV Import“ unter Buchungen
 
 Vorlage: Knopf „Einkauf-Template.csv“ im Dialog. Spalten (die Zuordnung im Dialog lässt sich ändern):

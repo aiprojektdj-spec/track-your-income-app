@@ -267,9 +267,12 @@ const LagerPage = {
                                        value="0" style="padding:5px 8px;font-size:12px;" data-action-input="lgp-calc-netto">
                             </div>
                             <div>
-                                <label class="form-label" style="font-size:11px;">Gebühr (%)</label>
-                                <input type="number" step="0.1" min="0" max="100" class="form-input" id="buch_gebuehr"
-                                       value="0" style="padding:5px 8px;font-size:12px;" data-action-input="lgp-calc-netto">
+                                <label class="form-label" style="font-size:11px;">Gebühr (% oder €)</label>
+                                <div style="display:flex;gap:4px;">
+                                    <input type="number" step="0.01" min="0" class="form-input" id="buch_gebuehr"
+                                           value="0" style="padding:5px 8px;font-size:12px;flex:1;min-width:0;" data-action-input="lgp-calc-netto">
+                                    ${LagerImport.gebuehrEinheitHtml('buch_gebuehr', 'lgp-calc-netto', 'padding:5px 4px;font-size:12px;')}
+                                </div>
                             </div>
                         </div>
 
@@ -470,7 +473,7 @@ const LagerPage = {
         try {
             const preis   = parseFloat(document.getElementById('buch_preis')?.value)         || 0;
             const vsk     = parseFloat(document.getElementById('buch_versandKaeufer')?.value) || 0;
-            const geb     = parseFloat(document.getElementById('buch_gebuehr')?.value)        || 0;
+            const geb     = LagerImport.gebuehrAusFeld('buch_gebuehr', preis, vsk);
             const vskVk   = parseFloat(document.getElementById('buch_versandVk')?.value)      || 0;
             const ek      = this._buchTotalEK || 0;
             const brutto  = preis + vsk;
@@ -532,7 +535,7 @@ const LagerPage = {
             ausfuhrnachweis,
             verkaufspreis:          preis,
             versandkostenKaeufer:   parseFloat(document.getElementById('buch_versandKaeufer').value) || 0,
-            plattformgebuehrProzent: parseFloat(document.getElementById('buch_gebuehr').value)       || 0,
+            plattformgebuehrProzent: LagerImport.gebuehrAusFeld('buch_gebuehr', preis, parseFloat(document.getElementById('buch_versandKaeufer').value) || 0),
             versandkostenVerkaufer:  parseFloat(document.getElementById('buch_versandVk').value)     || 0,
             kaeufer:  (document.getElementById('buch_kaeufer') || {}).value?.trim() || '',
             notizen:  document.getElementById('buch_notizen').value.trim()

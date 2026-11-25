@@ -58,7 +58,7 @@ function welt({ limitErreicht = false } = {}) {
 
     const modals = { geschlossen: 0 };
     const App = { showModal() {}, closeModal: () => { modals.geschlossen++; } };
-    const ctx = ladeModule(['js/steuerstatus.js', 'js/rechnung-summen.js', 'js/store.js', 'js/buchungen.js', 'js/lager.js'],
+    const ctx = ladeModule(['js/steuerstatus.js', 'js/rechnung-summen.js', 'js/import-kern.js', 'js/import-lager.js', 'js/store.js', 'js/buchungen.js', 'js/lager.js'],
         { localStorage, Utils, document, Webhooks, UserPlan, App });
     ctx.Store.saveSettings({ ustMode: 'klein' });
     ctx.Buchungen._renderTab = () => {};

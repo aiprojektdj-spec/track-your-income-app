@@ -30,6 +30,24 @@ const LagerImport = (function () {
         return preis > 0 ? Math.round((eur / (preis + vsk)) * 10000) / 100 : 0;
     }
 
+    // Gebuehr eines Verkaufs aus Prozent- und EUR-Angabe: Prozent hat Vorrang, sonst EUR umgerechnet.
+    function gebuehrAusAngaben(prozent, eur, preis, vsk) {
+        prozent = Number(prozent) || 0;
+        return prozent > 0 ? prozent : gebuehrProzent(Number(eur) || 0, preis, vsk);
+    }
+
+    // Verkaufsdialoge: Gebuehrfeld mit Einheit % oder EUR. Gespeichert wird immer Prozent (2 Stellen).
+    // Auswahlfeld <feldId>_einheit neben das Eingabefeld setzen; aktion = data-action-input fuer die Live-Berechnung.
+    function gebuehrEinheitHtml(feldId, aktion, stil) {
+        return '<select id="' + feldId + '_einheit" class="form-select" aria-label="Einheit der Plattformgebühr" style="width:64px;flex:none;' + (stil || '') + '"' +
+            (aktion ? ' data-action-input="' + aktion + '"' : '') + '><option value="pct">%</option><option value="eur">€</option></select>';
+    }
+    function gebuehrAusFeld(feldId, preis, vsk) {
+        var feld = document.getElementById(feldId), einheit = document.getElementById(feldId + '_einheit');
+        var wert = parseFloat(feld && feld.value) || 0;
+        return einheit && einheit.value === 'eur' ? gebuehrProzent(wert, preis, vsk) : wert;
+    }
+
     // ── Einkaeufe (ExcelImport) ──────────────────────────────────────────────
     function fpEinkauf(datum, marke, beschr, groesse, preis) {
         return K.fingerprint([datum || '', marke || '', beschr || '', groesse || '', cent(preis)]);
@@ -96,8 +114,7 @@ const LagerImport = (function () {
             };
             if (verkauft) {
                 // Prozent-Spalte hat Vorrang; sonst Gebuehr in EUR, umgerechnet auf den Gesamterloes der Zeile
-                var prozent = K.zahl(get('gebuehrProzent'));
-                row.gebuehrProzent = prozent > 0 ? prozent : gebuehrProzent(K.zahl(get('gebuehrEur')), vkPreis, row.versandKaeufer);
+                row.gebuehrProzent = gebuehrAusAngaben(K.zahl(get('gebuehrProzent')), K.zahl(get('gebuehrEur')), vkPreis, row.versandKaeufer);
             }
             var key, dublette;
             if (row.artikelNr) {
@@ -331,7 +348,7 @@ const LagerImport = (function () {
 
     return {
         einzeilenExport: einzeilenExport, einzeilenCsv: einzeilenCsv, exportiereEinzeilen: exportiereEinzeilen,
-        gebuehrProzent: gebuehrProzent, EINZEILEN_SPALTEN: EINZEILEN_SPALTEN, vorlageCsv: vorlageCsv,
+        gebuehrProzent: gebuehrProzent, gebuehrAusAngaben: gebuehrAusAngaben, gebuehrEinheitHtml: gebuehrEinheitHtml, gebuehrAusFeld: gebuehrAusFeld, EINZEILEN_SPALTEN: EINZEILEN_SPALTEN, vorlageCsv: vorlageCsv,
         einkaufsZeilen: einkaufsZeilen, verkaufsZeilen: verkaufsZeilen, ausgewaehlt: ausgewaehlt,
         vorschauHtml: vorschauHtml, verdrahte: verdrahte, nichtImportiert: nichtImportiert, berichtHtml: berichtHtml, zeigeBericht: zeigeBericht,
         fpEinkauf: fpEinkauf, _bestandEinkauf: bestandEinkauf, _bestandVerkauf: bestandVerkauf

@@ -146,6 +146,33 @@ check('Einkauf mit Verkauf: Gebuehr in EUR wird in Prozent umgerechnet, Prozent-
     assert.strictEqual(L.gebuehrProzent(1, 0, 0), 0);
 });
 
+check('gebuehrAusAngaben: Prozent vor EUR, EUR gerundet auf 2 Stellen, +-1 Cent im Rueckweg', () => {
+    assert.strictEqual(L.gebuehrAusAngaben(5, 9, 100, 0), 5);
+    assert.strictEqual(L.gebuehrAusAngaben(0, 1.25, 25, 3.9), 4.33);
+    assert.strictEqual(L.gebuehrAusAngaben(0, 0, 25, 0), 0);
+    assert.strictEqual(L.gebuehrAusAngaben('', '', 25, 0), 0);
+    const eur = 1.25, prozent = L.gebuehrAusAngaben(0, eur, 25, 3.9);
+    assert.ok(Math.abs((25 + 3.9) * prozent / 100 - eur) <= 0.01);
+});
+
+check('gebuehrAusFeld: Einheit EUR rechnet um, % bleibt, ohne Einheitenfeld = Prozent', () => {
+    const felder = { g: { value: '1,25'.replace(',', '.') }, g_einheit: { value: 'eur' } };
+    const doc = { getElementById: id => felder[id] || null };
+    const L2 = ladeModule(['js/import-kern.js', 'js/import-lager.js'], { document: doc }).LagerImport;
+    assert.strictEqual(L2.gebuehrAusFeld('g', 25, 3.9), 4.33);
+    felder.g_einheit.value = 'pct';
+    assert.strictEqual(L2.gebuehrAusFeld('g', 25, 3.9), 1.25);
+    delete felder.g_einheit;
+    assert.strictEqual(L2.gebuehrAusFeld('g', 25, 3.9), 1.25);
+    assert.ok(/id="g_einheit"/.test(L2.gebuehrEinheitHtml('g', 'x')));
+});
+
+check('Excel-Vorlage (app.js): EUR-Gebuehr ist die letzte, optionale Spalte; Import ruft das Fachmodul', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'js', 'app.js'), 'utf8');
+    assert.ok(src.includes("titel: 'Plattformgebühr (EUR)'"));
+    assert.ok(/LagerImport\.gebuehrAusAngaben\(parseNum\(r\[7\]\), parseNum\(r\[12\]\)/.test(src));
+});
+
 check('Vorlage: BOM, Semikolon, 22 Spalten in Kopf und Beispielzeilen', () => {
     const t = L.vorlageCsv();
     assert.strictEqual(t.charCodeAt(0), 0xFEFF);

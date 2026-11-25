@@ -304,6 +304,20 @@ function storeStub(opt) {
         assert.strictEqual(JSON.stringify(store.daten.sales.map(s => s.beschreibung)), JSON.stringify(['Neu']));
     });
 
+    await check('SalesImport: Spaltennamen aus IMPORT-FORMATE.md werden auf jeder Plattform erkannt', async () => {
+        const { ctx } = welt(storeStub({}));
+        const spalten = ['Datum', 'Titel', 'Preis', 'Gebühr (€)', 'Versand Käufer', 'Versand Verkäufer', 'Käufer'];
+        ['Vinted', 'eBay', 'Sonstige'].forEach(pf => {
+            const m = ctx.SalesImport._autoDetect(spalten, pf);
+            assert.strictEqual(m.gebuehr, 'Gebühr (€)', pf);
+            assert.strictEqual(m.versandKaeufer, 'Versand Käufer', pf);
+            assert.strictEqual(m.versandVk, 'Versand Verkäufer', pf);
+            assert.strictEqual(m.kaeufer, 'Käufer', pf);
+        });
+        // Plattform-eigene Spalte hat Vorrang
+        assert.strictEqual(ctx.SalesImport._autoDetect(['Datum', 'Fee', 'Gebühr (€)'], 'Vinted').gebuehr, 'Fee');
+    });
+
     if (fail) { console.log(fail + ' fehlgeschlagen'); process.exit(1); }
     console.log('alle ok');
 })();

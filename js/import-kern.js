@@ -101,6 +101,12 @@ const ImportKern = (function () {
         return '﻿' + zeilen.join('\r\n') + '\r\n';
     }
 
-    return { zahl: zahl, datum: datum, norm: norm, fingerprint: fingerprint, schluessel: schluessel, zeilennummern: zeilennummern, csvZelle: csvZelle, csvZeile: csvZeile, fehlerCsv: fehlerCsv };
+    // CSV ohne BOM: gueltiges UTF-8 -> 65001, sonst undefined (SheetJS-Standard, z. B. ANSI aus Excel).
+    function csvCodepage(buf) {
+        try { new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(buf)); return 65001; }
+        catch (e) { return undefined; }
+    }
+
+    return { csvCodepage: csvCodepage, zahl: zahl, datum: datum, norm: norm, fingerprint: fingerprint, schluessel: schluessel, zeilennummern: zeilennummern, csvZelle: csvZelle, csvZeile: csvZeile, fehlerCsv: fehlerCsv };
 })();
 if (typeof window !== 'undefined') window.ImportKern = ImportKern;

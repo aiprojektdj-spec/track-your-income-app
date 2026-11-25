@@ -1885,7 +1885,7 @@ const ExcelImport = {
         reader.onerror = () => Utils.showToast('Datei konnte nicht gelesen werden', 'error');
         reader.onload = (e) => {
             try {
-                const wb = XLSX.read(e.target.result, { type: 'array' });
+                const wb = XLSX.read(e.target.result, { type: 'array', codepage: ImportKern.csvCodepage(e.target.result) });
                 // Mappe merken, damit ein Blattwechsel die Datei nicht neu einlesen muss.
                 this._wb = wb;
 
@@ -2246,7 +2246,17 @@ const SalesImport = {
     _platform: 'Vinted',
 
     // Plattform-spezifische Auto-Detection (Vinted/eBay/generisch)
+    // Spaltennamen aus docs/IMPORT-FORMATE.md gelten auf jeder Plattform; Plattform-Treffer haben Vorrang.
     _autoDetect(columns, platform) {
+        const m = this._autoDetectPlattform(columns, platform);
+        const lc = c => (c || '').toString().trim().toLowerCase();
+        const find = (...names) => columns.find(c => names.includes(lc(c))) || '';
+        const doku = { gebuehr: find('gebühr (€)', 'gebühr eur', 'gebühr'), versandKaeufer: find('versand käufer'), versandVk: find('versand verkäufer'), kaeufer: find('käufer') };
+        Object.keys(doku).forEach(k => { if (!m[k]) m[k] = doku[k]; });
+        return m;
+    },
+
+    _autoDetectPlattform(columns, platform) {
         const lc = c => (c || '').toString().trim().toLowerCase();
         const find = (...names) => columns.find(c => names.includes(lc(c))) || '';
 
@@ -2367,7 +2377,7 @@ const SalesImport = {
         reader.onerror = () => Utils.showToast('Datei konnte nicht gelesen werden', 'error');
         reader.onload = (e) => {
             try {
-                const wb = XLSX.read(e.target.result, { type: 'array', codepage: 65001 });
+                const wb = XLSX.read(e.target.result, { type: 'array', codepage: ImportKern.csvCodepage(e.target.result) });
                 // Nicht mehr fest SheetNames[0] — s. Utils.waehleDatenblatt.
                 const sheetName = Utils.waehleDatenblatt(wb);
                 const sheet = wb.Sheets[sheetName];

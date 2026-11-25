@@ -51,7 +51,10 @@ function storeStub(opt) {
         getAllPurchasesRaw: () => daten.purchases, getPurchases: () => daten.purchases,
         getAllSalesRaw: () => daten.sales, get: k => daten[k],
         setAsync: async (k, v) => { daten[k] = v; },
-        isPeriodLocked: gesperrt, isLocked: p => !!p.gesperrt,
+        isPeriodLocked: gesperrt,
+        // wie js/store.js: storniert / gegengebucht / manuell gesperrt / Periode (Datum des Datensatzes)
+        isLocked: p => !!(p.storniert || p.gegengebucht || p.gesperrt || gesperrt(p.datum || p.anschaffungsdatum || '')),
+        audit: [], _addAuditEntriesBatch(items) { this.audit.push(...items); },
         generateId: (() => { let n = 0; return () => 'id' + (++n); })(),
         addBrand() {}, addPlatform() {}, addEinkaufsquelle() {}
     };
@@ -252,6 +255,40 @@ function storeStub(opt) {
         const nachId = Object.fromEntries(store.daten.purchases.map(p => [p.id, p]));
         assert.strictEqual(nachId.p1.status, 'verfuegbar', 'gesperrter Einkauf unveraendert');
         assert.strictEqual(nachId.p2.status, 'verkauft');
+    });
+
+    await check('SalesImport: Einkauf in festgeschriebener Periode, Verkauf offen -> Status verkauft, nur Status, mit Audit', async () => {
+        const einkaeufe = [
+            { id: 'p1', artikelNr: '2025-001', status: 'verfuegbar', datum: '2025-05-01', einkaufspreis: 10, marke: 'A' },
+            { id: 'p2', artikelNr: '2025-002', status: 'verfuegbar', datum: '2025-05-01', einkaufspreis: 10, marke: 'B', gegengebucht: true },
+            { id: 'p3', artikelNr: '2025-003', status: 'verfuegbar', datum: '2025-05-01', einkaufspreis: 10, marke: 'C', gesperrt: true }
+        ];
+        const store = storeStub({ purchases: einkaeufe, gesperrt: d => d.startsWith('2025') });
+        const { ctx } = welt(store);
+        const S = ctx.SalesImport;
+        S._platform = 'Vinted';
+        S._columns = ['Datum', 'Titel', 'Preis'];
+        S._rows = [
+            { Datum: '2026-01-10', Titel: 'Artikel 2025-001', Preis: '20' },
+            { Datum: '2026-01-11', Titel: 'Artikel 2025-002', Preis: '20' },
+            { Datum: '2026-01-12', Titel: 'Artikel 2025-003', Preis: '20' },
+            { Datum: '2025-12-30', Titel: 'Artikel 2025-001', Preis: '20' }     // Verkauf selbst gesperrt
+        ];
+        S._mapping = { datum: 'Datum', beschreibung: 'Titel', preis: 'Preis' };
+        S._renderPreview();
+        assert.strictEqual(S._erg.fehler.length, 1);
+        assert.ok(/^Periode festgeschrieben/.test(S._erg.fehler[0].grund));
+        await S._import();
+        assert.strictEqual(store.daten.sales.length, 3, 'drei Verkaeufe, der in gesperrter Periode entfaellt');
+        const p = Object.fromEntries(store.daten.purchases.map(x => [x.id, x]));
+        assert.strictEqual(p.p1.status, 'verkauft', 'nur Periode gesperrt: Status erlaubt');
+        assert.strictEqual(p.p1.datum, '2025-05-01'); assert.strictEqual(p.p1.einkaufspreis, 10); assert.strictEqual(p.p1.marke, 'A');
+        assert.strictEqual(p.p2.status, 'verfuegbar', 'gegengebucht bleibt gesperrt');
+        assert.strictEqual(p.p3.status, 'verfuegbar', 'manuell gesperrt bleibt gesperrt');
+        const eintrag = store.audit.find(a => a.entityId === 'p1' && a.action === 'status_geaendert');
+        assert.ok(eintrag && /festgeschriebener Periode/.test(eintrag.details), 'Audit-Eintrag mit Hinweis');
+        assert.strictEqual(eintrag.oldValues.status, 'verfuegbar');
+        assert.ok(!store.audit.some(a => a.entityId === 'p2' && a.action === 'status_geaendert'));
     });
 
     await check('SalesImport: Verkauf in festgeschriebener Periode wird uebersprungen', async () => {

@@ -2475,7 +2475,10 @@ const SalesImport = {
             purchases: Store.getAllPurchasesRaw ? Store.getAllPurchasesRaw() : purchases,
             sales: Store.getAllSalesRaw ? Store.getAllSalesRaw() : [],
             gesperrt: d => Store.isPeriodLocked(d),
-            einkaufGesperrt: p => Store.isLocked(p),
+            // Entscheidung des Users: Liegt nur die PERIODE fest, darf der Lagerstatus trotzdem auf
+            // 'verkauft' (Betrag/Datum bleiben). Storniert, gegengebucht oder manuell gesperrt bleibt gesperrt:
+            // isLocked ohne Datum prueft genau diese Faelle, aber nicht die Periode.
+            einkaufGesperrt: p => Store.isLocked(Object.assign({}, p, { datum: '', anschaffungsdatum: '' })),
             findArtNr: this._makeArtNrMatcher(artNrMap),
             artNrMap
         });
@@ -2548,7 +2551,7 @@ const SalesImport = {
         const gesperrtN = erg.zeilen.filter(z => z.statusGesperrt).length;
         stats.innerHTML = LagerImport.vorschauHtml(erg) +
             `<div><strong>${totalMatched}</strong> automatisch dem Lager zugeordnet</div>` +
-            (gesperrtN ? `<div style="color:var(--warning);">${gesperrtN} davon mit Einkauf in festgeschriebener Periode: Status bleibt unverändert (GoBD).</div>` : '');
+            (gesperrtN ? `<div style="color:var(--warning);">${gesperrtN} davon mit gesperrtem Einkauf (gegengebucht/manuell gesperrt): Status bleibt unverändert (GoBD).</div>` : '');
         LagerImport.verdrahte(stats, erg);
     },
 
@@ -2626,7 +2629,8 @@ const SalesImport = {
                         auditItems.push({
                             action: 'status_geaendert', entityType: 'einkauf', entityId: p.id,
                             oldValues: vorher, newValues: { id: p.id, status: 'verkauft' },
-                            details: 'Status → verkauft (Massen-Statuswechsel aus Verkaufs-Import)'
+                            details: 'Status → verkauft (Massen-Statuswechsel aus Verkaufs-Import)' +
+                                (Store.isPeriodLocked(p.datum) ? ' — Einkauf in festgeschriebener Periode, nur der Status wurde geändert' : '')
                         });
                     }
                 });

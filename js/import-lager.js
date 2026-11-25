@@ -200,7 +200,8 @@ const LagerImport = (function () {
             zeilen.push({
                 zeile: zeile, key: fp + '#' + nr, dublette: dublette, importieren: !dublette, sale: sale,
                 purchase: purchase || null,
-                // GoBD: an einem festgeschriebenen/stornierten Einkauf wird der Status nicht angefasst
+                // GoBD: an einem stornierten/gegengebuchten/gesperrten Einkauf wird der Status nicht angefasst
+                // (nur die Periodensperre allein genuegt nicht, s. Aufrufer einkaufGesperrt)
                 statusGesperrt: !!(purchase && einkaufGesperrt(purchase)),
                 label: datum + ' · ' + (beschr || '—') + ' · ' + preis.toFixed(2).replace('.', ',') + ' €'
             });

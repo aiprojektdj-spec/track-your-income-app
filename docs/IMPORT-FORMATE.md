@@ -204,9 +204,13 @@ gleiche Zeilen in einer Datei werden durchgezählt (`#1`, `#2`).
 
 Zeilen, deren Datum in einer festgeschriebenen Periode liegt (USt-Voranmeldung eingereicht oder
 Jahr abgeschlossen), werden **übersprungen** mit dem Grund „Periode festgeschrieben“. Beim Lager-Import
-mit Verkaufsspalten zählt auch das Verkaufsdatum. Beim Verkäufe-Import wird der Status eines
-**festgeschriebenen oder stornierten** Lager-Artikels nicht auf „verkauft“ geändert; der Verkauf
-selbst wird gebucht und die Vorschau weist darauf hin.
+mit Verkaufsspalten zählt auch das Verkaufsdatum. Beim Verkäufe-Import gilt
+(Entscheidung des Users, 2026-11-25): Liegt der **Einkauf** in einer festgeschriebenen Periode, der Verkauf aber
+in einer offenen, setzt der Import den Lagerstatus des Artikels trotzdem auf „verkauft“. Nur der Status ändert
+sich (Betrag, Datum und alle anderen Felder des Einkaufs bleiben), und das Änderungsprotokoll vermerkt den
+Statuswechsel mit dem Hinweis auf die festgeschriebene Periode. Bei **stornierten, gegengebuchten oder manuell
+gesperrten** Einkäufen bleibt der Status unverändert; der Verkauf selbst wird gebucht und die Vorschau weist darauf
+hin. Liegt der Verkauf selbst in einer festgeschriebenen Periode, wird die Zeile übersprungen.
 
 ## Übersprungene Zeilen
 

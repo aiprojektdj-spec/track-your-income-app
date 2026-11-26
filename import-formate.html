@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; style-src-elem 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none';">
+<!-- ENTWURF fuer die Stackr Reseller Academy: noindex bis zum Live-Gang. Inhalt nur aus docs/IMPORT-FORMATE.md. -->
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="assets/stackr-concepts/raute-facette.svg" type="image/svg+xml">
+<title>Importformate: welche Datei Stackr wie liest – stackr</title>
+<meta name="description" content="Welche CSV- und Excel-Dateien Stackr importiert: Einzeilen-Format für Lager und Verkauf, Einkaufs-, Ausgaben- und Eigenbeleg-CSV. UTF-8, Semikolon, Datum JJJJ-MM-TT.">
+<link rel="canonical" href="https://getstackr.de/import-formate.html">
+<link rel="stylesheet" href="css/legal.css">
+</head>
+<body>
+<a href="#inhalt" class="skip-link">Zum Inhalt springen</a>
+
+<nav class="legal-header" aria-label="Hauptnavigation">
+    <a href="index.html" class="nav-brand">
+        <span class="nav-brand-icon">◆</span>
+        <span class="nav-brand-text">stackr</span>
+    </a>
+    <a href="index.html" class="nav-back">Zur Startseite</a>
+</nav>
+
+<main class="page-wrap" id="inhalt" tabindex="-1">
+
+    <h1>Importformate: welche Datei Stackr wie liest</h1>
+    <p class="subtitle">Welche Spalten Pflicht sind, wie Zahlen und Daten aussehen müssen, wie Dubletten erkannt werden und warum Zeilen übersprungen werden. Für deine eigenen Tabellen und für Dateien, die du von einer KI vorbereiten lässt.</p>
+
+    <div class="info-box">
+        <strong>Stackr sendet nie Daten an eine KI; was du in deine KI kopierst, entscheidest du.</strong> Stackr bindet keine KI an. Die Dateien sind die Schnittstelle: Du erstellst oder prüfst sie und importierst sie selbst.
+    </div>
+
+    <nav class="legal-toc" aria-label="Inhalt">
+        <h2>Inhalt</h2>
+        <ol>
+            <li><a href="#regeln">Gemeinsame Regeln</a></li>
+            <li><a href="#einzeilen">Einzeilen-Format für Lager und Verkauf</a></li>
+            <li><a href="#verkaeufe">Verkäufe-Import</a></li>
+            <li><a href="#einkauf">Einkaufs-CSV</a></li>
+            <li><a href="#ausgaben">Ausgaben-CSV</a></li>
+            <li><a href="#eigenbelege">Eigenbeleg-CSV</a></li>
+            <li><a href="#dubletten">Dubletten, Sperren und übersprungene Zeilen</a></li>
+        </ol>
+    </nav>
+
+    <section class="section" id="regeln">
+        <h2>Gemeinsame Regeln</h2>
+        <ul>
+            <li><strong>Empfohlen für Automatisierung:</strong> CSV in UTF-8, Semikolon als Trenner, Dezimalpunkt (<code>12.50</code>, ohne Tausendertrenner), Datum <code>JJJJ-MM-TT</code> (z. B. <code>2026-11-24</code>).</li>
+            <li><strong>Zahlen:</strong> Stackr liest auch <code>1.234,56</code>, <code>1,234.56</code>, <code>12,50 €</code> und <code>-3,20</code>. Sind beide Trenner da, ist der letzte der Dezimaltrenner. Ein einzelner Punkt ist immer Dezimalpunkt: <code>1.234</code> ist 1,234, nicht 1234. Tausendertrenner deshalb nur zusammen mit Dezimalstellen schreiben.</li>
+            <li><strong>Datum:</strong> Auch <code>24.11.2026</code>, <code>24/11/2026</code>, <code>24.11.26</code> und Excel-Datumszellen werden erkannt. Mehrdeutige Angaben wie <code>01.02.2026</code> gelten als Tag.Monat. Es muss ein echter Kalendertag sein (<code>31.02.</code> ist ungültig).</li>
+            <li><strong>Kodierung:</strong> UTF-8 mit oder ohne BOM (empfohlen) oder ANSI/Windows-1252, wie Excel „CSV (Trennzeichen-getrennt)“ speichert.</li>
+            <li><strong>Zeilennummern</strong> in Meldungen sind die Zeilennummern in der Datei: Die Kopfzeile ist Zeile 1, leere Zeilen zählen mit.</li>
+            <li><strong>Vorschau:</strong> Vor dem Import zeigt Stackr, was neu ist, was Dublette ist und was übersprungen wird. Danach kannst du eine Fehlerdatei (<code>import-fehler.csv</code>) mit jeder nicht importierten Zeile und dem Grund herunterladen.</li>
+        </ul>
+    </section>
+
+    <section class="section" id="einzeilen">
+        <h2>Einzeilen-Format für Lager und Verkauf</h2>
+        <p>Ein Artikel je Zeile, der Verkauf optional in derselben Zeile. Importiert wird im Lager über den Dialog „Excel-Import“. Die Spalten, genau in dieser Schreibweise und Reihenfolge (so erkennt Stackr sie ohne Zuordnung):</p>
+        <p><code>Artikelnummer; Kaufdatum; Marke; Beschreibung; Artikeltyp; Größe; Anzahl; Einkaufspreis; Einkaufsquelle; Lagerbereich; Lagerregal; Lagerfach; Warenkategorie; Tags; Notizen; Verkaufsdatum; Verkaufspreis; Plattform; Gebühr EUR; Versand Käufer; Versand Verkäufer; Käufer</code></p>
+        <div class="highlight-box">
+            <strong>CSV-Vorlage:</strong> dieselbe Datei, die Stackr im Dialog „Excel-Import“ anbietet. Sie enthält zwei erfundene Beispielzeilen; lösche sie vor dem Import.<br>
+            <a class="action" href="vorlagen/stackr-lager-vorlage.csv" download>Vorlage herunterladen (CSV)</a>
+        </div>
+        <ul>
+            <li><strong>Pflicht:</strong> <code>Einkaufspreis</code> (≥ 0) und <code>Marke</code> oder <code>Beschreibung</code>.</li>
+            <li><strong>Kaufdatum</strong> leer: Es gilt das Datum aus „Gemeinsame Felder“ im Dialog. Gefüllt, aber kein echter Kalendertag: Die Zeile wird übersprungen.</li>
+            <li><strong>Artikelnummer</strong> leer: Stackr vergibt automatisch <code>JJJJ-NNN</code>.</li>
+            <li><strong>Anzahl</strong> größer 1 legt mehrere Artikel an (<code>NR-1</code>, <code>NR-2</code>, …).</li>
+            <li><strong>Tags</strong> kommagetrennt in einer Zelle (<code>Vintage, Nike</code>).</li>
+            <li><strong>Verkauf in derselben Zeile:</strong> Ist ein Verkaufspreis größer 0 da, gilt der Artikel als verkauft und der Verkauf wird mit angelegt. Verkaufsdatum leer = Kaufdatum, gefüllt aber ungültig = Zeile übersprungen. Plattform leer = „Sonstiges“.</li>
+            <li><strong>Gebühr EUR</strong> wird in Prozent von (Verkaufspreis + Versand Käufer) umgerechnet und auf 2 Nachkommastellen gerundet gespeichert. Im Rückweg kann deshalb ±1 Cent Abweichung entstehen.</li>
+            <li><strong>Noch nicht importierbar:</strong> Zustand und Einkaufsnebenkosten (dafür gibt es kein Feld am Artikel).</li>
+        </ul>
+        <p>Lager → Export → „Einzeilen-Format (.csv)“ schreibt die gefilterten Artikel in genau diese Spalten. Die Datei lässt sich unverändert wieder einlesen; im selben Bestand sind dann alle Zeilen Dubletten.</p>
+    </section>
+
+    <section class="section" id="verkaeufe">
+        <h2>Verkäufe-Import</h2>
+        <p>Dialog „Verkäufe-Import (CSV)“. Die Plattform wählst du im Dialog.</p>
+        <ul>
+            <li><strong>Pflicht:</strong> <code>Datum</code> (Verkaufsdatum) und <code>Preis</code> (größer 0).</li>
+            <li><strong>Titel / Artikel / Beschreibung:</strong> Steht darin eine Artikelnummer aus dem Lager (<code>2026-042</code> oder eigene wie <code>SV-1042</code>), wird der Verkauf dem Artikel zugeordnet und dieser auf „verkauft“ gesetzt.</li>
+            <li><strong>Gebühr</strong> ist in EUR und wird in Prozent umgerechnet. Optional: <code>Versand Käufer</code>, <code>Versand Verkäufer</code>, <code>Käufer</code>.</li>
+        </ul>
+    </section>
+
+    <section class="section" id="einkauf">
+        <h2>Einkaufs-CSV</h2>
+        <p>Buchungen → „CSV Import“. Die Vorlage gibt es im Dialog („Einkauf-Template.csv“). Spalten:</p>
+        <p><code>Datum; Marke; Artikeltyp; Größe; Beschreibung; Einkaufspreis; Anzahl; Einkaufsquelle; Notizen</code></p>
+        <ul>
+            <li><strong>Pflicht:</strong> <code>Datum</code> (es gibt hier kein Standarddatum), <code>Einkaufspreis</code> (≥ 0) und <code>Marke</code> oder <code>Beschreibung</code>.</li>
+            <li><strong>Anzahl</strong> wird als Feld gespeichert, nicht vervielfacht: eine Zeile = ein Datensatz.</li>
+            <li>Trenner Semikolon oder Komma, auch <code>.xlsx</code>/<code>.xls</code>. Wer Artikelnummern, Lagerort oder Verkaufsdaten braucht, nimmt das Einzeilen-Format.</li>
+        </ul>
+    </section>
+
+    <section class="section" id="ausgaben">
+        <h2>Ausgaben-CSV</h2>
+        <p>Ausgaben → „CSV Import“, Vorlage im Dialog (<code>stackr-ausgaben-vorlage.csv</code>). Nur CSV, kein Excel. Spalten:</p>
+        <p><code>Datum; Kategorie; Beschreibung; Betrag; USt-Satz; Beleg-Nr.; Lieferant; Notizen</code></p>
+        <ul>
+            <li><strong>Pflicht:</strong> <code>Datum</code>, <code>Kategorie</code>, <code>Betrag</code>.</li>
+            <li><strong>Kategorie</strong> muss exakt eine der Stackr-Kategorien sein (Groß/Klein egal): Versand, Verpackung, Plattformgebühren, Fahrtkosten, Büro, Equipment, Software/Abos, Honorare an Künstler/Publizisten, Bewirtung, Gewerbesteuer, Sonstiges. Unbekannte Kategorien werden nicht still zu „Sonstiges“, die Zeile wird übersprungen.</li>
+            <li><strong>Betrag</strong> ist der Bruttobetrag (inkl. USt), größer 0.</li>
+            <li><strong>USt-Satz:</strong> <code>19</code>, <code>7</code>, <code>0</code> (auch <code>19%</code>), <code>rc</code> (Reverse Charge) oder <code>unklar</code>. Leer = <code>unklar</code>, nie automatisch 19 %.</li>
+            <li><strong>Nicht per CSV:</strong> Geschenke an Geschäftsfreunde sowie Umsatzsteuer an das Finanzamt bzw. Erstattung vom Finanzamt. Diese erfasst du im Formular. Ein Privatanteil lässt sich per CSV nicht setzen.</li>
+        </ul>
+    </section>
+
+    <section class="section" id="eigenbelege">
+        <h2>Eigenbeleg-CSV</h2>
+        <p>Eigenbelege → Alle Eigenbelege → „CSV importieren“, Vorlage im Dialog (<code>stackr-eigenbelege-vorlage.csv</code>). Nur CSV. Spalten:</p>
+        <p><code>Datum; Zweck; Betrag brutto; MwSt-Satz; Begründung; Verkäufer; Kategorie; Zahlungsweg; Notizen</code></p>
+        <ul>
+            <li><strong>Pflicht:</strong> <code>Datum</code>, <code>Zweck</code>, <code>Betrag brutto</code> (größer 0), <code>MwSt-Satz</code> (<code>0</code>, <code>7</code> oder <code>19</code>) und <code>Begründung</code>.</li>
+            <li><strong>Begründung:</strong> <code>verloren</code>, <code>nicht_ausgehaendigt</code>, <code>barzahlung_flohmarkt</code>, <code>onlinekauf</code>, <code>unleserlich</code>, <code>verloren_ust_rekonstruiert</code> oder <code>sonstiges</code>.</li>
+            <li><strong>Zahlungsweg:</strong> <code>bar</code>, <code>ec</code>, <code>kreditkarte</code>, <code>paypal</code>, <code>ueberweisung</code>, <code>klarna</code>, <code>sonstiges</code>. Leer = <code>sonstiges</code>.</li>
+            <li><strong>Importierte Eigenbelege sind unbestätigt.</strong> Sie zählen erst in EÜR, DATEV-Export und Summen, wenn du sie in der Liste mit „Bestätigen“ freigibst. Ein Vorsteuerabzug wird per CSV nie gesetzt.</li>
+        </ul>
+    </section>
+
+    <section class="section" id="dubletten">
+        <h2>Dubletten, Sperren und übersprungene Zeilen</h2>
+        <p>Stackr gleicht jede Zeile mit dem vorhandenen Bestand ab. Dubletten stehen in der Vorschau, sind vorab abgewählt und werden nicht importiert. Dieselbe Datei zweimal importieren legt deshalb nichts doppelt an. Im Einzeilen-Format erkennt Stackr Dubletten an der Artikelnummer.</p>
+        <p>Zeilen mit einem Datum in einer festgeschriebenen Periode (USt-Voranmeldung eingereicht oder Jahr abgeschlossen) werden übersprungen, Grund „Periode festgeschrieben“.</p>
+        <p>Die Fehlerdatei <code>import-fehler.csv</code> (UTF-8 mit BOM, Semikolon, Kopfzeile <code>Zeile;Grund</code>) listet jede nicht importierte Zeile, auch abgewählte Dubletten. Die korrigierte Datei kannst du direkt erneut importieren; bereits angelegte Zeilen erkennt der Dublettenschutz.</p>
+    </section>
+
+</main>
+
+<footer class="legal-footer">
+    <div style="margin-bottom:8px;">◆ <strong>stackr</strong></div>
+    <div>
+        <a href="index.html">Startseite</a> ·
+        <a href="impressum.html">Impressum</a> ·
+        <a href="datenschutz.html">Datenschutz</a> ·
+        <a href="agb.html">AGB</a> ·
+        <a href="refund.html">Widerruf</a> ·
+        <a href="barrierefreiheit.html">Barrierefreiheit</a>
+    </div>
+</footer>
+
+</body>
+</html>

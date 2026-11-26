@@ -24,3 +24,8 @@ js/vendor/tessdata/* -text binary
 # Zeile bekaemen die Dateien beim Checkout CRLF, und jeder Vergleich meldete eine Aenderung
 # in jeder Zeile, obwohl sich nichts geaendert hat.
 kosit-proben/*.xml -text
+
+# Statische Import-Vorlagen (2026-11-26): byte-genau wie LagerImport.vorlageCsv() (BOM, CRLF).
+# Ohne diese Zeile speichert autocrlf LF im Repo, Vercel liefert dann eine andere Datei als
+# der Download in der App, und test/test-vorlage-statisch.js faellt in der CI.
+vorlagen/*.csv -text

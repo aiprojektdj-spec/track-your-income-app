@@ -1,0 +1,12 @@
+# Fuer Gemini/Antigravity gesperrt: Secrets, Kundendaten, interne Rechtsentwuerfe
+.env*
+.vercel/
+.claude/
+compliance/
+backup_*.zip
+backup_*.json
+*_backup_*.zip
+*_backup_*.json
+node_modules/
+..wt-*/
+output/

@@ -179,8 +179,11 @@ check('gebuehrAusFeld: Einheit EUR rechnet um, % bleibt, ohne Einheitenfeld = Pr
 
 check('Excel-Vorlage (app.js): EUR-Gebuehr ist die letzte, optionale Spalte; Import ruft das Fachmodul', () => {
     const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'js', 'app.js'), 'utf8');
-    assert.ok(src.includes("titel: 'Plattformgebühr (EUR)'"));
-    assert.ok(/LagerImport\.gebuehrAusAngaben\(parseNum\(r\[7\]\), parseNum\(r\[12\]\)/.test(src));
+    // Spalten und Zeilenlogik liegen seit 2026-11-26 in js/import-excel-vorlage.js (Test: test-import-excel-vorlage.js)
+    const vorlage = require('fs').readFileSync(require('path').join(__dirname, '..', 'js', 'import-excel-vorlage.js'), 'utf8');
+    assert.ok(/titel: 'Plattformgebühr \(EUR\)', beispiel: '' \}\s*\],\s*ausgaben/.test(vorlage));
+    assert.ok(/L\.gebuehrAusAngaben\(pct\.wert, geb\.wert/.test(vorlage) && /betragFeld\(r\[12\]/.test(vorlage));
+    assert.ok(src.includes('ExcelVorlageImport'));
 });
 
 check('Vorlage: BOM, Semikolon, 22 Spalten in Kopf und Beispielzeilen', () => {
@@ -254,6 +257,28 @@ check('vorschauHtml: Zaehler, Dublettenliste ohne Haken, Fehlerliste, HTML maski
     assert.ok(/imp-dup/.test(h) && !/checked/.test(h));
     assert.ok(/Zeile 3: EK-Preis/.test(h));
     assert.ok(!/<b>X/.test(h));
+});
+
+check('vorschauHtml + verdrahte: Schalter "alle Dubletten" setzt alle Haken und erg.importieren', () => {
+    const r = zeile({ Marke: 'Nike', Beschreibung: 'Hoodie', 'Größe': 'M', EK: '12,5' });
+    const best = BESTAND.concat(BESTAND);   // zwei gleiche im Bestand -> beide Zeilen sind Dubletten
+    const e = L.einkaufsZeilen([r, r, zeile({ Marke: 'Neu', EK: '1' })], MAP, OPT({ bestand: best }));
+    eq(e.zeilen.map(z => z.dublette), [true, true, false]);
+    const h = L.vorschauHtml(e);
+    assert.ok(/class="imp-dup-alle"/.test(h), 'Schalter fehlt');
+    assert.ok(!/imp-dup-alle/.test(L.vorschauHtml(L.einkaufsZeilen([zeile({ Marke: 'Neu', EK: '1' })], MAP, OPT()))), 'ohne Dubletten kein Schalter');
+    // Mini-DOM: Haken mit change-Listenern
+    const mk = (cls, zeileNr) => ({ className: cls, checked: false, dataset: { zeile: String(zeileNr) }, l: [],
+        addEventListener(t, f) { this.l.push(f); }, fire() { this.l.forEach(f => f()); } });
+    const dups = e.zeilen.filter(z => z.dublette).map(z => mk('imp-dup', z.zeile));
+    const alle = mk('imp-dup-alle');
+    const container = { querySelectorAll: s => s === '.imp-dup' ? dups : s === '.imp-dup-alle' ? [alle] : [] };
+    L.verdrahte(container, e);
+    alle.checked = true; alle.fire();
+    eq(dups.map(c => c.checked), [true, true]);
+    eq(e.zeilen.map(z => z.importieren), [true, true, true]);
+    alle.checked = false; alle.fire();
+    eq(e.zeilen.map(z => z.importieren), [false, false, true]);
 });
 
 // ── Meldung / Fehlerdatei ──

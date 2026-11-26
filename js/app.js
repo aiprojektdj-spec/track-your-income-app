@@ -2685,57 +2685,7 @@ const App = {
             reader.readAsText(file);
         });
 
-        // ---- Spaltenaufbau der Import-Vorlage: EINE Definition fuer beide Seiten ----
-        // Die Vorlage schreibt diese Kopfzeilen, und der Import prueft eingehende Dateien
-        // dagegen. Beides stand vorher getrennt da, und der Import las ueberhaupt keine
-        // Kopfzeile — er nahm stur Spalte 0,1,2… Traf der Blattname, passte aber die
-        // Spaltenfolge nicht, entstand stiller Unsinn MIT Erfolgsmeldung (an einer echten
-        // Datei gemessen: Versandkosten 3,29 wurden zu "3 Stueck", der Platzhalter "/" zur
-        // Einkaufsquelle). Getrennte Listen koennten ausserdem auseinanderlaufen, ohne dass
-        // es jemandem auffaellt.
-        //
-        // `schluessel` ist der normalisierte Name, gegen den geprueft wird; `titel` steht in
-        // der erzeugten Vorlage. Die Reihenfolge IST die Spaltenreihenfolge — sie entspricht
-        // den Indizes r[0], r[1], … im Import weiter unten.
-        const IMPORT_SPALTEN = {
-            einkauf: [
-                { schluessel: 'datum',        titel: 'Datum (JJJJ-MM-TT)', beispiel: '2026-01-15' },
-                { schluessel: 'marke',        titel: 'Marke',              beispiel: 'Nike' },
-                { schluessel: 'artikeltyp',   titel: 'Artikeltyp',         beispiel: 'Schuhe' },
-                { schluessel: 'groesse',      titel: 'Größe',              beispiel: '42' },
-                { schluessel: 'beschreibung', titel: 'Beschreibung',       beispiel: 'Air Max 90 White' },
-                { schluessel: 'ekpreis',      titel: 'EK-Preis (€)',       beispiel: '80' },
-                { schluessel: 'anzahl',       titel: 'Anzahl',             beispiel: '1' },
-                { schluessel: 'einkaufsquelle', titel: 'Einkaufsquelle',   beispiel: 'Privatkauf' },
-                { schluessel: 'notizen',      titel: 'Notizen',            beispiel: '' }
-            ],
-            verkauf: [
-                { schluessel: 'datum',        titel: 'Datum (JJJJ-MM-TT)',   beispiel: '2026-01-20' },
-                { schluessel: 'marke',        titel: 'Marke',                beispiel: 'Nike' },
-                { schluessel: 'artikeltyp',   titel: 'Artikeltyp',           beispiel: 'Schuhe' },
-                { schluessel: 'groesse',      titel: 'Größe',                beispiel: '42' },
-                { schluessel: 'beschreibung', titel: 'Beschreibung',         beispiel: 'Air Max 90 White' },
-                { schluessel: 'verkaufspreis', titel: 'Verkaufspreis (€)',   beispiel: '150' },
-                { schluessel: 'versandkaeufer', titel: 'Versand-Käufer (€)', beispiel: '0' },
-                { schluessel: 'plattformgebuehr', titel: 'Plattformgebühr (%)', beispiel: '5' },
-                { schluessel: 'versandverkaeufer', titel: 'Versand-Verkäufer (€)', beispiel: '4.99' },
-                { schluessel: 'verkaufsplattform', titel: 'Verkaufsplattform', beispiel: 'Vinted' },
-                { schluessel: 'kaeufer',      titel: 'Käufer',               beispiel: 'Max Muster' },
-                { schluessel: 'notizen',      titel: 'Notizen',              beispiel: '' },
-                // Optional und ganz hinten: aeltere Vorlagen ohne diese Spalte bleiben gueltig.
-                { schluessel: 'plattformgebuehr', titel: 'Plattformgebühr (EUR)', beispiel: '' }
-            ],
-            ausgaben: [
-                { schluessel: 'datum',        titel: 'Datum (JJJJ-MM-TT)',    beispiel: '2026-01-10' },
-                { schluessel: 'kategorie',    titel: 'Kategorie',             beispiel: 'Versandmaterial' },
-                { schluessel: 'beschreibung', titel: 'Beschreibung',          beispiel: 'Bubble-Wrap Rolle' },
-                { schluessel: 'betrag',       titel: 'Betrag (€)',            beispiel: '12.99' },
-                // Schluessel = der normalisierte Titel, sonst greift die Pruefung nicht
-                // ("Plattform / Lieferant" wird zu "plattformlieferant", nicht zu "lieferant").
-                { schluessel: 'plattformlieferant', titel: 'Plattform / Lieferant', beispiel: 'Amazon' },
-                { schluessel: 'notizen',      titel: 'Notizen',               beispiel: '' }
-            ]
-        };
+        // Spaltenaufbau der Vorlage (Download und Import-Pruefung): ExcelVorlageImport.SPALTEN
 
         // ---- Excel Template Download ----
         document.getElementById('xlsxTemplateBtn').addEventListener('click', () => {
@@ -2747,10 +2697,10 @@ const App = {
         this._buildXlsxTemplate = () => {
             const wb = XLSX.utils.book_new();
 
-            // Die drei Blaetter entstehen jetzt AUS IMPORT_SPALTEN — dieselbe Liste, gegen die
+            // Die drei Blaetter entstehen jetzt AUS ExcelVorlageImport.SPALTEN — dieselbe Liste, gegen die
             // der Import prueft. Kopfzeile und Pruefung koennen damit nicht auseinanderlaufen.
             [['Einkäufe', 'einkauf'], ['Verkäufe', 'verkauf'], ['Ausgaben', 'ausgaben']].forEach(([blatt, art]) => {
-                const spalten = IMPORT_SPALTEN[art];
+                const spalten = ExcelVorlageImport.SPALTEN[art];
                 const header = spalten.map(s => s.titel);
                 const beispiel = spalten.map(s => s.beispiel);
                 const ws = XLSX.utils.aoa_to_sheet([header, beispiel]);
@@ -2803,301 +2753,88 @@ const App = {
             reader.onload = (ev) => {
                 try {
                     const wb = XLSX.read(ev.target.result, { type: 'array', cellDates: true });
-                    let importedEinkauf = 0, importedVerkauf = 0, importedAusgaben = 0, skipped = 0;
+                    // Zeilenpruefung, Periodensperre, Dubletten und Anlage: js/import-excel-vorlage.js
+                    // (wie die CSV-Importe). Hier nur Datei lesen, Vorschau zeigen, Ergebnis melden.
+                    const X = ExcelVorlageImport;
+                    const blattZeilen = ws => XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: true });
+                    const opt = ws => ({
+                        heute: Utils.todayISO(),
+                        gesperrt: d => Store.isPeriodLocked(d),
+                        purchases: Store.getAllPurchasesRaw(),
+                        sales: Store.getAllSalesRaw(),
+                        // Dateizeile der ersten gelesenen Zeile, damit der Bericht die Excel-Zeilennummer nennt
+                        startZeile: XLSX.utils.decode_range(ws['!ref'] || 'A1').s.r + 1
+                    });
 
-                    const parseNum = v => {
-                        if (v === null || v === undefined || v === '') return 0;
-                        // Bis 2026-09-03 stand hier `.replace(',', '.')`. Ein String-Argument ersetzt
-                        // nur das ERSTE Vorkommen, deshalb wurde "1.234,56" zu "1.234.56" und davon
-                        // las parseFloat nur "1.234" — Faktor 1000 nach unten, ohne jede Meldung.
-                        // Regel: ist ein Komma da, ist es das Dezimalzeichen und Punkte sind
-                        // Tausendertrenner; ohne Komma bleibt der Punkt das Dezimalzeichen ("80.50").
-                        const roh = String(v).trim();
-                        const n = parseFloat(roh.includes(',') ? roh.replace(/\./g, '').replace(',', '.') : roh);
-                        // Negative Beträge/Prozente/Mengen sind bei Import-Zeilen nicht plausibel
-                        // und würden Summen (Dashboard, EÜR) unbemerkt verfälschen — auf 0 clampen.
-                        // `|| 0` allein fing nur NaN ab, ein negativer Wert lief durch.
-                        if (!Number.isFinite(n) || n < 0) return 0;
-                        return n;
-                    };
-                    const parseQty = v => {
-                        const n = parseInt(v, 10);
-                        // Negative/0/Infinity sind bei einer Stückzahl nicht plausibel — auf 1 clampen.
-                        return (Number.isFinite(n) && n > 0) ? n : 1;
-                    };
-                    const parseDate = v => {
-                        if (!v) return Utils.todayISO();
-                        if (v instanceof Date) return v.toLocaleDateString('sv-SE');
-                        const s = String(v).trim();
-                        // JJJJ-MM-TT oder TT.MM.JJJJ
-                        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-                        const parts = s.split('.');
-                        if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
-                        return Utils.todayISO();
-                    };
+                    // Blaetter, die es gab, deren Kopfzeile aber nicht passte — sie duerfen nicht stumm
+                    // verschwinden, sonst ist der Fehler wieder unsichtbar.
+                    // 'Verkaeufe' stand bis 2026-09-03 als 'Verkauefe' da: Verkaeufe fielen still weg.
+                    const abgelehnt = [], teile = [];
+                    [
+                        ['Einkäufe', 'einkauf', X.einkaeufe, ['Einkäufe', 'Einkaeufe', 'einkauf', 'Einkauf']],
+                        ['Verkäufe', 'verkauf', X.verkaeufe, ['Verkäufe', 'Verkaeufe', 'verkauf', 'Verkauf']],
+                        ['Ausgaben', 'ausgaben', X.ausgaben, ['Ausgaben', 'ausgaben', 'Ausgabe']]
+                    ].forEach(([blatt, art, pruefe, namen]) => {
+                        const ws = namen.map(n => wb.Sheets[n]).find(Boolean);
+                        if (!ws) return;
+                        const rows = blattZeilen(ws);
+                        const kopf = X.pruefeKopfzeile(rows, art);
+                        if (!kopf.ok) { abgelehnt.push(Object.assign({ blatt }, kopf)); return; }
+                        teile.push({ blatt, art, erg: pruefe(rows, opt(ws)) });
+                    });
 
-                    // Kopfzeilen-Pruefung (Fund 3 aus Live-Test 1). Der Import liest nach
-                    // Spaltenindex; passt die Reihenfolge nicht, entsteht ohne diese Pruefung
-                    // stiller Unsinn mit Erfolgsmeldung. Geprueft wird gegen IMPORT_SPALTEN,
-                    // also gegen genau das, was die Vorlage schreibt.
-                    //
-                    // Absichtlich TOLERANT: Umlaute, Gross-/Kleinschreibung, Klammerzusaetze
-                    // ("Datum (JJJJ-MM-TT)" -> "datum") und Sonderzeichen werden weggeraeumt.
-                    // Wer die Vorlage benutzt und eine Spalte umbenennt oder eine eigene hinten
-                    // anhaengt, soll nicht abgewiesen werden — abgewiesen werden soll die Datei,
-                    // die mit der Vorlage NICHTS zu tun hat.
-                    const normSpalte = h => String(h || '')
-                        .replace(/\(.*?\)/g, '')          // Klammerzusatz raus
-                        .toLowerCase()
-                        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
-                        .replace(/[^a-z0-9]/g, '');
-                    const pruefeKopfzeile = (rows, art) => {
-                        const erwartet = IMPORT_SPALTEN[art];
-                        const kopf = (rows[0] || []).map(normSpalte);
-                        let treffer = 0;
-                        erwartet.forEach((s, i) => {
-                            const ist = kopf[i] || '';
-                            if (ist && (ist === s.schluessel || ist.startsWith(s.schluessel) || s.schluessel.startsWith(ist))) treffer++;
-                        });
-                        // Mindestens die Haelfte der Spalten muss an ihrer Position sitzen. Eine
-                        // einzelne Zufallsuebereinstimmung reicht nicht: die gemessene Vinted-Datei
-                        // traf 1 von 9 ("Datum" stand dort auf Position 2 statt 1).
-                        const noetig = Math.max(3, Math.ceil(erwartet.length / 2));
-                        return {
-                            ok: treffer >= noetig,
-                            treffer,
-                            gesamt: erwartet.length,
-                            erwartetText: erwartet.slice(0, 4).map(s => s.titel).join(', ') + ', …'
-                        };
-                    };
-                    // Blaetter, die es zwar gab, deren Kopfzeile aber nicht passte — sie duerfen
-                    // nicht stumm verschwinden, sonst ist der Fehler wieder unsichtbar.
-                    const abgelehnt = [];
-
-                    // -- Einkäufe --
-                    const wsE = wb.Sheets['Einkäufe'] || wb.Sheets['Einkaeufe'] || wb.Sheets['einkauf'] || wb.Sheets['Einkauf'];
-                    if (wsE) {
-                        const rows = XLSX.utils.sheet_to_json(wsE, { header: 1, defval: '' });
-                        const kopf = pruefeKopfzeile(rows, 'einkauf');
-                        if (!kopf.ok) abgelehnt.push(Object.assign({ blatt: 'Einkäufe' }, kopf));
-                        else rows.slice(1).forEach(r => {
-                            const datum = parseDate(r[0]);
-                            const marke = String(r[1] || '').trim();
-                            const beschreibung = String(r[4] || '').trim();
-                            if (!marke && !beschreibung) { skipped++; return; }
-                            const purchase = {
-                                datum,
-                                marke,
-                                artikeltyp: String(r[2] || 'Sonstiges').trim(),
-                                groesse: String(r[3] || '').trim(),
-                                beschreibung,
-                                einkaufspreis: parseNum(r[5]),
-                                anzahl: parseQty(r[6]),
-                                einkaufsquelle: String(r[7] || 'Sonstiges').trim() || 'Sonstiges',
-                                notizen: String(r[8] || '').trim(),
-                                status: 'verfuegbar'
-                            };
-                            if (purchase.marke) Store.addBrand(purchase.marke);
-                            if (purchase.einkaufsquelle) Store.addEinkaufsquelle(purchase.einkaufsquelle);
-                            Store.savePurchase(purchase);
-                            importedEinkauf++;
+                    // Fallback: einzelne Tabelle mit Kaufdatum/Einkauf/Verkauf-Spalten (private Reselling-
+                    // Listen). Greift auch, wenn die Blaetter da waren, ihre Kopfzeile aber abgelehnt wurde —
+                    // ein abgelehntes Blatt hat nichts beigetragen, doppelt importiert wird also nichts.
+                    const flachGenutzt = !teile.length;
+                    if (flachGenutzt) {
+                        wb.SheetNames.forEach(name => {
+                            const ws = wb.Sheets[name];
+                            const erg = X.flach(blattZeilen(ws), opt(ws));
+                            if (erg) teile.push({ blatt: name, art: 'flach', erg });
                         });
                     }
 
-                    // -- Verkäufe --
-                    // 'Verkaeufe' stand hier bis 2026-09-03 als 'Verkauefe' (u und e vertauscht) und
-                    // konnte deshalb nie greifen — waehrend die Einkaufszeile darueber richtig
-                    // transliteriert. Folge war kein glatter Fehlschlag, sondern eine halbe
-                    // Uebernahme: Einkaeufe kamen an, Verkaeufe fielen still weg. An einer echten
-                    // Datei gemessen (338 Verkaufszeilen), s. plan/live-tests-checkliste.md Punkt 1.
-                    const wsV = wb.Sheets['Verkäufe'] || wb.Sheets['Verkaeufe'] || wb.Sheets['verkauf'] || wb.Sheets['Verkauf'];
-                    if (wsV) {
-                        const rows = XLSX.utils.sheet_to_json(wsV, { header: 1, defval: '' });
-                        const kopf = pruefeKopfzeile(rows, 'verkauf');
-                        if (!kopf.ok) abgelehnt.push(Object.assign({ blatt: 'Verkäufe' }, kopf));
-                        else rows.slice(1).forEach(r => {
-                            const marke = String(r[1] || '').trim();
-                            const beschreibung = String(r[4] || '').trim();
-                            if (!marke && !beschreibung) { skipped++; return; }
-                            const sale = {
-                                datum: parseDate(r[0]),
-                                marke,
-                                artikeltyp: String(r[2] || '').trim(),
-                                groesse: String(r[3] || '').trim(),
-                                beschreibung,
-                                verkaufspreis: parseNum(r[5]),
-                                versandkostenKaeufer: parseNum(r[6]),
-                                // Prozent-Spalte hat Vorrang; sonst optionale EUR-Spalte (r[12]) -> Prozent, 2 Stellen
-                                plattformgebuehrProzent: LagerImport.gebuehrAusAngaben(parseNum(r[7]), parseNum(r[12]), parseNum(r[5]), parseNum(r[6])),
-                                versandkostenVerkaufer: parseNum(r[8]),
-                                verkaufsplattform: String(r[9] || '').trim(),
-                                kaeufer: String(r[10] || '').trim(),
-                                notizen: String(r[11] || '').trim()
-                            };
-                            if (sale.verkaufsplattform) Store.addPlatform(sale.verkaufsplattform);
-                            Store.saveSale(sale);
-                            importedVerkauf++;
-                        });
-                    }
-
-                    // -- Ausgaben --
-                    const wsA = wb.Sheets['Ausgaben'] || wb.Sheets['ausgaben'] || wb.Sheets['Ausgabe'];
-                    if (wsA) {
-                        const rows = XLSX.utils.sheet_to_json(wsA, { header: 1, defval: '' });
-                        const kopf = pruefeKopfzeile(rows, 'ausgaben');
-                        if (!kopf.ok) abgelehnt.push(Object.assign({ blatt: 'Ausgaben' }, kopf));
-                        else rows.slice(1).forEach(r => {
-                            const beschreibung = String(r[2] || '').trim();
-                            const betrag = parseNum(r[3]);
-                            if (!beschreibung && !betrag) { skipped++; return; }
-                            const expense = {
-                                datum: parseDate(r[0]),
-                                kategorie: String(r[1] || 'Sonstiges').trim(),
-                                beschreibung,
-                                betrag,
-                                plattform: String(r[4] || '').trim(),
-                                notizen: String(r[5] || '').trim()
-                            };
-                            Store.saveExpense(expense);
-                            importedAusgaben++;
-                        });
-                    }
-
-                    // -- Fallback: einzelne Tabelle mit Kaufdatum/Einkauf/Verkauf/Verkaufsdatum-Spalten --
-                    // (z.B. private Reselling-Listen mit einer Zeile pro Artikel statt den 3 Vorlagen-Sheets)
-                    // Der Fallback greift jetzt auch, wenn es die Blaetter zwar GAB, ihre
-                    // Kopfzeile aber abgelehnt wurde. Sonst waere die neue Pruefung eine
-                    // Sackgasse: vorher lief wenigstens ein Versuch, danach gar keiner mehr.
-                    // Ein abgelehntes Blatt hat nichts beigetragen, doppelt importiert wird also
-                    // nichts.
-                    const blattGenutzt = [['Einkäufe', wsE], ['Verkäufe', wsV], ['Ausgaben', wsA]]
-                        .some(([name, ws]) => ws && !abgelehnt.some(a => a.blatt === name));
-                    let flachGenutzt = false;
-                    if (!blattGenutzt) {
-                        flachGenutzt = true;
-                        const normHeader = h => String(h || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                        wb.SheetNames.forEach(sheetName => {
-                            const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: '' });
-
-                            let col = null;
-                            for (let i = 0; i < Math.min(rows.length, 30); i++) {
-                                const cand = {};
-                                let woSeen = 0;
-                                rows[i].forEach((h, ci) => {
-                                    const n = normHeader(h);
-                                    if (n === 'kaufdatum') cand.kaufdatum = ci;
-                                    else if (n === 'verkaufsdatum') cand.verkaufsdatum = ci;
-                                    else if (n === 'was' || n.includes('artikel') || n.includes('produkt')) cand.beschreibung = ci;
-                                    else if (n === 'einkauf') cand.einkauf = ci;
-                                    else if (n === 'verkauf') cand.verkauf = ci;
-                                    else if (/^wo\d*$/.test(n)) { woSeen++; if (woSeen === 1) cand.quelle = ci; else cand.plattform = ci; }
-                                });
-                                if (cand.kaufdatum !== undefined && cand.einkauf !== undefined && cand.verkauf !== undefined) { col = cand; rows.splice(0, i + 1); break; }
-                            }
-                            if (!col) return;
-
-                            rows.forEach(r => {
-                                const kaufdatumRaw = r[col.kaufdatum];
-                                if (!kaufdatumRaw) return; // Summen-/Leerzeilen überspringen
-                                const beschreibung = col.beschreibung !== undefined ? String(r[col.beschreibung] || '').trim() : '';
-                                const quelle = col.quelle !== undefined ? String(r[col.quelle] || '').trim() : '';
-                                const einkaufspreis = parseNum(r[col.einkauf]);
-                                if (!beschreibung && !einkaufspreis) { skipped++; return; }
-
-                                const purchase = {
-                                    datum: parseDate(kaufdatumRaw),
-                                    marke: '',
-                                    artikeltyp: 'Sonstiges',
-                                    groesse: '',
-                                    beschreibung,
-                                    einkaufspreis,
-                                    anzahl: 1,
-                                    einkaufsquelle: quelle || 'Sonstiges',
-                                    notizen: '',
-                                    status: 'verfuegbar'
-                                };
-                                if (purchase.einkaufsquelle) Store.addEinkaufsquelle(purchase.einkaufsquelle);
-                                const saved = Store.savePurchase(purchase);
-                                importedEinkauf++;
-
-                                const verkaufsdatumRaw = col.verkaufsdatum !== undefined ? r[col.verkaufsdatum] : null;
-                                const verkaufRaw = col.verkauf !== undefined ? r[col.verkauf] : '';
-                                const hatVerkauf = !!verkaufsdatumRaw || (verkaufRaw !== '' && verkaufRaw !== null && verkaufRaw !== undefined);
-                                if (hatVerkauf) {
-                                    const plattform = col.plattform !== undefined ? String(r[col.plattform] || '').trim() : '';
-                                    const datumFallback = !verkaufsdatumRaw;
-                                    const sale = {
-                                        datum: datumFallback ? parseDate(kaufdatumRaw) : parseDate(verkaufsdatumRaw),
-                                        marke: '',
-                                        artikeltyp: 'Sonstiges',
-                                        groesse: '',
-                                        beschreibung,
-                                        verkaufspreis: parseNum(verkaufRaw),
-                                        versandkostenKaeufer: 0,
-                                        plattformgebuehrProzent: 0,
-                                        versandkostenVerkaufer: 0,
-                                        verkaufsplattform: plattform,
-                                        kaeufer: '',
-                                        notizen: datumFallback ? 'Verkaufsdatum unbekannt – Kaufdatum übernommen' : '',
-                                        purchaseId: saved.id
-                                    };
-                                    if (sale.verkaufsplattform) Store.addPlatform(sale.verkaufsplattform);
-                                    Store.saveSale(sale);
-                                    importedVerkauf++;
-                                }
-                            });
-                        });
-                    }
-
-                    // Eine Null wird gemeldet, wenn das Blatt DA WAR und trotzdem nichts ergab —
-                    // vorher filterte `.filter(Boolean)` jede Null heraus, und ein Blatt mit 0
-                    // uebernommenen Zeilen kam im Text ueberhaupt nicht mehr vor. Der Nutzer las
-                    // dann "29 Einkaeufe" und erfuhr nie, dass daneben 338 Verkaeufe weggefallen
-                    // waren. Ein FEHLENDES Blatt bleibt weiterhin stumm: laut Anleitung darf man
-                    // einzelne Blaetter leer lassen, dort waere "0 Verkaeufe" nur Rauschen.
-                    // `flachGenutzt` muss mit hinein: der Fallback-Zweig fuellt dieselben Zaehler,
-                    // hat aber per Definition keines der drei Blaetter — ohne ihn faende die
-                    // Meldung dort keine einzige Quelle und fiele auf "0 Datensaetze" zurueck.
-                    // Ein abgelehntes Blatt wird NICHT als "0 Einkäufe" gezaehlt — es bekommt
-                    // seine eigene Zeile weiter unten, sonst laese es sich als "war halt leer".
-                    // `ausFallback` sagt, ob der Flach-Zweig diese Art ueberhaupt erzeugen kann.
-                    // Er legt nur Einkaeufe und Verkaeufe an — ohne die Unterscheidung stuende
-                    // dort "0 Ausgaben", obwohl es nie eine Ausgabenquelle gab (vom Harness
-                    // gefangen, nicht beim Lesen bemerkt).
-                    const genutzt = (ws, name, ausFallback) =>
-                        (ws && !abgelehnt.some(a => a.blatt === name)) || (ausFallback && flachGenutzt);
-                    const msg = [
-                        genutzt(wsE, 'Einkäufe', true) ? `${importedEinkauf} Einkäufe` : '',
-                        genutzt(wsV, 'Verkäufe', true) ? `${importedVerkauf} Verkäufe` : '',
-                        genutzt(wsA, 'Ausgaben', false) ? `${importedAusgaben} Ausgaben` : '',
-                    ].filter(Boolean).join(', ') || '0 Datensätze';
-
-                    // "leere Zeilen" war nachweislich falsch: uebersprungen wird, wenn die beiden
-                    // Pruefspalten leer sind — die Zeile selbst kann voll sein. An der Messdatei
-                    // waren 160 der 972 "leeren" Zeilen echte Einkaeufe.
-                    const skipText = skipped > 0 ? ` (${skipped} Zeilen übersprungen)` : '';
-
-                    if (abgelehnt.length) {
-                        // Die Ablehnung muss laut sein. Eine still abgewiesene Datei waere derselbe
-                        // Fehler wie vorher, nur mit umgekehrtem Vorzeichen.
-                        const details = abgelehnt.map(a =>
-                            `„${a.blatt}“ (nur ${a.treffer} von ${a.gesamt} Spalten erkannt, erwartet: ${a.erwartetText})`
-                        ).join(' und ');
-                        const nichts = importedEinkauf + importedVerkauf + importedAusgaben === 0;
-                        const text = `Spaltenüberschriften passen nicht zur Vorlage: ${details}. `
-                                   + `Lade dir die Excel-Vorlage herunter und übertrage deine Daten dort hinein.`;
-                        if (statusEl) statusEl.innerHTML = `<span style="color:var(--${nichts ? 'danger' : 'warning'});">`
-                            + `${Utils.escapeHtml(text)}</span>`
-                            + (nichts ? '' : `<br><span style="color:var(--success);">Importiert: ${msg}${skipText}</span>`);
-                        Utils.showToast(text, nichts ? 'error' : 'warning');
-                        if (nichts) { e.target.value = ''; return; }
-                    } else {
-                        if (statusEl) statusEl.innerHTML = `<span style="color:var(--success);">Importiert: ${msg}${skipText}</span>`;
-                    }
-                    Utils.showToast(`Import abgeschlossen: ${msg}`, 'success');
+                    // Die Ablehnung muss laut sein: eine still abgewiesene Datei waere derselbe Fehler wie
+                    // vorher, nur mit umgekehrtem Vorzeichen.
+                    const ablehnText = abgelehnt.length
+                        ? 'Spaltenüberschriften passen nicht zur Vorlage: ' + abgelehnt.map(a =>
+                            `„${a.blatt}“ (nur ${a.treffer} von ${a.gesamt} Spalten erkannt, erwartet: ${a.erwartetText})`).join(' und ')
+                          + '. Lade dir die Excel-Vorlage herunter und übertrage deine Daten dort hinein.'
+                        : '';
                     e.target.value = '';
-                    // Kurze Verzögerung dann View aktualisieren
-                    setTimeout(() => this.navigate(this.currentPage), 1200);
+                    if (!teile.length) {
+                        const text = ablehnText || 'Keine importierbaren Daten gefunden. Lade dir die Excel-Vorlage herunter und übertrage deine Daten dort hinein.';
+                        if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">${Utils.escapeHtml(text)}</span>`;
+                        Utils.showToast(text, 'error');
+                        return;
+                    }
+                    if (statusEl) statusEl.textContent = 'Vorschau prüfen und Import bestätigen…';
+
+                    // Vorschau je Blatt (eigener Container: Zeilennummern wiederholen sich zwischen Blaettern)
+                    App.showModal('Excel-Import – Vorschau', '<div class="section">'
+                        + (ablehnText ? `<div style="color:var(--warning);font-size:13px;margin-bottom:8px;">${Utils.escapeHtml(ablehnText)}</div>` : '')
+                        + teile.map((t, i) => `<div style="margin-bottom:10px;"><div style="font-weight:600;margin-bottom:4px;">${Utils.escapeHtml(t.blatt)}</div>`
+                            + `<div id="xlsxImpTeil${i}">${LagerImport.vorschauHtml(t.erg)}</div></div>`).join('')
+                        + '<div style="font-size:12px;color:var(--text-secondary);">Ausgaben werden nicht auf Dubletten geprüft.</div></div>'
+                        + '<div class="form-actions"><button class="btn btn-primary" id="xlsxImpGo">Importieren</button></div>', '');
+                    teile.forEach((t, i) => LagerImport.verdrahte(document.getElementById('xlsxImpTeil' + i), t.erg));
+
+                    document.getElementById('xlsxImpGo').addEventListener('click', (klick) => {
+                        klick.currentTarget.disabled = true;
+                        const n = X.anlegen(teile, Store);
+                        const msg = X.meldung(n, teile, flachGenutzt);
+                        const bericht = X.bericht(teile);
+                        const nicht = LagerImport.nichtImportiert(bericht).length;
+                        const nichtText = nicht ? ` (${nicht} Zeilen nicht importiert)` : '';
+                        if (statusEl) statusEl.innerHTML = (ablehnText ? `<span style="color:var(--warning);">${Utils.escapeHtml(ablehnText)}</span><br>` : '')
+                            + `<span style="color:var(--success);">Importiert: ${msg}${nichtText}</span>`;
+                        if (nicht) LagerImport.zeigeBericht('Excel-Import – Ergebnis', bericht, `Importiert: ${msg}`);
+                        else this.closeModal();
+                        Utils.showToast(`Import abgeschlossen: ${msg}`, ablehnText ? 'warning' : 'success');
+                        // Kurze Verzögerung dann View aktualisieren
+                        setTimeout(() => this.navigate(this.currentPage), 1200);
+                    });
 
                 } catch(err) {
                     if (statusEl) statusEl.innerHTML = `<span style="color:var(--danger);">Fehler: ${Utils.escapeHtml(Utils.errorText(err, 'Bitte erneut versuchen.'))}</span>`;

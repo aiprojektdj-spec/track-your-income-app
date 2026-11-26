@@ -29,7 +29,9 @@ check('R1 es gibt Umzugs-Redirects, alle nur fuer den alten Host', umzug.length 
  // Ratgeberseiten: sonst doppelt indexierbar unter beiden Domains
  '/buchhaltung-reseller-vinted.html', '/euer-software.html', '/rechnung-schreiben-kleinunternehmer.html',
  '/datev-export-selbststaendige.html', '/lager-bestandsfuehrung-reseller.html', '/buchhaltung-gbr.html',
- '/kleinunternehmergrenze-2026-2027.html'].forEach(p =>
+ '/kleinunternehmergrenze-2026-2027.html',
+ // Academy-Seiten (noindex bis zum Live-Gang, trotzdem nur unter einer Domain)
+ '/reseller-academy.html', '/import-formate.html', '/stackr-bonus.html'].forEach(p =>
     check('R2 ' + p + ' leitet auf getstackr.de um', leitetUm(p)));
 ['/app', '/app.html', '/lager/', '/lager/index.html', '/rechnungen/', '/eigenbelege/',
  '/api/sync', '/api/whop-token', '/api/whop-access', '/js/app.js', '/sitemap.xml'].forEach(p =>

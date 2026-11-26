@@ -34,14 +34,14 @@ Dublette, die zweite ist neu.
 |---|---|---|
 | EK / EK-Preis / Einkaufspreis | **ja** | Einkaufspreis je Stück, ≥ 0 |
 | Marke **oder** Beschreibung | **ja** (mindestens eins) | |
-| Kaufdatum / Datum | nein | leer oder ungültig = das Datum aus „Gemeinsame Felder“ (keine Fehlermeldung) |
+| Kaufdatum / Datum | nein | leer = das Datum aus „Gemeinsame Felder“; gefüllt, aber kein echter Kalendertag (`31.02.2026`) = Zeile übersprungen („Kaufdatum ungültig“) |
 | Artikelnummer | nein | eigene Nummer; leer = automatisch `JJJJ-NNN` |
 | Lagerort (Bereich), Regal, Fach | nein | werden am Artikel als Lagerort gespeichert |
 | Warenkategorie | nein | Freitext; neue Kategorien erscheinen danach in der Auswahlliste. „Kategorie“/„Typ“ bedeutet Artikeltyp, nicht Warenkategorie |
 | Tags | nein | Komma-getrennt (`Vintage, Nike`), Doppelte und Leere entfallen |
 | Notizen / Bemerkung | nein | Freitext am Artikel |
 | Typ, Größe, Einkaufsquelle, Anzahl | nein | Anzahl > 1 legt mehrere Artikel an (`NR-1`, `NR-2`, …) |
-| Verkaufspreis, Verkaufsdatum, Plattform, Käufer, Versand Käufer, Versand Verkäufer, Gebühr EUR (oder Plattformgebühr %) | nein | Ist ein Verkaufspreis > 0 da, gilt der Artikel als verkauft und der Verkauf wird in derselben Zeile mit angelegt. Verkaufsdatum leer = Kaufdatum. Plattform leer = „Sonstiges“. Gebühr EUR wird auf Prozent von (Preis + Versand Käufer) umgerechnet, 2 Nachkommastellen; steht auch eine Prozent-Spalte da, gilt diese. Bei Anzahl > 1 gilt Verkaufspreis für die ganze Zeile. |
+| Verkaufspreis, Verkaufsdatum, Plattform, Käufer, Versand Käufer, Versand Verkäufer, Gebühr EUR (oder Plattformgebühr %) | nein | Ist ein Verkaufspreis > 0 da, gilt der Artikel als verkauft und der Verkauf wird in derselben Zeile mit angelegt. Verkaufsdatum leer = Kaufdatum, gefüllt aber ungültig = Zeile übersprungen. Plattform leer = „Sonstiges“. Gebühr EUR wird auf Prozent von (Preis + Versand Käufer) umgerechnet, 2 Nachkommastellen; steht auch eine Prozent-Spalte da, gilt diese. Bei Anzahl > 1 gilt Verkaufspreis für die ganze Zeile. |
 
 **Dublette, wenn:** die Artikelnummer schon vergeben ist (auch eine stornierte Nummer; bei Anzahl > 1
 auch `NR-1`) — oder, ohne Artikelnummer, Kaufdatum + Marke + Beschreibung + Größe + EK-Preis (in

@@ -39,6 +39,16 @@ check('Einkauf: Fehlerfaelle mit Zeilennummer aus der Datei und Grund', () => {
     assert.strictEqual(e.zeilen[0].zeile, 12);
 });
 
+check('Einkauf: ungueltiges Kauf-/Verkaufsdatum -> Zeile uebersprungen, leer -> gemeinsames Datum', () => {
+    const rows = [zeile({ Marke: 'A', EK: '5', Datum: '31.02.2026' }), zeile({ Marke: 'B', EK: '5', VK: '9', 'VK-Datum': 'morgen' }), zeile({ Marke: 'C', EK: '5', VK: '9' })];
+    const e = L.einkaufsZeilen(rows, MAP, OPT());
+    eq(e.fehler.map(f => f.zeile), [2, 3]);
+    assert.ok(/Kaufdatum ungültig/.test(e.fehler[0].grund));
+    assert.ok(/Verkaufsdatum ungültig/.test(e.fehler[1].grund));
+    assert.strictEqual(e.zeilen.length, 1);
+    assert.strictEqual(e.zeilen[0].row.datum, '2026-03-01');
+});
+
 check('Einkauf: ohne nummern gilt Zeile = Index + 2 (Kopfzeile 1)', () => {
     const e = L.einkaufsZeilen([zeile({ Marke: 'A', EK: 'x' })], MAP, OPT());
     assert.strictEqual(e.fehler[0].zeile, 2);

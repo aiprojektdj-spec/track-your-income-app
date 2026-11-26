@@ -81,12 +81,17 @@ const LagerImport = (function () {
             if (preis === null) { fehler.push({ zeile: zeile, grund: 'EK-Preis fehlt oder ist keine Zahl' }); return; }
             if (preis < 0) { fehler.push({ zeile: zeile, grund: 'EK-Preis ist negativ' }); return; }
             if (!marke && !beschr) { fehler.push({ zeile: zeile, grund: 'Marke und Beschreibung fehlen' }); return; }
-            var rowDatum = K.datum(get('datum')) || opt.datum;
+            // ponytail: leer -> gemeinsames Datum aus dem Dialog; gefuellt, aber ungueltig -> Zeile ueberspringen (nie still ersetzen).
+            var roh = String(get('datum') || '').trim();
+            var rowDatum = roh ? K.datum(get('datum')) : opt.datum;
+            if (!rowDatum) { fehler.push({ zeile: zeile, grund: 'Kaufdatum ungültig (' + roh + ')' }); return; }
             if (gesperrt(rowDatum)) { fehler.push({ zeile: zeile, grund: 'Periode festgeschrieben (Kaufdatum ' + rowDatum + ')' }); return; }
             var anzahl = Math.max(1, Math.min(9999, parseInt(String(get('anzahl') || '1').replace(/[^\d]/g, ''), 10) || 1));
             var vkPreis = K.zahl(get('verkaufspreis'), 0);
             var verkauft = vkPreis > 0;
-            var vkDatum = verkauft ? (K.datum(get('verkaufsdatum')) || rowDatum) : '';
+            var vkRoh = String(get('verkaufsdatum') || '').trim();
+            var vkDatum = verkauft ? (vkRoh ? K.datum(get('verkaufsdatum')) : rowDatum) : '';
+            if (verkauft && !vkDatum) { fehler.push({ zeile: zeile, grund: 'Verkaufsdatum ungültig (' + vkRoh + ')' }); return; }
             if (verkauft && gesperrt(vkDatum)) { fehler.push({ zeile: zeile, grund: 'Periode festgeschrieben (Verkaufsdatum ' + vkDatum + ')' }); return; }
             var row = {
                 datum: rowDatum,

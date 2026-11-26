@@ -2123,11 +2123,16 @@ function renderEbSubnav() {
         }).join('') +
         '</div></div>';
 }
-async function ebMount() {
+// Store auf die aktive Firma stellen (eingebettet und Standalone), sonst pruefen
+// Periodensperre und Audit gegen die leere Firma und der CSV-Import verweigert.
+function _ebSetStoreCompany() {
     if (typeof CompanyManager !== 'undefined' && typeof Store !== 'undefined' && Store.setCompany) {
         var id = CompanyManager.getActiveId();
         if (id) Store.setCompany(id);
     }
+}
+async function ebMount() {
+    _ebSetStoreCompany();
     await _ebEnsureStoreReady();   // eingebettet meist schon bereit (Host-App), Guard ist idempotent
     renderEbSubnav();
     navigate('dashboard');
@@ -2140,6 +2145,7 @@ window.EBApp = { mount: ebMount, navigate: navigate };
 // ═══════════════════════════════════════════════════════════════════
 if (!document.getElementById('moduleSubnav')) {
     async function _ebStandaloneBoot() {
+        _ebSetStoreCompany();
         await _ebEnsureStoreReady();
         navigate('dashboard');
 

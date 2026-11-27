@@ -1337,8 +1337,6 @@ const Store = {
 
     // Frei bearbeitbar? (offen, nicht storniert, nicht festgeschrieben)
     canEdit(record)   { return !!record && !this.isLocked(record); },
-    // Echt löschbar? = wie canEdit (festgeschriebene/stornierte → nur Storno)
-    canDelete(record) { return this.canEdit(record); },
 
     // Liegt das Datum (YYYY-MM-DD) in einer festgeschriebenen Periode?
     //  • USt-Voranmeldungs-Quartal als eingereicht markiert, ODER
@@ -1527,27 +1525,6 @@ const Store = {
 
     getAllPurchasesRaw() {
         return this.get('purchases') || [];
-    },
-
-    getPurchasesBySession(sessionId) {
-        return this.getAllPurchasesRaw().filter(p => p.sessionId === sessionId && !p.storniert);
-    },
-
-    getSessions() {
-        const all = this.getAllPurchasesRaw().filter(p => p.sessionId && !p.storniert);
-        const sessions = {};
-        all.forEach(p => {
-            if (!sessions[p.sessionId]) {
-                sessions[p.sessionId] = {
-                    sessionId: p.sessionId,
-                    datum: p.datum,
-                    einkaufsquelle: p.einkaufsquelle,
-                    items: []
-                };
-            }
-            sessions[p.sessionId].items.push(p);
-        });
-        return Object.values(sessions);
     },
 
     // Ist eine Artikelnummer schon vergeben? exceptId klammert den gerade bearbeiteten Artikel aus.
@@ -2238,47 +2215,9 @@ const Store = {
         return this.get('customers') || [];
     },
 
-    saveCustomer(customer) {
-        const customers = this.getCustomers();
-        if (customer.id) {
-            const idx = customers.findIndex(c => c.id === customer.id);
-            if (idx >= 0) customers[idx] = customer;
-            else customers.push(customer);
-        } else {
-            customer.id = this.generateId();
-            customer.createdAt = new Date().toISOString();
-            customers.push(customer);
-        }
-        this.set('customers', customers);
-        return customer;
-    },
-
-    deleteCustomer(id) {
-        this.set('customers', this.getCustomers().filter(c => c.id !== id));
-    },
-
     // ---- Reselling Products ----
     getProducts() {
         return this.get('products') || [];
-    },
-
-    saveProduct(product) {
-        const products = this.getProducts();
-        if (product.id) {
-            const idx = products.findIndex(p => p.id === product.id);
-            if (idx >= 0) products[idx] = product;
-            else products.push(product);
-        } else {
-            product.id = this.generateId();
-            product.createdAt = new Date().toISOString();
-            products.push(product);
-        }
-        this.set('products', products);
-        return product;
-    },
-
-    deleteProduct(id) {
-        this.set('products', this.getProducts().filter(p => p.id !== id));
     },
 
     // ---- Reselling Invoices ----
@@ -2299,10 +2238,6 @@ const Store = {
         }
         this.set('invoices', invoices);
         return invoice;
-    },
-
-    deleteInvoice(id) {
-        this.set('invoices', this.getInvoices().filter(i => i.id !== id));
     },
 
     getInvoiceCounter() {
@@ -2329,18 +2264,6 @@ const Store = {
             return navigator.locks.request(name, () => fn());
         }
         return fn();
-    },
-
-    async nextInvoiceNumber(typ) {
-        return this._withLock(this._prefix + 'invoice_counter', () => {
-            const counter = this.getInvoiceCounter();
-            const prefix = typ === 'rechnung' ? 'RE' : typ === 'angebot' ? 'AN' : 'GU';
-            const year = new Date().getFullYear();
-            this._resetCounterIfNewYear(counter, year);
-            counter[prefix] = (counter[prefix] || 0) + 1;
-            this.set('invoice_counter', counter);
-            return `${prefix}-${year}-${String(counter[prefix]).padStart(3, '0')}`;
-        });
     },
 
     // ============================================
@@ -2389,10 +2312,6 @@ const Store = {
         this._addAuditEntry('storniert', 'kunde', id, old, c, grund || 'Kunde storniert');
     },
 
-    deleteRechCustomer(id) {
-        this.stornoRechCustomer(id, 'Storniert (ehemals geloescht)');
-    },
-
     // ---- Rechnungsbuch Products ----
     getRechProducts(includeStorniert) {
         const all = this._rechGet('produkte') || [];
@@ -2433,10 +2352,6 @@ const Store = {
         this._stampRecord(p);
         this._rechSet('produkte', products);
         this._addAuditEntry('storniert', 'produkt', id, old, p, grund || 'Produkt storniert');
-    },
-
-    deleteRechProduct(id) {
-        this.stornoRechProduct(id, 'Storniert (ehemals geloescht)');
     },
 
     // ---- Rechnungsbuch Invoices/Dokumente ----
@@ -3768,15 +3683,4 @@ const Store = {
             return { lossDetected: false, recovered: null };
         });
     },
-
-    // ── GbR — Gesellschaft bürgerlichen Rechts ───────────────────────────────
-    getGbrEinstellungen() {
-        return this.get('gbr_einstellungen') || { firmenform: 'Einzelunternehmen', hebesatz: 400 };
-    },
-    saveGbrEinstellungen(data) { this.set('gbr_einstellungen', data); },
-
-    getGbrGesellschafter() {
-        return this.get('gbr_gesellschafter') || [];
-    },
-    saveGbrGesellschafter(list) { this.set('gbr_gesellschafter', list); },
 };

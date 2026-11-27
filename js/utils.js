@@ -101,10 +101,6 @@ const Utils = {
         return num.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '\u00a0\u20ac';
     },
 
-    getCurrencySymbol() {
-        return '\u20ac';
-    },
-
     formatNumber(num) {
         // `|| 0` ausserhalb von parseFloat — sonst zeigt die App "NaN €" statt "0,00 €"
         return (parseFloat(num) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -298,12 +294,6 @@ const Utils = {
         if (startDate && d < new Date(startDate)) return false;
         if (endDate && d > new Date(endDate)) return false;
         return true;
-    },
-
-    isCurrentMonth(dateStr) {
-        const d = new Date(dateStr);
-        const now = new Date();
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     },
 
     isCurrentYear(dateStr) {

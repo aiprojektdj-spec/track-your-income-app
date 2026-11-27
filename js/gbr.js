@@ -62,39 +62,6 @@ const GbR = {
         Store.set(this.KEY_GS, list);
     },
 
-    addGesellschafter(name, anteil, adresse, eingetreten, rolle) {
-        const list = this.getGesellschafter();
-        list.push({
-            id:         Store.generateId(),
-            name:       name.trim(),
-            adresse:    adresse || '',
-            anteil:     parseFloat(anteil) || 0,
-            eingetreten: eingetreten || new Date().toLocaleDateString('sv-SE'),
-            rolle:      rolle || 'gesellschafter', // gesellschafter | komplementaer | kommanditist | geschaeftsfuehrer
-        });
-        this.saveGesellschafter(list);
-    },
-
-    // KG: Komplementäre und Kommanditisten getrennt
-    getKomplementaere() {
-        return this.getGesellschafter().filter(g => g.rolle === 'komplementaer');
-    },
-    getKommanditisten() {
-        return this.getGesellschafter().filter(g => g.rolle === 'kommanditist');
-    },
-
-    updateGesellschafter(id, data) {
-        const list = this.getGesellschafter();
-        const idx  = list.findIndex(g => g.id === id);
-        if (idx < 0) return;
-        list[idx] = { ...list[idx], ...data };
-        this.saveGesellschafter(list);
-    },
-
-    removeGesellschafter(id) {
-        this.saveGesellschafter(this.getGesellschafter().filter(g => g.id !== id));
-    },
-
     // Summe aller Anteile (sollte 100 sein)
     sumAnteile() {
         return this.getGesellschafter().reduce((s, g) => s + (parseFloat(g.anteil) || 0), 0);
@@ -737,10 +704,6 @@ const GbR = {
 
     getAuszahlungen() {
         return Store.get(this.KEY_AUSZ) || {};
-    },
-
-    saveAuszahlungen(data) {
-        Store.set(this.KEY_AUSZ, data);
     },
 
     // ── Teilauszahlungen V2 ───────────────────────────────────────────────

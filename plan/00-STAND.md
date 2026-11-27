@@ -39,9 +39,9 @@ das Gerät nie.
 | Preis | 15 €/Monat · 135 €/Jahr (inkl. MwSt.), **7-Tage-Trial mit Kartenpflicht** |
 | Zugang | Hard-Gate `AuthUI.boot()`, kein Free-Tier im Web |
 | Architektur | Vanilla JS, **kein Build-Schritt**, 1 Produktiv-Abhängigkeit (`@vercel/blob`) |
-| Umfang | 28 registrierte Module + 3 Sub-Apps (Rechnungen, Lager, Eigenbelege) |
-| Serverless | 6 Endpunkte in `api/` (`ls api/*.js \| grep -v '/_'` — `_alert.js` ist Helfer) |
-| Tests | Node-Harnesses in `test/`, cache-immun — Zahl über `ls test/*.js \| wc -l`, am 2026-09-10 waren es 52 |
+| Umfang | Einträge in `App.pages` (`js/app.js`): 28 Module + 2 eingebettete Sub-Apps (Rechnungen, Eigenbelege); dazu eigenständige Sub-Apps `rechnungen/`, `lager/`, `eigenbelege/` |
+| Serverless | Endpunkte in `api/` — Zahl über `ls api/*.js \| grep -v '/_' \| wc -l` (`_`-Dateien sind Helfer) |
+| Tests | Node-Harnesses in `test/`, cache-immun — Zahl über `ls test/*.js \| wc -l` |
 | Hosting | Vercel; Cloud-Sync über Upstash Redis (Frankfurt) + Vercel Blob |
 
 ---

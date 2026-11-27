@@ -19,7 +19,7 @@ Stackr ist eine **Buchhaltungs-Web-App für Selbstständige in Deutschland**, mi
 - **GbR** (mehrere Gesellschafter, Gewinnverteilung)
 - Regelbesteuerung (USt-Voranmeldung, Soll/Ist, Reverse Charge, OSS)
 
-Funktionsumfang (rund 28 Module plus 3 Sub-Apps): Einnahmen/Ausgaben, **EÜR**,
+Funktionsumfang (30 Einträge in `App.pages`: 28 Module plus 2 eingebettete Sub-Apps): Einnahmen/Ausgaben, **EÜR**,
 USt-Voranmeldung, Rechnungen inkl. **E-Rechnung** (XRechnung/ZUGFeRD, geprüft mit KoSIT),
 Mahnwesen, **DATEV-Export**, Bank-Import (CSV), Beleg-OCR (lokal mit `tesseract.js`),
 AfA, Fahrtenbuch, Materiallager, Kassenbuch, Statistiken, Steuerberater-Zugang (nur lesen),

@@ -51,8 +51,8 @@ HTML-Dateien standen** — es ist nachweislich derselbe Code, den die App bisher
 | `js/vendor/apexcharts.min.js` | 3.54.1 | `56fb1229fe77c8cc66f31ea125bea9ed37a3840c97b66a23e44c851cff717b2b` | 539.664 B | MIT | <https://github.com/apexcharts/apexcharts.js/security> |
 | `css/vendor/notyf.min.css` | 3.10.0 | `23092f64d442ff74b6e8ed605b08c120d9ab3d9e3362f3d7e33ffdf0e2961e44` | 5.159 B | MIT | s. o. |
 | `css/vendor/flatpickr-dark.css` | 4.6.13 | `47798b76a38ac3a62b1ae658c566e0ed3b4cbcb115173ae620f0db8952f93612` | 19.163 B | MIT | s. o. |
-| `css/vendor/tabler-icons.min.css` | 3.44.0 | `0d4f79caa8f50b54af50341ca5946dad10a63fc8baa818bddd1de395e22627f5` | 208.958 B | MIT | <https://github.com/tabler/tabler-icons/security> |
-| `css/vendor/fonts/tabler-icons.woff2` | 3.44.0 | `bce5d4c933dcfe8708787a3570ab0995a4a99250d6321ed177c7f2179e93eb68` | 457.384 B | MIT | s. o. |
+| `css/vendor/tabler-icons.min.css` | 3.44.0 (Icon-Subset) | `2dc69ad9f136da5490ba3b0c7c32543db91f995eafb8812b5d57da25baa1c91c` | 6.384 B | MIT | <https://github.com/tabler/tabler-icons/security> |
+| `css/vendor/fonts/tabler-icons.woff2` | 3.44.0 (Icon-Subset) | `dfdd81ac638f80c7b6add98f4b117675f148f28ca45bfcbade723a01dfbf46e5` | 19.364 B | MIT | s. o. |
 
 Bezugsquelle für alle: `https://cdn.jsdelivr.net/npm/<paket>@<version>/…` — dieselben Pfade,
 die vorher in den `<link>`/`<script>`-Tags standen.

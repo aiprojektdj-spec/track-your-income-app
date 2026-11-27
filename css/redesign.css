@@ -525,6 +525,13 @@ body > :not(.print-container):not(#printArea) :is(#content, .modal, .onboarding-
 .sr-filter-chips:empty { display: none; }
 .sr-filter-chip { min-height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text); cursor: pointer; }
 .sr-filter-chip:focus-visible, .sr-filter-more > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Touch-Ziele (B7-Mobile-Check 2026-11-27): Chips auf 44px; Checkboxen/Radios auf 24px
+   (WCAG 2.5.8 AA) — 44px wuerden jede Formularzeile sprengen, die Trefferflaeche stellt
+   das umschliessende <label>. Desktop unveraendert. */
+@media (hover: none) and (pointer: coarse) {
+  .sr-filter-chip { min-height: 44px; }
+  input[type="checkbox"], input[type="radio"] { width: 24px; height: 24px; }
+}
 
 /* Fachliche Formularfehler (Audit 2026-10-13, D3, js/fachfehler.js) */
 .sr-fach-fehler { border: 1px solid var(--danger); border-radius: 8px; padding: 16px; margin-bottom: 16px; color: var(--text); background: var(--bg-card, transparent); }

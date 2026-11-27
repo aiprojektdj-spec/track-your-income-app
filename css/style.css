@@ -2096,6 +2096,20 @@ tbody tr:last-child td {
     left: 23px;
 }
 
+/* Touch-Ziele >= 44px (WCAG 2.5.5, B7-Mobile-Check 2026-11-27) — nur auf Touch-Geraeten,
+   der Desktop behaelt seine Dichte. Der Schalter bleibt optisch 24px hoch; ::before
+   vergroessert nur die Trefferflaeche (Klicks aufs Pseudo-Element landen am Element). */
+@media (hover: none) and (pointer: coarse) {
+    .toggle::before {
+        content: '';
+        position: absolute;
+        inset: -10px 0;
+    }
+    .agb-checkbox-label {
+        min-height: 44px;
+    }
+}
+
 .toggle-label {
     font-size: 13px;
     color: var(--text-secondary);

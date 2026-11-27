@@ -1,0 +1,3 @@
+﻿Artikelnummer;Kaufdatum;Marke;Beschreibung;Artikeltyp;Größe;Anzahl;Einkaufspreis;Einkaufsquelle;Lagerbereich;Lagerregal;Lagerfach;Warenkategorie;Tags;Notizen;Verkaufsdatum;Verkaufspreis;Plattform;Gebühr EUR;Versand Käufer;Versand Verkäufer;Käufer
+BSP-001;2026-01-15;Beispielmarke;BEISPIEL - Zeile loeschen: Jacke, nicht verkauft;Jacke;M;1;12.50;Flohmarkt;Keller;R1;F2;Kleidung;Vintage, Winter;Kleiner Fleck am Aermel;;;;;;;
+BSP-002;2026-01-15;Beispielmarke;BEISPIEL - Zeile loeschen: Hose, verkauft;Hose;32;1;8.00;Flohmarkt;;;;Kleidung;;;2026-02-03;25.00;Vinted;1.25;3.90;3.90;Max Muster

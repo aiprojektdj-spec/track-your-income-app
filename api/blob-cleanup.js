@@ -142,6 +142,10 @@ async function shopifyAufraeumen() {
 }
 
 module.exports = async function handler(req, res) {
+    // Vercel Cron ruft per GET auf (der ?probe=1-Selbsttest per curl ebenso). Alles andere
+    // wird vor der Secret-Pruefung abgewiesen, wie bei den uebrigen Endpunkten.
+    if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+
     // Vercel Cron sendet 'Authorization: Bearer $CRON_SECRET', wenn CRON_SECRET gesetzt ist.
     // Ohne gesetztes Secret bleibt der Endpoint deaktiviert (kein offener Lösch-Endpoint).
     var secret = process.env.CRON_SECRET;

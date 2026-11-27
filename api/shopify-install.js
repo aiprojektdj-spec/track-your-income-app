@@ -18,6 +18,7 @@ var db      = require('./_db.js');
 var S       = require('./_shopify.js');
 var alertOps = require('./_alert.js').alertOps;
 var setzeCorsOrigin = require('./_cors.js');
+var gesperrt = require('./_gesperrt.js');
 
 // ── Auth: identisch zu api/sync.js (Endpunkte sind eigenständige Funktionen ohne gemeinsames
 // Modul, siehe api/whop-access.js) ──
@@ -81,6 +82,7 @@ async function whopHasAccess(userToken, userId) {
     var e = new Error('access_undeterminable'); e.httpStatus = 502; throw e;
 }
 
+var BODY_MAX    = 1024;                    // { shop, companyId } — Vercel-Default waeren ~4,5 MB
 var IP_RATE_MAX = 20;                      // Install-Versuche je IP und Minute
 var COMPANY_RE  = /^co_[a-z0-9]{1,40}$/;   // js/companies.js: 'co_' + base36
 
@@ -98,6 +100,7 @@ module.exports = async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST')    return res.status(405).json({ error: 'method_not_allowed' });
+    if (parseInt(req.headers['content-length'], 10) > BODY_MAX) return res.status(413).json({ error: 'too_large' });
 
     var clientId = process.env.SHOPIFY_CLIENT_ID || '', secret = process.env.SHOPIFY_CLIENT_SECRET || '';
     if (!clientId || !secret || !process.env.SHOPIFY_TOKEN_KEY || !db.isConfigured()) {
@@ -139,6 +142,9 @@ module.exports = async function handler(req, res) {
         _log.logError('shopify-install', 'WHOP_USERINFO_FAILED', e);
         return res.status(502).json({ error: 'whop_unreachable' });
     }
+
+    // Sperre aus dem Admin-Panel, wie api/blob-upload.js und api/sync.js (s. api/_gesperrt.js)
+    if (await gesperrt.istGesperrt(userId)) return res.status(403).json({ error: 'account_suspended' });
 
     if (!isOwnerIdentity(userId, prefUsername)) {
         try {

@@ -23,7 +23,9 @@ const TOKEN = 'shpat_test_token';
 const integrations = new Map();   // shop → Zeile
 const eingang = new Map();        // shop|order → Zeile
 const aufrufe = [];
+const gesperrteNutzer = new Set();
 const RPC = {
+    sync_admin_gesperrt: a => gesperrteNutzer.has(a.p_user),
     sync_shopify_integration_speichern: a => {
         integrations.set(a.p_shop, { shop: a.p_shop, user_id: a.p_user, company_id: a.p_company, token_chiffrat: a.p_token, scopes: a.p_scopes, status: 'aktiv', import_cursor: null });
     },
@@ -161,6 +163,19 @@ async function check(name, fn) {
         res = mockRes();
         await install({ method: 'GET', headers: {} }, res);
         assert.strictEqual(res.statusCode, 405);
+    });
+
+    await check('Install: Body ueber 1 KB 413, gesperrter Nutzer 403 account_suspended (B3)', async () => {
+        let res = mockRes();
+        await install({ method: 'POST', headers: { host: 'getstackr.de', authorization: 'Bearer tok_pro', 'content-length': '1025' }, body: { shop: SHOP, companyId: 'co_abc' } }, res);
+        assert.strictEqual(res.statusCode, 413);
+        gesperrteNutzer.add('user_pro');
+        try {
+            res = mockRes();
+            await install({ method: 'POST', headers: { host: 'getstackr.de', authorization: 'Bearer tok_pro' }, body: { shop: SHOP, companyId: 'co_abc' } }, res);
+            assert.strictEqual(res.statusCode, 403);
+            assert.strictEqual(res.body.error, 'account_suspended');
+        } finally { gesperrteNutzer.delete('user_pro'); }
     });
 
     await check('Install: Pro-Nutzer bekommt Install-URL + HttpOnly-Nonce-Cookie; Kurzname wird ergänzt', async () => {

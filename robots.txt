@@ -1,12 +1,12 @@
 User-agent: *
 
-# App-Seiten nicht indexieren (keine öffentlichen Inhalte)
+# App-Seiten nicht crawlen (keine öffentlichen Inhalte).
+# ui-lab.html und landing-v2.html bewusst NICHT gesperrt: ihr X-Robots-Tag noindex
+# (vercel.json) wirkt nur, wenn Crawler die Seite abrufen duerfen.
 Disallow: /app
-Disallow: /ui-lab.html
 Disallow: /lager
 Disallow: /rechnungen
 Disallow: /eigenbelege
-Disallow: /landing-v2.html
 
 # Öffentliche Seiten erlauben
 Allow: /index.html

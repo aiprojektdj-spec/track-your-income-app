@@ -514,7 +514,7 @@ const App = {
                     data-action="app-backup-modal">Backup einrichten</button>
             <button style="background:none;border:none;cursor:pointer;color:var(--text-muted);
                            font-size:18px;padding:0 4px;line-height:1;"
-                    title="Hinweis schließen"
+                    title="Hinweis schließen" aria-label="Hinweis schließen"
                     data-action="app-dismiss-backup-banner">&times;</button>`;
         // Nach Topnav einfügen
         const topnav = document.querySelector('.topnav');
@@ -1848,7 +1848,7 @@ const App = {
                     <input type="color" class="form-input" id="set_primaryColor" value="${s.invoicePrimaryColor || '#10b981'}" style="height:42px;padding:4px;">
                 </div>
             </div>
-            ${s.logoBase64 ? `<div style="margin-top:8px;"><img src="${s.logoBase64}" style="max-height:60px;max-width:200px;object-fit:contain;border:1px solid var(--border);border-radius:6px;padding:4px;background:white;"></div>` : ''}
+            ${s.logoBase64 ? `<div style="margin-top:8px;"><img src="${s.logoBase64}" alt="Firmenlogo" style="max-height:60px;max-width:200px;object-fit:contain;border:1px solid var(--border);border-radius:6px;padding:4px;background:white;"></div>` : ''}
             ${(typeof GbR !== 'undefined') ? GbR.renderSettingsBlock() : ''}
             <hr style="border-color:var(--border);margin:16px 0;">
             <div class="section-title" style="margin-bottom:12px;">Make.com-Webhooks</div>

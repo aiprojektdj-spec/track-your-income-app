@@ -823,7 +823,7 @@ const Ausgaben = {
                 const belegFotoViewLink = document.getElementById('ee_belegFotoView');
                 if (belegFotoViewLink) belegFotoViewLink.addEventListener('click', (ev) => {
                     ev.preventDefault();
-                    App.showModal('Beleg-Foto', `<img src="${exp.belegFoto}" style="max-width:100%;border-radius:var(--radius-sm);">`, '<button class="btn" data-action="close-modal">Schließen</button>');
+                    App.showModal('Beleg-Foto', `<img src="${exp.belegFoto}" alt="Belegfoto" style="max-width:100%;border-radius:var(--radius-sm);">`, '<button class="btn" data-action="close-modal">Schließen</button>');
                 });
                 document.getElementById('saveExpenseEdit').addEventListener('click', async () => {
                     const newFotoFile = document.getElementById('ee_belegFoto')?.files?.[0];

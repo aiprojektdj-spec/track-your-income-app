@@ -187,7 +187,7 @@ var RechApp = (function() {
 
         var html = '<div class="modal-header">';
         html += '<h3 id="modalTitle">' + title + '</h3>';
-        html += '<button class="modal-close" id="modalCloseBtn">&times;</button>';
+        html += '<button class="modal-close" id="modalCloseBtn" aria-label="Schließen">&times;</button>';
         html += '</div>';
         html += '<div class="modal-body">' + bodyHtml + '</div>';
         if (footerHtml) {

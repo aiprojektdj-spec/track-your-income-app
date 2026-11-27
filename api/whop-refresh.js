@@ -55,6 +55,8 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST')    return res.status(405).json({ error: 'Method not allowed' });
+    // Explizites Body-Limit (session_id bis 128 Zeichen) statt des Vercel-Defaults von ~4,5 MB
+    if (parseInt(req.headers['content-length'], 10) > 1024) return res.status(413).json({ error: 'too_large' });
 
     var sid = req.body && req.body.session_id;
     // Laenge grosszuegig, aber gedeckelt: die ID ist 64 Hex-Zeichen (32 Byte).

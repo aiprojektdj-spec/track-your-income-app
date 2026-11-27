@@ -67,7 +67,7 @@ function mkReq(url, auth) {
     if (frage !== -1) url.slice(frage + 1).split('&').forEach(function (p) {
         var kv = p.split('='); q[kv[0]] = kv[1];
     });
-    return { url: url, query: q, headers: auth ? { authorization: auth } : {} };
+    return { method: 'GET', url: url, query: q, headers: auth ? { authorization: auth } : {} };
 }
 function mkRes() {
     var r = { code: 0, body: null };

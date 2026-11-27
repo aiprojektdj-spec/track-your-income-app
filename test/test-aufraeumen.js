@@ -86,7 +86,7 @@ function mkRes() {
     r.json   = (b) => { r.body = b; return r; };
     return r;
 }
-const req = { url: '/api/blob-cleanup', query: {}, headers: { authorization: 'Bearer s' } };
+const req = { method: 'GET', url: '/api/blob-cleanup', query: {}, headers: { authorization: 'Bearer s' } };
 const SB  = { STORAGE_BACKEND: 'supabase', SUPABASE_URL: 'https://x.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'k' };
 
 console.error = function () {};

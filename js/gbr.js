@@ -13,8 +13,8 @@ const GbR = {
 
     // Standard-Hebesatz (bundesweiter Durchschnitt ~400%)
     DEFAULT_HEBESATZ: 400,
-    FREIBETRAG_GBR:   24500,   // §11 Abs. 1 GewStG – Freibetrag für Personengesellschaften
-    MESSZAHL:         0.035,   // 3,5% Steuermesszahl §11 Abs. 2 GewStG
+    // Freibetrag und Messzahl (§11 GewStG) kommen aus Gewerbesteuer._getGewStWerte(year) —
+    // bis 2026-11-27 standen sie hier ein zweites Mal als Konstante (CLAUDE.md Regel 7).
 
     // ── Einstellungen ──────────────────────────────────────────────────────
     getEinstellungen() {
@@ -108,14 +108,11 @@ const GbR = {
     // und ohne Sonderbetriebsergebnis).
     berechneGewSt(gewinn, year) {
         if (typeof Rechtsform !== 'undefined' && !Rechtsform.brauchtGewSt()) return 0;
-        const sonder = (year && typeof Gewerbesteuer !== 'undefined') ? Gewerbesteuer._sonderSaldo(year) : 0;
-        if (typeof Gewerbesteuer !== 'undefined' && Gewerbesteuer.berechne) {
-            return Gewerbesteuer.berechne(gewinn + sonder, { freibetrag: true, hebesatz: parseFloat(this.getEinstellungen().hebesatz) || this.DEFAULT_HEBESATZ }).gewSt;
-        }
-        const einst     = this.getEinstellungen();
-        const hebesatz  = parseFloat(einst.hebesatz) || this.DEFAULT_HEBESATZ;
-        const gewerbeertrag = Math.max(0, Math.floor((gewinn + sonder) / 100) * 100 - this.FREIBETRAG_GBR);
-        return Math.round(gewerbeertrag * this.MESSZAHL * hebesatz) / 100;
+        // js/gewerbesteuer.js lädt in js/app-loader.js vor dieser Datei. Der frühere Rückfall mit
+        // eigener Formel und eigenen Konstanten ist weg: eine zweite Quelle für §11 GewStG soll es
+        // nicht geben.
+        const sonder = year ? Gewerbesteuer._sonderSaldo(year) : 0;
+        return Gewerbesteuer.berechne(gewinn + sonder, { freibetrag: true, hebesatz: parseFloat(this.getEinstellungen().hebesatz) || this.DEFAULT_HEBESATZ, year }).gewSt;
     },
 
     // Gewinnverteilung auf alle Gesellschafter
@@ -230,7 +227,8 @@ const GbR = {
                 </td>
             </tr>`).join('');
 
-        const gewerbeertrag = Math.max(0, gewinn - this.FREIBETRAG_GBR);
+        const gewFreibetrag = Gewerbesteuer._getGewStWerte(year).freibetrag;
+        const gewerbeertrag = Math.max(0, gewinn - gewFreibetrag);
 
         return `
         <div class="card" style="margin-top:20px;border:1px solid rgba(99,102,241,.3);">
@@ -288,7 +286,7 @@ const GbR = {
 
             <div style="padding:12px;background:var(--bg-secondary);border-top:1px solid var(--border);font-size:12px;color:var(--text-muted);display:flex;gap:20px;flex-wrap:wrap;">
                 <span><i class="ti ti-chart-bar"></i> Hebesatz: <strong style="color:var(--text-primary);">${hebesatz} %</strong></span>
-                <span><i class="ti ti-trending-down"></i> GewSt-Freibetrag: <strong style="color:var(--text-primary);">${fmt(this.FREIBETRAG_GBR)}</strong></span>
+                <span><i class="ti ti-trending-down"></i> GewSt-Freibetrag: <strong style="color:var(--text-primary);">${fmt(gewFreibetrag)}</strong></span>
                 <span><i class="ti ti-coin"></i> Gewerbeertrag: <strong style="color:var(--text-primary);">${fmt(gewerbeertrag)}</strong></span>
                 <span><i class="ti ti-building-bank"></i> GewSt gesamt: <strong style="color:var(--danger);">${fmt(gewSt)}</strong></span>
             </div>`}

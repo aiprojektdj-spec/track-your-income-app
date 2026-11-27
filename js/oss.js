@@ -22,10 +22,15 @@ const OSS = {
     RATES_STAND: '2026-01-01',
     // EE 24 % seit 01.07.2025 (Steuerverwaltung emta.ee), RO 21 % seit 01.08.2025 (Legea 141/2025)
     // — standen bis zum Steuer-Audit 2026-10-18 (U09) trotz RATES_STAND 2026 noch auf 22/19 %.
-    EU_VAT_RATES: {
-        AT: 20, BE: 21, BG: 20, HR: 25, CY: 19, CZ: 21, DK: 25, EE: 24, FI: 25.5, FR: 20, GR: 24,
-        HU: 27, IE: 23, IT: 22, LV: 21, LT: 21, LU: 17, MT: 18, NL: 21, PL: 23, PT: 23, RO: 21,
-        SK: 23, SI: 22, ES: 21, SE: 25
+    // Jahresfunktion statt Konstante (CLAUDE.md Regel 7). Annahme: der Stand RATES_STAND gilt für
+    // jedes Jahr, wie vorher bei der Konstante EU_VAT_RATES. Sätze, die sich unterjährig ändern
+    // (EE/RO 2025), lassen sich mit einem Jahresschlüssel ohnehin nicht genau abbilden.
+    _getEuSaetze(year) {
+        return {
+            AT: 20, BE: 21, BG: 20, HR: 25, CY: 19, CZ: 21, DK: 25, EE: 24, FI: 25.5, FR: 20, GR: 24,
+            HU: 27, IE: 23, IT: 22, LV: 21, LT: 21, LU: 17, MT: 18, NL: 21, PL: 23, PT: 23, RO: 21,
+            SK: 23, SI: 22, ES: 21, SE: 25
+        };
     },
 
     _isRegel() {
@@ -82,7 +87,7 @@ const OSS = {
     },
 
     _euLaender() {
-        return (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : Object.keys(this.EU_VAT_RATES);
+        return (typeof Vorsteuer !== 'undefined') ? Vorsteuer.EU_LAENDER : Object.keys(this._getEuSaetze(this._year));
     },
 
     // Verkaufspreise auf Marktplätzen sind Bruttopreise. Bis zur Schwelle steckt die deutsche
@@ -99,7 +104,7 @@ const OSS = {
         return this._saleBrutto(s) / (1 + (isNaN(satz) ? 19 : satz) / 100);
     },
     _saleNettoZielland(s) {
-        const rate = this.EU_VAT_RATES[s.land];
+        const rate = this._getEuSaetze(parseInt(String(s.datum || '').slice(0, 4), 10) || this._year)[s.land];
         return rate === undefined ? this._saleNettoDE(s) : this._saleBrutto(s) / (1 + rate / 100);
     },
 
@@ -282,8 +287,8 @@ const OSS = {
                         ${laender.map(land => {
                             const netto = byLand[land];
                             const nettoOSS = byLandOSS[land] || 0;
-                            const known = Object.prototype.hasOwnProperty.call(this.EU_VAT_RATES, land);
-                            const rate = known ? this.EU_VAT_RATES[land] : 0;
+                            const known = Object.prototype.hasOwnProperty.call(this._getEuSaetze(year), land);
+                            const rate = known ? this._getEuSaetze(year)[land] : 0;
                             // Ziellandsatz nur auf den Teil ab dem Überschreiten — davor gilt deutsche USt.
                             const ust = nettoOSS * rate / 100;
                             const rateCell = known ? `${rate}%` : '<span style="color:var(--danger)">unbekannt</span>';
@@ -336,8 +341,8 @@ const OSS = {
             ...laender.map(land => {
                 const netto = byLand[land];
                 const nettoOSS = byLandOSS[land] || 0;
-                const known = Object.prototype.hasOwnProperty.call(this.EU_VAT_RATES, land);
-                const rate = known ? this.EU_VAT_RATES[land] : 0;
+                const known = Object.prototype.hasOwnProperty.call(this._getEuSaetze(year), land);
+                const rate = known ? this._getEuSaetze(year)[land] : 0;
                 return [land, netto.toFixed(2), nettoOSS.toFixed(2), known ? rate : 'unbekannt — manuell prüfen',
                         known ? (nettoOSS * rate / 100).toFixed(2) : ''];
             }),

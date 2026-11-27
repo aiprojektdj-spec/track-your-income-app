@@ -122,7 +122,7 @@ const R = ladeRechtsform();
 {
     setze('Einzelunternehmen', 'gewerblich');
     check('§141: Grenzen stehen auf dem Stand seit 1.1.2024 (800.000 / 80.000)',
-        R.AO141_UMSATZ_GRENZE === 800000 && R.AO141_GEWINN_GRENZE === 80000);
+        R._getAO141Grenzen(2026).umsatz === 800000 && R._getAO141Grenzen(2026).gewinn === 80000);
 
     global.GbrModul = { _calcJahresgewinn: () => ({ einnahmen: 300000, gewinn: 65000 }) };
     check('§141: unter beiden Grenzen -> EUER bleibt', R.brauchtBilanzStattEuer(2026) === false);

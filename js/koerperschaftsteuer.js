@@ -6,7 +6,17 @@ const Koerperschaftsteuer = {
 
     _year: new Date().getFullYear(),
 
-    SOLZ_SATZ: 0.055,
+    // §4 S. 1 SolzG: 5,5 % der KSt — als Jahresfunktion (CLAUDE.md Regel 7). Annahme: für alle
+    // Jahre derselbe Satz, wie vorher die Konstante SOLZ_SATZ.
+    _solzSatz(year) {
+        return 0.055;
+    },
+
+    // §5a Abs. 3 GmbHG: Quote für die gesetzliche Rücklage der UG (ein Viertel). Annahme: für alle
+    // Jahre derselbe Wert, wie vorher die feste 0.25 in render().
+    _ugRuecklageQuote(year) {
+        return 0.25;
+    },
 
     // §23 Abs.1 KStG i.d.F. des Gesetzes für ein steuerliches Investitionssofortprogramm (2025):
     // 15 % bis VZ 2027, dann jährlich ein Prozentpunkt weniger bis 10 % ab VZ 2032 (T12).
@@ -15,7 +25,7 @@ const Koerperschaftsteuer = {
         if (year >= 2032) return 0.10;
         return (15 - (year - 2027)) / 100;
     },
-    _gesamtSatz(year) { const k = this._kstSatz(year); return k + k * this.SOLZ_SATZ; },
+    _gesamtSatz(year) { const k = this._kstSatz(year); return k + k * this._solzSatz(year); },
 
     // Mindestbesteuerung beim Verlustvortrag (T10). Bis zum Sockelbetrag voll abziehbar, darüber
     // nur zu einer Quote — für KSt (§10d Abs.2 EStG i.V.m. §8 Abs.1 KStG) 70 % in den VZ
@@ -86,7 +96,7 @@ const Koerperschaftsteuer = {
 
         const kstSatz = this._kstSatz(year);
         const kst  = zvE * kstSatz;
-        const solz = kst * this.SOLZ_SATZ;
+        const solz = kst * this._solzSatz(year);
         const gesamt = kst + solz;
 
         // GewSt (GmbH/UG: kein Freibetrag!)
@@ -94,9 +104,10 @@ const Koerperschaftsteuer = {
         const hebesatz = parseFloat(einst.hebesatz) || 400;
         const gewerbeertragVor = opts.gewerbeertrag !== undefined ? opts.gewerbeertrag : gewinn;
         const g = this._verlustabzug(gewerbeertragVor, verlustvortragGewSt, mb.sockel, mb.gewstQuote);
-        // §11 GewStG: Gewerbeertrag auf volle 100 € abrunden, dann Steuermesszahl 3,5%
+        // §11 GewStG: Gewerbeertrag auf volle 100 € abrunden, dann Steuermesszahl aus der einen
+        // Quelle in js/gewerbesteuer.js (lädt in js/app-loader.js vor jedem Aufruf hier)
         const gewerbeertrag = Math.floor(Math.max(0, g.nachAbzug) / 100) * 100;
-        const messbetrag = gewerbeertrag * 0.035;
+        const messbetrag = gewerbeertrag * Gewerbesteuer._getGewStWerte(year).messzahl;
         const gewSt      = messbetrag * (hebesatz / 100);
 
         // Gesamtsteuerbelastung
@@ -149,7 +160,7 @@ const Koerperschaftsteuer = {
         // nicht des zu versteuernden Einkommens vor Steuern. Bei negativem Jahresüberschuss gibt
         // es nichts zu thesaurieren.
         const isUG = rf === 'UG';
-        const thesaurierung = isUG ? Math.max(0, jahresueberschussNachSteuern) * 0.25 : 0;
+        const thesaurierung = isUG ? Math.max(0, jahresueberschussNachSteuern) * this._ugRuecklageQuote(year) : 0;
 
         return `
         <div class="page-header">

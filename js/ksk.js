@@ -25,7 +25,7 @@ const Ksk = {
     },
 
     // BBG (Beitragsbemessungsgrenzen) nach Jahr — jährlich anpassen, Monatswerte
-    // 2026 = Lohnsteuer.BBG (jährlich) / 12: kvpv 69.750/12, rv 101.400/12 — bundeseinheitlich, siehe js/lohnsteuer.js
+    // 2026 = Lohnsteuer._getBBG(2026) (jährlich) / 12: kvpv 69.750/12, rv 101.400/12 — bundeseinheitlich, siehe js/lohnsteuer.js
     _BBG: {
         2024: { kvpv: 5175.00, rv: 7550.00 },
         2025: { kvpv: 5512.50, rv: 8050.00 },

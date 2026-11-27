@@ -23,12 +23,14 @@ const src = fs.readFileSync(__dirname + '/../js/gewerbesteuer.js', 'utf8');
 const hatFreibetragBody = extractMethod(src, '_hatFreibetrag() {', /\n    \},/);
 const _hatFreibetrag = new Function(hatFreibetragBody);
 
-// _calc(year) Body (nutzt this.FREIBETRAG_PERSONEN, this.MESSZAHL, this._getHebesatz(), this._calcGewinn(), this._hatFreibetrag())
+// _calc(year) Body (nutzt this._getGewStWerte(), this._getHebesatz(), this._calcGewinn(), this._hatFreibetrag())
 const calcBody = extractMethod(src, '_calc(year) {', /\n    \},/);
 const _calc = new Function('year', calcBody);
 // Gemeinsamer Rechenkern seit dem Steuer-Audit 2026-10-18 (E-04)
 const berechneBody = extractMethod(src, 'berechne(gewerbeertragRoh, opts) {', /\n    \},/);
 const berechne = new Function('gewerbeertragRoh', 'opts', berechneBody);
+// §11 GewStG-Werte aus der einen Jahresfunktion (CLAUDE.md Regel 7)
+const _getGewStWerte = new Function('year', extractMethod(src, '_getGewStWerte(year) {', /\n    \},/));
 
 let pass = 0, total = 0;
 function check(name, cond) {
@@ -53,8 +55,7 @@ function check(name, cond) {
 {
     global.Rechtsform = { getConfig: () => ({ gewStFreibetrag: 24500 }) };
     const mockThis = {
-        FREIBETRAG_PERSONEN: 24500,
-        MESSZAHL: 0.035,
+        _getGewStWerte,
         _getHebesatz: () => 400,
         _calcGewinn: () => 40000,
         _hatFreibetrag,
@@ -72,7 +73,7 @@ function check(name, cond) {
 {
     global.Rechtsform = { getConfig: () => ({ gewStFreibetrag: 24500 }) };
     const mockThis = {
-        FREIBETRAG_PERSONEN: 24500, MESSZAHL: 0.035,
+        _getGewStWerte,
         _getHebesatz: () => 400, _calcGewinn: () => 40000, _hatFreibetrag, berechne, _sonderSaldo: () => 0,
     };
     const c = _calc.call(mockThis, 2026);
@@ -87,7 +88,7 @@ function check(name, cond) {
 {
     global.Rechtsform = { getConfig: () => ({ gewStFreibetrag: 24500 }) };
     const mockThisNiedrig = {
-        FREIBETRAG_PERSONEN: 24500, MESSZAHL: 0.035,
+        _getGewStWerte,
         _getHebesatz: () => 200, _calcGewinn: () => 40000, _hatFreibetrag, berechne, _sonderSaldo: () => 0,
     };
     const cNiedrig = _calc.call(mockThisNiedrig, 2026);

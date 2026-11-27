@@ -380,7 +380,7 @@ block('GbR-Modul', () => {
     const rfSrc = fs.readFileSync(__dirname + '/../js/rechtsform.js', 'utf8');
     const schwelleBody = extractMethod(rfSrc, 'ueberschreitetAO141Schwelle(year) {', /\n    \},/);
     const _schwelle = new Function('year', schwelleBody);
-    const self = { AO141_UMSATZ_GRENZE: 800000, AO141_GEWINN_GRENZE: 80000 };
+    const self = { _getAO141Grenzen: new Function('year', extractMethod(rfSrc, '_getAO141Grenzen(year) {', /\n    \},/)) };
 
     // Betrieb mit 85.000 EUR vor AfA & Co., davon 20.000 EUR AfA/Fahrt/Material/Eigenbelege.
     // Echter Gewinn 65.000 EUR — unter der Schwelle.

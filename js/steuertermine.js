@@ -197,7 +197,10 @@ const Steuertermine = {
             platStats[p].count++;
             platStats[p].umsatz += parseFloat(s.verkaufspreis) || 0;
         });
-        const pstpgPflicht = Object.entries(platStats).filter(([, v]) => v.count >= 30 || v.umsatz >= 2000);
+        // Schwellen aus der Jahresfunktion in js/statistiken.js (CLAUDE.md Regel 7) — Statistiken
+        // laedt in js/app-loader.js vor diesem Modul.
+        const pst = Statistiken._getPstTgSchwellen(year);
+        const pstpgPflicht = Object.entries(platStats).filter(([, v]) => v.count >= pst.verkaeufe || v.umsatz >= pst.verguetung);
 
         const colorVars = { danger: 'var(--danger)', warning: 'var(--warning)', success: 'var(--success)' };
         const typColors = { steuer: 'badge-info', ust: 'badge-warning', gewerbe: 'badge-neutral', pstg: 'badge-info', svs: 'badge-warning', lohn: 'badge-info', custom: 'badge-success' };
@@ -240,7 +243,7 @@ const Steuertermine = {
                </div>` : '';
 
         const pstpgRows = Object.entries(platStats).map(([plat, v]) => {
-            const pflicht = v.count >= 30 || v.umsatz >= 2000;
+            const pflicht = v.count >= pst.verkaeufe || v.umsatz >= pst.verguetung;
             return `<tr>
                 <td>${Utils.escapeHtml(plat)}</td>
                 <td style="text-align:right">${v.count}</td>

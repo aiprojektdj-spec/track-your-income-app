@@ -12,26 +12,55 @@ const Lohnsteuer = {
     // in Kraft seit 01.01.2026) — https://www.bmas.de/DE/Service/Gesetze-und-Gesetzesvorhaben/sozialversicherungs-rechengroessenverordnung-2026.html
     // Recherchiert am 2026-07-30. KV/RV/AV/PV-Beitragssätze sind ggü. 2025 unverändert,
     // nur die Bemessungsgrenzen (BBG) steigen.
-    SV: {
-        kv:      0.0875,   // Krankenversicherung: 7,3% allgemeiner Satz + hälftiger Ø-Zusatzbeitrag (2,9% / 2 = 1,45%) → AG zahlt 8,75%
-        rv:      0.093,    // Rentenversicherung 18,6% paritätisch → AG-Anteil 9,3%
-        av:      0.013,    // Arbeitslosenversicherung 2,6% paritätisch → AG-Anteil 1,3%
-        pv:      0.018,    // Pflegeversicherung 3,6% Basissatz paritätisch → AG-Anteil 1,8% (§55 Abs. 1 SGB XI).
-                            // Kinderlosenzuschlag §55 Abs. 3 SGB XI (0,6%) wird ausschließlich vom AN getragen,
-                            // hier NICHT modelliert (kein Kinderstatus je Mitarbeiter erfasst) — bekannte Näherung.
+    //
+    // Alle Werte dieses Moduls sind Jahresfunktionen (CLAUDE.md Regel 7). Annahme: Stand 2026
+    // gilt für jedes Jahr, wie vorher bei den jahresfesten Konstanten SV, BBG und SOLI_* —
+    // js/ksk.js führt für 2024/2025 eigene Werte, die hier bewusst NICHT übernommen sind.
+    _getSvSaetze(year) {
+        return {
+            kv:      0.0875,   // Krankenversicherung: 7,3% allgemeiner Satz + hälftiger Ø-Zusatzbeitrag (2,9% / 2 = 1,45%) → AG zahlt 8,75%
+            rv:      0.093,    // Rentenversicherung 18,6% paritätisch → AG-Anteil 9,3%
+            av:      0.013,    // Arbeitslosenversicherung 2,6% paritätisch → AG-Anteil 1,3%
+            pv:      0.018,    // Pflegeversicherung 3,6% Basissatz paritätisch → AG-Anteil 1,8% (§55 Abs. 1 SGB XI).
+                                // Kinderlosenzuschlag §55 Abs. 3 SGB XI (0,6%) wird ausschließlich vom AN getragen,
+                                // hier NICHT modelliert (kein Kinderstatus je Mitarbeiter erfasst) — bekannte Näherung.
+        };
     },
 
     // BBG 2026 (bundeseinheitlich, jährlich)
-    BBG: {
-        kv: 69750,   // Beitragsbemessungsgrenze KV/PV (bundeseinheitlich, 5.812,50 €/Monat)
-        rv: 101400,  // Beitragsbemessungsgrenze RV/AV (bundeseinheitlich seit 2025, 8.450 €/Monat)
+    _getBBG(year) {
+        return {
+            kv: 69750,   // Beitragsbemessungsgrenze KV/PV (bundeseinheitlich, 5.812,50 €/Monat)
+            rv: 101400,  // Beitragsbemessungsgrenze RV/AV (bundeseinheitlich seit 2025, 8.450 €/Monat)
+        };
     },
 
-    // Solidaritätszuschlag-Freigrenze 2026 nach § 3 SolzG (tarifliche Jahres-Lohn-/Einkommensteuer)
+    // Solidaritätszuschlag 2026 nach §§ 3, 4 SolzG (tarifliche Jahres-Lohn-/Einkommensteuer)
     // Quelle: siehe SV-Quelle oben, recherchiert 2026-07-30.
-    SOLI_FREIGRENZE_SINGLE:  20350,  // Steuerklasse I/II/IV/V/VI im Lohnsteuerabzugsverfahren
-    SOLI_FREIGRENZE_SPLIT:   40700,  // Steuerklasse III (unterstellte Zusammenveranlagung beim Lohnsteuerabzug)
-    SOLI_MILDERUNGSSATZ:     0.119, // Milderungszone: Soli max. 11,9% des Betrags über der Freigrenze
+    _getSoli(year) {
+        return {
+            satz:             0.055,  // § 4 S. 1 SolzG
+            freigrenzeSingle: 20350,  // Steuerklasse I/II/IV/V/VI im Lohnsteuerabzugsverfahren
+            freigrenzeSplit:  40700,  // Steuerklasse III (unterstellte Zusammenveranlagung beim Lohnsteuerabzug)
+            milderungssatz:   0.119   // Milderungszone: Soli max. 11,9% des Betrags über der Freigrenze
+        };
+    },
+
+    // Vereinfachte Tarif-Näherung (kein BMF-Programmablaufplan): Pauschbeträge §9a S. 1 Nr. 1a
+    // und §10c EStG, danach ein Durchschnittssatz je Einkommenszone. Werte wie bisher fest.
+    _getTarifNaeherung(year) {
+        return {
+            anPauschbetrag: 1230,
+            saPauschbetrag: 36,
+            zonen: [{ bis: 17005, satz: 0.14 }, { bis: 66760, satz: 0.24 }, { bis: 277825, satz: 0.35 }],
+            spitzensatz: 0.42
+        };
+    },
+
+    // U1/U2/U3-Umlagen (AAG, §358 SGB III) — pauschale Näherung ~2,4 % gesamt
+    _umlagenSatz(year) {
+        return 0.024;
+    },
 
     _getEmployees()   { return Store.get('lohnsteuer_employees') || []; },
     _saveEmployees(d) { Store.set('lohnsteuer_employees', d); },
@@ -59,11 +88,13 @@ const Lohnsteuer = {
         // Arbeitnehmer-Pauschbetrag 1.230 € (§9a S.1 Nr.1a EStG) und Sonderausgaben-Pauschbetrag 36 €
         // (§10c EStG) mindern vor dem Vergleich mit dem Grundfreibetrag — sonst 154 € Lohnsteuer auf
         // 1.100 €/Monat, wo keine anfällt (E-11). Die übrige Näherung bleibt unverändert.
-        if (jahresBrutto - 1230 - 36 <= this._grundfreibetrag(this._year)) lstSatz = 0;
-        else if (jahresBrutto <= 17005) lstSatz = 0.14;
-        else if (jahresBrutto <= 66760) lstSatz = 0.24;
-        else if (jahresBrutto <= 277825) lstSatz = 0.35;
-        else                            lstSatz = 0.42;
+        const year = this._year;
+        const tarif = this._getTarifNaeherung(year);
+        if (jahresBrutto - tarif.anPauschbetrag - tarif.saPauschbetrag <= this._grundfreibetrag(year)) lstSatz = 0;
+        else {
+            const zone = tarif.zonen.find(z => jahresBrutto <= z.bis);
+            lstSatz = zone ? zone.satz : tarif.spitzensatz;
+        }
 
         // Steuerklasse-Anpassung (sehr vereinfacht)
         if (steuerklasse === 3) lstSatz *= 0.7;
@@ -78,42 +109,45 @@ const Lohnsteuer = {
         // Freigrenze — StKl IV ist zwar auch "verheiratet", aber ohne Splitting-Vorteil beim
         // Lohnsteuerabzug, und StKl V/VI werden ohnehin mit dem hohen Grenzsteuersatz belastet.
         const jahresLohnsteuer = lohnsteuer * 12;
+        const soli = this._getSoli(year);
         const soliFreigrenze = (steuerklasse === 3)
-            ? this.SOLI_FREIGRENZE_SPLIT
-            : this.SOLI_FREIGRENZE_SINGLE;
+            ? soli.freigrenzeSplit
+            : soli.freigrenzeSingle;
         let solzJahres = 0;
         if (jahresLohnsteuer > soliFreigrenze) {
             // Milderungszone: Soli max. 11,9% des Betrags über der Freigrenze, sonst 5,5% der ESt.
-            const milderungsSoli = (jahresLohnsteuer - soliFreigrenze) * this.SOLI_MILDERUNGSSATZ;
-            const vollerSoli = jahresLohnsteuer * 0.055;
+            const milderungsSoli = (jahresLohnsteuer - soliFreigrenze) * soli.milderungssatz;
+            const vollerSoli = jahresLohnsteuer * soli.satz;
             solzJahres = Math.min(milderungsSoli, vollerSoli);
         }
         const solz = solzJahres / 12;
         const kirchensteuer = 0; // optional, default aus
 
         // SV-Beiträge AN (gleich wie AG)
-        const kvBrutto = Math.min(brutto * 12, this.BBG.kv) / 12;
-        const rvBrutto = Math.min(brutto * 12, this.BBG.rv) / 12;
+        const bbg = this._getBBG(year);
+        const sv = this._getSvSaetze(year);
+        const kvBrutto = Math.min(brutto * 12, bbg.kv) / 12;
+        const rvBrutto = Math.min(brutto * 12, bbg.rv) / 12;
 
         const svAN = {
-            kv: kvBrutto * this.SV.kv,
-            rv: rvBrutto * this.SV.rv,
-            av: rvBrutto * this.SV.av,
-            pv: kvBrutto * this.SV.pv,
+            kv: kvBrutto * sv.kv,
+            rv: rvBrutto * sv.rv,
+            av: rvBrutto * sv.av,
+            pv: kvBrutto * sv.pv,
         };
         const svANGesamt = svAN.kv + svAN.rv + svAN.av + svAN.pv;
 
         // AG-Anteile (gleich)
         const svAG = {
-            kv: kvBrutto * this.SV.kv,
-            rv: rvBrutto * this.SV.rv,
-            av: rvBrutto * this.SV.av,
-            pv: kvBrutto * this.SV.pv,
+            kv: kvBrutto * sv.kv,
+            rv: rvBrutto * sv.rv,
+            av: rvBrutto * sv.av,
+            pv: kvBrutto * sv.pv,
         };
         const svAGGesamt = svAG.kv + svAG.rv + svAG.av + svAG.pv;
 
         // U1/U2/U3 Umlagen (Näherung)
-        const umlagen = brutto * 0.024; // ~2,4% gesamt
+        const umlagen = brutto * this._umlagenSatz(year); // ~2,4% gesamt
 
         const netto = brutto - lohnsteuer - solz - kirchensteuer - svANGesamt;
         const agKostenGesamt = brutto + svAGGesamt + umlagen;
@@ -255,10 +289,10 @@ const Lohnsteuer = {
             <div style="font-weight:700;font-size:13px;margin-bottom:10px;">Sozialversicherung ${year} — AG-Anteile</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
                 ${[
-                    ['KV', (this.SV.kv * 100).toFixed(2) + '%', 'Krankenversicherung'],
-                    ['RV', (this.SV.rv * 100).toFixed(1) + '%', 'Rentenversicherung'],
-                    ['AV', (this.SV.av * 100).toFixed(1) + '%', 'Arbeitslosenvers.'],
-                    ['PV', (this.SV.pv * 100).toFixed(3) + '%', 'Pflegeversicherung'],
+                    ['KV', (this._getSvSaetze(this._year).kv * 100).toFixed(2) + '%', 'Krankenversicherung'],
+                    ['RV', (this._getSvSaetze(this._year).rv * 100).toFixed(1) + '%', 'Rentenversicherung'],
+                    ['AV', (this._getSvSaetze(this._year).av * 100).toFixed(1) + '%', 'Arbeitslosenvers.'],
+                    ['PV', (this._getSvSaetze(this._year).pv * 100).toFixed(3) + '%', 'Pflegeversicherung'],
                 ].map(([k, v, l]) => `
                     <div style="background:var(--bg-secondary);border-radius:8px;padding:10px 12px;">
                         <div style="font-size:11px;color:var(--text-muted);">${l}</div>
@@ -267,7 +301,7 @@ const Lohnsteuer = {
                     </div>`).join('')}
             </div>
             <div style="margin-top:10px;font-size:11px;color:var(--text-muted);">
-                BBG KV/PV: ${Utils.formatCurrency(this.BBG.kv)}/Jahr · BBG RV/AV: ${Utils.formatCurrency(this.BBG.rv)}/Jahr (bundeseinheitlich)<br>
+                BBG KV/PV: ${Utils.formatCurrency(this._getBBG(this._year).kv)}/Jahr · BBG RV/AV: ${Utils.formatCurrency(this._getBBG(this._year).rv)}/Jahr (bundeseinheitlich)<br>
                 <strong>Vereinfachte Näherung, keine amtliche Lohnsteuerberechnung</strong> — exakte Werte über DATEV/Lohnsoftware oder Steuerberater. Keine Lohnsteuerberatung.
             </div>
         </div>`;
@@ -287,13 +321,13 @@ const Lohnsteuer = {
                 <span style="color:var(--text-muted);">− Solidaritätszuschlag</span>
                 <span style="text-align:right;color:var(--danger)">− ${Utils.formatCurrency(c.solz)}</span>
 
-                <span style="color:var(--text-muted);">− KV AN (${(this.SV.kv * 100).toFixed(2)}%)</span>
+                <span style="color:var(--text-muted);">− KV AN (${(this._getSvSaetze(this._year).kv * 100).toFixed(2)}%)</span>
                 <span style="text-align:right;color:var(--danger)">− ${Utils.formatCurrency(c.svAN.kv)}</span>
-                <span style="color:var(--text-muted);">− RV AN (${(this.SV.rv * 100).toFixed(1)}%)</span>
+                <span style="color:var(--text-muted);">− RV AN (${(this._getSvSaetze(this._year).rv * 100).toFixed(1)}%)</span>
                 <span style="text-align:right;color:var(--danger)">− ${Utils.formatCurrency(c.svAN.rv)}</span>
-                <span style="color:var(--text-muted);">− AV AN (${(this.SV.av * 100).toFixed(1)}%)</span>
+                <span style="color:var(--text-muted);">− AV AN (${(this._getSvSaetze(this._year).av * 100).toFixed(1)}%)</span>
                 <span style="text-align:right;color:var(--danger)">− ${Utils.formatCurrency(c.svAN.av)}</span>
-                <span style="color:var(--text-muted);">− PV AN (${(this.SV.pv * 100).toFixed(3)}%)</span>
+                <span style="color:var(--text-muted);">− PV AN (${(this._getSvSaetze(this._year).pv * 100).toFixed(3)}%)</span>
                 <span style="text-align:right;color:var(--danger)">− ${Utils.formatCurrency(c.svAN.pv)}</span>
 
                 <div style="grid-column:1/-1;border-top:2px solid var(--border);margin:4px 0;"></div>

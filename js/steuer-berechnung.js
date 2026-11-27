@@ -116,7 +116,7 @@ const SteuerBerechnung = {
         const y = parseInt(String(s.datum).slice(0, 4), 10);
         if (!ossCache[y]) ossCache[y] = OSS._ueberSchwelleIds(y);
         if (!ossCache[y].has(s.id)) return null;
-        const r = OSS.EU_VAT_RATES[s.land];
+        const r = OSS._getEuSaetze(y)[s.land];
         return r === undefined ? null : r;
     },
 
@@ -182,6 +182,13 @@ const SteuerBerechnung = {
     // Gesetzeswert gehört nie in eine jahresfeste Konstante.
     pauschalmargeSatz(year) {
         return 0.30;
+    },
+
+    // Gesamtdifferenz nach §25a Abs. 4 UStG nur für Gegenstände, deren Einkaufspreis diesen
+    // Betrag „nicht übersteigt“. Jahresfunktion nach Arbeitsregel 7. Annahme: für alle Jahre
+    // 750 €, wie vorher die feste Zahl in js/ustvoranmeldung.js.
+    gesamtdifferenzGrenze(year) {
+        return 750;
     },
 
     // Rohmarge EINER Position, vor Floor und vor Korrektur.

@@ -58,8 +58,8 @@ console.log('\n── Fix 1+3: BBG 2026 bundeseinheitlich — lohnsteuer.js und 
 
 // Amtliche 2026-Werte (SVBezGrV 2026): KV/PV 69.750 €/Jahr (5.812,50 €/Monat),
 // RV/AV 101.400 €/Jahr (8.450 €/Monat) — bundeseinheitlich seit 2025.
-eq('Lohnsteuer.BBG.kv (KV/PV, jährlich) = amtlicher 2026-Wert', Lohnsteuer.BBG.kv, 69750);
-eq('Lohnsteuer.BBG.rv (RV/AV, jährlich) = amtlicher 2026-Wert', Lohnsteuer.BBG.rv, 101400);
+eq('Lohnsteuer._getBBG(2026).kv (KV/PV, jährlich) = amtlicher 2026-Wert', Lohnsteuer._getBBG(2026).kv, 69750);
+eq('Lohnsteuer._getBBG(2026).rv (RV/AV, jährlich) = amtlicher 2026-Wert', Lohnsteuer._getBBG(2026).rv, 101400);
 
 const kskBbg2026 = Ksk._getBBG(2026);
 eq('Ksk._BBG[2026].kvpv (monatlich) = amtlicher 2026-Wert', kskBbg2026.kvpv, 5812.50);
@@ -69,19 +69,19 @@ ok('Ksk 2026 BBG ist NICHT mehr identisch zu 2025 (Bug behoben)',
     JSON.stringify(Ksk._getBBG(2026)) !== JSON.stringify(Ksk._getBBG(2025)));
 
 close('KV/PV-BBG: Lohnsteuer (Jahr) === Ksk (Monat) × 12 — beide bundeseinheitlich',
-    Lohnsteuer.BBG.kv, kskBbg2026.kvpv * 12);
+    Lohnsteuer._getBBG(2026).kv, kskBbg2026.kvpv * 12);
 close('RV/AV-BBG: Lohnsteuer (Jahr) === Ksk (Monat) × 12 — beide bundeseinheitlich',
-    Lohnsteuer.BBG.rv, kskBbg2026.rv * 12);
+    Lohnsteuer._getBBG(2026).rv, kskBbg2026.rv * 12);
 
 console.log('\n── Fix 1: SV-Beitragssätze 2026 (AG-Anteil) — amtliche Werte ──');
-close('KV AG-Anteil 2026 = 7,3% + Ø-Zusatzbeitrag/2 (2,9%/2) = 8,75%', Lohnsteuer.SV.kv, 0.0875, 0.0001);
-close('RV AG-Anteil 2026 = 18,6%/2 = 9,3% (unverändert ggü. 2025)', Lohnsteuer.SV.rv, 0.093, 0.0001);
-close('AV AG-Anteil 2026 = 2,6%/2 = 1,3% (unverändert ggü. 2025)', Lohnsteuer.SV.av, 0.013, 0.0001);
-close('PV AG-Anteil 2026 = 3,6%/2 = 1,8% (unverändert ggü. 2025)', Lohnsteuer.SV.pv, 0.018, 0.0001);
+close('KV AG-Anteil 2026 = 7,3% + Ø-Zusatzbeitrag/2 (2,9%/2) = 8,75%', Lohnsteuer._getSvSaetze(2026).kv, 0.0875, 0.0001);
+close('RV AG-Anteil 2026 = 18,6%/2 = 9,3% (unverändert ggü. 2025)', Lohnsteuer._getSvSaetze(2026).rv, 0.093, 0.0001);
+close('AV AG-Anteil 2026 = 2,6%/2 = 1,3% (unverändert ggü. 2025)', Lohnsteuer._getSvSaetze(2026).av, 0.013, 0.0001);
+close('PV AG-Anteil 2026 = 3,6%/2 = 1,8% (unverändert ggü. 2025)', Lohnsteuer._getSvSaetze(2026).pv, 0.018, 0.0001);
 
 console.log('\n── Fix 2: Soli-Freigrenze § 3 SolzG (2026: 20.350 € ledig / 40.700 € Splitting) ──');
-eq('SOLI_FREIGRENZE_SINGLE = 20.350 €', Lohnsteuer.SOLI_FREIGRENZE_SINGLE, 20350);
-eq('SOLI_FREIGRENZE_SPLIT = 40.700 €', Lohnsteuer.SOLI_FREIGRENZE_SPLIT, 40700);
+eq('SOLI_FREIGRENZE_SINGLE = 20.350 €', Lohnsteuer._getSoli(2026).freigrenzeSingle, 20350);
+eq('SOLI_FREIGRENZE_SPLIT = 40.700 €', Lohnsteuer._getSoli(2026).freigrenzeSplit, 40700);
 
 // StKl 5 multipliziert den Pauschalsatz mit 1,3 (bereits vorher im Code) — das erlaubt uns,
 // den Umschlagpunkt der Freigrenze exakt innerhalb einer einzigen Tarifstufe (24%) zu treffen,
@@ -131,8 +131,8 @@ ok('Kinderlosenzuschlag NICHT auf KV/RV angewendet (nur PV betroffen)',
 
 close('Ksk KV-Satz 2026 = 7,3% + Ø-Zusatzbeitrag/2 = 8,75% (war zu niedrig: 7,5%)',
     Ksk._getSaetze(2026).kv, 0.0875, 0.0001);
-ok('Ksk KV-Satz 2026 an Lohnsteuer.SV.kv (bundeseinheitlicher AN/AG-Satz) angeglichen',
-    Ksk._getSaetze(2026).kv === Lohnsteuer.SV.kv);
+ok('Ksk KV-Satz 2026 an Lohnsteuer._getSvSaetze(2026).kv (bundeseinheitlicher AN/AG-Satz) angeglichen',
+    Ksk._getSaetze(2026).kv === Lohnsteuer._getSvSaetze(2026).kv);
 
 console.log('\n' + '='.repeat(60));
 console.log(`${pass} bestanden, ${fail} fehlgeschlagen`);

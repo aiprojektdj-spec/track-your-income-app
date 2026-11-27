@@ -409,13 +409,21 @@ const Afa = {
         akInput.addEventListener('input', () => {
             if (methodeManuellGesetzt) return;
             const ak = akNettoForm();
-            methodeSel.value = (ak > 0 && ak <= 800) ? 'sofort' : 'linear';
+            const datumEl = document.getElementById('afa_datum');
+            methodeSel.value = (ak > 0 && ak <= this._gwgGrenze(datumEl && datumEl.value)) ? 'sofort' : 'linear';
             updateSofortState();
         });
         updateSofortState();
     },
 
     _editAnlage(id) { this._openForm(id); },
+
+    // GWG-Grenze §6 Abs. 2 S. 1 EStG (netto) je Anschaffungsdatum — Muster wie _eAutoGrenze
+    // (CLAUDE.md Regel 7). Annahme: für jedes Datum 800 €, wie vorher die feste Zahl; ältere
+    // Grenzen sind nicht abgebildet.
+    _gwgGrenze(anschaffung) {
+        return 800;
+    },
 
     // Netto-AK für die GWG-Grenze (E-02)
     _gwgNetto(ak, ustEnthalten) {
@@ -441,6 +449,12 @@ const Afa = {
         if (d < '2025-07-01') return 70000;
         return 100000;
     },
+    // 1 % des Listenpreises je Monat (§6 Abs. 1 Nr. 4 S. 2 EStG) und 80 % davon als USt-Bemessung
+    // (Abschn. 15.23 Abs. 5 UStAE) — als Jahresfunktion (CLAUDE.md Regel 7). Annahme: für jedes
+    // Datum dieselben Werte, wie vorher die festen 0.01 und 0.8.
+    _kfzPauschalen(datum) {
+        return { satz: 0.01, ustBemessung: 0.8 };
+    },
     _kfzFaktor(asset) {
         const d = String(asset.anschaffungsdatum || '');
         const beguenstigt = d >= '2019-01-01' && d < '2031-01-01';
@@ -461,7 +475,8 @@ const Afa = {
         ((typeof Store !== 'undefined' && Store.getAfaAnlagen) ? Store.getAfaAnlagen() : []).filter(a => this._hat1Prozent(a)).forEach(a => {
             const blp = parseFloat(a.bruttolistenpreis) || 0;
             const abger = Math.floor(blp / 100) * 100;
-            const wert = Math.floor(blp * this._kfzFaktor(a) / 100) * 100 * 0.01;
+            const pausch = this._kfzPauschalen(a.anschaffungsdatum);
+            const wert = Math.floor(blp * this._kfzFaktor(a) / 100) * 100 * pausch.satz;
             const vst = regelAm(a.anschaffungsdatum);
             const von = String(a.anschaffungsdatum).slice(0, 7);
             const bis = a.abgangsdatum ? String(a.abgangsdatum).slice(0, 7) : '9999-12';
@@ -471,7 +486,7 @@ const Afa = {
                 const mon = y + '-' + String(m).padStart(2, '0');
                 if (mon > ende) break;
                 if (mon >= von && mon <= bis) {
-                    const bemessung = vst && regelAm(mon + '-01') ? Math.round(abger * 0.01 * 0.8 * 100) / 100 : 0;
+                    const bemessung = vst && regelAm(mon + '-01') ? Math.round(abger * pausch.satz * pausch.ustBemessung * 100) / 100 : 0;
                     monate.push({ anlageId: a.id, monat: mon, wert, bemessung, ust: Math.round(bemessung * 19) / 100 });
                 }
                 if (++m > 12) { m = 1; y++; }
@@ -498,7 +513,7 @@ const Afa = {
         if (!Number.isFinite(ak) || ak <= 0 || ak > 99999999) { Utils.showToast('Anschaffungskosten ungültig', 'error'); return; }
         // §6 Abs.2 EStG: Sofortabschreibung nur für GWG bis 800€ netto — sonst Bußgeldrisiko bei Betriebsprüfung
         if (ustEnthalten >= ak && ustEnthalten > 0) { Utils.showToast('Die enthaltene USt muss kleiner als die Anschaffungskosten sein', 'error'); return; }
-        if (methode === 'sofort' && this._gwgNetto(ak, ustEnthalten) > 800) { Utils.showToast('Sofortabschreibung (GWG) nur bis 800€ netto AK zulässig (§6 Abs.2 EStG)', 'error'); return; }
+        if (methode === 'sofort' && this._gwgNetto(ak, ustEnthalten) > this._gwgGrenze(datum)) { Utils.showToast('Sofortabschreibung (GWG) nur bis 800€ netto AK zulässig (§6 Abs.2 EStG)', 'error'); return; }
         if (methode === 'sofort') nd = 1; // Nutzungsdauer irrelevant bei Sofortabschreibung
         // §7 Abs.2 EStG: degressiv nur bei Anschaffung in einem begünstigten Zeitfenster (T08)
         if (methode === 'degressiv' && !this._degressivRegel(datum)) {

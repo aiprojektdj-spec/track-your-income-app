@@ -6,8 +6,14 @@ const Gewerbesteuer = {
 
     _year: new Date().getFullYear(),
 
-    MESSZAHL: 0.035, // 3,5% Steuermesszahl
-    FREIBETRAG_PERSONEN: 24500, // §11 Abs. 1 GewStG — nur Personengesellschaften/EU
+    // §11 GewStG je Erhebungszeitraum — die EINE Quelle für Steuermesszahl (Abs. 2, 3,5 %) und
+    // Freibetrag (Abs. 1 S. 3 Nr. 1, 24.500 €, nur natürliche Personen/Personengesellschaften).
+    // js/gbr.js und js/koerperschaftsteuer.js lesen hier mit, statt eigene Konstanten zu führen
+    // (CLAUDE.md Regel 7). Annahme: für alle Jahre dieselben Werte — ab wann sie gelten, ist hier
+    // nicht recherchiert; vorher galten sie ebenfalls fest für jedes Jahr.
+    _getGewStWerte(year) {
+        return { messzahl: 0.035, freibetrag: 24500 };
+    },
 
     // EIN Hebesatz-Speicher: gbr_einstellungen.hebesatz. Die EÜR schrieb bis zum Steuer-Audit
     // 2026-10-18 (E-04) in settings.gewerbesteuerHebesatz — derselbe Betrieb hatte dadurch zwei
@@ -40,13 +46,15 @@ const Gewerbesteuer = {
 
     // Der eine Rechenkern (E-04): Gewerbeertrag auf volle 100 € abrunden, Freibetrag kürzen
     // (§11 Abs.1 S.3 GewStG), Messzahl 3,5 %, Hebesatz.
+    // opts.year: Erhebungszeitraum für _getGewStWerte (ohne Angabe das gewählte Jahr).
     berechne(gewerbeertragRoh, opts) {
         opts = opts || {};
-        const freibetrag = opts.freibetrag === false ? 0 : this.FREIBETRAG_PERSONEN;
+        const w = this._getGewStWerte(opts.year || this._year);
+        const freibetrag = opts.freibetrag === false ? 0 : w.freibetrag;
         const hebesatz = opts.hebesatz || this._getHebesatz();
         const gerundet = Math.floor(Math.max(0, gewerbeertragRoh) / 100) * 100;
         const gewerbeertrag = Math.max(0, gerundet - freibetrag);
-        const messbetrag = gewerbeertrag * this.MESSZAHL;
+        const messbetrag = gewerbeertrag * w.messzahl;
         return { gewerbeertrag, freibetrag, messbetrag, hebesatz, gewSt: Math.round(messbetrag * hebesatz) / 100 };
     },
 
@@ -90,7 +98,7 @@ const Gewerbesteuer = {
     _calc(year) {
         const gewinn = this._calcGewinn(year) + this._sonderSaldo(year);
         const hatFreibetrag = this._hatFreibetrag();
-        const k = this.berechne(gewinn, { freibetrag: hatFreibetrag });
+        const k = this.berechne(gewinn, { freibetrag: hatFreibetrag, year });
         const { gewerbeertrag, freibetrag, messbetrag, hebesatz, gewSt } = k;
 
         // §35 EStG Anrechnung (nur Personengesellschaften/EU natürliche Personen).
@@ -172,7 +180,7 @@ const Gewerbesteuer = {
 
                 <div style="grid-column:1/-1;border-top:1px solid var(--border);margin:6px 0;"></div>
 
-                <span style="color:var(--text-muted);">× Steuermesszahl ${(this.MESSZAHL * 100).toFixed(1)} %</span>
+                <span style="color:var(--text-muted);">× Steuermesszahl ${(this._getGewStWerte(year).messzahl * 100).toFixed(1)} %</span>
                 <span style="text-align:right;">${Utils.formatCurrency(c.messbetrag)}</span>
 
                 <span style="color:var(--text-muted);">× Hebesatz ${c.hebesatz} %</span>

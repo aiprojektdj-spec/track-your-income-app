@@ -198,9 +198,9 @@ console.log('\n── D. Steuersaetze und Kleinunternehmer ───────
 block(() => {
     const O = lade({});
     check('D1 Alle 26 uebrigen EU-Laender haben einen Regelsatz hinterlegt',
-        Object.keys(O.EU_VAT_RATES).length === 26 && !O.EU_VAT_RATES.DE);
+        Object.keys(O._getEuSaetze(2026)).length === 26 && !O._getEuSaetze(2026).DE);
     check('D2 Kein Satz ist unplausibel (15–28 %)',
-        Object.values(O.EU_VAT_RATES).every(r => r >= 15 && r <= 28));
+        Object.values(O._getEuSaetze(2026)).every(r => r >= 15 && r <= 28));
     check('D3 Der Stand der Satztabelle ist datiert',
         /^\d{4}-\d{2}-\d{2}$/.test(O.RATES_STAND));
 

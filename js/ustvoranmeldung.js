@@ -440,8 +440,9 @@ const UstVoranmeldung = {
             // der sie gehört — sonst senkt die Retoure eines >750€-Artikels die Gesamtdifferenz, in
             // der er gar nicht steckt, während er selbst seine volle Marge behält: zwei Fehler auf
             // einmal. Der Rest (kein passender >750er in der Periode) bleibt bei der Gesamtdifferenz.
+            const ekGrenze = SteuerBerechnung.gesamtdifferenzGrenze(this._year);   // 750 €, Regel 7
             const ueber750Refs = new Set(
-                diff25aPositionenRoh.filter(p => p.einkaufspreis > 750 && p.ref).map(p => p.ref)
+                diff25aPositionenRoh.filter(p => p.einkaufspreis > ekGrenze && p.ref).map(p => p.ref)
             );
             // Pauschalmarge-Positionen gehoeren ebenfalls NICHT in die Gesamtdifferenz. §25a Abs. 4
             // laesst sie nur fuer Gegenstaende zu, deren Einkaufspreis 750 EUR "nicht uebersteigt" —
@@ -451,7 +452,7 @@ const UstVoranmeldung = {
             // Gesamtdifferenz gegen Verluste anderer Gegenstaende aufgerechnet werden koennte —
             // das waere die Richtung, die Geld kostet. Faellt sonst still in den falschen Topf,
             // weil `undefined > 750` false ergibt.
-            const _istUeber750 = p => p.einkaufspreis > 750 || p.pauschalmarge === true ||
+            const _istUeber750 = p => p.einkaufspreis > ekGrenze || p.pauschalmarge === true ||
                 (p.margeKorrektur != null && p.ref && ueber750Refs.has(p.ref));
             const ueber750 = diff25aPositionenRoh.filter(_istUeber750);
             diff25a = SteuerBerechnung.margeGesamtdifferenz(

@@ -570,8 +570,8 @@ const Fahrtenbuch = {
             // `min="0"` am Feld greift nur bei nativer Formularvalidierung — ein negativer Wert
             // (eingefügt, per Autofill oder Skript gesetzt) kam hier bisher durch und hätte die
             // Kilometerpauschale ins Minus gerechnet.
-            if (!Number.isFinite(km) || km < 0) { Utils.showToast('Ungültige Kilometerangabe', 'error'); return; }
-            if (art === 'tatsaechlich' && (!Number.isFinite(tk) || tk < 0)) { Utils.showToast('Ungültige Kostenangabe', 'error'); return; }
+            if (!Number.isFinite(km) || km < 0) { Utils.showToast('Ungültige Kilometerangabe. Bitte 0 oder eine positive Zahl eingeben.', 'error'); return; }
+            if (art === 'tatsaechlich' && (!Number.isFinite(tk) || tk < 0)) { Utils.showToast('Ungültige Kostenangabe. Bitte 0 € oder einen positiven Betrag eingeben.', 'error'); return; }
 
             // km-Stand ist GoBD-relevante Pflichtangabe eines ordnungsgemäßen Fahrtenbuchs
             // (fortlaufende, lückenlose Kilometerstände) — nicht mehr optional.

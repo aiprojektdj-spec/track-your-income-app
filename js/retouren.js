@@ -341,7 +341,7 @@ const Retouren = {
             const saleId = (document.getElementById('rt_saleId') || {}).value || '';
             // Negative Beträge liefen früher ungeprüft durch und drehten in EÜR und UVA das Vorzeichen.
             const vkPreisRaw = parseFloat(document.getElementById('rt_vkPreis').value) || 0;
-            if (!Number.isFinite(vkPreisRaw) || vkPreisRaw < 0) { Utils.showToast('Ungültiger Verkaufspreis', 'error'); return; }
+            if (!Number.isFinite(vkPreisRaw) || vkPreisRaw < 0) { Utils.showToast('Ungültiger Verkaufspreis. Bitte 0 € oder einen positiven Betrag eingeben.', 'error'); return; }
             const artikelBoxen = document.querySelectorAll ? Array.from(document.querySelectorAll('.rt-artikel')) : [];
             this._busy = true;
             let res;

@@ -510,7 +510,7 @@ const Afa = {
 
         if (!bez) { Utils.showToast('Bezeichnung fehlt', 'error'); return; }
         if (!datum) { Utils.showToast('Datum fehlt', 'error'); return; }
-        if (!Number.isFinite(ak) || ak <= 0 || ak > 99999999) { Utils.showToast('Anschaffungskosten ungültig', 'error'); return; }
+        if (!Number.isFinite(ak) || ak <= 0 || ak > 99999999) { Utils.showToast('Anschaffungskosten ungültig. Bitte einen Betrag über 0 € eingeben.', 'error'); return; }
         // §6 Abs.2 EStG: Sofortabschreibung nur für GWG bis 800€ netto — sonst Bußgeldrisiko bei Betriebsprüfung
         if (ustEnthalten >= ak && ustEnthalten > 0) { Utils.showToast('Die enthaltene USt muss kleiner als die Anschaffungskosten sein', 'error'); return; }
         if (methode === 'sofort' && this._gwgNetto(ak, ustEnthalten) > this._gwgGrenze(datum)) { Utils.showToast('Sofortabschreibung (GWG) nur bis 800€ netto AK zulässig (§6 Abs.2 EStG)', 'error'); return; }
@@ -563,7 +563,7 @@ const Afa = {
         if (erlRaw === null) return;
         const _e = erlRaw.trim();
         const erl = !_e ? 0 : parseFloat(_e.indexOf(',') !== -1 ? _e.replace(/\./g, '').replace(',', '.') : _e);   // 1.234,56 oder 1234.56
-        if (!Number.isFinite(erl) || erl < 0) { Utils.showToast('Ungültiger Verkaufserlös', 'error'); return; }
+        if (!Number.isFinite(erl) || erl < 0) { Utils.showToast('Ungültiger Verkaufserlös. Bitte 0 € oder einen positiven Betrag eingeben.', 'error'); return; }
         const r = Store.abgangAfaAnlage(id, datum.trim());
         if (!r.ok) { Utils.showToast(r.fehler, 'error'); return; }
         if (erl > 0) {

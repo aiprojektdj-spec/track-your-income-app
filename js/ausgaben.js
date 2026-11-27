@@ -655,7 +655,7 @@ const Ausgaben = {
             const datum = Utils.getDateInputValue('exp_datum');
             const betrag = parseFloat(document.getElementById('exp_betrag').value) || 0;
             if (!Number.isFinite(betrag) || betrag < 0 || betrag > 99999999) {
-                Utils.showToast('Betrag ungültig', 'error');
+                Utils.showToast('Betrag ungültig. Bitte 0 € oder einen positiven Betrag eingeben.', 'error');
                 return;
             }
             if (this._leseProzent('exp_privatAnteil') === null) {
@@ -876,7 +876,7 @@ const Ausgaben = {
         // Storno
         document.querySelectorAll('[data-storno-expense]').forEach(btn => {
             btn.addEventListener('click', () => {
-                const grund = prompt('Stornogrund angeben (Pflicht fuer Revisionssicherheit):');
+                const grund = prompt('Stornogrund angeben (Pflicht für Revisionssicherheit):');
                 if (!grund) return;
                 Store.stornoExpense(btn.dataset.stornoExpense, grund);
                 Utils.showToast('Ausgabe storniert', 'success');

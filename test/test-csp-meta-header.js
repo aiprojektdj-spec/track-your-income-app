@@ -74,10 +74,27 @@ for (const f of ['app.html', 'lager/index.html', 'rechnungen/index.html', 'eigen
 }
 pass++; console.log('✓ App-Seiten erlauben beide Supabase-Projekte');
 
+// ui-lab erzeugt keine blob:-Bilder (kein createObjectURL) — Header-CSP ohne blob: (B2-Audit
+// 2026-11-27). Die Landing-Seiten tragen blob: noch in der Meta-CSP; test-csp-meta-http.js
+// verlangt Gleichstand, also erst Meta und Header gemeinsam enger ziehen.
+// Die App-Seiten brauchen blob: weiter (Beleg-Vorschau).
+function imgSrc(policy) {
+    const d = policy.split(';').map(s => s.trim()).find(s => /^img-src\s/.test(s));
+    return d ? d.split(/\s+/).slice(1) : [];
+}
+for (const r of ['/ui-lab.html']) {
+    assert.ok(header[r], 'keine Header-CSP für ' + r);
+    assert.deepStrictEqual(imgSrc(header[r]), ["'self'", 'data:'], r + ': img-src');
+}
+for (const r of ['/app', '/app.html', '/lager(/.*)?', '/rechnungen(.*)', '/eigenbelege(.*)']) {
+    assert.ok(imgSrc(header[r]).indexOf('blob:') !== -1, r + ': img-src ohne blob:');
+}
+pass++; console.log('✓ img-src: ui-lab ohne blob:, App-Routen mit');
+
 // Der Vergleich schlägt an — sonst prüft Fall 1 nichts
 assert.notStrictEqual(connectSrc("default-src 'self'; connect-src 'self' https://a.example"),
                       connectSrc("connect-src 'self'"));
 assert.strictEqual(connectSrc("connect-src https://b 'self'"), connectSrc("x; connect-src 'self' https://b"));
 pass++; console.log('✓ Vergleich erkennt Abweichung, Reihenfolge egal');
 
-console.log('\n' + pass + '/3 CSP-Abgleich-Tests bestanden ✅');
+console.log('\n' + pass + '/4 CSP-Abgleich-Tests bestanden ✅');

@@ -10,7 +10,7 @@ const Rechtsform = {
         'Einzelunternehmen': {
             label:      'Einzelunternehmen',
             kurz:       'EU',
-            gewinnermittlung: 'euer',        // EÜR unterhalb der §141-AO-Grenzen, s. AO141_*_GRENZE
+            gewinnermittlung: 'euer',        // EÜR unterhalb der §141-AO-Grenzen, s. _getAO141Grenzen(year)
             bilanzPflicht:    false,          // nur wenn HGB-Grenzen überschritten
             bilanzOptional:   true,           // freiwillig möglich
             gewerbesteuer:    true,
@@ -250,14 +250,18 @@ const Rechtsform = {
 
     // §141 AO (seit 1.1.2024): Umsatz > 800.000 € ODER Gewinn > 80.000 € → Bilanzierungspflicht
     // ab dem übernächsten Jahr für gewerbliche Einzelunternehmer/Personengesellschaften.
-    AO141_UMSATZ_GRENZE: 800000,
-    AO141_GEWINN_GRENZE: 80000,
+    // Jahresfunktion statt Konstante (CLAUDE.md Regel 7). Annahme: für alle Jahre dieselben
+    // Grenzen, wie vorher die Konstanten AO141_*_GRENZE — frühere Grenzen sind nicht abgebildet.
+    _getAO141Grenzen(year) {
+        return { umsatz: 800000, gewinn: 80000 };
+    },
 
     ueberschreitetAO141Schwelle(year) {
         if (typeof GbrModul === 'undefined' || !GbrModul._calcJahresgewinn) return false;
         const { einnahmen, umsatzNetto, gewinn } = GbrModul._calcJahresgewinn(year);
         const umsatz = (typeof umsatzNetto === 'number') ? umsatzNetto : einnahmen;   // netto, s. E-05b
-        return umsatz > this.AO141_UMSATZ_GRENZE || gewinn > this.AO141_GEWINN_GRENZE;
+        const g = this._getAO141Grenzen(year);
+        return umsatz > g.umsatz || gewinn > g.gewinn;
     },
 
     // §141 Abs. 2 AO: Die Buchführungspflicht beginnt erst mit dem Wirtschaftsjahr, das auf die

@@ -62,7 +62,8 @@ ok('Alte Formel "calc.zvE * 0.25" (Bemessung VOR Steuern) kommt nicht mehr vor',
     !/thesaurierung\s*=\s*isUG\s*\?\s*calc\.zvE\s*\*\s*0\.25/.test(kstSrc));
 ok('Neue Formel bemisst 25% des Jahresüberschusses NACH Steuern (fin.gewinn − calc.steuerGesamt)',
     /jahresueberschussNachSteuern\s*=\s*fin\.gewinn\s*-\s*calc\.steuerGesamt/.test(kstSrc) &&
-    /thesaurierung\s*=\s*isUG\s*\?\s*Math\.max\(0,\s*jahresueberschussNachSteuern\)\s*\*\s*0\.25/.test(kstSrc));
+    /thesaurierung\s*=\s*isUG\s*\?\s*Math\.max\(0,\s*jahresueberschussNachSteuern\)\s*\*\s*this\._ugRuecklageQuote\(year\)/.test(kstSrc) &&
+    /_ugRuecklageQuote\(year\) \{\s*return 0\.25;/.test(kstSrc));
 
 const kstStore = makeStore();
 const kstUtilsCalls = [];
@@ -84,6 +85,9 @@ const kstContext = vm.createContext({
     // Stub liefert den Nettogewinn, der zum Verkauf unten passt (50.000 €, keine Ausgaben).
     Euer: { _berechne: () => ({ einnahmenNetto: 50000, wareneinkauf: 0, vorsteuerTeile: { purch: 0 }, nettoGewinn: 50000 }) },
 });
+// §11 GewStG (Messzahl) kommt aus js/gewerbesteuer.js — dort steht die eine Quelle.
+const gewStSrc = fs.readFileSync(path.join(__dirname, '..', 'js', 'gewerbesteuer.js'), 'utf8');
+vm.runInContext(gewStSrc, kstContext, { filename: 'gewerbesteuer.js' });
 vm.runInContext(kstSrc, kstContext, { filename: 'koerperschaftsteuer.js' });
 const Koerperschaftsteuer = vm.runInContext('Koerperschaftsteuer', kstContext);
 
@@ -147,6 +151,7 @@ const gbrContext = vm.createContext({
     },
     // Rechtsform bewusst NICHT definiert → testet, dass GbR-Code robust mit typeof-Checks arbeitet
 });
+vm.runInContext(gewStSrc, gbrContext, { filename: 'gewerbesteuer.js' });
 vm.runInContext(gbrSrc, gbrContext, { filename: 'gbr.js' });
 const GbR = vm.runInContext('GbR', gbrContext);
 

@@ -116,12 +116,18 @@ const Vorsteuer = {
     // zusätzlich Steuernr./USt-IdNr. des Ausstellers (Rechnungsnummer/Anschrift werden aktuell
     // nicht strukturiert erfasst — reine Namens-/Steuer-ID-Prüfung ist eine Annäherung, kein
     // vollständiger §14-Check, aber deckt den häufigsten Lückenfall ab).
+    // §33 UStDV: Kleinbetragsrechnung bis zu diesem Gesamtbetrag (brutto) — Jahresfunktion nach
+    // CLAUDE.md Regel 7. Annahme: für alle Jahre 250 €, wie vorher die feste Zahl.
+    _kleinbetragGrenze(year) {
+        return 250;
+    },
+
     _belegCheck(record, brutto) {
         // `haendler` ist das Lager-Feld für denselben Sachverhalt (Verkäufer/Aussteller) — mitzählen,
         // sonst meldet der Check bei Lager-Artikeln fälschlich einen fehlenden Aussteller-Namen.
         const name = ((record.lieferantName || record.lieferant || record.haendler || '')).trim();
         const steuerId = (record.lieferantSteuerId || '').trim();
-        const kleinbetrag = brutto <= 250;
+        const kleinbetrag = brutto <= this._kleinbetragGrenze(parseInt(String(record.datum || '').slice(0, 4), 10));
         const missing = [];
         if (!name) missing.push('Aussteller-Name');
         if (!kleinbetrag && !steuerId) missing.push('Steuernr./USt-IdNr.');

@@ -365,7 +365,7 @@ const GbrModul = {
         }
         // Kern aus js/gewerbesteuer.js inkl. Sonderbetriebsergebnis und Abrundung (E-04)
         const sonder      = typeof Gewerbesteuer !== 'undefined' ? Gewerbesteuer._sonderSaldo(year) : 0;
-        const k           = Gewerbesteuer.berechne(gewinn + sonder, { freibetrag: true, hebesatz: parseFloat(this._getEinst().hebesatz) || 400 });
+        const k           = Gewerbesteuer.berechne(gewinn + sonder, { freibetrag: true, hebesatz: parseFloat(this._getEinst().hebesatz) || 400, year });
         const hebesatz    = k.hebesatz;
         const freibetrag  = k.freibetrag;
         const stpfl       = k.gewerbeertrag;

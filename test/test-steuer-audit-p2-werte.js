@@ -43,9 +43,9 @@ const r2 = v => Math.round(v * 100) / 100;
 // U09 — OSS-Sätze
 {
     const c = ladeModule(['js/oss.js'], { Store: { getSettings: () => ({}) }, Utils: {} });
-    assert.strictEqual(c.OSS.EU_VAT_RATES.EE, 24);
-    assert.strictEqual(c.OSS.EU_VAT_RATES.RO, 21);
-    assert.strictEqual(r2(124 / (1 + c.OSS.EU_VAT_RATES.EE / 100)), 100);
+    assert.strictEqual(c.OSS._getEuSaetze(2026).EE, 24);
+    assert.strictEqual(c.OSS._getEuSaetze(2026).RO, 21);
+    assert.strictEqual(r2(124 / (1 + c.OSS._getEuSaetze(2026).EE / 100)), 100);
     ok('U09: OSS-Normalsätze EE 24 %, RO 21 % — 124 € brutto nach Estland = 100 € netto');
 }
 

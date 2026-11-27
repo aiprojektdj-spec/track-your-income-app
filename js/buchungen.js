@@ -1487,7 +1487,7 @@ const Buchungen = {
             const epBelegFotoViewLink = document.getElementById('ep_belegFotoView');
             if (epBelegFotoViewLink) epBelegFotoViewLink.addEventListener('click', (ev) => {
                 ev.preventDefault();
-                App.showModal('Beleg-Foto', `<img src="${p.belegFoto}" style="max-width:100%;border-radius:var(--radius-sm);">`, '<button class="btn" data-action="close-modal">Schließen</button>');
+                App.showModal('Beleg-Foto', `<img src="${p.belegFoto}" alt="Belegfoto" style="max-width:100%;border-radius:var(--radius-sm);">`, '<button class="btn" data-action="close-modal">Schließen</button>');
             });
 
             document.getElementById('savePurchaseEdit').addEventListener('click', async () => {

@@ -453,10 +453,10 @@ var Rechnung = (function() {
             : 'Wähle einen verfügbaren Lagerartikel für diese Position aus.';
         var body = '<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary);">' + introText + ' Der Artikel wird sofort als <em>Verkauft</em> markiert, damit er nicht versehentlich in einer zweiten Rechnung verwendet wird.</div>';
         body += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">' +
-            '<input type="text" class="form-input" id="lpFilterSearch" placeholder="Suche… (Enter)" style="max-width:150px;">' +
-            '<select class="form-select" id="lpFilterKategorie" style="max-width:140px;"><option value="">Alle Kategorien</option>' + kategorienOpts.map(function(k){ return '<option value="' + Utils.escapeHtml(k) + '">' + Utils.escapeHtml(k) + '</option>'; }).join('') + '</select>' +
-            '<select class="form-select" id="lpFilterZielgruppe" style="max-width:130px;"><option value="">Alle Zielgruppen</option>' + zielgruppenOpts.map(function(z){ return '<option value="' + Utils.escapeHtml(z) + '">' + Utils.escapeHtml(z) + '</option>'; }).join('') + '</select>' +
-            '<select class="form-select" id="lpFilterHaendler" style="max-width:140px;"><option value="">Alle Händler</option>' + haendlerOpts.map(function(h){ return '<option value="' + Utils.escapeHtml(h) + '">' + Utils.escapeHtml(h) + '</option>'; }).join('') + '</select>' +
+            '<input type="text" class="form-input" id="lpFilterSearch" aria-label="Artikel suchen" placeholder="Suche… (Enter)" style="max-width:150px;">' +
+            '<select class="form-select" id="lpFilterKategorie" aria-label="Nach Kategorie filtern" style="max-width:140px;"><option value="">Alle Kategorien</option>' + kategorienOpts.map(function(k){ return '<option value="' + Utils.escapeHtml(k) + '">' + Utils.escapeHtml(k) + '</option>'; }).join('') + '</select>' +
+            '<select class="form-select" id="lpFilterZielgruppe" aria-label="Nach Zielgruppe filtern" style="max-width:130px;"><option value="">Alle Zielgruppen</option>' + zielgruppenOpts.map(function(z){ return '<option value="' + Utils.escapeHtml(z) + '">' + Utils.escapeHtml(z) + '</option>'; }).join('') + '</select>' +
+            '<select class="form-select" id="lpFilterHaendler" aria-label="Nach Händler filtern" style="max-width:140px;"><option value="">Alle Händler</option>' + haendlerOpts.map(function(h){ return '<option value="' + Utils.escapeHtml(h) + '">' + Utils.escapeHtml(h) + '</option>'; }).join('') + '</select>' +
             '</div>';
         body += '<div style="overflow-x:auto;"><table style="width:100%;font-size:12px;"><thead><tr><th scope="col"></th><th scope="col">Art.-Nr.</th><th scope="col">Artikel</th><th scope="col">Beschreibung</th><th scope="col">Größe</th><th scope="col">EK-Preis</th><th scope="col"></th></tr></thead><tbody id="lagerPickerBody">' + renderRows(available) + '</tbody></table></div>';
 

@@ -921,7 +921,7 @@ var AuthUI = (function () {
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px;';
         overlay.innerHTML = [
             '<div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e2e42);border-radius:16px;padding:28px 26px;max-width:420px;width:100%;box-shadow:0 32px 80px rgba(0,0,0,.8);position:relative;">',
-            '<button data-action="wa-close-referral" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--text-muted,#888);font-size:20px;cursor:pointer;line-height:1;">×</button>',
+            '<button data-action="wa-close-referral" aria-label="Schließen" style="position:absolute;top:12px;right:14px;background:none;border:none;color:var(--text-muted,#888);font-size:20px;cursor:pointer;line-height:1;">×</button>',
             '<h2 style="color:var(--text-primary,#fff);font-size:19px;margin:0 0 8px;font-weight:800;">Stackr empfehlen</h2>',
             '<p style="color:var(--text-muted,#888);font-size:13px;margin:0 0 18px;line-height:1.6;">Teile Stackr mit anderen Selbstständigen. Für jede erfolgreiche Empfehlung erhältst du eine Prämie über Whop.</p>',
 

@@ -1436,7 +1436,7 @@ function viewBeleg(id) {
                 ${b.foto&&!b.foto.startsWith('data:application')?`
                 <div style="margin-bottom:14px">
                     <div style="font-size:10px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px">Anhang</div>
-                    <img src="${b.foto}" style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--border)">
+                    <img src="${b.foto}" alt="Belegfoto" style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--border)">
                 </div>`:''}
                 <div style="border-top:1px solid var(--border);padding-top:10px;font-size:12px;color:var(--text-muted)">
                     <i class="ti ti-check" style="color:var(--success,#22c55e)"></i> Ausgestellt von: <strong>${esc(b.aussteller||'—')}</strong>
@@ -1762,7 +1762,7 @@ body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:24px;max-
 ${b.foto&&!b.foto.startsWith('data:application')?`
 <div style="margin-top:22px;padding-top:14px;border-top:1px solid #eee">
     <div style="font-size:10px;text-transform:uppercase;color:#666;margin-bottom:8px">Anhang – Foto</div>
-    <img src="${b.foto}" style="max-width:100%;max-height:260px;border-radius:8px;border:1px solid #eee">
+    <img src="${b.foto}" alt="Belegfoto" style="max-width:100%;max-height:260px;border-radius:8px;border:1px solid #eee">
 </div>`:''}
 
 <div class="footer">Eigenbeleg gemäß GoBD – Aufbewahrungspflicht 8 Jahre (§ 147 AO) | Erstellt: ${datum(b.erstelltAm)} | ${esc(s.firmenname||'')}</div>

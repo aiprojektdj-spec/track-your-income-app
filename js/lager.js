@@ -265,7 +265,7 @@ const Lager = {
         // Kompakte Artikel-Info-Zeilen
         const artikelInfo = selected.map(p =>
             `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
-                ${p.foto ? `<img src="${p.foto}" style="width:28px;height:28px;object-fit:cover;border-radius:4px;flex-shrink:0;">` : `<i class="ti ti-package" aria-hidden="true" style="font-size:18px;color:var(--text-muted);"></i>`}
+                ${p.foto ? `<img src="${p.foto}" alt="" style="width:28px;height:28px;object-fit:cover;border-radius:4px;flex-shrink:0;">` : `<i class="ti ti-package" aria-hidden="true" style="font-size:18px;color:var(--text-muted);"></i>`}
                 <div style="flex:1;min-width:0;">
                     <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${Utils.escapeHtml((p.marke||'') + ' ' + (p.artikeltyp||''))}</div>
                     <div style="font-size:10px;color:var(--text-muted);">${Utils.escapeHtml(p.artikelNr||'')}${p.groesse ? ' · Gr. '+Utils.escapeHtml(p.groesse) : ''}</div>
@@ -929,7 +929,7 @@ const Lager = {
                             <button class="btn btn-small lager-page-btn" data-page-action="next"  ${this._currentPage === totalPages ? 'disabled' : ''} title="Weiter">›</button>
                             <button class="btn btn-small lager-page-btn" data-page-action="last"  ${this._currentPage === totalPages ? 'disabled' : ''} title="Letzte Seite">»</button>
                         `}
-                        <select class="form-select lager-page-size" style="font-size:12px;padding:3px 6px;margin-left:10px;">
+                        <select class="form-select lager-page-size" aria-label="Einträge pro Seite" style="font-size:12px;padding:3px 6px;margin-left:10px;">
                             <option value="25"    ${this._pageSize===25?'selected':''}>25 / Seite</option>
                             <option value="50"    ${this._pageSize===50?'selected':''}>50 / Seite</option>
                             <option value="100"   ${this._pageSize===100?'selected':''}>100 / Seite</option>
@@ -1066,7 +1066,7 @@ const Lager = {
                 }
 
                 const photoCell = p.foto
-                    ? `<img src="${p.foto}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;cursor:pointer;vertical-align:middle;" data-photo-preview="${p.id}" title="Foto">`
+                    ? `<img src="${p.foto}" alt="Artikelfoto anzeigen" style="width:34px;height:34px;object-fit:cover;border-radius:4px;cursor:pointer;vertical-align:middle;" data-photo-preview="${p.id}" title="Foto">`
                     : `<button class="btn btn-small" style="font-size:11px;padding:2px 5px;opacity:.6;" data-upload-photo="${p.id}" title="Foto hinzufügen" aria-label="Foto hinzufügen"><i class="ti ti-camera" aria-hidden="true"></i></button>`;
 
                 const isSelected = this._selected.has(p.id);
@@ -1074,7 +1074,7 @@ const Lager = {
 
                 return `
                 <tr${p.storniert ? ' class="row-storniert"' : ''}${isSelected ? ' style="background:rgba(99,102,241,.07);"' : ''}>
-                    <td style="width:26px;text-align:center;padding:4px 2px;"><input type="checkbox" class="lager-select-cb" data-id="${p.id}" ${p.storniert ? 'disabled' : ''} ${isSelected ? 'checked' : ''}></td>
+                    <td style="width:26px;text-align:center;padding:4px 2px;"><input type="checkbox" class="lager-select-cb" aria-label="Artikel auswählen" data-id="${p.id}" ${p.storniert ? 'disabled' : ''} ${isSelected ? 'checked' : ''}></td>
                     <td style="width:42px;text-align:center;padding:3px;">${photoCell}</td>
                     <td style="padding:3px 6px;line-height:1.25;white-space:nowrap;">
                         <div style="font-family:monospace;font-size:11px;">${Utils.escapeHtml(p.artikelNr || '—')}</div>
@@ -1120,7 +1120,7 @@ const Lager = {
                 <table style="font-size:12px;">
                     <thead>
                         <tr>
-                            <th style="width:26px;padding:5px 2px;"><input type="checkbox" id="lagerSelectAll" title="Alle"></th>
+                            <th style="width:26px;padding:5px 2px;"><input type="checkbox" id="lagerSelectAll" title="Alle" aria-label="Alle Artikel auswählen"></th>
                             <th style="width:42px;padding:5px;"><i class="ti ti-camera" style="font-size:13px;"></i></th>
                             <th class="${si('artikelNr')}" data-sort="artikelNr" style="padding:5px 6px;text-align:left;" title="Nach Artikelnummer sortieren">Art.-Nr. / Datum</th>
                             <th class="${si('artikel')}" data-sort="artikel" style="padding:5px 6px;text-align:left;" title="Nach Artikel sortieren">Artikel / Beschreibung</th>
@@ -1132,7 +1132,7 @@ const Lager = {
                         </tr>
                         <tr class="lager-filter-row">
                             <th colspan="2" style="padding:3px 4px;text-align:center;">
-                                <button class="btn btn-small" id="lagerHfReset" title="Spaltenfilter zurücksetzen"
+                                <button class="btn btn-small" id="lagerHfReset" title="Spaltenfilter zurücksetzen" aria-label="Spaltenfilter zurücksetzen"
                                         style="font-size:10px;padding:2px 6px;min-height:0;opacity:.7;">✕</button>
                             </th>
                             <th style="padding:3px 5px;min-width:130px;">
@@ -1149,7 +1149,7 @@ const Lager = {
                             <th style="padding:3px 5px;"></th>
                             <th style="padding:3px 5px;min-width:90px;">${inp('lagerHfLagerort', f.lagerort, 'Ort / Regal')}</th>
                             <th style="padding:3px 5px;min-width:90px;">
-                                <select class="form-select" id="lagerHfStatus" style="width:100%;font-size:11px;padding:3px 6px;min-height:0;">
+                                <select class="form-select" id="lagerHfStatus" aria-label="Nach Status filtern" style="width:100%;font-size:11px;padding:3px 6px;min-height:0;">
                                     <option value="">Alle</option>${statusOpts}
                                 </select>
                             </th>
@@ -1178,11 +1178,11 @@ const Lager = {
             <div class="card" style="padding:0;overflow:hidden;border:2px solid ${isSelected ? 'var(--accent)' : 'transparent'};transition:border-color .15s;cursor:default;">
                 <div style="position:relative;background:var(--bg-secondary);">
                     ${p.foto
-                        ? `<img src="${p.foto}" style="width:100%;height:130px;object-fit:cover;display:block;">`
+                        ? `<img src="${p.foto}" alt="" style="width:100%;height:130px;object-fit:cover;display:block;">`
                         : `<div style="width:100%;height:70px;display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--text-muted);"><i class="ti ti-package" aria-hidden="true"></i></div>`
                     }
                     ${p.storniert ? '' : `<div style="position:absolute;top:6px;left:6px;">
-                        <input type="checkbox" class="lager-select-cb" data-id="${p.id}" ${isSelected ? 'checked' : ''} style="width:17px;height:17px;cursor:pointer;accent-color:var(--accent);">
+                        <input type="checkbox" class="lager-select-cb" aria-label="Artikel auswählen" data-id="${p.id}" ${isSelected ? 'checked' : ''} style="width:17px;height:17px;cursor:pointer;accent-color:var(--accent);">
                     </div>`}
                     <div style="position:absolute;top:6px;right:6px;">
                         ${this._statusBadge(p.status, p.storniert)}
@@ -1810,7 +1810,7 @@ const Lager = {
 
         const rows = unassigned.map(p => `
             <tr>
-                <td style="padding:5px 8px;text-align:center;"><input type="checkbox" class="zone-assign-cb" data-pid="${p.id}" style="width:15px;height:15px;accent-color:${zone.color};"></td>
+                <td style="padding:5px 8px;text-align:center;"><input type="checkbox" class="zone-assign-cb" aria-label="Artikel der Zone zuordnen" data-pid="${p.id}" style="width:15px;height:15px;accent-color:${zone.color};"></td>
                 <td style="padding:5px 8px;font-family:monospace;font-size:11px;">${Utils.escapeHtml(p.artikelNr||'—')}</td>
                 <td style="padding:5px 8px;font-size:12px;font-weight:600;">${Utils.escapeHtml(p.marke||'—')} ${Utils.escapeHtml(p.artikeltyp||'')}</td>
                 <td style="padding:5px 8px;font-size:12px;">${Utils.escapeHtml(p.groesse||'—')}</td>
@@ -2330,7 +2330,7 @@ const Lager = {
                     if (!p || !p.foto) return;
                     const body = `
                         <div style="text-align:center;">
-                            <img src="${p.foto}" style="max-width:100%;max-height:60vh;border-radius:8px;object-fit:contain;">
+                            <img src="${p.foto}" alt="Artikelfoto" style="max-width:100%;max-height:60vh;border-radius:8px;object-fit:contain;">
                         </div>
                         <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
                             <button class="btn btn-small" id="changePhoto_${id}">Foto ändern</button>
@@ -2472,7 +2472,7 @@ const Lager = {
                                 </div>
                                 ${!p.storniert ? `
                                 <div style="flex:1;min-width:140px;max-width:200px;">
-                                    <select class="form-select" id="le_status" style="font-size:13px;">
+                                    <select class="form-select" id="le_status" aria-label="Status ändern" style="font-size:13px;">
                                         ${statusOptions}
                                     </select>
                                 </div>` : '<div style="font-size:12px;color:var(--danger,#ef4444);">Storniert — Status kann nicht geändert werden</div>'}
@@ -2483,7 +2483,7 @@ const Lager = {
                             <label class="form-label">Foto</label>
                             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                                 ${p.foto
-                                    ? `<img id="lagerPhotoPreview_${id}" src="${p.foto}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;">`
+                                    ? `<img id="lagerPhotoPreview_${id}" src="${p.foto}" alt="Fotovorschau" style="width:64px;height:64px;object-fit:cover;border-radius:6px;">`
                                     : `<div style="width:64px;height:64px;background:var(--bg-secondary);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:26px;color:var(--text-muted);"><i class="ti ti-package" aria-hidden="true"></i></div>`
                                 }
                                 <button class="btn btn-small" id="lagerPhotoUploadBtn_${id}" type="button">${p.foto ? 'Ändern' : 'Hinzufügen'}</button>
@@ -2532,7 +2532,7 @@ const Lager = {
                                     ${quellenOptions}
                                 </select>
                                 <div id="le_customQuelleGroup" style="display:none;margin-top:6px;">
-                                    <input type="text" class="form-input" id="le_customQuelle" placeholder="Eigene Quelle eingeben...">
+                                    <input type="text" class="form-input" id="le_customQuelle" aria-label="Eigene Quelle" placeholder="Eigene Quelle eingeben...">
                                 </div>
                             </div>
                         </div>
@@ -2558,7 +2558,7 @@ const Lager = {
                                     ${haendlerOptions}
                                 </select>
                                 <div id="le_customHaendlerGroup" style="display:${p.haendler && !haendlerListe.includes(p.haendler) ? '' : 'none'};margin-top:6px;">
-                                    <input type="text" class="form-input" id="le_customHaendler" placeholder="Name eingeben..." value="${p.haendler && !haendlerListe.includes(p.haendler) ? Utils.escapeHtml(p.haendler) : ''}">
+                                    <input type="text" class="form-input" id="le_customHaendler" aria-label="Eigener Händler" placeholder="Name eingeben..." value="${p.haendler && !haendlerListe.includes(p.haendler) ? Utils.escapeHtml(p.haendler) : ''}">
                                 </div>
                             </div>
                         </div>

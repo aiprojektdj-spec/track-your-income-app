@@ -12,8 +12,8 @@ const App = {
         const modal = document.getElementById('modal');
         modal.innerHTML = `
             <div class="modal-header">
-                <h3>${title}</h3>
-                <button class="modal-close" data-action="close-modal">&times;</button>
+                <h3 id="modalTitle">${title}</h3>
+                <button class="modal-close" data-action="close-modal" aria-label="Schließen">&times;</button>
             </div>
             <div class="modal-body">${bodyHtml}</div>
             ${footerHtml ? `<div class="modal-footer">${footerHtml}</div>` : ''}
@@ -138,7 +138,7 @@ const LagerPage = {
                            style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);"
                            data-action="stop">
                 </td>
-                ${p.foto ? `<td style="width:40px;padding:4px;"><img src="${p.foto}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;"></td>`
+                ${p.foto ? `<td style="width:40px;padding:4px;"><img src="${p.foto}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:4px;vertical-align:middle;"></td>`
                           : `<td style="width:40px;text-align:center;color:var(--text-muted);font-size:18px;"><i class="ti ti-package" aria-hidden="true"></i></td>`}
                 <td style="padding:6px 8px;font-family:monospace;font-size:11px;white-space:nowrap;color:var(--text-muted);">${Utils.escapeHtml(p.artikelNr||'—')}</td>
                 <td style="padding:6px 8px;font-size:13px;font-weight:600;">${Utils.escapeHtml((p.marke||'—')+' '+(p.artikeltyp||''))}</td>
@@ -718,7 +718,7 @@ function openNeuArtikelModal() {
                     <option value="Sonstiges">Sonstiges …</option>
                 </select>
                 <div id="neu_customHaendlerGroup" style="display:none;margin-top:6px;">
-                    <input type="text" class="form-input" id="neu_customHaendler" placeholder="Name eingeben...">
+                    <input type="text" class="form-input" id="neu_customHaendler" aria-label="Eigener Händler" placeholder="Name eingeben...">
                 </div>
             </div>
 
@@ -828,7 +828,7 @@ function openNeuArtikelModal() {
                 canvas.getContext('2d').drawImage(img, 0, 0, w, h);
                 neuFotoBase64 = canvas.toDataURL('image/jpeg', 0.78);
                 const wrap = document.getElementById('neuFotoPreviewWrap');
-                wrap.innerHTML = `<img src="${neuFotoBase64}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">`;
+                wrap.innerHTML = `<img src="${neuFotoBase64}" alt="Fotovorschau" style="width:100%;height:100%;object-fit:cover;border-radius:6px;">`;
                 wrap.style.border = 'none';
             };
             img.src = ev.target.result;
@@ -957,7 +957,7 @@ function openKategorienModal() {
                 `).join('') || '<div style="font-size:13px;color:var(--text-muted);">Keine Kategorien angelegt</div>'}
             </div>
             <div style="display:flex;gap:8px;">
-                <input type="text" class="form-input" id="katNeuInput" placeholder="Neue Kategorie …" style="flex:1;">
+                <input type="text" class="form-input" id="katNeuInput" aria-label="Neue Kategorie" placeholder="Neue Kategorie …" style="flex:1;">
                 <button class="btn btn-primary" id="katNeuBtn">+ Hinzufügen</button>
             </div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:10px;">Löschen entfernt die Kategorie nur aus der Auswahlliste — bereits zugeordnete Artikel behalten ihre Kategorie-Angabe.</div>
@@ -1019,9 +1019,9 @@ function openStatusModal() {
                 `).join('')}
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
-                <input type="color" id="statusNeuFarbe" value="#6b7280" style="width:38px;height:38px;padding:2px;border-radius:6px;cursor:pointer;">
-                <input type="text" class="form-input" id="statusNeuIcon" placeholder="Icon (z.B. ★)" maxlength="4" style="width:70px;">
-                <input type="text" class="form-input" id="statusNeuInput" placeholder="Neuer Status …" style="flex:1;">
+                <input type="color" id="statusNeuFarbe" aria-label="Farbe des neuen Status" value="#6b7280" style="width:38px;height:38px;padding:2px;border-radius:6px;cursor:pointer;">
+                <input type="text" class="form-input" id="statusNeuIcon" aria-label="Icon des neuen Status" placeholder="Icon (z.B. ★)" maxlength="4" style="width:70px;">
+                <input type="text" class="form-input" id="statusNeuInput" aria-label="Neuer Status" placeholder="Neuer Status …" style="flex:1;">
                 <button class="btn btn-primary" id="statusNeuBtn">+ Hinzufügen</button>
             </div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:10px;">Umbenennen ändert nur die Anzeige, bestehende Artikel bleiben zugeordnet. Löschen ist nur möglich, wenn kein Artikel mehr diesen Status hat.</div>
@@ -1142,7 +1142,7 @@ function openBulkArtikelModal() {
                 <option value="Sonstiges">Sonstiges …</option>
             </select>
             <div id="bulk_customHaendlerGroup" style="display:none;margin-top:6px;">
-                <input type="text" class="form-input" id="bulk_customHaendler" placeholder="Name eingeben...">
+                <input type="text" class="form-input" id="bulk_customHaendler" aria-label="Eigener Händler" placeholder="Name eingeben...">
             </div>
         </div>
 
@@ -1325,7 +1325,7 @@ function _renderBulkRows() {
     tbody.innerHTML = _bulkRows.map(row => {
         const foto = _bulkPhotos[row.id];
         const photoHtml = foto
-            ? `<img id="bulkPh_${row.id}" src="${foto}" role="button" tabindex="0"
+            ? `<img id="bulkPh_${row.id}" src="${foto}" alt="Foto ändern" role="button" tabindex="0"
                     aria-label="Foto ändern"
                     style="width:40px;height:40px;object-fit:cover;border-radius:4px;cursor:pointer;vertical-align:middle;"
                     title="Klicken zum Ändern">`

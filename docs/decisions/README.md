@@ -11,3 +11,4 @@ Rules:
 | --- | --- | --- |
 | 0001 | [Grundentscheidungen des Stacks](0001-grundentscheidungen.md) | accepted |
 | 0002 | [Schnittstelle für KI-Automatisierung](0002-ki-automatisierung-schnittstelle.md) | proposed |
+| 0003 | [Persönliche Bonus-Codes für Academy-Käufer (Variante B)](0003-bonus-codes-variante-b.md) | proposed |

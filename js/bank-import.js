@@ -85,7 +85,7 @@ var BankImport = (function () {
             });
         } catch (e) {
             console.error('CAMT parse error:', e);
-            return { error: e.message, transactions: [] };
+            return { error: e.message, technisch: true, transactions: [] };
         }
         return { transactions: transactions };
     }
@@ -178,7 +178,7 @@ var BankImport = (function () {
 
         } catch (e) {
             console.error('MT940 parse error:', e);
-            return { error: e.message, transactions: [] };
+            return { error: e.message, technisch: true, transactions: [] };
         }
         return { transactions: transactions };
     }
@@ -249,7 +249,7 @@ var BankImport = (function () {
             }
         } catch (e) {
             console.error('CSV parse error:', e);
-            return { error: e.message, transactions: [] };
+            return { error: e.message, technisch: true, transactions: [] };
         }
         return { transactions: transactions };
     }
@@ -425,7 +425,9 @@ var BankImport = (function () {
                     var content = e.target.result;
                     var result = parse(content, file.name);
                     if (result.error) {
-                        Utils.showToast('Fehler beim Lesen: ' + result.error, 'error');
+                        console.error('[BankImport] Lesen fehlgeschlagen:', result.error);
+                        Utils.showToast('Datei konnte nicht gelesen werden' + (result.technisch ? '' : ' (' + result.error + ')') +
+                            '. Bitte einen Kontoauszug als CAMT.053 (XML), MT940 (.sta) oder CSV wählen.', 'error', 8000);
                         return;
                     }
                     _parsed = result.transactions;

@@ -1083,11 +1083,14 @@ const App = {
         const input = document.getElementById('set_webhook_' + key);
         const url = input ? input.value.trim() : '';
         if (!url) { Utils.showToast('Erst eine Webhook-URL eintragen', 'warning'); return; }
-        Utils.showToast('Sende Test-Payload …', 'info');
+        Utils.showToast('Sende Test-Nachricht …', 'info');
         const res = await Webhooks.test(key, url);
-        if (res.ok) Utils.showToast('Test-Payload gesendet (' + res.status + ')', 'success');
+        if (res.ok) Utils.showToast('Test-Nachricht an den Webhook gesendet', 'success');
         else if (res.error === 'not_allowed') Utils.showToast('Nur Make.com-Webhooks möglich (https://hook.….make.com/…)', 'error');
-        else Utils.showToast('Fehlgeschlagen: ' + (res.error || 'HTTP ' + res.status), 'error');
+        else {
+            console.error('[Webhook] Test fehlgeschlagen:', res.error || ('HTTP ' + res.status));
+            Utils.showToast('Test-Nachricht konnte nicht gesendet werden. Bitte die Webhook-URL in Make.com prüfen und erneut versuchen.', 'error');
+        }
     },
 
     // ── §19 UStG Jahresumsatz-Grenzprüfung ───────────────────────
@@ -2386,7 +2389,8 @@ const App = {
                         this.closeModal();
                         App.navigate(App.currentPage);
                     }).catch(err => {
-                        Utils.showToast('Fehler: ' + err, 'error');
+                        console.error('[Backup] Wiederherstellen fehlgeschlagen:', err);
+                        Utils.showToast('Wiederherstellen fehlgeschlagen: ' + Utils.errorText(err, 'Bitte einen anderen Sicherungsstand wählen oder ein Backup importieren.'), 'error');
                     });
                 });
             });
@@ -2604,11 +2608,11 @@ const App = {
         const cleanupBtn = document.getElementById('openCleanupBtn');
         if (cleanupBtn) cleanupBtn.addEventListener('click', () => this.showCleanupModal());
 
-        document.getElementById('exportEncryptedBtn').addEventListener('click', () => {
-            const pw = prompt('Passwort für verschlüsseltes Backup (mind. 8 Zeichen):');
+        document.getElementById('exportEncryptedBtn').addEventListener('click', async () => {
+            const pw = await PasswortDialog.frage('Passwort für verschlüsseltes Backup (mind. 8 Zeichen):', 'new-password');
             if (!pw) return;
             if (pw.length < 8) { Utils.showToast('Passwort zu kurz (min. 8 Zeichen)', 'error'); return; }
-            const pw2 = prompt('Passwort bestätigen:');
+            const pw2 = await PasswortDialog.frage('Passwort bestätigen:', 'new-password');
             if (pw !== pw2) { Utils.showToast('Passwörter stimmen nicht überein', 'error'); return; }
             this._encryptBackup(Store.exportAll(), pw).then(enc => {
                 const filename = 'reselling_backup_' + Utils.todayISO() + '.enc.json';
@@ -2635,7 +2639,7 @@ const App = {
                     // Verschlüsseltes Backup erkennen
                     let jsonStr = raw;
                     if (parsed && parsed._encrypted === true) {
-                        const pw = prompt('Passwort für verschlüsseltes Backup:');
+                        const pw = await PasswortDialog.frage('Passwort für verschlüsseltes Backup:', 'current-password');
                         if (!pw) return;
                         jsonStr = await this._decryptBackup(parsed, pw);
                     }
@@ -3155,7 +3159,7 @@ const App = {
                         if (r.source === 'AutoBackup-IDB') {
                             Store.restoreFromIDBSnapshot(r.id)
                                 .then(doRestore)
-                                .catch(err => Utils.showToast('Fehler: ' + err, 'error'));
+                                .catch(err => { console.error('[Backup] Wiederherstellen fehlgeschlagen:', err); Utils.showToast('Wiederherstellen fehlgeschlagen: ' + Utils.errorText(err, 'Bitte einen anderen Sicherungsstand wählen oder ein Backup importieren.'), 'error'); });
                         } else if (r.source === 'localStorage-Raw') {
                             const n = Store.restoreFromLocalStorageRaw();
                             Utils.showToast(`${n} Schlüssel aus localStorage wiederhergestellt`, 'success');

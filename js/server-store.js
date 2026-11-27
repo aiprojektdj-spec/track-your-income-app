@@ -281,7 +281,7 @@ const ServerStore = {
         } catch (e) {}
         if (!erg.gleich) {
             console.warn('[ServerStore] Prüfsumme weicht ab', company, erg);
-            if (typeof Utils !== 'undefined' && Utils.showToast) Utils.showToast('Server-Spiegel: Prüfsumme weicht ab (Testfirma). Details: ServerStore.status()', 'warning', 8000);
+            if (typeof Utils !== 'undefined' && Utils.showToast) Utils.showToast('Server-Spiegel: Prüfsumme weicht ab (Testfirma). Bitte den Support informieren.', 'warning', 8000);
         }
         return erg;
     },

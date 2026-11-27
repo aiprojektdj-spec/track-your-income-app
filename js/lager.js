@@ -540,7 +540,7 @@ const Lager = {
         if (err) { Utils.showToast(err, 'warning'); return; }
 
         const reader = new FileReader();
-        reader.onerror = () => Utils.showToast('Datei konnte nicht gelesen werden', 'error');
+        reader.onerror = () => Utils.showToast('Datei konnte nicht gelesen werden. Bitte das Bild erneut auswählen.', 'error');
         reader.onload = e => {
             const img = new Image();
             img.onerror = () => Utils.showToast('Bild konnte nicht decodiert werden — andere Datei wählen', 'error');
@@ -555,7 +555,8 @@ const Lager = {
                     canvas.getContext('2d').drawImage(img, 0, 0, w, h);
                     Lager._setPhoto(id, canvas.toDataURL('image/jpeg', 0.78));
                 } catch (ex) {
-                    Utils.showToast('Bild-Verarbeitung fehlgeschlagen: ' + ex.message, 'error');
+                    console.error('[Lager] Bild-Verarbeitung fehlgeschlagen:', ex);
+                    Utils.showToast('Bild konnte nicht verarbeitet werden. Bitte ein anderes Foto wählen.', 'error');
                 }
             };
             img.src = e.target.result;

@@ -1358,8 +1358,9 @@ var CloudSync = (function () {
         if (probe.status !== 200) {
             // Bewusst KEIN Schlüssel "auf Verdacht": liegen serverseitig schon Daten, wäre der
             // neue Schlüssel für immer der falsche. Lieber abbrechen als eine Sackgasse bauen.
-            Utils.showToast('Cloud-Sync konnte nicht geprüft werden (Server nicht erreichbar' +
-                (probe.status ? ', HTTP ' + probe.status : '') + '). Bitte mit Internetverbindung erneut versuchen.', 'warning', 9000);
+            console.error('[CloudSync] Prüfung fehlgeschlagen, HTTP', probe.status);
+            Utils.showToast('Cloud-Sync konnte nicht geprüft werden (Server nicht erreichbar). ' +
+                'Bitte mit Internetverbindung erneut versuchen.', 'warning', 9000);
             return;
         }
         if (probe.json.blob) { _showExistingData(probe.json.blob); return; }
@@ -1526,7 +1527,11 @@ var CloudSync = (function () {
             // Test-Entschlüsselung gegen die Account-Registry des anderen Geräts
             var pull = await _api({ action: 'pull', scope: '__account' });
             if (pull.status === 403) { Utils.showToast('Cloud-Sync ist ein Pro-Feature.', 'warning'); throw 0; }
-            if (pull.status !== 200) { Utils.showToast('Server nicht erreichbar (' + pull.status + ').', 'error'); throw 0; }
+            if (pull.status !== 200) {
+                console.error('[CloudSync] Code-Prüfung, HTTP', pull.status);
+                Utils.showToast('Server nicht erreichbar. Bitte die Internetverbindung prüfen und erneut versuchen.', 'error');
+                throw 0;
+            }
             if (pull.json.blob) {
                 var probe = await _probeKey(pull.json.blob, bytes);
                 if (probe === 'unreachable') {
@@ -1644,7 +1649,8 @@ var CloudSync = (function () {
         try {
             var res = await _api({ action: 'reset_all' });
             if (res.status !== 200) {
-                Utils.showToast('Cloud-Daten konnten nicht verworfen werden (HTTP ' + res.status + '). Bitte später erneut versuchen.', 'error', 9000);
+                console.error('[CloudSync] reset_all, HTTP', res.status);
+                Utils.showToast('Cloud-Daten konnten nicht verworfen werden. Bitte später erneut versuchen.', 'error', 9000);
                 if (btn) { btn.disabled = false; btn.textContent = 'Cloud-Daten verwerfen & neu aufsetzen'; }
                 return;
             }

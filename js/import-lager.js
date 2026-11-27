@@ -231,6 +231,8 @@ const LagerImport = (function () {
         if (dubl.length) {
             h += '<div style="border:1px solid rgba(245,158,11,.35);background:rgba(245,158,11,.08);border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:8px;">' +
                 '<div style="font-weight:600;margin-bottom:4px;">Bereits vorhanden — nicht ausgewählt; Haken setzen, um sie trotzdem zu importieren</div>' +
+                '<label style="display:flex;gap:6px;align-items:center;padding:2px 0 4px;font-weight:600;"><input type="checkbox" class="imp-dup-alle"' +
+                (dubl.every(function (z) { return z.importieren; }) ? ' checked' : '') + '> Alle Dubletten an/aus</label>' +
                 dubl.map(function (z) {
                     return '<label style="display:flex;gap:6px;align-items:center;padding:2px 0;"><input type="checkbox" class="imp-dup" data-zeile="' + z.zeile + '"' + (z.importieren ? ' checked' : '') + '> ' +
                         'Zeile ' + z.zeile + ': ' + esc(z.label) + '</label>';
@@ -281,6 +283,14 @@ const LagerImport = (function () {
         container.querySelectorAll('.imp-dup').forEach(function (cb) {
             cb.addEventListener('change', function () {
                 erg.zeilen.forEach(function (z) { if (String(z.zeile) === cb.dataset.zeile) z.importieren = cb.checked; });
+            });
+        });
+        // Schalter "alle Dubletten an/aus": setzt jeden Haken und dessen Zeile im Ergebnis
+        var einzel = container.querySelectorAll('.imp-dup');
+        container.querySelectorAll('.imp-dup-alle').forEach(function (alle) {
+            alle.addEventListener('change', function () {
+                einzel.forEach(function (cb) { cb.checked = alle.checked; });
+                erg.zeilen.forEach(function (z) { if (z.dublette) z.importieren = alle.checked; });
             });
         });
     }
@@ -357,7 +367,7 @@ const LagerImport = (function () {
         gebuehrProzent: gebuehrProzent, gebuehrAusAngaben: gebuehrAusAngaben, gebuehrEinheitHtml: gebuehrEinheitHtml, gebuehrAusFeld: gebuehrAusFeld, EINZEILEN_SPALTEN: EINZEILEN_SPALTEN, vorlageCsv: vorlageCsv,
         einkaufsZeilen: einkaufsZeilen, verkaufsZeilen: verkaufsZeilen, ausgewaehlt: ausgewaehlt,
         vorschauHtml: vorschauHtml, verdrahte: verdrahte, nichtImportiert: nichtImportiert, berichtHtml: berichtHtml, zeigeBericht: zeigeBericht,
-        fpEinkauf: fpEinkauf, _bestandEinkauf: bestandEinkauf, _bestandVerkauf: bestandVerkauf
+        fpEinkauf: fpEinkauf, fpVerkauf: fpVerkauf, _bestandEinkauf: bestandEinkauf, _bestandVerkauf: bestandVerkauf
     };
 })();
 if (typeof window !== 'undefined') window.LagerImport = LagerImport;

@@ -26,6 +26,7 @@
         'js/import-lager.js',
         'js/import-buchungen.js',
         'js/import-ausgaben.js',
+        'js/import-excel-vorlage.js',
         'js/import-eigenbelege.js',
         'js/buchungen.js',
         'js/lager.js',

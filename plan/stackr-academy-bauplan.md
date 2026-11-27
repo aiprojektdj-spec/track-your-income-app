@@ -30,13 +30,14 @@ Dateibesitz: `vercel.json` nur academy-seiten. Importcode (`js/import-*.js`, `js
 - Excel-Vorlage-Import wird an die CSV-Importe angeglichen (gesperrte Periode → Zeile übersprungen, Bericht).
 - Arbeit in eigenen Worktrees statt Branch-Wechsel im geteilten Working Tree; Merge nach master nur mit User-Freigabe.
 - Roter Test `test-csp-meta-header.js` stammt von fremder, ungetrackter `stackr-zahlen-im-blick.html`; in Worktrees nicht vorhanden.
+- Bonus: Promo-Code 100 % für 6 Monate (User, 2026-11-27).
 - Kein `Disallow` in robots.txt für die noindex-Seiten (sonst sieht Google das noindex nicht).
 
 ## Fragen an den User (offen)
 
 0. ~~Branches mergen~~ erledigt 2026-11-27 lokal (474fa0b, eb022d9, 38c347e), **nicht gepusht**; 177 Tests grün.
 
-1. Bonus-Mechanik: Promo-Code 100 % für 6 Monate (bucht ab Monat 7 automatisch ab, Hinweispflicht [ZU PRÜFEN]) oder Einmal-Plan mit „Zugang automatisch ablaufen lassen“? Bestimmt Text der Bonus-Seite. ADR-0003 empfiehlt: fester Code an Einmal-Plan mit 6-Monats-Ablauf binden (A + C); für Variante B zuerst Sandbox-Probe `has_access` (B3, 1–2 Tage), sonst B1 Webhook+Support-Chat (2–3 Tage), E-Mail-Dienst (B2, 4–6 Tage + AVV) nur wenn nötig.
+1. ~~Bonus-Mechanik~~ **entschieden 2026-11-27: Promo-Code 100 % für 6 Monate** (nicht Einmal-Plan). Folge laut Dashboard-Test: ab Monat 7 automatische Abbuchung zum regulären Preis, wenn nicht gekündigt → Hinweis auf Bonus-Seite und im Checkout nötig, Wortlaut [ZU PRÜFEN durch Rechtsberatung]. Bonus-Seite behält bis dahin den Platzhalter.
 2. Test-Promo-Code `TEST_BONUS_PRUEFUNG` im Kurs-Business laut Selbstbericht noch aktiv → von Hand beenden.
 3. Preise, Zugangsdauer, Widerruf, Bonus-Bedingungen, Rechtstexte: offen (Platzhalter).
 

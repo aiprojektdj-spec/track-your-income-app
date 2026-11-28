@@ -41,6 +41,16 @@ Dateibesitz: `vercel.json` nur academy-seiten. Importcode (`js/import-*.js`, `js
 2. Test-Promo-Code `TEST_BONUS_PRUEFUNG` im Kurs-Business laut Selbstbericht noch aktiv → von Hand beenden.
 3. Zugangsdauer entschieden 2026-11-28: 36 Monate ab Kauf (Einmalkauf, kein Abo). „Unbegrenzt“ verworfen: Whop Seller Terms Abschnitt 3 verbieten lifetime/indefinite-access Products (gelesen 2026-11-28). Preise entschieden 2026-11-28: Beginner 49 €, Professional 149 €, Scaling 299 €, Endpreise ohne USt (Kleinunternehmer). Offen: Widerruf, Bonus-Bedingungen, Rechtstexte: offen (Platzhalter).
 
+## Whop-Produkte (Kurs-Business biz_7fJ0acmh2RIpdP, angelegt 2026-11-28)
+
+| Stufe | Produkt-ID | Preis | Zugang | Link |
+|---|---|---|---|---|
+| Beginner | prod_ZIhXfpzqsfWAn | 49 € einmalig | 1096 Tage (36 Monate), läuft automatisch ab | whop.com/getstackr/stackr-reseller-academy-beginner |
+| Professional | prod_RDp2cJEkFi6o6 | 149 € einmalig | 1096 Tage | whop.com/getstackr/stackr-reseller-academy-professional |
+| Scaling | prod_VHc3B89Erxw8F | 299 € einmalig | 1096 Tage | whop.com/getstackr/stackr-reseller-academy-scaling |
+
+Alle: versteckt (nicht im Store), Affiliate-Provision aus (Whop-Standard 30 % abgeschaltet), durchgestrichener „Spare 20 %“-Preis (Whop-Standard) abgeschaltet, noch **keine Kurs-Apps/Inhalte**, keine Beschreibung. Über den Link aber kaufbar. Checkout-Links stehen bewusst noch nicht auf der Kursseite.
+
 ## Für den Live-Gang vormerken (nicht jetzt)
 
 - `noindex` entfernen, Eintrag in `sitemap.xml`, Link in Navigation/Footer, ggf. `Allow` in `robots.txt`.

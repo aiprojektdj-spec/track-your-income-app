@@ -35,11 +35,11 @@ Dateibesitz: `vercel.json` nur academy-seiten. Importcode (`js/import-*.js`, `js
 
 ## Fragen an den User (offen)
 
-0. ~~Branches mergen~~ erledigt 2026-11-27 lokal (474fa0b, eb022d9, 38c347e), **nicht gepusht**; 177 Tests grün.
+0. ~~Branches mergen~~ erledigt 2026-11-27 (474fa0b, eb022d9, 38c347e); von einer anderen Session mit gepusht, live mit noindex seit 2026-11-27 (geprüft 2026-11-28: CSP, noindex, nicht in sitemap). Test-Code TEST_BONUS_PRUEFUNG: kein aktiver Code mehr im Kurs-Business (geprüft 2026-11-28).
 
 1. ~~Bonus-Mechanik~~ **entschieden 2026-11-27: Einmal-Plan mit „Zugang automatisch ablaufen lassen → Nach sechs Monaten“**, fester Code (Variante A) an diesen Plan gebunden (A + C aus ADR-0003). Kein Abo, keine automatische Abbuchung nach 6 Monaten. Einrichtung im Stackr-Business macht der User in Whop; Rechtsfolge [ZU PRÜFEN durch Rechtsberatung].
 2. Test-Promo-Code `TEST_BONUS_PRUEFUNG` im Kurs-Business laut Selbstbericht noch aktiv → von Hand beenden.
-3. Preise, Zugangsdauer, Widerruf, Bonus-Bedingungen, Rechtstexte: offen (Platzhalter).
+3. Zugangsdauer entschieden 2026-11-27: unbegrenzt (Einmalkauf, kein Abo), steht auf der Kursseite. Offen: Preise, Widerruf, Bonus-Bedingungen, Rechtstexte: offen (Platzhalter).
 
 ## Für den Live-Gang vormerken (nicht jetzt)
 

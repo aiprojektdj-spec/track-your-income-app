@@ -49,12 +49,11 @@ Dateibesitz: `vercel.json` nur academy-seiten. Importcode (`js/import-*.js`, `js
 | Professional | prod_RDp2cJEkFi6o6 | 149 € einmalig | 1096 Tage | whop.com/getstackr/stackr-reseller-academy-professional |
 | Scaling | prod_VHc3B89Erxw8F | 299 € einmalig | 1096 Tage | whop.com/getstackr/stackr-reseller-academy-scaling |
 
-Alle: versteckt (nicht im Store), Affiliate-Provision aus (Whop-Standard 30 % abgeschaltet), durchgestrichener „Spare 20 %“-Preis (Whop-Standard) abgeschaltet, noch **keine Kurs-Apps/Inhalte**, keine Beschreibung. Über den Link aber kaufbar. Checkout-Links stehen bewusst noch nicht auf der Kursseite.
+Alle: versteckt (nicht im Store), Affiliate-Provision aus (Whop-Standard 30 % abgeschaltet), durchgestrichener „Spare 20 %“-Preis (Whop-Standard) abgeschaltet, noch **keine Kurs-Apps/Inhalte**, keine Beschreibung. Über den Link aber kaufbar. Checkout-Links stehen seit 2026-11-28 auf der Kursseite (User-Entscheidung, obwohl Inhalte und Bedingungen noch fehlen).
 
 ## Für den Live-Gang vormerken (nicht jetzt)
 
 - `noindex` entfernen, Eintrag in `sitemap.xml`, Link in Navigation/Footer, ggf. `Allow` in `robots.txt`.
-- Whop-Checkout-Links in der Kursseite (`<a rel="noopener">`).
 
 ## Phase 2 und 3 (nicht bauen)
 

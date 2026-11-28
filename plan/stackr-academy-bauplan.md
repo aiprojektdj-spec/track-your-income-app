@@ -39,7 +39,7 @@ Dateibesitz: `vercel.json` nur academy-seiten. Importcode (`js/import-*.js`, `js
 
 1. ~~Bonus-Mechanik~~ **entschieden 2026-11-27: Einmal-Plan mit „Zugang automatisch ablaufen lassen → Nach sechs Monaten“**, fester Code (Variante A) an diesen Plan gebunden (A + C aus ADR-0003). Kein Abo, keine automatische Abbuchung nach 6 Monaten. Einrichtung im Stackr-Business macht der User in Whop; Rechtsfolge [ZU PRÜFEN durch Rechtsberatung].
 2. Test-Promo-Code `TEST_BONUS_PRUEFUNG` im Kurs-Business laut Selbstbericht noch aktiv → von Hand beenden.
-3. Zugangsdauer entschieden 2026-11-27: unbegrenzt (Einmalkauf, kein Abo), steht auf der Kursseite. Offen: Preise, Widerruf, Bonus-Bedingungen, Rechtstexte: offen (Platzhalter).
+3. Zugangsdauer entschieden 2026-11-27: unbegrenzt (Einmalkauf, kein Abo), steht auf der Kursseite. Preise entschieden 2026-11-28: Beginner 49 €, Professional 149 €, Scaling 299 €, Endpreise ohne USt (Kleinunternehmer). Offen: Widerruf, Bonus-Bedingungen, Rechtstexte: offen (Platzhalter).
 
 ## Für den Live-Gang vormerken (nicht jetzt)
 
